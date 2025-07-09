@@ -54,26 +54,25 @@
 
             # Extra inputs can be added here; cargo and rustc are provided by default.
             packages = [
+              # nativeBuildInputs
               pkgs.pkg-config
               pkgs.gobject-introspection
               pkgs.cargo-tauri
               pkgs.nodejs
               pkgs.deno
-            ];
-
-            buildInputs = with pkgs;[
-              at-spi2-atk
-              atkmm
-              cairo
-              gdk-pixbuf
-              glib
-              gtk3
-              harfbuzz
-              librsvg
-              libsoup_3
-              pango
-              webkitgtk_4_1
-              openssl
+              # buildInputs
+              pkgs.at-spi2-atk
+              pkgs.atkmm
+              pkgs.cairo
+              pkgs.gdk-pixbuf
+              pkgs.glib
+              pkgs.gtk3
+              pkgs.harfbuzz
+              pkgs.librsvg
+              pkgs.libsoup_3
+              pkgs.pango
+              pkgs.webkitgtk_4_1
+              pkgs.openssl
             ];
           };
         };
