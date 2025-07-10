@@ -1,4 +1,4 @@
-import { createSignal } from "solid-js";
+import { createSignal, onMount } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
 
@@ -36,15 +36,18 @@ function App() {
     // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
     try {
       const res: StatusResponse = (await invoke("status")) as StatusResponse;
-      setPeers(res.available_destinations);
+      const peers = res.available_destinations;
+      peers.sort((a, b) => a.peer_id.localeCompare(b.peer_id));
+      setPeers(peers);
+      console.log("Status Response:", res);
       if (isConnected(res.status)) {
         setConnected(res.status.Connected);
       } else if (isConnecting(res.status)) {
         setConnected(res.status.Connecting);
-        setTimeout(() => status(), 1000);
+        setTimeout(() => status(), 333);
       } else if (isDisonnecting(res.status)) {
         setConnected(undefined);
-        setTimeout(() => status(), 1000);
+        setTimeout(() => status(), 333);
       } else {
         setConnected(undefined);
       }
@@ -60,7 +63,7 @@ function App() {
         peerId,
       })) as ConnectResponse;
       setMsg(`Connect: ${JSON.stringify(res, null, 2)}`);
-      setTimeout(() => status(), 1000);
+      setTimeout(() => status(), 333);
     } catch (error) {
       setMsg(`Connect Error: ${error}`);
     }
@@ -72,41 +75,56 @@ function App() {
         "disconnect",
       )) as DisconnectResponse;
       setMsg(JSON.stringify(res, null, 2));
-      setTimeout(() => status(), 1000);
+      setTimeout(() => status(), 333);
     } catch (error) {
       setMsg(`Disconnect Error: ${error}`);
     }
   }
 
-  const conn = connected();
+  onMount(status);
+
   return (
     <main class="container">
       <p>Gnosis VPN</p>
+      {(() => {
+        const conn = connected();
+        if (conn) {
+          return (
+            <div>
+              {peers().map((dest: Destination) => (
+                <p>
+                  {JSON.stringify(dest.meta, null, 2)}
+                  {conn.peer_id === dest.peer_id ? (
+                    <button type="button" onClick={() => disconnect()}>
+                      Disconnect
+                    </button>
+                  ) : (
+                    <button type="button" onClick={() => connect(dest.peer_id)}>
+                      Switch
+                    </button>
+                  )}
+                </p>
+              ))}
+            </div>
+          );
+        }
+        return (
+          <div>
+            {peers().map((dest: Destination) => (
+              <p>
+                {JSON.stringify(dest.meta, null, 2)}
+                <button type="button" onClick={() => connect(dest.peer_id)}>
+                  Connect
+                </button>
+              </p>
+            ))}
+          </div>
+        );
+      })()}
       <button type="button" onClick={status}>
-        Status
+        Refresh Status
       </button>
       <p>{msg()}</p>
-      {peers().map((dest: Destination) => (
-        <div>
-          <p>
-            {JSON.stringify(dest.meta, null, 2)}
-            <button type="button" onClick={() => connect(dest.peer_id)}>
-              Connect
-            </button>
-          </p>
-        </div>
-      ))}
-      {conn ? (
-        <div>
-          <p>Connected to: {JSON.stringify(conn.meta, null, 2)}</p>
-          <p>Path: {JSON.stringify(conn.path, null, 2)}</p>
-          <button type="button" onClick={() => disconnect()}>
-            Disconnect
-          </button>
-        </div>
-      ) : (
-        <p>No active connection</p>
-      )}
     </main>
   );
 }
