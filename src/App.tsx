@@ -3,20 +3,14 @@ import logo from "./assets/logo.svg";
 import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
 
-
-// ----- Response enum -----
-type Response =
-  | { Status: StatusResponse }
-  | { Connect: ConnectResponse }
-  | { Disconnect: DisconnectResponse }
-  | "Pong";
-
-// response to
 interface StatusResponse {
   wireguard: WireGuardStatus;
   status: Status;
   available_destinations: Destination[];
 }
+
+type ConnectResponse = { Connecting: Destination } | "PeerIdNotFound";
+type DisconnectResponse = { Disconnecting: Destination } | "NotConnected";
 
 type WireGuardStatus = "Up" | "Down" | "ManuallyManaged";
 
@@ -26,68 +20,74 @@ type Status =
   | { Connected: Destination }
   | "Disconnected";
 
-type ConnectResponse =
-  | { Connecting: Destination }
-  | "PeerIdNotFound";
-
-type DisconnectResponse =
-  | { Disconnecting: Destination }
-  | "NotConnected";
-
 interface Destination {
   meta: Record<string, string>; // equivalent to HashMap<String, String>
-  peer_id: string;              // PeerId as a string (assumption)
+  peer_id: string; // PeerId as a string (assumption)
   path: Path;
 }
 
-type Path =
-  | { Hops: number }
-  | { IntermediatePath: string[] };
+type Path = { Hops: number } | { IntermediatePath: string[] };
 
 function App() {
-    const [msg, setMsg] = createSignal("");
+  const [msg, setMsg] = createSignal("");
   const [peers, setPeers] = createSignal<Destination[]>();
+  const [connected, setConnected] = createSignal<Destination>();
 
   async function status() {
     // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
     try {
-        const res: StatusResponse = await invoke("status") as StatusResponse;
-            setPeers(res.available_destinations);
-            setMsg(`Status: ${JSON.stringify(res, null, 2)}`);
-        } catch (error) {
-        setMsg(`Status Error: ${error}`);
+      const res: StatusResponse = (await invoke("status")) as StatusResponse;
+      setPeers(res.available_destinations);
+      if (isConnected(res.status)) {
+        setConnected(res.status.Connected);
+      } else if (isConnecting(res.status)) {
+        setConnected(res.status.Connecting);
+      } else {
+        setConnected(undefined);
+      }
+      setMsg(`Status: ${JSON.stringify(res, null, 2)}`);
+    } catch (error) {
+      setMsg(`Status Error: ${error}`);
     }
   }
 
   async function connect(peerId: string) {
-    let res: any;
     try {
-    res = await invoke("connect", { peerId });
-    res = JSON.stringify(res, null, 2);
+      const res: ConnectResponse = (await invoke("connect", {
+        peerId,
+      })) as ConnectResponse;
+      setMsg(`Connect: ${JSON.stringify(res, null, 2)}`);
+      setTimeout(() => status(), 333);
     } catch (error) {
-        res = `Error: ${error}`;
+      setMsg(`Connect Error: ${error}`);
     }
-    const msg = `Connect: ${res}`;
-    setMsg(msg);
   }
 
   return (
     <main class="container">
-    <p>Gnosis VPN</p>
-    <button type="button" onClick={status} >Status</button>
+      <p>Gnosis VPN</p>
+      <button type="button" onClick={status}>
+        Status
+      </button>
       <p>{msg()}</p>
       {peers().map((dest: any) => (
-          <div>
-        <p>
-          {JSON.stringify(dest.meta, null, 2)}
-        </p>
-        <button type="button" onClick={() => connect(dest.peer_id)} >
+        <div>
+          <p>{JSON.stringify(dest.meta, null, 2)}</p>
+          <button type="button" onClick={() => connect(dest.peer_id)}>
             Connect
-        </button>
+          </button>
         </div>
       ))}
     </main>
   );
+}
+
+function isConnected(status: Status): status is { Connected: Destination } {
+  return typeof status === "object" && "Connected" in status;
+}
+
+function isConnecting(status: Status): status is { Connecting: Destination } {
+  return typeof status === "object" && "Connecting" in status;
 }
 
 export default App;
