@@ -1,5 +1,4 @@
 import { createSignal } from "solid-js";
-import logo from "./assets/logo.svg";
 import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
 
@@ -30,7 +29,7 @@ type Path = { Hops: number } | { IntermediatePath: string[] };
 
 function App() {
   const [msg, setMsg] = createSignal("");
-  const [peers, setPeers] = createSignal<Destination[]>();
+  const [peers, setPeers] = createSignal<Destination[]>([]);
   const [connected, setConnected] = createSignal<Destination>();
 
   async function status() {
@@ -42,10 +41,14 @@ function App() {
         setConnected(res.status.Connected);
       } else if (isConnecting(res.status)) {
         setConnected(res.status.Connecting);
+        setTimeout(() => status(), 1000);
+      } else if (isDisonnecting(res.status)) {
+        setConnected(undefined);
+        setTimeout(() => status(), 1000);
       } else {
         setConnected(undefined);
       }
-      setMsg(`Status: ${JSON.stringify(res, null, 2)}`);
+      setMsg(JSON.stringify(res, null, 2));
     } catch (error) {
       setMsg(`Status Error: ${error}`);
     }
@@ -57,12 +60,25 @@ function App() {
         peerId,
       })) as ConnectResponse;
       setMsg(`Connect: ${JSON.stringify(res, null, 2)}`);
-      setTimeout(() => status(), 333);
+      setTimeout(() => status(), 1000);
     } catch (error) {
       setMsg(`Connect Error: ${error}`);
     }
   }
 
+  async function disconnect() {
+    try {
+      const res: DisconnectResponse = (await invoke(
+        "disconnect",
+      )) as DisconnectResponse;
+      setMsg(JSON.stringify(res, null, 2));
+      setTimeout(() => status(), 1000);
+    } catch (error) {
+      setMsg(`Disconnect Error: ${error}`);
+    }
+  }
+
+  const conn = connected();
   return (
     <main class="container">
       <p>Gnosis VPN</p>
@@ -70,14 +86,27 @@ function App() {
         Status
       </button>
       <p>{msg()}</p>
-      {peers().map((dest: any) => (
+      {peers().map((dest: Destination) => (
         <div>
-          <p>{JSON.stringify(dest.meta, null, 2)}</p>
-          <button type="button" onClick={() => connect(dest.peer_id)}>
-            Connect
-          </button>
+          <p>
+            {JSON.stringify(dest.meta, null, 2)}
+            <button type="button" onClick={() => connect(dest.peer_id)}>
+              Connect
+            </button>
+          </p>
         </div>
       ))}
+      {conn ? (
+        <div>
+          <p>Connected to: {JSON.stringify(conn.meta, null, 2)}</p>
+          <p>Path: {JSON.stringify(conn.path, null, 2)}</p>
+          <button type="button" onClick={() => disconnect()}>
+            Disconnect
+          </button>
+        </div>
+      ) : (
+        <p>No active connection</p>
+      )}
     </main>
   );
 }
@@ -88,6 +117,12 @@ function isConnected(status: Status): status is { Connected: Destination } {
 
 function isConnecting(status: Status): status is { Connecting: Destination } {
   return typeof status === "object" && "Connecting" in status;
+}
+
+function isDisonnecting(
+  status: Status,
+): status is { Disconnecting: Destination } {
+  return typeof status === "object" && "Disconnecting" in status;
 }
 
 export default App;
