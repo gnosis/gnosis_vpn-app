@@ -45,7 +45,7 @@ function App() {
       } else if (isConnecting(res.status)) {
         setConnected(res.status.Connecting);
         setTimeout(() => status(), 333);
-      } else if (isDisonnecting(res.status)) {
+      } else if (isDisconnecting(res.status)) {
         setConnected(undefined);
         setTimeout(() => status(), 333);
       } else {
@@ -137,7 +137,7 @@ function isConnecting(status: Status): status is { Connecting: Destination } {
   return typeof status === "object" && "Connecting" in status;
 }
 
-function isDisonnecting(
+function isDisconnecting(
   status: Status,
 ): status is { Disconnecting: Destination } {
   return typeof status === "object" && "Disconnecting" in status;
