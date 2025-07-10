@@ -62,7 +62,7 @@ function App() {
       const res: ConnectResponse = (await invoke("connect", {
         peerId,
       })) as ConnectResponse;
-      setMsg(`Connect: ${JSON.stringify(res, null, 2)}`);
+      setMsg(JSON.stringify(res, null, 2));
       setTimeout(() => status(), 333);
     } catch (error) {
       setMsg(`Connect Error: ${error}`);
