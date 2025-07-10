@@ -13,3 +13,9 @@ In order to start development, run a local dev server via:
 nix develop --command deno install
 nix develop --command deno task tauri dev
 ```
+
+### macOS
+
+- Install [Prerequisites](https://v2.tauri.app/start/prerequisites/)
+- `deno install`
+- `deno task tauri dev`
