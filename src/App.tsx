@@ -48,7 +48,7 @@ function App() {
       {peers().map((dest: any) => (
           <div>
         <p>
-          {dest.meta}
+          {JSON.stringify(dest.meta, null, 2)}
         </p>
         <button type="button" onClick={() => connect(dest.peer_id)} >
             Connect
