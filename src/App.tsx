@@ -3,29 +3,60 @@ import logo from "./assets/logo.svg";
 import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
 
+
+// ----- Response enum -----
+type Response =
+  | { Status: StatusResponse }
+  | { Connect: ConnectResponse }
+  | { Disconnect: DisconnectResponse }
+  | "Pong";
+
+// response to
+interface StatusResponse {
+  wireguard: WireGuardStatus;
+  status: Status;
+  available_destinations: Destination[];
+}
+
+type WireGuardStatus = "Up" | "Down" | "ManuallyManaged";
+
+type Status =
+  | { Connecting: Destination }
+  | { Disconnecting: Destination }
+  | { Connected: Destination }
+  | "Disconnected";
+
+type ConnectResponse =
+  | { Connecting: Destination }
+  | "PeerIdNotFound";
+
+type DisconnectResponse =
+  | { Disconnecting: Destination }
+  | "NotConnected";
+
+interface Destination {
+  meta: Record<string, string>; // equivalent to HashMap<String, String>
+  peer_id: string;              // PeerId as a string (assumption)
+  path: Path;
+}
+
+type Path =
+  | { Hops: number }
+  | { IntermediatePath: string[] };
+
 function App() {
     const [msg, setMsg] = createSignal("");
-  const [peers, setPeers] = createSignal([]);
+  const [peers, setPeers] = createSignal<Destination[]>();
 
   async function status() {
     // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    let res: any;
     try {
-    res = await invoke("status") ;
-    if ("Status" in res) {
-        const st = res["Status"];
-        if ("available_destinations" in st) {
-            const availableDestinations = st["available_destinations"];
-            console.log("Available Destinations:", availableDestinations);
-            setPeers(availableDestinations);
-        }
+        const res: StatusResponse = await invoke("status") as StatusResponse;
+            setPeers(res.available_destinations);
+            setMsg(`Status: ${JSON.stringify(res, null, 2)}`);
+        } catch (error) {
+        setMsg(`Status Error: ${error}`);
     }
-    res = JSON.stringify(res, null, 2);
-    } catch (error) {
-        res = `Error: ${error}`;
-    }
-    const msg = `Status: ${res}`;
-    setMsg(msg);
   }
 
   async function connect(peerId: string) {

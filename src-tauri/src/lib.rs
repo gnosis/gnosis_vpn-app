@@ -3,10 +3,13 @@ use gnosis_vpn_lib::{command, peer_id, socket};
 use std::path::PathBuf;
 
 #[tauri::command]
-fn status() -> Result<command::Response, String> {
+fn status() -> Result<command::StatusResponse, String> {
     let p = PathBuf::from(socket::DEFAULT_PATH);
     let resp = socket::process_cmd(&p, &command::Command::Status).map_err(|e| e.to_string())?;
-    Ok(resp)
+    match resp {
+        command::Response::Status(status_resp) => Ok(status_resp),
+        _ => Err("Unexpected response type".to_string()),
+    }
 }
 
 #[tauri::command]
