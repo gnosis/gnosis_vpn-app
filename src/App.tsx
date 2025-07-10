@@ -4,52 +4,57 @@ import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
 
 function App() {
-  const [greetMsg, setGreetMsg] = createSignal("");
-  const [name, setName] = createSignal("");
+    const [msg, setMsg] = createSignal("");
+  const [peers, setPeers] = createSignal([]);
 
-  async function greet() {
+  async function status() {
     // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    let res = "";
+    let res: any;
     try {
-    res = await invoke("status", { name: name() });
+    res = await invoke("status") ;
+    if ("Status" in res) {
+        const st = res["Status"];
+        if ("available_destinations" in st) {
+            const availableDestinations = st["available_destinations"];
+            console.log("Available Destinations:", availableDestinations);
+            setPeers(availableDestinations);
+        }
+    }
+    res = JSON.stringify(res, null, 2);
     } catch (error) {
         res = `Error: ${error}`;
     }
-    setGreetMsg(res);
+    const msg = `Status: ${res}`;
+    setMsg(msg);
+  }
+
+  async function connect(peerId: string) {
+    let res: any;
+    try {
+    res = await invoke("connect", { peerId });
+    res = JSON.stringify(res, null, 2);
+    } catch (error) {
+        res = `Error: ${error}`;
+    }
+    const msg = `Connect: ${res}`;
+    setMsg(msg);
   }
 
   return (
     <main class="container">
-      <h1>Welcome to Tauri + Solid</h1>
-
-      <div class="row">
-        <a href="https://vitejs.dev" target="_blank">
-          <img src="/vite.svg" class="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" class="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://solidjs.com" target="_blank">
-          <img src={logo} class="logo solid" alt="Solid logo" />
-        </a>
-      </div>
-      <p>Click on the Tauri, Vite, and Solid logos to learn more.</p>
-
-      <form
-        class="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
-        }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
-        />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg()}</p>
+    <p>Gnosis VPN</p>
+    <button type="button" onClick={status} >Status</button>
+      <p>{msg()}</p>
+      {peers().map((dest: any) => (
+          <div>
+        <p>
+          {dest.meta}
+        </p>
+        <button type="button" onClick={() => connect(dest.peer_id)} >
+            Connect
+        </button>
+        </div>
+      ))}
     </main>
   );
 }
