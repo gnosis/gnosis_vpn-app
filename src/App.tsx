@@ -85,7 +85,7 @@ function App() {
 
   return (
     <main class="container">
-      <p>Gnosis VPN</p>
+      <p class="text-2xl font-bold text-red-500">Gnosis VPN</p>
       {(() => {
         const conn = connected();
         if (conn) {
