@@ -22,4 +22,4 @@ tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-gnosis_vpn-lib = { git = "ssh://git@github.com/gnosis/gnosis_vpn-client.git"}
+gnosis_vpn-lib = { git = "ssh://git@github.com/gnosis/gnosis_vpn-client.git", branch = "este/hoprd-v3"}

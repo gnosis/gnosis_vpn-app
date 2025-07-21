@@ -1,4 +1,4 @@
-use gnosis_vpn_lib::{command, peer_id, socket};
+use gnosis_vpn_lib::{address, command, socket};
 
 use std::path::PathBuf;
 
@@ -13,9 +13,9 @@ fn status() -> Result<command::StatusResponse, String> {
 }
 
 #[tauri::command]
-fn connect(peer_id: peer_id::PeerId) -> Result<command::ConnectResponse, String> {
+fn connect(address: address::Address) -> Result<command::ConnectResponse, String> {
     let p = PathBuf::from(socket::DEFAULT_PATH);
-    let cmd = command::Command::Connect(peer_id);
+    let cmd = command::Command::Connect(address);
     let resp = socket::process_cmd(&p, &cmd).map_err(|e| e.to_string())?;
     match resp {
         command::Response::Connect(resp) => Ok(resp),
