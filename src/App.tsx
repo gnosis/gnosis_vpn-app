@@ -57,10 +57,10 @@ function App() {
     }
   }
 
-  async function connect(peerId: string) {
+  async function connect(address: string) {
     try {
       const res: ConnectResponse = (await invoke("connect", {
-        peerId,
+        address,
       })) as ConnectResponse;
       setMsg(JSON.stringify(res, null, 2));
       setTimeout(() => status(), 333);
