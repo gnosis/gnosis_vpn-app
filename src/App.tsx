@@ -8,7 +8,7 @@ interface StatusResponse {
   available_destinations: Destination[];
 }
 
-type ConnectResponse = { Connecting: Destination } | "PeerIdNotFound";
+type ConnectResponse = { Connecting: Destination } | "AddressNotFound";
 type DisconnectResponse = { Disconnecting: Destination } | "NotConnected";
 
 type WireGuardStatus = "Up" | "Down" | "ManuallyManaged";
@@ -21,7 +21,7 @@ type Status =
 
 interface Destination {
   meta: Record<string, string>; // equivalent to HashMap<String, String>
-  peer_id: string; // PeerId as a string (assumption)
+  address: string; // Address as a string (assumption)
   path: Path;
 }
 
@@ -37,7 +37,7 @@ function App() {
     try {
       const res: StatusResponse = (await invoke("status")) as StatusResponse;
       const peers = res.available_destinations;
-      peers.sort((a, b) => a.peer_id.localeCompare(b.peer_id));
+      peers.sort((a, b) => a.address.localeCompare(b.address));
       setPeers(peers);
       console.log("Status Response:", res);
       if (isConnected(res.status)) {
@@ -57,10 +57,10 @@ function App() {
     }
   }
 
-  async function connect(peerId: string) {
+  async function connect(address: string) {
     try {
       const res: ConnectResponse = (await invoke("connect", {
-        peerId,
+        address,
       })) as ConnectResponse;
       setMsg(JSON.stringify(res, null, 2));
       setTimeout(() => status(), 333);
@@ -94,12 +94,12 @@ function App() {
               {peers().map((dest: Destination) => (
                 <p>
                   {JSON.stringify(dest.meta, null, 2)}
-                  {conn.peer_id === dest.peer_id ? (
+                  {conn.address === dest.address ? (
                     <button type="button" onClick={() => disconnect()}>
                       Disconnect
                     </button>
                   ) : (
-                    <button type="button" onClick={() => connect(dest.peer_id)}>
+                    <button type="button" onClick={() => connect(dest.address)}>
                       Switch
                     </button>
                   )}
@@ -113,7 +113,7 @@ function App() {
             {peers().map((dest: Destination) => (
               <p>
                 {JSON.stringify(dest.meta, null, 2)}
-                <button type="button" onClick={() => connect(dest.peer_id)}>
+                <button type="button" onClick={() => connect(dest.address)}>
                   Connect
                 </button>
               </p>
