@@ -1,45 +1,26 @@
-import { createSignal, onMount } from "solid-js";
-import { invoke } from "@tauri-apps/api/core";
-import "./App.css";
-
-interface StatusResponse {
-  wireguard: WireGuardStatus;
-  status: Status;
-  available_destinations: Destination[];
-}
-
-type ConnectResponse = { Connecting: Destination } | "AddressNotFound";
-type DisconnectResponse = { Disconnecting: Destination } | "NotConnected";
-
-type WireGuardStatus = "Up" | "Down" | "ManuallyManaged";
-
-type Status =
-  | { Connecting: Destination }
-  | { Disconnecting: Destination }
-  | { Connected: Destination }
-  | "Disconnected";
-
-interface Destination {
-  meta: Record<string, string>; // equivalent to HashMap<String, String>
-  address: string; // Address as a string (assumption)
-  path: Path;
-}
-
-type Path = { Hops: number } | { IntermediatePath: string[] };
+import { createSignal, onMount } from 'solid-js';
+import './App.css';
+import { VPNService } from './services';
+import type {
+  StatusResponse,
+  ConnectResponse,
+  DisconnectResponse,
+  Destination,
+} from './services';
+import { isConnected, isConnecting, isDisconnecting } from './types';
 
 function App() {
-  const [msg, setMsg] = createSignal("");
+  const [msg, setMsg] = createSignal('');
   const [peers, setPeers] = createSignal<Destination[]>([]);
   const [connected, setConnected] = createSignal<Destination>();
 
   async function status() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
     try {
-      const res: StatusResponse = (await invoke("status")) as StatusResponse;
+      const res: StatusResponse = await VPNService.getStatus();
       const peers = res.available_destinations;
       peers.sort((a, b) => a.address.localeCompare(b.address));
       setPeers(peers);
-      console.log("Status Response:", res);
+      console.log('Status Response:', res);
       if (isConnected(res.status)) {
         setConnected(res.status.Connected);
       } else if (isConnecting(res.status)) {
@@ -53,31 +34,31 @@ function App() {
       }
       setMsg(JSON.stringify(res, null, 2));
     } catch (error) {
-      setMsg(`Status Error: ${error}`);
+      setMsg(error instanceof Error ? error.message : `Status Error: ${error}`);
     }
   }
 
   async function connect(address: string) {
     try {
-      const res: ConnectResponse = (await invoke("connect", {
-        address,
-      })) as ConnectResponse;
+      const res: ConnectResponse = await VPNService.connect(address);
       setMsg(JSON.stringify(res, null, 2));
       setTimeout(() => status(), 333);
     } catch (error) {
-      setMsg(`Connect Error: ${error}`);
+      setMsg(
+        error instanceof Error ? error.message : `Connect Error: ${error}`
+      );
     }
   }
 
   async function disconnect() {
     try {
-      const res: DisconnectResponse = (await invoke(
-        "disconnect",
-      )) as DisconnectResponse;
+      const res: DisconnectResponse = await VPNService.disconnect();
       setMsg(JSON.stringify(res, null, 2));
       setTimeout(() => status(), 333);
     } catch (error) {
-      setMsg(`Disconnect Error: ${error}`);
+      setMsg(
+        error instanceof Error ? error.message : `Disconnect Error: ${error}`
+      );
     }
   }
 
@@ -127,20 +108,6 @@ function App() {
       <p>{msg()}</p>
     </main>
   );
-}
-
-function isConnected(status: Status): status is { Connected: Destination } {
-  return typeof status === "object" && "Connected" in status;
-}
-
-function isConnecting(status: Status): status is { Connecting: Destination } {
-  return typeof status === "object" && "Connecting" in status;
-}
-
-function isDisconnecting(
-  status: Status,
-): status is { Disconnecting: Destination } {
-  return typeof status === "object" && "Disconnecting" in status;
 }
 
 export default App;
