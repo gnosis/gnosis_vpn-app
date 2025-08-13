@@ -18,9 +18,8 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [ "tray-icon", "image-png" ] }
+tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 gnosis_vpn-lib = { git = "ssh://git@github.com/gnosis/gnosis_vpn-client.git", branch = "este/hoprd-v3"}
-dirs = "6.0.0"
