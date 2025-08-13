@@ -1,6 +1,20 @@
 import { createStore } from 'solid-js/store';
-import type { Status, AppState, AppScreen, Destination, Path } from '../types';
-import { VPNService } from '../services';
+import {
+  type Status,
+  type Destination,
+  type Path,
+  VPNService,
+} from '../services/vpnService';
+
+export type AppScreen = 'main' | 'settings' | 'logs';
+
+export interface AppState {
+  currentScreen: AppScreen;
+  connectionStatus: Status;
+  availableDestinations: Destination[];
+  isLoading: boolean;
+  error?: string;
+}
 
 export function createAppStore() {
   const [state, setState] = createStore<AppState>({

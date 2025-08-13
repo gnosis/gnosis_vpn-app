@@ -1,5 +1,13 @@
-import { JSX, splitProps, mergeProps, Show } from 'solid-js';
-import type { ButtonProps } from '../../types';
+import { type JSX, splitProps, mergeProps, Show } from 'solid-js';
+
+export interface ButtonProps {
+  variant?: 'primary' | 'secondary' | 'outline';
+  size?: 'sm' | 'md' | 'lg';
+  loading?: boolean;
+  class?: string;
+  children: import('solid-js').JSX.Element;
+  onClick?: () => void;
+}
 
 const baseClasses =
   'inline-flex items-center justify-center rounded-md font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed gap-2';
@@ -36,6 +44,7 @@ export default function Button(allProps: ButtonProps): JSX.Element {
     'children',
     'disabled',
     'loading',
+    'onClick',
   ]);
 
   const computedClass = () =>
@@ -56,6 +65,7 @@ export default function Button(allProps: ButtonProps): JSX.Element {
       aria-busy={local.loading || undefined}
       aria-disabled={local.disabled || local.loading || undefined}
       {...others}
+      onClick={local.onClick}
     >
       <Show when={local.loading}>
         <svg

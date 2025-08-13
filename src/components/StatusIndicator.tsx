@@ -1,11 +1,11 @@
 import { createMemo } from 'solid-js';
-import { type Status } from '../types';
+import { type Status } from '../services/vpnService';
 import {
   isConnected,
   isConnecting,
   isDisconnecting,
   isServiceUnavailable,
-} from '../utils/status';
+} from '../services/vpnService';
 
 export function StatusIndicator(props: {
   status: Status;

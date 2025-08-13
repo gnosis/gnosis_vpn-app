@@ -1,17 +1,17 @@
 import { For, Show, onCleanup, onMount } from 'solid-js';
 import Button from '../components/common/Button';
 import { createAppStore } from '../stores/appStore';
-import { VPNService } from '../services';
-import type { Destination } from '../types';
+import type { Destination } from '../services/vpnService';
 import { StatusIndicator } from '../components/StatusIndicator';
 import Navigation from '../components/Navigation';
 import {
+  VPNService,
   isConnected,
   isConnectedTo,
   isConnecting,
   isConnectingTo,
   isServiceUnavailable,
-} from '../utils/status';
+} from '../services/vpnService';
 
 export function MainScreen() {
   const [appState, appActions] = createAppStore();
