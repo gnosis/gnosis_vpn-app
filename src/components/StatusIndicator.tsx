@@ -1,10 +1,11 @@
 import { createMemo } from 'solid-js';
+import { type Status } from '../types';
 import {
   isConnected,
   isConnecting,
   isDisconnecting,
-  type Status,
-} from '../types';
+  isServiceUnavailable,
+} from '../utils/status';
 
 export function StatusIndicator(props: {
   status: Status;
@@ -15,22 +16,14 @@ export function StatusIndicator(props: {
     if (isConnected(props.status)) return 'Connected';
     if (isConnecting(props.status)) return 'Connecting...';
     if (isDisconnecting(props.status)) return 'Disconnecting...';
+    if (isServiceUnavailable(props.status)) return 'Service unavailable';
     return 'Disconnected';
-  });
-
-  const statusClass = createMemo(() => {
-    if (props.isLoading || isConnecting(props.status))
-      return 'status-dot status-dot-connecting';
-    if (isConnected(props.status)) return 'status-dot status-dot-connected';
-    if (isDisconnecting(props.status))
-      return 'status-dot status-dot-connecting';
-    return 'status-dot status-dot-disconnected';
   });
 
   return (
     <div class="flex flex-col items-center space-y-4">
-      <div class={statusClass()} />
-      <p class="text-lg font-medium">{statusText()}</p>
+      <h1 class="text-xl font-bold">Gnosis VPN</h1>
+      <p class="font-medium">{statusText()}</p>
     </div>
   );
 }

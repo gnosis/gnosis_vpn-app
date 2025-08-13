@@ -1,17 +1,22 @@
-import { For, Show, onMount } from 'solid-js';
+import { For, Show, onCleanup, onMount } from 'solid-js';
 import Button from '../components/common/Button';
 import { createAppStore } from '../stores/appStore';
 import { VPNService } from '../services';
 import type { Destination } from '../types';
-import { isConnected } from '../types';
 import { StatusIndicator } from '../components/StatusIndicator';
-import ActionButton from '../components/ActionButton';
 import Navigation from '../components/Navigation';
+import {
+  isConnected,
+  isConnectedTo,
+  isConnecting,
+  isConnectingTo,
+  isServiceUnavailable,
+} from '../utils/status';
 
 export function MainScreen() {
   const [appState, appActions] = createAppStore();
 
-  console.log(appState);
+  // console.log(appState);
 
   async function handleConnect(destination?: Destination) {
     try {
@@ -39,55 +44,73 @@ export function MainScreen() {
     }
   }
 
-  onMount(appActions.updateStatus);
+  onMount(() => {
+    appActions.updateStatus();
+    appActions.startStatusPolling(2000);
+  });
+
+  onCleanup(() => {
+    appActions.stopStatusPolling();
+  });
 
   return (
-    <div class="flex flex-col h-full p-6 gap-6">
+    <div class="flex flex-col h-full p-6 gap-6 justify-between">
       <StatusIndicator
         status={appState.connectionStatus}
         isLoading={appState.isLoading}
       />
 
-      {/* <ActionButton
-        status={appState.connectionStatus}
-        onConnect={handleConnect}
-        onDisconnect={handleDisconnect}
-        isLoading={appState.isLoading}
-      /> */}
-
-      <div class="mt-4">
-        <h3 class="text-lg font-semibold mb-2">Available Destinations</h3>
-        <div class="space-y-2">
-          <For each={appState.availableDestinations}>
-            {dest => (
-              <div class="flex items-center justify-between rounded-md border border-gray-200 dark:border-gray-800 p-3">
-                <div class="text-sm">
-                  <div class="font-medium">{dest.address}</div>
-                  <Show when={Object.keys(dest.meta || {}).length}>
-                    <div class="text-xs text-gray-500 dark:text-gray-400">
-                      {JSON.stringify(dest.meta)}
+      <Show when={!isServiceUnavailable(appState.connectionStatus)}>
+        <div class="mt-4">
+          <h3 class="text-lg font-semibold mb-2">Available Destinations</h3>
+          <div class="space-y-2">
+            <For each={appState.availableDestinations}>
+              {dest => (
+                <div class="flex items-center justify-between rounded-md border border-gray-200 dark:border-gray-800 p-3">
+                  <div class="text-sm">
+                    <div class="font-medium">
+                      {dest.meta.city} {dest.meta.state} {dest.meta.location}
                     </div>
-                  </Show>
-                </div>
-                <div>
-                  <Show
-                    when={!isConnected(appState.connectionStatus)}
-                    fallback={<span class="text-green-600">Active</span>}
-                  >
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleConnect(dest)}
+                    <Show when={Object.keys(dest.meta || {}).length}>
+                      <div class="text-xs text-gray-500 dark:text-gray-400 truncate">
+                        {dest.address}
+                      </div>
+                    </Show>
+                  </div>
+                  <div>
+                    <Show
+                      when={
+                        isConnectedTo(appState.connectionStatus, dest) ||
+                        isConnectingTo(appState.connectionStatus, dest)
+                      }
+                      fallback={
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleConnect(dest)}
+                        >
+                          {isConnected(appState.connectionStatus) ||
+                          isConnecting(appState.connectionStatus)
+                            ? 'Switch'
+                            : 'Connect'}
+                        </Button>
+                      }
                     >
-                      Connect
-                    </Button>
-                  </Show>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDisconnect()}
+                      >
+                        Disconnect
+                      </Button>
+                    </Show>
+                  </div>
                 </div>
-              </div>
-            )}
-          </For>
+              )}
+            </For>
+          </div>
         </div>
-      </div>
+      </Show>
 
       <Navigation
         currentScreen={appState.currentScreen}
