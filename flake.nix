@@ -73,7 +73,14 @@
               pkgs.pango
               pkgs.webkitgtk_4_1
               pkgs.openssl
+              pkgs.libayatana-appindicator
             ];
+
+            LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath (
+              [
+                pkgs.libayatana-appindicator
+              ]
+            );
           };
         };
     };
