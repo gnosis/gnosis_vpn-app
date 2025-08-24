@@ -108,6 +108,7 @@ pub fn run() {
                 .on_tray_icon_event(|tray, event| {
                     handle_tray_event(tray.app_handle(), event);
                 })
+                .show_menu_on_left_click(false)
                 .build(app)?;
 
             // Setup platform-specific functionality
