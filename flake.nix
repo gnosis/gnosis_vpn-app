@@ -13,12 +13,13 @@
   };
 
   outputs =
-    inputs@{ self
-    , nixpkgs
-    , crane
-    , flake-parts
-    , treefmt-nix
-    , ...
+    inputs@{
+      self,
+      nixpkgs,
+      crane,
+      flake-parts,
+      treefmt-nix,
+      ...
     }:
     flake-parts.lib.mkFlake { inherit inputs; } {
       imports = [
@@ -31,12 +32,13 @@
         "x86_64-darwin"
       ];
       perSystem =
-        { config
-        , self'
-        , inputs'
-        , lib
-        , system
-        , ...
+        {
+          config,
+          self',
+          inputs',
+          lib,
+          system,
+          ...
         }:
         let
           pkgs = (
@@ -114,11 +116,9 @@
               pkgs.libayatana-appindicator
             ];
 
-            LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath (
-              [
-                pkgs.libayatana-appindicator
-              ]
-            );
+            LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath ([
+              pkgs.libayatana-appindicator
+            ]);
           };
           treefmt = treefmt;
         };

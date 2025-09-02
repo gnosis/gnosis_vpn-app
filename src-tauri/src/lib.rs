@@ -1,5 +1,9 @@
 use gnosis_vpn_lib::{address, command, socket};
-use tauri::{AppHandle, Manager, tray::{TrayIconBuilder, TrayIconEvent}, menu::{Menu, MenuBuilder, MenuItem}};
+use tauri::{
+    AppHandle, Manager,
+    menu::{Menu, MenuBuilder, MenuItem},
+    tray::{TrayIconBuilder, TrayIconEvent},
+};
 
 use std::path::PathBuf;
 mod platform;
@@ -38,7 +42,8 @@ fn disconnect() -> Result<command::DisconnectResponse, String> {
 }
 
 fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error> {
-    let status_item = MenuItem::with_id(app, "status", "Status: Disconnected", false, None::<&str>)?;
+    let status_item =
+        MenuItem::with_id(app, "status", "Status: Disconnected", false, None::<&str>)?;
     let show_item = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
     let settings_item = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
     let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
@@ -54,7 +59,7 @@ fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error> {
 
 fn handle_tray_event(app: &AppHandle, event: TrayIconEvent) {
     match event {
-        TrayIconEvent::Click { 
+        TrayIconEvent::Click {
             button: tauri::tray::MouseButton::Left,
             button_state: tauri::tray::MouseButtonState::Up,
             ..
@@ -76,10 +81,12 @@ pub fn run() {
         .setup(|app| {
             // Create tray menu
             let menu = create_tray_menu(app.handle())?;
-            
+
             let icon_name: &str = "tray-icon.png";
 
-            let tray_icon_path: PathBuf = app.path().resource_dir()
+            let tray_icon_path: PathBuf = app
+                .path()
+                .resource_dir()
                 .unwrap()
                 .join("icons")
                 .join(icon_name);
@@ -90,20 +97,18 @@ pub fn run() {
             // Create tray icon
             let _tray = TrayIconBuilder::new()
                 .menu(&menu)
-                    .icon(icon)
-                .on_menu_event(|app, event| {
-                    match event.id.as_ref() {
-                        "quit" => {
-                            app.exit(0);
-                        }
-                        "show" => {
-                            if let Some(window) = app.get_webview_window("main") {
-                                let _ = window.show();
-                                let _ = window.set_focus();
-                            }
-                        }
-                        _ => {}
+                .icon(icon)
+                .on_menu_event(|app, event| match event.id.as_ref() {
+                    "quit" => {
+                        app.exit(0);
                     }
+                    "show" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                    }
+                    _ => {}
                 })
                 .on_tray_icon_event(|tray, event| {
                     handle_tray_event(tray.app_handle(), event);
@@ -113,7 +118,7 @@ pub fn run() {
 
             // Setup platform-specific functionality
             let _ = Platform::setup_system_tray();
-            
+
             // Hide window on startup if needed (Linux behavior)
             #[cfg(target_os = "linux")]
             {
@@ -121,10 +126,9 @@ pub fn run() {
                     let _ = window.hide();
                 }
             }
-            
+
             Ok(())
         })
-        
         .invoke_handler(tauri::generate_handler![status, connect, disconnect])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
