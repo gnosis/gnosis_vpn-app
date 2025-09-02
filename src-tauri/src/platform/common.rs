@@ -1,5 +1,6 @@
 use super::PlatformInterface;
 
+#[allow(dead_code)]
 pub struct UnsupportedPlatform;
 
 impl PlatformInterface for UnsupportedPlatform {
