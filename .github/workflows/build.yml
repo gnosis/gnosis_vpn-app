@@ -15,7 +15,6 @@ env:
 jobs:
   checks:
     name: Lint, format and unit test
-    needs: build
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
@@ -26,6 +25,7 @@ jobs:
         uses: cachix/cachix-action@v16
         with:
           name: gnosis-vpn-app
+          authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
         env:
           USER: runner
       - name: Run flake checks
