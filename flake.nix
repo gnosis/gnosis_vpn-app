@@ -1,10 +1,15 @@
 {
-  description = "Gnosis VPN client applications";
+  description = "Gnosis VPN application";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     crane.url = "github:ipetkov/crane";
     flake-parts.url = "github:hercules-ci/flake-parts";
+    treefmt-nix = {
+      url = "github:numtide/treefmt-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
   };
 
   outputs =
@@ -12,14 +17,12 @@
     , nixpkgs
     , crane
     , flake-parts
+    , treefmt-nix
     , ...
     }:
     flake-parts.lib.mkFlake { inherit inputs; } {
       imports = [
-        # To import a flake module
-        # 1. Add foo to inputs
-        # 2. Add foo as a parameter to the outputs function
-        # 3. Add here: foo.flakeModule
+        treefmt-nix.flakeModule
       ];
       systems = [
         "x86_64-linux"
@@ -43,6 +46,41 @@
           );
 
           craneLib = crane.mkLib pkgs;
+
+          treefmt = {
+            projectRootFile = "LICENSE";
+
+            settings.global.excludes = [
+              "LICENSE"
+            ];
+
+            programs.nixfmt = {
+              enable = pkgs.lib.meta.availableOn pkgs.stdenv.buildPlatform pkgs.nixfmt-rfc-style.compiler;
+              package = pkgs.nixfmt-rfc-style;
+            };
+            programs.prettier.enable = true;
+            settings.formatter.prettier.excludes = [
+              "*.toml"
+              "*.yml"
+              "*.yaml"
+            ];
+            programs.rustfmt.enable = true;
+            programs.shellcheck.enable = true;
+            programs.shfmt = {
+              enable = true;
+              indent_size = 4;
+            };
+            programs.taplo.enable = true; # TOML formatter
+            programs.yamlfmt.enable = true;
+            # trying setting from https://github.com/google/yamlfmt/blob/main/docs/config-file.md
+            settings.formatter.yamlfmt.settings = {
+              formatter.type = "basic";
+              formatter.max_line_length = 120;
+              formatter.trim_trailing_whitespace = true;
+              formatter.include_document_start = true;
+            };
+          };
+
         in
         {
           devShells.default = craneLib.devShell {
@@ -82,6 +120,7 @@
               ]
             );
           };
+          treefmt = treefmt;
         };
     };
 }
