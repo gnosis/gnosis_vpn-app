@@ -108,3 +108,18 @@ export function buildLogContent(
   }
   return content;
 }
+
+export type LogEntry = { date: string; message: string };
+
+export function buildStatusLog(
+  prevLogs: LogEntry[],
+  args: {
+    response?: import('../services/vpnService').StatusResponse;
+    error?: string;
+  }
+): string | undefined {
+  const lastMessage = prevLogs.length
+    ? prevLogs[prevLogs.length - 1].message
+    : undefined;
+  return buildLogContent(args, lastMessage);
+}

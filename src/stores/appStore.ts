@@ -6,7 +6,7 @@ import {
   VPNService,
 } from '../services/vpnService';
 import { AppStoreContext } from './appContext';
-import { buildLogContent } from '../utils/status';
+import { buildStatusLog } from '../utils/status';
 import { areDestinationsEqualUnordered } from '../utils/destinations';
 
 export type AppScreen = 'main' | 'settings' | 'logs';
@@ -46,10 +46,7 @@ export function createAppStore() {
     response?: import('../services/vpnService').StatusResponse;
     error?: string;
   }) => {
-    const lastMessage = state.logs.length
-      ? state.logs[state.logs.length - 1].message
-      : undefined;
-    const content = buildLogContent(args, lastMessage);
+    const content = buildStatusLog(state.logs, args);
     if (!content) return;
     appendContentIfNew(content);
   };
