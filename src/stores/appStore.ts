@@ -1,4 +1,4 @@
-import { createContext, useContext } from 'solid-js';
+import { useContext } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import {
   type Status,
@@ -6,6 +6,7 @@ import {
   type Path,
   VPNService,
 } from '../services/vpnService';
+import { AppStoreContext } from './appContext';
 
 export type AppScreen = 'main' | 'settings' | 'logs';
 
@@ -186,19 +187,7 @@ export function createAppStore() {
   return [state, actions] as const;
 }
 
-type AppStoreTuple = ReturnType<typeof createAppStore>;
-const AppStoreContext = createContext<AppStoreTuple>();
-
-export function AppStoreProvider(props: {
-  children: import('solid-js').JSX.Element;
-}) {
-  const store = createAppStore();
-  return (
-    <AppStoreContext.Provider value={store}>
-      {props.children}
-    </AppStoreContext.Provider>
-  );
-}
+export type AppStoreTuple = ReturnType<typeof createAppStore>;
 
 export function useAppStore(): AppStoreTuple {
   const ctx = useContext(AppStoreContext);

@@ -1,12 +1,9 @@
 import { For, Show, onCleanup, onMount } from 'solid-js';
 import Button from '../components/common/Button';
-import { useAppStore } from '../stores/appStore.tsx';
+import { useAppStore } from '../stores/appStore';
 import type { Destination } from '../services/vpnService';
 import { StatusIndicator } from '../components/StatusIndicator';
 import Navigation from '../components/Navigation';
-import Modal from '../components/common/Modal';
-import SettingsPanel from '../components/SettingsPanel';
-import LogsPanel from '../components/LogsPanel';
 import {
   VPNService,
   isConnected,
@@ -18,8 +15,6 @@ import {
 
 export function MainScreen() {
   const [appState, appActions] = useAppStore();
-
-  // console.log(appState);
 
   async function handleConnect(destination?: Destination) {
     try {
@@ -115,26 +110,7 @@ export function MainScreen() {
         </div>
       </Show>
 
-      <Navigation
-        currentScreen={appState.currentScreen}
-        onNavigate={s => appActions.setScreen(s)}
-      />
-
-      <Modal
-        open={appState.currentScreen === 'settings'}
-        title="Settings"
-        onClose={() => appActions.setScreen('main')}
-      >
-        <SettingsPanel />
-      </Modal>
-
-      <Modal
-        open={appState.currentScreen === 'logs'}
-        title="Logs"
-        onClose={() => appActions.setScreen('main')}
-      >
-        <LogsPanel />
-      </Modal>
+      <Navigation />
     </div>
   );
 }

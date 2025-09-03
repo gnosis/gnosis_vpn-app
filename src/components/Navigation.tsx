@@ -1,25 +1,46 @@
 import Button from './common/Button';
-import type { AppScreen } from '../types';
+import LogsPanel from './LogsPanel';
+import Modal from './common/Modal';
+import SettingsPanel from './SettingsPanel';
+import { useAppStore } from '../stores/appStore';
 
-function Navigation(props: {
-  currentScreen: AppScreen;
-  onNavigate: (s: AppScreen) => void;
-}) {
+function Navigation() {
+  const [appState, appActions] = useAppStore();
   return (
-    <div class="mt-8 flex items-center justify-center gap-2">
-      <Button
-        variant={props.currentScreen === 'settings' ? 'primary' : 'outline'}
-        onClick={() => props.onNavigate('settings')}
+    <>
+      <div class="mt-8 flex items-center justify-center gap-2">
+        <Button
+          variant={
+            appState.currentScreen === 'settings' ? 'primary' : 'outline'
+          }
+          onClick={() => appActions.setScreen('settings')}
+        >
+          Settings
+        </Button>
+        <Button
+          variant={appState.currentScreen === 'logs' ? 'primary' : 'outline'}
+          onClick={() => appActions.setScreen('logs')}
+        >
+          Logs
+        </Button>
+      </div>
+
+      <Modal
+        open={appState.currentScreen === 'settings'}
+        title="Settings"
+        onClose={() => appActions.setScreen('main')}
       >
-        Settings
-      </Button>
-      <Button
-        variant={props.currentScreen === 'logs' ? 'primary' : 'outline'}
-        onClick={() => props.onNavigate('logs')}
+        <SettingsPanel />
+      </Modal>
+
+      <Modal
+        open={appState.currentScreen === 'logs'}
+        title="Logs"
+        onClose={() => appActions.setScreen('main')}
       >
-        Logs
-      </Button>
-    </div>
+        <LogsPanel />
+      </Modal>
+    </>
   );
 }
 

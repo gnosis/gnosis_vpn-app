@@ -1,5 +1,5 @@
 import { For } from 'solid-js';
-import { useAppStore } from '../stores/appStore.tsx';
+import { useAppStore } from '../stores/appStore';
 
 export default function LogsPanel() {
   const [appState] = useAppStore();

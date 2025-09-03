@@ -1,6 +1,6 @@
 import './App.css';
 import { MainScreen } from './screens/MainScreen';
-import { AppStoreProvider } from './stores/appStore.tsx';
+import { AppStoreProvider } from './stores/appContext';
 
 function App() {
   return (
