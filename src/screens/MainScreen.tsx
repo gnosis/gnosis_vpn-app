@@ -1,4 +1,4 @@
-import { For, Show, onCleanup, onMount } from 'solid-js';
+import { For, Show } from 'solid-js';
 import Button from '../components/common/Button';
 import { useAppStore } from '../stores/appStore';
 import type { Destination } from '../services/vpnService';
@@ -22,15 +22,6 @@ export function MainScreen() {
   async function handleDisconnect() {
     await appActions.disconnect();
   }
-
-  onMount(() => {
-    appActions.updateStatus();
-    appActions.startStatusPolling(2000);
-  });
-
-  onCleanup(() => {
-    appActions.stopStatusPolling();
-  });
 
   return (
     <div class="flex flex-col h-full p-6 gap-6 justify-between">
