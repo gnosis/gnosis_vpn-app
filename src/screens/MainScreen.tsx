@@ -4,6 +4,9 @@ import { createAppStore } from '../stores/appStore';
 import type { Destination } from '../services/vpnService';
 import { StatusIndicator } from '../components/StatusIndicator';
 import Navigation from '../components/Navigation';
+import Modal from '../components/common/Modal';
+import SettingsPanel from '../components/SettingsPanel';
+import LogsPanel from '../components/LogsPanel';
 import {
   VPNService,
   isConnected,
@@ -116,6 +119,22 @@ export function MainScreen() {
         currentScreen={appState.currentScreen}
         onNavigate={s => appActions.setScreen(s)}
       />
+
+      <Modal
+        open={appState.currentScreen === 'settings'}
+        title="Settings"
+        onClose={() => appActions.setScreen('main')}
+      >
+        <SettingsPanel />
+      </Modal>
+
+      <Modal
+        open={appState.currentScreen === 'logs'}
+        title="Logs"
+        onClose={() => appActions.setScreen('main')}
+      >
+        <LogsPanel />
+      </Modal>
     </div>
   );
 }

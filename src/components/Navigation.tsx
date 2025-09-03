@@ -8,12 +8,6 @@ function Navigation(props: {
   return (
     <div class="mt-8 flex items-center justify-center gap-2">
       <Button
-        variant={props.currentScreen === 'main' ? 'primary' : 'outline'}
-        onClick={() => props.onNavigate('main')}
-      >
-        Main
-      </Button>
-      <Button
         variant={props.currentScreen === 'settings' ? 'primary' : 'outline'}
         onClick={() => props.onNavigate('settings')}
       >
