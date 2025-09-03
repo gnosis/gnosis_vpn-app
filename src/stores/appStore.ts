@@ -85,7 +85,6 @@ export function createAppStore() {
     setScreen: (screen: AppScreen) => setState('currentScreen', screen),
     setConnectionStatus: (status: Status) =>
       setState('connectionStatus', status),
-    setLoading: (loading: boolean) => setState('isLoading', loading),
     setError: (error?: string) => setState('error', error),
     appendLog: (line: string) => appendContentIfNew(line),
     clearLogs: () => setState('logs', []),
@@ -99,6 +98,10 @@ export function createAppStore() {
           await VPNService.connect(targetAddress);
         }
         await getStatus();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        appendLogIfNew({ error: message });
+        setState('error', message);
       } finally {
         setState('isLoading', false);
       }
@@ -109,6 +112,10 @@ export function createAppStore() {
       try {
         await VPNService.disconnect();
         await getStatus();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        appendLogIfNew({ error: message });
+        setState('error', message);
       } finally {
         setState('isLoading', false);
       }
