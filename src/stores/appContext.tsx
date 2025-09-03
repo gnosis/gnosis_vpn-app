@@ -9,7 +9,7 @@ export function AppStoreProvider(props: { children: JSX.Element }) {
   const [, actions] = store;
 
   onMount(() => {
-    void actions.updateStatus();
+    void actions.refreshStatus();
     actions.startStatusPolling(2000);
   });
 

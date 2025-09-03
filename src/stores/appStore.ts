@@ -80,11 +80,7 @@ export function createAppStore() {
 
   const actions = {
     setScreen: (screen: AppScreen) => setState('currentScreen', screen),
-    setConnectionStatus: (status: Status) =>
-      setState('connectionStatus', status),
-    setError: (error?: string) => setState('error', error),
-    appendLog: (line: string) => appendContentIfNew(line),
-    clearLogs: () => setState('logs', []),
+    // Intentionally keep only cohesive, intention-revealing actions
 
     connect: async (address?: string) => {
       setState('isLoading', true);
@@ -118,7 +114,7 @@ export function createAppStore() {
       }
     },
 
-    updateStatus: async () => {
+    refreshStatus: async () => {
       setState('isLoading', true);
       await getStatus();
       setState('isLoading', false);
