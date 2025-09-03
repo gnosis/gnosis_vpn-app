@@ -1,6 +1,6 @@
 import { For, Show, onCleanup, onMount } from 'solid-js';
 import Button from '../components/common/Button';
-import { createAppStore } from '../stores/appStore';
+import { useAppStore } from '../stores/appStore.tsx';
 import type { Destination } from '../services/vpnService';
 import { StatusIndicator } from '../components/StatusIndicator';
 import Navigation from '../components/Navigation';
@@ -17,7 +17,7 @@ import {
 } from '../services/vpnService';
 
 export function MainScreen() {
-  const [appState, appActions] = createAppStore();
+  const [appState, appActions] = useAppStore();
 
   // console.log(appState);
 

@@ -1,3 +1,4 @@
+import { createContext, useContext } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import {
   type Status,
@@ -14,6 +15,7 @@ export interface AppState {
   availableDestinations: Destination[];
   isLoading: boolean;
   error?: string;
+  logs: { date: string; message: string }[];
 }
 
 export function createAppStore() {
@@ -22,10 +24,68 @@ export function createAppStore() {
     connectionStatus: 'ServiceUnavailable',
     availableDestinations: [],
     isLoading: false,
+    logs: [],
   });
 
   let pollingId: number | undefined;
   let pollInFlight = false;
+
+  const appendContentIfNew = (content: string) =>
+    setState('logs', existingLogs => {
+      const lastMessage = existingLogs.length
+        ? existingLogs[existingLogs.length - 1].message
+        : '';
+      if (lastMessage === content) return existingLogs;
+      const entry = { date: new Date().toISOString(), message: content };
+      return [...existingLogs, entry];
+    });
+
+  const appendLogIfNew = (args: {
+    response?: import('../services/vpnService').StatusResponse;
+    error?: string;
+  }) => {
+    let content: string | undefined;
+    if (args.response) {
+      const statusValue = args.response.status;
+      if (typeof statusValue === 'object') {
+        if ('Connected' in statusValue || 'Connecting' in statusValue) {
+          const isConnected = 'Connected' in statusValue;
+          const destination = (statusValue as any)[
+            isConnected ? 'Connected' : 'Connecting'
+          ] as import('../services/vpnService').Destination;
+          const city = destination.meta?.city || '';
+          const location = destination.meta?.location || '';
+          const where = [city, location].filter(Boolean).join(', ');
+          content = `${isConnected ? 'Connected' : 'Connecting'}: ${where} - ${
+            destination.address
+          }`;
+        }
+      } else if (statusValue === 'Disconnected') {
+        const lastWasDisconnected =
+          state.logs.length > 0 &&
+          state.logs[state.logs.length - 1].message.startsWith('Disconnected');
+        if (lastWasDisconnected) {
+          content = undefined;
+        } else {
+          const lines = args.response.available_destinations.map(d => {
+            const city = d.meta?.city || '';
+            const location = d.meta?.location || '';
+            const where = [city, location].filter(Boolean).join(', ');
+            return `- ${where} - ${d.address}`;
+          });
+          content = `Disconnected. Available:\n${lines.join('\n')}`;
+        }
+      } else {
+        const statusLabel = statusValue;
+        const destinations = args.response.available_destinations.length;
+        content = `status: ${statusLabel}, destinations: ${destinations}`;
+      }
+    } else if (args.error) {
+      content = `${args.error}`;
+    }
+    if (!content) return;
+    appendContentIfNew(content);
+  };
 
   const canonicalizeMeta = (
     meta: Record<string, string> | undefined
@@ -62,7 +122,7 @@ export function createAppStore() {
   const getStatus = async () => {
     try {
       const response = await VPNService.getStatus();
-      console.log('response', response);
+      appendLogIfNew({ response });
       if (response.status !== state.connectionStatus) {
         setState('connectionStatus', response.status);
       }
@@ -76,6 +136,9 @@ export function createAppStore() {
       }
       setState('error', undefined);
     } catch (error) {
+      appendLogIfNew({
+        error: error instanceof Error ? error.message : String(error),
+      });
       setState('isLoading', false);
       setState('connectionStatus', 'ServiceUnavailable');
       setState('availableDestinations', []);
@@ -89,6 +152,8 @@ export function createAppStore() {
       setState('connectionStatus', status),
     setLoading: (loading: boolean) => setState('isLoading', loading),
     setError: (error?: string) => setState('error', error),
+    appendLog: (line: string) => appendContentIfNew(line),
+    clearLogs: () => setState('logs', []),
 
     updateStatus: async () => {
       setState('isLoading', true);
@@ -120,3 +185,25 @@ export function createAppStore() {
 
   return [state, actions] as const;
 }
+
+type AppStoreTuple = ReturnType<typeof createAppStore>;
+const AppStoreContext = createContext<AppStoreTuple>();
+
+export function AppStoreProvider(props: {
+  children: import('solid-js').JSX.Element;
+}) {
+  const store = createAppStore();
+  return (
+    <AppStoreContext.Provider value={store}>
+      {props.children}
+    </AppStoreContext.Provider>
+  );
+}
+
+export function useAppStore(): AppStoreTuple {
+  const ctx = useContext(AppStoreContext);
+  if (!ctx) throw new Error('useAppStore must be used within AppStoreProvider');
+  return ctx;
+}
+
+export default createAppStore;
