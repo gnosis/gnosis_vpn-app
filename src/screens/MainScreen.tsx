@@ -5,7 +5,6 @@ import type { Destination } from '../services/vpnService';
 import { StatusIndicator } from '../components/StatusIndicator';
 import Navigation from '../components/Navigation';
 import {
-  VPNService,
   isConnected,
   isConnectedTo,
   isConnecting,
@@ -17,29 +16,11 @@ export function MainScreen() {
   const [appState, appActions] = useAppStore();
 
   async function handleConnect(destination?: Destination) {
-    try {
-      appActions.setLoading(true);
-      if (destination) {
-        await VPNService.connect(destination.address);
-      } else {
-        // Default to first available destination if provided
-        const first = appState.availableDestinations[0];
-        if (first) await VPNService.connect(first.address);
-      }
-      await appActions.updateStatus();
-    } finally {
-      appActions.setLoading(false);
-    }
+    await appActions.connect(destination?.address);
   }
 
   async function handleDisconnect() {
-    try {
-      appActions.setLoading(true);
-      await VPNService.disconnect();
-      await appActions.updateStatus();
-    } finally {
-      appActions.setLoading(false);
-    }
+    await appActions.disconnect();
   }
 
   onMount(() => {

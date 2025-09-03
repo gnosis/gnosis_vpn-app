@@ -90,6 +90,30 @@ export function createAppStore() {
     appendLog: (line: string) => appendContentIfNew(line),
     clearLogs: () => setState('logs', []),
 
+    connect: async (address?: string) => {
+      setState('isLoading', true);
+      try {
+        const targetAddress =
+          address ?? state.availableDestinations[0]?.address ?? undefined;
+        if (targetAddress) {
+          await VPNService.connect(targetAddress);
+        }
+        await getStatus();
+      } finally {
+        setState('isLoading', false);
+      }
+    },
+
+    disconnect: async () => {
+      setState('isLoading', true);
+      try {
+        await VPNService.disconnect();
+        await getStatus();
+      } finally {
+        setState('isLoading', false);
+      }
+    },
+
     updateStatus: async () => {
       setState('isLoading', true);
       await getStatus();
