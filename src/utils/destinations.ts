@@ -15,19 +15,40 @@ export const canonicalizePath = (path: Path): string => {
   return `IntermediatePath:${(path.IntermediatePath || []).join(',')}`;
 };
 
+export const destinationSignature = (dest: Destination): string => {
+  return [
+    dest.address,
+    canonicalizeMeta(dest.meta),
+    canonicalizePath(dest.path),
+  ].join('|');
+};
+
 export const areDestinationsEqualUnordered = (
   a: Destination[],
   b: Destination[]
 ): boolean => {
   if (a.length !== b.length) return false;
-  const aSorted = [...a].sort((x, y) => x.address.localeCompare(y.address));
-  const bSorted = [...b].sort((x, y) => x.address.localeCompare(y.address));
-  for (let i = 0; i < aSorted.length; i += 1) {
-    const da = aSorted[i];
-    const db = bSorted[i];
-    if (da.address !== db.address) return false;
-    if (canonicalizeMeta(da.meta) !== canonicalizeMeta(db.meta)) return false;
-    if (canonicalizePath(da.path) !== canonicalizePath(db.path)) return false;
+  if (a.length === 0) return true;
+  const setA = new Set(a.map(destinationSignature));
+  if (setA.size !== a.length) {
+    const countsA = new Map<string, number>();
+    for (const sig of a.map(destinationSignature)) {
+      countsA.set(sig, (countsA.get(sig) || 0) + 1);
+    }
+    const countsB = new Map<string, number>();
+    for (const sig of b.map(destinationSignature)) {
+      countsB.set(sig, (countsB.get(sig) || 0) + 1);
+    }
+    if (countsA.size !== countsB.size) return false;
+    for (const [sig, count] of countsA) {
+      if (countsB.get(sig) !== count) return false;
+    }
+    return true;
+  }
+  const setB = new Set(b.map(destinationSignature));
+  if (setB.size !== b.length) return false;
+  for (const sig of setA) {
+    if (!setB.has(sig)) return false;
   }
   return true;
 };
