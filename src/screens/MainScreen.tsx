@@ -80,6 +80,8 @@ export function MainScreen() {
           </div>
         </div>
       </Show>
+
+      <div> test </div>
     </div>
   );
 }
