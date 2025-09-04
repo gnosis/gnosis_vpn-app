@@ -10,7 +10,7 @@ export interface ButtonProps {
 }
 
 const baseClasses =
-  'inline-flex items-center justify-center rounded-md font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed gap-2';
+  'inline-flex items-center justify-center rounded-md font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed gap-2 hover:cursor-pointer';
 
 const variantClasses: Record<NonNullable<ButtonProps['variant']>, string> = {
   primary:
