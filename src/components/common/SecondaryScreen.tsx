@@ -1,4 +1,4 @@
-import { children, JSX } from 'solid-js';
+import { children, JSX, onMount } from 'solid-js';
 import { useAppStore } from '../../stores/appStore';
 
 export function SecondaryScreen({
@@ -10,8 +10,24 @@ export function SecondaryScreen({
 
   const c = children(() => innerComponent);
 
+  function handleKeyDown(event: KeyboardEvent) {
+    if (event.key === 'Escape') {
+      appActions.setScreen('main');
+    }
+  }
+
+  let containerRef: HTMLDivElement | undefined;
+  onMount(() => {
+    containerRef?.focus();
+  });
+
   return (
-    <div class="h-full w-full z-20">
+    <div
+      ref={containerRef}
+      tabIndex={0}
+      class="h-full w-full z-20"
+      on:keydown={handleKeyDown}
+    >
       <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800">
         <h1 class="text-gray-600 dark:text-gray-400 capitalize text-lg">
           {appState.currentScreen}
