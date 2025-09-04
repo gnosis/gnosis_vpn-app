@@ -1,11 +1,9 @@
-import { useContext } from 'solid-js';
-import { createStore } from 'solid-js/store';
+import { createStore, type Store } from 'solid-js/store';
 import {
   type Status,
   type Destination,
   VPNService,
 } from '../services/vpnService';
-import { AppStoreContext } from './appContext';
 import { buildStatusLog } from '../utils/status';
 import { areDestinationsEqualUnordered } from '../utils/destinations';
 
@@ -20,7 +18,18 @@ export interface AppState {
   logs: { date: string; message: string }[];
 }
 
-export function createAppStore() {
+type AppActions = {
+  setScreen: (screen: AppScreen) => void;
+  connect: (address?: string) => Promise<void>;
+  disconnect: () => Promise<void>;
+  refreshStatus: () => Promise<void>;
+  startStatusPolling: (intervalMs?: number) => void;
+  stopStatusPolling: () => void;
+};
+
+type AppStoreTuple = readonly [Store<AppState>, AppActions];
+
+export function createAppStore(): AppStoreTuple {
   const [state, setState] = createStore<AppState>({
     currentScreen: 'main',
     connectionStatus: 'ServiceUnavailable',
@@ -80,7 +89,6 @@ export function createAppStore() {
 
   const actions = {
     setScreen: (screen: AppScreen) => setState('currentScreen', screen),
-    // Intentionally keep only cohesive, intention-revealing actions
 
     connect: async (address?: string) => {
       setState('isLoading', true);
@@ -145,12 +153,8 @@ export function createAppStore() {
   return [state, actions] as const;
 }
 
-export type AppStoreTuple = ReturnType<typeof createAppStore>;
+const appStore = createAppStore();
 
 export function useAppStore(): AppStoreTuple {
-  const ctx = useContext(AppStoreContext);
-  if (!ctx) throw new Error('useAppStore must be used within AppStoreProvider');
-  return ctx;
+  return appStore;
 }
-
-export default createAppStore;

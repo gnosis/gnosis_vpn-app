@@ -6,6 +6,7 @@ import Logs from './screens/Logs';
 import Settings from './screens/Settings';
 import { useAppStore } from './stores/appStore';
 import Usage from './screens/Usage';
+import { onCleanup, onMount } from 'solid-js';
 
 const screens = {
   main: MainScreen,
@@ -15,7 +16,17 @@ const screens = {
 };
 
 function App() {
-  const [appState] = useAppStore();
+  const [appState, appActions] = useAppStore();
+
+  onMount(() => {
+    void appActions.refreshStatus();
+    appActions.startStatusPolling(2000);
+  });
+
+  onCleanup(() => {
+    appActions.stopStatusPolling();
+  });
+
   return (
     <>
       <div class="h-screen bg-gray-50 dark:bg-gray-900">
