@@ -9,7 +9,7 @@ import { AppStoreContext } from './appContext';
 import { buildStatusLog } from '../utils/status';
 import { areDestinationsEqualUnordered } from '../utils/destinations';
 
-export type AppScreen = 'main' | 'settings' | 'logs';
+export type AppScreen = 'main' | 'settings' | 'logs' | 'usage';
 
 export interface AppState {
   currentScreen: AppScreen;

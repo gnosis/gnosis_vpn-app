@@ -3,7 +3,6 @@ import Button from '../components/common/Button';
 import { useAppStore } from '../stores/appStore';
 import type { Destination } from '../services/vpnService';
 import { StatusIndicator } from '../components/StatusIndicator';
-import Navigation from '../components/Navigation';
 import {
   isConnected,
   isConnectedTo,
@@ -81,8 +80,6 @@ export function MainScreen() {
           </div>
         </div>
       </Show>
-
-      <Navigation />
     </div>
   );
 }
