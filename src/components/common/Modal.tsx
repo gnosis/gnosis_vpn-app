@@ -8,14 +8,13 @@ export interface ModalProps {
 }
 
 export default function Modal(props: ModalProps) {
-  const handleKey = (e: KeyboardEvent) => {
-    if (e.key === 'Escape') props.onClose();
-  };
-
   onMount(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') props.onClose();
+    };
     window.addEventListener('keydown', handleKey);
+    onCleanup(() => window.removeEventListener('keydown', handleKey));
   });
-  onCleanup(() => window.removeEventListener('keydown', handleKey));
 
   const stop = (e: Event) => e.stopPropagation();
 
