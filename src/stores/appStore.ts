@@ -6,10 +6,10 @@ import {
   VPNService,
 } from '../services/vpnService';
 import { AppStoreContext } from './appContext';
-import { buildLogContent } from '../utils/status';
+import { buildStatusLog } from '../utils/status';
 import { areDestinationsEqualUnordered } from '../utils/destinations';
 
-export type AppScreen = 'main' | 'settings' | 'logs';
+export type AppScreen = 'main' | 'settings' | 'logs' | 'usage';
 
 export interface AppState {
   currentScreen: AppScreen;
@@ -46,10 +46,7 @@ export function createAppStore() {
     response?: import('../services/vpnService').StatusResponse;
     error?: string;
   }) => {
-    const lastMessage = state.logs.length
-      ? state.logs[state.logs.length - 1].message
-      : undefined;
-    const content = buildLogContent(args, lastMessage);
+    const content = buildStatusLog(state.logs, args);
     if (!content) return;
     appendContentIfNew(content);
   };
@@ -83,12 +80,7 @@ export function createAppStore() {
 
   const actions = {
     setScreen: (screen: AppScreen) => setState('currentScreen', screen),
-    setConnectionStatus: (status: Status) =>
-      setState('connectionStatus', status),
-    setLoading: (loading: boolean) => setState('isLoading', loading),
-    setError: (error?: string) => setState('error', error),
-    appendLog: (line: string) => appendContentIfNew(line),
-    clearLogs: () => setState('logs', []),
+    // Intentionally keep only cohesive, intention-revealing actions
 
     connect: async (address?: string) => {
       setState('isLoading', true);
@@ -99,6 +91,10 @@ export function createAppStore() {
           await VPNService.connect(targetAddress);
         }
         await getStatus();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        appendLogIfNew({ error: message });
+        setState('error', message);
       } finally {
         setState('isLoading', false);
       }
@@ -109,12 +105,16 @@ export function createAppStore() {
       try {
         await VPNService.disconnect();
         await getStatus();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        appendLogIfNew({ error: message });
+        setState('error', message);
       } finally {
         setState('isLoading', false);
       }
     },
 
-    updateStatus: async () => {
+    refreshStatus: async () => {
       setState('isLoading', true);
       await getStatus();
       setState('isLoading', false);

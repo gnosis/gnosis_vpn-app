@@ -3,7 +3,6 @@ import Button from '../components/common/Button';
 import { useAppStore } from '../stores/appStore';
 import type { Destination } from '../services/vpnService';
 import { StatusIndicator } from '../components/StatusIndicator';
-import Navigation from '../components/Navigation';
 import {
   isConnected,
   isConnectedTo,
@@ -24,14 +23,14 @@ export function MainScreen() {
   }
 
   return (
-    <div class="flex flex-col h-full p-6 gap-6 justify-between">
+    <div class="flex flex-col h-full p-6 gap-6">
       <StatusIndicator
         status={appState.connectionStatus}
         isLoading={appState.isLoading}
       />
 
       <Show when={!isServiceUnavailable(appState.connectionStatus)}>
-        <div class="mt-4">
+        <div class="mt-4 flex-grow flex flex-col justify-center">
           <h3 class="text-lg font-semibold mb-2">Available Destinations</h3>
           <div class="space-y-2">
             <For each={appState.availableDestinations}>
@@ -81,8 +80,6 @@ export function MainScreen() {
           </div>
         </div>
       </Show>
-
-      <Navigation />
     </div>
   );
 }

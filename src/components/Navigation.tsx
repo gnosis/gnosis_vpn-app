@@ -8,7 +8,7 @@ function Navigation() {
   const [appState, appActions] = useAppStore();
   return (
     <>
-      <div class="mt-8 flex items-center justify-center gap-2">
+      <div class="fixed top-4 right-4 z-50 flex flex-col items-stretch gap-2">
         <Button
           variant={
             appState.currentScreen === 'settings' ? 'primary' : 'outline'
@@ -16,6 +16,12 @@ function Navigation() {
           onClick={() => appActions.setScreen('settings')}
         >
           Settings
+        </Button>
+        <Button
+          variant={appState.currentScreen === 'usage' ? 'primary' : 'outline'}
+          onClick={() => appActions.setScreen('usage')}
+        >
+          Usage
         </Button>
         <Button
           variant={appState.currentScreen === 'logs' ? 'primary' : 'outline'}
@@ -39,6 +45,14 @@ function Navigation() {
         onClose={() => appActions.setScreen('main')}
       >
         <LogsPanel />
+      </Modal>
+
+      <Modal
+        open={appState.currentScreen === 'usage'}
+        title="Usage"
+        onClose={() => appActions.setScreen('main')}
+      >
+        <div>Usage</div>
       </Modal>
     </>
   );
