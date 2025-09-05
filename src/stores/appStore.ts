@@ -1,12 +1,13 @@
-import { createStore } from 'solid-js/store';
+import { createStore, type Store } from 'solid-js/store';
 import {
   type Status,
   type Destination,
-  type Path,
   VPNService,
 } from '../services/vpnService';
+import { buildStatusLog } from '../utils/status';
+import { areDestinationsEqualUnordered } from '../utils/destinations';
 
-export type AppScreen = 'main' | 'settings' | 'logs';
+export type AppScreen = 'main' | 'settings' | 'logs' | 'usage';
 
 export interface AppState {
   currentScreen: AppScreen;
@@ -14,55 +15,55 @@ export interface AppState {
   availableDestinations: Destination[];
   isLoading: boolean;
   error?: string;
+  logs: { date: string; message: string }[];
 }
 
-export function createAppStore() {
+type AppActions = {
+  setScreen: (screen: AppScreen) => void;
+  connect: (address?: string) => Promise<void>;
+  disconnect: () => Promise<void>;
+  refreshStatus: () => Promise<void>;
+  startStatusPolling: (intervalMs?: number) => void;
+  stopStatusPolling: () => void;
+};
+
+type AppStoreTuple = readonly [Store<AppState>, AppActions];
+
+export function createAppStore(): AppStoreTuple {
   const [state, setState] = createStore<AppState>({
     currentScreen: 'main',
     connectionStatus: 'ServiceUnavailable',
     availableDestinations: [],
     isLoading: false,
+    logs: [],
   });
 
   let pollingId: number | undefined;
   let pollInFlight = false;
 
-  const canonicalizeMeta = (
-    meta: Record<string, string> | undefined
-  ): string => {
-    if (!meta) return '';
-    const keys = Object.keys(meta).sort();
-    const ordered: Record<string, string> = {};
-    for (const key of keys) ordered[key] = meta[key];
-    return JSON.stringify(ordered);
-  };
+  const appendContentIfNew = (content: string) =>
+    setState('logs', existingLogs => {
+      const lastMessage = existingLogs.length
+        ? existingLogs[existingLogs.length - 1].message
+        : '';
+      if (lastMessage === content) return existingLogs;
+      const entry = { date: new Date().toISOString(), message: content };
+      return [...existingLogs, entry];
+    });
 
-  const canonicalizePath = (path: Path): string => {
-    if ('Hops' in path) return `Hops:${path.Hops}`;
-    return `IntermediatePath:${(path.IntermediatePath || []).join(',')}`;
-  };
-
-  const areDestinationsEqualUnordered = (
-    a: Destination[],
-    b: Destination[]
-  ): boolean => {
-    if (a.length !== b.length) return false;
-    const aSorted = [...a].sort((x, y) => x.address.localeCompare(y.address));
-    const bSorted = [...b].sort((x, y) => x.address.localeCompare(y.address));
-    for (let i = 0; i < aSorted.length; i += 1) {
-      const da = aSorted[i];
-      const db = bSorted[i];
-      if (da.address !== db.address) return false;
-      if (canonicalizeMeta(da.meta) !== canonicalizeMeta(db.meta)) return false;
-      if (canonicalizePath(da.path) !== canonicalizePath(db.path)) return false;
-    }
-    return true;
+  const appendLogIfNew = (args: {
+    response?: import('../services/vpnService').StatusResponse;
+    error?: string;
+  }) => {
+    const content = buildStatusLog(state.logs, args);
+    if (!content) return;
+    appendContentIfNew(content);
   };
 
   const getStatus = async () => {
     try {
       const response = await VPNService.getStatus();
-      console.log('response', response);
+      appendLogIfNew({ response });
       if (response.status !== state.connectionStatus) {
         setState('connectionStatus', response.status);
       }
@@ -76,6 +77,9 @@ export function createAppStore() {
       }
       setState('error', undefined);
     } catch (error) {
+      appendLogIfNew({
+        error: error instanceof Error ? error.message : String(error),
+      });
       setState('isLoading', false);
       setState('connectionStatus', 'ServiceUnavailable');
       setState('availableDestinations', []);
@@ -85,12 +89,40 @@ export function createAppStore() {
 
   const actions = {
     setScreen: (screen: AppScreen) => setState('currentScreen', screen),
-    setConnectionStatus: (status: Status) =>
-      setState('connectionStatus', status),
-    setLoading: (loading: boolean) => setState('isLoading', loading),
-    setError: (error?: string) => setState('error', error),
 
-    updateStatus: async () => {
+    connect: async (address?: string) => {
+      setState('isLoading', true);
+      try {
+        const targetAddress =
+          address ?? state.availableDestinations[0]?.address ?? undefined;
+        if (targetAddress) {
+          await VPNService.connect(targetAddress);
+        }
+        await getStatus();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        appendLogIfNew({ error: message });
+        setState('error', message);
+      } finally {
+        setState('isLoading', false);
+      }
+    },
+
+    disconnect: async () => {
+      setState('isLoading', true);
+      try {
+        await VPNService.disconnect();
+        await getStatus();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        appendLogIfNew({ error: message });
+        setState('error', message);
+      } finally {
+        setState('isLoading', false);
+      }
+    },
+
+    refreshStatus: async () => {
       setState('isLoading', true);
       await getStatus();
       setState('isLoading', false);
@@ -119,4 +151,10 @@ export function createAppStore() {
   } as const;
 
   return [state, actions] as const;
+}
+
+const appStore = createAppStore();
+
+export function useAppStore(): AppStoreTuple {
+  return appStore;
 }

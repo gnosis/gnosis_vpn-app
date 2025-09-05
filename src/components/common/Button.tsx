@@ -10,13 +10,13 @@ export interface ButtonProps {
 }
 
 const baseClasses =
-  'inline-flex items-center justify-center rounded-md font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed gap-2';
+  'inline-flex items-center justify-center rounded-md font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed gap-2 hover:cursor-pointer';
 
 const variantClasses: Record<NonNullable<ButtonProps['variant']>, string> = {
   primary:
-    'bg-blue-600 text-white hover:bg-blue-700 focus-visible:ring-blue-500 ring-offset-white dark:ring-offset-gray-900',
+    'bg-blue-600 dark:bg-blue-600 text-white hover:bg-blue-700 focus-visible:ring-blue-500 ring-offset-white dark:ring-offset-gray-900',
   secondary:
-    'bg-gray-800 text-white hover:bg-gray-700 focus-visible:ring-gray-500 ring-offset-white dark:ring-offset-gray-900',
+    'bg-gray-800 dark:bg-gray-800 text-white hover:bg-gray-700 focus-visible:ring-gray-500 ring-offset-white dark:ring-offset-gray-900',
   outline:
     'border border-gray-300 text-gray-900 hover:bg-gray-100 dark:text-gray-100 dark:border-gray-700 dark:hover:bg-gray-800 focus-visible:ring-gray-400 ring-offset-white dark:ring-offset-gray-900',
 };

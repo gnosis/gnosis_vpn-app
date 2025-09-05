@@ -1,11 +1,9 @@
-import { For, Show, onCleanup, onMount } from 'solid-js';
+import { For, Show } from 'solid-js';
 import Button from '../components/common/Button';
-import { createAppStore } from '../stores/appStore';
+import { useAppStore } from '../stores/appStore';
 import type { Destination } from '../services/vpnService';
 import { StatusIndicator } from '../components/StatusIndicator';
-import Navigation from '../components/Navigation';
 import {
-  VPNService,
   isConnected,
   isConnectedTo,
   isConnecting,
@@ -14,54 +12,25 @@ import {
 } from '../services/vpnService';
 
 export function MainScreen() {
-  const [appState, appActions] = createAppStore();
-
-  // console.log(appState);
+  const [appState, appActions] = useAppStore();
 
   async function handleConnect(destination?: Destination) {
-    try {
-      appActions.setLoading(true);
-      if (destination) {
-        await VPNService.connect(destination.address);
-      } else {
-        // Default to first available destination if provided
-        const first = appState.availableDestinations[0];
-        if (first) await VPNService.connect(first.address);
-      }
-      await appActions.updateStatus();
-    } finally {
-      appActions.setLoading(false);
-    }
+    await appActions.connect(destination?.address);
   }
 
   async function handleDisconnect() {
-    try {
-      appActions.setLoading(true);
-      await VPNService.disconnect();
-      await appActions.updateStatus();
-    } finally {
-      appActions.setLoading(false);
-    }
+    await appActions.disconnect();
   }
 
-  onMount(() => {
-    appActions.updateStatus();
-    appActions.startStatusPolling(2000);
-  });
-
-  onCleanup(() => {
-    appActions.stopStatusPolling();
-  });
-
   return (
-    <div class="flex flex-col h-full p-6 gap-6 justify-between">
+    <div class="flex flex-col h-full p-6 gap-6">
       <StatusIndicator
         status={appState.connectionStatus}
         isLoading={appState.isLoading}
       />
 
       <Show when={!isServiceUnavailable(appState.connectionStatus)}>
-        <div class="mt-4">
+        <div class="mt-4 flex-grow flex flex-col justify-center">
           <h3 class="text-lg font-semibold mb-2">Available Destinations</h3>
           <div class="space-y-2">
             <For each={appState.availableDestinations}>
@@ -111,11 +80,6 @@ export function MainScreen() {
           </div>
         </div>
       </Show>
-
-      <Navigation
-        currentScreen={appState.currentScreen}
-        onNavigate={s => appActions.setScreen(s)}
-      />
     </div>
   );
 }
