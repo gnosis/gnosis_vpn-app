@@ -6,7 +6,7 @@ export default function Toggle(
   const { class: className, ...rest } = props;
 
   return (
-    <label class="flex items-center justify-between text-sm">
+    <label class="flex items-center justify-between">
       <span>{props.label}</span>
       <input
         {...rest}
