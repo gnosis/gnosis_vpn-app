@@ -14,7 +14,7 @@ const baseClasses =
 
 const variantClasses: Record<NonNullable<ButtonProps['variant']>, string> = {
   primary:
-    'border border-transparent bg-blue-600 text-white hover:bg-blue-700 focus-visible:ring-blue-500',
+    'border dart:border-gray-300 bg-blue-600 text-white hover:bg-blue-700 focus-visible:ring-blue-500',
   secondary:
     'border border-transparent bg-gray-800 text-white hover:bg-gray-700 focus-visible:ring-gray-500',
   outline:
