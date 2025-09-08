@@ -1,7 +1,14 @@
 import { SecondaryScreen } from '../components/common/SecondaryScreen';
 import Toggle from '../components/common/Toggle';
+import { useAppStore } from '../stores/appStore';
+import { useSettingsStore } from '../stores/settingsStore';
+import { VPNService } from '../services/vpnService';
+import { For, Show } from 'solid-js';
 
 export default function Settings() {
+  const [appState] = useAppStore();
+  const [settings, settingsActions] = useSettingsStore();
+
   return (
     <SecondaryScreen>
       <div class="space-y-4 p-6">
@@ -9,9 +16,34 @@ export default function Settings() {
           <Toggle label="Connect on application startup" />
           <Toggle label="Start application minimized" />
 
-          <label class="flex items-center gap-2 text-sm">
+          <label class="flex items-center justify-between gap-2">
             Preferred server location
-            <input type="text" class="h-4" />
+            <select
+              class=""
+              value={settings.preferredLocation ?? ''}
+              onChange={e =>
+                void settingsActions.setPreferredLocation(
+                  e.currentTarget.value || null
+                )
+              }
+            >
+              <Show
+                when={appState.availableDestinations.length > 0}
+                fallback={
+                  <option value="No servers available">
+                    No servers available
+                  </option>
+                }
+              >
+                <For each={appState.availableDestinations}>
+                  {dest => (
+                    <option value={dest.address ?? ''}>
+                      {VPNService.formatDestination(dest)}
+                    </option>
+                  )}
+                </For>
+              </Show>
+            </select>
           </label>
         </div>
       </div>

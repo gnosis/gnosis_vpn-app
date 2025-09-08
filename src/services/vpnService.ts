@@ -70,9 +70,7 @@ export class VPNService {
   static formatDestination(
     destination: StatusResponse['available_destinations'][0]
   ): string {
-    const country = destination.meta.country || 'Unknown';
-    const city = destination.meta.city || '';
-    return city ? `${country} - ${city}` : country;
+    return `${destination.meta.city ?? ''} ${destination.meta.state ?? ''} ${destination.meta.location ?? ''}`;
   }
 }
 
