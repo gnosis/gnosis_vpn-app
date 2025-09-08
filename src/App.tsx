@@ -7,7 +7,6 @@ import Settings from './screens/Settings';
 import { useAppStore } from './stores/appStore';
 import Usage from './screens/Usage';
 import { onCleanup, onMount } from 'solid-js';
-import { useSettingsStore } from './stores/settingsStore';
 
 const screens = {
   main: MainScreen,
@@ -18,11 +17,9 @@ const screens = {
 
 function App() {
   const [appState, appActions] = useAppStore();
-  const [, settingsActions] = useSettingsStore();
 
   onMount(() => {
     void (async () => {
-      await settingsActions.load();
       await appActions.refreshStatus();
       appActions.startStatusPolling(2000);
     })();
