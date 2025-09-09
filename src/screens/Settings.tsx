@@ -18,32 +18,28 @@ export default function Settings() {
 
           <label class="flex items-center justify-between gap-2">
             Preferred server location
-            <select
-              class=""
-              value={settings.preferredLocation ?? ''}
-              onChange={e =>
-                void settingsActions.setPreferredLocation(
-                  e.currentTarget.value || null
-                )
-              }
+            <Show
+              when={appState.availableDestinations.length > 0}
+              fallback={<div>No servers available</div>}
             >
-              <Show
-                when={appState.availableDestinations.length > 0}
-                fallback={
-                  <option value="No servers available">
-                    No servers available
-                  </option>
+              <select
+                class=""
+                value={settings.preferredLocation ?? ''}
+                onChange={e =>
+                  void settingsActions.setPreferredLocation(
+                    e.currentTarget.value || null
+                  )
                 }
               >
                 <For each={appState.availableDestinations}>
                   {dest => (
-                    <option value={dest.address ?? ''}>
+                    <option value={dest.address}>
                       {VPNService.formatDestination(dest)}
                     </option>
                   )}
                 </For>
-              </Show>
-            </select>
+              </select>
+            </Show>
           </label>
         </div>
       </div>
