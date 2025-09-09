@@ -6,6 +6,7 @@ import {
 } from '../services/vpnService';
 import { buildStatusLog } from '../utils/status';
 import { areDestinationsEqualUnordered } from '../utils/destinations';
+import { useSettingsStore } from './settingsStore';
 
 export type AppScreen = 'main' | 'settings' | 'logs' | 'usage';
 
@@ -93,8 +94,37 @@ export function createAppStore(): AppStoreTuple {
     connect: async (address?: string) => {
       setState('isLoading', true);
       try {
-        const targetAddress =
-          address ?? state.availableDestinations[0]?.address ?? undefined;
+        const [settings] = useSettingsStore();
+
+        let targetAddress: string | undefined = undefined;
+        let selectionReason = '';
+
+        if (address) {
+          targetAddress = address;
+          selectionReason = 'address parameter';
+        } else {
+          const preferred = settings.preferredLocation;
+          if (preferred) {
+            const preferredExists = state.availableDestinations.some(
+              d => d.address === preferred
+            );
+            if (preferredExists) {
+              targetAddress = preferred;
+              selectionReason = 'preferred location';
+            } else {
+              targetAddress = state.availableDestinations[0]?.address;
+              selectionReason = 'fallback: preferred not present';
+            }
+          } else {
+            targetAddress = state.availableDestinations[0]?.address;
+            selectionReason = 'fallback: no preferred set';
+          }
+        }
+
+        appendContentIfNew(
+          `Connect target: ${targetAddress ?? 'none'} (${selectionReason})`
+        );
+
         if (targetAddress) {
           await VPNService.connect(targetAddress);
         }

@@ -31,6 +31,11 @@ export function MainScreen() {
 
       <Show when={!isServiceUnavailable(appState.connectionStatus)}>
         <div class="mt-4 flex-grow flex flex-col justify-center">
+          <div class="my-6 flex justify-center">
+            <Button variant="outline" size="lg" onClick={() => handleConnect()}>
+              Connect
+            </Button>
+          </div>
           <h3 class="text-lg font-semibold mb-2">Available Destinations</h3>
           <div class="space-y-2">
             <For each={appState.availableDestinations}>
