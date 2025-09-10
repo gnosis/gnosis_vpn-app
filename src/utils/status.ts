@@ -1,4 +1,5 @@
 import { type Destination, type Status } from '../services/vpnService';
+import { formatDestination } from '../utils/destinations';
 
 export function isConnected(
   status: Status
@@ -68,15 +69,11 @@ export function buildLogContent(
     const statusValue = args.response.status;
     if (isConnected(statusValue)) {
       const destination = statusValue.Connected;
-      const city = destination.meta?.city || '';
-      const location = destination.meta?.location || '';
-      const where = [city, location].filter(Boolean).join(', ');
+      const where = formatDestination(destination);
       content = `Connected: ${where} - ${destination.address}`;
     } else if (isConnecting(statusValue)) {
       const destination = statusValue.Connecting;
-      const city = destination.meta?.city || '';
-      const location = destination.meta?.location || '';
-      const where = [city, location].filter(Boolean).join(', ');
+      const where = formatDestination(destination);
       content = `Connecting: ${where} - ${destination.address}`;
     } else if (isDisconnected(statusValue)) {
       const lastWasDisconnected = Boolean(
@@ -86,9 +83,7 @@ export function buildLogContent(
         content = undefined;
       } else {
         const lines = args.response.available_destinations.map(d => {
-          const city = d.meta?.city || '';
-          const location = d.meta?.location || '';
-          const where = [city, location].filter(Boolean).join(', ');
+          const where = formatDestination(d);
           return `- ${where} - ${d.address}`;
         });
         content = `Disconnected. Available:\n${lines.join('\n')}`;

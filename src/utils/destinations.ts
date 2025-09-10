@@ -92,7 +92,18 @@ export function selectTargetAddress(
 }
 
 export function formatDestination(destination: Destination): string {
-  return `${destination.meta.city ?? ''} ${destination.meta.state ?? ''} ${
-    destination.meta.location ?? ''
-  }`;
+  const meta = destination.meta || {};
+  const parts = [meta.city, meta.state, meta.location]
+    .map(v => (v ?? '').trim())
+    .filter(v => v.length > 0);
+  return parts.join(' ');
+}
+
+export function formatDestinationByAddress(
+  address: string | null | undefined,
+  available: Destination[]
+): string {
+  if (!address) return 'Not set';
+  const dest = available.find(d => d.address === address);
+  return dest ? formatDestination(dest) : `${address} (unavailable)`;
 }

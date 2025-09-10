@@ -10,9 +10,12 @@ import {
   isConnectingTo,
   isServiceUnavailable,
 } from '../services/vpnService';
+import { useSettingsStore } from '../stores/settingsStore';
+import { formatDestinationByAddress } from '../utils/destinations';
 
 export function MainScreen() {
   const [appState, appActions] = useAppStore();
+  const [settings] = useSettingsStore();
 
   async function handleConnect(destination?: Destination) {
     await appActions.connect(destination?.address);
@@ -35,6 +38,13 @@ export function MainScreen() {
             <Button variant="outline" size="lg" onClick={() => handleConnect()}>
               Connect
             </Button>
+          </div>
+          <div class="-mt-4 mb-4 text-center text-xs text-gray-500 dark:text-gray-400">
+            Preferred:{' '}
+            {formatDestinationByAddress(
+              settings.preferredLocation,
+              appState.availableDestinations
+            )}
           </div>
           <h3 class="text-lg font-semibold mb-2">Available Destinations</h3>
           <div class="space-y-2">

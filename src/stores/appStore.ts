@@ -9,6 +9,7 @@ import {
   areDestinationsEqualUnordered,
   getPreferredAvailabilityChangeMessage,
   selectTargetAddress,
+  formatDestinationByAddress,
 } from '../utils/destinations';
 import { useSettingsStore } from './settingsStore';
 
@@ -102,11 +103,17 @@ export function createAppStore(): AppStoreTuple {
             )
           : false;
         if (settings.preferredLocation) {
-          appendContentIfNew(
-            nowHasPreferred
-              ? `Preferred location set to ${settings.preferredLocation}.`
-              : `Preferred location ${settings.preferredLocation} currently unavailable.`
-          );
+          if (nowHasPreferred) {
+            const pretty = formatDestinationByAddress(
+              settings.preferredLocation,
+              response.available_destinations
+            );
+            appendContentIfNew(`Preferred location set to ${pretty}.`);
+          } else {
+            appendContentIfNew(
+              `Preferred location ${settings.preferredLocation} currently unavailable.`
+            );
+          }
         }
         lastPreferredLocation = settings.preferredLocation;
       }
