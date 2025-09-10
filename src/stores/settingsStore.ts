@@ -48,15 +48,15 @@ export function createSettingsStore(): SettingsStoreTuple {
       const store = await getTauriStore();
       const loaded: SettingsState = { ...DEFAULT_SETTINGS };
 
-      const preferredLocation = (await store.get('preferredLocation')) as
-        | SettingsState['preferredLocation']
-        | undefined;
-      const connectOnStartup = (await store.get('connectOnStartup')) as
-        | boolean
-        | undefined;
-      const startMinimized = (await store.get('startMinimized')) as
-        | boolean
-        | undefined;
+      const [preferredLocation, connectOnStartup, startMinimized] = (await Promise.all([
+        store.get('preferredLocation'),
+        store.get('connectOnStartup'),
+        store.get('startMinimized'),
+      ])) as [
+        SettingsState['preferredLocation'] | undefined,
+        boolean | undefined,
+        boolean | undefined,
+      ];
 
       if (preferredLocation !== undefined) {
         loaded.preferredLocation = preferredLocation;
