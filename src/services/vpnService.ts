@@ -66,12 +66,6 @@ export class VPNService {
     );
     return sorted[0].address;
   }
-
-  static formatDestination(
-    destination: StatusResponse['available_destinations'][0]
-  ): string {
-    return `${destination.meta.city ?? ''} ${destination.meta.state ?? ''} ${destination.meta.location ?? ''}`;
-  }
 }
 
 export function isConnected(

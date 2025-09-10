@@ -52,3 +52,47 @@ export const areDestinationsEqualUnordered = (
   }
   return true;
 };
+
+export function getPreferredAvailabilityChangeMessage(
+  previous: Destination[],
+  next: Destination[],
+  preferredAddress: string | null
+): string | null {
+  if (previous.length === 0) return null;
+  if (!preferredAddress) return null;
+  const previouslyHadPreferred = previous.some(
+    d => d.address === preferredAddress
+  );
+  const nowHasPreferred = next.some(d => d.address === preferredAddress);
+  if (previouslyHadPreferred === nowHasPreferred) return null;
+  return nowHasPreferred
+    ? `Preferred location ${preferredAddress} is available again.`
+    : `Preferred location ${preferredAddress} currently unavailable.`;
+}
+
+export function selectTargetAddress(
+  addressArg: string | undefined,
+  preferredAddress: string | null,
+  available: Destination[]
+): { address: string | undefined; reason: string } {
+  if (addressArg) return { address: addressArg, reason: 'address parameter' };
+  if (preferredAddress) {
+    const hasPreferred = available.some(d => d.address === preferredAddress);
+    if (hasPreferred)
+      return { address: preferredAddress, reason: 'preferred location' };
+    return {
+      address: available[0]?.address,
+      reason: 'fallback: preferred not present',
+    };
+  }
+  return {
+    address: available[0]?.address,
+    reason: 'fallback: no preferred set',
+  };
+}
+
+export function formatDestination(destination: Destination): string {
+  return `${destination.meta.city ?? ''} ${destination.meta.state ?? ''} ${
+    destination.meta.location ?? ''
+  }`;
+}

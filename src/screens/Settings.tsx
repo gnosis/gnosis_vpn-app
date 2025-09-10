@@ -2,7 +2,7 @@ import { SecondaryScreen } from '../components/common/SecondaryScreen';
 import Toggle from '../components/common/Toggle';
 import { useAppStore } from '../stores/appStore';
 import { useSettingsStore } from '../stores/settingsStore';
-import { VPNService } from '../services/vpnService';
+import { formatDestination } from '../utils/destinations';
 import { For, Show } from 'solid-js';
 
 export default function Settings() {
@@ -34,7 +34,7 @@ export default function Settings() {
                 <For each={appState.availableDestinations}>
                   {dest => (
                     <option value={dest.address}>
-                      {VPNService.formatDestination(dest)}
+                      {formatDestination(dest)}
                     </option>
                   )}
                 </For>
