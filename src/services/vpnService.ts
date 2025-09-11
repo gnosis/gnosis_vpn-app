@@ -1,7 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
 
-export type WireGuardStatus = 'Up' | 'Down' | 'ManuallyManaged';
-
 export type Path = { Hops: number } | { IntermediatePath: string[] };
 export interface Destination {
   meta: Record<string, string>;
@@ -16,16 +14,43 @@ export type Status =
   | 'ServiceUnavailable'
   | 'Disconnected';
 
-export interface StatusResponse {
-  wireguard: WireGuardStatus;
+export type FundingIssue =
+  | 'Unfunded' // cannot work at all - initial state
+  | 'ChannelsOutOfFunds' // does not work - no traffic possible
+  | 'SafeOutOfFunds' // keeps working - cannot top up channels
+  | 'SafeLowOnFunds' // warning before SafeOutOfFunds
+  | 'NodeUnderfunded' // keeps working until channels are drained - cannot open new or top up existing channels
+  | 'NodeLowOnFunds'; // warning before NodeUnderfunded
+
+export type FundingState =
+  | 'Unknown'
+  | { TopIssue: FundingIssue }
+  | 'WellFunded';
+
+export type StatusResponse = {
   status: Status;
   available_destinations: Destination[];
-}
+  network: string | undefined;
+  funding: FundingState;
+};
 
 export type ConnectResponse = { Connecting: Destination } | 'AddressNotFound';
 export type DisconnectResponse =
   | { Disconnecting: Destination }
   | 'NotConnected';
+
+export type Addresses = {
+  node: string;
+  safe: string;
+};
+
+export type BalanceResponse = {
+  node: string;
+  safe: string;
+  channels_out: string;
+  addresses: Addresses;
+  issues: FundingIssue[];
+};
 
 export class VPNService {
   static async getStatus(): Promise<StatusResponse> {
@@ -52,6 +77,27 @@ export class VPNService {
     } catch (error) {
       console.error('Failed to disconnect from VPN:', error);
       throw new Error(`Disconnect Error: ${error}`);
+    }
+  }
+
+  /// Request latest balance from VPN node.
+  /// Will return `undefined` if balance information was not yet available.
+  /// Regularly updates every 60 seconds - can be manually triggered via **refreshNode()**.
+  static async balance(): Promise<BalanceResponse | undefined> {
+    try {
+      return (await invoke('balance')) as BalanceResponse | undefined;
+    } catch (error) {
+      console.error('Failed to query VPN balance', error);
+      throw new Error(`Balance Error: ${error}`);
+    }
+  }
+
+  static async refreshNode(): Promise<void> {
+    try {
+      await invoke('refresh_node');
+    } catch (error) {
+      console.error('Failed to request VPN node balance update', error);
+      throw new Error(`Refresh Node Error: ${error}`);
     }
   }
 
