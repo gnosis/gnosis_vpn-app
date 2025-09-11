@@ -1,8 +1,8 @@
 use gnosis_vpn_lib::{address, command, socket};
 use tauri::{
+    AppHandle, Manager,
     menu::{Menu, MenuBuilder, MenuItem},
     tray::{TrayIconBuilder, TrayIconEvent},
-    AppHandle, Manager,
 };
 
 use std::path::PathBuf;
