@@ -5,6 +5,7 @@
     "npm:@tauri-apps/api@^2.8.0": "2.8.0",
     "npm:@tauri-apps/cli@^2.8.4": "2.8.4",
     "npm:@tauri-apps/plugin-opener@^2.5.0": "2.5.0",
+    "npm:@tauri-apps/plugin-store@2.4": "2.4.0",
     "npm:eslint@^9.34.0": "9.34.0",
     "npm:prettier@^3.6.2": "3.6.2",
     "npm:solid-js@^1.9.9": "1.9.9_seroval@1.3.2",
@@ -712,6 +713,12 @@
     },
     "@tauri-apps/plugin-opener@2.5.0": {
       "integrity": "sha512-B0LShOYae4CZjN8leiNDbnfjSrTwoZakqKaWpfoH6nXiJwt6Rgj6RnVIffG3DoJiKsffRhMkjmBV9VeilSb4TA==",
+      "dependencies": [
+        "@tauri-apps/api"
+      ]
+    },
+    "@tauri-apps/plugin-store@2.4.0": {
+      "integrity": "sha512-PjBnlnH6jyI71MGhrPaxUUCsOzc7WO1mbc4gRhME0m2oxLgCqbksw6JyeKQimuzv4ysdpNO3YbmaY2haf82a3A==",
       "dependencies": [
         "@tauri-apps/api"
       ]
@@ -1549,6 +1556,7 @@
         "npm:@tauri-apps/api@^2.8.0",
         "npm:@tauri-apps/cli@^2.8.4",
         "npm:@tauri-apps/plugin-opener@^2.5.0",
+        "npm:@tauri-apps/plugin-store@2.4",
         "npm:eslint@^9.34.0",
         "npm:prettier@^3.6.2",
         "npm:solid-js@^1.9.9",

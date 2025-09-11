@@ -3,7 +3,7 @@ import { SecondaryScreen } from '../components/common/SecondaryScreen';
 export default function Usage() {
   return (
     <SecondaryScreen>
-      <div class="space-y-4">Usage</div>
+      <div class="space-y-4 p-6">Usage</div>
     </SecondaryScreen>
   );
 }

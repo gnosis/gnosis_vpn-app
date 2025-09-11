@@ -1,22 +1,45 @@
 import { SecondaryScreen } from '../components/common/SecondaryScreen';
+import Toggle from '../components/common/Toggle';
+import { useAppStore } from '../stores/appStore';
+import { useSettingsStore } from '../stores/settingsStore';
+import { formatDestination } from '../utils/destinations';
+import { For, Show } from 'solid-js';
 
 export default function Settings() {
+  const [appState] = useAppStore();
+  const [settings, settingsActions] = useSettingsStore();
+
   return (
     <SecondaryScreen>
-      <div class="space-y-4 p-4">
-        <div>
-          <p class="text-sm text-gray-600 dark:text-gray-400">
-            Placeholder for application settings.
-          </p>
-        </div>
+      <div class="space-y-4 p-6">
         <div class="space-y-2">
-          <label class="flex items-center gap-2 text-sm">
-            <input type="checkbox" class="h-4 w-4" />
-            Enable notifications
-          </label>
-          <label class="flex items-center gap-2 text-sm">
-            <input type="checkbox" class="h-4 w-4" />
-            Start on login
+          <Toggle label="Connect on application startup" />
+          <Toggle label="Start application minimized" />
+
+          <label class="flex items-center justify-between gap-2">
+            Preferred server location
+            <Show
+              when={appState.availableDestinations.length > 0}
+              fallback={<div>No servers available</div>}
+            >
+              <select
+                class=""
+                value={settings.preferredLocation ?? ''}
+                onChange={e =>
+                  void settingsActions.setPreferredLocation(
+                    e.currentTarget.value || null
+                  )
+                }
+              >
+                <For each={appState.availableDestinations}>
+                  {dest => (
+                    <option value={dest.address}>
+                      {formatDestination(dest)}
+                    </option>
+                  )}
+                </For>
+              </select>
+            </Show>
           </label>
         </div>
       </div>

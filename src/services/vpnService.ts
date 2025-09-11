@@ -66,14 +66,6 @@ export class VPNService {
     );
     return sorted[0].address;
   }
-
-  static formatDestination(
-    destination: StatusResponse['available_destinations'][0]
-  ): string {
-    const country = destination.meta.country || 'Unknown';
-    const city = destination.meta.city || '';
-    return city ? `${country} - ${city}` : country;
-  }
 }
 
 export function isConnected(

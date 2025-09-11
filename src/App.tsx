@@ -19,8 +19,10 @@ function App() {
   const [appState, appActions] = useAppStore();
 
   onMount(() => {
-    void appActions.refreshStatus();
-    appActions.startStatusPolling(2000);
+    void (async () => {
+      await appActions.refreshStatus();
+      appActions.startStatusPolling(2000);
+    })();
   });
 
   onCleanup(() => {

@@ -6,7 +6,7 @@ function Navigation() {
   const [appState, appActions] = useAppStore();
   return (
     <Portal>
-      <div class="fixed top-20 right-4 z-10 flex flex-col items-stretch gap-2">
+      <div class="w-full fixed bottom-4 z-10 flex items-center gap-2 justify-center">
         <Button
           variant={
             appState.currentScreen === 'settings' ? 'primary' : 'outline'
