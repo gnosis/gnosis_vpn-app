@@ -1402,7 +1402,7 @@ dependencies = [
 [[package]]
 name = "gnosis_vpn-lib"
 version = "0.12.0"
-source = "git+ssh://git@github.com/gnosis/gnosis_vpn-client.git?branch=este%2Fhoprd-v3#a9d64e22af535702e394f20e8acfbf190b671f7d"
+source = "git+ssh://git@github.com/gnosis/gnosis_vpn-client.git?branch=este%2Fhoprd-v3#b6299e101407a35ae2869015e69eb40813fdfe3e"
 dependencies = [
  "backoff",
  "crossbeam-channel",
