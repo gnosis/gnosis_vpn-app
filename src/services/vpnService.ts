@@ -80,9 +80,11 @@ export class VPNService {
     }
   }
 
-  /// Request latest balance from VPN node.
-  /// Will return `undefined` if balance information was not yet available.
-  /// Regularly updates every 60 seconds - can be manually triggered via **refreshNode()**.
+  /**
+   * Request latest balance from VPN node.
+   * Will return `undefined` if balance information was not yet available.
+   * Regularly updates every 60 seconds - can be manually triggered via **refreshNode()**.
+   */
   static async balance(): Promise<BalanceResponse | undefined> {
     try {
       return (await invoke('balance')) as BalanceResponse | undefined;

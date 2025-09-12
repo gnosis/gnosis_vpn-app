@@ -56,8 +56,11 @@ fn balance() -> Result<Option<command::BalanceResponse>, String> {
 fn refresh_node() -> Result<(), String> {
     let p = PathBuf::from(socket::DEFAULT_PATH);
     let cmd = command::Command::RefreshNode;
-    _ = socket::process_cmd(&p, &cmd).map_err(|e| e.to_string())?;
-    Ok(())
+    let resp = socket::process_cmd(&p, &cmd).map_err(|e| e.to_string())?;
+    match resp {
+        command::Response::RefreshNode => Ok(()),
+        _ => Err("Unexpected response type".to_string()),
+    }
 }
 
 fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error> {
