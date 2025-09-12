@@ -30,7 +30,7 @@ export type FundingState =
 export type StatusResponse = {
   status: Status;
   available_destinations: Destination[];
-  network: string | undefined;
+  network: string | null;
   funding: FundingState;
 };
 
@@ -82,12 +82,12 @@ export class VPNService {
 
   /**
    * Request latest balance from VPN node.
-   * Will return `undefined` if balance information was not yet available.
+   * Will return `null` if balance information was not yet available.
    * Regularly updates every 60 seconds - can be manually triggered via **refreshNode()**.
    */
-  static async balance(): Promise<BalanceResponse | undefined> {
+  static async balance(): Promise<BalanceResponse | null> {
     try {
-      return (await invoke('balance')) as BalanceResponse | undefined;
+      return (await invoke('balance')) as BalanceResponse | null;
     } catch (error) {
       console.error('Failed to query VPN balance', error);
       throw new Error(`Balance Error: ${error}`);
