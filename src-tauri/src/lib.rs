@@ -5,9 +5,29 @@ use tauri::{
     tray::{TrayIconBuilder, TrayIconEvent},
 };
 
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Mutex};
 mod platform;
 use platform::{Platform, PlatformInterface};
+use serde::Serialize;
+use serde_json::Value;
+use tauri_plugin_store::StoreExt;
+
+#[derive(Clone, Debug, Serialize)]
+struct AppSettings {
+    preferred_location: Option<String>,
+    connect_on_startup: bool,
+    start_minimized: bool,
+}
+
+impl Default for AppSettings {
+    fn default() -> Self {
+        Self {
+            preferred_location: None,
+            connect_on_startup: false,
+            start_minimized: false,
+        }
+    }
+}
 
 #[tauri::command]
 fn status() -> Result<command::StatusResponse, String> {
@@ -64,10 +84,18 @@ fn handle_tray_event(app: &AppHandle, event: TrayIconEvent) {
             button_state: tauri::tray::MouseButtonState::Up,
             ..
         } => {
-            // On left click, show the main window
             if let Some(window) = app.get_webview_window("main") {
-                let _ = window.show();
-                let _ = window.set_focus();
+                let is_visible = window.is_visible().unwrap_or(false);
+                if is_visible {
+                    let _ = window.hide();
+                } else {
+                    #[cfg(target_os = "macos")]
+                    {
+                        let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
+                    }
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
             }
         }
         _ => {}
@@ -80,6 +108,27 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
+            // Load settings from the shared store (settings.json) before any UI decisions
+            let mut loaded: AppSettings = AppSettings::default();
+            if let Ok(store) = app.store("settings.json") {
+                if let Some(v) = store.get("preferredLocation") {
+                    loaded.preferred_location = match v {
+                        Value::String(s) => Some(s.clone()),
+                        Value::Null => None,
+                        _ => v.as_str().map(|s| s.to_string()),
+                    };
+                }
+                if let Some(v) = store.get("connectOnStartup") {
+                    loaded.connect_on_startup = v.as_bool().unwrap_or(false);
+                }
+                if let Some(v) = store.get("startMinimized") {
+                    loaded.start_minimized = v.as_bool().unwrap_or(false);
+                }
+            }
+
+            // Make settings available as managed state
+            app.manage(Mutex::new(loaded.clone()));
+
             // Create tray menu
             let menu = create_tray_menu(app.handle())?;
 
@@ -105,8 +154,17 @@ pub fn run() {
                     }
                     "show" => {
                         if let Some(window) = app.get_webview_window("main") {
-                            let _ = window.show();
-                            let _ = window.set_focus();
+                            let is_visible = window.is_visible().unwrap_or(false);
+                            if is_visible {
+                                let _ = window.hide();
+                            } else {
+                                #[cfg(target_os = "macos")]
+                                {
+                                    let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
+                                }
+                                let _ = window.show();
+                                let _ = window.set_focus();
+                            }
                         }
                     }
                     _ => {}
@@ -120,11 +178,23 @@ pub fn run() {
             // Setup platform-specific functionality
             let _ = Platform::setup_system_tray();
 
-            // Hide window on startup if needed (Linux behavior)
-            #[cfg(target_os = "linux")]
-            {
-                if let Some(window) = app.get_webview_window("main") {
-                    let _ = window.hide();
+            // Decide initial window visibility based on settings
+            if let Some(window) = app.get_webview_window("main") {
+                let settings = app.state::<Mutex<AppSettings>>();
+                let start_minimized = settings.lock().map(|s| s.start_minimized).unwrap_or(false);
+                if !start_minimized {
+                    #[cfg(target_os = "macos")]
+                    {
+                        let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
+                    }
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                } else {
+                    #[cfg(target_os = "macos")]
+                    {
+                        let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+                    }
+                    // keep hidden
                 }
             }
 
