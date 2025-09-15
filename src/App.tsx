@@ -7,6 +7,7 @@ import Settings from './screens/Settings';
 import { useAppStore } from './stores/appStore';
 import Usage from './screens/Usage';
 import { onCleanup, onMount } from 'solid-js';
+import { listen } from '@tauri-apps/api/event';
 import { useSettingsStore } from './stores/settingsStore';
 
 const screens = {
@@ -19,6 +20,7 @@ const screens = {
 function App() {
   const [appState, appActions] = useAppStore();
   const [settings] = useSettingsStore();
+  let unlistenNavigate: (() => void) | undefined;
 
   onMount(() => {
     void (async () => {
@@ -33,11 +35,19 @@ function App() {
       }
 
       appActions.startStatusPolling(2000);
+
+      const valid = ['main', 'settings', 'logs', 'usage'] as const;
+      unlistenNavigate = await listen<string>('navigate', ({ payload }) => {
+        if ((valid as readonly string[]).includes(payload)) {
+          appActions.setScreen(payload as (typeof valid)[number]);
+        }
+      });
     })();
   });
 
   onCleanup(() => {
     appActions.stopStatusPolling();
+    if (unlistenNavigate) unlistenNavigate();
   });
 
   return (

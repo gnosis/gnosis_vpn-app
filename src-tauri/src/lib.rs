@@ -1,6 +1,6 @@
 use gnosis_vpn_lib::{address, command, socket};
 use tauri::{
-    AppHandle, Manager,
+    AppHandle, Manager, Emitter,
     menu::{Menu, MenuBuilder, MenuItem},
     tray::{TrayIconBuilder, TrayIconEvent},
 };
@@ -165,6 +165,17 @@ pub fn run() {
                                 let _ = window.show();
                                 let _ = window.set_focus();
                             }
+                        }
+                    }
+                    "settings" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            #[cfg(target_os = "macos")]
+                            {
+                                let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
+                            }
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                            let _ = window.emit("navigate", "settings");
                         }
                     }
                     _ => {}
