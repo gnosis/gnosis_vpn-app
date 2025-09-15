@@ -66,6 +66,8 @@ fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error> {
         MenuItem::with_id(app, "status", "Status: Disconnected", false, None::<&str>)?;
     let show_item = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
     let settings_item = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
+    let logs_item = MenuItem::with_id(app, "logs", "Logs", true, None::<&str>)?;
+    let usage_item = MenuItem::with_id(app, "usage", "Usage", true, None::<&str>)?;
     let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
 
     MenuBuilder::new(app)
@@ -73,6 +75,8 @@ fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error> {
         .separator()
         .item(&show_item)
         .item(&settings_item)
+        .item(&logs_item)
+        .item(&usage_item)
         .item(&quit_item)
         .build()
 }
@@ -99,6 +103,18 @@ fn handle_tray_event(app: &AppHandle, event: TrayIconEvent) {
             }
         }
         _ => {}
+    }
+}
+
+fn show_and_navigate(app: &AppHandle, target: &str) {
+    if let Some(window) = app.get_webview_window("main") {
+        #[cfg(target_os = "macos")]
+        {
+            let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
+        }
+        let _ = window.show();
+        let _ = window.set_focus();
+        let _ = window.emit("navigate", target);
     }
 }
 
@@ -167,17 +183,9 @@ pub fn run() {
                             }
                         }
                     }
-                    "settings" => {
-                        if let Some(window) = app.get_webview_window("main") {
-                            #[cfg(target_os = "macos")]
-                            {
-                                let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
-                            }
-                            let _ = window.show();
-                            let _ = window.set_focus();
-                            let _ = window.emit("navigate", "settings");
-                        }
-                    }
+                    "settings" => show_and_navigate(app, "settings"),
+                    "logs" => show_and_navigate(app, "logs"),
+                    "usage" => show_and_navigate(app, "usage"),
                     _ => {}
                 })
                 .on_tray_icon_event(|tray, event| {
