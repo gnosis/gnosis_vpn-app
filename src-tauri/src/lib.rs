@@ -1,6 +1,6 @@
 use gnosis_vpn_lib::{address, command, socket};
 use tauri::{
-    AppHandle, Manager, Emitter,
+    AppHandle, Emitter, Manager,
     menu::{Menu, MenuBuilder, MenuItem},
     tray::{TrayIconBuilder, TrayIconEvent},
 };
@@ -176,7 +176,8 @@ pub fn run() {
                             } else {
                                 #[cfg(target_os = "macos")]
                                 {
-                                    let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
+                                    let _ =
+                                        app.set_activation_policy(tauri::ActivationPolicy::Regular);
                                 }
                                 let _ = window.show();
                                 let _ = window.set_focus();
@@ -200,21 +201,19 @@ pub fn run() {
             // Intercept window close to hide to tray instead of exiting
             if let Some(window) = app.get_webview_window("main") {
                 let app_handle = app.handle().clone();
-                window.on_window_event(move |event| {
-                    match event {
-                        tauri::WindowEvent::CloseRequested { api, .. } => {
-                            api.prevent_close();
-                            if let Some(win) = app_handle.get_webview_window("main") {
-                                let _ = win.hide();
-                            }
-                            #[cfg(target_os = "macos")]
-                            {
-                                let _ = app_handle
-                                    .set_activation_policy(tauri::ActivationPolicy::Accessory);
-                            }
+                window.on_window_event(move |event| match event {
+                    tauri::WindowEvent::CloseRequested { api, .. } => {
+                        api.prevent_close();
+                        if let Some(win) = app_handle.get_webview_window("main") {
+                            let _ = win.hide();
                         }
-                        _ => {}
+                        #[cfg(target_os = "macos")]
+                        {
+                            let _ = app_handle
+                                .set_activation_policy(tauri::ActivationPolicy::Accessory);
+                        }
                     }
+                    _ => {}
                 });
             }
 
