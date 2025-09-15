@@ -178,6 +178,27 @@ pub fn run() {
             // Setup platform-specific functionality
             let _ = Platform::setup_system_tray();
 
+            // Intercept window close to hide to tray instead of exiting
+            if let Some(window) = app.get_webview_window("main") {
+                let app_handle = app.handle().clone();
+                window.on_window_event(move |event| {
+                    match event {
+                        tauri::WindowEvent::CloseRequested { api, .. } => {
+                            api.prevent_close();
+                            if let Some(win) = app_handle.get_webview_window("main") {
+                                let _ = win.hide();
+                            }
+                            #[cfg(target_os = "macos")]
+                            {
+                                let _ = app_handle
+                                    .set_activation_policy(tauri::ActivationPolicy::Accessory);
+                            }
+                        }
+                        _ => {}
+                    }
+                });
+            }
+
             // Decide initial window visibility based on settings
             if let Some(window) = app.get_webview_window("main") {
                 let settings = app.state::<Mutex<AppSettings>>();
