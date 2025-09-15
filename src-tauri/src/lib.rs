@@ -41,6 +41,28 @@ fn disconnect() -> Result<command::DisconnectResponse, String> {
     }
 }
 
+#[tauri::command]
+fn balance() -> Result<Option<command::BalanceResponse>, String> {
+    let p = PathBuf::from(socket::DEFAULT_PATH);
+    let cmd = command::Command::Balance;
+    let resp = socket::process_cmd(&p, &cmd).map_err(|e| e.to_string())?;
+    match resp {
+        command::Response::Balance(resp) => Ok(resp),
+        _ => Err("Unexpected response type".to_string()),
+    }
+}
+
+#[tauri::command]
+fn refresh_node() -> Result<(), String> {
+    let p = PathBuf::from(socket::DEFAULT_PATH);
+    let cmd = command::Command::RefreshNode;
+    let resp = socket::process_cmd(&p, &cmd).map_err(|e| e.to_string())?;
+    match resp {
+        command::Response::RefreshNode => Ok(()),
+        _ => Err("Unexpected response type".to_string()),
+    }
+}
+
 fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error> {
     let status_item =
         MenuItem::with_id(app, "status", "Status: Disconnected", false, None::<&str>)?;
