@@ -36,10 +36,14 @@ function App() {
 
       appActions.startStatusPolling(2000);
 
-      const valid = ['main', 'settings', 'logs', 'usage'] as const;
+      const validScreens = ['main', 'settings', 'logs', 'usage'] as const;
+      type ValidScreen = (typeof validScreens)[number];
+      const isValidScreen = (s: string): s is ValidScreen =>
+        (validScreens as readonly string[]).includes(s);
+
       unlistenNavigate = await listen<string>('navigate', ({ payload }) => {
-        if ((valid as readonly string[]).includes(payload)) {
-          appActions.setScreen(payload as (typeof valid)[number]);
+        if (isValidScreen(payload)) {
+          appActions.setScreen(payload);
         }
       });
     })();

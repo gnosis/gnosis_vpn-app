@@ -9,7 +9,6 @@ use std::{path::PathBuf, sync::Mutex};
 mod platform;
 use platform::{Platform, PlatformInterface};
 use serde::Serialize;
-use serde_json::Value;
 use tauri_plugin_store::StoreExt;
 
 #[derive(Clone, Debug, Serialize)]
@@ -81,6 +80,22 @@ fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error> {
         .build()
 }
 
+fn toggle_main_window_visibility(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let is_visible = window.is_visible().unwrap_or(false);
+        if is_visible {
+            let _ = window.hide();
+        } else {
+            #[cfg(target_os = "macos")]
+            {
+                let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
+            }
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
+    }
+}
+
 fn handle_tray_event(app: &AppHandle, event: TrayIconEvent) {
     match event {
         TrayIconEvent::Click {
@@ -88,19 +103,7 @@ fn handle_tray_event(app: &AppHandle, event: TrayIconEvent) {
             button_state: tauri::tray::MouseButtonState::Up,
             ..
         } => {
-            if let Some(window) = app.get_webview_window("main") {
-                let is_visible = window.is_visible().unwrap_or(false);
-                if is_visible {
-                    let _ = window.hide();
-                } else {
-                    #[cfg(target_os = "macos")]
-                    {
-                        let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
-                    }
-                    let _ = window.show();
-                    let _ = window.set_focus();
-                }
-            }
+            toggle_main_window_visibility(app);
         }
         _ => {}
     }
@@ -114,7 +117,9 @@ fn show_and_navigate(app: &AppHandle, target: &str) {
         }
         let _ = window.show();
         let _ = window.set_focus();
-        let _ = window.emit("navigate", target);
+        if let Err(e) = window.emit("navigate", target) {
+            eprintln!("Failed to emit navigate event: {}", e);
+        }
     }
 }
 
@@ -128,11 +133,7 @@ pub fn run() {
             let mut loaded: AppSettings = AppSettings::default();
             if let Ok(store) = app.store("settings.json") {
                 if let Some(v) = store.get("preferredLocation") {
-                    loaded.preferred_location = match v {
-                        Value::String(s) => Some(s.clone()),
-                        Value::Null => None,
-                        _ => v.as_str().map(|s| s.to_string()),
-                    };
+                    loaded.preferred_location = v.as_str().map(String::from);
                 }
                 if let Some(v) = store.get("connectOnStartup") {
                     loaded.connect_on_startup = v.as_bool().unwrap_or(false);
@@ -201,12 +202,11 @@ pub fn run() {
             // Intercept window close to hide to tray instead of exiting
             if let Some(window) = app.get_webview_window("main") {
                 let app_handle = app.handle().clone();
+                let window_clone = window.clone();
                 window.on_window_event(move |event| match event {
                     tauri::WindowEvent::CloseRequested { api, .. } => {
                         api.prevent_close();
-                        if let Some(win) = app_handle.get_webview_window("main") {
-                            let _ = win.hide();
-                        }
+                        let _ = window_clone.hide();
                         #[cfg(target_os = "macos")]
                         {
                             let _ = app_handle
@@ -221,19 +221,19 @@ pub fn run() {
             if let Some(window) = app.get_webview_window("main") {
                 let settings = app.state::<Mutex<AppSettings>>();
                 let start_minimized = settings.lock().map(|s| s.start_minimized).unwrap_or(false);
+                #[cfg(target_os = "macos")]
+                {
+                    let policy = if start_minimized {
+                        tauri::ActivationPolicy::Accessory
+                    } else {
+                        tauri::ActivationPolicy::Regular
+                    };
+                    let _ = app.set_activation_policy(policy);
+                }
+
                 if !start_minimized {
-                    #[cfg(target_os = "macos")]
-                    {
-                        let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
-                    }
                     let _ = window.show();
                     let _ = window.set_focus();
-                } else {
-                    #[cfg(target_os = "macos")]
-                    {
-                        let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
-                    }
-                    // keep hidden
                 }
             }
 
