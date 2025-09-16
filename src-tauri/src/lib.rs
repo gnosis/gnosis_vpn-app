@@ -11,14 +11,12 @@ use platform::{Platform, PlatformInterface};
 use serde::Serialize;
 use tauri_plugin_store::StoreExt;
 
-#[derive(Clone, Debug, Serialize)]
-#[derive(Default)]
+#[derive(Clone, Debug, Serialize, Default)]
 struct AppSettings {
     preferred_location: Option<String>,
     connect_on_startup: bool,
     start_minimized: bool,
 }
-
 
 #[tauri::command]
 fn status() -> Result<command::StatusResponse, String> {
@@ -90,10 +88,11 @@ fn toggle_main_window_visibility(app: &AppHandle) {
 
 fn handle_tray_event(app: &AppHandle, event: TrayIconEvent) {
     if let TrayIconEvent::Click {
-            button: tauri::tray::MouseButton::Left,
-            button_state: tauri::tray::MouseButtonState::Up,
-            ..
-        } = event {
+        button: tauri::tray::MouseButton::Left,
+        button_state: tauri::tray::MouseButtonState::Up,
+        ..
+    } = event
+    {
         toggle_main_window_visibility(app);
     }
 }
@@ -192,13 +191,15 @@ pub fn run() {
             if let Some(window) = app.get_webview_window("main") {
                 let app_handle = app.handle().clone();
                 let window_clone = window.clone();
-                window.on_window_event(move |event| if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                    api.prevent_close();
-                    let _ = window_clone.hide();
-                    #[cfg(target_os = "macos")]
-                    {
-                        let _ = app_handle
-                            .set_activation_policy(tauri::ActivationPolicy::Accessory);
+                window.on_window_event(move |event| {
+                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                        api.prevent_close();
+                        let _ = window_clone.hide();
+                        #[cfg(target_os = "macos")]
+                        {
+                            let _ = app_handle
+                                .set_activation_policy(tauri::ActivationPolicy::Accessory);
+                        }
                     }
                 });
             }
