@@ -12,21 +12,13 @@ use serde::Serialize;
 use tauri_plugin_store::StoreExt;
 
 #[derive(Clone, Debug, Serialize)]
+#[derive(Default)]
 struct AppSettings {
     preferred_location: Option<String>,
     connect_on_startup: bool,
     start_minimized: bool,
 }
 
-impl Default for AppSettings {
-    fn default() -> Self {
-        Self {
-            preferred_location: None,
-            connect_on_startup: false,
-            start_minimized: false,
-        }
-    }
-}
 
 #[tauri::command]
 fn status() -> Result<command::StatusResponse, String> {
@@ -97,15 +89,12 @@ fn toggle_main_window_visibility(app: &AppHandle) {
 }
 
 fn handle_tray_event(app: &AppHandle, event: TrayIconEvent) {
-    match event {
-        TrayIconEvent::Click {
+    if let TrayIconEvent::Click {
             button: tauri::tray::MouseButton::Left,
             button_state: tauri::tray::MouseButtonState::Up,
             ..
-        } => {
-            toggle_main_window_visibility(app);
-        }
-        _ => {}
+        } = event {
+        toggle_main_window_visibility(app);
     }
 }
 
@@ -118,7 +107,7 @@ fn show_and_navigate(app: &AppHandle, target: &str) {
         let _ = window.show();
         let _ = window.set_focus();
         if let Err(e) = window.emit("navigate", target) {
-            eprintln!("Failed to emit navigate event: {}", e);
+            eprintln!("Failed to emit navigate event: {e}");
         }
     }
 }
@@ -159,7 +148,7 @@ pub fn run() {
                 .join(icon_name);
 
             let icon = tauri::image::Image::from_path(&tray_icon_path)
-                .map_err(|e| format!("Failed to load tray icon: {}", e))?;
+                .map_err(|e| format!("Failed to load tray icon: {e}"))?;
 
             // Create tray icon
             let _tray = TrayIconBuilder::new()
@@ -203,17 +192,14 @@ pub fn run() {
             if let Some(window) = app.get_webview_window("main") {
                 let app_handle = app.handle().clone();
                 let window_clone = window.clone();
-                window.on_window_event(move |event| match event {
-                    tauri::WindowEvent::CloseRequested { api, .. } => {
-                        api.prevent_close();
-                        let _ = window_clone.hide();
-                        #[cfg(target_os = "macos")]
-                        {
-                            let _ = app_handle
-                                .set_activation_policy(tauri::ActivationPolicy::Accessory);
-                        }
+                window.on_window_event(move |event| if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let _ = window_clone.hide();
+                    #[cfg(target_os = "macos")]
+                    {
+                        let _ = app_handle
+                            .set_activation_policy(tauri::ActivationPolicy::Accessory);
                     }
-                    _ => {}
                 });
             }
 
@@ -228,7 +214,7 @@ pub fn run() {
                     } else {
                         tauri::ActivationPolicy::Regular
                     };
-                    let _ = app.set_activation_policy(policy);
+                    app.set_activation_policy(policy);
                 }
 
                 if !start_minimized {
