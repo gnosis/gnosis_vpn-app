@@ -3,8 +3,10 @@ import { useAppStore } from '../../stores/appStore';
 
 export function SecondaryScreen({
   children: innerComponent,
+  title,
 }: {
   children: JSX.Element;
+  title?: string;
 }) {
   const [appState, appActions] = useAppStore();
 
@@ -30,7 +32,7 @@ export function SecondaryScreen({
     >
       <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800">
         <h1 class="text-gray-600 dark:text-gray-400 capitalize text-lg">
-          {appState.currentScreen}
+          {title ?? appState.currentScreen}
         </h1>
         <button
           type="button"
