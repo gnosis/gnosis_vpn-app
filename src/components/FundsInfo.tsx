@@ -38,11 +38,11 @@ export default function FundsInfo(props: Props) {
 
   return (
     <div class="rounded-xl border border-black/10 p-3 bg-white text-slate-900 max-w-md min-w-xs">
-      <div class="flex flex-col gap-3">
+      <div class="flex flex-col gap-2">
         <div class="flex flex-row justify-between w-full">
-          <div class="flex flex-col gap-1">
+          <div class="flex flex-col">
             <div class="font-semibold">{props.name}</div>
-            <span class="text-sm">{props.subtitle}</span>
+            <span class="text-sm text-slate-600">{props.subtitle}</span>
           </div>
 
           <span
@@ -56,13 +56,13 @@ export default function FundsInfo(props: Props) {
             {props.status}
           </span>
         </div>
-        <div class="mt-1">
+        <div class="">
           {/* <span class="font-medium">{props.ticker}</span> */}
           <span class="text-sky-600 font-semibold">{props.balance}</span>
         </div>
 
         <div class="flex flex-row justify-between items-center">
-          <div class="mt-2 text-sm text-slate-600">
+          <div class="text-sm text-slate-600">
             <div class="">Funding Address</div>
             <button
               class="font-mono rounded-md px-2 py-1 bg-slate-100 hover:bg-slate-200"
