@@ -1,17 +1,17 @@
 import { For, Show } from "solid-js";
-import Button from "../components/common/Button";
-import { useAppStore } from "../stores/appStore";
-import type { Destination } from "../services/vpnService";
-import { StatusIndicator } from "../components/StatusIndicator";
+import Button from "../components/common/Button.tsx";
+import { useAppStore } from "../stores/appStore.ts";
+import type { Destination } from "../services/vpnService.ts";
+import { StatusIndicator } from "../components/StatusIndicator.tsx";
 import {
   isConnected,
   isConnectedTo,
   isConnecting,
   isConnectingTo,
   isServiceUnavailable,
-} from "../services/vpnService";
-import { useSettingsStore } from "../stores/settingsStore";
-import { formatDestinationByAddress } from "../utils/destinations";
+} from "../services/vpnService.ts";
+import { useSettingsStore } from "../stores/settingsStore.ts";
+import { formatDestinationByAddress } from "../utils/destinations.ts";
 
 export function MainScreen() {
   const [appState, appActions] = useAppStore();

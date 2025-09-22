@@ -1,4 +1,4 @@
-export { VPNService } from "./vpnService";
+export { VPNService } from "./vpnService.ts";
 
 export type {
   ConnectResponse,

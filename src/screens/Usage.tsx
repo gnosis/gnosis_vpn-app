@@ -1,4 +1,4 @@
-import { SecondaryScreen } from "../components/common/SecondaryScreen";
+import { SecondaryScreen } from "../components/common/SecondaryScreen.tsx";
 
 export default function Usage() {
   return (

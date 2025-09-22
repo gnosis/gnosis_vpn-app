@@ -1,7 +1,7 @@
 /* @refresh reload */
 import { render } from "solid-js/web";
-import App from "./App";
-import { useSettingsStore } from "./stores/settingsStore";
+import App from "./App.tsx";
+import { useSettingsStore } from "./stores/settingsStore.ts";
 
 (async () => {
   const [, settingsActions] = useSettingsStore();

@@ -1,4 +1,4 @@
-import type { Destination, Path } from "../services/vpnService";
+import type { Destination, Path } from "../services/vpnService.ts";
 
 export const canonicalizeMeta = (
   meta: Record<string, string> | undefined,

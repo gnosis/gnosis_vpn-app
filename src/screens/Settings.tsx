@@ -1,8 +1,8 @@
-import { SecondaryScreen } from "../components/common/SecondaryScreen";
-import Toggle from "../components/common/Toggle";
-import { useAppStore } from "../stores/appStore";
-import { useSettingsStore } from "../stores/settingsStore";
-import { formatDestination } from "../utils/destinations";
+import { SecondaryScreen } from "../components/common/SecondaryScreen.tsx";
+import Toggle from "../components/common/Toggle.tsx";
+import { useAppStore } from "../stores/appStore.ts";
+import { useSettingsStore } from "../stores/settingsStore.ts";
+import { formatDestination } from "../utils/destinations.ts";
 import { For, Show } from "solid-js";
 
 export default function Settings() {

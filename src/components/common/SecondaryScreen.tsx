@@ -1,5 +1,5 @@
 import { children, JSX, onMount } from "solid-js";
-import { useAppStore } from "../../stores/appStore";
+import { useAppStore } from "../../stores/appStore.ts";
 
 export function SecondaryScreen({
   children: innerComponent,

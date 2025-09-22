@@ -1,14 +1,14 @@
 import "./App.css";
-import { MainScreen } from "./screens/MainScreen";
-import Navigation from "./components/Navigation";
+import { MainScreen } from "./screens/MainScreen.tsx";
+import Navigation from "./components/Navigation.tsx";
 import { Dynamic } from "solid-js/web";
-import Logs from "./screens/Logs";
-import Settings from "./screens/Settings";
-import { useAppStore } from "./stores/appStore";
-import Usage from "./screens/Usage";
+import Logs from "./screens/Logs.tsx";
+import Settings from "./screens/Settings.tsx";
+import { useAppStore } from "./stores/appStore.ts";
+import Usage from "./screens/Usage.tsx";
 import { onCleanup, onMount } from "solid-js";
 import { listen } from "@tauri-apps/api/event";
-import { useSettingsStore } from "./stores/settingsStore";
+import { useSettingsStore } from "./stores/settingsStore.ts";
 
 const screens = {
   main: MainScreen,

@@ -1,5 +1,5 @@
-import { type Destination, type Status } from "../services/vpnService";
-import { formatDestination } from "../utils/destinations";
+import { type Destination, type Status } from "../services/vpnService.ts";
+import { formatDestination } from "./destinations.ts";
 
 export function isConnected(
   status: Status,
@@ -59,7 +59,7 @@ export function isDisconnectingFrom(
 
 export function buildLogContent(
   args: {
-    response?: import("../services/vpnService").StatusResponse;
+    response?: import("../services/vpnService.ts").StatusResponse;
     error?: string;
   },
   lastMessage?: string,
@@ -106,7 +106,7 @@ export type LogEntry = { date: string; message: string };
 export function buildStatusLog(
   prevLogs: LogEntry[],
   args: {
-    response?: import("../services/vpnService").StatusResponse;
+    response?: import("../services/vpnService.ts").StatusResponse;
     error?: string;
   },
 ): string | undefined {

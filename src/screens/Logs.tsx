@@ -1,6 +1,6 @@
 import { For, Show } from "solid-js";
-import { useAppStore } from "../stores/appStore";
-import { SecondaryScreen } from "../components/common/SecondaryScreen";
+import { useAppStore } from "../stores/appStore.ts";
+import { SecondaryScreen } from "../components/common/SecondaryScreen.tsx";
 
 export default function Logs() {
   const [appState] = useAppStore();

@@ -3,15 +3,15 @@ import {
   type Destination,
   type Status,
   VPNService,
-} from "../services/vpnService";
-import { buildLogContent } from "../utils/status";
+} from "../services/vpnService.ts";
+import { buildLogContent } from "../utils/status.ts";
 import {
   areDestinationsEqualUnordered,
   formatDestinationByAddress,
   getPreferredAvailabilityChangeMessage,
   selectTargetAddress,
-} from "../utils/destinations";
-import { useSettingsStore } from "./settingsStore";
+} from "../utils/destinations.ts";
+import { useSettingsStore } from "./settingsStore.ts";
 
 export type AppScreen = "main" | "settings" | "logs" | "usage";
 
@@ -64,7 +64,7 @@ export function createAppStore(): AppStoreTuple {
   let lastStatusLogMessage: string | undefined;
 
   const appendStatusLogIfNew = (
-    response: import("../services/vpnService").StatusResponse,
+    response: import("../services/vpnService.ts").StatusResponse,
   ) => {
     const content = buildLogContent({ response }, lastStatusLogMessage);
     if (!content) return;
@@ -204,12 +204,12 @@ export function createAppStore(): AppStoreTuple {
 
       // immediate tick, then interval
       void tick();
-      pollingId = window.setInterval(() => void tick(), intervalMs);
+      pollingId = globalThis.setInterval(() => void tick(), intervalMs);
     },
 
     stopStatusPolling: () => {
       if (pollingId !== undefined) {
-        window.clearInterval(pollingId);
+        globalThis.clearInterval(pollingId);
         pollingId = undefined;
       }
     },

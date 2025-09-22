@@ -1,5 +1,5 @@
-import Button from "./common/Button";
-import { useAppStore } from "../stores/appStore";
+import Button from "./common/Button.tsx";
+import { useAppStore } from "../stores/appStore.ts";
 import { Portal } from "solid-js/web";
 
 function Navigation() {
