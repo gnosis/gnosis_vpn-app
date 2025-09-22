@@ -41,7 +41,9 @@ export default function FundsInfo(props: Props) {
             class={`font-extrabold ${
               props.status === 'Sufficient'
                 ? 'text-emerald-600'
-                : 'text-amber-600'
+                : props.status === 'Empty'
+                  ? 'text-red-600'
+                  : 'text-amber-600'
             }
             `}
           >
