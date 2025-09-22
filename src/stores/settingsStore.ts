@@ -10,7 +10,7 @@ export interface SettingsState {
 const DEFAULT_SETTINGS: SettingsState = {
   preferredLocation: null,
   connectOnStartup: false,
-  startMinimized: true,
+  startMinimized: false,
 };
 
 type SettingsActions = {
