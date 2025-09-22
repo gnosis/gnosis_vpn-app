@@ -6,6 +6,7 @@ import Button from '../components/common/Button';
 import FundsInfo from '../components/FundsInfo';
 import { Show } from 'solid-js';
 import AirdropClaim from '../components/AirdropClaim';
+import Help from '../components/Help';
 
 export default function Usage() {
   const [balance, setBalance] = createSignal<BalanceResponse | null>(null);
@@ -100,16 +101,7 @@ export default function Usage() {
             Refresh
           </Button>
         </div>
-        <div class="px-2">
-          NEED HELP? Read our{' '}
-          <a href="" class="underline">
-            Docs
-          </a>
-          , chat with{' '}
-          <a href="" class="underline">
-            Support
-          </a>
-        </div>
+        <Help />
         <AirdropClaim />
       </div>
     </SecondaryScreen>
