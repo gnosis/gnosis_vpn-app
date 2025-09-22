@@ -13,8 +13,20 @@ export default function Settings() {
     <SecondaryScreen>
       <div class="space-y-4 p-6">
         <div class="space-y-2">
-          <Toggle label="Connect on application startup" />
-          <Toggle label="Start application minimized" />
+          <Toggle
+            label="Connect on application startup"
+            checked={settings.connectOnStartup}
+            onChange={e =>
+              void settingsActions.setConnectOnStartup(e.currentTarget.checked)
+            }
+          />
+          <Toggle
+            label="Start application minimized"
+            checked={settings.startMinimized}
+            onChange={e =>
+              void settingsActions.setStartMinimized(e.currentTarget.checked)
+            }
+          />
 
           <label class="flex items-center justify-between gap-2">
             Preferred server location

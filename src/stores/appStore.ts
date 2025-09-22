@@ -157,7 +157,7 @@ export function createAppStore(): AppStoreTuple {
           );
 
         appendContentIfNew(
-          `Connect target: ${targetAddress ?? 'none'} (${selectionReason})`
+          `Connecting to ${selectionReason}: ${targetAddress ?? 'none'}`
         );
 
         if (targetAddress) {
