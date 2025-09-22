@@ -5,6 +5,7 @@ import { onMount } from 'solid-js';
 import Button from '../components/common/Button';
 import FundsInfo from '../components/FundsInfo';
 import { Show } from 'solid-js';
+import AirdropClaim from '../components/AirdropClaim';
 
 export default function Usage() {
   const [balance, setBalance] = createSignal<BalanceResponse | null>(null);
@@ -40,7 +41,7 @@ export default function Usage() {
 
   return (
     <SecondaryScreen title="Usage / Budget">
-      <div class="p-4 flex flex-col w-full items-center gap-2 justify-between">
+      <div class="px-4 py-2 flex flex-col w-full items-center gap-2 justify-between">
         <div class="flex flex-col w-full items-center gap-2">
           <Show when={balanceError()}>
             <div class="text-sm text-red-600">{balanceError()}</div>
@@ -109,6 +110,7 @@ export default function Usage() {
             Support
           </a>
         </div>
+        <AirdropClaim />
       </div>
     </SecondaryScreen>
   );

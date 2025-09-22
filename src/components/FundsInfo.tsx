@@ -37,10 +37,10 @@ export default function FundsInfo(props: Props) {
   }
 
   return (
-    <div class="rounded-xl border border-black/10 p-3 bg-white text-slate-900 max-w-md min-w-xs">
-      <div class="flex flex-col gap-2">
+    <div class="rounded-xl border border-black/10 px-4 py-2 bg-white text-slate-900 max-w-md min-w-xs">
+      <div class="flex flex-col gap-1">
         <div class="flex flex-row justify-between w-full">
-          <div class="flex flex-col">
+          <div class="flex flex-row gap-1 items-baseline">
             <div class="font-semibold">{props.name}</div>
             <span class="text-sm text-slate-600">{props.subtitle}</span>
           </div>
