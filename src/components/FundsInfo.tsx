@@ -1,6 +1,6 @@
-import { createSignal, Show } from 'solid-js';
-import { Portal } from 'solid-js/web';
-import QRCode from 'qrcode';
+import { createSignal } from 'solid-js';
+import QrCode from './QrCode';
+import { shortAddress } from '../utils/shortAddress';
 
 type Props = {
   name: string;
@@ -13,18 +13,10 @@ type Props = {
 
 export default function FundsInfo(props: Props) {
   const [showQR, setShowQR] = createSignal(false);
-  const [qrDataUrl, setQrDataUrl] = createSignal<string>();
 
-  const short = (a: string) =>
-    a?.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a;
   const gnosisScanUrl = () => `https://gnosisscan.io/address/${props.address}`;
 
-  async function openQR() {
-    const url = await QRCode.toDataURL(props.address, {
-      margin: 1,
-      width: 256,
-    });
-    setQrDataUrl(url);
+  function openQR() {
     setShowQR(true);
   }
 
@@ -69,7 +61,7 @@ export default function FundsInfo(props: Props) {
               onClick={() => copy()}
               title="Copy address"
             >
-              {short(props.address)}
+              {shortAddress(props.address)}
             </button>
           </div>
 
@@ -108,33 +100,13 @@ export default function FundsInfo(props: Props) {
         </div>
       </div>
 
-      <Show when={showQR()}>
-        <Portal>
-          <div
-            class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-            onClick={() => setShowQR(false)}
-          >
-            <div
-              class="rounded-xl bg-white p-4 shadow-xl w-xs"
-              onClick={e => e.stopPropagation()}
-            >
-              <div class="flex items-center justify-between mb-2">
-                <div class="text-sm text-slate-600">{short(props.address)}</div>
-                <button
-                  class="rounded-md px-2 py-1 text-sm hover:bg-slate-100"
-                  onClick={() => setShowQR(false)}
-                  aria-label="Close"
-                >
-                  ✕
-                </button>
-              </div>
-              <div class="flex flex-col items-center gap-3">
-                <img src={qrDataUrl()} alt="Address QR" class="h-56 w-56" />
-              </div>
-            </div>
-          </div>
-        </Portal>
-      </Show>
+      <QrCode
+        open={showQR()}
+        onClose={() => setShowQR(false)}
+        value={props.address}
+        title={shortAddress(props.address)}
+        size={256}
+      />
     </div>
   );
 }
