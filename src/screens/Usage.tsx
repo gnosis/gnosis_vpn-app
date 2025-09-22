@@ -7,11 +7,14 @@ import FundsInfo from '../components/FundsInfo';
 import { Show } from 'solid-js';
 import AirdropClaim from '../components/AirdropClaim';
 import Help from '../components/Help';
+import { applyFundingIssues } from '../utils/funding';
 
 export default function Usage() {
   const [balance, setBalance] = createSignal<BalanceResponse | null>(null);
   const [isBalanceLoading, setIsBalanceLoading] = createSignal(false);
   const [balanceError, setBalanceError] = createSignal<string | undefined>();
+  const [safeStatus, setSafeStatus] = createSignal<string | undefined>();
+  const [nodeStatus, setNodeStatus] = createSignal<string | undefined>();
 
   async function loadBalance() {
     setIsBalanceLoading(true);
@@ -20,6 +23,9 @@ export default function Usage() {
       const result = await VPNService.balance();
       console.log('balance', result);
       setBalance(result);
+      if (result) {
+        applyFundingIssues(result.issues, setSafeStatus, setNodeStatus);
+      }
     } catch (error) {
       setBalanceError(error instanceof Error ? error.message : String(error));
     } finally {
@@ -66,7 +72,7 @@ export default function Usage() {
                   balance={b.safe}
                   ticker="wxHOPR"
                   address={b.addresses.safe}
-                  status="Sufficient"
+                  status={safeStatus() ?? 'Sufficient'}
                 />
                 <FundsInfo
                   name="EOA"
@@ -74,7 +80,7 @@ export default function Usage() {
                   balance={b.node}
                   ticker="xDAI"
                   address={b.addresses.node}
-                  status="Sufficient"
+                  status={nodeStatus() ?? 'Sufficient'}
                 />
               </>
             )}
