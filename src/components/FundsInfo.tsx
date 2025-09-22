@@ -1,6 +1,7 @@
 import { createSignal } from 'solid-js';
 import QrCode from './QrCode';
 import { shortAddress } from '../utils/shortAddress';
+import { explorerUrl } from '../utils/explorerUrl';
 
 type Props = {
   name: string;
@@ -13,8 +14,6 @@ type Props = {
 
 export default function FundsInfo(props: Props) {
   const [showQR, setShowQR] = createSignal(false);
-
-  const gnosisScanUrl = () => `https://gnosisscan.io/address/${props.address}`;
 
   function openQR() {
     setShowQR(true);
@@ -69,7 +68,7 @@ export default function FundsInfo(props: Props) {
 
           <div class="flex gap-1 items-center mt-2">
             <a
-              href={gnosisScanUrl()}
+              href={explorerUrl(props.address)}
               target="_blank"
               rel="noopener noreferrer"
               class="inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-sm hover:bg-slate-50"
