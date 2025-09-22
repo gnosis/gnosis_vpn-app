@@ -91,8 +91,15 @@
             programs.taplo.enable = true; # TOML formatter
           };
 
+          deno-lint = pkgs.runCommand "deno lint" {
+            src = ./.;
+          } ''${pkgs.deno}/bin/deno lint $src '';
+
         in
         {
+          checks = {
+            deno-lint = deno-lint;
+          };
           devShells.default = craneLib.devShell {
             # Inherit inputs from checks.
             checks = self.checks.${system};
