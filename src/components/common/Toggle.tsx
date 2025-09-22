@@ -1,7 +1,7 @@
-import type { JSX } from 'solid-js';
+import type { JSX } from "solid-js";
 
 export default function Toggle(
-  props: JSX.InputHTMLAttributes<HTMLInputElement> & { label?: string }
+  props: JSX.InputHTMLAttributes<HTMLInputElement> & { label?: string },
 ) {
   const { class: className, ...rest } = props;
 
@@ -12,10 +12,11 @@ export default function Toggle(
         {...rest}
         type="checkbox"
         role="switch"
-        class={`sr-only peer ${className ?? ''}`}
+        class={`sr-only peer ${className ?? ""}`}
       />
       <div class="w-10 h-6 rounded-full bg-gray-200 dark:bg-gray-700 relative transition-colors peer-checked:bg-emerald-500 peer-checked:[&>div]:translate-x-4">
-        <div class="absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transform transition-transform"></div>
+        <div class="absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transform transition-transform">
+        </div>
       </div>
     </label>
   );

@@ -1,14 +1,14 @@
-import './App.css';
-import { MainScreen } from './screens/MainScreen';
-import Navigation from './components/Navigation';
-import { Dynamic } from 'solid-js/web';
-import Logs from './screens/Logs';
-import Settings from './screens/Settings';
-import { useAppStore } from './stores/appStore';
-import Usage from './screens/Usage';
-import { onCleanup, onMount } from 'solid-js';
-import { listen } from '@tauri-apps/api/event';
-import { useSettingsStore } from './stores/settingsStore';
+import "./App.css";
+import { MainScreen } from "./screens/MainScreen";
+import Navigation from "./components/Navigation";
+import { Dynamic } from "solid-js/web";
+import Logs from "./screens/Logs";
+import Settings from "./screens/Settings";
+import { useAppStore } from "./stores/appStore";
+import Usage from "./screens/Usage";
+import { onCleanup, onMount } from "solid-js";
+import { listen } from "@tauri-apps/api/event";
+import { useSettingsStore } from "./stores/settingsStore";
 
 const screens = {
   main: MainScreen,
@@ -28,7 +28,7 @@ function App() {
 
       if (
         settings.connectOnStartup &&
-        appState.connectionStatus === 'Disconnected' &&
+        appState.connectionStatus === "Disconnected" &&
         appState.availableDestinations.length > 0
       ) {
         await appActions.connect();
@@ -36,12 +36,12 @@ function App() {
 
       appActions.startStatusPolling(2000);
 
-      const validScreens = ['main', 'settings', 'logs', 'usage'] as const;
+      const validScreens = ["main", "settings", "logs", "usage"] as const;
       type ValidScreen = (typeof validScreens)[number];
       const isValidScreen = (s: string): s is ValidScreen =>
         (validScreens as readonly string[]).includes(s);
 
-      unlistenNavigate = await listen<string>('navigate', ({ payload }) => {
+      unlistenNavigate = await listen<string>("navigate", ({ payload }) => {
         if (isValidScreen(payload)) {
           appActions.setScreen(payload);
         }

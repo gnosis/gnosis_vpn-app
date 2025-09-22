@@ -1,5 +1,5 @@
-import { createStore, type Store as SolidStore } from 'solid-js/store';
-import { Store as TauriStore } from '@tauri-apps/plugin-store';
+import { createStore, type Store as SolidStore } from "solid-js/store";
+import { Store as TauriStore } from "@tauri-apps/plugin-store";
 
 export interface SettingsState {
   preferredLocation: string | null;
@@ -27,16 +27,16 @@ let tauriStore: TauriStore | undefined;
 
 async function getTauriStore(): Promise<TauriStore> {
   if (!tauriStore) {
-    tauriStore = await TauriStore.load('settings.json');
+    tauriStore = await TauriStore.load("settings.json");
   }
   return tauriStore;
 }
 
 async function saveAllToDisk(state: SettingsState): Promise<void> {
   const store = await getTauriStore();
-  await store.set('preferredLocation', state.preferredLocation);
-  await store.set('connectOnStartup', state.connectOnStartup);
-  await store.set('startMinimized', state.startMinimized);
+  await store.set("preferredLocation", state.preferredLocation);
+  await store.set("connectOnStartup", state.connectOnStartup);
+  await store.set("startMinimized", state.startMinimized);
   await store.save();
 }
 
@@ -50,11 +50,11 @@ export function createSettingsStore(): SettingsStoreTuple {
 
       const [preferredLocation, connectOnStartup, startMinimized] =
         (await Promise.all([
-          store.get('preferredLocation'),
-          store.get('connectOnStartup'),
-          store.get('startMinimized'),
+          store.get("preferredLocation"),
+          store.get("connectOnStartup"),
+          store.get("startMinimized"),
         ])) as [
-          SettingsState['preferredLocation'] | undefined,
+          SettingsState["preferredLocation"] | undefined,
           boolean | undefined,
           boolean | undefined,
         ];
@@ -71,8 +71,7 @@ export function createSettingsStore(): SettingsStoreTuple {
 
       setState({ ...loaded });
 
-      const missingAny =
-        preferredLocation === undefined ||
+      const missingAny = preferredLocation === undefined ||
         connectOnStartup === undefined ||
         startMinimized === undefined;
       if (missingAny) {
@@ -81,23 +80,23 @@ export function createSettingsStore(): SettingsStoreTuple {
     },
 
     setPreferredLocation: async (address: string | null) => {
-      setState('preferredLocation', address);
+      setState("preferredLocation", address);
       const store = await getTauriStore();
-      await store.set('preferredLocation', address);
+      await store.set("preferredLocation", address);
       await store.save();
     },
 
     setConnectOnStartup: async (enabled: boolean) => {
-      setState('connectOnStartup', enabled);
+      setState("connectOnStartup", enabled);
       const store = await getTauriStore();
-      await store.set('connectOnStartup', enabled);
+      await store.set("connectOnStartup", enabled);
       await store.save();
     },
 
     setStartMinimized: async (enabled: boolean) => {
-      setState('startMinimized', enabled);
+      setState("startMinimized", enabled);
       const store = await getTauriStore();
-      await store.set('startMinimized', enabled);
+      await store.set("startMinimized", enabled);
       await store.save();
     },
 

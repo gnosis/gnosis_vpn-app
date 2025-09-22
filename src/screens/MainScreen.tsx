@@ -1,17 +1,17 @@
-import { For, Show } from 'solid-js';
-import Button from '../components/common/Button';
-import { useAppStore } from '../stores/appStore';
-import type { Destination } from '../services/vpnService';
-import { StatusIndicator } from '../components/StatusIndicator';
+import { For, Show } from "solid-js";
+import Button from "../components/common/Button";
+import { useAppStore } from "../stores/appStore";
+import type { Destination } from "../services/vpnService";
+import { StatusIndicator } from "../components/StatusIndicator";
 import {
   isConnected,
   isConnectedTo,
   isConnecting,
   isConnectingTo,
   isServiceUnavailable,
-} from '../services/vpnService';
-import { useSettingsStore } from '../stores/settingsStore';
-import { formatDestinationByAddress } from '../utils/destinations';
+} from "../services/vpnService";
+import { useSettingsStore } from "../stores/settingsStore";
+import { formatDestinationByAddress } from "../utils/destinations";
 
 export function MainScreen() {
   const [appState, appActions] = useAppStore();
@@ -36,10 +36,8 @@ export function MainScreen() {
         <div class="mt-4 flex-grow flex flex-col justify-center">
           <div class="my-6 flex justify-center">
             <Show
-              when={
-                isConnected(appState.connectionStatus) ||
-                isConnecting(appState.connectionStatus)
-              }
+              when={isConnected(appState.connectionStatus) ||
+                isConnecting(appState.connectionStatus)}
               fallback={
                 <Button
                   variant="outline"
@@ -60,16 +58,15 @@ export function MainScreen() {
             </Show>
           </div>
           <div class="-mt-4 mb-4 text-center text-xs text-gray-500 dark:text-gray-400">
-            Preferred:{' '}
-            {formatDestinationByAddress(
+            Preferred: {formatDestinationByAddress(
               settings.preferredLocation,
-              appState.availableDestinations
+              appState.availableDestinations,
             )}
           </div>
           <h3 class="text-lg font-semibold mb-2">Available Destinations</h3>
           <div class="space-y-2">
             <For each={appState.availableDestinations}>
-              {dest => (
+              {(dest) => (
                 <div class="flex items-center justify-between rounded-md border border-gray-200 dark:border-gray-800 p-3">
                   <div class="text-sm">
                     <div class="font-medium">
@@ -83,10 +80,8 @@ export function MainScreen() {
                   </div>
                   <div>
                     <Show
-                      when={
-                        isConnectedTo(appState.connectionStatus, dest) ||
-                        isConnectingTo(appState.connectionStatus, dest)
-                      }
+                      when={isConnectedTo(appState.connectionStatus, dest) ||
+                        isConnectingTo(appState.connectionStatus, dest)}
                       fallback={
                         <Button
                           variant="outline"
@@ -94,9 +89,9 @@ export function MainScreen() {
                           onClick={() => handleConnect(dest)}
                         >
                           {isConnected(appState.connectionStatus) ||
-                          isConnecting(appState.connectionStatus)
-                            ? 'Switch'
-                            : 'Connect'}
+                              isConnecting(appState.connectionStatus)
+                            ? "Switch"
+                            : "Connect"}
                         </Button>
                       }
                     >

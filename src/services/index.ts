@@ -1,8 +1,8 @@
-export { VPNService } from './vpnService';
+export { VPNService } from "./vpnService";
 
 export type {
-  StatusResponse,
   ConnectResponse,
-  DisconnectResponse,
   Destination,
-} from '../types';
+  DisconnectResponse,
+  StatusResponse,
+} from "../types";
