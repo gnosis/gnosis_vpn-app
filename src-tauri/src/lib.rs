@@ -152,7 +152,13 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![status, connect, disconnect, balance, refresh_node])
+        .invoke_handler(tauri::generate_handler![
+            status,
+            connect,
+            disconnect,
+            balance,
+            refresh_node
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
