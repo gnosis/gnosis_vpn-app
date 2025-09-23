@@ -20,3 +20,19 @@ nix develop --command deno task tauri dev
 - Install [Prerequisites](https://v2.tauri.app/start/prerequisites/)
 - `deno install`
 - `deno task tauri dev`
+
+### Continuous Integration
+
+The CI will check formatting and linting.
+
+Run formatting locally via:
+
+```sh
+nix fmt
+```
+
+Run linting locally via:
+
+```sh
+nix develop --command deno lint --fix
+```
