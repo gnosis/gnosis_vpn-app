@@ -91,9 +91,15 @@
             programs.taplo.enable = true; # TOML formatter
           };
 
-          deno-lint = pkgs.runCommand "deno lint" {
-            src = ./.;
-          } ''${pkgs.deno}/bin/deno lint $src '';
+          deno-lint =
+            pkgs.runCommand "deno lint"
+              {
+                src = ./.;
+              }
+              ''
+                ${pkgs.deno}/bin/deno lint $src
+                mkdir -p $out
+              '';
 
         in
         {
