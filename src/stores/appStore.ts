@@ -216,7 +216,7 @@ export function createAppStore(): AppStoreTuple {
     },
 
     log: (message: string) => {
-      setState('logs', [
+      setState("logs", [
         ...state.logs,
         { date: new Date().toISOString(), message },
       ]);

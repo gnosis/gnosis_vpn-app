@@ -1,8 +1,8 @@
-import { createSignal } from 'solid-js';
-import QrCode from './QrCode';
-import { shortAddress } from '../utils/shortAddress';
-import { explorerUrl } from '../utils/explorerUrl';
-import { useAppStore } from '../stores/appStore';
+import { createSignal } from "solid-js";
+import QrCode from "./QrCode.tsx";
+import { shortAddress } from "../utils/shortAddress.ts";
+import { explorerUrl } from "../utils/explorerUrl.ts";
+import { useAppStore } from "../stores/appStore.ts";
 
 type Props = {
   name: string;
@@ -10,7 +10,7 @@ type Props = {
   balance: string;
   ticker: string;
   address: string;
-  status: 'Sufficient' | 'Low' | 'Empty' | string;
+  status: "Sufficient" | "Low" | "Empty" | string;
 };
 
 export default function FundsInfo(props: Props) {
@@ -40,11 +40,11 @@ export default function FundsInfo(props: Props) {
 
           <span
             class={`font-extrabold ${
-              props.status === 'Sufficient'
-                ? 'text-emerald-600'
-                : props.status === 'Empty'
-                  ? 'text-red-600'
-                  : 'text-amber-600'
+              props.status === "Sufficient"
+                ? "text-emerald-600"
+                : props.status === "Empty"
+                ? "text-red-600"
+                : "text-amber-600"
             }
             `}
           >
@@ -63,6 +63,7 @@ export default function FundsInfo(props: Props) {
               class="font-mono rounded-md px-2 py-1 bg-slate-100 hover:bg-slate-200"
               onClick={() => copy()}
               title="Copy address"
+              type="button"
             >
               {shortAddress(props.address)}
             </button>
@@ -88,6 +89,7 @@ export default function FundsInfo(props: Props) {
               class="inline-flex items-center gap-1 p-1 hover:cursor-pointer"
               onClick={() => copy()}
               title="Copy address"
+              type="button"
             >
               <img
                 src="/icons/copy.svg"
@@ -101,6 +103,7 @@ export default function FundsInfo(props: Props) {
               class="inline-flex items-center gap-1 p-1 hover:cursor-pointer"
               onClick={openQR}
               title="Show QR"
+              type="button"
             >
               <img src="/icons/qr.png" height={20} width={20} alt="Show QR" />
             </button>
