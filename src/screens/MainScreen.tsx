@@ -9,10 +9,10 @@ import {
   isConnecting,
   isConnectingTo,
   isServiceUnavailable,
-} from '../services/vpnService';
-import { useSettingsStore } from '../stores/settingsStore';
-import { formatDestinationByAddress } from '../utils/destinations';
-import { shortAddress } from '../utils/shortAddress';
+} from "../services/vpnService";
+import { useSettingsStore } from "../stores/settingsStore";
+import { formatDestinationByAddress } from "../utils/destinations";
+import { shortAddress } from "../utils/shortAddress";
 
 export function MainScreen() {
   const [appState, appActions] = useAppStore();
