@@ -2,6 +2,7 @@ import { createSignal } from 'solid-js';
 import QrCode from './QrCode';
 import { shortAddress } from '../utils/shortAddress';
 import { explorerUrl } from '../utils/explorerUrl';
+import { useAppStore } from '../stores/appStore';
 
 type Props = {
   name: string;
@@ -14,6 +15,7 @@ type Props = {
 
 export default function FundsInfo(props: Props) {
   const [showQR, setShowQR] = createSignal(false);
+  const [, appActions] = useAppStore();
 
   function openQR() {
     setShowQR(true);
@@ -23,7 +25,7 @@ export default function FundsInfo(props: Props) {
     try {
       await navigator.clipboard.writeText(addr);
     } catch (error) {
-      console.log(error);
+      appActions.log(`Error copying address: ${String(error)}`);
     }
   }
 

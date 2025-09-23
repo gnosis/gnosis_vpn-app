@@ -1,6 +1,7 @@
 import { Show, createEffect, createSignal } from 'solid-js';
 import { Portal } from 'solid-js/web';
 import QRCode from 'qrcode';
+import { useAppStore } from '../stores/appStore';
 
 type QrCodeProps = {
   open: boolean;
@@ -12,6 +13,7 @@ type QrCodeProps = {
 
 export default function QrCode(props: QrCodeProps) {
   const [qrDataUrl, setQrDataUrl] = createSignal<string | undefined>();
+  const [, appActions] = useAppStore();
 
   createEffect(async () => {
     if (!props.open) return;
@@ -25,8 +27,8 @@ export default function QrCode(props: QrCodeProps) {
         width: props.size ?? 256,
       });
       setQrDataUrl(url);
-    } catch (err) {
-      console.error(err);
+    } catch (error) {
+      appActions.log(`Error generating QR code: ${String(error)}`);
       setQrDataUrl(undefined);
     }
   });

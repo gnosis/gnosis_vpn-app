@@ -8,6 +8,7 @@ import { Show } from 'solid-js';
 import AirdropClaim from '../components/AirdropClaim';
 import Help from '../components/Help';
 import { applyFundingIssues } from '../utils/funding';
+import { useAppStore } from '../stores/appStore';
 
 export default function Usage() {
   const [balance, setBalance] = createSignal<BalanceResponse | null>(null);
@@ -15,19 +16,20 @@ export default function Usage() {
   const [balanceError, setBalanceError] = createSignal<string | undefined>();
   const [safeStatus, setSafeStatus] = createSignal<string | undefined>();
   const [nodeStatus, setNodeStatus] = createSignal<string | undefined>();
+  const [, appActions] = useAppStore();
 
   async function loadBalance() {
     setIsBalanceLoading(true);
     setBalanceError(undefined);
     try {
       const result = await VPNService.balance();
-      console.log('balance', result);
       setBalance(result);
       if (result) {
         applyFundingIssues(result.issues, setSafeStatus, setNodeStatus);
       }
     } catch (error) {
       setBalanceError(error instanceof Error ? error.message : String(error));
+      appActions.log(`Error loading balance: ${String(error)}`);
     } finally {
       setIsBalanceLoading(false);
     }
@@ -36,8 +38,8 @@ export default function Usage() {
   async function handleRefresh() {
     try {
       await VPNService.refreshNode();
-    } catch (_) {
-      // ignore refresh errors; follow-up balance fetch will surface issues
+    } catch (error) {
+      appActions.log(`Error refreshing node: ${String(error)}`);
     }
     await loadBalance();
   }
