@@ -73,10 +73,15 @@ export default function FundsInfo(props: Props) {
               href={explorerUrl(props.address)}
               target="_blank"
               rel="noopener noreferrer"
-              class="inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-sm hover:bg-slate-50"
-              title="Open on GnosisScan"
+              class="inline-flex items-center gap-1 p-1 hover:cursor-pointer"
+              title="Open on Gnosisscan"
             >
-              CHAIN
+              <img
+                src="/icons/link.svg"
+                height={20}
+                width={20}
+                alt="Open on Gnosisscan"
+              />
             </a>
 
             <button
