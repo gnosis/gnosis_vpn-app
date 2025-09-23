@@ -1,9 +1,9 @@
-import { SecondaryScreen } from '../components/common/SecondaryScreen';
-import Toggle from '../components/common/Toggle';
-import { useAppStore } from '../stores/appStore';
-import { useSettingsStore } from '../stores/settingsStore';
-import { formatDestination } from '../utils/destinations';
-import { For, Show } from 'solid-js';
+import { SecondaryScreen } from "../components/common/SecondaryScreen.tsx";
+import Toggle from "../components/common/Toggle.tsx";
+import { useAppStore } from "../stores/appStore.ts";
+import { useSettingsStore } from "../stores/settingsStore.ts";
+import { formatDestination } from "../utils/destinations.ts";
+import { For, Show } from "solid-js";
 
 export default function Settings() {
   const [appState] = useAppStore();
@@ -16,16 +16,14 @@ export default function Settings() {
           <Toggle
             label="Connect on application startup"
             checked={settings.connectOnStartup}
-            onChange={e =>
-              void settingsActions.setConnectOnStartup(e.currentTarget.checked)
-            }
+            onChange={(e) =>
+              void settingsActions.setConnectOnStartup(e.currentTarget.checked)}
           />
           <Toggle
             label="Start application minimized"
             checked={settings.startMinimized}
-            onChange={e =>
-              void settingsActions.setStartMinimized(e.currentTarget.checked)
-            }
+            onChange={(e) =>
+              void settingsActions.setStartMinimized(e.currentTarget.checked)}
           />
 
           <label class="flex items-center justify-between gap-2">
@@ -36,15 +34,14 @@ export default function Settings() {
             >
               <select
                 class=""
-                value={settings.preferredLocation ?? ''}
-                onChange={e =>
+                value={settings.preferredLocation ?? ""}
+                onChange={(e) =>
                   void settingsActions.setPreferredLocation(
-                    e.currentTarget.value || null
-                  )
-                }
+                    e.currentTarget.value || null,
+                  )}
               >
                 <For each={appState.availableDestinations}>
-                  {dest => (
+                  {(dest) => (
                     <option value={dest.address}>
                       {formatDestination(dest)}
                     </option>

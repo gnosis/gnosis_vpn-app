@@ -1,9 +1,9 @@
-import type { Destination, Path } from '../services/vpnService';
+import type { Destination, Path } from "../services/vpnService.ts";
 
 export const canonicalizeMeta = (
-  meta: Record<string, string> | undefined
+  meta: Record<string, string> | undefined,
 ): string => {
-  if (!meta) return '';
+  if (!meta) return "";
   const keys = Object.keys(meta).sort();
   const ordered: Record<string, string> = {};
   for (const key of keys) ordered[key] = meta[key];
@@ -11,8 +11,8 @@ export const canonicalizeMeta = (
 };
 
 export const canonicalizePath = (path: Path): string => {
-  if ('Hops' in path) return `Hops:${path.Hops}`;
-  return `IntermediatePath:${(path.IntermediatePath || []).join(',')}`;
+  if ("Hops" in path) return `Hops:${path.Hops}`;
+  return `IntermediatePath:${(path.IntermediatePath || []).join(",")}`;
 };
 
 export const destinationSignature = (dest: Destination): string => {
@@ -20,12 +20,12 @@ export const destinationSignature = (dest: Destination): string => {
     dest.address,
     canonicalizeMeta(dest.meta),
     canonicalizePath(dest.path),
-  ].join('|');
+  ].join("|");
 };
 
 export const areDestinationsEqualUnordered = (
   a: Destination[],
-  b: Destination[]
+  b: Destination[],
 ): boolean => {
   if (a.length !== b.length) return false;
   if (a.length === 0) return true;
@@ -56,14 +56,14 @@ export const areDestinationsEqualUnordered = (
 export function getPreferredAvailabilityChangeMessage(
   previous: Destination[],
   next: Destination[],
-  preferredAddress: string | null
+  preferredAddress: string | null,
 ): string | null {
   if (previous.length === 0) return null;
   if (!preferredAddress) return null;
   const previouslyHadPreferred = previous.some(
-    d => d.address === preferredAddress
+    (d) => d.address === preferredAddress,
   );
-  const nowHasPreferred = next.some(d => d.address === preferredAddress);
+  const nowHasPreferred = next.some((d) => d.address === preferredAddress);
   if (previouslyHadPreferred === nowHasPreferred) return null;
   return nowHasPreferred
     ? `Preferred location ${preferredAddress} is available again.`
@@ -73,37 +73,38 @@ export function getPreferredAvailabilityChangeMessage(
 export function selectTargetAddress(
   addressArg: string | undefined,
   preferredAddress: string | null,
-  available: Destination[]
+  available: Destination[],
 ): { address: string | undefined; reason: string } {
-  if (addressArg) return { address: addressArg, reason: 'address parameter' };
+  if (addressArg) return { address: addressArg, reason: "address parameter" };
   if (preferredAddress) {
-    const hasPreferred = available.some(d => d.address === preferredAddress);
-    if (hasPreferred)
-      return { address: preferredAddress, reason: 'preferred location' };
+    const hasPreferred = available.some((d) => d.address === preferredAddress);
+    if (hasPreferred) {
+      return { address: preferredAddress, reason: "preferred location" };
+    }
     return {
       address: available[0]?.address,
-      reason: 'fallback: preferred not present',
+      reason: "fallback: preferred not present",
     };
   }
   return {
     address: available[0]?.address,
-    reason: 'fallback: no preferred set',
+    reason: "fallback: no preferred set",
   };
 }
 
 export function formatDestination(destination: Destination): string {
   const meta = destination.meta || {};
   const parts = [meta.city, meta.state, meta.location]
-    .map(v => (v ?? '').trim())
-    .filter(v => v.length > 0);
-  return parts.join(' ');
+    .map((v) => (v ?? "").trim())
+    .filter((v) => v.length > 0);
+  return parts.join(" ");
 }
 
 export function formatDestinationByAddress(
   address: string | null | undefined,
-  available: Destination[]
+  available: Destination[],
 ): string {
-  if (!address) return 'Not set';
-  const dest = available.find(d => d.address === address);
+  if (!address) return "Not set";
+  const dest = available.find((d) => d.address === address);
   return dest ? formatDestination(dest) : `${address} (unavailable)`;
 }

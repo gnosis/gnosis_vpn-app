@@ -1,19 +1,19 @@
-import { createStore, type Store } from 'solid-js/store';
+import { createStore, type Store } from "solid-js/store";
 import {
-  type Status,
   type Destination,
+  type Status,
   VPNService,
-} from '../services/vpnService';
-import { buildLogContent } from '../utils/status';
+} from "../services/vpnService.ts";
+import { buildLogContent } from "../utils/status.ts";
 import {
   areDestinationsEqualUnordered,
+  formatDestinationByAddress,
   getPreferredAvailabilityChangeMessage,
   selectTargetAddress,
-  formatDestinationByAddress,
-} from '../utils/destinations';
-import { useSettingsStore } from './settingsStore';
+} from "../utils/destinations.ts";
+import { useSettingsStore } from "./settingsStore.ts";
 
-export type AppScreen = 'main' | 'settings' | 'logs' | 'usage';
+export type AppScreen = "main" | "settings" | "logs" | "usage";
 
 export interface AppState {
   currentScreen: AppScreen;
@@ -38,8 +38,8 @@ type AppStoreTuple = readonly [Store<AppState>, AppActions];
 
 export function createAppStore(): AppStoreTuple {
   const [state, setState] = createStore<AppState>({
-    currentScreen: 'main',
-    connectionStatus: 'ServiceUnavailable',
+    currentScreen: "main",
+    connectionStatus: "ServiceUnavailable",
     availableDestinations: [],
     isLoading: false,
     logs: [],
@@ -53,10 +53,10 @@ export function createAppStore(): AppStoreTuple {
   let hasInitializedPreferred = false;
 
   const appendContentIfNew = (content: string) =>
-    setState('logs', existingLogs => {
+    setState("logs", (existingLogs) => {
       const lastMessage = existingLogs.length
         ? existingLogs[existingLogs.length - 1].message
-        : '';
+        : "";
       if (lastMessage === content) return existingLogs;
       const entry = { date: new Date().toISOString(), message: content };
       return [...existingLogs, entry];
@@ -65,7 +65,7 @@ export function createAppStore(): AppStoreTuple {
   let lastStatusLogMessage: string | undefined;
 
   const appendStatusLogIfNew = (
-    response: import('../services/vpnService').StatusResponse
+    response: import("../services/vpnService.ts").StatusResponse,
   ) => {
     const content = buildLogContent({ response }, lastStatusLogMessage);
     if (!content) return;
@@ -85,7 +85,7 @@ export function createAppStore(): AppStoreTuple {
       const prefMsg = getPreferredAvailabilityChangeMessage(
         state.availableDestinations,
         response.available_destinations,
-        settings.preferredLocation
+        settings.preferredLocation,
       );
       if (prefMsg) appendContentIfNew(prefMsg);
 
@@ -100,19 +100,19 @@ export function createAppStore(): AppStoreTuple {
       if (preferredChanged) {
         const nowHasPreferred = settings.preferredLocation
           ? response.available_destinations.some(
-              d => d.address === settings.preferredLocation
-            )
+            (d) => d.address === settings.preferredLocation,
+          )
           : false;
         if (settings.preferredLocation) {
           if (nowHasPreferred) {
             const pretty = formatDestinationByAddress(
               settings.preferredLocation,
-              response.available_destinations
+              response.available_destinations,
             );
             appendContentIfNew(`Preferred location set to ${pretty}.`);
           } else {
             appendContentIfNew(
-              `Preferred location ${settings.preferredLocation} currently unavailable.`
+              `Preferred location ${settings.preferredLocation} currently unavailable.`,
             );
           }
         }
@@ -122,43 +122,43 @@ export function createAppStore(): AppStoreTuple {
         appendStatusLogIfNew(response);
       }
       if (response.status !== state.connectionStatus) {
-        setState('connectionStatus', response.status);
+        setState("connectionStatus", response.status);
       }
       if (
         !areDestinationsEqualUnordered(
           response.available_destinations,
-          state.availableDestinations
+          state.availableDestinations,
         )
       ) {
-        setState('availableDestinations', response.available_destinations);
+        setState("availableDestinations", response.available_destinations);
       }
-      setState('error', undefined);
+      setState("error", undefined);
     } catch (error) {
       appendErrorLogIfNew(
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
       );
-      setState('isLoading', false);
-      setState('connectionStatus', 'ServiceUnavailable');
-      setState('availableDestinations', []);
-      setState('error', error instanceof Error ? error.message : String(error));
+      setState("isLoading", false);
+      setState("connectionStatus", "ServiceUnavailable");
+      setState("availableDestinations", []);
+      setState("error", error instanceof Error ? error.message : String(error));
     }
   };
 
   const actions = {
-    setScreen: (screen: AppScreen) => setState('currentScreen', screen),
+    setScreen: (screen: AppScreen) => setState("currentScreen", screen),
 
     connect: async (address?: string) => {
-      setState('isLoading', true);
+      setState("isLoading", true);
       try {
         const { address: targetAddress, reason: selectionReason } =
           selectTargetAddress(
             address,
             settings.preferredLocation,
-            state.availableDestinations
+            state.availableDestinations,
           );
 
         appendContentIfNew(
-          `Connecting to ${selectionReason}: ${targetAddress ?? 'none'}`
+          `Connecting to ${selectionReason}: ${targetAddress ?? "none"}`,
         );
 
         if (targetAddress) {
@@ -168,30 +168,30 @@ export function createAppStore(): AppStoreTuple {
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         appendErrorLogIfNew(message);
-        setState('error', message);
+        setState("error", message);
       } finally {
-        setState('isLoading', false);
+        setState("isLoading", false);
       }
     },
 
     disconnect: async () => {
-      setState('isLoading', true);
+      setState("isLoading", true);
       try {
         await VPNService.disconnect();
         await getStatus();
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         appendErrorLogIfNew(message);
-        setState('error', message);
+        setState("error", message);
       } finally {
-        setState('isLoading', false);
+        setState("isLoading", false);
       }
     },
 
     refreshStatus: async () => {
-      setState('isLoading', true);
+      setState("isLoading", true);
       await getStatus();
-      setState('isLoading', false);
+      setState("isLoading", false);
     },
 
     startStatusPolling: (intervalMs: number = 2000) => {
@@ -205,12 +205,12 @@ export function createAppStore(): AppStoreTuple {
 
       // immediate tick, then interval
       void tick();
-      pollingId = window.setInterval(() => void tick(), intervalMs);
+      pollingId = globalThis.setInterval(() => void tick(), intervalMs);
     },
 
     stopStatusPolling: () => {
       if (pollingId !== undefined) {
-        window.clearInterval(pollingId);
+        globalThis.clearInterval(pollingId);
         pollingId = undefined;
       }
     },

@@ -2,8 +2,9 @@
 
 ## Development
 
-You need a working instance of [Gnosis VPN client service](https://github.com/gnosis/gnosis_vpn-client)
-running on your system on the default socket.
+You need a working instance of
+[Gnosis VPN client service](https://github.com/gnosis/gnosis_vpn-client) running
+on your system on the default socket.
 
 ### Linux
 

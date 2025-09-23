@@ -60,11 +60,27 @@
               enable = pkgs.lib.meta.availableOn pkgs.stdenv.buildPlatform pkgs.nixfmt-rfc-style.compiler;
               package = pkgs.nixfmt-rfc-style;
             };
-            programs.prettier.enable = true;
-            settings.formatter.prettier.excludes = [
-              "*.toml"
-              "*.yml"
+
+            programs.deno.enable = true;
+            settings.formatter.deno.settings = {
+              formatter.line_width = 120;
+            };
+            settings.formatter.deno.includes = [
+              "*.css"
+              "*.html"
+              "*.js"
+              "*.json"
+              "*.jsonc"
+              "*.jsx"
+              "*.less"
+              "*.markdown"
+              "*.md"
+              "*.sass"
+              "*.scss"
+              "*.ts"
+              "*.tsx"
               "*.yaml"
+              "*.yml"
             ];
             programs.rustfmt.enable = true;
             programs.shellcheck.enable = true;
@@ -73,18 +89,17 @@
               indent_size = 4;
             };
             programs.taplo.enable = true; # TOML formatter
-            programs.yamlfmt.enable = true;
-            # trying setting from https://github.com/google/yamlfmt/blob/main/docs/config-file.md
-            settings.formatter.yamlfmt.settings = {
-              formatter.type = "basic";
-              formatter.max_line_length = 120;
-              formatter.trim_trailing_whitespace = true;
-              formatter.include_document_start = true;
-            };
           };
+
+          deno-lint = pkgs.runCommand "deno lint" {
+            src = ./.;
+          } ''${pkgs.deno}/bin/deno lint $src '';
 
         in
         {
+          checks = {
+            deno-lint = deno-lint;
+          };
           devShells.default = craneLib.devShell {
             # Inherit inputs from checks.
             checks = self.checks.${system};

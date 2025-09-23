@@ -1,23 +1,23 @@
-import { createMemo } from 'solid-js';
-import { type Status } from '../services/vpnService';
+import { createMemo } from "solid-js";
+import { type Status } from "../services/vpnService.ts";
 import {
   isConnected,
   isConnecting,
   isDisconnecting,
   isServiceUnavailable,
-} from '../services/vpnService';
+} from "../services/vpnService.ts";
 
 export function StatusIndicator(props: {
   status: Status;
   isLoading?: boolean;
 }) {
   const statusText = createMemo(() => {
-    if (props.isLoading) return 'Loading...';
-    if (isConnected(props.status)) return 'Connected';
-    if (isConnecting(props.status)) return 'Connecting...';
-    if (isDisconnecting(props.status)) return 'Disconnecting...';
-    if (isServiceUnavailable(props.status)) return 'Service unavailable';
-    return 'Disconnected';
+    if (props.isLoading) return "Loading...";
+    if (isConnected(props.status)) return "Connected";
+    if (isConnecting(props.status)) return "Connecting...";
+    if (isDisconnecting(props.status)) return "Disconnecting...";
+    if (isServiceUnavailable(props.status)) return "Service unavailable";
+    return "Disconnected";
   });
 
   return (
