@@ -1,4 +1,4 @@
-import Button from './common/Button';
+import Button from "./common/Button";
 
 export default function AirdropClaim() {
   return (

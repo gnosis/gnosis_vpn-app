@@ -1,6 +1,6 @@
-import type { FundingIssue } from '../services/vpnService';
+import type { FundingIssue } from "../services/vpnService";
 
-export type StatusText = 'Sufficient' | 'Low' | 'Empty' | string;
+export type StatusText = "Sufficient" | "Low" | "Empty" | string;
 
 /**
  * Applies funding issues to Safe and EOA status setters.
@@ -12,29 +12,29 @@ export type StatusText = 'Sufficient' | 'Low' | 'Empty' | string;
 export function applyFundingIssues(
   issues: FundingIssue[] | undefined,
   setSafeStatus: (s: StatusText) => void,
-  setEOAStatus: (s: StatusText) => void
+  setEOAStatus: (s: StatusText) => void,
 ): void {
   const list = issues ?? [];
 
-  const hasUnfunded = list.includes('Unfunded');
+  const hasUnfunded = list.includes("Unfunded");
 
   // Safe
-  const safeEmpty = hasUnfunded || list.includes('SafeOutOfFunds');
-  const safeLow = list.includes('SafeLowOnFunds');
+  const safeEmpty = hasUnfunded || list.includes("SafeOutOfFunds");
+  const safeLow = list.includes("SafeLowOnFunds");
   const safeStatus: StatusText = safeEmpty
-    ? 'Empty'
+    ? "Empty"
     : safeLow
-      ? 'Low'
-      : 'Sufficient';
+    ? "Low"
+    : "Sufficient";
 
   // EOA (node)
-  const eoaEmpty = hasUnfunded || list.includes('NodeUnderfunded');
-  const eoaLow = list.includes('NodeLowOnFunds');
+  const eoaEmpty = hasUnfunded || list.includes("NodeUnderfunded");
+  const eoaLow = list.includes("NodeLowOnFunds");
   const eoaStatus: StatusText = eoaEmpty
-    ? 'Empty'
+    ? "Empty"
     : eoaLow
-      ? 'Low'
-      : 'Sufficient';
+    ? "Low"
+    : "Sufficient";
 
   setSafeStatus(safeStatus);
   setEOAStatus(eoaStatus);

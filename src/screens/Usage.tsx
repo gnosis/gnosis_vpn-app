@@ -1,14 +1,14 @@
-import { createSignal } from 'solid-js';
-import { SecondaryScreen } from '../components/common/SecondaryScreen';
-import { VPNService, type BalanceResponse } from '../services/vpnService';
-import { onMount } from 'solid-js';
-import Button from '../components/common/Button';
-import FundsInfo from '../components/FundsInfo';
-import { Show } from 'solid-js';
-import AirdropClaim from '../components/AirdropClaim';
-import Help from '../components/Help';
-import { applyFundingIssues } from '../utils/funding';
-import { useAppStore } from '../stores/appStore';
+import { createSignal } from "solid-js";
+import { SecondaryScreen } from "../components/common/SecondaryScreen";
+import { type BalanceResponse, VPNService } from "../services/vpnService";
+import { onMount } from "solid-js";
+import Button from "../components/common/Button";
+import FundsInfo from "../components/FundsInfo";
+import { Show } from "solid-js";
+import AirdropClaim from "../components/AirdropClaim";
+import Help from "../components/Help";
+import { applyFundingIssues } from "../utils/funding";
+import { useAppStore } from "../stores/appStore";
 
 export default function Usage() {
   const [balance, setBalance] = createSignal<BalanceResponse | null>(null);
@@ -66,7 +66,7 @@ export default function Usage() {
             </div>
           </Show>
           <Show when={balance()} keyed>
-            {b => (
+            {(b) => (
               <>
                 <FundsInfo
                   name="Safe"
@@ -74,7 +74,7 @@ export default function Usage() {
                   balance={b.safe}
                   ticker="wxHOPR"
                   address={b.addresses.safe}
-                  status={safeStatus() ?? 'Sufficient'}
+                  status={safeStatus() ?? "Sufficient"}
                 />
                 <FundsInfo
                   name="EOA"
@@ -82,7 +82,7 @@ export default function Usage() {
                   balance={b.node}
                   ticker="xDAI"
                   address={b.addresses.node}
-                  status={nodeStatus() ?? 'Sufficient'}
+                  status={nodeStatus() ?? "Sufficient"}
                 />
               </>
             )}

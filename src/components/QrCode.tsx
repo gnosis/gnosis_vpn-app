@@ -1,7 +1,7 @@
-import { Show, createEffect, createSignal } from 'solid-js';
-import { Portal } from 'solid-js/web';
-import QRCode from 'qrcode';
-import { useAppStore } from '../stores/appStore';
+import { createEffect, createSignal, Show } from "solid-js";
+import { Portal } from "solid-js/web";
+import QRCode from "qrcode";
+import { useAppStore } from "../stores/appStore";
 
 type QrCodeProps = {
   open: boolean;
@@ -42,7 +42,7 @@ export default function QrCode(props: QrCodeProps) {
         >
           <div
             class="rounded-xl bg-white p-4 shadow-xl w-xs"
-            onClick={e => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
           >
             <div class="flex items-center justify-between mb-2">
               <div class="text-sm text-slate-600">{props.title}</div>

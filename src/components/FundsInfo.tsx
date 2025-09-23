@@ -1,8 +1,8 @@
-import { createSignal } from 'solid-js';
-import QrCode from './QrCode';
-import { shortAddress } from '../utils/shortAddress';
-import { explorerUrl } from '../utils/explorerUrl';
-import { useAppStore } from '../stores/appStore';
+import { createSignal } from "solid-js";
+import QrCode from "./QrCode";
+import { shortAddress } from "../utils/shortAddress";
+import { explorerUrl } from "../utils/explorerUrl";
+import { useAppStore } from "../stores/appStore";
 
 type Props = {
   name: string;
@@ -10,7 +10,7 @@ type Props = {
   balance: string;
   ticker: string;
   address: string;
-  status: 'Sufficient' | 'Low' | 'Empty' | string;
+  status: "Sufficient" | "Low" | "Empty" | string;
 };
 
 export default function FundsInfo(props: Props) {
@@ -40,11 +40,11 @@ export default function FundsInfo(props: Props) {
 
           <span
             class={`font-extrabold ${
-              props.status === 'Sufficient'
-                ? 'text-emerald-600'
-                : props.status === 'Empty'
-                  ? 'text-red-600'
-                  : 'text-amber-600'
+              props.status === "Sufficient"
+                ? "text-emerald-600"
+                : props.status === "Empty"
+                ? "text-red-600"
+                : "text-amber-600"
             }
             `}
           >
