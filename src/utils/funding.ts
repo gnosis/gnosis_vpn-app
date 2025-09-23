@@ -28,10 +28,7 @@ export function applyFundingIssues(
       : 'Sufficient';
 
   // EOA (node)
-  const eoaEmpty =
-    hasUnfunded ||
-    // list.includes('ChannelsOutOfFunds') ||
-    list.includes('NodeUnderfunded');
+  const eoaEmpty = hasUnfunded || list.includes('NodeUnderfunded');
   const eoaLow = list.includes('NodeLowOnFunds');
   const eoaStatus: StatusText = eoaEmpty
     ? 'Empty'
