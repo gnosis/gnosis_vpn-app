@@ -63,6 +63,7 @@ export default function FundsInfo(props: Props) {
               class="font-mono rounded-md px-2 py-1 bg-slate-100 hover:bg-slate-200"
               onClick={() => copy()}
               title="Copy address"
+              type="button"
             >
               {shortAddress(props.address)}
             </button>
@@ -88,6 +89,7 @@ export default function FundsInfo(props: Props) {
               class="inline-flex items-center gap-1 p-1 hover:cursor-pointer"
               onClick={() => copy()}
               title="Copy address"
+              type="button"
             >
               <img
                 src="/icons/copy.svg"
@@ -101,6 +103,7 @@ export default function FundsInfo(props: Props) {
               class="inline-flex items-center gap-1 p-1 hover:cursor-pointer"
               onClick={openQR}
               title="Show QR"
+              type="button"
             >
               <img src="/icons/qr.png" height={20} width={20} alt="Show QR" />
             </button>

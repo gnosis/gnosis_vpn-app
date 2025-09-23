@@ -50,6 +50,7 @@ export default function QrCode(props: QrCodeProps) {
                 class="rounded-md px-2 py-1 text-sm hover:bg-slate-100"
                 onClick={props.onClose}
                 aria-label="Close"
+                type="button"
               >
                 ✕
               </button>
