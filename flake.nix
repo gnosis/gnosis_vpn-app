@@ -98,6 +98,7 @@
               }
               ''
                 ${pkgs.deno}/bin/deno lint $src
+                # needs to create something or the flake will fail
                 mkdir -p $out
               '';
 
