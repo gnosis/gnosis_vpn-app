@@ -31,6 +31,7 @@ type AppActions = {
   refreshStatus: () => Promise<void>;
   startStatusPolling: (intervalMs?: number) => void;
   stopStatusPolling: () => void;
+  log: (message: string) => void;
 };
 
 type AppStoreTuple = readonly [Store<AppState>, AppActions];
@@ -212,6 +213,13 @@ export function createAppStore(): AppStoreTuple {
         globalThis.clearInterval(pollingId);
         pollingId = undefined;
       }
+    },
+
+    log: (message: string) => {
+      setState('logs', [
+        ...state.logs,
+        { date: new Date().toISOString(), message },
+      ]);
     },
   } as const;
 

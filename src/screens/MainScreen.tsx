@@ -9,9 +9,10 @@ import {
   isConnecting,
   isConnectingTo,
   isServiceUnavailable,
-} from "../services/vpnService.ts";
-import { useSettingsStore } from "../stores/settingsStore.ts";
-import { formatDestinationByAddress } from "../utils/destinations.ts";
+} from '../services/vpnService';
+import { useSettingsStore } from '../stores/settingsStore';
+import { formatDestinationByAddress } from '../utils/destinations';
+import { shortAddress } from '../utils/shortAddress';
 
 export function MainScreen() {
   const [appState, appActions] = useAppStore();
@@ -74,7 +75,7 @@ export function MainScreen() {
                     </div>
                     <Show when={Object.keys(dest.meta || {}).length}>
                       <div class="text-xs text-gray-500 dark:text-gray-400 truncate">
-                        {dest.address}
+                        {shortAddress(dest.address)}
                       </div>
                     </Show>
                   </div>

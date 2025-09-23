@@ -13,6 +13,8 @@
   "license": "MIT",
   "dependencies": {
     "@tauri-apps/plugin-store": "~2.4.0",
+    "@types/qrcode": "^1.5.5",
+    "qrcode": "^1.5.4",
     "solid-js": "^1.9.9",
     "@tauri-apps/api": "^2.8.0",
     "@tauri-apps/plugin-opener": "^2.5.0",
