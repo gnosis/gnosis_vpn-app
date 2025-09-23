@@ -1,14 +1,14 @@
 import { createSignal } from "solid-js";
-import { SecondaryScreen } from "../components/common/SecondaryScreen";
-import { type BalanceResponse, VPNService } from "../services/vpnService";
+import { SecondaryScreen } from "../components/common/SecondaryScreen.tsx";
+import { type BalanceResponse, VPNService } from "../services/vpnService.ts";
 import { onMount } from "solid-js";
-import Button from "../components/common/Button";
-import FundsInfo from "../components/FundsInfo";
+import Button from "../components/common/Button.tsx";
+import FundsInfo from "../components/FundsInfo.tsx";
 import { Show } from "solid-js";
-import AirdropClaim from "../components/AirdropClaim";
-import Help from "../components/Help";
-import { applyFundingIssues } from "../utils/funding";
-import { useAppStore } from "../stores/appStore";
+import AirdropClaim from "../components/AirdropClaim.tsx";
+import Help from "../components/Help.tsx";
+import { applyFundingIssues } from "../utils/funding.ts";
+import { useAppStore } from "../stores/appStore.ts";
 
 export default function Usage() {
   const [balance, setBalance] = createSignal<BalanceResponse | null>(null);

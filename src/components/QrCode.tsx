@@ -1,7 +1,7 @@
 import { createEffect, createSignal, Show } from "solid-js";
 import { Portal } from "solid-js/web";
 import QRCode from "qrcode";
-import { useAppStore } from "../stores/appStore";
+import { useAppStore } from "../stores/appStore.ts";
 
 type QrCodeProps = {
   open: boolean;

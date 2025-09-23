@@ -1,8 +1,8 @@
 import { createSignal } from "solid-js";
-import QrCode from "./QrCode";
-import { shortAddress } from "../utils/shortAddress";
-import { explorerUrl } from "../utils/explorerUrl";
-import { useAppStore } from "../stores/appStore";
+import QrCode from "./QrCode.tsx";
+import { shortAddress } from "../utils/shortAddress.ts";
+import { explorerUrl } from "../utils/explorerUrl.ts";
+import { useAppStore } from "../stores/appStore.ts";
 
 type Props = {
   name: string;
