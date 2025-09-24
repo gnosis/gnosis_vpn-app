@@ -61,6 +61,8 @@
               package = pkgs.nixfmt-rfc-style;
             };
 
+            # Deno is used for formatting and linting
+            # Treefmt can only do formatting, linting has an extra target below
             programs.deno.enable = true;
             settings.formatter.deno.settings = {
               formatter.line_width = 120;
@@ -91,6 +93,8 @@
             programs.taplo.enable = true; # TOML formatter
           };
 
+          # Deno is used for linting and formatting
+          # Formatting is configured above in treefmt
           deno-lint =
             pkgs.runCommand "deno lint"
               {
