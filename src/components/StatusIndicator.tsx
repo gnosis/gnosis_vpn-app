@@ -6,12 +6,12 @@ export function StatusIndicator() {
   const [appState] = useAppStore();
 
   const status = createMemo(() => {
-    if (appState.isLoading) return { text: "Loading...", color: "bg-black" };
-    if (isConnected(appState.connectionStatus)) return { text: "Connected", color: "bg-green-500" };
-    if (isConnecting(appState.connectionStatus)) return { text: "Connecting...", color: "bg-orange-500" };
-    if (isDisconnecting(appState.connectionStatus)) return { text: "Disconnecting...", color: "bg-orange-500" };
-    if (isServiceUnavailable(appState.connectionStatus)) return { text: "Service unavailable", color: "bg-black" };
-    return { text: "Disconnected", color: "bg-red-500" };
+    if (appState.isLoading) return { text: "Loading...", color: "bg-vpn-yellow" };
+    if (isConnected(appState.connectionStatus)) return { text: "Connected", color: "bg-vpn-light-green" };
+    if (isConnecting(appState.connectionStatus)) return { text: "Connecting...", color: "bg-vpn-yellow" };
+    if (isDisconnecting(appState.connectionStatus)) return { text: "Disconnecting...", color: "bg-vpn-yellow" };
+    if (isServiceUnavailable(appState.connectionStatus)) return { text: "Service unavailable", color: "bg-vpn-red" };
+    return { text: "Disconnected", color: "bg-vpn-red" };
   });
 
   return (
