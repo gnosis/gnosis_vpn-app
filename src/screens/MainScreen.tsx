@@ -1,24 +1,13 @@
-import { For, Show } from "solid-js";
+import { Show } from "solid-js";
 import Button from "../components/common/Button.tsx";
 import { useAppStore } from "../stores/appStore.ts";
-import type { Destination } from "../services/vpnService.ts";
 import { StatusIndicator } from "../components/StatusIndicator.tsx";
-import {
-  isConnected,
-  isConnectedTo,
-  isConnecting,
-  isConnectingTo,
-  isServiceUnavailable,
-} from "../services/vpnService.ts";
-import { useSettingsStore } from "../stores/settingsStore.ts";
-import { formatDestinationByAddress } from "../utils/destinations.ts";
-import { shortAddress } from "../utils/shortAddress.ts";
+import { isConnected, isConnecting } from "../services/vpnService.ts";
 import Navigation from "../components/Navigation.tsx";
 import ExitNode from "../components/ExitNode.tsx";
 
 export function MainScreen() {
   const [appState, appActions] = useAppStore();
-  const [settings] = useSettingsStore();
 
   async function handleConnect() {
     await appActions.connect();
@@ -60,85 +49,6 @@ export function MainScreen() {
           </Button>
         </Show>
       </main>
-
-      {/* <Show when={!isServiceUnavailable(appState.connectionStatus)}>
-        <div class="mt-4 flex-grow flex flex-col justify-center">
-          <div class="my-6 flex justify-center">
-            <Show
-              when={isConnected(appState.connectionStatus) ||
-                isConnecting(appState.connectionStatus)}
-              fallback={
-                <Button
-                  variant="outline"
-                  size="lg"
-                  onClick={() => handleConnect()}
-                >
-                  Connect
-                </Button>
-              }
-            >
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={() => handleDisconnect()}
-              >
-                Disconnect
-              </Button>
-            </Show>
-          </div>
-          <div class="-mt-4 mb-4 text-center text-xs text-gray-500 dark:text-gray-400">
-            Preferred: {formatDestinationByAddress(
-              settings.preferredLocation,
-              appState.availableDestinations,
-            )}
-          </div>
-          <h3 class="text-lg font-semibold mb-2">Available Destinations</h3>
-          <div class="space-y-2">
-            <For each={appState.availableDestinations}>
-              {(dest) => (
-                <div class="flex items-center justify-between rounded-md border border-gray-200 dark:border-gray-800 p-3">
-                  <div class="text-sm">
-                    <div class="font-medium">
-                      {dest.meta.city} {dest.meta.state} {dest.meta.location}
-                    </div>
-                    <Show when={Object.keys(dest.meta || {}).length}>
-                      <div class="text-xs text-gray-500 dark:text-gray-400 truncate">
-                        {shortAddress(dest.address)}
-                      </div>
-                    </Show>
-                  </div>
-                  <div>
-                    <Show
-                      when={isConnectedTo(appState.connectionStatus, dest) ||
-                        isConnectingTo(appState.connectionStatus, dest)}
-                      fallback={
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleConnect(dest)}
-                        >
-                          {isConnected(appState.connectionStatus) ||
-                              isConnecting(appState.connectionStatus)
-                            ? "Switch"
-                            : "Connect"}
-                        </Button>
-                      }
-                    >
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDisconnect()}
-                      >
-                        Disconnect
-                      </Button>
-                    </Show>
-                  </div>
-                </div>
-              )}
-            </For>
-          </div>
-        </div>
-      </Show> */}
     </div>
   );
 }
