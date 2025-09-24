@@ -2,21 +2,38 @@ import IconButton from "./common/IconButton.tsx";
 import { useAppStore } from "../stores/appStore.ts";
 import { Portal } from "solid-js/web";
 import settingsIcon from "../assets/icons/settings.svg";
-import usageIcon from "../assets/icons/usage-full.svg";
 import logsIcon from "../assets/icons/logs.svg";
+import fundsFullIcon from "../assets/icons/funds-full.svg";
+import fundsLowIcon from "../assets/icons/funds-low.svg";
+import fundsOutIcon from "../assets/icons/funds-out.svg";
+import fundsEmptyIcon from "../assets/icons/funds-empty.svg";
 
 function Navigation() {
-  const [, appActions] = useAppStore();
+  const [appState, appActions] = useAppStore();
 
-  const getUsageIcon = () => {
-    return usageIcon;
+  const getFundsIcon = () => {
+    const status = appState.fundingStatus;
+    console.log(status);
+    if (status === "WellFunded") {
+      return fundsFullIcon;
+    }
+    if (typeof status === "object" && "TopIssue" in status) {
+      if (status.TopIssue === "Unfunded" || status.TopIssue === "ChannelsOutOfFunds") {
+        return fundsEmptyIcon;
+      } else if (status.TopIssue === "SafeLowOnFunds" || status.TopIssue === "NodeLowOnFunds") {
+        return fundsLowIcon;
+      } else if (status.TopIssue === "NodeUnderfunded" || status.TopIssue === "SafeOutOfFunds") {
+        return fundsOutIcon;
+      }
+    }
+    return fundsEmptyIcon;
   };
 
   return (
     <Portal>
       <div class="fixed top-4 right-4 z-10 flex items-center gap-2 justify-center">
         <IconButton icon={settingsIcon} alt="Settings" onClick={() => appActions.setScreen("settings")} />
-        <IconButton icon={getUsageIcon()} alt="Usage" onClick={() => appActions.setScreen("usage")} />
+        <IconButton icon={getFundsIcon()} alt="Funds" onClick={() => appActions.setScreen("usage")} />
         <IconButton icon={logsIcon} alt="Logs" onClick={() => appActions.setScreen("logs")} />
       </div>
     </Portal>

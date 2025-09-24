@@ -1,5 +1,5 @@
 import { createStore, type Store } from "solid-js/store";
-import { type Destination, type Status, VPNService } from "../services/vpnService.ts";
+import { type Destination, FundingState, type Status, VPNService } from "../services/vpnService.ts";
 import { buildLogContent } from "../utils/status.ts";
 import {
   areDestinationsEqualUnordered,
@@ -16,6 +16,7 @@ export interface AppState {
   connectionStatus: Status;
   availableDestinations: Destination[];
   isLoading: boolean;
+  fundingStatus: FundingState;
   error?: string;
   logs: { date: string; message: string }[];
 }
@@ -39,6 +40,7 @@ export function createAppStore(): AppStoreTuple {
     availableDestinations: [],
     isLoading: false,
     logs: [],
+    fundingStatus: "Unknown",
   });
 
   let pollingId: ReturnType<typeof globalThis.setInterval> | undefined;
@@ -112,6 +114,7 @@ export function createAppStore(): AppStoreTuple {
         setState("availableDestinations", response.available_destinations);
       }
       setState("error", undefined);
+      setState("fundingStatus", response.funding);
     } catch (error) {
       appendErrorLogIfNew(error instanceof Error ? error.message : String(error));
       setState("isLoading", false);
