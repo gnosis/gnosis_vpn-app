@@ -28,12 +28,9 @@ export function MainScreen() {
 
   return (
     <div class="flex flex-col h-full p-6 gap-6">
-      <StatusIndicator
-        status={appState.connectionStatus}
-        isLoading={appState.isLoading}
-      />
+      {/* <StatusIndicator status={appState.connectionStatus} isLoading={appState.isLoading} /> */}
 
-      <Show when={!isServiceUnavailable(appState.connectionStatus)}>
+      {/* <Show when={!isServiceUnavailable(appState.connectionStatus)}>
         <div class="mt-4 flex-grow flex flex-col justify-center">
           <div class="my-6 flex justify-center">
             <Show
@@ -110,7 +107,7 @@ export function MainScreen() {
             </For>
           </div>
         </div>
-      </Show>
+      </Show> */}
     </div>
   );
 }
