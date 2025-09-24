@@ -14,7 +14,12 @@ export default function ExitNode() {
       <Dropdown<ExitOption>
         label="Exit Node"
         options={[{ type: "default" } as DefaultOption, ...appState.availableDestinations]}
-        value={(appState.destination ?? ({ type: "default" } as DefaultOption)) as ExitOption}
+        value={
+          (appState.selectedAddress
+            ? (appState.availableDestinations.find(d => d.address === appState.selectedAddress) ??
+              ({ type: "default" } as DefaultOption))
+            : ({ type: "default" } as DefaultOption)) as ExitOption
+        }
         onChange={(opt: ExitOption) => {
           if ("address" in opt) {
             appActions.chooseDestination(opt.address);

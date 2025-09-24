@@ -26,7 +26,7 @@ export interface AppState {
 type AppActions = {
   setScreen: (screen: AppScreen) => void;
   chooseDestination: (address: string | null) => void;
-  connect: (address?: string) => Promise<void>;
+  connect: () => Promise<void>;
   disconnect: () => Promise<void>;
   refreshStatus: () => Promise<void>;
   startStatusPolling: (intervalMs?: number) => void;
@@ -168,19 +168,18 @@ export function createAppStore(): AppStoreTuple {
       applyDestinationSelection();
     },
 
-    connect: async (address?: string) => {
+    connect: async () => {
       setState("isLoading", true);
       try {
-        if (address) {
-          setState("selectedAddress", address);
-        }
+        const requestedAddress = state.selectedAddress ?? undefined;
         const { address: targetAddress, reason: selectionReason } = selectTargetAddress(
-          address,
+          requestedAddress,
           settings.preferredLocation,
           state.availableDestinations,
         );
 
-        appendContentIfNew(`Connecting to ${selectionReason}: ${targetAddress ?? "none"}`);
+        const reasonForLog = state.selectedAddress ? "selected exit node" : selectionReason;
+        appendContentIfNew(`Connecting to ${reasonForLog}: ${targetAddress ?? "none"}`);
 
         if (targetAddress) {
           await VPNService.connect(targetAddress);

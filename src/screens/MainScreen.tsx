@@ -20,8 +20,8 @@ export function MainScreen() {
   const [appState, appActions] = useAppStore();
   const [settings] = useSettingsStore();
 
-  async function handleConnect(destination?: Destination) {
-    await appActions.connect(destination?.address);
+  async function handleConnect() {
+    await appActions.connect();
   }
 
   async function handleDisconnect() {
