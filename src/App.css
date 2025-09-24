@@ -21,3 +21,50 @@
   --color-vpn-light-green: #16a34a;
   --color-vpn-red: #ff7272;
 }
+
+/* Animated connector line from Connect button to ExitNode */
+.vpn-connector-line {
+  position: absolute;
+  left: 50%;
+  width: 20px;
+  border-radius: 10px 10px 0 0;
+  transform-origin: bottom center;
+  transform: translateX(-50%) scaleY(0);
+  z-index: 0;
+  overflow: hidden;
+  /* Base (connected) look; overlay will fade during connecting */
+  background: linear-gradient(to top, var(--color-vpn-light-green, #16a34a), var(--color-vpn-dark-green, #083d1c));
+}
+
+/* Overlay used to fade between connecting and connected */
+.vpn-connector-line::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, var(--color-vpn-dark-green, #083d1c), var(--color-vpn-yellow, #ffc472));
+  opacity: 0;
+  transition: opacity 180ms linear;
+}
+
+.vpn-connector-line.connecting {
+  animation: vpn-grow 1.2s ease-out forwards;
+}
+.vpn-connector-line.connecting::before {
+  opacity: 1;
+}
+
+.vpn-connector-line.connected {
+  transform: translateX(-50%) scaleY(1);
+}
+.vpn-connector-line.connected::before {
+  opacity: 0;
+}
+
+@keyframes vpn-grow {
+  from {
+    transform: translateX(-50%) scaleY(0);
+  }
+  to {
+    transform: translateX(-50%) scaleY(1);
+  }
+}
