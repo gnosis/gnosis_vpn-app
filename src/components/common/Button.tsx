@@ -3,6 +3,7 @@ import { type JSX, mergeProps, Show, splitProps } from "solid-js";
 export interface ButtonProps {
   variant?: "primary" | "secondary" | "outline";
   size?: "sm" | "md" | "lg";
+  disabled?: boolean;
   loading?: boolean;
   class?: string;
   children: import("solid-js").JSX.Element;

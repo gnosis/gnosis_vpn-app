@@ -42,12 +42,20 @@ export function MainScreen() {
         <Show
           when={isConnected(appState.connectionStatus) || isConnecting(appState.connectionStatus)}
           fallback={
-            <Button size="lg" onClick={() => handleConnect()}>
+            <Button
+              size="lg"
+              onClick={() => handleConnect()}
+              disabled={appState.isLoading || appState.connectionStatus === "ServiceUnavailable"}
+            >
               Connect
             </Button>
           }
         >
-          <Button size="lg" onClick={() => handleDisconnect()}>
+          <Button
+            size="lg"
+            onClick={() => handleDisconnect()}
+            disabled={appState.isLoading || appState.connectionStatus === "ServiceUnavailable"}
+          >
             Stop
           </Button>
         </Show>

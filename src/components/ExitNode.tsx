@@ -35,6 +35,7 @@ export default function ExitNode() {
           return "Default";
         }}
         placeholder="Default"
+        disabled={appState.isLoading || appState.connectionStatus === "ServiceUnavailable"}
       />
     </div>
   );
