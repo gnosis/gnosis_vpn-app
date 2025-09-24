@@ -14,6 +14,7 @@ import { useSettingsStore } from "../stores/settingsStore.ts";
 import { formatDestinationByAddress } from "../utils/destinations.ts";
 import { shortAddress } from "../utils/shortAddress.ts";
 import Navigation from "../components/Navigation.tsx";
+import ExitNode from "../components/ExitNode.tsx";
 
 export function MainScreen() {
   const [appState, appActions] = useAppStore();
@@ -34,8 +35,10 @@ export function MainScreen() {
         <Navigation />
       </div>
 
-      <main class="flex w-full flex-1 flex-col items-center justify-between">
-        <div class="w-full h-1/2"></div>
+      <main class="flex w-full flex-1 flex-col items-center">
+        <div class="w-full h-1/4"></div>
+        <ExitNode />
+        <div class="flex-grow"></div>
         <Show
           when={isConnected(appState.connectionStatus) || isConnecting(appState.connectionStatus)}
           fallback={

@@ -19,10 +19,13 @@ export interface AppState {
   fundingStatus: FundingState;
   error?: string;
   logs: { date: string; message: string }[];
+  destination: Destination | null;
+  selectedAddress: string | null;
 }
 
 type AppActions = {
   setScreen: (screen: AppScreen) => void;
+  chooseDestination: (address: string | null) => void;
   connect: (address?: string) => Promise<void>;
   disconnect: () => Promise<void>;
   refreshStatus: () => Promise<void>;
@@ -41,6 +44,8 @@ export function createAppStore(): AppStoreTuple {
     isLoading: false,
     logs: [],
     fundingStatus: "Unknown",
+    destination: null,
+    selectedAddress: null,
   });
 
   let pollingId: ReturnType<typeof globalThis.setInterval> | undefined;
@@ -71,6 +76,31 @@ export function createAppStore(): AppStoreTuple {
 
   const appendErrorLogIfNew = (message: string) => {
     appendContentIfNew(message);
+  };
+
+  const applyDestinationSelection = () => {
+    const available = state.availableDestinations;
+    const userSelected = state.selectedAddress ? available.find(d => d.address === state.selectedAddress) : undefined;
+    if (userSelected) {
+      if (state.destination?.address !== userSelected.address) {
+        setState("destination", userSelected);
+      }
+      return;
+    }
+
+    const preferred = settings.preferredLocation
+      ? available.find(d => d.address === settings.preferredLocation)
+      : undefined;
+    if (preferred) {
+      if (state.destination?.address !== preferred.address) {
+        setState("destination", preferred);
+      }
+      return;
+    }
+
+    if (state.destination !== null) {
+      setState("destination", null);
+    }
   };
 
   const getStatus = async () => {
@@ -112,24 +142,38 @@ export function createAppStore(): AppStoreTuple {
       }
       if (!areDestinationsEqualUnordered(response.available_destinations, state.availableDestinations)) {
         setState("availableDestinations", response.available_destinations);
+        applyDestinationSelection();
       }
       setState("error", undefined);
       setState("fundingStatus", response.funding);
+
+      if (preferredChanged) {
+        applyDestinationSelection();
+      }
     } catch (error) {
       appendErrorLogIfNew(error instanceof Error ? error.message : String(error));
       setState("isLoading", false);
       setState("connectionStatus", "ServiceUnavailable");
       setState("availableDestinations", []);
       setState("error", error instanceof Error ? error.message : String(error));
+      if (state.destination !== null) setState("destination", null);
     }
   };
 
   const actions = {
     setScreen: (screen: AppScreen) => setState("currentScreen", screen),
 
+    chooseDestination: (address: string | null) => {
+      setState("selectedAddress", address ?? null);
+      applyDestinationSelection();
+    },
+
     connect: async (address?: string) => {
       setState("isLoading", true);
       try {
+        if (address) {
+          setState("selectedAddress", address);
+        }
         const { address: targetAddress, reason: selectionReason } = selectTargetAddress(
           address,
           settings.preferredLocation,
@@ -142,6 +186,7 @@ export function createAppStore(): AppStoreTuple {
           await VPNService.connect(targetAddress);
         }
         await getStatus();
+        applyDestinationSelection();
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         appendErrorLogIfNew(message);
