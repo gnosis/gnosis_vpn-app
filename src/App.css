@@ -47,7 +47,9 @@
 }
 
 .vpn-connector-line.connecting {
-  animation: vpn-grow 1.2s ease-out forwards;
+  animation:
+    vpn-grow 1.2s ease-out forwards,
+    vpn-fade 3s ease-in-out infinite;
 }
 .vpn-connector-line.connecting::before {
   opacity: 1;
@@ -66,5 +68,17 @@
   }
   to {
     transform: translateX(-50%) scaleY(1);
+  }
+}
+
+@keyframes vpn-fade {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 1;
   }
 }
