@@ -34,6 +34,22 @@ export function MainScreen() {
         <Navigation />
       </div>
 
+      <main class="flex w-full flex-1 flex-col items-center justify-between">
+        <div class="w-full h-1/2"></div>
+        <Show
+          when={isConnected(appState.connectionStatus) || isConnecting(appState.connectionStatus)}
+          fallback={
+            <Button size="lg" onClick={() => handleConnect()}>
+              Connect
+            </Button>
+          }
+        >
+          <Button size="lg" onClick={() => handleDisconnect()}>
+            Stop
+          </Button>
+        </Show>
+      </main>
+
       {/* <Show when={!isServiceUnavailable(appState.connectionStatus)}>
         <div class="mt-4 flex-grow flex flex-col justify-center">
           <div class="my-6 flex justify-center">
