@@ -13,7 +13,6 @@ function Navigation() {
 
   const getFundsIcon = () => {
     const status = appState.fundingStatus;
-    console.log(status);
     if (status === "WellFunded") {
       return fundsFullIcon;
     }
@@ -31,7 +30,7 @@ function Navigation() {
 
   return (
     <Portal>
-      <div class="fixed top-4 right-4 z-10 flex items-center gap-2 justify-center">
+      <div class="fixed top-6 right-4 z-10 flex items-center gap-2 justify-center">
         <IconButton icon={settingsIcon} alt="Settings" onClick={() => appActions.setScreen("settings")} />
         <IconButton icon={getFundsIcon()} alt="Funds" onClick={() => appActions.setScreen("usage")} />
         <IconButton icon={logsIcon} alt="Logs" onClick={() => appActions.setScreen("logs")} />

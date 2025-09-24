@@ -13,6 +13,7 @@ import {
 import { useSettingsStore } from "../stores/settingsStore.ts";
 import { formatDestinationByAddress } from "../utils/destinations.ts";
 import { shortAddress } from "../utils/shortAddress.ts";
+import Navigation from "../components/Navigation.tsx";
 
 export function MainScreen() {
   const [appState, appActions] = useAppStore();
@@ -27,8 +28,11 @@ export function MainScreen() {
   }
 
   return (
-    <div class="flex flex-col h-full p-6 gap-6">
-      {/* <StatusIndicator status={appState.connectionStatus} isLoading={appState.isLoading} /> */}
+    <div class="flex w-full flex-col h-full py-6 px-4">
+      <div class="flex flex-row justify-between">
+        <StatusIndicator />
+        <Navigation />
+      </div>
 
       {/* <Show when={!isServiceUnavailable(appState.connectionStatus)}>
         <div class="mt-4 flex-grow flex flex-col justify-center">

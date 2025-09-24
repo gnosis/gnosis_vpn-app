@@ -1,6 +1,5 @@
 import "./App.css";
 import { MainScreen } from "./screens/MainScreen.tsx";
-import Navigation from "./components/Navigation.tsx";
 import { Dynamic } from "solid-js/web";
 import Logs from "./screens/Logs.tsx";
 import Settings from "./screens/Settings.tsx";
@@ -38,8 +37,7 @@ function App() {
 
       const validScreens = ["main", "settings", "logs", "usage"] as const;
       type ValidScreen = (typeof validScreens)[number];
-      const isValidScreen = (s: string): s is ValidScreen =>
-        (validScreens as readonly string[]).includes(s);
+      const isValidScreen = (s: string): s is ValidScreen => (validScreens as readonly string[]).includes(s);
 
       unlistenNavigate = await listen<string>("navigate", ({ payload }) => {
         if (isValidScreen(payload)) {
@@ -55,12 +53,9 @@ function App() {
   });
 
   return (
-    <>
-      <div class="h-screen bg-gray-50 dark:bg-gray-900">
-        <Dynamic component={screens[appState.currentScreen]} />
-      </div>
-      <Navigation />
-    </>
+    <div class="h-screen bg-gray-100 dark:bg-gray-900">
+      <Dynamic component={screens[appState.currentScreen]} />
+    </div>
   );
 }
 
