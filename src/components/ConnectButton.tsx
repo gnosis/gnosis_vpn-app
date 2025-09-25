@@ -8,6 +8,7 @@ export default function ConnectButton() {
 
   const isActive = createMemo(() => isConnected(appState.connectionStatus) || isConnecting(appState.connectionStatus));
   const label = createMemo(() => (isActive() ? "Stop" : "Connect"));
+
   const handleClick = async () => {
     if (isActive()) {
       await appActions.disconnect();

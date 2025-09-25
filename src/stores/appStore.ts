@@ -1,6 +1,12 @@
 import { createStore, type Store } from "solid-js/store";
-import { type Destination, FundingState, type Status, VPNService } from "../services/vpnService.ts";
-import { buildLogContent } from "../utils/status.ts";
+import {
+  type Destination,
+  FundingState,
+  type Status,
+  type StatusResponse,
+  VPNService,
+} from "../services/vpnService.ts";
+import { useLogsStore } from "./logsStore.ts";
 import {
   areDestinationsEqualUnordered,
   formatDestinationByAddress,
@@ -55,28 +61,9 @@ export function createAppStore(): AppStoreTuple {
   let lastPreferredLocation: string | null = settings.preferredLocation;
   let hasInitializedPreferred = false;
 
-  const appendContentIfNew = (content: string) =>
-    setState("logs", existingLogs => {
-      const lastMessage = existingLogs.length ? existingLogs[existingLogs.length - 1].message : "";
-      if (lastMessage === content) return existingLogs;
-      const entry = { date: new Date().toISOString(), message: content };
-      return [...existingLogs, entry];
-    });
-
-  let lastStatusLogMessage: string | undefined;
-
-  const appendStatusLogIfNew = (response: import("../services/vpnService.ts").StatusResponse) => {
-    const content = buildLogContent({ response }, lastStatusLogMessage);
-    if (!content) return;
-    if (content !== lastStatusLogMessage) {
-      appendContentIfNew(content);
-      lastStatusLogMessage = content;
-    }
-  };
-
-  const appendErrorLogIfNew = (message: string) => {
-    appendContentIfNew(message);
-  };
+  const [, logActions] = useLogsStore();
+  const log = (content: string) => logActions.append(content);
+  const logStatus = (response: StatusResponse) => logActions.appendStatus(response);
 
   const applyDestinationSelection = () => {
     const available = state.availableDestinations;
@@ -111,7 +98,7 @@ export function createAppStore(): AppStoreTuple {
         response.available_destinations,
         settings.preferredLocation,
       );
-      if (prefMsg) appendContentIfNew(prefMsg);
+      if (prefMsg) log(prefMsg);
 
       if (!hasInitializedPreferred) {
         // On first tick after startup, treat current value as baseline (no user change)
@@ -127,15 +114,15 @@ export function createAppStore(): AppStoreTuple {
         if (settings.preferredLocation) {
           if (nowHasPreferred) {
             const pretty = formatDestinationByAddress(settings.preferredLocation, response.available_destinations);
-            appendContentIfNew(`Preferred location set to ${pretty}.`);
+            log(`Preferred location set to ${pretty}.`);
           } else {
-            appendContentIfNew(`Preferred location ${settings.preferredLocation} currently unavailable.`);
+            log(`Preferred location ${settings.preferredLocation} currently unavailable.`);
           }
         }
         lastPreferredLocation = settings.preferredLocation;
       }
       if (!preferredChanged) {
-        appendStatusLogIfNew(response);
+        logStatus(response);
       }
       if (response.status !== state.connectionStatus) {
         setState("connectionStatus", response.status);
@@ -151,7 +138,7 @@ export function createAppStore(): AppStoreTuple {
         applyDestinationSelection();
       }
     } catch (error) {
-      appendErrorLogIfNew(error instanceof Error ? error.message : String(error));
+      log(error instanceof Error ? error.message : String(error));
       setState("isLoading", false);
       setState("connectionStatus", "ServiceUnavailable");
       setState("availableDestinations", []);
@@ -179,7 +166,7 @@ export function createAppStore(): AppStoreTuple {
         );
 
         const reasonForLog = state.selectedAddress ? "selected exit node" : selectionReason;
-        appendContentIfNew(`Connecting to ${reasonForLog}: ${targetAddress ?? "none"}`);
+        log(`Connecting to ${reasonForLog}: ${targetAddress ?? "none"}`);
 
         if (targetAddress) {
           await VPNService.connect(targetAddress);
@@ -188,7 +175,7 @@ export function createAppStore(): AppStoreTuple {
         applyDestinationSelection();
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        appendErrorLogIfNew(message);
+        log(message);
         setState("error", message);
       } finally {
         setState("isLoading", false);
@@ -202,7 +189,7 @@ export function createAppStore(): AppStoreTuple {
         await getStatus();
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        appendErrorLogIfNew(message);
+        log(message);
         setState("error", message);
       } finally {
         setState("isLoading", false);
@@ -237,7 +224,7 @@ export function createAppStore(): AppStoreTuple {
     },
 
     log: (message: string) => {
-      setState("logs", [...state.logs, { date: new Date().toISOString(), message }]);
+      log(message);
     },
   } as const;
 

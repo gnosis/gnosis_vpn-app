@@ -122,7 +122,7 @@ export function Dropdown<T>(props: DropdownProps<T>) {
             <div class="mb-1 text-xs text-gray-500">{props.label}</div>
           </Show>
 
-          <span class="font-medium">{props.value ? toString(props.value) : (props.placeholder ?? "Select…")}</span>
+          <span class="font-bold">{props.value ? toString(props.value) : (props.placeholder ?? "Select…")}</span>
         </div>
         <button
           ref={btn}
