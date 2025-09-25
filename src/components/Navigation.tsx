@@ -35,7 +35,7 @@ function Navigation() {
 
   return (
     <Portal>
-      <div class="fixed top-6 right-4 z-10 flex items-center gap-2 justify-center">
+      <div class="fixed top-6 right-4 z-60 flex items-center gap-2 justify-center">
         <IconButton icon={settingsIcon} alt="Settings" onClick={() => navigate("settings")} />
         <IconButton icon={getFundsIcon()} alt="Funds" onClick={() => navigate("usage")} />
         <IconButton icon={logsIcon} alt="Logs" onClick={() => navigate("logs")} />
