@@ -14,6 +14,7 @@ import {
   selectTargetAddress,
 } from "../utils/destinations.ts";
 import { useSettingsStore } from "./settingsStore.ts";
+import { isConnected, isConnecting } from "../utils/status.ts";
 
 export type AppScreen = "main" | "settings" | "logs" | "usage";
 
@@ -153,6 +154,23 @@ export function createAppStore(): AppStoreTuple {
     chooseDestination: (address: string | null) => {
       setState("selectedAddress", address ?? null);
       applyDestinationSelection();
+
+      if (address && (isConnected(state.connectionStatus) || isConnecting(state.connectionStatus))) {
+        setState("isLoading", true);
+        void (async () => {
+          try {
+            log(`Connecting to selected exit node: ${address}`);
+            await VPNService.connect(address);
+            await getStatus();
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            log(message);
+            setState("error", message);
+          } finally {
+            setState("isLoading", false);
+          }
+        })();
+      }
     },
 
     connect: async () => {
