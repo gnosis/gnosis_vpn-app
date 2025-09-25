@@ -18,6 +18,7 @@ export function Dropdown<T>(props: DropdownProps<T>) {
     v == null ? "" : props.itemToString ? props.itemToString(v) : String(v);
 
   const [open, setOpen] = createSignal(false);
+  const [mounted, setMounted] = createSignal(false);
   const [activeIdx, setActiveIdx] = createSignal(-1);
 
   let root!: HTMLDivElement;
@@ -50,11 +51,18 @@ export function Dropdown<T>(props: DropdownProps<T>) {
   });
 
   createEffect(() => {
+    // Manage mount presence for enter/exit animation
+    let closeTimeout: number | undefined;
     if (open()) {
+      if (closeTimeout !== undefined) window.clearTimeout(closeTimeout);
+      setMounted(true);
       const idx = selectedIdx();
       setActiveIdx(idx >= 0 ? idx : 0);
       updatePosition();
       queueMicrotask(() => list?.focus());
+    } else if (mounted()) {
+      // Delay unmount to allow slide-up animation to finish
+      closeTimeout = window.setTimeout(() => setMounted(false), 150);
     }
   });
 
@@ -112,7 +120,8 @@ export function Dropdown<T>(props: DropdownProps<T>) {
           aria-haspopup="listbox"
           aria-expanded={open()}
           class="h-10 w-15 inline-flex items-center justify-center rounded-2xl px-4 py-2
-               bg-black text-white shadow transition disabled:opacity-50 hover:cursor-pointer outline-none"
+               bg-black text-white shadow disabled:opacity-50 hover:cursor-pointer outline-none
+               transition-transform duration-150 ease-out active:scale-97 select-none"
           onClick={() => !props.disabled && setOpen(!open())}
           onKeyDown={e => {
             if ((e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") && !open()) {
@@ -130,7 +139,7 @@ export function Dropdown<T>(props: DropdownProps<T>) {
         </button>
       </div>
 
-      <Show when={open()}>
+      <Show when={mounted()}>
         <Portal>
           <ul
             ref={list}
@@ -138,7 +147,9 @@ export function Dropdown<T>(props: DropdownProps<T>) {
             role="listbox"
             aria-activedescendant={activeIdx() >= 0 ? `opt-${activeIdx()}` : undefined}
             onKeyDown={onListKey}
-            class="fixed z-50 max-h-64 overflow-auto rounded-xl bg-white shadow-lg ring-1 ring-black/10 p-1 outline-none"
+            class={`fixed z-50 max-h-64 overflow-auto rounded-xl bg-white shadow-lg ring-1 ring-black/10 p-1 outline-none
+                     transition-all duration-200 ease-out origin-top
+                     ${open() ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2 pointer-events-none"}`}
             style={{ top: `${listPos().top}px`, left: `${listPos().left}px`, width: `${listPos().width}px` }}
           >
             <For each={props.options}>

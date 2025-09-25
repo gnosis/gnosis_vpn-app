@@ -11,7 +11,7 @@ export interface ButtonProps {
 }
 
 const baseClasses =
-  "font-bold w-full inline-flex items-center justify-center rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ring-offset-white dark:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed gap-2 hover:cursor-pointer";
+  "font-bold w-full inline-flex items-center justify-center rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ring-offset-white dark:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed gap-2 hover:cursor-pointer transition-transform transition-opacity duration-150 ease-out active:scale-99 select-none";
 
 const variantClasses: Record<NonNullable<ButtonProps["variant"]>, string> = {
   primary: "border border-transparent dark:border-gray-300 bg-black text-white hover:bg-black focus-visible:ring-black",
