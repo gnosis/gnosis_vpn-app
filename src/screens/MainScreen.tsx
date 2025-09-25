@@ -1,7 +1,7 @@
 import { Show, createSignal, onMount, onCleanup, createEffect } from "solid-js";
 import { useAppStore } from "../stores/appStore.ts";
 import { StatusIndicator } from "../components/StatusIndicator.tsx";
-import { isConnected, isConnecting } from "../services/vpnService.ts";
+import { isConnected, isConnecting } from "../utils/status.ts";
 import Navigation from "../components/Navigation.tsx";
 import ExitNode from "../components/ExitNode.tsx";
 import ConnectButton from "../components/ConnectButton.tsx";

@@ -22,10 +22,7 @@ export type FundingIssue =
   | "NodeUnderfunded" // keeps working until channels are drained - cannot open new or top up existing channels
   | "NodeLowOnFunds"; // warning before NodeUnderfunded
 
-export type FundingState =
-  | "Unknown"
-  | { TopIssue: FundingIssue }
-  | "WellFunded";
+export type FundingState = "Unknown" | { TopIssue: FundingIssue } | "WellFunded";
 
 export type StatusResponse = {
   status: Status;
@@ -35,9 +32,7 @@ export type StatusResponse = {
 };
 
 export type ConnectResponse = { Connecting: Destination } | "AddressNotFound";
-export type DisconnectResponse =
-  | { Disconnecting: Destination }
-  | "NotConnected";
+export type DisconnectResponse = { Disconnecting: Destination } | "NotConnected";
 
 export type Addresses = {
   node: string;
@@ -103,71 +98,11 @@ export class VPNService {
     }
   }
 
-  static getBestDestination(
-    destinations: StatusResponse["available_destinations"],
-  ): string | null {
+  static getBestDestination(destinations: StatusResponse["available_destinations"]): string | null {
     if (destinations.length === 0) return null;
 
     // Sort by address for consistent selection
-    const sorted = [...destinations].sort((a, b) =>
-      a.address.localeCompare(b.address)
-    );
+    const sorted = [...destinations].sort((a, b) => a.address.localeCompare(b.address));
     return sorted[0].address;
   }
-}
-
-export function isConnected(
-  status: Status,
-): status is { Connected: Destination } {
-  return typeof status === "object" && "Connected" in status;
-}
-
-export function isConnecting(
-  status: Status,
-): status is { Connecting: Destination } {
-  return typeof status === "object" && "Connecting" in status;
-}
-
-export function isDisconnecting(
-  status: Status,
-): status is { Disconnecting: Destination } {
-  return typeof status === "object" && "Disconnecting" in status;
-}
-
-export function isDisconnected(status: Status): status is "Disconnected" {
-  return status === "Disconnected";
-}
-
-export function isServiceUnavailable(
-  status: Status,
-): status is "ServiceUnavailable" {
-  return status === "ServiceUnavailable";
-}
-
-export function isConnectedTo(
-  status: Status,
-  destination: Destination,
-): boolean {
-  return (
-    isConnected(status) && status.Connected.address === destination.address
-  );
-}
-
-export function isConnectingTo(
-  status: Status,
-  destination: Destination,
-): boolean {
-  return (
-    isConnecting(status) && status.Connecting.address === destination.address
-  );
-}
-
-export function isDisconnectingFrom(
-  status: Status,
-  destination: Destination,
-): boolean {
-  return (
-    isDisconnecting(status) &&
-    status.Disconnecting.address === destination.address
-  );
 }

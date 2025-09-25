@@ -1,7 +1,7 @@
 import { createMemo } from "solid-js";
 import Button from "./common/Button.tsx";
 import { useAppStore } from "../stores/appStore.ts";
-import { isConnected, isConnecting } from "../services/vpnService.ts";
+import { isConnected, isConnecting } from "../utils/status.ts";
 
 export default function ConnectButton() {
   const [appState, appActions] = useAppStore();
