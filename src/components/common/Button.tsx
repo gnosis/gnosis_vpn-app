@@ -11,7 +11,7 @@ export interface ButtonProps {
 }
 
 const baseClasses =
-  "font-bold w-full inline-flex items-center justify-center rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ring-offset-white dark:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed gap-2 hover:cursor-pointer transition-transform duration-150 ease-out select-none";
+  "font-bold w-full inline-flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ring-offset-white dark:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed gap-2 hover:cursor-pointer transition-transform duration-150 ease-out select-none";
 
 const variantClasses: Record<NonNullable<ButtonProps["variant"]>, string> = {
   primary: "border border-transparent dark:border-gray-300 bg-black text-white hover:bg-black focus-visible:ring-black",
@@ -22,8 +22,8 @@ const variantClasses: Record<NonNullable<ButtonProps["variant"]>, string> = {
 
 const sizeClasses: Record<NonNullable<ButtonProps["size"]>, string> = {
   sm: "h-8 px-3 text-sm",
-  md: "h-10 px-4 text-sm",
-  lg: "h-14 px-6 text-base",
+  md: "h-10 px-4 text-sm rounded-lg",
+  lg: "h-14 px-6 text-base rounded-2xl",
 };
 
 export default function Button(allProps: ButtonProps): JSX.Element {

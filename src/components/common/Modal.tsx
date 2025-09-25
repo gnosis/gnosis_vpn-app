@@ -4,7 +4,6 @@ import { Portal } from "solid-js/web";
 type ModalProps = {
   open: boolean;
   onClose: () => void;
-  title?: string;
   warn?: boolean;
   children: JSX.Element;
 };
@@ -30,17 +29,8 @@ export function Modal(props: ModalProps) {
           <div
             role="dialog"
             aria-modal="true"
-            aria-labelledby={props.title ? "modal-title" : undefined}
-            class={`w-full max-w-md rounded-2xl shadow-xl ring-1 ring-black/10 ${props.warn ? "bg-[#FFCDCD]" : "bg-[#E2F5FF]"}`}
+            class={`w-full max-w-md rounded-lg shadow-xl ring-1 ring-black/10 ${props.warn ? "bg-[#FFCDCD]" : "bg-[#E2F5FF]"}`}
           >
-            <Show when={props.title}>
-              <div class="px-5 pt-4 pb-2">
-                <h2 id="modal-title" class="text-base font-semibold text-gray-900">
-                  {props.title}
-                </h2>
-              </div>
-            </Show>
-
             <div class="px-5 py-4">{props.children}</div>
           </div>
         </div>
