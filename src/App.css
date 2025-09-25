@@ -32,6 +32,23 @@
   -webkit-text-size-adjust: 100%;
 }
 
+/* Button press animation */
+.btn-press {
+  animation: btn-press-keyframes 160ms ease-out;
+}
+
+@keyframes btn-press-keyframes {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(0.98);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
 @theme {
   --color-vpn-yellow: #ffc472;
   --color-vpn-dark-green: #083d1c;

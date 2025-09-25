@@ -1,4 +1,4 @@
-import { type JSX, mergeProps, Show, splitProps } from "solid-js";
+import { type JSX, mergeProps, splitProps, createSignal } from "solid-js";
 
 export interface ButtonProps {
   variant?: "primary" | "secondary" | "outline";
@@ -11,7 +11,7 @@ export interface ButtonProps {
 }
 
 const baseClasses =
-  "font-bold w-full inline-flex items-center justify-center rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ring-offset-white dark:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed gap-2 hover:cursor-pointer transition-transform transition-opacity duration-150 ease-out active:scale-99 select-none";
+  "font-bold w-full inline-flex items-center justify-center rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ring-offset-white dark:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed gap-2 hover:cursor-pointer transition-transform duration-150 ease-out select-none";
 
 const variantClasses: Record<NonNullable<ButtonProps["variant"]>, string> = {
   primary: "border border-transparent dark:border-gray-300 bg-black text-white hover:bg-black focus-visible:ring-black",
@@ -27,6 +27,20 @@ const sizeClasses: Record<NonNullable<ButtonProps["size"]>, string> = {
 };
 
 export default function Button(allProps: ButtonProps): JSX.Element {
+  const [pressed, setPressed] = createSignal(false);
+  let pressTimeout: number | undefined;
+
+  const playPressAnimation = () => {
+    if (pressTimeout !== undefined) {
+      window.clearTimeout(pressTimeout);
+    }
+    setPressed(false);
+    requestAnimationFrame(() => {
+      setPressed(true);
+      pressTimeout = window.setTimeout(() => setPressed(false), 160);
+    });
+  };
+
   const props = mergeProps(
     {
       variant: "primary",
@@ -39,7 +53,15 @@ export default function Button(allProps: ButtonProps): JSX.Element {
   const [local, others] = splitProps(props, ["variant", "size", "class", "children", "disabled", "loading", "onClick"]);
 
   const computedClass = () =>
-    [baseClasses, variantClasses[local.variant!], sizeClasses[local.size!], local.class].filter(Boolean).join(" ");
+    [
+      baseClasses,
+      variantClasses[local.variant!],
+      sizeClasses[local.size!],
+      pressed() ? "btn-press" : undefined,
+      local.class,
+    ]
+      .filter(Boolean)
+      .join(" ");
 
   return (
     <button
@@ -49,20 +71,9 @@ export default function Button(allProps: ButtonProps): JSX.Element {
       aria-busy={local.loading || undefined}
       aria-disabled={local.disabled || local.loading || undefined}
       {...others}
-      onClick={local.onClick}
+      onPointerDown={() => playPressAnimation()}
+      onClick={() => local.onClick?.()}
     >
-      <Show when={local.loading}>
-        <svg
-          class="animate-spin -ml-1 mr-2 h-5 w-5 text-current"
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-        >
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
-        </svg>
-      </Show>
       {local.children}
     </button>
   );

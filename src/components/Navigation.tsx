@@ -11,6 +11,11 @@ import fundsEmptyIcon from "../assets/icons/funds-empty.svg";
 function Navigation() {
   const [appState, appActions] = useAppStore();
 
+  const PRESS_DELAY_MS = 200;
+  const navigate = (screen: Parameters<typeof appActions.setScreen>[0]) => {
+    window.setTimeout(() => appActions.setScreen(screen), PRESS_DELAY_MS);
+  };
+
   const getFundsIcon = () => {
     const status = appState.fundingStatus;
     if (status === "WellFunded") {
@@ -31,9 +36,9 @@ function Navigation() {
   return (
     <Portal>
       <div class="fixed top-6 right-4 z-10 flex items-center gap-2 justify-center">
-        <IconButton icon={settingsIcon} alt="Settings" onClick={() => appActions.setScreen("settings")} />
-        <IconButton icon={getFundsIcon()} alt="Funds" onClick={() => appActions.setScreen("usage")} />
-        <IconButton icon={logsIcon} alt="Logs" onClick={() => appActions.setScreen("logs")} />
+        <IconButton icon={settingsIcon} alt="Settings" onClick={() => navigate("settings")} />
+        <IconButton icon={getFundsIcon()} alt="Funds" onClick={() => navigate("usage")} />
+        <IconButton icon={logsIcon} alt="Logs" onClick={() => navigate("logs")} />
       </div>
     </Portal>
   );

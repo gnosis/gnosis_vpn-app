@@ -21,6 +21,19 @@ export function Dropdown<T>(props: DropdownProps<T>) {
   const [mounted, setMounted] = createSignal(false);
   const [activeIdx, setActiveIdx] = createSignal(-1);
 
+  const [pressed, setPressed] = createSignal(false);
+  let pressTimeout: number | undefined;
+  const playPressAnimation = () => {
+    if (pressTimeout !== undefined) {
+      window.clearTimeout(pressTimeout);
+    }
+    setPressed(false);
+    requestAnimationFrame(() => {
+      setPressed(true);
+      pressTimeout = window.setTimeout(() => setPressed(false), 160);
+    });
+  };
+
   let root!: HTMLDivElement;
   let btn!: HTMLButtonElement;
   let list!: HTMLUListElement;
@@ -51,7 +64,6 @@ export function Dropdown<T>(props: DropdownProps<T>) {
   });
 
   createEffect(() => {
-    // Manage mount presence for enter/exit animation
     let closeTimeout: number | undefined;
     if (open()) {
       if (closeTimeout !== undefined) window.clearTimeout(closeTimeout);
@@ -61,7 +73,6 @@ export function Dropdown<T>(props: DropdownProps<T>) {
       updatePosition();
       queueMicrotask(() => list?.focus());
     } else if (mounted()) {
-      // Delay unmount to allow slide-up animation to finish
       closeTimeout = window.setTimeout(() => setMounted(false), 150);
     }
   });
@@ -121,7 +132,9 @@ export function Dropdown<T>(props: DropdownProps<T>) {
           aria-expanded={open()}
           class="h-10 w-15 inline-flex items-center justify-center rounded-2xl px-4 py-2
                bg-black text-white shadow disabled:opacity-50 hover:cursor-pointer outline-none
-               transition-transform duration-150 ease-out active:scale-97 select-none"
+               transition-transform duration-150 ease-out select-none"
+          classList={{ "btn-press": pressed() }}
+          onPointerDown={() => playPressAnimation()}
           onClick={() => !props.disabled && setOpen(!open())}
           onKeyDown={e => {
             if ((e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") && !open()) {
