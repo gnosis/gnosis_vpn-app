@@ -45,8 +45,8 @@ export default function FundsInfo(props: Props) {
               props.status === "Sufficient"
                 ? "text-emerald-600"
                 : props.status === "Empty"
-                  ? "text-red-600"
-                  : "text-amber-600"
+                ? "text-red-600"
+                : "text-amber-600"
             }
             `}
           >
