@@ -1,4 +1,4 @@
-import { JSX, Show, onCleanup, onMount } from "solid-js";
+import { JSX, onCleanup, onMount, Show } from "solid-js";
 import { Portal } from "solid-js/web";
 
 type ModalProps = {
@@ -25,11 +25,16 @@ export function Modal(props: ModalProps) {
           aria-hidden="true"
         />
 
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={e => e.stopPropagation()}>
+        <div
+          class="fixed inset-0 z-50 flex items-center justify-center p-4"
+          onClick={(e) => e.stopPropagation()}
+        >
           <div
             role="dialog"
             aria-modal="true"
-            class={`w-full max-w-md rounded-lg shadow-xl ring-1 ring-black/10 ${props.warn ? "bg-[#FFCDCD]" : "bg-[#E2F5FF]"}`}
+            class={`w-full max-w-md rounded-lg shadow-xl ring-1 ring-black/10 ${
+              props.warn ? "bg-[#FFCDCD]" : "bg-[#E2F5FF]"
+            }`}
           >
             <div class="px-5 py-4">{props.children}</div>
           </div>

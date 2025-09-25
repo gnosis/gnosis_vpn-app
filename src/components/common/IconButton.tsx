@@ -1,6 +1,8 @@
 import { createSignal } from "solid-js";
 
-export default function IconButton(props: { icon: string; alt: string; onClick: () => void }) {
+export default function IconButton(
+  props: { icon: string; alt: string; onClick: () => void },
+) {
   const [pressed, setPressed] = createSignal(false);
   let pressTimeout: number | undefined;
   const playPressAnimation = () => {

@@ -22,11 +22,20 @@ function Navigation() {
       return fundsFullIcon;
     }
     if (typeof status === "object" && "TopIssue" in status) {
-      if (status.TopIssue === "Unfunded" || status.TopIssue === "ChannelsOutOfFunds") {
+      if (
+        status.TopIssue === "Unfunded" ||
+        status.TopIssue === "ChannelsOutOfFunds"
+      ) {
         return fundsEmptyIcon;
-      } else if (status.TopIssue === "SafeLowOnFunds" || status.TopIssue === "NodeLowOnFunds") {
+      } else if (
+        status.TopIssue === "SafeLowOnFunds" ||
+        status.TopIssue === "NodeLowOnFunds"
+      ) {
         return fundsLowIcon;
-      } else if (status.TopIssue === "NodeUnderfunded" || status.TopIssue === "SafeOutOfFunds") {
+      } else if (
+        status.TopIssue === "NodeUnderfunded" ||
+        status.TopIssue === "SafeOutOfFunds"
+      ) {
         return fundsOutIcon;
       }
     }
@@ -36,9 +45,21 @@ function Navigation() {
   return (
     <Portal>
       <div class="fixed top-6 right-4 z-60 flex items-center gap-2 justify-center">
-        <IconButton icon={settingsIcon} alt="Settings" onClick={() => navigate("settings")} />
-        <IconButton icon={getFundsIcon()} alt="Funds" onClick={() => navigate("usage")} />
-        <IconButton icon={logsIcon} alt="Logs" onClick={() => navigate("logs")} />
+        <IconButton
+          icon={settingsIcon}
+          alt="Settings"
+          onClick={() => navigate("settings")}
+        />
+        <IconButton
+          icon={getFundsIcon()}
+          alt="Funds"
+          onClick={() => navigate("usage")}
+        />
+        <IconButton
+          icon={logsIcon}
+          alt="Logs"
+          onClick={() => navigate("logs")}
+        />
       </div>
     </Portal>
   );

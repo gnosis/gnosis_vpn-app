@@ -22,7 +22,10 @@ export type FundingIssue =
   | "NodeUnderfunded" // keeps working until channels are drained - cannot open new or top up existing channels
   | "NodeLowOnFunds"; // warning before NodeUnderfunded
 
-export type FundingState = "Unknown" | { TopIssue: FundingIssue } | "WellFunded";
+export type FundingState =
+  | "Unknown"
+  | { TopIssue: FundingIssue }
+  | "WellFunded";
 
 export type StatusResponse = {
   status: Status;
@@ -32,7 +35,9 @@ export type StatusResponse = {
 };
 
 export type ConnectResponse = { Connecting: Destination } | "AddressNotFound";
-export type DisconnectResponse = { Disconnecting: Destination } | "NotConnected";
+export type DisconnectResponse =
+  | { Disconnecting: Destination }
+  | "NotConnected";
 
 export type Addresses = {
   node: string;
@@ -98,11 +103,15 @@ export class VPNService {
     }
   }
 
-  static getBestDestination(destinations: StatusResponse["available_destinations"]): string | null {
+  static getBestDestination(
+    destinations: StatusResponse["available_destinations"],
+  ): string | null {
     if (destinations.length === 0) return null;
 
     // Sort by address for consistent selection
-    const sorted = [...destinations].sort((a, b) => a.address.localeCompare(b.address));
+    const sorted = [...destinations].sort((a, b) =>
+      a.address.localeCompare(b.address)
+    );
     return sorted[0].address;
   }
 }

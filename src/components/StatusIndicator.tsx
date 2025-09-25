@@ -1,18 +1,35 @@
 import { createMemo } from "solid-js";
-import { isConnected, isConnecting, isDisconnecting, isServiceUnavailable } from "../utils/status.ts";
+import {
+  isConnected,
+  isConnecting,
+  isDisconnecting,
+  isServiceUnavailable,
+} from "../utils/status.ts";
 import { useAppStore } from "../stores/appStore.ts";
 
 export function StatusIndicator() {
   const [appState] = useAppStore();
 
   const status = createMemo(() => {
-    if (isConnected(appState.connectionStatus)) return { text: "Connected", color: "bg-vpn-light-green" };
-    if (isConnecting(appState.connectionStatus)) return { text: "Connecting", color: "bg-vpn-yellow" };
-    if (isDisconnecting(appState.connectionStatus)) return { text: "Disconnecting", color: "bg-vpn-yellow" };
-    if (isServiceUnavailable(appState.connectionStatus)) {
-      return { text: appState.isLoading ? "Loading..." : "Service unavailable", color: "bg-vpn-red" };
+    if (isConnected(appState.connectionStatus)) {
+      return { text: "Connected", color: "bg-vpn-light-green" };
     }
-    return { text: appState.isLoading ? "Loading..." : "Disconnected", color: "bg-vpn-red" };
+    if (isConnecting(appState.connectionStatus)) {
+      return { text: "Connecting", color: "bg-vpn-yellow" };
+    }
+    if (isDisconnecting(appState.connectionStatus)) {
+      return { text: "Disconnecting", color: "bg-vpn-yellow" };
+    }
+    if (isServiceUnavailable(appState.connectionStatus)) {
+      return {
+        text: appState.isLoading ? "Loading..." : "Service unavailable",
+        color: "bg-vpn-red",
+      };
+    }
+    return {
+      text: appState.isLoading ? "Loading..." : "Disconnected",
+      color: "bg-vpn-red",
+    };
   });
 
   return (

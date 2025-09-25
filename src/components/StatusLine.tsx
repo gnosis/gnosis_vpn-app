@@ -1,8 +1,10 @@
-import { Show, type JSX } from "solid-js";
+import { type JSX, Show } from "solid-js";
 import { isConnected, isConnecting, isDisconnecting } from "../utils/status.ts";
 import { useAppStore } from "../stores/appStore.ts";
 
-export default function StatusLine(props: { heightPx: number }): JSX.Element | null {
+export default function StatusLine(
+  props: { heightPx: number },
+): JSX.Element | null {
   const [appState] = useAppStore();
   const status = () => appState.connectionStatus;
 

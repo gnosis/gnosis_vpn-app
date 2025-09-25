@@ -8,7 +8,9 @@ import disconnectedImg from "../assets/img/disconnected.svg";
 export function StatusHero() {
   const [appState] = useAppStore();
 
-  const isBusy = () => isConnecting(appState.connectionStatus) || isDisconnecting(appState.connectionStatus);
+  const isBusy = () =>
+    isConnecting(appState.connectionStatus) ||
+    isDisconnecting(appState.connectionStatus);
   const isOffline = () =>
     !isConnected(appState.connectionStatus) &&
     !isConnecting(appState.connectionStatus) &&

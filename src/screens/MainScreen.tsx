@@ -1,4 +1,4 @@
-import { createSignal, onMount, onCleanup, createEffect } from "solid-js";
+import { createEffect, createSignal, onCleanup, onMount } from "solid-js";
 import { useAppStore } from "../stores/appStore.ts";
 import { StatusIndicator } from "../components/StatusIndicator.tsx";
 import Navigation from "../components/Navigation.tsx";
