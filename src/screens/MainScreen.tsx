@@ -1,7 +1,7 @@
 import { Show, createSignal, onMount, onCleanup, createEffect } from "solid-js";
 import { useAppStore } from "../stores/appStore.ts";
 import { StatusIndicator } from "../components/StatusIndicator.tsx";
-import { isConnected, isConnecting } from "../utils/status.ts";
+import { isConnected, isConnecting, isDisconnecting } from "../utils/status.ts";
 import Navigation from "../components/Navigation.tsx";
 import ExitNode from "../components/ExitNode.tsx";
 import ConnectButton from "../components/ConnectButton.tsx";
@@ -34,8 +34,6 @@ export function MainScreen() {
     requestAnimationFrame(() => computeConnectorHeight());
   });
 
-  // Connect/Disconnect handled by ConnectButton
-
   return (
     <div class="flex w-full flex-col h-full py-6 px-4">
       <div class="flex flex-row justify-between">
@@ -57,6 +55,12 @@ export function MainScreen() {
         <Show when={isConnected(appState.connectionStatus)}>
           <div
             class={`vpn-connector-line -bottom-6 connected`}
+            style={{ height: `${connectorHeight()}px`, "pointer-events": "none" }}
+          />
+        </Show>
+        <Show when={isDisconnecting(appState.connectionStatus)}>
+          <div
+            class={`vpn-connector-line -bottom-6 disconnecting`}
             style={{ height: `${connectorHeight()}px`, "pointer-events": "none" }}
           />
         </Show>

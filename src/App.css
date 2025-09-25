@@ -75,7 +75,7 @@
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top, var(--color-vpn-dark-green, #083d1c), var(--color-vpn-yellow, #ffc472));
+  background: linear-gradient(to top, var(--color-vpn-yellow, #ffc472), var(--color-vpn-dark-green, #083d1c));
   opacity: 0;
   transition: opacity 180ms linear;
 }
@@ -96,12 +96,43 @@
   opacity: 0;
 }
 
+/* Disconnecting: reverse the connecting animation, with yellow->red gradient */
+.vpn-connector-line.disconnecting {
+  background: linear-gradient(
+    to top,
+    var(--color-vpn-red, #ff7272),
+    var(--color-vpn-light-green, #16a34a),
+    var(--color-vpn-dark-green, #083d1c)
+  );
+  animation:
+    vpn-shrink 1s ease-in forwards,
+    vpn-fade 3s ease-in-out infinite;
+}
+.vpn-connector-line.disconnecting::before {
+  background: linear-gradient(
+    to top,
+    var(--color-vpn-red, #ff7272),
+    var(--color-vpn-light-green, #16a34a),
+    var(--color-vpn-dark-green, #083d1c)
+  );
+  opacity: 1;
+}
+
 @keyframes vpn-grow {
   from {
     transform: translateX(-50%) scaleY(0);
   }
   to {
     transform: translateX(-50%) scaleY(1);
+  }
+}
+
+@keyframes vpn-shrink {
+  from {
+    transform: translateX(-50%) scaleY(1);
+  }
+  to {
+    transform: translateX(-50%) scaleY(0);
   }
 }
 
