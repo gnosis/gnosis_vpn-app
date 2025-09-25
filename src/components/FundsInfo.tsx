@@ -2,7 +2,7 @@ import { createSignal } from "solid-js";
 import QrCode from "./QrCode.tsx";
 import { shortAddress } from "../utils/shortAddress.ts";
 import { explorerUrl } from "../utils/explorerUrl.ts";
-import { useAppStore } from "../stores/appStore.ts";
+import { useLogsStore } from "../stores/logsStore.ts";
 
 type Props = {
   name: string;
@@ -15,7 +15,9 @@ type Props = {
 
 export default function FundsInfo(props: Props) {
   const [showQR, setShowQR] = createSignal(false);
-  const [, appActions] = useAppStore();
+
+  const [, logActions] = useLogsStore();
+  const log = (message: string) => logActions.append(message);
 
   function openQR() {
     setShowQR(true);
@@ -25,7 +27,7 @@ export default function FundsInfo(props: Props) {
     try {
       await navigator.clipboard.writeText(addr);
     } catch (error) {
-      appActions.log(`Error copying address: ${String(error)}`);
+      log(`Error copying address: ${String(error)}`);
     }
   }
 
@@ -43,8 +45,8 @@ export default function FundsInfo(props: Props) {
               props.status === "Sufficient"
                 ? "text-emerald-600"
                 : props.status === "Empty"
-                ? "text-red-600"
-                : "text-amber-600"
+                  ? "text-red-600"
+                  : "text-amber-600"
             }
             `}
           >
@@ -105,7 +107,12 @@ export default function FundsInfo(props: Props) {
               title="Show QR"
               type="button"
             >
-              <img src="/icons/qr.png" height={20} width={20} alt="Show QR" />
+              <img
+                src="/icons/qr.png"
+                height={20}
+                width={20}
+                alt="Show QR"
+              />
             </button>
           </div>
         </div>

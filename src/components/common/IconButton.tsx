@@ -1,8 +1,6 @@
 import { createSignal } from "solid-js";
 
-export default function IconButton(
-  props: { icon: string; alt: string; onClick: () => void },
-) {
+export default function IconButton(props: { icon: string; alt: string; onClick: () => void }) {
   const [pressed, setPressed] = createSignal(false);
   let pressTimeout: ReturnType<typeof globalThis.setTimeout> | undefined;
   const playPressAnimation = () => {
@@ -16,8 +14,7 @@ export default function IconButton(
 
   return (
     <button
-      class="p-2 rounded-2xl bg-black hover:cursor-pointer w-10 h-10 flex items-center 
-        justify-center transition-transform duration-150 ease-out select-none"
+      class="p-2 rounded-2xl bg-black hover:cursor-pointer w-10 h-10 flex items-center justify-center transition-transform duration-150 ease-out select-none"
       classList={{ "btn-press": pressed() }}
       onPointerDown={() => playPressAnimation()}
       onClick={props.onClick}
