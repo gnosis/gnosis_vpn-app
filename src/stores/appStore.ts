@@ -1,4 +1,4 @@
-import { createStore, type Store } from "solid-js/store";
+import { createStore, reconcile, type Store } from "solid-js/store";
 import {
   type Destination,
   FundingState,
@@ -125,7 +125,7 @@ export function createAppStore(): AppStoreTuple {
         logStatus(response);
       }
       if (response.status !== state.connectionStatus) {
-        setState("connectionStatus", response.status);
+        setState("connectionStatus", reconcile(response.status));
       }
       if (!areDestinationsEqualUnordered(response.available_destinations, state.availableDestinations)) {
         setState("availableDestinations", response.available_destinations);
