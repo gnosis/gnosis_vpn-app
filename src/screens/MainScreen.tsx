@@ -26,8 +26,8 @@ export function MainScreen() {
   onMount(() => {
     computeConnectorHeight();
     const handler = () => computeConnectorHeight();
-    window.addEventListener("resize", handler);
-    onCleanup(() => window.removeEventListener("resize", handler));
+    globalThis.addEventListener("resize", handler);
+    onCleanup(() => globalThis.removeEventListener("resize", handler));
   });
 
   createEffect(() => {

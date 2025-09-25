@@ -1,16 +1,14 @@
 import { createSignal } from "solid-js";
 
-export default function IconButton(
-  props: { icon: string; alt: string; onClick: () => void },
-) {
+export default function IconButton(props: { icon: string; alt: string; onClick: () => void }) {
   const [pressed, setPressed] = createSignal(false);
-  let pressTimeout: number | undefined;
+  let pressTimeout: ReturnType<typeof globalThis.setTimeout> | undefined;
   const playPressAnimation = () => {
-    if (pressTimeout !== undefined) window.clearTimeout(pressTimeout);
+    if (pressTimeout !== undefined) globalThis.clearTimeout(pressTimeout);
     setPressed(false);
     requestAnimationFrame(() => {
       setPressed(true);
-      pressTimeout = window.setTimeout(() => setPressed(false), 160);
+      pressTimeout = globalThis.setTimeout(() => setPressed(false), 160);
     });
   };
 
@@ -22,7 +20,11 @@ export default function IconButton(
       onPointerDown={() => playPressAnimation()}
       onClick={props.onClick}
     >
-      <img src={props.icon} alt={props.alt} class="w-5 h-5" />
+      <img
+        src={props.icon}
+        alt={props.alt}
+        class="w-5 h-5"
+      />
     </button>
   );
 }
