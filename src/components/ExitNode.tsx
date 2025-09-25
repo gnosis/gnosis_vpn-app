@@ -27,11 +27,17 @@ export default function ExitNode() {
               : ({ type: "default" } as DefaultOption)) as ExitOption
           }
           onChange={(opt: ExitOption) => {
+            const current = appState.selectedAddress;
             if ("address" in opt) {
+              if (current === opt.address) {
+                return;
+              }
               setPendingSelection(opt);
               setOpenModal(true);
             } else {
-              appActions.chooseDestination(null);
+              if (current !== null) {
+                appActions.chooseDestination(null);
+              }
             }
           }}
           itemToString={(opt: ExitOption) => {
