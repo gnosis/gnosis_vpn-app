@@ -19,6 +19,7 @@ export default function IconButton(props: { icon: string; alt: string; onClick: 
       classList={{ "btn-press": pressed() }}
       onPointerDown={() => playPressAnimation()}
       onClick={props.onClick}
+      type="button"
     >
       <img
         src={props.icon}
