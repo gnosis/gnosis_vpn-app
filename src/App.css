@@ -1,6 +1,23 @@
 @import "tailwindcss";
+
+/* Local fonts */
+@font-face {
+  font-family: "Unica77";
+  src: url("./assets/fonts/Unica77LL-Regular.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Unica77";
+  src: url("./assets/fonts/Unica77LL-Bold.otf") format("opentype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
-  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
+  font-family: "Unica77", sans-serif;
   font-size: 16px;
   line-height: 24px;
   font-weight: 400;
