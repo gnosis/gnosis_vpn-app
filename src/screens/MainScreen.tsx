@@ -1,13 +1,13 @@
 import { Show, createSignal, onMount, onCleanup, createEffect } from "solid-js";
-import Button from "../components/common/Button.tsx";
 import { useAppStore } from "../stores/appStore.ts";
 import { StatusIndicator } from "../components/StatusIndicator.tsx";
 import { isConnected, isConnecting } from "../services/vpnService.ts";
 import Navigation from "../components/Navigation.tsx";
 import ExitNode from "../components/ExitNode.tsx";
+import ConnectButton from "../components/ConnectButton.tsx";
 
 export function MainScreen() {
-  const [appState, appActions] = useAppStore();
+  const [appState] = useAppStore();
 
   let mainRef!: HTMLDivElement;
   let exitAnchorRef!: HTMLDivElement;
@@ -34,13 +34,7 @@ export function MainScreen() {
     requestAnimationFrame(() => computeConnectorHeight());
   });
 
-  async function handleConnect() {
-    await appActions.connect();
-  }
-
-  async function handleDisconnect() {
-    await appActions.disconnect();
-  }
+  // Connect/Disconnect handled by ConnectButton
 
   return (
     <div class="flex w-full flex-col h-full py-6 px-4">
@@ -67,28 +61,7 @@ export function MainScreen() {
           />
         </Show>
         <div class="flex-grow z-10"></div>
-        <div class="relative z-20 w-full">
-          <Show
-            when={isConnected(appState.connectionStatus) || isConnecting(appState.connectionStatus)}
-            fallback={
-              <Button
-                size="lg"
-                onClick={() => handleConnect()}
-                disabled={appState.isLoading || appState.connectionStatus === "ServiceUnavailable"}
-              >
-                Connect
-              </Button>
-            }
-          >
-            <Button
-              size="lg"
-              onClick={() => handleDisconnect()}
-              disabled={appState.isLoading || appState.connectionStatus === "ServiceUnavailable"}
-            >
-              Stop
-            </Button>
-          </Show>
-        </div>
+        <ConnectButton />
       </main>
     </div>
   );
