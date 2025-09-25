@@ -29,11 +29,8 @@ export function MainScreen() {
     onCleanup(() => window.removeEventListener("resize", handler));
   });
 
-  // Recompute on status changes/layout changes
   createEffect(() => {
-    // Track dependencies that may change layout
     void appState.connectionStatus;
-    // Next frame to ensure DOM updated
     requestAnimationFrame(() => computeConnectorHeight());
   });
 

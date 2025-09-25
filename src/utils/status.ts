@@ -1,21 +1,15 @@
 import { type Destination, type Status } from "../services/vpnService.ts";
 import { formatDestination } from "./destinations.ts";
 
-export function isConnected(
-  status: Status,
-): status is { Connected: Destination } {
+export function isConnected(status: Status): status is { Connected: Destination } {
   return typeof status === "object" && "Connected" in status;
 }
 
-export function isConnecting(
-  status: Status,
-): status is { Connecting: Destination } {
+export function isConnecting(status: Status): status is { Connecting: Destination } {
   return typeof status === "object" && "Connecting" in status;
 }
 
-export function isDisconnecting(
-  status: Status,
-): status is { Disconnecting: Destination } {
+export function isDisconnecting(status: Status): status is { Disconnecting: Destination } {
   return typeof status === "object" && "Disconnecting" in status;
 }
 
@@ -23,38 +17,20 @@ export function isDisconnected(status: Status): status is "Disconnected" {
   return status === "Disconnected";
 }
 
-export function isServiceUnavailable(
-  status: Status,
-): status is "ServiceUnavailable" {
+export function isServiceUnavailable(status: Status): status is "ServiceUnavailable" {
   return status === "ServiceUnavailable";
 }
 
-export function isConnectedTo(
-  status: Status,
-  destination: Destination,
-): boolean {
-  return (
-    isConnected(status) && status.Connected.address === destination.address
-  );
+export function isConnectedTo(status: Status, destination: Destination): boolean {
+  return isConnected(status) && status.Connected.address === destination.address;
 }
 
-export function isConnectingTo(
-  status: Status,
-  destination: Destination,
-): boolean {
-  return (
-    isConnecting(status) && status.Connecting.address === destination.address
-  );
+export function isConnectingTo(status: Status, destination: Destination): boolean {
+  return isConnecting(status) && status.Connecting.address === destination.address;
 }
 
-export function isDisconnectingFrom(
-  status: Status,
-  destination: Destination,
-): boolean {
-  return (
-    isDisconnecting(status) &&
-    status.Disconnecting.address === destination.address
-  );
+export function isDisconnectingFrom(status: Status, destination: Destination): boolean {
+  return isDisconnecting(status) && status.Disconnecting.address === destination.address;
 }
 
 export function buildLogContent(
@@ -76,22 +52,22 @@ export function buildLogContent(
       const where = formatDestination(destination);
       content = `Connecting: ${where} - ${destination.address}`;
     } else if (isDisconnected(statusValue)) {
-      const lastWasDisconnected = Boolean(
-        lastMessage && lastMessage.startsWith("Disconnected"),
-      );
+      const lastWasDisconnected = Boolean(lastMessage && lastMessage.startsWith("Disconnected"));
       if (lastWasDisconnected) {
         content = undefined;
       } else {
-        const lines = args.response.available_destinations.map((d) => {
+        const lines = args.response.available_destinations.map(d => {
           const where = formatDestination(d);
           return `- ${where} - ${d.address}`;
         });
         content = `Disconnected. Available:\n${lines.join("\n")}`;
       }
+    } else if (isDisconnecting(statusValue)) {
+      const destination = statusValue.Disconnecting;
+      const where = formatDestination(destination);
+      content = `Disconnecting: ${where} - ${destination.address}`;
     } else {
-      const statusLabel = typeof statusValue === "string"
-        ? statusValue
-        : Object.keys(statusValue)[0] || "Unknown";
+      const statusLabel = typeof statusValue === "string" ? statusValue : Object.keys(statusValue)[0] || "Unknown";
       const destinations = args.response.available_destinations.length;
       content = `status: ${statusLabel}, destinations: ${destinations}`;
     }
@@ -110,8 +86,6 @@ export function buildStatusLog(
     error?: string;
   },
 ): string | undefined {
-  const lastMessage = prevLogs.length
-    ? prevLogs[prevLogs.length - 1].message
-    : undefined;
+  const lastMessage = prevLogs.length ? prevLogs[prevLogs.length - 1].message : undefined;
   return buildLogContent(args, lastMessage);
 }
