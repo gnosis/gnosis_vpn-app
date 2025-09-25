@@ -5,6 +5,7 @@ import { isConnected, isConnecting, isDisconnecting } from "../utils/status.ts";
 import Navigation from "../components/Navigation.tsx";
 import ExitNode from "../components/ExitNode.tsx";
 import ConnectButton from "../components/ConnectButton.tsx";
+import StatusHero from "../components/StatusHero.tsx";
 
 export function MainScreen() {
   const [appState] = useAppStore();
@@ -42,7 +43,7 @@ export function MainScreen() {
       </div>
 
       <main ref={mainRef} class="flex w-full flex-1 flex-col items-center relative">
-        <div class="w-full h-1/4"></div>
+        <StatusHero />
         <div ref={exitAnchorRef} class="w-full flex justify-center z-10">
           <ExitNode />
         </div>
