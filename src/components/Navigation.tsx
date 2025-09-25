@@ -22,11 +22,20 @@ function Navigation() {
       return fundsFullIcon;
     }
     if (typeof status === "object" && "TopIssue" in status) {
-      if (status.TopIssue === "Unfunded" || status.TopIssue === "ChannelsOutOfFunds") {
+      if (
+        status.TopIssue === "Unfunded" ||
+        status.TopIssue === "ChannelsOutOfFunds"
+      ) {
         return fundsEmptyIcon;
-      } else if (status.TopIssue === "SafeLowOnFunds" || status.TopIssue === "NodeLowOnFunds") {
+      } else if (
+        status.TopIssue === "SafeLowOnFunds" ||
+        status.TopIssue === "NodeLowOnFunds"
+      ) {
         return fundsLowIcon;
-      } else if (status.TopIssue === "NodeUnderfunded" || status.TopIssue === "SafeOutOfFunds") {
+      } else if (
+        status.TopIssue === "NodeUnderfunded" ||
+        status.TopIssue === "SafeOutOfFunds"
+      ) {
         return fundsOutIcon;
       }
     }
