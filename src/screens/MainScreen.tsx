@@ -1,11 +1,11 @@
-import { Show, createSignal, onMount, onCleanup, createEffect } from "solid-js";
+import { createSignal, onMount, onCleanup, createEffect } from "solid-js";
 import { useAppStore } from "../stores/appStore.ts";
 import { StatusIndicator } from "../components/StatusIndicator.tsx";
-import { isConnected, isConnecting, isDisconnecting } from "../utils/status.ts";
 import Navigation from "../components/Navigation.tsx";
 import ExitNode from "../components/ExitNode.tsx";
 import ConnectButton from "../components/ConnectButton.tsx";
 import StatusHero from "../components/StatusHero.tsx";
+import StatusLine from "../components/StatusLine.tsx";
 
 export function MainScreen() {
   const [appState] = useAppStore();
@@ -47,24 +47,7 @@ export function MainScreen() {
         <div ref={exitAnchorRef} class="w-full flex justify-center z-10">
           <ExitNode />
         </div>
-        <Show when={isConnecting(appState.connectionStatus)}>
-          <div
-            class={`vpn-connector-line -bottom-6 connecting`}
-            style={{ height: `${connectorHeight()}px`, "pointer-events": "none" }}
-          />
-        </Show>
-        <Show when={isConnected(appState.connectionStatus)}>
-          <div
-            class={`vpn-connector-line -bottom-6 connected`}
-            style={{ height: `${connectorHeight()}px`, "pointer-events": "none" }}
-          />
-        </Show>
-        <Show when={isDisconnecting(appState.connectionStatus)}>
-          <div
-            class={`vpn-connector-line -bottom-6 disconnecting`}
-            style={{ height: `${connectorHeight()}px`, "pointer-events": "none" }}
-          />
-        </Show>
+        <StatusLine heightPx={connectorHeight()} />
         <div class="flex-grow z-10"></div>
         <ConnectButton />
       </main>
