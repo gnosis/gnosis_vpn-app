@@ -1,10 +1,23 @@
 @import "tailwindcss";
 
-.logo.solid:hover {
-  filter: drop-shadow(0 0 2em #2f5d90);
+/* Local fonts */
+@font-face {
+  font-family: "Unica77";
+  src: url("./assets/fonts/Unica77LL-Regular.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
 }
+@font-face {
+  font-family: "Unica77";
+  src: url("./assets/fonts/Unica77LL-Bold.otf") format("opentype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
-  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
+  font-family: "Unica77", sans-serif;
   font-size: 16px;
   line-height: 24px;
   font-weight: 400;
@@ -19,31 +32,122 @@
   -webkit-text-size-adjust: 100%;
 }
 
-.container {
-  margin: 0;
-  padding-top: 10vh;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  text-align: center;
+/* Button press animation */
+.btn-press {
+  animation: btn-press-keyframes 160ms ease-out;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    color: #f6f6f6;
-    background-color: #2f2f2f;
+@keyframes btn-press-keyframes {
+  0% {
+    transform: scale(1);
   }
+  50% {
+    transform: scale(0.98);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
 
-  a:hover {
-    color: #24c8db;
-  }
+@theme {
+  --color-vpn-yellow: #ffc472;
+  --color-vpn-dark-green: #083d1c;
+  --color-vpn-light-green: #16a34a;
+  --color-vpn-red: #ff7272;
+}
 
-  input,
-  button {
-    color: #ffffff;
-    background-color: #0f0f0f98;
+/* Animated connector line from Connect button to ExitNode */
+.vpn-connector-line {
+  position: absolute;
+  left: 50%;
+  width: 20px;
+  border-radius: 10px 10px 0 0;
+  transform-origin: bottom center;
+  transform: translateX(-50%) scaleY(0);
+  z-index: 0;
+  overflow: hidden;
+  /* Base (connected) look; overlay will fade during connecting */
+  background: linear-gradient(
+    to top,
+    var(--color-vpn-light-green, #16a34a),
+    var(--color-vpn-dark-green, #083d1c)
+  );
+}
+
+/* Overlay used to fade between connecting and connected */
+.vpn-connector-line::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    var(--color-vpn-yellow, #ffc472),
+    var(--color-vpn-dark-green, #083d1c)
+  );
+  opacity: 0;
+  transition: opacity 180ms linear;
+}
+
+.vpn-connector-line.connecting {
+  animation: vpn-grow 1.2s ease-out forwards, vpn-fade 3s ease-in-out infinite;
+}
+.vpn-connector-line.connecting::before {
+  opacity: 1;
+}
+
+.vpn-connector-line.connected {
+  transform: translateX(-50%) scaleY(1);
+}
+.vpn-connector-line.connected::before {
+  opacity: 0;
+}
+
+/* Disconnecting: reverse the connecting animation, with yellow->red gradient */
+.vpn-connector-line.disconnecting {
+  background: linear-gradient(
+    to top,
+    var(--color-vpn-red, #ff7272),
+    var(--color-vpn-light-green, #16a34a),
+    var(--color-vpn-dark-green, #083d1c)
+  );
+  animation: vpn-shrink 1s ease-in forwards, vpn-fade 3s ease-in-out infinite;
+}
+.vpn-connector-line.disconnecting::before {
+  background: linear-gradient(
+    to top,
+    var(--color-vpn-red, #ff7272),
+    var(--color-vpn-light-green, #16a34a),
+    var(--color-vpn-dark-green, #083d1c)
+  );
+  opacity: 1;
+}
+
+@keyframes vpn-grow {
+  from {
+    transform: translateX(-50%) scaleY(0);
   }
-  button:active {
-    background-color: #0f0f0f69;
+  to {
+    transform: translateX(-50%) scaleY(1);
+  }
+}
+
+@keyframes vpn-shrink {
+  from {
+    transform: translateX(-50%) scaleY(1);
+  }
+  to {
+    transform: translateX(-50%) scaleY(0);
+  }
+}
+
+@keyframes vpn-fade {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 1;
   }
 }

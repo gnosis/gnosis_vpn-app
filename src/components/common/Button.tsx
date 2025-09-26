@@ -1,20 +1,20 @@
-import { type JSX, mergeProps, Show, splitProps } from "solid-js";
+import { createSignal, type JSX, mergeProps, splitProps } from "solid-js";
 
 export interface ButtonProps {
   variant?: "primary" | "secondary" | "outline";
   size?: "sm" | "md" | "lg";
-  loading?: boolean;
+  disabled?: boolean;
   class?: string;
   children: import("solid-js").JSX.Element;
   onClick?: () => void;
 }
 
 const baseClasses =
-  "inline-flex items-center justify-center rounded-md font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ring-offset-white dark:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed gap-2 hover:cursor-pointer";
+  "font-bold w-full inline-flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ring-offset-white dark:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed gap-2 hover:cursor-pointer transition-transform duration-150 ease-out select-none";
 
 const variantClasses: Record<NonNullable<ButtonProps["variant"]>, string> = {
   primary:
-    "border border-transparent dark:border-gray-300 bg-blue-600 text-white hover:bg-blue-700 focus-visible:ring-blue-500",
+    "border border-transparent dark:border-gray-300 bg-black text-white hover:bg-black focus-visible:ring-black",
   secondary:
     "border border-transparent bg-gray-800 text-white hover:bg-gray-700 focus-visible:ring-gray-500",
   outline:
@@ -23,17 +23,30 @@ const variantClasses: Record<NonNullable<ButtonProps["variant"]>, string> = {
 
 const sizeClasses: Record<NonNullable<ButtonProps["size"]>, string> = {
   sm: "h-8 px-3 text-sm",
-  md: "h-10 px-4 text-sm",
-  lg: "h-12 px-6 text-base",
+  md: "h-10 px-4 text-sm rounded-lg",
+  lg: "h-14 px-6 text-base rounded-2xl",
 };
 
 export default function Button(allProps: ButtonProps): JSX.Element {
+  const [pressed, setPressed] = createSignal(false);
+  let pressTimeout: ReturnType<typeof globalThis.setTimeout> | undefined;
+
+  const playPressAnimation = () => {
+    if (pressTimeout !== undefined) {
+      globalThis.clearTimeout(pressTimeout);
+    }
+    setPressed(false);
+    requestAnimationFrame(() => {
+      setPressed(true);
+      pressTimeout = globalThis.setTimeout(() => setPressed(false), 160);
+    });
+  };
+
   const props = mergeProps(
     {
       variant: "primary",
       size: "md",
       disabled: false,
-      loading: false,
     } as const,
     allProps,
   );
@@ -43,7 +56,6 @@ export default function Button(allProps: ButtonProps): JSX.Element {
     "class",
     "children",
     "disabled",
-    "loading",
     "onClick",
   ]);
 
@@ -52,6 +64,7 @@ export default function Button(allProps: ButtonProps): JSX.Element {
       baseClasses,
       variantClasses[local.variant!],
       sizeClasses[local.size!],
+      pressed() ? "btn-press" : undefined,
       local.class,
     ]
       .filter(Boolean)
@@ -61,37 +74,12 @@ export default function Button(allProps: ButtonProps): JSX.Element {
     <button
       type="button"
       class={computedClass()}
-      disabled={local.disabled || local.loading}
-      aria-busy={local.loading || undefined}
-      aria-disabled={local.disabled || local.loading || undefined}
+      disabled={local.disabled}
+      aria-disabled={local.disabled || undefined}
       {...others}
-      onClick={local.onClick}
+      onPointerDown={() => playPressAnimation()}
+      onClick={() => local.onClick?.()}
     >
-      <Show when={local.loading}>
-        <svg
-          class="animate-spin -ml-1 mr-2 h-5 w-5 text-current"
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-        >
-          <circle
-            class="opacity-25"
-            cx="12"
-            cy="12"
-            r="10"
-            stroke="currentColor"
-            stroke-width="4"
-          >
-          </circle>
-          <path
-            class="opacity-75"
-            fill="currentColor"
-            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-          >
-          </path>
-        </svg>
-      </Show>
       {local.children}
     </button>
   );

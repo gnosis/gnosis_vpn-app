@@ -1,116 +1,62 @@
-import { For, Show } from "solid-js";
-import Button from "../components/common/Button.tsx";
+import { createEffect, createSignal, onCleanup, onMount } from "solid-js";
 import { useAppStore } from "../stores/appStore.ts";
-import type { Destination } from "../services/vpnService.ts";
 import { StatusIndicator } from "../components/StatusIndicator.tsx";
-import {
-  isConnected,
-  isConnectedTo,
-  isConnecting,
-  isConnectingTo,
-  isServiceUnavailable,
-} from "../services/vpnService.ts";
-import { useSettingsStore } from "../stores/settingsStore.ts";
-import { formatDestinationByAddress } from "../utils/destinations.ts";
-import { shortAddress } from "../utils/shortAddress.ts";
+import Navigation from "../components/Navigation.tsx";
+import ExitNode from "../components/ExitNode.tsx";
+import ConnectButton from "../components/ConnectButton.tsx";
+import StatusHero from "../components/StatusHero.tsx";
+import StatusLine from "../components/StatusLine.tsx";
 
 export function MainScreen() {
-  const [appState, appActions] = useAppStore();
-  const [settings] = useSettingsStore();
+  const [appState] = useAppStore();
 
-  async function handleConnect(destination?: Destination) {
-    await appActions.connect(destination?.address);
-  }
+  let mainRef!: HTMLDivElement;
+  let exitAnchorRef!: HTMLDivElement;
+  const [connectorHeight, setConnectorHeight] = createSignal(0);
 
-  async function handleDisconnect() {
-    await appActions.disconnect();
-  }
+  const computeConnectorHeight = () => {
+    if (!mainRef || !exitAnchorRef) return;
+    const mainRect = mainRef.getBoundingClientRect();
+    const exitRect = exitAnchorRef.getBoundingClientRect();
+    const exitCenterY = exitRect.top + exitRect.height / 2;
+    const heightPx = Math.max(0, Math.round(mainRect.bottom - exitCenterY));
+    setConnectorHeight(heightPx);
+  };
+
+  onMount(() => {
+    computeConnectorHeight();
+    const handler = () => computeConnectorHeight();
+    globalThis.addEventListener("resize", handler);
+    onCleanup(() => globalThis.removeEventListener("resize", handler));
+  });
+
+  createEffect(() => {
+    void appState.connectionStatus;
+    requestAnimationFrame(() => computeConnectorHeight());
+  });
 
   return (
-    <div class="flex flex-col h-full p-6 gap-6">
-      <StatusIndicator
-        status={appState.connectionStatus}
-        isLoading={appState.isLoading}
-      />
+    <div class="flex w-full flex-col h-full py-6 px-4">
+      <div class="flex flex-row justify-between z-60">
+        <StatusIndicator />
+        <Navigation />
+      </div>
 
-      <Show when={!isServiceUnavailable(appState.connectionStatus)}>
-        <div class="mt-4 flex-grow flex flex-col justify-center">
-          <div class="my-6 flex justify-center">
-            <Show
-              when={isConnected(appState.connectionStatus) ||
-                isConnecting(appState.connectionStatus)}
-              fallback={
-                <Button
-                  variant="outline"
-                  size="lg"
-                  onClick={() => handleConnect()}
-                >
-                  Connect
-                </Button>
-              }
-            >
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={() => handleDisconnect()}
-              >
-                Disconnect
-              </Button>
-            </Show>
-          </div>
-          <div class="-mt-4 mb-4 text-center text-xs text-gray-500 dark:text-gray-400">
-            Preferred: {formatDestinationByAddress(
-              settings.preferredLocation,
-              appState.availableDestinations,
-            )}
-          </div>
-          <h3 class="text-lg font-semibold mb-2">Available Destinations</h3>
-          <div class="space-y-2">
-            <For each={appState.availableDestinations}>
-              {(dest) => (
-                <div class="flex items-center justify-between rounded-md border border-gray-200 dark:border-gray-800 p-3">
-                  <div class="text-sm">
-                    <div class="font-medium">
-                      {dest.meta.city} {dest.meta.state} {dest.meta.location}
-                    </div>
-                    <Show when={Object.keys(dest.meta || {}).length}>
-                      <div class="text-xs text-gray-500 dark:text-gray-400 truncate">
-                        {shortAddress(dest.address)}
-                      </div>
-                    </Show>
-                  </div>
-                  <div>
-                    <Show
-                      when={isConnectedTo(appState.connectionStatus, dest) ||
-                        isConnectingTo(appState.connectionStatus, dest)}
-                      fallback={
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleConnect(dest)}
-                        >
-                          {isConnected(appState.connectionStatus) ||
-                              isConnecting(appState.connectionStatus)
-                            ? "Switch"
-                            : "Connect"}
-                        </Button>
-                      }
-                    >
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDisconnect()}
-                      >
-                        Disconnect
-                      </Button>
-                    </Show>
-                  </div>
-                </div>
-              )}
-            </For>
-          </div>
+      <main
+        ref={mainRef}
+        class="flex w-full flex-1 flex-col items-center relative"
+      >
+        <StatusHero />
+        <div
+          ref={exitAnchorRef}
+          class="w-full flex justify-center z-10"
+        >
+          <ExitNode />
         </div>
-      </Show>
+        <StatusLine heightPx={connectorHeight()} />
+        <div class="flex-grow z-10"></div>
+        <ConnectButton />
+      </main>
     </div>
   );
 }

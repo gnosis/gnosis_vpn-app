@@ -1,6 +1,5 @@
 import "./App.css";
 import { MainScreen } from "./screens/MainScreen.tsx";
-import Navigation from "./components/Navigation.tsx";
 import { Dynamic } from "solid-js/web";
 import Logs from "./screens/Logs.tsx";
 import Settings from "./screens/Settings.tsx";
@@ -55,12 +54,9 @@ function App() {
   });
 
   return (
-    <>
-      <div class="h-screen bg-gray-50 dark:bg-gray-900">
-        <Dynamic component={screens[appState.currentScreen]} />
-      </div>
-      <Navigation />
-    </>
+    <div class="h-screen bg-gray-100 dark:bg-gray-900">
+      <Dynamic component={screens[appState.currentScreen]} />
+    </div>
   );
 }
 

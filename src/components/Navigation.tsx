@@ -1,32 +1,60 @@
-import Button from "./common/Button.tsx";
+import IconButton from "./common/IconButton.tsx";
 import { useAppStore } from "../stores/appStore.ts";
 import { Portal } from "solid-js/web";
+import settingsIcon from "../assets/icons/settings.svg";
+import logsIcon from "../assets/icons/logs.svg";
+import fundsFullIcon from "../assets/icons/funds-full.svg";
+import fundsLowIcon from "../assets/icons/funds-low.svg";
+import fundsOutIcon from "../assets/icons/funds-out.svg";
+import fundsEmptyIcon from "../assets/icons/funds-empty.svg";
 
 function Navigation() {
   const [appState, appActions] = useAppStore();
+
+  const PRESS_DELAY_MS = 200;
+  const navigate = (screen: Parameters<typeof appActions.setScreen>[0]) => {
+    globalThis.setTimeout(() => appActions.setScreen(screen), PRESS_DELAY_MS);
+  };
+
+  const getFundsIcon = () => {
+    const status = appState.fundingStatus;
+    if (status === "WellFunded") {
+      return fundsFullIcon;
+    }
+    if (typeof status === "object" && "TopIssue" in status) {
+      switch (status.TopIssue) {
+        case "Unfunded":
+        case "ChannelsOutOfFunds":
+          return fundsEmptyIcon;
+        case "SafeLowOnFunds":
+        case "NodeLowOnFunds":
+          return fundsLowIcon;
+        case "NodeUnderfunded":
+        case "SafeOutOfFunds":
+          return fundsOutIcon;
+      }
+    }
+    return fundsEmptyIcon;
+  };
+
   return (
     <Portal>
-      <div class="w-full fixed bottom-4 z-10 flex items-center gap-2 justify-center">
-        <Button
-          variant={appState.currentScreen === "settings"
-            ? "primary"
-            : "outline"}
-          onClick={() => appActions.setScreen("settings")}
-        >
-          Settings
-        </Button>
-        <Button
-          variant={appState.currentScreen === "usage" ? "primary" : "outline"}
-          onClick={() => appActions.setScreen("usage")}
-        >
-          Usage
-        </Button>
-        <Button
-          variant={appState.currentScreen === "logs" ? "primary" : "outline"}
-          onClick={() => appActions.setScreen("logs")}
-        >
-          Logs
-        </Button>
+      <div class="fixed top-6 right-4 z-60 flex items-center gap-2 justify-center">
+        <IconButton
+          icon={settingsIcon}
+          alt="Settings"
+          onClick={() => navigate("settings")}
+        />
+        <IconButton
+          icon={getFundsIcon()}
+          alt="Funds"
+          onClick={() => navigate("usage")}
+        />
+        <IconButton
+          icon={logsIcon}
+          alt="Logs"
+          onClick={() => navigate("logs")}
+        />
       </div>
     </Portal>
   );
