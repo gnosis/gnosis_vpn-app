@@ -1,5 +1,10 @@
 import { createMemo } from "solid-js";
-import { isConnected, isConnecting, isDisconnecting, isServiceUnavailable } from "@src/utils/status";
+import {
+  isConnected,
+  isConnecting,
+  isDisconnecting,
+  isServiceUnavailable,
+} from "@src/utils/status";
 import { useAppStore } from "@src/stores/appStore";
 
 export function StatusIndicator() {

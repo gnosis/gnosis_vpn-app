@@ -38,8 +38,14 @@ export default function QrCode(props: QrCodeProps) {
   return (
     <Show when={props.open}>
       <Portal>
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={props.onClose}>
-          <div class="rounded-xl bg-white p-4 shadow-xl w-xs" onClick={e => e.stopPropagation()}>
+        <div
+          class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={props.onClose}
+        >
+          <div
+            class="rounded-xl bg-white p-4 shadow-xl w-xs"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div class="flex items-center justify-between mb-2">
               <div class="text-sm text-slate-600 font-mono">{props.title}</div>
               <button

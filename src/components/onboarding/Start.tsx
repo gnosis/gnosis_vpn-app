@@ -2,7 +2,9 @@ import gnosisVpnLogo from "@assets/img/gnosis-vpn.svg";
 import Button from "@src/components/common/Button";
 import WarningIcon from "@src/components/common/WarningIcon";
 
-export default function Start({ setStep }: { setStep: (step: string) => void }) {
+export default function Start(
+  { setStep }: { setStep: (step: string) => void },
+) {
   return (
     <div class="h-full w-full flex flex-col items-center justify-between p-6">
       <img src={gnosisVpnLogo} alt="Gnosis VPN" class="w-full mt-6" />

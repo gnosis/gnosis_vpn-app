@@ -63,7 +63,7 @@ export default function Usage() {
             <div class="text-sm text-gray-500">Not available yet</div>
           </Show>
           <Show when={balance()} keyed>
-            {b => (
+            {(b) => (
               <>
                 <FundsInfo
                   name="Safe"
@@ -88,7 +88,8 @@ export default function Usage() {
         <div class="flex-grow flex justify-between items-center gap-2">
           <div class="text-xs text-slate-600 px-2">
             <WarningIcon />
-            It may take up to 2 minutes until your funds have been registered after transaction.
+            It may take up to 2 minutes until your funds have been registered
+            after transaction.
           </div>
           <Button
             variant="outline"

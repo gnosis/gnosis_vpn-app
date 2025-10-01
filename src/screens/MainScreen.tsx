@@ -42,7 +42,10 @@ export function MainScreen() {
         <Navigation />
       </div>
 
-      <main ref={mainRef} class="flex w-full flex-1 flex-col items-center relative">
+      <main
+        ref={mainRef}
+        class="flex w-full flex-1 flex-col items-center relative"
+      >
         <StatusHero />
         <div ref={exitAnchorRef} class="w-full flex justify-center z-10">
           <ExitNode />

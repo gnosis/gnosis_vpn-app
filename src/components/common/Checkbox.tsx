@@ -2,16 +2,27 @@ import { JSX, splitProps } from "solid-js";
 import checkedIconUrl from "@assets/icons/checked-box.svg";
 import uncheckedIconUrl from "@assets/icons/unchecked-box.svg";
 
-export type CheckboxProps = {
-  checked: boolean;
-  onChange: (nextChecked: boolean) => void;
-  disabled?: boolean;
-  class?: string;
-  title?: string;
-} & Omit<JSX.ButtonHTMLAttributes<HTMLButtonElement>, "type" | "checked" | "onChange">;
+export type CheckboxProps =
+  & {
+    checked: boolean;
+    onChange: (nextChecked: boolean) => void;
+    disabled?: boolean;
+    class?: string;
+    title?: string;
+  }
+  & Omit<
+    JSX.ButtonHTMLAttributes<HTMLButtonElement>,
+    "type" | "checked" | "onChange"
+  >;
 
 export default function Checkbox(allProps: CheckboxProps) {
-  const [props, rest] = splitProps(allProps, ["checked", "onChange", "disabled", "class", "title"]);
+  const [props, rest] = splitProps(allProps, [
+    "checked",
+    "onChange",
+    "disabled",
+    "class",
+    "title",
+  ]);
 
   function handleToggle() {
     if (props.disabled) return;

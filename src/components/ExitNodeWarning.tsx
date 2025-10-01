@@ -1,7 +1,9 @@
 import { Modal } from "@src/components/common/Modal";
 import Button from "@src/components/common/Button";
 
-export default function ExitNodeWarning(props: { open: boolean; onCancel: () => void; onProceed: () => void }) {
+export default function ExitNodeWarning(
+  props: { open: boolean; onCancel: () => void; onProceed: () => void },
+) {
   return (
     <Modal open={props.open} onClose={props.onCancel}>
       <p>Please note, selecting a custom Exit node costs...</p>
