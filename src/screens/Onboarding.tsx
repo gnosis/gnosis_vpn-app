@@ -14,7 +14,7 @@ export default function Onboarding() {
   const [step, setStep] = createSignal<"start" | "airdrop">("start");
 
   return (
-    <div class="h-screen bg-gray-100 dark:bg-gray-900">
+    <div class="h-screen bg-gray-100">
       <Dynamic component={steps[step()]} setStep={setStep} />
     </div>
   );

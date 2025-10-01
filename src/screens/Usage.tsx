@@ -57,10 +57,10 @@ export default function Usage() {
             <div class="text-sm text-red-600">{balanceError()}</div>
           </Show>
           <Show when={isBalanceLoading()}>
-            <div class="text-sm text-gray-500 dark:text-gray-400">Loading balance…</div>
+            <div class="text-sm text-gray-500">Loading balance…</div>
           </Show>
           <Show when={!isBalanceLoading() && balance() === null}>
-            <div class="text-sm text-gray-500 dark:text-gray-400">Not available yet</div>
+            <div class="text-sm text-gray-500">Not available yet</div>
           </Show>
           <Show when={balance()} keyed>
             {b => (

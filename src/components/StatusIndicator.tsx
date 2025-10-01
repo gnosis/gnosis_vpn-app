@@ -30,7 +30,7 @@ export function StatusIndicator() {
   return (
     <div class="flex flex-row gap-2 items-center justify-between rounded-full bg-white px-4 py-2 h-10">
       <div class={`w-3 h-3 rounded-2xl ${status().color}`} />
-      <p class="font-medium">{status().text}</p>
+      <p class="text-sm font-bold">{status().text}</p>
     </div>
   );
 }

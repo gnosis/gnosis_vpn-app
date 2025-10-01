@@ -19,11 +19,11 @@ export function SecondaryScreen({ children: innerComponent, title }: { children:
 
   return (
     <div ref={containerRef} tabIndex={0} class="h-full w-full z-20" on:keydown={handleKeyDown}>
-      <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800">
-        <h1 class="text-gray-600 dark:text-gray-400 capitalize text-lg">{title ?? appState.currentScreen}</h1>
+      <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+        <h1 class="text-gray-600capitalize text-lg">{title ?? appState.currentScreen}</h1>
         <button
           type="button"
-          class="rounded-md p-1 hover:bg-gray-100 dark:hover:bg-gray-800"
+          class="rounded-md p-1 hover:bg-gray-100"
           aria-label="Close"
           onClick={() => appActions.setScreen("main")}
         >
