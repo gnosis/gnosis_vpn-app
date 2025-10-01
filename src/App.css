@@ -67,11 +67,7 @@
   z-index: 0;
   overflow: hidden;
   /* Base (connected) look; overlay will fade during connecting */
-  background: linear-gradient(
-    to top,
-    var(--color-vpn-light-green, #16a34a),
-    var(--color-vpn-dark-green, #083d1c)
-  );
+  background: linear-gradient(to top, var(--color-vpn-light-green, #16a34a), var(--color-vpn-dark-green, #083d1c));
 }
 
 /* Overlay used to fade between connecting and connected */
@@ -79,17 +75,15 @@
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    to top,
-    var(--color-vpn-yellow, #ffc472),
-    var(--color-vpn-dark-green, #083d1c)
-  );
+  background: linear-gradient(to top, var(--color-vpn-yellow, #ffc472), var(--color-vpn-dark-green, #083d1c));
   opacity: 0;
   transition: opacity 180ms linear;
 }
 
 .vpn-connector-line.connecting {
-  animation: vpn-grow 1.2s ease-out forwards, vpn-fade 3s ease-in-out infinite;
+  animation:
+    vpn-grow 1.2s ease-out forwards,
+    vpn-fade 3s ease-in-out infinite;
 }
 .vpn-connector-line.connecting::before {
   opacity: 1;
@@ -110,7 +104,9 @@
     var(--color-vpn-light-green, #16a34a),
     var(--color-vpn-dark-green, #083d1c)
   );
-  animation: vpn-shrink 1s ease-in forwards, vpn-fade 3s ease-in-out infinite;
+  animation:
+    vpn-shrink 1s ease-in forwards,
+    vpn-fade 3s ease-in-out infinite;
 }
 .vpn-connector-line.disconnecting::before {
   background: linear-gradient(
@@ -149,5 +145,21 @@
   }
   100% {
     opacity: 1;
+  }
+}
+
+/* Generic appear animation for inline notices */
+.fade-in-up {
+  animation: fade-in-up 240ms ease-out both;
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

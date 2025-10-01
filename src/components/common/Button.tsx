@@ -1,10 +1,11 @@
-import { createSignal, type JSX, mergeProps, splitProps } from "solid-js";
+import { createSignal, type JSX, mergeProps, Show, splitProps } from "solid-js";
 
 export interface ButtonProps {
   variant?: "primary" | "secondary" | "outline";
   size?: "sm" | "md" | "lg";
   disabled?: boolean;
   class?: string;
+  loading?: boolean;
   children: import("solid-js").JSX.Element;
   onClick?: () => void;
 }
@@ -13,10 +14,8 @@ const baseClasses =
   "font-bold w-full inline-flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ring-offset-white dark:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed gap-2 hover:cursor-pointer transition-transform duration-150 ease-out select-none";
 
 const variantClasses: Record<NonNullable<ButtonProps["variant"]>, string> = {
-  primary:
-    "border border-transparent dark:border-gray-300 bg-black text-white hover:bg-black focus-visible:ring-black",
-  secondary:
-    "border border-transparent bg-gray-800 text-white hover:bg-gray-700 focus-visible:ring-gray-500",
+  primary: "border border-transparent dark:border-gray-300 bg-black text-white hover:bg-black focus-visible:ring-black",
+  secondary: "border border-transparent bg-gray-800 text-white hover:bg-gray-700 focus-visible:ring-gray-500",
   outline:
     "border border-gray-300 text-gray-900 hover:bg-gray-100 dark:text-gray-100 dark:border-gray-700 dark:hover:bg-gray-800 focus-visible:ring-gray-400",
 };
@@ -50,14 +49,7 @@ export default function Button(allProps: ButtonProps): JSX.Element {
     } as const,
     allProps,
   );
-  const [local, others] = splitProps(props, [
-    "variant",
-    "size",
-    "class",
-    "children",
-    "disabled",
-    "onClick",
-  ]);
+  const [local, others] = splitProps(props, ["variant", "size", "class", "children", "disabled", "onClick", "loading"]);
 
   const computedClass = () =>
     [
@@ -74,12 +66,20 @@ export default function Button(allProps: ButtonProps): JSX.Element {
     <button
       type="button"
       class={computedClass()}
-      disabled={local.disabled}
+      disabled={local.disabled || local.loading}
       aria-disabled={local.disabled || undefined}
       {...others}
       onPointerDown={() => playPressAnimation()}
       onClick={() => local.onClick?.()}
     >
+      <div class={`${local.size === "lg" ? "-ml-8 w-6 h-6" : "-ml-6 w-4 h-4"}`}>
+        <Show when={local.loading}>
+          <div
+            class={`border-2 rounded-full animate-spin w-full h-full`}
+            style="border-color: currentColor; border-top-color: transparent;"
+          ></div>
+        </Show>
+      </div>
       {local.children}
     </button>
   );
