@@ -5,10 +5,11 @@ import { onMount } from "solid-js";
 import Button from "../components/common/Button.tsx";
 import FundsInfo from "../components/FundsInfo.tsx";
 import { Show } from "solid-js";
-import AirdropClaim from "../components/AirdropClaim.tsx";
+import AirdropClaimButton from "../components/AirdropClaimButton.tsx";
 import Help from "../components/Help.tsx";
 import { applyFundingIssues } from "../utils/funding.ts";
-import { useAppStore } from "../stores/appStore.ts";
+import WarningIcon from "../components/common/WarningIcon.tsx";
+import { useLogsStore } from "../stores/logsStore.ts";
 
 export default function Usage() {
   const [balance, setBalance] = createSignal<BalanceResponse | null>(null);
@@ -16,7 +17,7 @@ export default function Usage() {
   const [balanceError, setBalanceError] = createSignal<string | undefined>();
   const [safeStatus, setSafeStatus] = createSignal<string | undefined>();
   const [nodeStatus, setNodeStatus] = createSignal<string | undefined>();
-  const [, appActions] = useAppStore();
+  const [, logActions] = useLogsStore();
 
   async function loadBalance() {
     setIsBalanceLoading(true);
@@ -29,7 +30,7 @@ export default function Usage() {
       }
     } catch (error) {
       setBalanceError(error instanceof Error ? error.message : String(error));
-      appActions.log(`Error loading balance: ${String(error)}`);
+      logActions.append(`Error loading balance: ${String(error)}`);
     } finally {
       setIsBalanceLoading(false);
     }
@@ -39,7 +40,7 @@ export default function Usage() {
     try {
       await VPNService.refreshNode();
     } catch (error) {
-      appActions.log(`Error refreshing node: ${String(error)}`);
+      logActions.append(`Error refreshing node: ${String(error)}`);
     }
     await loadBalance();
   }
@@ -90,27 +91,21 @@ export default function Usage() {
         </div>
         <div class="flex-grow flex justify-between items-center gap-2">
           <div class="text-xs text-slate-600 px-2">
-            <img
-              src="/icons/warning.png"
-              height={12}
-              width={12}
-              alt="Warning"
-              class="inline mb-0.5 mr-1"
-            />
+            <WarningIcon />
             It may take up to 2 minutes until your funds have been registered
             after transaction.
           </div>
           <Button
             variant="outline"
             size="sm"
-            loading={isBalanceLoading()}
+            // loading={isBalanceLoading()}
             onClick={() => void handleRefresh()}
           >
             Refresh
           </Button>
         </div>
         <Help />
-        <AirdropClaim />
+        <AirdropClaimButton />
       </div>
     </SecondaryScreen>
   );

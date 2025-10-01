@@ -8,12 +8,14 @@ import Usage from "./screens/Usage.tsx";
 import { onCleanup, onMount } from "solid-js";
 import { listen } from "@tauri-apps/api/event";
 import { useSettingsStore } from "./stores/settingsStore.ts";
+import Onboarding from "./screens/Onboarding.tsx";
 
 const screens = {
   main: MainScreen,
   logs: Logs,
   settings: Settings,
   usage: Usage,
+  onboarding: Onboarding,
 };
 
 function App() {
@@ -35,7 +37,7 @@ function App() {
 
       appActions.startStatusPolling(2000);
 
-      const validScreens = ["main", "settings", "logs", "usage"] as const;
+      const validScreens = ["main", "settings", "logs", "usage", "onboarding"] as const;
       type ValidScreen = (typeof validScreens)[number];
       const isValidScreen = (s: string): s is ValidScreen =>
         (validScreens as readonly string[]).includes(s);

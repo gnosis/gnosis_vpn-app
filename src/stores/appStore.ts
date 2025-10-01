@@ -16,7 +16,7 @@ import {
 import { useSettingsStore } from "./settingsStore.ts";
 import { isConnected, isConnecting } from "../utils/status.ts";
 
-export type AppScreen = "main" | "settings" | "logs" | "usage";
+export type AppScreen = "main" | "settings" | "logs" | "usage" | "onboarding";
 
 export interface AppState {
   currentScreen: AppScreen;
@@ -43,7 +43,7 @@ type AppStoreTuple = readonly [Store<AppState>, AppActions];
 
 export function createAppStore(): AppStoreTuple {
   const [state, setState] = createStore<AppState>({
-    currentScreen: "main",
+    currentScreen: "onboarding",
     connectionStatus: "ServiceUnavailable",
     availableDestinations: [],
     isLoading: false,
