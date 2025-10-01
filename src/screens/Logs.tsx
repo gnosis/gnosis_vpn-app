@@ -1,6 +1,6 @@
 import { For, Show } from "solid-js";
-import { useLogsStore } from "../stores/logsStore.ts";
-import { SecondaryScreen } from "../components/common/SecondaryScreen.tsx";
+import { useLogsStore } from "@src/stores/logsStore";
+import { SecondaryScreen } from "@src/components/common/SecondaryScreen";
 
 export default function Logs() {
   const [logsState] = useLogsStore();
@@ -11,12 +11,9 @@ export default function Logs() {
         <div class="space-y-2 p-4">
           <div class="overflow-auto rounded border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 p-2 text-xs font-mono">
             <For each={logsState.logs}>
-              {(entry) => (
+              {entry => (
                 <div class="whitespace-pre-wrap">
-                  <span class="font-semibold">
-                    [{new Date(entry.date).toLocaleString()}]
-                  </span>{" "}
-                  {entry.message}
+                  <span class="font-semibold">[{new Date(entry.date).toLocaleString()}]</span> {entry.message}
                 </div>
               )}
             </For>

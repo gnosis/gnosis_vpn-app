@@ -1,5 +1,5 @@
-import parachute from "../../assets/img/parachute.png";
-import Button from "../common/Button";
+import parachute from "@assets/img/parachute.png";
+import Button from "@src/components/common/Button";
 
 export default function Airdrop({ setStep }: { setStep: (step: string) => void }) {
   const claim = () => {

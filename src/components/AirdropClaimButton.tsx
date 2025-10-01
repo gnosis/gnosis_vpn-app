@@ -1,4 +1,4 @@
-import Button from "./common/Button.tsx";
+import Button from "@src/components/common/Button";
 
 export default function AirdropClaim() {
   return (

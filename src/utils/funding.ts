@@ -1,4 +1,4 @@
-import type { FundingIssue } from "../services/vpnService.ts";
+import type { FundingIssue } from "@src/services/vpnService.ts";
 
 export type StatusText = "Sufficient" | "Low" | "Empty" | string;
 
@@ -21,20 +21,12 @@ export function applyFundingIssues(
   // Safe
   const safeEmpty = hasUnfunded || list.includes("SafeOutOfFunds");
   const safeLow = list.includes("SafeLowOnFunds");
-  const safeStatus: StatusText = safeEmpty
-    ? "Empty"
-    : safeLow
-    ? "Low"
-    : "Sufficient";
+  const safeStatus: StatusText = safeEmpty ? "Empty" : safeLow ? "Low" : "Sufficient";
 
   // EOA (node)
   const eoaEmpty = hasUnfunded || list.includes("NodeUnderfunded");
   const eoaLow = list.includes("NodeLowOnFunds");
-  const eoaStatus: StatusText = eoaEmpty
-    ? "Empty"
-    : eoaLow
-    ? "Low"
-    : "Sufficient";
+  const eoaStatus: StatusText = eoaEmpty ? "Empty" : eoaLow ? "Low" : "Sufficient";
 
   setSafeStatus(safeStatus);
   setEOAStatus(eoaStatus);

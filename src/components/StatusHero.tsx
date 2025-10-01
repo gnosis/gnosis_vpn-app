@@ -1,16 +1,14 @@
 import { Show } from "solid-js";
-import { isConnected, isConnecting, isDisconnecting } from "../utils/status.ts";
-import { useAppStore } from "../stores/appStore.ts";
-import Spinner from "./Spinner.tsx";
-import connectedImg from "../assets/img/connected.svg";
-import disconnectedImg from "../assets/img/disconnected.svg";
+import { isConnected, isConnecting, isDisconnecting } from "@src/utils/status";
+import { useAppStore } from "@src/stores/appStore";
+import Spinner from "@src/components/Spinner";
+import connectedImg from "@assets/img/connected.svg";
+import disconnectedImg from "@assets/img/disconnected.svg";
 
 export function StatusHero() {
   const [appState] = useAppStore();
 
-  const isBusy = () =>
-    isConnecting(appState.connectionStatus) ||
-    isDisconnecting(appState.connectionStatus);
+  const isBusy = () => isConnecting(appState.connectionStatus) || isDisconnecting(appState.connectionStatus);
   const isOffline = () =>
     !isConnected(appState.connectionStatus) &&
     !isConnecting(appState.connectionStatus) &&

@@ -1,14 +1,14 @@
-import "./App.css";
-import { MainScreen } from "./screens/MainScreen.tsx";
+import "@src/App.css";
+import { MainScreen } from "@src/screens/MainScreen.tsx";
 import { Dynamic } from "solid-js/web";
-import Logs from "./screens/Logs.tsx";
-import Settings from "./screens/Settings.tsx";
-import { useAppStore } from "./stores/appStore.ts";
-import Usage from "./screens/Usage.tsx";
+import Logs from "@src/screens/Logs.tsx";
+import Settings from "@src/screens/Settings.tsx";
+import { useAppStore } from "@src/stores/appStore.ts";
+import Usage from "@src/screens/Usage.tsx";
 import { onCleanup, onMount } from "solid-js";
 import { listen } from "@tauri-apps/api/event";
-import { useSettingsStore } from "./stores/settingsStore.ts";
-import Onboarding from "./screens/Onboarding.tsx";
+import { useSettingsStore } from "@src/stores/settingsStore.ts";
+import Onboarding from "@src/screens/Onboarding.tsx";
 
 const screens = {
   main: MainScreen,
@@ -39,8 +39,7 @@ function App() {
 
       const validScreens = ["main", "settings", "logs", "usage", "onboarding"] as const;
       type ValidScreen = (typeof validScreens)[number];
-      const isValidScreen = (s: string): s is ValidScreen =>
-        (validScreens as readonly string[]).includes(s);
+      const isValidScreen = (s: string): s is ValidScreen => (validScreens as readonly string[]).includes(s);
 
       unlistenNavigate = await listen<string>("navigate", ({ payload }) => {
         if (isValidScreen(payload)) {

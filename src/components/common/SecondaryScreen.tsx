@@ -1,13 +1,7 @@
 import { children, JSX, onMount } from "solid-js";
-import { useAppStore } from "../../stores/appStore.ts";
+import { useAppStore } from "@src/stores/appStore";
 
-export function SecondaryScreen({
-  children: innerComponent,
-  title,
-}: {
-  children: JSX.Element;
-  title?: string;
-}) {
+export function SecondaryScreen({ children: innerComponent, title }: { children: JSX.Element; title?: string }) {
   const [appState, appActions] = useAppStore();
 
   const c = children(() => innerComponent);
@@ -24,16 +18,9 @@ export function SecondaryScreen({
   });
 
   return (
-    <div
-      ref={containerRef}
-      tabIndex={0}
-      class="h-full w-full z-20"
-      on:keydown={handleKeyDown}
-    >
+    <div ref={containerRef} tabIndex={0} class="h-full w-full z-20" on:keydown={handleKeyDown}>
       <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800">
-        <h1 class="text-gray-600 dark:text-gray-400 capitalize text-lg">
-          {title ?? appState.currentScreen}
-        </h1>
+        <h1 class="text-gray-600 dark:text-gray-400 capitalize text-lg">{title ?? appState.currentScreen}</h1>
         <button
           type="button"
           class="rounded-md p-1 hover:bg-gray-100 dark:hover:bg-gray-800"
@@ -48,11 +35,7 @@ export function SecondaryScreen({
             stroke-width="2"
             class="h-5 w-5"
           >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M6 18L18 6M6 6l12 12"
-            />
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
       </div>

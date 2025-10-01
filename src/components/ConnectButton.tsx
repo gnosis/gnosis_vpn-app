@@ -1,15 +1,12 @@
 import { createMemo } from "solid-js";
-import Button from "./common/Button.tsx";
-import { useAppStore } from "../stores/appStore.ts";
-import { isConnected, isConnecting } from "../utils/status.ts";
+import Button from "@src/components/common/Button";
+import { useAppStore } from "@src/stores/appStore";
+import { isConnected, isConnecting } from "@src/utils/status";
 
 export default function ConnectButton() {
   const [appState, appActions] = useAppStore();
 
-  const isActive = createMemo(() =>
-    isConnected(appState.connectionStatus) ||
-    isConnecting(appState.connectionStatus)
-  );
+  const isActive = createMemo(() => isConnected(appState.connectionStatus) || isConnecting(appState.connectionStatus));
   const label = createMemo(() => (isActive() ? "Stop" : "Connect"));
 
   const handleClick = async () => {
@@ -25,8 +22,7 @@ export default function ConnectButton() {
       <Button
         size="lg"
         onClick={() => void handleClick()}
-        disabled={appState.isLoading ||
-          appState.connectionStatus === "ServiceUnavailable"}
+        disabled={appState.isLoading || appState.connectionStatus === "ServiceUnavailable"}
       >
         {label()}
       </Button>

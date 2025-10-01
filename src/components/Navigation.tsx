@@ -1,12 +1,12 @@
-import IconButton from "./common/IconButton.tsx";
-import { useAppStore } from "../stores/appStore.ts";
+import IconButton from "@src/components/common/IconButton.tsx";
+import { useAppStore } from "@src/stores/appStore.ts";
 import { Portal } from "solid-js/web";
-import settingsIcon from "../assets/icons/settings.svg";
-import logsIcon from "../assets/icons/logs.svg";
-import fundsFullIcon from "../assets/icons/funds-full.svg";
-import fundsLowIcon from "../assets/icons/funds-low.svg";
-import fundsOutIcon from "../assets/icons/funds-out.svg";
-import fundsEmptyIcon from "../assets/icons/funds-empty.svg";
+import settingsIcon from "@assets/icons/settings.svg";
+import logsIcon from "@assets/icons/logs.svg";
+import fundsFullIcon from "@assets/icons/funds-full.svg";
+import fundsLowIcon from "@assets/icons/funds-low.svg";
+import fundsOutIcon from "@assets/icons/funds-out.svg";
+import fundsEmptyIcon from "@assets/icons/funds-empty.svg";
 
 function Navigation() {
   const [appState, appActions] = useAppStore();
@@ -40,21 +40,9 @@ function Navigation() {
   return (
     <Portal>
       <div class="fixed top-6 right-4 z-60 flex items-center gap-2 justify-center">
-        <IconButton
-          icon={settingsIcon}
-          alt="Settings"
-          onClick={() => navigate("settings")}
-        />
-        <IconButton
-          icon={getFundsIcon()}
-          alt="Funds"
-          onClick={() => navigate("usage")}
-        />
-        <IconButton
-          icon={logsIcon}
-          alt="Logs"
-          onClick={() => navigate("logs")}
-        />
+        <IconButton icon={settingsIcon} alt="Settings" onClick={() => navigate("settings")} />
+        <IconButton icon={getFundsIcon()} alt="Funds" onClick={() => navigate("usage")} />
+        <IconButton icon={logsIcon} alt="Logs" onClick={() => navigate("logs")} />
       </div>
     </Portal>
   );

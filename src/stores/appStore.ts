@@ -5,16 +5,16 @@ import {
   type Status,
   type StatusResponse,
   VPNService,
-} from "../services/vpnService.ts";
-import { useLogsStore } from "./logsStore.ts";
+} from "@src/services/vpnService.ts";
+import { useLogsStore } from "@src/stores/logsStore.ts";
 import {
   areDestinationsEqualUnordered,
   formatDestinationByAddress,
   getPreferredAvailabilityChangeMessage,
   selectTargetAddress,
-} from "../utils/destinations.ts";
-import { useSettingsStore } from "./settingsStore.ts";
-import { isConnected, isConnecting } from "../utils/status.ts";
+} from "@src/utils/destinations.ts";
+import { useSettingsStore } from "@src/stores/settingsStore.ts";
+import { isConnected, isConnecting } from "@src/utils/status.ts";
 
 export type AppScreen = "main" | "settings" | "logs" | "usage" | "onboarding";
 
@@ -61,14 +61,11 @@ export function createAppStore(): AppStoreTuple {
 
   const [, logActions] = useLogsStore();
   const log = (content: string) => logActions.append(content);
-  const logStatus = (response: StatusResponse) =>
-    logActions.appendStatus(response);
+  const logStatus = (response: StatusResponse) => logActions.appendStatus(response);
 
   const applyDestinationSelection = () => {
     const available = state.availableDestinations;
-    const userSelected = state.selectedAddress
-      ? available.find((d) => d.address === state.selectedAddress)
-      : undefined;
+    const userSelected = state.selectedAddress ? available.find(d => d.address === state.selectedAddress) : undefined;
     if (userSelected) {
       if (state.destination?.address !== userSelected.address) {
         setState("destination", userSelected);
@@ -77,7 +74,7 @@ export function createAppStore(): AppStoreTuple {
     }
 
     const preferred = settings.preferredLocation
-      ? available.find((d) => d.address === settings.preferredLocation)
+      ? available.find(d => d.address === settings.preferredLocation)
       : undefined;
     if (preferred) {
       if (state.destination?.address !== preferred.address) {
@@ -107,25 +104,17 @@ export function createAppStore(): AppStoreTuple {
         hasInitializedPreferred = true;
       }
 
-      const preferredChanged =
-        settings.preferredLocation !== lastPreferredLocation;
+      const preferredChanged = settings.preferredLocation !== lastPreferredLocation;
       if (preferredChanged) {
         const nowHasPreferred = settings.preferredLocation
-          ? response.available_destinations.some((d) =>
-            d.address === settings.preferredLocation
-          )
+          ? response.available_destinations.some(d => d.address === settings.preferredLocation)
           : false;
         if (settings.preferredLocation) {
           if (nowHasPreferred) {
-            const pretty = formatDestinationByAddress(
-              settings.preferredLocation,
-              response.available_destinations,
-            );
+            const pretty = formatDestinationByAddress(settings.preferredLocation, response.available_destinations);
             log(`Preferred location set to ${pretty}.`);
           } else {
-            log(
-              `Preferred location ${settings.preferredLocation} currently unavailable.`,
-            );
+            log(`Preferred location ${settings.preferredLocation} currently unavailable.`);
           }
         }
         lastPreferredLocation = settings.preferredLocation;
@@ -136,12 +125,7 @@ export function createAppStore(): AppStoreTuple {
       if (response.status !== state.connectionStatus) {
         setState("connectionStatus", reconcile(response.status));
       }
-      if (
-        !areDestinationsEqualUnordered(
-          response.available_destinations,
-          state.availableDestinations,
-        )
-      ) {
+      if (!areDestinationsEqualUnordered(response.available_destinations, state.availableDestinations)) {
         setState("availableDestinations", response.available_destinations);
         applyDestinationSelection();
       }
@@ -168,11 +152,7 @@ export function createAppStore(): AppStoreTuple {
       setState("selectedAddress", address ?? null);
       applyDestinationSelection();
 
-      if (
-        address &&
-        (isConnected(state.connectionStatus) ||
-          isConnecting(state.connectionStatus))
-      ) {
+      if (address && (isConnected(state.connectionStatus) || isConnecting(state.connectionStatus))) {
         setState("isLoading", true);
         void (async () => {
           try {
@@ -180,9 +160,7 @@ export function createAppStore(): AppStoreTuple {
             await VPNService.connect(address);
             await getStatus();
           } catch (error) {
-            const message = error instanceof Error
-              ? error.message
-              : String(error);
+            const message = error instanceof Error ? error.message : String(error);
             log(message);
             setState("error", message);
           } finally {
@@ -196,16 +174,13 @@ export function createAppStore(): AppStoreTuple {
       setState("isLoading", true);
       try {
         const requestedAddress = state.selectedAddress ?? undefined;
-        const { address: targetAddress, reason: selectionReason } =
-          selectTargetAddress(
-            requestedAddress,
-            settings.preferredLocation,
-            state.availableDestinations,
-          );
+        const { address: targetAddress, reason: selectionReason } = selectTargetAddress(
+          requestedAddress,
+          settings.preferredLocation,
+          state.availableDestinations,
+        );
 
-        const reasonForLog = state.selectedAddress
-          ? "selected exit node"
-          : selectionReason;
+        const reasonForLog = state.selectedAddress ? "selected exit node" : selectionReason;
         log(`Connecting to ${reasonForLog}: ${targetAddress ?? "none"}`);
 
         if (targetAddress) {

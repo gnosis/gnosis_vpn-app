@@ -1,10 +1,10 @@
-import { useAppStore } from "../stores/appStore.ts";
-import { Dropdown } from "./common/Dropdown.tsx";
-import { formatDestination } from "../utils/destinations.ts";
-import type { Destination } from "../services/vpnService.ts";
-import { shortAddress } from "../utils/shortAddress.ts";
+import { useAppStore } from "@src/stores/appStore";
+import { Dropdown } from "@src/components/common/Dropdown";
+import { formatDestination } from "@src/utils/destinations";
+import type { Destination } from "@src/services/vpnService";
+import { shortAddress } from "@src/utils/shortAddress";
 import { createSignal } from "solid-js";
-import ExitNodeWarning from "./ExitNodeWarning.tsx";
+import ExitNodeWarning from "@src/components/ExitNodeWarning";
 
 export default function ExitNode() {
   const [appState, appActions] = useAppStore();
@@ -12,25 +12,20 @@ export default function ExitNode() {
   type ExitOption = Destination | DefaultOption;
 
   const [openModal, setOpenModal] = createSignal(false);
-  const [pendingSelection, setPendingSelection] = createSignal<
-    Destination | null
-  >(null);
+  const [pendingSelection, setPendingSelection] = createSignal<Destination | null>(null);
 
   return (
     <>
       <div class="w-full flex flex-row bg-white rounded-2xl p-4">
         <Dropdown<ExitOption>
           label="Exit Node"
-          options={[
-            { type: "default" } as DefaultOption,
-            ...appState.availableDestinations,
-          ]}
-          value={(appState.selectedAddress
-            ? (appState.availableDestinations.find((d) =>
-              d.address === appState.selectedAddress
-            ) ??
-              ({ type: "default" } as DefaultOption))
-            : ({ type: "default" } as DefaultOption)) as ExitOption}
+          options={[{ type: "default" } as DefaultOption, ...appState.availableDestinations]}
+          value={
+            (appState.selectedAddress
+              ? (appState.availableDestinations.find(d => d.address === appState.selectedAddress) ??
+                ({ type: "default" } as DefaultOption))
+              : ({ type: "default" } as DefaultOption)) as ExitOption
+          }
           onChange={(opt: ExitOption) => {
             const current = appState.selectedAddress;
             if ("address" in opt) {
@@ -53,8 +48,7 @@ export default function ExitNode() {
             return "Default";
           }}
           placeholder="Default"
-          disabled={appState.isLoading ||
-            appState.connectionStatus === "ServiceUnavailable"}
+          disabled={appState.isLoading || appState.connectionStatus === "ServiceUnavailable"}
         />
       </div>
       <ExitNodeWarning
