@@ -30,7 +30,7 @@ export function SecondaryScreen(
       on:keydown={handleKeyDown}
     >
       <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-        <h1 class="text-gray-600capitalize text-lg">
+        <h1 class="text-gray-600 capitalize text-lg">
           {title ?? appState.currentScreen}
         </h1>
         <button

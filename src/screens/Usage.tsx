@@ -94,7 +94,7 @@ export default function Usage() {
           <Button
             variant="outline"
             size="sm"
-            // loading={isBalanceLoading()}
+            loading={isBalanceLoading()}
             onClick={() => void handleRefresh()}
           >
             Refresh

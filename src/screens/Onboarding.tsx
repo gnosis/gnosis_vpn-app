@@ -11,7 +11,9 @@ const steps = {
 };
 
 export default function Onboarding() {
-  const [step, setStep] = createSignal<"start" | "airdrop">("start");
+  const [step, setStep] = createSignal<"start" | "airdrop" | "complete">(
+    "start",
+  );
 
   return (
     <div class="h-screen bg-gray-100">
