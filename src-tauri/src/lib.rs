@@ -1,9 +1,9 @@
 use gnosis_vpn_lib::prelude::Address;
 use gnosis_vpn_lib::{command, socket};
 use tauri::{
+    AppHandle, Emitter, Manager,
     menu::{Menu, MenuBuilder, MenuItem},
     tray::{TrayIconBuilder, TrayIconEvent},
-    AppHandle, Emitter, Manager,
 };
 
 use std::{path::PathBuf, sync::Mutex};
