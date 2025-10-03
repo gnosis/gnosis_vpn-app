@@ -1,8 +1,9 @@
-use gnosis_vpn_lib::{address, command, socket};
+use gnosis_vpn_lib::prelude::Address;
+use gnosis_vpn_lib::{command, socket};
 use tauri::{
-    AppHandle, Emitter, Manager,
     menu::{Menu, MenuBuilder, MenuItem},
     tray::{TrayIconBuilder, TrayIconEvent},
+    AppHandle, Emitter, Manager,
 };
 
 use std::{path::PathBuf, sync::Mutex};
@@ -29,7 +30,7 @@ fn status() -> Result<command::StatusResponse, String> {
 }
 
 #[tauri::command]
-fn connect(address: address::Address) -> Result<command::ConnectResponse, String> {
+fn connect(address: Address) -> Result<command::ConnectResponse, String> {
     let p = PathBuf::from(socket::DEFAULT_PATH);
     let cmd = command::Command::Connect(address);
     let resp = socket::process_cmd(&p, &cmd).map_err(|e| e.to_string())?;

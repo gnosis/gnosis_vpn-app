@@ -7,10 +7,17 @@ export interface Destination {
   path: Path;
 }
 
+export interface PreparingSafe {
+  node_address: string;
+  node_xdai: string;
+  node_wxhopr: string;
+}
+
 export type Status =
   | { Connecting: Destination }
   | { Disconnecting: Destination }
   | { Connected: Destination }
+  | { PreparingSafe: PreparingSafe }
   | "ServiceUnavailable"
   | "Disconnected";
 
@@ -22,16 +29,10 @@ export type FundingIssue =
   | "NodeUnderfunded" // keeps working until channels are drained - cannot open new or top up existing channels
   | "NodeLowOnFunds"; // warning before NodeUnderfunded
 
-export type FundingState =
-  | "Unknown"
-  | { TopIssue: FundingIssue }
-  | "WellFunded";
-
 export type StatusResponse = {
   status: Status;
   available_destinations: Destination[];
   network: string | null;
-  funding: FundingState;
 };
 
 export type ConnectResponse = { Connecting: Destination } | "AddressNotFound";
@@ -110,7 +111,7 @@ export class VPNService {
 
     // Sort by address for consistent selection
     const sorted = [...destinations].sort((a, b) =>
-      a.address.localeCompare(b.address)
+      a.address.localeCompare(b.address),
     );
     return sorted[0].address;
   }
