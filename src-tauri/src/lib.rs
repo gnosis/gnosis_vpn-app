@@ -265,7 +265,8 @@ pub fn run() {
             connect,
             disconnect,
             balance,
-            refresh_node
+            refresh_node,
+            funding_tool
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
