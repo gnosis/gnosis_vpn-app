@@ -4,7 +4,8 @@ export default function Spinner() {
       <div
         class={`border-2 rounded-full animate-spin w-full h-full`}
         style="border-color: currentColor; border-top-color: transparent;"
-      ></div>
+      >
+      </div>
     </div>
   );
 }

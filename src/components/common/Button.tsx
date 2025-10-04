@@ -15,9 +15,12 @@ const baseClasses =
   "font-bold w-full inline-flex items-center justify-center focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed gap-2 hover:cursor-pointer transition-transform duration-150 ease-out select-none";
 
 const variantClasses: Record<NonNullable<ButtonProps["variant"]>, string> = {
-  primary: "border border-transparent bg-black text-white hover:bg-black focus:outline-none",
-  secondary: "border border-transparent bg-gray-800 text-white hover:bg-gray-700 focus:outline-none",
-  outline: "border border-gray-300 text-gray-900 hover:bg-gray-100 focus:outline-none",
+  primary:
+    "border border-transparent bg-black text-white hover:bg-black focus:outline-none",
+  secondary:
+    "border border-transparent bg-gray-800 text-white hover:bg-gray-700 focus:outline-none",
+  outline:
+    "border border-gray-300 text-gray-900 hover:bg-gray-100 focus:outline-none",
 };
 
 const sizeClasses: Record<NonNullable<ButtonProps["size"]>, string> = {
@@ -49,7 +52,15 @@ export default function Button(allProps: ButtonProps): JSX.Element {
     } as const,
     allProps,
   );
-  const [local, others] = splitProps(props, ["variant", "size", "class", "children", "disabled", "onClick", "loading"]);
+  const [local, others] = splitProps(props, [
+    "variant",
+    "size",
+    "class",
+    "children",
+    "disabled",
+    "onClick",
+    "loading",
+  ]);
 
   const computedClass = () =>
     [

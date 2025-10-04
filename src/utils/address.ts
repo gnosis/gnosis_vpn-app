@@ -1,7 +1,7 @@
 export type EthAddressInput = string | number[] | Uint8Array;
 
 function normalizeTo20Bytes(bytes: number[]): number[] {
-  const clamped = bytes.map(v => {
+  const clamped = bytes.map((v) => {
     const n = Number(v);
     if (!Number.isFinite(n)) return 0;
     const i = n | 0;
@@ -16,7 +16,7 @@ function normalizeTo20Bytes(bytes: number[]): number[] {
 }
 
 function hexFromBytes(bytes: number[]): string {
-  return bytes.map(b => b.toString(16).padStart(2, "0")).join("");
+  return bytes.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 function parseByteArrayString(input: string): number[] | null {
@@ -25,8 +25,8 @@ function parseByteArrayString(input: string): number[] | null {
   if (!match) return null;
   const parts = match[1]
     .split(",")
-    .map(p => p.trim())
-    .filter(p => p.length > 0);
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0);
   if (parts.length === 0) return null;
 
   const out: number[] = [];
@@ -48,14 +48,18 @@ export function getEthAddress(input: EthAddressInput): string {
     if (raw.startsWith("0x") || raw.startsWith("0X")) {
       const body = raw.slice(2).toLowerCase();
       const even = body.length % 2 === 1 ? "0" + body : body;
-      const normalized = even.length === 40 ? even : even.slice(-40).padStart(40, "0");
+      const normalized = even.length === 40
+        ? even
+        : even.slice(-40).padStart(40, "0");
       return "0x" + normalized;
     }
 
     if (/^[0-9a-fA-F]+$/.test(raw)) {
       const lower = raw.toLowerCase();
       const even = lower.length % 2 === 1 ? "0" + lower : lower;
-      const normalized = even.length === 40 ? even : even.slice(-40).padStart(40, "0");
+      const normalized = even.length === 40
+        ? even
+        : even.slice(-40).padStart(40, "0");
       return "0x" + normalized;
     }
 
@@ -78,18 +82,26 @@ export function toBytes20(input: string): number[] {
   if (raw.startsWith("0x") || raw.startsWith("0X")) {
     const body = raw.slice(2).toLowerCase();
     const even = body.length % 2 === 1 ? "0" + body : body;
-    const normalized = even.length === 40 ? even : even.slice(-40).padStart(40, "0");
+    const normalized = even.length === 40
+      ? even
+      : even.slice(-40).padStart(40, "0");
     const out: number[] = [];
-    for (let i = 0; i < 40; i += 2) out.push(parseInt(normalized.slice(i, i + 2), 16));
+    for (let i = 0; i < 40; i += 2) {
+      out.push(parseInt(normalized.slice(i, i + 2), 16));
+    }
     return out;
   }
 
   if (/^[0-9a-fA-F]+$/.test(raw)) {
     const lower = raw.toLowerCase();
     const even = lower.length % 2 === 1 ? "0" + lower : lower;
-    const normalized = even.length === 40 ? even : even.slice(-40).padStart(40, "0");
+    const normalized = even.length === 40
+      ? even
+      : even.slice(-40).padStart(40, "0");
     const out: number[] = [];
-    for (let i = 0; i < 40; i += 2) out.push(parseInt(normalized.slice(i, i + 2), 16));
+    for (let i = 0; i < 40; i += 2) {
+      out.push(parseInt(normalized.slice(i, i + 2), 16));
+    }
     return out;
   }
 

@@ -6,7 +6,9 @@ import { useAppStore } from "@src/stores/appStore";
 import { isServiceUnavailable } from "@src/utils/status";
 import StatusIndicator from "@src/components/StatusIndicator";
 
-export default function Start({ setStep }: { setStep: (step: string) => void }) {
+export default function Start(
+  { setStep }: { setStep: (step: string) => void },
+) {
   const [appState] = useAppStore();
 
   return (
@@ -23,7 +25,11 @@ export default function Start({ setStep }: { setStep: (step: string) => void }) 
           <WarningIcon />
           Early release disclaimer here.
         </div>
-        <Button size="lg" onClick={() => setStep("airdrop")} disabled={isServiceUnavailable(appState.connectionStatus)}>
+        <Button
+          size="lg"
+          onClick={() => setStep("airdrop")}
+          disabled={isServiceUnavailable(appState.connectionStatus)}
+        >
           Get Started
         </Button>
       </div>

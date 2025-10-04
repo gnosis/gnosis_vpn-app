@@ -12,7 +12,9 @@ const steps = {
 };
 
 export default function Onboarding() {
-  const [step, setStep] = createSignal<"start" | "airdrop" | "complete">("start");
+  const [step, setStep] = createSignal<"start" | "airdrop" | "complete">(
+    "start",
+  );
 
   const [appState, appActions] = useAppStore();
   console.log("appState", appState);
