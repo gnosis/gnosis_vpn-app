@@ -6,20 +6,23 @@ import FundingAddress from "@src/components/FundingAddress";
 import Help from "@src/components/Help";
 import { useLogsStore } from "@src/stores/logsStore";
 import checkIcon from "@assets/icons/checked-box-filled.svg";
+import { isWxHOPRTransferred, isXDAITransferred } from "@src/utils/status.ts";
 
 export default function Complete() {
-  const [, appActions] = useAppStore();
+  const [appState, appActions] = useAppStore();
   const [, logActions] = useLogsStore();
-  const [step1, setStep1] = createSignal(false);
-  const [step2, setStep2] = createSignal(false);
+  const wxhoprTransferred = () => isWxHOPRTransferred(appState.connectionStatus);
+  const xdaiTransferred = () => isXDAITransferred(appState.connectionStatus);
   const [ready, setReady] = createSignal(false);
   const [loading, setLoading] = createSignal(false);
 
   const getButtonLabel = () => {
     if (loading()) return "Checking...";
-    if (step1() && step2() && ready()) return "Proceed";
+    if (wxhoprTransferred() && xdaiTransferred() && ready()) return "Proceed";
     return "Confirm";
   };
+
+  console.log("appState", appState);
 
   const handleClick = async () => {
     if (!ready()) {
@@ -27,7 +30,7 @@ export default function Complete() {
         setLoading(true);
         // check if it's ready
         // simulate readiness check delay
-        await new Promise((resolve) => setTimeout(resolve, 1500));
+        await new Promise(resolve => setTimeout(resolve, 1500));
         setReady(true);
       } catch (error) {
         logActions.append(`Error checking if node is funded: ${String(error)}`);
@@ -45,7 +48,7 @@ export default function Complete() {
       <div class="flex flex-col gap-4 flex-grow">
         <label class="flex flex-row w-full hover:cursor-pointer">
           <div class="pr-4 pt-1">
-            <Checkbox checked={step1()} onChange={setStep1} />
+            <Checkbox checked={wxhoprTransferred()} onChange={() => {}} disabled />
           </div>
           <div class="flex flex-col">
             <div class="font-bold">1. Transfer wxHOPR (Gnosis Chain)</div>
@@ -55,41 +58,31 @@ export default function Complete() {
 
         <label class="flex flex-row w-full hover:cursor-pointer">
           <div class="pr-4 pt-1">
-            <Checkbox checked={step2()} onChange={setStep2} />
+            <Checkbox checked={xdaiTransferred()} onChange={() => {}} disabled />
           </div>
           <div class="flex flex-col">
             <div class="font-bold">2. Transfer xDAI (Gnosis Chain)</div>
-            <div class="text-sm text-gray-500">
-              1xDAI is enough for one year switching exit nodes.
-            </div>
+            <div class="text-sm text-gray-500">1xDAI is enough for one year switching exit nodes.</div>
           </div>
         </label>
 
-        <FundingAddress address="0x1234567890123456789012345678901234567890" />
+        <FundingAddress address={appState.preparingSafe?.node_address ?? ""} />
         <div class="text-sm text-gray-500">
-          After the tx has been made, it can take up to two minutes, until your
-          App can connect.
+          After the tx has been made, it can take up to two minutes, until your App can connect.
         </div>
 
         <Show when={ready()}>
           <div class="flex flex-row w-full h-full items-center fade-in-up">
             <div class="flex flex-row">
               <img src={checkIcon} alt="Check" class="h-5 w-5 mr-4 mt-1" />
-              <div class="text-sm">
-                All necessary funds have been received successfully. You can
-                proceed.
-              </div>
+              <div class="text-sm">All necessary funds have been received successfully. You can proceed.</div>
             </div>
           </div>
         </Show>
       </div>
 
       <Help />
-      <Button
-        onClick={handleClick}
-        disabled={!step1() || !step2()}
-        loading={loading()}
-      >
+      <Button onClick={handleClick} disabled={!wxhoprTransferred() || !xdaiTransferred()} loading={loading()}>
         {getButtonLabel()}
       </Button>
     </div>

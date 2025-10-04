@@ -35,6 +35,8 @@ export function MainScreen() {
     requestAnimationFrame(() => computeConnectorHeight());
   });
 
+  console.log("appState", appState);
+
   return (
     <div class="flex w-full flex-col h-full py-6 px-4">
       <div class="flex flex-row justify-between z-60">
@@ -42,10 +44,7 @@ export function MainScreen() {
         <Navigation />
       </div>
 
-      <main
-        ref={mainRef}
-        class="flex w-full flex-1 flex-col items-center relative"
-      >
+      <main ref={mainRef} class="flex w-full flex-1 flex-col items-center relative">
         <StatusHero />
         <div ref={exitAnchorRef} class="w-full flex justify-center z-10">
           <ExitNode />

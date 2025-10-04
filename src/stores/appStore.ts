@@ -1,6 +1,7 @@
 import { createStore, reconcile, type Store } from "solid-js/store";
 import {
   type Destination,
+  PreparingSafe,
   // FundingState,
   type Status,
   type StatusResponse,
@@ -14,7 +15,8 @@ import {
   selectTargetAddress,
 } from "@src/utils/destinations.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
-import { isConnected, isConnecting } from "@src/utils/status.ts";
+import { isConnected, isConnecting, isPreparingSafe } from "@src/utils/status.ts";
+import { getEthAddress } from "@src/utils/address.ts";
 
 export type AppScreen = "main" | "settings" | "logs" | "usage" | "onboarding";
 
@@ -27,6 +29,7 @@ export interface AppState {
   error?: string;
   destination: Destination | null;
   selectedAddress: string | null;
+  preparingSafe: PreparingSafe | null;
 }
 
 type AppActions = {
@@ -37,6 +40,7 @@ type AppActions = {
   refreshStatus: () => Promise<void>;
   startStatusPolling: (intervalMs?: number) => void;
   stopStatusPolling: () => void;
+  claimAirdrop: (secret: string) => Promise<void>;
 };
 
 type AppStoreTuple = readonly [Store<AppState>, AppActions];
@@ -50,6 +54,7 @@ export function createAppStore(): AppStoreTuple {
     // fundingStatus: "Unknown",
     destination: null,
     selectedAddress: null,
+    preparingSafe: null,
   });
 
   let pollingId: ReturnType<typeof globalThis.setInterval> | undefined;
@@ -58,6 +63,7 @@ export function createAppStore(): AppStoreTuple {
   const [settings] = useSettingsStore();
   let lastPreferredLocation: string | null = settings.preferredLocation;
   let hasInitializedPreferred = false;
+  let hasSetInitialScreen = false;
 
   const [, logActions] = useLogsStore();
   const log = (content: string) => logActions.append(content);
@@ -92,9 +98,41 @@ export function createAppStore(): AppStoreTuple {
     try {
       const response = await VPNService.getStatus();
       console.log("response", response);
+      if (isPreparingSafe(response.status)) {
+        const prep = response.status.PreparingSafe;
+        const normalizedPreparingSafe = {
+          ...prep,
+          node_address: Array.isArray((prep as unknown as { node_address: unknown }).node_address)
+            ? getEthAddress((prep as unknown as { node_address: number[] }).node_address)
+            : prep.node_address,
+        } as typeof prep;
+        setState("preparingSafe", normalizedPreparingSafe);
+        // if (!hasSetInitialScreen) {
+        //   const initialScreen =
+        //     response.status.PreparingSafe.funding_tool === "CompletedSuccess" ? "main" : "onboarding";
+        //   setState("currentScreen", initialScreen);
+        //   hasSetInitialScreen = true;
+        // }
+      }
+
+      const normalizedAvailable = response.available_destinations.map((d: unknown) => {
+        const anyD = d as { address?: unknown; array?: unknown; meta?: Record<string, string>; path?: unknown };
+        const source = Array.isArray(anyD.address)
+          ? anyD.address
+          : Array.isArray(anyD.array)
+            ? anyD.array
+            : anyD.address;
+        const address = typeof source === "string" ? source : getEthAddress((source ?? []) as number[]);
+        return {
+          address,
+          meta: (anyD.meta ?? {}) as Record<string, string>,
+          path: anyD.path as unknown,
+        } as Destination;
+      });
+
       const prefMsg = getPreferredAvailabilityChangeMessage(
         state.availableDestinations,
-        response.available_destinations,
+        normalizedAvailable,
         settings.preferredLocation,
       );
       if (prefMsg) log(prefMsg);
@@ -108,11 +146,11 @@ export function createAppStore(): AppStoreTuple {
       const preferredChanged = settings.preferredLocation !== lastPreferredLocation;
       if (preferredChanged) {
         const nowHasPreferred = settings.preferredLocation
-          ? response.available_destinations.some(d => d.address === settings.preferredLocation)
+          ? normalizedAvailable.some(d => d.address === settings.preferredLocation)
           : false;
         if (settings.preferredLocation) {
           if (nowHasPreferred) {
-            const pretty = formatDestinationByAddress(settings.preferredLocation, response.available_destinations);
+            const pretty = formatDestinationByAddress(settings.preferredLocation, normalizedAvailable);
             log(`Preferred location set to ${pretty}.`);
           } else {
             log(`Preferred location ${settings.preferredLocation} currently unavailable.`);
@@ -126,8 +164,8 @@ export function createAppStore(): AppStoreTuple {
       if (response.status !== state.connectionStatus) {
         setState("connectionStatus", reconcile(response.status));
       }
-      if (!areDestinationsEqualUnordered(response.available_destinations, state.availableDestinations)) {
-        setState("availableDestinations", response.available_destinations);
+      if (!areDestinationsEqualUnordered(normalizedAvailable, state.availableDestinations)) {
+        setState("availableDestinations", normalizedAvailable);
         applyDestinationSelection();
       }
       setState("error", undefined);
@@ -237,6 +275,18 @@ export function createAppStore(): AppStoreTuple {
         globalThis.clearInterval(pollingId);
         pollingId = undefined;
       }
+    },
+
+    claimAirdrop: async (secret: string) => {
+      try {
+        const result = await VPNService.fundingTool(secret);
+        console.log("result of claimAirdrop", result);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        log(message);
+        setState("error", message);
+      }
+      // await getStatus();
     },
   } as const;
 

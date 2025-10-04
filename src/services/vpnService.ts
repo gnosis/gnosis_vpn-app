@@ -1,3 +1,4 @@
+// import { toBytes20 } from "@src/utils/address";
 import { invoke } from "@tauri-apps/api/core";
 
 export type Path = { Hops: number } | { IntermediatePath: string[] };
@@ -14,11 +15,7 @@ export interface PreparingSafe {
   funding_tool: FundingTool;
 }
 
-export type FundingTool =
-  | "NotStarted"
-  | "InProgress"
-  | "CompletedSuccess"
-  | "CompletedError";
+export type FundingTool = "NotStarted" | "InProgress" | "CompletedSuccess" | "CompletedError";
 
 export type Status =
   | { Connecting: Destination }
@@ -43,9 +40,7 @@ export type StatusResponse = {
 };
 
 export type ConnectResponse = { Connecting: Destination } | "AddressNotFound";
-export type DisconnectResponse =
-  | { Disconnecting: Destination }
-  | "NotConnected";
+export type DisconnectResponse = { Disconnecting: Destination } | "NotConnected";
 
 export type Addresses = {
   node: string;
@@ -71,6 +66,8 @@ export class VPNService {
   }
 
   static async connect(address: string): Promise<ConnectResponse> {
+    // const bytes = toBytes20(address);
+    // console.log("address", address);
     try {
       return (await invoke("connect", { address })) as ConnectResponse;
     } catch (error) {
@@ -120,15 +117,11 @@ export class VPNService {
     }
   }
 
-  static getBestDestination(
-    destinations: StatusResponse["available_destinations"],
-  ): string | null {
+  static getBestDestination(destinations: StatusResponse["available_destinations"]): string | null {
     if (destinations.length === 0) return null;
 
     // Sort by address for consistent selection
-    const sorted = [...destinations].sort((a, b) =>
-      a.address.localeCompare(b.address)
-    );
+    const sorted = [...destinations].sort((a, b) => a.address.localeCompare(b.address));
     return sorted[0].address;
   }
 }

@@ -6,17 +6,19 @@ import { isConnected, isConnecting } from "@src/utils/status";
 export default function ConnectButton() {
   const [appState, appActions] = useAppStore();
 
-  const isActive = createMemo(() =>
-    isConnected(appState.connectionStatus) ||
-    isConnecting(appState.connectionStatus)
-  );
+  const isActive = createMemo(() => isConnected(appState.connectionStatus) || isConnecting(appState.connectionStatus));
   const label = createMemo(() => (isActive() ? "Stop" : "Connect"));
 
   const handleClick = async () => {
-    if (isActive()) {
-      await appActions.disconnect();
-    } else {
-      await appActions.connect();
+    try {
+      if (isActive()) {
+        await appActions.disconnect();
+      } else {
+        await appActions.connect();
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error("Failed to connect to VPN:", message);
     }
   };
 
@@ -25,8 +27,7 @@ export default function ConnectButton() {
       <Button
         size="lg"
         onClick={() => void handleClick()}
-        disabled={appState.isLoading ||
-          appState.connectionStatus === "ServiceUnavailable"}
+        disabled={appState.isLoading || appState.connectionStatus === "ServiceUnavailable"}
       >
         {label()}
       </Button>
