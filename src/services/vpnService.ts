@@ -11,7 +11,14 @@ export interface PreparingSafe {
   node_address: string;
   node_xdai: string;
   node_wxhopr: string;
+  funding_tool: FundingTool;
 }
+
+export type FundingTool =
+  | "NotStarted"
+  | "InProgress"
+  | "CompletedSuccess"
+  | "CompletedError";
 
 export type Status =
   | { Connecting: Destination }
@@ -101,6 +108,15 @@ export class VPNService {
     } catch (error) {
       console.error("Failed to request VPN node balance update", error);
       throw new Error(`Refresh Node Error: ${error}`);
+    }
+  }
+
+  static async fundingTool(secret: string): Promise<void> {
+    try {
+      return await invoke("funding_tool", { secret });
+    } catch (error) {
+      console.error("Failed to request funding tool execution", error);
+      throw new Error(`Funding Tool Error: ${error}`);
     }
   }
 

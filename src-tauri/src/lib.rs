@@ -68,7 +68,18 @@ fn refresh_node() -> Result<(), String> {
     let cmd = command::Command::RefreshNode;
     let resp = socket::process_cmd(&p, &cmd).map_err(|e| e.to_string())?;
     match resp {
-        command::Response::RefreshNode => Ok(()),
+        command::Response::Empty => Ok(()),
+        _ => Err("Unexpected response type".to_string()),
+    }
+}
+
+#[tauri::command]
+fn funding_tool(secret: String) -> Result<(), String> {
+    let p = PathBuf::from(socket::DEFAULT_PATH);
+    let cmd = command::Command::FundingTool(secret);
+    let resp = socket::process_cmd(&p, &cmd).map_err(|e| e.to_string())?;
+    match resp {
+        command::Response::Empty => Ok(()),
         _ => Err("Unexpected response type".to_string()),
     }
 }
