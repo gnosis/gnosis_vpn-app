@@ -7,8 +7,9 @@ import Help from "@src/components/Help";
 import { useLogsStore } from "@src/stores/logsStore";
 import checkIcon from "@assets/icons/checked-box-filled.svg";
 import { isWxHOPRTransferred, isXDAITransferred } from "@src/utils/status.ts";
+import backIcon from "@assets/icons/arrow-left.svg";
 
-export default function Complete() {
+export default function Complete({ setStep }: { setStep: (step: string) => void }) {
   const [appState, appActions] = useAppStore();
   const [, logActions] = useLogsStore();
   const wxhoprTransferred = () => isWxHOPRTransferred(appState.connectionStatus);
@@ -44,7 +45,12 @@ export default function Complete() {
 
   return (
     <div class="h-full w-full flex flex-col items-stretch p-6 gap-4">
-      <h1 class="text-2xl font-bold text-center my-6">Before we connect</h1>
+      <h1 class="w-full text-2xl font-bold text-center my-6 flex flex-row">
+        <button class="text-sm text-gray-500 hover:cursor-pointer" onClick={() => setStep("airdrop")}>
+          <img src={backIcon} alt="Back" class="h-4 w-4 mr-4" />
+        </button>
+        Before we connect
+      </h1>
       <div class="flex flex-col gap-4 flex-grow">
         <label class="flex flex-row w-full hover:cursor-pointer">
           <div class="pr-4 pt-1">

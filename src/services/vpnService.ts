@@ -66,8 +66,6 @@ export class VPNService {
   }
 
   static async connect(address: string): Promise<ConnectResponse> {
-    // const bytes = toBytes20(address);
-    // console.log("address", address);
     try {
       return (await invoke("connect", { address })) as ConnectResponse;
     } catch (error) {

@@ -107,12 +107,10 @@ export function createAppStore(): AppStoreTuple {
             : prep.node_address,
         } as typeof prep;
         setState("preparingSafe", normalizedPreparingSafe);
-        // if (!hasSetInitialScreen) {
-        //   const initialScreen =
-        //     response.status.PreparingSafe.funding_tool === "CompletedSuccess" ? "main" : "onboarding";
-        //   setState("currentScreen", initialScreen);
-        //   hasSetInitialScreen = true;
-        // }
+        if (!hasSetInitialScreen) {
+          setState("currentScreen", "onboarding");
+          hasSetInitialScreen = true;
+        }
       }
 
       const normalizedAvailable = response.available_destinations.map((d: unknown) => {

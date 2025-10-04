@@ -2,8 +2,10 @@ import parachute from "@assets/img/parachute.png";
 import Button from "@src/components/common/Button";
 import { createSignal, Show } from "solid-js";
 import { useLogsStore } from "@src/stores/logsStore";
-import checkIcon from "@assets/icons/checked-box-filled.svg";
+// import checkIcon from "@assets/icons/checked-box-filled.svg";
 import { useAppStore } from "@src/stores/appStore";
+import backIcon from "@assets/icons/arrow-left.svg";
+import Spinner from "@src/components/common/Spinner";
 
 export default function Airdrop({ setStep }: { setStep: (step: string) => void }) {
   const [secretCode, setSecretCode] = createSignal("");
@@ -29,7 +31,12 @@ export default function Airdrop({ setStep }: { setStep: (step: string) => void }
 
   return (
     <div class="h-full w-full flex flex-col items-center p-6">
-      <h1 class="text-2xl font-bold text-center my-6">Before we connect</h1>
+      <h1 class="w-full text-2xl font-bold text-center my-6 flex flex-row">
+        <button class="text-sm text-gray-500 hover:cursor-pointer" onClick={() => setStep("start")}>
+          <img src={backIcon} alt="Back" class="h-4 w-4 mr-4" />
+        </button>
+        Before we connect
+      </h1>
       <div class="flex flex-col items-center gap-2 w-full flex-grow">
         <img src={parachute} alt="Parachute" class="w-1/3 mb-8" />
         <div class="w-full text-left">If you’re a tester, claim wxHOPR and xDAI</div>
@@ -45,17 +52,29 @@ export default function Airdrop({ setStep }: { setStep: (step: string) => void }
           />
         </label>
 
-        <Show when={!claimed()}>
+        <Show when={!claimed() && appState.preparingSafe?.funding_tool !== "CompletedSuccess"}>
           <Button size="lg" onClick={handleClaim} disabled={secretCode().length === 0} loading={loading()}>
             {loading() ? "Claiming..." : "Claim"}
           </Button>
         </Show>
 
-        <Show when={claimed()}>
+        {/* <Show when={claimed()}>
           <div class="flex flex-row w-full items-center fade-in-up">
             <div class="flex flex-row">
               <img src={checkIcon} alt="Check" class="h-5 w-5 mr-4" />
               <div class="text-sm">Airdrop received. You can proceed.</div>
+            </div>
+          </div>
+        </Show>*/}
+
+        <Show when={appState.preparingSafe?.funding_tool === "CompletedSuccess"}>
+          <div class="flex flex-row w-full items-center fade-in-up">
+            <div class="flex flex-row">
+              {/* <img src={checkIcon} alt="Check" class="h-5 w-5 mr-4" /> */}
+              <div class="w-5 h-5 mr-4">
+                <Spinner />
+              </div>
+              <div class="text-sm">Verifying... This can take up to two minutes</div>
             </div>
           </div>
         </Show>
