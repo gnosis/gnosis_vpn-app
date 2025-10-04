@@ -1,9 +1,9 @@
 use gnosis_vpn_lib::prelude::Address;
 use gnosis_vpn_lib::{command, socket};
 use tauri::{
-    AppHandle, Emitter, Manager,
     menu::{Menu, MenuBuilder, MenuItem},
     tray::{TrayIconBuilder, TrayIconEvent},
+    AppHandle, Emitter, Manager,
 };
 
 use std::{path::PathBuf, sync::Mutex};
@@ -29,65 +29,11 @@ fn status() -> Result<command::StatusResponse, String> {
     }
 }
 
-// #[tauri::command]
-// fn connect(address: Address) -> Result<command::ConnectResponse, String> {
-//     let p = PathBuf::from(socket::DEFAULT_PATH);
-//     let cmd = command::Command::Connect(address);
-//     let resp = socket::process_cmd(&p, &cmd).map_err(|e| e.to_string())?;
-//     match resp {
-//         command::Response::Connect(resp) => Ok(resp),
-//         _ => Err("Unexpected response type".to_string()),
-//     }
-// }
-
-fn parse_hex_address(s: &str) -> Result<Address, String> {
-    let trimmed = s.trim();
-    let without_prefix = trimmed.strip_prefix("0x").or_else(|| trimmed.strip_prefix("0X")).unwrap_or(trimmed);
-
-    // ensure even length
-    let mut hex = if without_prefix.len() % 2 == 1 {
-        let mut h = String::with_capacity(without_prefix.len() + 1);
-        h.push('0');
-        h.push_str(without_prefix);
-        h
-    } else {
-        without_prefix.to_string()
-    };
-
-    // normalize to 40 nybbles (20 bytes): right-truncate or left-pad
-    if hex.len() > 40 {
-        hex = hex[hex.len() - 40..].to_string();
-    } else if hex.len() < 40 {
-        let mut padded = String::with_capacity(40);
-        for _ in 0..(40 - hex.len()) { padded.push('0'); }
-        padded.push_str(&hex);
-        hex = padded;
-    }
-
-    fn nibble(c: u8) -> Option<u8> {
-        match c {
-            b'0'..=b'9' => Some(c - b'0'),
-            b'a'..=b'f' => Some(10 + (c - b'a')),
-            b'A'..=b'F' => Some(10 + (c - b'A')),
-            _ => None,
-        }
-    }
-
-    let bytes = hex.as_bytes();
-    let mut out = [0u8; 20];
-    for i in 0..20 {
-        let hi = nibble(bytes[i * 2]).ok_or_else(|| "invalid hex".to_string())?;
-        let lo = nibble(bytes[i * 2 + 1]).ok_or_else(|| "invalid hex".to_string())?;
-        out[i] = (hi << 4) | lo;
-    }
-    Ok(Address::from(out))
-}
-
 #[tauri::command]
 fn connect(address: String) -> Result<command::ConnectResponse, String> {
     let p = PathBuf::from(socket::DEFAULT_PATH);
-    let parsed = parse_hex_address(&address)?;
-    let cmd = command::Command::Connect(parsed);
+    let conv_address = address.parse::<Address>().map_err(|e| e.to_string())?;
+    let cmd = command::Command::Connect(conv_address);
     let resp = socket::process_cmd(&p, &cmd).map_err(|e| e.to_string())?;
     match resp {
         command::Response::Connect(resp) => Ok(resp),
