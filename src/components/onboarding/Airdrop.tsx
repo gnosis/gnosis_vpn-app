@@ -7,9 +7,7 @@ import { useAppStore } from "@src/stores/appStore";
 import backIcon from "@assets/icons/arrow-left.svg";
 import Spinner from "@src/components/common/Spinner";
 
-export default function Airdrop(
-  { setStep }: { setStep: (step: string) => void },
-) {
+export default function Airdrop({ setStep }: { setStep: (step: string) => void }) {
   const [secretCode, setSecretCode] = createSignal("");
   const [loading, setLoading] = createSignal(false);
   const [claimed, setClaimed] = createSignal(false);
@@ -31,8 +29,6 @@ export default function Airdrop(
     }
   };
 
-  console.log(claimed());
-
   const handleInputSecretCode = (e: Event) => {
     setSecretCode((e.currentTarget as HTMLInputElement).value);
     setClaimed(false);
@@ -41,19 +37,14 @@ export default function Airdrop(
   return (
     <div class="h-full w-full flex flex-col items-center p-6">
       <h1 class="w-full text-2xl font-bold text-center my-6 flex flex-row">
-        <button
-          class="text-sm text-gray-500 hover:cursor-pointer"
-          onClick={() => setStep("start")}
-        >
+        <button type="button" class="text-sm text-gray-500 hover:cursor-pointer" onClick={() => setStep("start")}>
           <img src={backIcon} alt="Back" class="h-4 w-4 mr-4" />
         </button>
         Before we connect
       </h1>
       <div class="flex flex-col items-center gap-2 w-full flex-grow">
         <img src={parachute} alt="Parachute" class="w-1/3 mb-8" />
-        <div class="w-full text-left">
-          If you’re a tester, claim wxHOPR and xDAI
-        </div>
+        <div class="w-full text-left">If you’re a tester, claim wxHOPR and xDAI</div>
         <label class="flex flex-col gap-1 w-full">
           <span class="text-sm font-bold">Secret code</span>
           <input
@@ -65,23 +56,13 @@ export default function Airdrop(
           />
         </label>
 
-        <Show
-          when={!claimed() &&
-            appState.preparingSafe?.funding_tool !== "CompletedSuccess"}
-        >
-          <Button
-            size="lg"
-            onClick={handleClaim}
-            disabled={secretCode().length === 0}
-            loading={loading()}
-          >
+        <Show when={!claimed() && appState.preparingSafe?.funding_tool !== "CompletedSuccess"}>
+          <Button size="lg" onClick={handleClaim} disabled={secretCode().length === 0} loading={loading()}>
             {loading() ? "Claiming..." : "Claim"}
           </Button>
         </Show>
         <div class="text-xs h-4">
-          <Show
-            when={appState.preparingSafe?.funding_tool === "CompletedError"}
-          >
+          <Show when={appState.preparingSafe?.funding_tool === "CompletedError"}>
             <div class="text-red-500">Airdrop failed. Please try again.</div>
           </Show>
         </div>
@@ -93,16 +74,12 @@ export default function Airdrop(
               <div class="w-5 h-5 mr-4">
                 <Spinner />
               </div>
-              <div class="text-sm">
-                Verifying... This can take up to two minutes
-              </div>
+              <div class="text-sm">Verifying... This can take up to two minutes</div>
             </div>
           </div>
         </Show>
 
-        <Show
-          when={appState.preparingSafe?.funding_tool === "CompletedSuccess"}
-        >
+        <Show when={appState.preparingSafe?.funding_tool === "CompletedSuccess"}>
           <div class="flex flex-row w-full items-center fade-in-up">
             <div class="flex flex-row">
               <img src={checkIcon} alt="Check" class="h-5 w-5 mr-4" />
@@ -113,9 +90,11 @@ export default function Airdrop(
       </div>
 
       <Show
-        when={!claimed() &&
+        when={
+          !claimed() &&
           (appState.preparingSafe?.funding_tool === "NotStarted" ||
-            appState.preparingSafe?.funding_tool === "CompletedError")}
+            appState.preparingSafe?.funding_tool === "CompletedError")
+        }
       >
         <Button size="lg" variant="outline" onClick={() => setStep("complete")}>
           Skip
