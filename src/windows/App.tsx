@@ -25,7 +25,8 @@ function App() {
 
       const validScreens = ["main", "onboarding"] as const;
       type ValidScreen = (typeof validScreens)[number];
-      const isValidScreen = (s: string): s is ValidScreen => (validScreens as readonly string[]).includes(s);
+      const isValidScreen = (s: string): s is ValidScreen =>
+        (validScreens as readonly string[]).includes(s);
       unlistenNavigate = await listen<string>("navigate", ({ payload }) => {
         if (isValidScreen(payload)) {
           appActions.setScreen(payload);

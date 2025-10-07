@@ -26,5 +26,8 @@ import { useAppStore } from "./stores/appStore";
     appActions.stopStatusPolling();
   });
 
-  render(() => (label === "settings" ? <SettingsWindow /> : <App />), document.getElementById("root") as HTMLElement);
+  render(
+    () => (label === "settings" ? <SettingsWindow /> : <App />),
+    document.getElementById("root") as HTMLElement,
+  );
 })();

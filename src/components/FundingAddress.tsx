@@ -33,7 +33,12 @@ export default function FundingAddress(props: { address: string }) {
       <div class="flex flex-row justify-between items-center">
         <div class="text-sm">
           <div class="font-bold">Funding Address</div>
-          <button class="font-mono" onClick={() => copy()} title="Copy address" type="button">
+          <button
+            class="font-mono"
+            onClick={() => copy()}
+            title="Copy address"
+            type="button"
+          >
             {shortAddress(address)}
           </button>
         </div>
@@ -46,7 +51,12 @@ export default function FundingAddress(props: { address: string }) {
             class="inline-flex items-center gap-1 p-1 hover:cursor-pointer"
             title="Open on Gnosisscan"
           >
-            <img src={linkIcon} height={20} width={20} alt="Open on Gnosisscan" />
+            <img
+              src={linkIcon}
+              height={20}
+              width={20}
+              alt="Open on Gnosisscan"
+            />
           </a>
 
           <button
