@@ -6,8 +6,8 @@ use tauri::{
     tray::{TrayIconBuilder, TrayIconEvent},
 };
 
-use std::{path::PathBuf, sync::Mutex};
 use std::time::Duration;
+use std::{path::PathBuf, sync::Mutex};
 mod platform;
 use platform::{Platform, PlatformInterface};
 use serde::Serialize;
@@ -120,11 +120,20 @@ fn toggle_main_window_visibility(app: &AppHandle) {
                     .ok()
                     .flatten()
                     .map(|m| (m.position().x, m.position().y, m.size().width as i32))
-                    .or_else(|| window.primary_monitor().ok().flatten().map(|m| (m.position().x, m.position().y, m.size().width as i32)))
+                    .or_else(|| {
+                        window
+                            .primary_monitor()
+                            .ok()
+                            .flatten()
+                            .map(|m| (m.position().x, m.position().y, m.size().width as i32))
+                    })
                     .unwrap_or((0, 0, 1920));
 
                 let margin: i32 = 20;
-                let start_x = window.outer_position().map(|p| p.x).unwrap_or(mon_x + mon_w - width - margin);
+                let start_x = window
+                    .outer_position()
+                    .map(|p| p.x)
+                    .unwrap_or(mon_x + mon_w - width - margin);
                 // Align to top margin consistently
                 let start_y = mon_y + margin;
                 let end_x = mon_x + mon_w + 10; // a bit off-screen to the right
@@ -138,7 +147,9 @@ fn toggle_main_window_visibility(app: &AppHandle) {
                         // smoothstep easing (ease-in-out): t^2 * (3 - 2t)
                         let te = t * t * (3.0 - 2.0 * t);
                         let x = (start_x as f32 + (end_x - start_x) as f32 * te).round() as i32;
-                        let _ = handle.set_position(tauri::Position::Physical(tauri::PhysicalPosition { x, y: start_y }));
+                        let _ = handle.set_position(tauri::Position::Physical(
+                            tauri::PhysicalPosition { x, y: start_y },
+                        ));
                         std::thread::sleep(Duration::from_millis(step_ms));
                     }
                     let _ = handle.hide();
@@ -164,14 +175,23 @@ fn toggle_main_window_visibility(app: &AppHandle) {
                 .ok()
                 .flatten()
                 .map(|m| (m.position().x, m.position().y, m.size().width as i32))
-                .or_else(|| window.primary_monitor().ok().flatten().map(|m| (m.position().x, m.position().y, m.size().width as i32)))
+                .or_else(|| {
+                    window
+                        .primary_monitor()
+                        .ok()
+                        .flatten()
+                        .map(|m| (m.position().x, m.position().y, m.size().width as i32))
+                })
                 .unwrap_or((0, 0, 1920));
 
             let margin: i32 = 20;
             let target_x: i32 = mon_x + mon_w - width - margin; // top-right with right margin
             let target_y: i32 = mon_y + margin; // top with top margin
             // Start off-screen on the right
-            let _ = window.set_position(tauri::Position::Physical(tauri::PhysicalPosition { x: mon_x + mon_w + 10, y: target_y }));
+            let _ = window.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
+                x: mon_x + mon_w + 10,
+                y: target_y,
+            }));
             let _ = window.show();
             let _ = window.set_focus();
 
@@ -185,7 +205,11 @@ fn toggle_main_window_visibility(app: &AppHandle) {
                     let te = t * t * (3.0 - 2.0 * t);
                     let start_x = (mon_x + mon_w + 10) as f32;
                     let x = (start_x + (target_x as f32 - start_x) * te).round() as i32;
-                    let _ = handle.set_position(tauri::Position::Physical(tauri::PhysicalPosition { x, y: target_y }));
+                    let _ =
+                        handle.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
+                            x,
+                            y: target_y,
+                        }));
                     std::thread::sleep(Duration::from_millis(step_ms));
                 }
             });
