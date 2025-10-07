@@ -50,36 +50,34 @@ export default function Usage() {
   });
 
   return (
-    <div class="px-4 py-2 flex flex-col w-full h-full items-center gap-2 justify-between">
-      <div class="flex flex-col w-full items-center gap-2">
-        <Show when={balanceError()}>
-          <div class="text-sm text-red-600">{balanceError()}</div>
-        </Show>
-        <Show when={!isBalanceLoading() && balance() === null}>
-          <div class="text-sm text-gray-500">Not available yet</div>
-        </Show>
+    <div class="px-4 py-2 flex flex-col w-full h-full items-center gap-4 justify-between">
+      <Show when={balanceError()}>
+        <div class="text-sm text-red-600">{balanceError()}</div>
+      </Show>
+      <Show when={!isBalanceLoading() && balance() === null}>
+        <div class="text-sm text-gray-500">Not available yet</div>
+      </Show>
 
-        <FundsInfo
-          name="Safe"
-          subtitle="For traffic"
-          balance={balance()?.safe}
-          ticker="wxHOPR"
-          address={balance()?.addresses.safe}
-          status={safeStatus() ?? "Sufficient"}
-          isLoading={isBalanceLoading()}
-        />
-        <FundsInfo
-          name="EOA"
-          subtitle="For channels"
-          balance={balance()?.node}
-          ticker="xDAI"
-          address={balance()?.addresses.node}
-          status={nodeStatus() ?? "Sufficient"}
-          isLoading={isBalanceLoading()}
-        />
-      </div>
+      <FundsInfo
+        name="Safe"
+        subtitle="For traffic"
+        balance={balance()?.safe}
+        ticker="wxHOPR"
+        address={balance()?.addresses.safe}
+        status={safeStatus() ?? "Sufficient"}
+        isLoading={isBalanceLoading()}
+      />
+      <FundsInfo
+        name="EOA"
+        subtitle="For channels"
+        balance={balance()?.node}
+        ticker="xDAI"
+        address={balance()?.addresses.node}
+        status={nodeStatus() ?? "Sufficient"}
+        isLoading={isBalanceLoading()}
+      />
 
-      <div class="flex-grow flex flex-row items-center gap-2 max-w-md">
+      <div class="flex flex-row items-center gap-2 max-w-md">
         <div class="text-xs text-slate-600 px-2">
           <WarningIcon />
           It may take up to 2 minutes until your funds have been registered
@@ -95,6 +93,7 @@ export default function Usage() {
           </button>
         </div>
       </div>
+
       <div class="flex-grow"></div>
       <Help />
       <AirdropClaimBanner />
