@@ -1,9 +1,9 @@
-import { MainScreen } from "@src/screens/MainScreen.tsx";
+import { MainScreen } from "@src/screens/main/MainScreen";
 import { Dynamic } from "solid-js/web";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { onCleanup, onMount } from "solid-js";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
-import Onboarding from "@src/screens/Onboarding.tsx";
+import Onboarding from "@src/screens/main/Onboarding";
 import { listen } from "@tauri-apps/api/event";
 
 const screens = { main: MainScreen, onboarding: Onboarding } as const;
@@ -29,8 +29,7 @@ function App() {
 
       const validScreens = ["main", "onboarding"] as const;
       type ValidScreen = (typeof validScreens)[number];
-      const isValidScreen = (s: string): s is ValidScreen =>
-        (validScreens as readonly string[]).includes(s);
+      const isValidScreen = (s: string): s is ValidScreen => (validScreens as readonly string[]).includes(s);
       unlistenNavigate = await listen<string>("navigate", ({ payload }) => {
         if (isValidScreen(payload)) {
           appActions.setScreen(payload);
