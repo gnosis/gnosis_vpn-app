@@ -7,6 +7,7 @@ use tauri::{
 };
 
 use std::{path::PathBuf, sync::Mutex};
+use std::time::Duration;
 mod platform;
 use platform::{Platform, PlatformInterface};
 use serde::Serialize;
@@ -107,16 +108,87 @@ fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error> {
 
 fn toggle_main_window_visibility(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
-        let is_visible = window.is_visible().unwrap_or(false);
-        if is_visible {
-            let _ = window.hide();
+        // let is_visible = window.is_visible().unwrap_or(false);
+        let is_focused = window.is_focused().unwrap_or(false);
+        if is_focused {
+            // Slide out to the right and then hide (anchor at top-right of current monitor)
+            if let Ok(size) = window.outer_size() {
+                let width = size.width as i32;
+                // Determine target monitor geometry
+                let (mon_x, mon_y, mon_w) = window
+                    .current_monitor()
+                    .ok()
+                    .flatten()
+                    .map(|m| (m.position().x, m.position().y, m.size().width as i32))
+                    .or_else(|| window.primary_monitor().ok().flatten().map(|m| (m.position().x, m.position().y, m.size().width as i32)))
+                    .unwrap_or((0, 0, 1920));
+
+                let margin: i32 = 20;
+                let start_x = window.outer_position().map(|p| p.x).unwrap_or(mon_x + mon_w - width - margin);
+                // Align to top margin consistently
+                let start_y = mon_y + margin;
+                let end_x = mon_x + mon_w + 10; // a bit off-screen to the right
+
+                let steps: i32 = 16;
+                let step_ms = 10u64;
+                let handle = window.clone();
+                tauri::async_runtime::spawn(async move {
+                    for i in 0..=steps {
+                        let t = i as f32 / steps as f32;
+                        // smoothstep easing (ease-in-out): t^2 * (3 - 2t)
+                        let te = t * t * (3.0 - 2.0 * t);
+                        let x = (start_x as f32 + (end_x - start_x) as f32 * te).round() as i32;
+                        let _ = handle.set_position(tauri::Position::Physical(tauri::PhysicalPosition { x, y: start_y }));
+                        std::thread::sleep(Duration::from_millis(step_ms));
+                    }
+                    let _ = handle.hide();
+                });
+            } else {
+                let _ = window.hide();
+            }
+            #[cfg(target_os = "macos")]
+            {
+                let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+            }
         } else {
+            // Slide in from the right to the top-right corner (with margins) of the current (or primary) monitor
             #[cfg(target_os = "macos")]
             {
                 let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
             }
+
+            let width = window.outer_size().map(|s| s.width as i32).unwrap_or(360);
+            // Determine target monitor geometry
+            let (mon_x, mon_y, mon_w) = window
+                .current_monitor()
+                .ok()
+                .flatten()
+                .map(|m| (m.position().x, m.position().y, m.size().width as i32))
+                .or_else(|| window.primary_monitor().ok().flatten().map(|m| (m.position().x, m.position().y, m.size().width as i32)))
+                .unwrap_or((0, 0, 1920));
+
+            let margin: i32 = 20;
+            let target_x: i32 = mon_x + mon_w - width - margin; // top-right with right margin
+            let target_y: i32 = mon_y + margin; // top with top margin
+            // Start off-screen on the right
+            let _ = window.set_position(tauri::Position::Physical(tauri::PhysicalPosition { x: mon_x + mon_w + 10, y: target_y }));
             let _ = window.show();
             let _ = window.set_focus();
+
+            let steps: i32 = 16;
+            let step_ms = 10u64;
+            let handle = window.clone();
+            tauri::async_runtime::spawn(async move {
+                for i in 0..=steps {
+                    let t = i as f32 / steps as f32;
+                    // smoothstep easing (ease-in-out)
+                    let te = t * t * (3.0 - 2.0 * t);
+                    let start_x = (mon_x + mon_w + 10) as f32;
+                    let x = (start_x + (target_x as f32 - start_x) * te).round() as i32;
+                    let _ = handle.set_position(tauri::Position::Physical(tauri::PhysicalPosition { x, y: target_y }));
+                    std::thread::sleep(Duration::from_millis(step_ms));
+                }
+            });
         }
     }
 }

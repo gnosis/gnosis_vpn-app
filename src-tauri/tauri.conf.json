@@ -16,6 +16,7 @@
         "title": "Gnosis VPN",
         "width": 360,
         "height": 640,
+        "resizable": false,
         "visible": false
       },
       {
