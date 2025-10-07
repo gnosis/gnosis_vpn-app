@@ -27,7 +27,7 @@ export default function SettingsWindow() {
   });
 
   return (
-    <div>
+    <div class="w-full h-screen flex flex-col">
       <Tabs
         tabs={[
           { id: "settings", label: "Settings" },
