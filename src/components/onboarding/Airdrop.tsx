@@ -97,14 +97,12 @@ export default function Airdrop(
           when={appState.preparingSafe?.funding_tool === "CompletedError" &&
             claimed()}
         >
-          <>
-            <Button size="lg" onClick={handleRefresh}>
-              Retry
-            </Button>
-            <div class="text-red-500 text-sm">
-              Funding failed. Please try again.
-            </div>
-          </>
+          <Button size="lg" onClick={handleRefresh}>
+            Retry
+          </Button>
+          <div class="text-red-500 text-sm">
+            Funding failed. Please try again.
+          </div>
         </Show>
 
         <Show when={appState.preparingSafe?.funding_tool === "InProgress"}>
