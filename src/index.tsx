@@ -10,5 +10,8 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
   const [, settingsActions] = useSettingsStore();
   await settingsActions.load();
   const label = getCurrentWindow().label;
-  render(() => (label === "settings" ? <SettingsWindow /> : <App />), document.getElementById("root") as HTMLElement);
+  render(
+    () => (label === "settings" ? <SettingsWindow /> : <App />),
+    document.getElementById("root") as HTMLElement,
+  );
 })();

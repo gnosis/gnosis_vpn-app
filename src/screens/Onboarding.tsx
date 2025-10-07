@@ -12,14 +12,19 @@ const steps = {
 };
 
 export default function Onboarding() {
-  const [step, setStep] = createSignal<"start" | "airdrop" | "complete">("start");
+  const [step, setStep] = createSignal<"start" | "airdrop" | "complete">(
+    "start",
+  );
   let unlistenSetStep: (() => void) | undefined;
 
   onMount(() => {
     void (async () => {
-      unlistenSetStep = await listen<"start" | "airdrop" | "complete">("onboarding:set-step", ({ payload }) => {
-        setStep(payload);
-      });
+      unlistenSetStep = await listen<"start" | "airdrop" | "complete">(
+        "onboarding:set-step",
+        ({ payload }) => {
+          setStep(payload);
+        },
+      );
     })();
   });
 

@@ -19,12 +19,14 @@ export default function Tabs(props: TabsProps) {
       <div class="border-b border-gray-200 px-4">
         <div class="flex gap-2">
           <For each={props.tabs}>
-            {t => {
+            {(t) => {
               return (
                 <button
                   type="button"
                   class={`px-3 py-1.5 rounded-md text-sm transition-colors ${
-                    t.id === props.activeId ? "bg-gray-200 text-gray-900" : "text-gray-600 hover:bg-gray-100"
+                    t.id === props.activeId
+                      ? "bg-gray-200 text-gray-900"
+                      : "text-gray-600 hover:bg-gray-100"
                   }`}
                   onClick={() => props.onChange(t.id)}
                 >

@@ -51,9 +51,21 @@ function Navigation() {
   return (
     <Portal>
       <div class="fixed top-6 right-4 z-60 flex items-center gap-2 justify-center">
-        <IconButton icon={settingsIcon} alt="Settings" onClick={() => openSettingsWindow("settings")} />
-        <IconButton icon={getFundsIcon()} alt="Funds" onClick={() => openSettingsWindow("usage")} />
-        <IconButton icon={logsIcon} alt="Logs" onClick={() => openSettingsWindow("logs")} />
+        <IconButton
+          icon={settingsIcon}
+          alt="Settings"
+          onClick={() => openSettingsWindow("settings")}
+        />
+        <IconButton
+          icon={getFundsIcon()}
+          alt="Funds"
+          onClick={() => openSettingsWindow("usage")}
+        />
+        <IconButton
+          icon={logsIcon}
+          alt="Logs"
+          onClick={() => openSettingsWindow("logs")}
+        />
       </div>
     </Portal>
   );

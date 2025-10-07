@@ -14,24 +14,36 @@ export default function Settings() {
         <Toggle
           label="Connect on application startup"
           checked={settings.connectOnStartup}
-          onChange={e => void settingsActions.setConnectOnStartup(e.currentTarget.checked)}
+          onChange={(e) =>
+            void settingsActions.setConnectOnStartup(e.currentTarget.checked)}
         />
         <Toggle
           label="Start application minimized"
           checked={settings.startMinimized}
-          onChange={e => void settingsActions.setStartMinimized(e.currentTarget.checked)}
+          onChange={(e) =>
+            void settingsActions.setStartMinimized(e.currentTarget.checked)}
         />
 
         <label class="flex items-center justify-between gap-2">
           Preferred server location
-          <Show when={appState.availableDestinations.length > 0} fallback={<div>No servers available</div>}>
+          <Show
+            when={appState.availableDestinations.length > 0}
+            fallback={<div>No servers available</div>}
+          >
             <select
               class=""
               value={settings.preferredLocation ?? ""}
-              onChange={e => void settingsActions.setPreferredLocation(e.currentTarget.value || null)}
+              onChange={(e) =>
+                void settingsActions.setPreferredLocation(
+                  e.currentTarget.value || null,
+                )}
             >
               <For each={appState.availableDestinations}>
-                {dest => <option value={dest.address}>{formatDestination(dest)}</option>}
+                {(dest) => (
+                  <option value={dest.address}>
+                    {formatDestination(dest)}
+                  </option>
+                )}
               </For>
             </select>
           </Show>

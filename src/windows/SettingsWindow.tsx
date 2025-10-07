@@ -13,7 +13,7 @@ export default function SettingsWindow() {
 
   onMount(() => {
     void (async () => {
-      unlisten = await listen<string>("navigate", event => {
+      unlisten = await listen<string>("navigate", (event) => {
         const next = event.payload;
         if (next === "settings" || next === "usage" || next === "logs") {
           setTab(next);
@@ -35,10 +35,14 @@ export default function SettingsWindow() {
           { id: "logs", label: "Logs" },
         ]}
         activeId={tab()}
-        onChange={id => setTab(id as GlobalTab)}
+        onChange={(id) => setTab(id as GlobalTab)}
         class="mb-4"
       />
-      {tab() === "settings" ? <Settings /> : tab() === "usage" ? <Usage /> : <Logs />}
+      {tab() === "settings"
+        ? <Settings />
+        : tab() === "usage"
+        ? <Usage />
+        : <Logs />}
     </div>
   );
 }
