@@ -15,8 +15,6 @@ function App() {
 
   onMount(() => {
     void (async () => {
-      await appActions.refreshStatus();
-
       if (
         settings.connectOnStartup &&
         appState.connectionStatus === "Disconnected" &&
@@ -24,8 +22,6 @@ function App() {
       ) {
         await appActions.connect();
       }
-
-      appActions.startStatusPolling(2000);
 
       const validScreens = ["main", "onboarding"] as const;
       type ValidScreen = (typeof validScreens)[number];
@@ -39,7 +35,6 @@ function App() {
   });
 
   onCleanup(() => {
-    appActions.stopStatusPolling();
     if (unlistenNavigate) unlistenNavigate();
   });
 
