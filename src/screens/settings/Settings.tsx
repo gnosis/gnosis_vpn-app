@@ -1,12 +1,22 @@
+import { Dropdown } from "@src/components/common/Dropdown";
 import Toggle from "@src/components/common/Toggle.tsx";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
-import { formatDestination } from "@src/utils/destinations.ts";
-import { For, Show } from "solid-js";
+import { formatDestination, formatDestinationByAddress } from "@src/utils/destinations.ts";
+import { Show } from "solid-js";
 
 export default function Settings() {
   const [appState] = useAppStore();
   const [settings, settingsActions] = useSettingsStore();
+
+  const availableDestinations = appState.availableDestinations.map(e => {
+    return {
+      address: e.address,
+      label: formatDestination(e),
+    };
+  });
+
+  console.log(availableDestinations);
 
   return (
     <div class="space-y-4 w-full p-6 max-w-lg">
@@ -23,16 +33,29 @@ export default function Settings() {
 
       <label class="flex items-center justify-between gap-2">
         Preferred server location
-        <Show when={appState.availableDestinations.length > 0} fallback={<div>No servers available</div>}>
-          <select
-            class=""
-            value={settings.preferredLocation ?? ""}
-            onChange={e => void settingsActions.setPreferredLocation(e.currentTarget.value || null)}
-          >
-            <For each={appState.availableDestinations}>
-              {dest => <option value={dest.address}>{formatDestination(dest)}</option>}
-            </For>
-          </select>
+        <Show
+          when={appState.availableDestinations.length > 0}
+          fallback={<div class="text-sm text-gray-500">No servers available</div>}
+        >
+          <Dropdown
+            options={appState.availableDestinations.map(e => {
+              return {
+                address: e.address,
+                label: formatDestination(e),
+              };
+            })}
+            value={
+              settings.preferredLocation
+                ? {
+                    address: settings.preferredLocation,
+                    label: formatDestinationByAddress(settings.preferredLocation, appState.availableDestinations),
+                  }
+                : null
+            }
+            onChange={e => void settingsActions.setPreferredLocation(e.address)}
+            size="sm"
+            itemToString={e => e.label}
+          />
         </Show>
       </label>
     </div>

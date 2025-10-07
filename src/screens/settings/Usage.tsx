@@ -78,6 +78,7 @@ export default function Usage() {
           isLoading={isBalanceLoading()}
         />
       </div>
+
       <div class="flex-grow flex flex-row items-center gap-2 max-w-md">
         <div class="text-xs text-slate-600 px-2">
           <WarningIcon />
