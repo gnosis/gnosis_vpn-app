@@ -6,7 +6,7 @@ import App from "@src/windows/App";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import SettingsWindow from "@src/windows/SettingsWindow";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { useAppStore } from "./stores/appStore";
+import { useAppStore } from "@src/stores/appStore.ts";
 
 (() => {
   const [, settingsActions] = useSettingsStore();
