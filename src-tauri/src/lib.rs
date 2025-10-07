@@ -132,11 +132,18 @@ fn handle_tray_event(app: &AppHandle, event: TrayIconEvent) {
     }
 }
 
-fn show_and_navigate(app: &AppHandle, target: &str) {
-    if let Some(window) = app.get_webview_window("main") {
+fn show_settings(app: &AppHandle, target: &str) {
+    if let Some(window) = app.get_webview_window("settings") {
         #[cfg(target_os = "macos")]
         {
-            let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
+            // Keep the app hidden from the Dock if only the settings window is shown
+            let main_visible = app
+                .get_webview_window("main")
+                .and_then(|w| w.is_visible().ok())
+                .unwrap_or(false);
+            if !main_visible {
+                let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+            }
         }
         let _ = window.show();
         let _ = window.set_focus();
@@ -208,9 +215,11 @@ pub fn run() {
                             }
                         }
                     }
-                    "settings" => show_and_navigate(app, "settings"),
-                    "logs" => show_and_navigate(app, "logs"),
-                    "usage" => show_and_navigate(app, "usage"),
+                    // Open the dedicated settings window and navigate within it
+                    "settings" => show_settings(app, "settings"),
+                    // Route logs/usage to the settings window too
+                    "logs" => show_settings(app, "logs"),
+                    "usage" => show_settings(app, "usage"),
                     _ => {}
                 })
                 .on_tray_icon_event(|tray, event| {
@@ -235,6 +244,17 @@ pub fn run() {
                             let _ = app_handle
                                 .set_activation_policy(tauri::ActivationPolicy::Accessory);
                         }
+                    }
+                });
+            }
+
+            // Intercept settings window close to hide instead of destroying the window
+            if let Some(settings_window) = app.get_webview_window("settings") {
+                let settings_clone = settings_window.clone();
+                settings_window.on_window_event(move |event| {
+                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                        api.prevent_close();
+                        let _ = settings_clone.hide();
                     }
                 });
             }
