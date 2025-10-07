@@ -56,6 +56,19 @@ export default function Airdrop({ setStep }: { setStep: (step: string) => void }
             class="rounded-xl border border-gray-700 p-2 w-full focus:outline-none"
             value={secretCode()}
             onInput={handleInputSecretCode}
+            onKeyDown={e => {
+              if ((e as KeyboardEvent).key === "Enter") {
+                e.preventDefault();
+                const canClaim =
+                  secretCode().length > 0 &&
+                  !loading() &&
+                  !claimed() &&
+                  appState.preparingSafe?.funding_tool !== "CompletedSuccess";
+                if (canClaim) {
+                  void handleClaim();
+                }
+              }
+            }}
             placeholder="Enter secret code"
           />
         </label>

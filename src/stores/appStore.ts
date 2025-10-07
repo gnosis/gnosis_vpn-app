@@ -18,7 +18,6 @@ import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import { isConnected, isConnecting, isPreparingSafe } from "@src/utils/status.ts";
 import { getEthAddress } from "@src/utils/address.ts";
 
-// export type AppScreen = "main" | "settings" | "logs" | "usage" | "onboarding";
 export type AppScreen = "main" | "onboarding";
 
 export interface AppState {
@@ -99,25 +98,28 @@ export function createAppStore(): AppStoreTuple {
     try {
       const response = await VPNService.getStatus();
       console.log("response", response);
-      // if (isPreparingSafe(response.status)) {
-      //   const prep = response.status.PreparingSafe;
-      //   const normalizedPreparingSafe = {
-      //     ...prep,
-      //     node_address: Array.isArray((prep as unknown as { node_address: unknown }).node_address)
-      //       ? getEthAddress((prep as unknown as { node_address: number[] }).node_address)
-      //       : prep.node_address,
-      //   } as typeof prep;
-      //   setState("preparingSafe", normalizedPreparingSafe);
-      //   if (!hasSetInitialScreen) {
-      //     setState("currentScreen", "onboarding");
-      //     hasSetInitialScreen = true;
-      //   }
-      // } else {
-      //   if (!hasSetInitialScreen) {
-      //     setState("currentScreen", "main");
-      //     hasSetInitialScreen = true;
-      //   }
-      // }
+      if (isPreparingSafe(response.status)) {
+        const prep = response.status.PreparingSafe;
+        const normalizedPreparingSafe = {
+          ...prep,
+          node_address: Array.isArray((prep as unknown as { node_address: unknown }).node_address)
+            ? getEthAddress((prep as unknown as { node_address: number[] }).node_address)
+            : prep.node_address,
+        } as typeof prep;
+        setState("preparingSafe", normalizedPreparingSafe);
+        if (!hasSetInitialScreen) {
+          setState("currentScreen", "onboarding");
+          hasSetInitialScreen = true;
+        }
+      } else if (state.currentScreen === "onboarding") {
+        setState("currentScreen", "main");
+        hasSetInitialScreen = true;
+      } else {
+        if (!hasSetInitialScreen) {
+          setState("currentScreen", "main");
+          hasSetInitialScreen = true;
+        }
+      }
 
       const normalizedAvailable = response.available_destinations.map((d: unknown) => {
         const anyD = d as {

@@ -4,12 +4,14 @@ import { useAppStore } from "@src/stores/appStore.ts";
 import { onCleanup, onMount } from "solid-js";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import Onboarding from "@src/screens/Onboarding.tsx";
+import { listen } from "@tauri-apps/api/event";
 
 const screens = { main: MainScreen, onboarding: Onboarding } as const;
 
 function App() {
   const [appState, appActions] = useAppStore();
   const [settings] = useSettingsStore();
+  let unlistenNavigate: (() => void) | undefined;
 
   onMount(() => {
     void (async () => {
@@ -24,11 +26,21 @@ function App() {
       }
 
       appActions.startStatusPolling(2000);
+
+      const validScreens = ["main", "onboarding"] as const;
+      type ValidScreen = (typeof validScreens)[number];
+      const isValidScreen = (s: string): s is ValidScreen => (validScreens as readonly string[]).includes(s);
+      unlistenNavigate = await listen<string>("navigate", ({ payload }) => {
+        if (isValidScreen(payload)) {
+          appActions.setScreen(payload);
+        }
+      });
     })();
   });
 
   onCleanup(() => {
     appActions.stopStatusPolling();
+    if (unlistenNavigate) unlistenNavigate();
   });
 
   return (
