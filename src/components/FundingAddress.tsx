@@ -8,7 +8,7 @@ import copyIcon from "@assets/icons/copy.svg";
 import qrIcon from "@assets/icons/qr.png";
 import { getEthAddress } from "@src/utils/address";
 
-export default function FundingAddress(props: { address: string }) {
+export default function FundingAddress(props: { address: string; full?: boolean }) {
   const [showQR, setShowQR] = createSignal(false);
 
   const [, logActions] = useLogsStore();
@@ -33,17 +33,12 @@ export default function FundingAddress(props: { address: string }) {
       <div class="flex flex-row justify-between items-center">
         <div class="text-sm">
           <div class="font-bold">Funding Address</div>
-          <button
-            class="font-mono"
-            onClick={() => copy()}
-            title="Copy address"
-            type="button"
-          >
-            {shortAddress(address)}
+          <button class="font-mono text-xs" onClick={() => copy()} title="Copy address" type="button">
+            {props.full ? address : shortAddress(address)}
           </button>
         </div>
 
-        <div class="flex gap-1 items-center">
+        <div class="flex gap-1 items-center h-[20px]">
           <a
             href={explorerUrl(address)}
             target="_blank"
@@ -51,12 +46,7 @@ export default function FundingAddress(props: { address: string }) {
             class="inline-flex items-center gap-1 p-1 hover:cursor-pointer"
             title="Open on Gnosisscan"
           >
-            <img
-              src={linkIcon}
-              height={20}
-              width={20}
-              alt="Open on Gnosisscan"
-            />
+            <img src={linkIcon} height={20} width={20} alt="Open on Gnosisscan" />
           </a>
 
           <button
