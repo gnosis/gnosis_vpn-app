@@ -8,7 +8,7 @@ import SettingsWindow from "@src/windows/SettingsWindow";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useAppStore } from "./stores/appStore";
 
-(async () => {
+(() => {
   const [, settingsActions] = useSettingsStore();
   const [, appActions] = useAppStore();
 

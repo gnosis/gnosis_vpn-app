@@ -1,6 +1,6 @@
 import FundingAddress from "@src/components/FundingAddress";
 import { Show } from "solid-js";
-import FundsInfoSkeleton from "./FundsInfoSkeleton";
+import FundsInfoSkeleton from "@src/components/FundsInfoSkeleton.tsx";
 
 type Props = {
   name?: string;
