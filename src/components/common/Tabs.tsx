@@ -1,4 +1,5 @@
 import { For } from "solid-js";
+import TabLabel from "@src/components/common/TabLabel";
 
 export interface TabItem {
   id: string;
@@ -13,30 +14,23 @@ interface TabsProps {
 }
 
 export default function Tabs(props: TabsProps) {
-  console.log("props", props);
   return (
-    <div class={props.class ?? ""}>
-      <div class="border-b border-gray-200 px-4">
-        <div class="flex gap-2">
-          <For each={props.tabs}>
-            {(t) => {
-              return (
-                <button
-                  type="button"
-                  class={`px-3 py-1.5 rounded-md text-sm transition-colors ${
-                    t.id === props.activeId
-                      ? "bg-gray-200 text-gray-900"
-                      : "text-gray-600 hover:bg-gray-100"
-                  }`}
-                  onClick={() => props.onChange(t.id)}
-                >
-                  {t.label}
-                </button>
-              );
-            }}
-          </For>
-        </div>
-      </div>
+    <div class="w-full border-b border-gray-200  flex items-center justify-center gap-2 p-2">
+      <For each={props.tabs}>
+        {t => {
+          return (
+            <button
+              type="button"
+              class={`px-3 py-1.5 rounded-lg text-sm transition-colors hover:cursor-pointer ${
+                t.id === props.activeId ? "bg-gray-200 text-gray-900" : "text-gray-600 hover:bg-gray-100"
+              }`}
+              onClick={() => props.onChange(t.id)}
+            >
+              <TabLabel label={t.label} />
+            </button>
+          );
+        }}
+      </For>
     </div>
   );
 }
