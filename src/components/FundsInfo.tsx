@@ -21,14 +21,19 @@ export default function FundsInfo(props: Props) {
             <span class="text-sm text-slate-600">{props.subtitle}</span>
           </div>
 
-          <Show when={!props.isLoading} fallback={<div class="h-5 w-20 rounded bg-slate-200 animate-pulse" />}>
+          <Show
+            when={!props.isLoading}
+            fallback={
+              <div class="h-5 w-20 rounded bg-slate-200 animate-pulse" />
+            }
+          >
             <span
               class={`font-extrabold ${
                 props.status === "Sufficient"
                   ? "text-emerald-600"
                   : props.status === "Empty"
-                    ? "text-red-600"
-                    : "text-amber-600"
+                  ? "text-red-600"
+                  : "text-amber-600"
               }
             `}
             >
@@ -38,7 +43,12 @@ export default function FundsInfo(props: Props) {
         </div>
         <div class="">
           {/* <span class="font-medium">{props.ticker}</span> */}
-          <Show when={!props.isLoading} fallback={<div class="h-6 w-32 rounded bg-sky-600/15 animate-pulse" />}>
+          <Show
+            when={!props.isLoading}
+            fallback={
+              <div class="h-6 w-32 rounded bg-sky-600/15 animate-pulse" />
+            }
+          >
             <span class="text-sky-600 font-semibold">{props.balance}</span>
           </Show>
         </div>
