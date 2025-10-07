@@ -20,6 +20,7 @@ nix develop --command deno task tauri dev
 - Install [Prerequisites](https://v2.tauri.app/start/prerequisites/)
 - `deno install`
 - `deno task tauri dev`
+- `deno task tauri build --target universal-apple-darwin` # macos
 
 ### Continuous Integration
 
