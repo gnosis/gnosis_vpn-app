@@ -7,7 +7,7 @@ import Tabs from "@src/components/common/Tabs.tsx";
 
 type GlobalTab = "settings" | "usage" | "logs";
 
-export default function GlobalSettings() {
+export default function SettingsWindow() {
   const [tab, setTab] = createSignal<GlobalTab>("settings");
   let unlisten: (() => void) | undefined;
 
