@@ -7,13 +7,12 @@ use tauri::{
 };
 mod platform;
 use platform::{Platform, PlatformInterface};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use tauri_plugin_store::StoreExt;
 
 use std::collections::HashMap;
 use std::time::Duration;
 use std::{path::PathBuf, sync::Mutex};
-
 
 #[derive(Clone, Debug, Serialize, Default)]
 struct AppSettings {
@@ -72,17 +71,20 @@ pub enum ConnectionState {
 // in order of priority
 #[derive(Debug, Serialize, Deserialize)]
 pub enum FundingState {
-    Unknown,                // state not queried yet
+    Unknown,                         // state not queried yet
     TopIssue(balance::FundingIssue), // there is at least one issue
     WellFunded,
 }
 
-
 impl From<connection::destination::RoutingOptions> for RoutingOptions {
     fn from(ro: connection::destination::RoutingOptions) -> Self {
         match ro {
-            connection::destination::RoutingOptions::Hops(hops) => RoutingOptions::Hops(hops.into()),
-            connection::destination::RoutingOptions::IntermediatePath(path) => RoutingOptions::IntermediatePath(path.into_iter().map(|a| a.to_string()).collect()),
+            connection::destination::RoutingOptions::Hops(hops) => {
+                RoutingOptions::Hops(hops.into())
+            }
+            connection::destination::RoutingOptions::IntermediatePath(path) => {
+                RoutingOptions::IntermediatePath(path.into_iter().map(|a| a.to_string()).collect())
+            }
         }
     }
 }
@@ -97,11 +99,13 @@ impl From<command::Destination> for Destination {
     }
 }
 
-impl From <command::ConnectionState> for ConnectionState {
+impl From<command::ConnectionState> for ConnectionState {
     fn from(cs: command::ConnectionState) -> Self {
         match cs {
             command::ConnectionState::Connecting(dest) => ConnectionState::Connecting(dest.into()),
-            command::ConnectionState::Disconnecting(dest) => ConnectionState::Disconnecting(dest.into()),
+            command::ConnectionState::Disconnecting(dest) => {
+                ConnectionState::Disconnecting(dest.into())
+            }
             command::ConnectionState::Connected(dest) => ConnectionState::Connected(dest.into()),
             command::ConnectionState::Disconnected => ConnectionState::Disconnected,
         }
@@ -142,12 +146,15 @@ impl From<command::StatusResponse> for StatusResponse {
     fn from(sr: command::StatusResponse) -> Self {
         StatusResponse {
             run_mode: sr.run_mode.into(),
-            available_destinations: sr.available_destinations.into_iter().map(|d| d.into()).collect(),
+            available_destinations: sr
+                .available_destinations
+                .into_iter()
+                .map(|d| d.into())
+                .collect(),
             network: sr.network.to_string(),
         }
     }
 }
-
 
 #[tauri::command]
 fn status() -> Result<StatusResponse, String> {
@@ -460,7 +467,7 @@ pub fn run() {
 
             // Intercept window close to hide to tray instead of exiting
             if let Some(window) = app.get_webview_window("main") {
-                        #[cfg(target_os = "macos")]
+                #[cfg(target_os = "macos")]
                 let app_handle = app.handle().clone();
                 let window_clone = window.clone();
                 window.on_window_event(move |event| {
