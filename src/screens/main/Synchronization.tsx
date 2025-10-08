@@ -3,7 +3,7 @@ import syncIcon from "@assets/icons/sync.svg";
 import { useAppStore } from "@src/stores/appStore.ts";
 
 export default function Synchronization() {
-  const [state] = useAppStore();
+  const [state, appActions] = useAppStore();
   const [maxProgress, setMaxProgress] = createSignal(0);
   const progressPct = createMemo(() => {
     const rm = state.runMode;
@@ -16,6 +16,10 @@ export default function Synchronization() {
     const prev = maxProgress();
     const next = Math.max(prev, clamped);
     if (next !== prev) setMaxProgress(next);
+    const progress = Math.round(next * 100);
+    if (progress >= 100 && state.vpnStatus !== "Warmup") {
+      appActions.setScreen("main");
+    }
     return Math.round(next * 100);
   });
 
