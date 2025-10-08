@@ -4649,7 +4649,7 @@ dependencies = [
 [[package]]
 name = "gnosis_vpn-lib"
 version = "0.17.0"
-source = "git+ssh://git@github.com/gnosis/gnosis_vpn-client.git?branch=kauki%2Fedgli%2Fintegrate-hopr-lib-natively#b1efeb71f05273168da02b6a83b0c42d89f3baa4"
+source = "git+ssh://git@github.com/gnosis/gnosis_vpn-client.git?rev=5d311a0d5445c8c09b210068aab182be0435bba7#5d311a0d5445c8c09b210068aab182be0435bba7"
 dependencies = [
  "alloy",
  "anyhow",

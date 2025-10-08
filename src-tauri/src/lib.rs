@@ -1,17 +1,19 @@
 use gnosis_vpn_lib::prelude::Address;
-use gnosis_vpn_lib::{command, socket};
+use gnosis_vpn_lib::{balance, command, connection, socket};
 use tauri::{
     AppHandle, Emitter, Manager,
     menu::{Menu, MenuBuilder, MenuItem},
     tray::{TrayIconBuilder, TrayIconEvent},
 };
-
-use std::time::Duration;
-use std::{path::PathBuf, sync::Mutex};
 mod platform;
 use platform::{Platform, PlatformInterface};
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 use tauri_plugin_store::StoreExt;
+
+use std::collections::HashMap;
+use std::time::Duration;
+use std::{path::PathBuf, sync::Mutex};
+
 
 #[derive(Clone, Debug, Serialize, Default)]
 struct AppSettings {
@@ -20,14 +22,143 @@ struct AppSettings {
     start_minimized: bool,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct StatusResponse {
+    pub run_mode: RunMode,
+    pub available_destinations: Vec<Destination>,
+    pub network: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Destination {
+    pub meta: HashMap<String, String>,
+    pub address: String,
+    pub routing: RoutingOptions,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum RoutingOptions {
+    Hops(usize),
+    IntermediatePath(Vec<String>),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum RunMode {
+    /// Initial start, after creating safe this state will not be reached again
+    PreparingSafe {
+        node_address: String,
+        node_xdai: String,
+        node_wxhopr: String,
+        funding_tool: balance::FundingTool,
+    },
+
+    /// Subsequent service start up in this state and after preparing safe
+    Warmup { sync_progress: f32 },
+    /// Normal operation where connections can be made
+    Running {
+        connection: ConnectionState,
+        funding: FundingState,
+    },
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum ConnectionState {
+    Connecting(Destination),
+    Disconnecting(Destination),
+    Connected(Destination),
+    Disconnected,
+}
+
+// in order of priority
+#[derive(Debug, Serialize, Deserialize)]
+pub enum FundingState {
+    Unknown,                // state not queried yet
+    TopIssue(balance::FundingIssue), // there is at least one issue
+    WellFunded,
+}
+
+
+impl From<connection::destination::RoutingOptions> for RoutingOptions {
+    fn from(ro: connection::destination::RoutingOptions) -> Self {
+        match ro {
+            connection::destination::RoutingOptions::Hops(hops) => RoutingOptions::Hops(hops.into()),
+            connection::destination::RoutingOptions::IntermediatePath(path) => RoutingOptions::IntermediatePath(path.into_iter().map(|a| a.to_string()).collect()),
+        }
+    }
+}
+
+impl From<command::Destination> for Destination {
+    fn from(dest: command::Destination) -> Self {
+        Destination {
+            meta: dest.meta,
+            address: dest.address.to_string(),
+            routing: dest.path.into(),
+        }
+    }
+}
+
+impl From <command::ConnectionState> for ConnectionState {
+    fn from(cs: command::ConnectionState) -> Self {
+        match cs {
+            command::ConnectionState::Connecting(dest) => ConnectionState::Connecting(dest.into()),
+            command::ConnectionState::Disconnecting(dest) => ConnectionState::Disconnecting(dest.into()),
+            command::ConnectionState::Connected(dest) => ConnectionState::Connected(dest.into()),
+            command::ConnectionState::Disconnected => ConnectionState::Disconnected,
+        }
+    }
+}
+
+impl From<command::RunMode> for RunMode {
+    fn from(rm: command::RunMode) -> Self {
+        match rm {
+            command::RunMode::PreparingSafe {
+                node_address,
+                node_xdai,
+                node_wxhopr,
+                funding_tool,
+            } => RunMode::PreparingSafe {
+                node_address: node_address.to_string(),
+                node_xdai: node_xdai.amount().to_string(),
+                node_wxhopr: node_wxhopr.amount().to_string(),
+                funding_tool,
+            },
+            command::RunMode::Warmup { sync_progress } => RunMode::Warmup { sync_progress },
+            command::RunMode::Running {
+                connection,
+                funding,
+            } => RunMode::Running {
+                connection: connection.into(),
+                funding: match funding {
+                    command::FundingState::Unknown => FundingState::Unknown,
+                    command::FundingState::TopIssue(issue) => FundingState::TopIssue(issue),
+                    command::FundingState::WellFunded => FundingState::WellFunded,
+                },
+            },
+        }
+    }
+}
+
+impl From<command::StatusResponse> for StatusResponse {
+    fn from(sr: command::StatusResponse) -> Self {
+        StatusResponse {
+            run_mode: sr.run_mode.into(),
+            available_destinations: sr.available_destinations.into_iter().map(|d| d.into()).collect(),
+            network: sr.network.to_string(),
+        }
+    }
+}
+
+
 #[tauri::command]
-fn status() -> Result<command::StatusResponse, String> {
+fn status() -> Result<StatusResponse, String> {
     let p = PathBuf::from(socket::DEFAULT_PATH);
     let resp = socket::process_cmd(&p, &command::Command::Status).map_err(|e| e.to_string())?;
-    match resp {
-        command::Response::Status(resp) => Ok(resp),
-        _ => Err("Unexpected response type".to_string()),
-    }
+    let status_resp: command::StatusResponse = match resp {
+        command::Response::Status(resp) => resp,
+        _ => return Err("Unexpected response type".to_string()),
+    };
+    // Convert types for frontend
+    Ok(status_resp.into())
 }
 
 #[tauri::command]
@@ -329,6 +460,7 @@ pub fn run() {
 
             // Intercept window close to hide to tray instead of exiting
             if let Some(window) = app.get_webview_window("main") {
+                        #[cfg(target_os = "macos")]
                 let app_handle = app.handle().clone();
                 let window_clone = window.clone();
                 window.on_window_event(move |event| {
