@@ -9,14 +9,11 @@ import checkIcon from "@assets/icons/checked-box-filled.svg";
 import { isWxHOPRTransferred, isXDAITransferred } from "@src/utils/status.ts";
 import backIcon from "@assets/icons/arrow-left.svg";
 
-export default function Manually(
-  { setStep }: { setStep: (step: string) => void },
-) {
+export default function Manually({ setStep }: { setStep: (step: string) => void }) {
   const [appState, appActions] = useAppStore();
   const [, logActions] = useLogsStore();
-  const wxhoprTransferred = () =>
-    isWxHOPRTransferred(appState.connectionStatus);
-  const xdaiTransferred = () => isXDAITransferred(appState.connectionStatus);
+  const wxhoprTransferred = () => isWxHOPRTransferred(appState);
+  const xdaiTransferred = () => isXDAITransferred(appState);
   const [ready, setReady] = createSignal(false);
   const [loading, setLoading] = createSignal(false);
 
@@ -34,7 +31,7 @@ export default function Manually(
         setLoading(true);
         // check if it's ready
         // simulate readiness check delay
-        await new Promise((resolve) => setTimeout(resolve, 1500));
+        await new Promise(resolve => setTimeout(resolve, 1500));
         setReady(true);
       } catch (error) {
         logActions.append(`Error checking if node is funded: ${String(error)}`);
@@ -42,18 +39,14 @@ export default function Manually(
         setLoading(false);
       }
     } else {
-      appActions.setScreen("main");
+      appActions.setScreen("synchronization");
     }
   };
 
   return (
     <div class="h-full w-full flex flex-col items-stretch p-6 gap-4">
       <h1 class="w-full text-2xl font-bold text-center my-6 flex flex-row">
-        <button
-          type="button"
-          class="text-sm text-gray-500 hover:cursor-pointer"
-          onClick={() => setStep("airdrop")}
-        >
+        <button type="button" class="text-sm text-gray-500 hover:cursor-pointer" onClick={() => setStep("airdrop")}>
           <img src={backIcon} alt="Back" class="h-4 w-4 mr-4" />
         </button>
         Before we connect
@@ -61,11 +54,7 @@ export default function Manually(
       <div class="flex flex-col gap-4 flex-grow">
         <label class="flex flex-row w-full hover:cursor-pointer">
           <div class="pr-4 pt-1">
-            <Checkbox
-              checked={wxhoprTransferred()}
-              onChange={() => {}}
-              disabled
-            />
+            <Checkbox checked={wxhoprTransferred()} onChange={() => {}} disabled />
           </div>
           <div class="flex flex-col">
             <div class="font-bold">1. Transfer wxHOPR (Gnosis Chain)</div>
@@ -75,45 +64,31 @@ export default function Manually(
 
         <label class="flex flex-row w-full hover:cursor-pointer">
           <div class="pr-4 pt-1">
-            <Checkbox
-              checked={xdaiTransferred()}
-              onChange={() => {}}
-              disabled
-            />
+            <Checkbox checked={xdaiTransferred()} onChange={() => {}} disabled />
           </div>
           <div class="flex flex-col">
             <div class="font-bold">2. Transfer xDAI (Gnosis Chain)</div>
-            <div class="text-sm text-gray-500">
-              1xDAI is enough for one year switching exit nodes.
-            </div>
+            <div class="text-sm text-gray-500">1xDAI is enough for one year switching exit nodes.</div>
           </div>
         </label>
 
-        <FundingAddress address={appState.preparingSafe?.node_address ?? ""} />
+        {/* <FundingAddress address={appState.runMode?.PreparingSafe?.node_address ?? ""} /> */}
         <div class="text-sm text-gray-500">
-          After the tx has been made, it can take up to two minutes, until your
-          App can connect.
+          After the tx has been made, it can take up to two minutes, until your App can connect.
         </div>
 
         <Show when={ready()}>
           <div class="flex flex-row w-full h-full items-center fade-in-up">
             <div class="flex flex-row">
               <img src={checkIcon} alt="Check" class="h-5 w-5 mr-4 mt-1" />
-              <div class="text-sm">
-                All necessary funds have been received successfully. You can
-                proceed.
-              </div>
+              <div class="text-sm">All necessary funds have been received successfully. You can proceed.</div>
             </div>
           </div>
         </Show>
       </div>
 
       <Help />
-      <Button
-        onClick={handleClick}
-        disabled={!wxhoprTransferred() || !xdaiTransferred()}
-        loading={loading()}
-      >
+      <Button onClick={handleClick} disabled={!wxhoprTransferred() || !xdaiTransferred()} loading={loading()}>
         {getButtonLabel()}
       </Button>
     </div>
