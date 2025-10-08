@@ -4,9 +4,14 @@ import { useAppStore } from "@src/stores/appStore.ts";
 import { onCleanup, onMount } from "solid-js";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import Onboarding from "@src/screens/main/Onboarding";
+import Synchronization from "@src/screens/main/Synchronization";
 import { listen } from "@tauri-apps/api/event";
 
-const screens = { main: MainScreen, onboarding: Onboarding } as const;
+const screens = {
+  main: MainScreen,
+  onboarding: Onboarding,
+  synchronization: Synchronization,
+} as const;
 
 function App() {
   const [appState, appActions] = useAppStore();
@@ -23,7 +28,7 @@ function App() {
         await appActions.connect();
       }
 
-      const validScreens = ["main", "onboarding"] as const;
+      const validScreens = ["main", "onboarding", "synchronization"] as const;
       type ValidScreen = (typeof validScreens)[number];
       const isValidScreen = (s: string): s is ValidScreen => (validScreens as readonly string[]).includes(s);
       unlistenNavigate = await listen<string>("navigate", ({ payload }) => {

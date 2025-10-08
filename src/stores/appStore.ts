@@ -11,7 +11,7 @@ import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import { isConnected, isConnecting, getVpnStatus } from "@src/utils/status.ts";
 import { getEthAddress } from "@src/utils/address.ts";
 
-export type AppScreen = "main" | "onboarding";
+export type AppScreen = "main" | "onboarding" | "synchronization";
 
 // export interface AppState {
 //   currentScreen: AppScreen;
@@ -120,6 +120,7 @@ export function createAppStore(): AppStoreTuple {
   const getStatus = async () => {
     try {
       const response = await VPNService.getStatus();
+      console.log("response", response);
       if ("PreparingSafe" in response.run_mode) {
         const prep = response.run_mode.PreparingSafe;
         const normalizedPreparingSafe = {
@@ -133,6 +134,10 @@ export function createAppStore(): AppStoreTuple {
           setState("currentScreen", "onboarding");
           hasSetInitialScreen = true;
         }
+      } else if ("Warmup" in response.run_mode) {
+        setState("runMode", reconcile(response.run_mode));
+        setState("currentScreen", "synchronization");
+        hasSetInitialScreen = true;
       } else if (state.currentScreen === "onboarding") {
         setState("currentScreen", "main");
         hasSetInitialScreen = true;
