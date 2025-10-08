@@ -330,13 +330,18 @@ fn toggle_main_window_visibility(app: &AppHandle) {
                 x: mon_x + mon_w + 10,
                 y: target_y,
             }));
-            let _ = window.show();
-            let _ = window.set_focus();
 
             let steps: i32 = 16;
             let step_ms = 10u64;
             let handle = window.clone();
             tauri::async_runtime::spawn(async move {
+                // Ensure first visible frame is off-screen to avoid flash, then show and focus
+                let _ = handle.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
+                    x: mon_x + mon_w + 10,
+                    y: target_y,
+                }));
+                let _ = handle.show();
+                let _ = handle.set_focus();
                 for i in 0..=steps {
                     let t = i as f32 / steps as f32;
                     // smoothstep easing (ease-in-out)
