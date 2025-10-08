@@ -5,7 +5,9 @@ import { useAppStore } from "@src/stores/appStore";
 export default function ConnectButton() {
   const [appState, appActions] = useAppStore();
 
-  const isActive = createMemo(() => appState.vpnStatus === "Connected" || appState.vpnStatus === "Connecting");
+  const isActive = createMemo(() =>
+    appState.vpnStatus === "Connected" || appState.vpnStatus === "Connecting"
+  );
   const label = createMemo(() => (isActive() ? "Stop" : "Connect"));
 
   const handleClick = async () => {
@@ -26,7 +28,8 @@ export default function ConnectButton() {
       <Button
         size="lg"
         onClick={() => void handleClick()}
-        disabled={appState.isLoading || appState.vpnStatus === "ServiceUnavailable"}
+        disabled={appState.isLoading ||
+          appState.vpnStatus === "ServiceUnavailable"}
       >
         {label()}
       </Button>

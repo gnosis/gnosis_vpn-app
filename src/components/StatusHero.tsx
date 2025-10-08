@@ -7,7 +7,9 @@ import disconnectedImg from "@assets/img/disconnected.svg";
 export function StatusHero() {
   const [appState] = useAppStore();
 
-  const isBusy = () => appState.vpnStatus === "Connecting" || appState.vpnStatus === "Disconnecting";
+  const isBusy = () =>
+    appState.vpnStatus === "Connecting" ||
+    appState.vpnStatus === "Disconnecting";
 
   return (
     <div class="w-full h-1/3 flex flex-col items-center justify-center gap-3">
