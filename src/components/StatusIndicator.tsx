@@ -1,26 +1,21 @@
-import { createMemo } from "solid-js";
-import {
-  isConnected,
-  isConnecting,
-  isDisconnecting,
-  isServiceUnavailable,
-} from "@src/utils/status";
 import { useAppStore } from "@src/stores/appStore";
 
 export function StatusIndicator() {
   const [appState] = useAppStore();
 
-  const status = createMemo(() => {
-    if (isConnected(appState.connectionStatus)) {
+  console.log("vpn status", appState.vpnStatus);
+
+  const status = () => {
+    if (appState.vpnStatus === "Connected") {
       return { text: "Connected", color: "bg-vpn-light-green" };
     }
-    if (isConnecting(appState.connectionStatus)) {
+    if (appState.vpnStatus === "Connecting") {
       return { text: "Connecting", color: "bg-vpn-yellow" };
     }
-    if (isDisconnecting(appState.connectionStatus)) {
+    if (appState.vpnStatus === "Disconnecting") {
       return { text: "Disconnecting", color: "bg-vpn-yellow" };
     }
-    if (isServiceUnavailable(appState.connectionStatus)) {
+    if (appState.vpnStatus === "ServiceUnavailable") {
       return {
         text: appState.isLoading ? "Loading..." : "Service unavailable",
         color: "bg-vpn-red",
@@ -30,7 +25,7 @@ export function StatusIndicator() {
       text: appState.isLoading ? "Loading..." : "Disconnected",
       color: "bg-vpn-red",
     };
-  });
+  };
 
   return (
     <div class="flex flex-row gap-2 items-center justify-between rounded-full bg-white px-4 py-2 h-10">

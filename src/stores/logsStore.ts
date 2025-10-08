@@ -1,10 +1,4 @@
 import { createStore, type Store } from "solid-js/store";
-import {
-  isConnected,
-  isConnecting,
-  isDisconnected,
-  isDisconnecting,
-} from "@src/utils/status.ts";
 import { type StatusResponse } from "@src/services/vpnService.ts";
 import { formatDestination } from "@src/utils/destinations.ts";
 import { getEthAddress } from "@src/utils/address";
@@ -27,12 +21,8 @@ export type LogEntry = { date: string; message: string };
 export function createLogsStore(): LogsStoreTuple {
   const [state, setState] = createStore<LogsState>({ logs: [] });
 
-  function buildStatusLog(
-    args: { response?: StatusResponse; error?: string },
-  ): string | undefined {
-    const lastMessage = state.logs.length
-      ? state.logs[state.logs.length - 1].message
-      : undefined;
+  function buildStatusLog(args: { response?: StatusResponse; error?: string }): string | undefined {
+    const lastMessage = state.logs.length ? state.logs[state.logs.length - 1].message : undefined;
     return buildLogContent(args, lastMessage);
   }
 
@@ -45,44 +35,44 @@ export function createLogsStore(): LogsStoreTuple {
   ): string | undefined {
     let content: string | undefined;
     if (args.response) {
-      const statusValue = args.response.status;
-      if (isConnected(statusValue)) {
-        const destination = statusValue.Connected;
-        const where = formatDestination(destination);
-        content = `Connected: ${where} - ${
-          shortAddress(getEthAddress(destination.address))
-        }`;
-      } else if (isConnecting(statusValue)) {
-        const destination = statusValue.Connecting;
-        const where = formatDestination(destination);
-        content = `Connecting: ${where} - ${
-          shortAddress(getEthAddress(destination.address))
-        }`;
-      } else if (isDisconnected(statusValue)) {
-        const lastWasDisconnected = Boolean(
-          lastMessage && lastMessage.startsWith("Disconnected"),
-        );
-        if (lastWasDisconnected) {
-          content = undefined;
+      const rm = args.response.run_mode;
+      if ("Running" in rm) {
+        const connection = rm.Running.connection;
+        if (typeof connection === "object") {
+          if ("Connected" in connection) {
+            const destination = connection.Connected;
+            const where = formatDestination(destination);
+            content = `Connected: ${where} - ${shortAddress(getEthAddress(destination.address))}`;
+          } else if ("Connecting" in connection) {
+            const destination = connection.Connecting;
+            const where = formatDestination(destination);
+            content = `Connecting: ${where} - ${shortAddress(getEthAddress(destination.address))}`;
+          } else if ("Disconnecting" in connection) {
+            const destination = connection.Disconnecting;
+            const where = formatDestination(destination);
+            content = `Disconnecting: ${where} - ${shortAddress(getEthAddress(destination.address))}`;
+          }
+        } else if (connection === "Disconnected") {
+          const lastWasDisconnected = Boolean(lastMessage && lastMessage.startsWith("Disconnected"));
+          if (!lastWasDisconnected) {
+            const lines = args.response.available_destinations.map(d => {
+              const where = formatDestination(d);
+              return `- ${where} - ${shortAddress(getEthAddress(d.address))}`;
+            });
+            content = `Disconnected. Available:\n${lines.join("\n")}`;
+          }
         } else {
-          const lines = args.response.available_destinations.map((d) => {
-            const where = formatDestination(d);
-            return `- ${where} - ${shortAddress(getEthAddress(d.address))}`;
-          });
-          content = `Disconnected. Available:\n${lines.join("\n")}`;
+          const destinations = args.response.available_destinations.length;
+          content = `status: ${connection}, destinations: ${destinations}`;
         }
-      } else if (isDisconnecting(statusValue)) {
-        const destination = statusValue.Disconnecting;
-        const where = formatDestination(destination);
-        content = `Disconnecting: ${where} - ${
-          shortAddress(getEthAddress(destination.address))
-        }`;
+      } else if ("PreparingSafe" in rm) {
+        content = "PreparingSafe";
+      } else if ("Warmup" in rm) {
+        const progress = rm.Warmup.sync_progress;
+        content = `Warmup: ${progress.toFixed(2)}`;
       } else {
-        const statusLabel = typeof statusValue === "string"
-          ? statusValue
-          : Object.keys(statusValue)[0] || "Unknown";
         const destinations = args.response.available_destinations.length;
-        content = `status: ${statusLabel}, destinations: ${destinations}`;
+        content = `status: Unknown, destinations: ${destinations}`;
       }
     } else if (args.error) {
       content = `${args.error}`;
@@ -92,10 +82,8 @@ export function createLogsStore(): LogsStoreTuple {
 
   const actions = {
     append: (message: string) => {
-      setState("logs", (existing) => {
-        const lastMessage = existing.length
-          ? existing[existing.length - 1].message
-          : "";
+      setState("logs", existing => {
+        const lastMessage = existing.length ? existing[existing.length - 1].message : "";
         if (lastMessage === message) return existing;
         const entry: LogEntry = { date: new Date().toISOString(), message };
         return [...existing, entry];
