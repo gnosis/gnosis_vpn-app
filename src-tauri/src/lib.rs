@@ -115,7 +115,9 @@ impl From<command::ConnectionState> for ConnectionState {
 impl From<command::RunMode> for RunMode {
     fn from(rm: command::RunMode) -> Self {
         match rm {
-            command::RunMode::Init | command::RunMode::ValueingTicket =>  RunMode::Warmup { sync_progress: 0.0 },
+            command::RunMode::Init | command::RunMode::ValueingTicket => {
+                RunMode::Warmup { sync_progress: 0.0 }
+            }
             command::RunMode::PreparingSafe {
                 node_address,
                 node_xdai,
@@ -127,7 +129,10 @@ impl From<command::RunMode> for RunMode {
                 node_wxhopr: node_wxhopr.amount().to_string(),
                 funding_tool,
             },
-            command::RunMode::Warmup { sync_progress, hopr_state: _ } => RunMode::Warmup { sync_progress },
+            command::RunMode::Warmup {
+                sync_progress,
+                hopr_state: _,
+            } => RunMode::Warmup { sync_progress },
             command::RunMode::Running {
                 connection,
                 funding,
