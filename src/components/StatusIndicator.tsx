@@ -30,7 +30,9 @@ export function StatusIndicator({ size }: { size?: "sm" | "lg" }) {
   };
 
   return (
-    <div class={`flex flex-row gap-2 items-center justify-between py-2 ${containerClass}`}>
+    <div
+      class={`flex flex-row gap-2 items-center justify-between py-2 ${containerClass}`}
+    >
       <div class={`w-3 h-3 rounded-2xl ${status().color}`} />
       <p class="text-sm font-bold">{status().text}</p>
     </div>
