@@ -4638,6 +4638,7 @@ name = "gnosis_vpn-app"
 version = "0.1.0"
 dependencies = [
  "gnosis_vpn-lib",
+ "liblzma",
  "serde",
  "serde_json",
  "tauri",
