@@ -5,6 +5,7 @@ import { Dynamic } from "solid-js/web";
 import Manually from "@src/components/onboarding/Manually";
 import { listen } from "@tauri-apps/api/event";
 import Synchronization from "@src/screens/main/Synchronization";
+import StatusIndicator from "@src/components/StatusIndicator";
 
 const steps = {
   start: Start,
@@ -14,21 +15,14 @@ const steps = {
 };
 
 export default function Onboarding() {
-  const [step, setStep] = createSignal<
-    "start" | "airdrop" | "manually" | "synchronization"
-  >("start");
+  const [step, setStep] = createSignal<"start" | "airdrop" | "manually">("start");
   let unlistenSetStep: (() => void) | undefined;
 
   onMount(() => {
     void (async () => {
-      unlistenSetStep = await listen<
-        "start" | "airdrop" | "manually" | "synchronization"
-      >(
-        "onboarding:set-step",
-        ({ payload }) => {
-          setStep(payload);
-        },
-      );
+      unlistenSetStep = await listen<"start" | "airdrop" | "manually">("onboarding:set-step", ({ payload }) => {
+        setStep(payload);
+      });
     })();
   });
 
@@ -37,8 +31,9 @@ export default function Onboarding() {
   });
 
   return (
-    <div class="h-screen bg-gray-100">
+    <div class="h-screen bg-gray-100 flex flex-col items-center justify-between">
       <Dynamic component={steps[step()]} setStep={setStep} />
+      <StatusIndicator size="sm" />
     </div>
   );
 }

@@ -1,10 +1,11 @@
 import { useAppStore } from "@src/stores/appStore";
 
-export function StatusIndicator() {
+export function StatusIndicator({ size }: { size?: "sm" | "lg" }) {
   const [appState] = useAppStore();
 
   console.log("vpn status", appState.vpnStatus);
 
+  const containerClass = size === "sm" ? "" : "rounded-full bg-white px-4 h-10";
   const status = () => {
     if (appState.vpnStatus === "Connected") {
       return { text: "Connected", color: "bg-vpn-light-green" };
@@ -20,15 +21,16 @@ export function StatusIndicator() {
         text: appState.isLoading ? "Loading..." : "Service unavailable",
         color: "bg-vpn-red",
       };
+    } else {
+      return {
+        text: "Disconnected",
+        color: "bg-gray-500",
+      };
     }
-    return {
-      text: appState.isLoading ? "Loading..." : "Disconnected",
-      color: "bg-vpn-red",
-    };
   };
 
   return (
-    <div class="flex flex-row gap-2 items-center justify-between rounded-full bg-white px-4 py-2 h-10">
+    <div class={`flex flex-row gap-2 items-center justify-between py-2 ${containerClass}`}>
       <div class={`w-3 h-3 rounded-2xl ${status().color}`} />
       <p class="text-sm font-bold">{status().text}</p>
     </div>
