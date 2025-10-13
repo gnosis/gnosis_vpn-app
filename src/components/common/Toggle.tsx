@@ -14,8 +14,8 @@ export default function Toggle(
         role="switch"
         class={`sr-only peer ${className ?? ""}`}
       />
-      <div class="w-10 h-6 rounded-full bg-gray-200 dark:bg-gray-700 relative transition-colors peer-checked:bg-emerald-500 peer-checked:[&>div]:translate-x-4">
-        <div class="absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transform transition-transform">
+      <div class="w-12 h-8 rounded-full bg-gray-200 relative transition-colors peer-checked:bg-black peer-checked:[&>div]:translate-x-4">
+        <div class="absolute top-0.5 left-0.5 h-7 w-7 rounded-full bg-white shadow transform transition-transform">
         </div>
       </div>
     </label>

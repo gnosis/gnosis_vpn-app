@@ -22,6 +22,9 @@
   line-height: 24px;
   font-weight: 400;
 
+  width: 100%;
+  height: 100%;
+
   color: #0f0f0f;
   background-color: #f6f6f6;
 
@@ -56,6 +59,32 @@
   --color-vpn-red: #ff7272;
 }
 
+/* Tick-spin: rotate to 180°, pause, then to 360°, pause */
+@theme {
+  --animate-spin-tick: spin-tick 1.8s linear infinite;
+  @keyframes spin-tick {
+    0% {
+      transform: rotate(5deg);
+    }
+    5% {
+      transform: rotate(5deg);
+    }
+
+    45% {
+      transform: rotate(185deg);
+    }
+    55% {
+      transform: rotate(185deg);
+    }
+
+    95% {
+      transform: rotate(365deg);
+    }
+    100% {
+      transform: rotate(365deg);
+    }
+  }
+}
 /* Animated connector line from Connect button to ExitNode */
 .vpn-connector-line {
   position: absolute;
@@ -150,4 +179,27 @@
   100% {
     opacity: 1;
   }
+}
+
+/* Generic appear animation for inline notices */
+.fade-in-up {
+  animation: fade-in-up 240ms ease-out both;
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.system-window {
+  background-color: color-mix(in oklab, canvas, canvas 92%);
+  /* Fallbacks for older engines */
+  background-color: -apple-system-control-background;
+  background-color: #f5f5f7;
 }

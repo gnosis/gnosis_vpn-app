@@ -1,11 +1,11 @@
 import { createEffect, createSignal, onCleanup, onMount } from "solid-js";
-import { useAppStore } from "../stores/appStore.ts";
-import { StatusIndicator } from "../components/StatusIndicator.tsx";
-import Navigation from "../components/Navigation.tsx";
-import ExitNode from "../components/ExitNode.tsx";
-import ConnectButton from "../components/ConnectButton.tsx";
-import StatusHero from "../components/StatusHero.tsx";
-import StatusLine from "../components/StatusLine.tsx";
+import { useAppStore } from "@src/stores/appStore";
+import { StatusIndicator } from "@src/components/StatusIndicator";
+import Navigation from "@src/components/Navigation";
+import ExitNode from "@src/components/ExitNode";
+import ConnectButton from "@src/components/ConnectButton";
+import StatusHero from "@src/components/StatusHero";
+import StatusLine from "@src/components/StatusLine";
 
 export function MainScreen() {
   const [appState] = useAppStore();
@@ -31,9 +31,11 @@ export function MainScreen() {
   });
 
   createEffect(() => {
-    void appState.connectionStatus;
+    void appState.vpnStatus;
     requestAnimationFrame(() => computeConnectorHeight());
   });
+
+  console.log("appState", appState);
 
   return (
     <div class="flex w-full flex-col h-full py-6 px-4">
@@ -47,10 +49,7 @@ export function MainScreen() {
         class="flex w-full flex-1 flex-col items-center relative"
       >
         <StatusHero />
-        <div
-          ref={exitAnchorRef}
-          class="w-full flex justify-center z-10"
-        >
+        <div ref={exitAnchorRef} class="w-full flex justify-center z-10">
           <ExitNode />
         </div>
         <StatusLine heightPx={connectorHeight()} />

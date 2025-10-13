@@ -1,4 +1,4 @@
-import type { FundingIssue } from "../services/vpnService.ts";
+import type { FundingIssue } from "@src/services/vpnService.ts";
 
 export type StatusText = "Sufficient" | "Low" | "Empty" | string;
 

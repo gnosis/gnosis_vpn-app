@@ -1,13 +1,38 @@
+// import { toBytes20 } from "@src/utils/address";
 import { invoke } from "@tauri-apps/api/core";
 
 export type Path = { Hops: number } | { IntermediatePath: string[] };
+
 export interface Destination {
   meta: Record<string, string>;
   address: string;
   path: Path;
 }
 
-export type Status =
+export interface PreparingSafe {
+  node_address: string;
+  node_xdai: string;
+  node_wxhopr: string;
+  funding_tool: FundingTool;
+}
+
+export interface Warmup {
+  /// number between 0.0 and 1.0, can go higher than 1.0 and can jump backwards
+  sync_progress: number;
+}
+
+export interface Running {
+  connection: ConnectionState;
+  funding: FundingState;
+}
+
+export type FundingTool =
+  | "NotStarted"
+  | "InProgress"
+  | "CompletedSuccess"
+  | "CompletedError";
+
+export type ConnectionState =
   | { Connecting: Destination }
   | { Disconnecting: Destination }
   | { Connected: Destination }
@@ -28,11 +53,18 @@ export type FundingState =
   | "WellFunded";
 
 export type StatusResponse = {
-  status: Status;
+  run_mode: RunMode;
   available_destinations: Destination[];
-  network: string | null;
-  funding: FundingState;
+  network: string;
 };
+
+export type RunMode =
+  /// Initial start, after creating safe this state will not be reached again
+  | { PreparingSafe: PreparingSafe }
+  /// Subsequent service start up in this state and after preparing safe
+  | { Warmup: Warmup }
+  /// Normal operation where connections can be made
+  | { Running: Running };
 
 export type ConnectResponse = { Connecting: Destination } | "AddressNotFound";
 export type DisconnectResponse =
@@ -100,6 +132,15 @@ export class VPNService {
     } catch (error) {
       console.error("Failed to request VPN node balance update", error);
       throw new Error(`Refresh Node Error: ${error}`);
+    }
+  }
+
+  static async fundingTool(secret: string): Promise<void> {
+    try {
+      return await invoke("funding_tool", { secret });
+    } catch (error) {
+      console.error("Failed to request funding tool execution", error);
+      throw new Error(`Funding Tool Error: ${error}`);
     }
   }
 

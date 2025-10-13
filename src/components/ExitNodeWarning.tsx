@@ -1,5 +1,5 @@
-import { Modal } from "./common/Modal.tsx";
-import Button from "./common/Button.tsx";
+import { Modal } from "@src/components/common/Modal";
+import Button from "@src/components/common/Button";
 
 export default function ExitNodeWarning(
   props: { open: boolean; onCancel: () => void; onProceed: () => void },

@@ -12,9 +12,18 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "Gnosis VPN",
         "width": 360,
         "height": 640,
+        "resizable": false,
+        "visible": false
+      },
+      {
+        "label": "settings",
+        "title": "Gnosis VPN settings",
+        "width": 640,
+        "height": 768,
         "visible": false
       }
     ],

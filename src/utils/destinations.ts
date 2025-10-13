@@ -1,4 +1,4 @@
-import type { Destination, Path } from "../services/vpnService.ts";
+import type { Destination, Path } from "@src/services/vpnService.ts";
 
 export const canonicalizeMeta = (
   meta: Record<string, string> | undefined,
@@ -60,8 +60,8 @@ export function getPreferredAvailabilityChangeMessage(
 ): string | null {
   if (previous.length === 0) return null;
   if (!preferredAddress) return null;
-  const previouslyHadPreferred = previous.some(
-    (d) => d.address === preferredAddress,
+  const previouslyHadPreferred = previous.some((d) =>
+    d.address === preferredAddress
   );
   const nowHasPreferred = next.some((d) => d.address === preferredAddress);
   if (previouslyHadPreferred === nowHasPreferred) return null;
@@ -94,9 +94,9 @@ export function selectTargetAddress(
 
 export function formatDestination(destination: Destination): string {
   const meta = destination.meta || {};
-  const parts = [meta.city, meta.state, meta.location]
-    .map((v) => (v ?? "").trim())
-    .filter((v) => v.length > 0);
+  const parts = [meta.city, meta.state, meta.location].map((v) =>
+    (v ?? "").trim()
+  ).filter((v) => v.length > 0);
   return parts.join(" ");
 }
 

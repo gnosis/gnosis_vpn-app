@@ -1,0 +1,47 @@
+import { createSignal, onCleanup, onMount } from "solid-js";
+import { listen } from "@tauri-apps/api/event";
+import Settings from "@src/screens/settings/Settings";
+import Usage from "@src/screens/settings/Usage";
+import Logs from "@src/screens/settings/Logs";
+import Tabs from "@src/components/common/Tabs.tsx";
+
+type GlobalTab = "settings" | "usage" | "logs";
+
+export default function SettingsWindow() {
+  const [tab, setTab] = createSignal<GlobalTab>("settings");
+  let unlisten: (() => void) | undefined;
+
+  onMount(() => {
+    void (async () => {
+      unlisten = await listen<string>("navigate", (event) => {
+        const next = event.payload;
+        if (next === "settings" || next === "usage" || next === "logs") {
+          setTab(next);
+        }
+      });
+    })();
+  });
+
+  onCleanup(() => {
+    if (unlisten) unlisten();
+  });
+
+  return (
+    <div class="system-window w-full h-screen flex flex-col items-center">
+      <Tabs
+        tabs={[
+          { id: "settings", label: "Settings" },
+          { id: "usage", label: "Usage" },
+          { id: "logs", label: "Logs" },
+        ]}
+        activeId={tab()}
+        onChange={(id) => setTab(id as GlobalTab)}
+      />
+      {tab() === "settings"
+        ? <Settings />
+        : tab() === "usage"
+        ? <Usage />
+        : <Logs />}
+    </div>
+  );
+}

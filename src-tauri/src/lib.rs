@@ -1,15 +1,18 @@
-use gnosis_vpn_lib::{address, command, socket};
+use gnosis_vpn_lib::prelude::Address;
+use gnosis_vpn_lib::{balance, command, connection, socket};
 use tauri::{
     AppHandle, Emitter, Manager,
     menu::{Menu, MenuBuilder, MenuItem},
     tray::{TrayIconBuilder, TrayIconEvent},
 };
-
-use std::{path::PathBuf, sync::Mutex};
 mod platform;
 use platform::{Platform, PlatformInterface};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tauri_plugin_store::StoreExt;
+
+use std::collections::HashMap;
+use std::time::Duration;
+use std::{path::PathBuf, sync::Mutex};
 
 #[derive(Clone, Debug, Serialize, Default)]
 struct AppSettings {
@@ -18,20 +21,165 @@ struct AppSettings {
     start_minimized: bool,
 }
 
-#[tauri::command]
-fn status() -> Result<command::StatusResponse, String> {
-    let p = PathBuf::from(socket::DEFAULT_PATH);
-    let resp = socket::process_cmd(&p, &command::Command::Status).map_err(|e| e.to_string())?;
-    match resp {
-        command::Response::Status(resp) => Ok(resp),
-        _ => Err("Unexpected response type".to_string()),
+#[derive(Debug, Serialize, Deserialize)]
+pub struct StatusResponse {
+    pub run_mode: RunMode,
+    pub available_destinations: Vec<Destination>,
+    pub network: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Destination {
+    pub meta: HashMap<String, String>,
+    pub address: String,
+    pub routing: RoutingOptions,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum RoutingOptions {
+    Hops(usize),
+    IntermediatePath(Vec<String>),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum RunMode {
+    /// Initial start, after creating safe this state will not be reached again
+    PreparingSafe {
+        node_address: String,
+        node_xdai: String,
+        node_wxhopr: String,
+        funding_tool: balance::FundingTool,
+    },
+
+    /// Subsequent service start up in this state and after preparing safe
+    Warmup { sync_progress: f32 },
+    /// Normal operation where connections can be made
+    Running {
+        connection: ConnectionState,
+        funding: FundingState,
+    },
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum ConnectionState {
+    Connecting(Destination),
+    Disconnecting(Destination),
+    Connected(Destination),
+    Disconnected,
+}
+
+// in order of priority
+#[derive(Debug, Serialize, Deserialize)]
+pub enum FundingState {
+    Unknown,                         // state not queried yet
+    TopIssue(balance::FundingIssue), // there is at least one issue
+    WellFunded,
+}
+
+impl From<connection::destination::RoutingOptions> for RoutingOptions {
+    fn from(ro: connection::destination::RoutingOptions) -> Self {
+        match ro {
+            connection::destination::RoutingOptions::Hops(hops) => {
+                RoutingOptions::Hops(hops.into())
+            }
+            connection::destination::RoutingOptions::IntermediatePath(path) => {
+                RoutingOptions::IntermediatePath(path.into_iter().map(|a| a.to_string()).collect())
+            }
+        }
+    }
+}
+
+impl From<command::Destination> for Destination {
+    fn from(dest: command::Destination) -> Self {
+        Destination {
+            meta: dest.meta,
+            address: dest.address.to_string(),
+            routing: dest.path.into(),
+        }
+    }
+}
+
+impl From<command::ConnectionState> for ConnectionState {
+    fn from(cs: command::ConnectionState) -> Self {
+        match cs {
+            command::ConnectionState::Connecting(dest) => ConnectionState::Connecting(dest.into()),
+            command::ConnectionState::Disconnecting(dest) => {
+                ConnectionState::Disconnecting(dest.into())
+            }
+            command::ConnectionState::Connected(dest) => ConnectionState::Connected(dest.into()),
+            command::ConnectionState::Disconnected => ConnectionState::Disconnected,
+        }
+    }
+}
+
+impl From<command::RunMode> for RunMode {
+    fn from(rm: command::RunMode) -> Self {
+        match rm {
+            command::RunMode::Init | command::RunMode::ValueingTicket => {
+                RunMode::Warmup { sync_progress: 0.0 }
+            }
+            command::RunMode::PreparingSafe {
+                node_address,
+                node_xdai,
+                node_wxhopr,
+                funding_tool,
+            } => RunMode::PreparingSafe {
+                node_address: node_address.to_string(),
+                node_xdai: node_xdai.amount().to_string(),
+                node_wxhopr: node_wxhopr.amount().to_string(),
+                funding_tool,
+            },
+            command::RunMode::Warmup {
+                sync_progress,
+                hopr_state: _,
+            } => RunMode::Warmup { sync_progress },
+            command::RunMode::Running {
+                connection,
+                funding,
+                hopr_state: _,
+            } => RunMode::Running {
+                connection: connection.into(),
+                funding: match funding {
+                    command::FundingState::Unknown => FundingState::Unknown,
+                    command::FundingState::TopIssue(issue) => FundingState::TopIssue(issue),
+                    command::FundingState::WellFunded => FundingState::WellFunded,
+                },
+            },
+        }
+    }
+}
+
+impl From<command::StatusResponse> for StatusResponse {
+    fn from(sr: command::StatusResponse) -> Self {
+        StatusResponse {
+            run_mode: sr.run_mode.into(),
+            available_destinations: sr
+                .available_destinations
+                .into_iter()
+                .map(|d| d.into())
+                .collect(),
+            network: sr.network.to_string(),
+        }
     }
 }
 
 #[tauri::command]
-fn connect(address: address::Address) -> Result<command::ConnectResponse, String> {
+fn status() -> Result<StatusResponse, String> {
     let p = PathBuf::from(socket::DEFAULT_PATH);
-    let cmd = command::Command::Connect(address);
+    let resp = socket::process_cmd(&p, &command::Command::Status).map_err(|e| e.to_string())?;
+    let status_resp: command::StatusResponse = match resp {
+        command::Response::Status(resp) => resp,
+        _ => return Err("Unexpected response type".to_string()),
+    };
+    // Convert types for frontend
+    Ok(status_resp.into())
+}
+
+#[tauri::command]
+fn connect(address: String) -> Result<command::ConnectResponse, String> {
+    let p = PathBuf::from(socket::DEFAULT_PATH);
+    let conv_address = address.parse::<Address>().map_err(|e| e.to_string())?;
+    let cmd = command::Command::Connect(conv_address);
     let resp = socket::process_cmd(&p, &cmd).map_err(|e| e.to_string())?;
     match resp {
         command::Response::Connect(resp) => Ok(resp),
@@ -67,7 +215,18 @@ fn refresh_node() -> Result<(), String> {
     let cmd = command::Command::RefreshNode;
     let resp = socket::process_cmd(&p, &cmd).map_err(|e| e.to_string())?;
     match resp {
-        command::Response::RefreshNode => Ok(()),
+        command::Response::Empty => Ok(()),
+        _ => Err("Unexpected response type".to_string()),
+    }
+}
+
+#[tauri::command]
+fn funding_tool(secret: String) -> Result<(), String> {
+    let p = PathBuf::from(socket::DEFAULT_PATH);
+    let cmd = command::Command::FundingTool(secret);
+    let resp = socket::process_cmd(&p, &cmd).map_err(|e| e.to_string())?;
+    match resp {
+        command::Response::Empty => Ok(()),
         _ => Err("Unexpected response type".to_string()),
     }
 }
@@ -94,16 +253,116 @@ fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error> {
 
 fn toggle_main_window_visibility(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
-        let is_visible = window.is_visible().unwrap_or(false);
-        if is_visible {
-            let _ = window.hide();
+        // let is_visible = window.is_visible().unwrap_or(false);
+        let is_focused = window.is_focused().unwrap_or(false);
+        if is_focused {
+            // Slide out to the right and then hide (anchor at top-right of current monitor)
+            if let Ok(size) = window.outer_size() {
+                let width = size.width as i32;
+                // Determine target monitor geometry
+                let (mon_x, mon_y, mon_w) = window
+                    .current_monitor()
+                    .ok()
+                    .flatten()
+                    .map(|m| (m.position().x, m.position().y, m.size().width as i32))
+                    .or_else(|| {
+                        window
+                            .primary_monitor()
+                            .ok()
+                            .flatten()
+                            .map(|m| (m.position().x, m.position().y, m.size().width as i32))
+                    })
+                    .unwrap_or((0, 0, 1920));
+
+                let margin: i32 = 20;
+                let start_x = window
+                    .outer_position()
+                    .map(|p| p.x)
+                    .unwrap_or(mon_x + mon_w - width - margin);
+                // Align to top margin consistently
+                let start_y = mon_y + margin;
+                let end_x = mon_x + mon_w + 10; // a bit off-screen to the right
+
+                let steps: i32 = 16;
+                let step_ms = 10u64;
+                let handle = window.clone();
+                tauri::async_runtime::spawn(async move {
+                    for i in 0..=steps {
+                        let t = i as f32 / steps as f32;
+                        // smoothstep easing (ease-in-out): t^2 * (3 - 2t)
+                        let te = t * t * (3.0 - 2.0 * t);
+                        let x = (start_x as f32 + (end_x - start_x) as f32 * te).round() as i32;
+                        let _ = handle.set_position(tauri::Position::Physical(
+                            tauri::PhysicalPosition { x, y: start_y },
+                        ));
+                        std::thread::sleep(Duration::from_millis(step_ms));
+                    }
+                    let _ = handle.hide();
+                });
+            } else {
+                let _ = window.hide();
+            }
+            #[cfg(target_os = "macos")]
+            {
+                let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+            }
         } else {
+            // Slide in from the right to the top-right corner (with margins) of the current (or primary) monitor
             #[cfg(target_os = "macos")]
             {
                 let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
             }
-            let _ = window.show();
-            let _ = window.set_focus();
+
+            let width = window.outer_size().map(|s| s.width as i32).unwrap_or(360);
+            // Determine target monitor geometry
+            let (mon_x, mon_y, mon_w) = window
+                .current_monitor()
+                .ok()
+                .flatten()
+                .map(|m| (m.position().x, m.position().y, m.size().width as i32))
+                .or_else(|| {
+                    window
+                        .primary_monitor()
+                        .ok()
+                        .flatten()
+                        .map(|m| (m.position().x, m.position().y, m.size().width as i32))
+                })
+                .unwrap_or((0, 0, 1920));
+
+            let margin: i32 = 20;
+            let target_x: i32 = mon_x + mon_w - width - margin; // top-right with right margin
+            let target_y: i32 = mon_y + margin; // top with top margin
+            // Start off-screen on the right
+            let _ = window.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
+                x: mon_x + mon_w + 10,
+                y: target_y,
+            }));
+
+            let steps: i32 = 16;
+            let step_ms = 10u64;
+            let handle = window.clone();
+            tauri::async_runtime::spawn(async move {
+                // Ensure first visible frame is off-screen to avoid flash, then show and focus
+                let _ = handle.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
+                    x: mon_x + mon_w + 10,
+                    y: target_y,
+                }));
+                let _ = handle.show();
+                let _ = handle.set_focus();
+                for i in 0..=steps {
+                    let t = i as f32 / steps as f32;
+                    // smoothstep easing (ease-in-out)
+                    let te = t * t * (3.0 - 2.0 * t);
+                    let start_x = (mon_x + mon_w + 10) as f32;
+                    let x = (start_x + (target_x as f32 - start_x) * te).round() as i32;
+                    let _ =
+                        handle.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
+                            x,
+                            y: target_y,
+                        }));
+                    std::thread::sleep(Duration::from_millis(step_ms));
+                }
+            });
         }
     }
 }
@@ -119,11 +378,18 @@ fn handle_tray_event(app: &AppHandle, event: TrayIconEvent) {
     }
 }
 
-fn show_and_navigate(app: &AppHandle, target: &str) {
-    if let Some(window) = app.get_webview_window("main") {
+fn show_settings(app: &AppHandle, target: &str) {
+    if let Some(window) = app.get_webview_window("settings") {
         #[cfg(target_os = "macos")]
         {
-            let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
+            // Keep the app hidden from the Dock if only the settings window is shown
+            let main_visible = app
+                .get_webview_window("main")
+                .and_then(|w| w.is_visible().ok())
+                .unwrap_or(false);
+            if !main_visible {
+                let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+            }
         }
         let _ = window.show();
         let _ = window.set_focus();
@@ -195,9 +461,11 @@ pub fn run() {
                             }
                         }
                     }
-                    "settings" => show_and_navigate(app, "settings"),
-                    "logs" => show_and_navigate(app, "logs"),
-                    "usage" => show_and_navigate(app, "usage"),
+                    // Open the dedicated settings window and navigate within it
+                    "settings" => show_settings(app, "settings"),
+                    // Route logs/usage to the settings window too
+                    "logs" => show_settings(app, "logs"),
+                    "usage" => show_settings(app, "usage"),
                     _ => {}
                 })
                 .on_tray_icon_event(|tray, event| {
@@ -211,6 +479,7 @@ pub fn run() {
 
             // Intercept window close to hide to tray instead of exiting
             if let Some(window) = app.get_webview_window("main") {
+                #[cfg(target_os = "macos")]
                 let app_handle = app.handle().clone();
                 let window_clone = window.clone();
                 window.on_window_event(move |event| {
@@ -222,6 +491,17 @@ pub fn run() {
                             let _ = app_handle
                                 .set_activation_policy(tauri::ActivationPolicy::Accessory);
                         }
+                    }
+                });
+            }
+
+            // Intercept settings window close to hide instead of destroying the window
+            if let Some(settings_window) = app.get_webview_window("settings") {
+                let settings_clone = settings_window.clone();
+                settings_window.on_window_event(move |event| {
+                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                        api.prevent_close();
+                        let _ = settings_clone.hide();
                     }
                 });
             }
@@ -253,7 +533,8 @@ pub fn run() {
             connect,
             disconnect,
             balance,
-            refresh_node
+            refresh_node,
+            funding_tool
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

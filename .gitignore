@@ -4,3 +4,5 @@ dist
 result
 
 /src/.prettierrc
+
+/gnosisvpn-hopr.db

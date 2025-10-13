@@ -1,22 +1,25 @@
 import { createMemo } from "solid-js";
-import Button from "./common/Button.tsx";
-import { useAppStore } from "../stores/appStore.ts";
-import { isConnected, isConnecting } from "../utils/status.ts";
+import Button from "@src/components/common/Button";
+import { useAppStore } from "@src/stores/appStore";
 
 export default function ConnectButton() {
   const [appState, appActions] = useAppStore();
 
   const isActive = createMemo(() =>
-    isConnected(appState.connectionStatus) ||
-    isConnecting(appState.connectionStatus)
+    appState.vpnStatus === "Connected" || appState.vpnStatus === "Connecting"
   );
   const label = createMemo(() => (isActive() ? "Stop" : "Connect"));
 
   const handleClick = async () => {
-    if (isActive()) {
-      await appActions.disconnect();
-    } else {
-      await appActions.connect();
+    try {
+      if (isActive()) {
+        await appActions.disconnect();
+      } else {
+        await appActions.connect();
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error("Failed to connect to VPN:", message);
     }
   };
 
@@ -26,7 +29,7 @@ export default function ConnectButton() {
         size="lg"
         onClick={() => void handleClick()}
         disabled={appState.isLoading ||
-          appState.connectionStatus === "ServiceUnavailable"}
+          appState.vpnStatus === "ServiceUnavailable"}
       >
         {label()}
       </Button>

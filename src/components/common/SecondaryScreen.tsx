@@ -1,13 +1,12 @@
 import { children, JSX, onMount } from "solid-js";
-import { useAppStore } from "../../stores/appStore.ts";
+import { useAppStore } from "@src/stores/appStore";
 
-export function SecondaryScreen({
-  children: innerComponent,
-  title,
-}: {
-  children: JSX.Element;
-  title?: string;
-}) {
+export function SecondaryScreen(
+  { children: innerComponent, title }: {
+    children: JSX.Element;
+    title?: string;
+  },
+) {
   const [appState, appActions] = useAppStore();
 
   const c = children(() => innerComponent);
@@ -30,13 +29,13 @@ export function SecondaryScreen({
       class="h-full w-full z-20"
       on:keydown={handleKeyDown}
     >
-      <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800">
-        <h1 class="text-gray-600 dark:text-gray-400 capitalize text-lg">
+      <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+        <h1 class="text-gray-600 capitalize text-lg">
           {title ?? appState.currentScreen}
         </h1>
         <button
           type="button"
-          class="rounded-md p-1 hover:bg-gray-100 dark:hover:bg-gray-800"
+          class="rounded-md p-1 hover:bg-gray-100"
           aria-label="Close"
           onClick={() => appActions.setScreen("main")}
         >
