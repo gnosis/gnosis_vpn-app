@@ -1,0 +1,124 @@
+name: Close release
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: "Next version type"
+        required: true
+        type: choice
+        default: "patch"
+        options:
+          - patch
+          - minor
+          - major
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  publish-tauri:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: "macos-15" # GitHub-hosted macOS (macOS 15)
+            args: "--target aarch64-apple-darwin"
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: install Rust toolchain (stable) + targets
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-15' && matrix.args || '' }}
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            ./src-tauri -> target
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Build tauri release
+        uses: tauri-apps/tauri-action@action-v0.5.23
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: v__VERSION__
+          releaseName: "Gnosis VPN UI v__VERSION__"
+          releaseBody: "See the assets to download this version and install."
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
+
+      - name: Bump Version
+        id: bump
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          RELEASE_TYPE="${{ inputs.release_type }}"
+
+          # version from src-tauri/Cargo.toml
+          current_version=$(grep -m1 '^version\s*=' src-tauri/Cargo.toml | sed -E 's/.*"([0-9]+\.[0-9]+\.[0-9]+)".*/\1/')
+          if [[ -z "$current_version" ]]; then
+            echo "Could not find version in src-tauri/Cargo.toml" >&2
+            exit 1
+          fi
+
+          # split into parts (bash parameter expansion, no read/IFS)
+          major=${current_version%%.*}
+          rest=${current_version#*.}
+          minor=${rest%%.*}
+          patch=${rest#*.}
+
+          echo "Current version: $current_version (major=$major minor=$minor patch=$patch)"
+          case "$RELEASE_TYPE" in
+            major)
+              major=$((major+1)); minor=0; patch=0
+              ;;
+            minor)
+              minor=$((minor+1)); patch=0
+              ;;
+            patch)
+              patch=$((patch+1))
+              ;;
+            *)
+              echo "Invalid release type: $RELEASE_TYPE" >&2
+              exit 1
+              ;;
+          esac
+
+          new_version="${major}.${minor}.${patch}"
+          echo "New version: $new_version"
+
+          # Update version in src-tauri/Cargo.toml (only inside [package] section)
+          perl -0777 -pe \
+            "s/(\[package\].*?version\\s*=\\s*\")\\d+\\.\\d+\\.\\d+(\"\\b)/\$1${new_version}\$2/s" \
+            -i src-tauri/Cargo.toml
+
+          # Update version in package.json (top-level "version" field)
+          perl -0777 -pe \
+            "s/(\"version\"\\s*:\\s*\")\\d+\\.\\d+\\.\\d+(\"\\b)/\$1${new_version}\$2/s" \
+            -i package.json
+
+          # Expose outputs & update LATEST file
+          echo "bump_version=${new_version}" >> "$GITHUB_OUTPUT"
+          echo "v${new_version}" > LATEST
+          echo "Updated LATEST to v${new_version}"
+
+      - uses: EndBug/add-and-commit@v9
+        with:
+          add: '["Cargo.*", "LATEST" ]'
+          new_branch: main
+          message: "Bump to version ${{ steps.bump.outputs.bump_version }}"
+          pathspec_error_handling: exitImmediately
