@@ -43,10 +43,10 @@ jobs:
           workspaces: |
             ./src-tauri -> target
 
-      - name: setup node
-        uses: actions/setup-node@v4
-        with:
-          node-version: lts/*
+#       - name: setup node
+#         uses: actions/setup-node@v4
+#         with:
+#           node-version: lts/*
 
       - name: Setup Deno
         uses: denoland/setup-deno@v2
@@ -63,9 +63,9 @@ jobs:
         with:
           tagName: v__VERSION__
           releaseName: "Gnosis VPN UI v__VERSION__"
-          releaseBody: "See the assets to download this version and install."
           releaseDraft: true
           prerelease: false
+          tauriScript: "deno task tauri"
           args: ${{ matrix.args }}
 
       - name: Bump Version
