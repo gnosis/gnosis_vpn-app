@@ -119,14 +119,12 @@ jobs:
             "s/(\"version\"\\s*:\\s*\")\\d+\\.\\d+\\.\\d+(\"\\b)/\$1${new_version}\$2/s" \
             -i package.json
 
-          # Expose outputs & update LATEST file
+          # Expose outputs
           echo "bump_version=${new_version}" >> "$GITHUB_OUTPUT"
-          echo "v${new_version}" > LATEST
-          echo "Updated LATEST to v${new_version}"
 
       - uses: EndBug/add-and-commit@v9
         with:
-          add: '["Cargo.*", "LATEST" ]'
+          add: '["src-tauri/Cargo.*", "package.json" ]'
           new_branch: main
           message: "Bump to version ${{ steps.bump.outputs.bump_version }}"
           pathspec_error_handling: exitImmediately
