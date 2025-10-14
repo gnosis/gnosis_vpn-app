@@ -17,7 +17,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  publish-tauri:
+  release:
     permissions:
       contents: write
     strategy:
@@ -35,7 +35,7 @@ jobs:
       - name: install Rust toolchain (stable) + targets
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.platform == 'macos-15' && matrix.args || '' }}
+          targets: ${{ matrix.platform == 'macos-15' && 'aarch64-apple-darwin' || '' }}
 
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
