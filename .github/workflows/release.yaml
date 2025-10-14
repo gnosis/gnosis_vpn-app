@@ -43,10 +43,18 @@ jobs:
           workspaces: |
             ./src-tauri -> target
 
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
       - name: Setup Deno
         uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
+
+      - name: install frontend dependencies
+        run: deno install
 
       - name: Build tauri release
         uses: tauri-apps/tauri-action@action-v0.5.23
