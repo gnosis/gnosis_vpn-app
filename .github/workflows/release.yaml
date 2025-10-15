@@ -57,6 +57,8 @@ jobs:
 
           echo "DEBUG2: ${{ steps.release_version.outputs.release_version }}"
           release_id=$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/v${{ steps.release_version.outputs.release_version }}" --jq '.id')
+
+          echo "DEBUG3: ${release_id} | ${{ steps.release_version.outputs.release_version }}"
           if [[ -z "$release_id" ]]; then
             echo "Could not find release id" >&2
             exit 1
