@@ -101,6 +101,13 @@ jobs:
       - name: Install frontend dependencies
         run: deno install
 
+      - name: Double check vars
+        shell: bash
+        run: |
+          echo "Release version: ${{ needs.create-release.outputs.release_version }}"
+          echo "Release ID: ${{ needs.create-release.outputs.release_id }}"
+          echo "Build args: ${{ matrix.args }}"
+
       - name: Build tauri release
         uses: tauri-apps/tauri-action@action-v0.5.23
         env:
