@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   create-release:
-    runs_on: ubuntu-24.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Release version
         id: release_version
@@ -99,7 +99,7 @@ jobs:
     needs: [create-release, build-tauri]
     permissions:
       contents: write
-    runs_on: ubuntu-24.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Bump Version
         id: bump
