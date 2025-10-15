@@ -95,7 +95,6 @@ jobs:
           tauriScript: "deno task tauri"
           args: ${{ matrix.args }}
 
-
   bump-version:
     needs: [create-release, build-tauri]
     permissions:
