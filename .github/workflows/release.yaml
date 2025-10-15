@@ -56,7 +56,10 @@ jobs:
           gh release create "v${{ steps.release_version.outputs.release_version }}" --draft --generate-notes
 
           echo "DEBUG2: ${{ steps.release_version.outputs.release_version }}"
-          release_id=$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/v${{ steps.release_version.outputs.release_version }}" --jq '.id')
+          url="repos/${GITHUB_REPOSITORY}/releases/tags/v${{ steps.release_version.outputs.release_version }}"
+          sleep 5
+          echo "DEBUG3: $url"
+          release_id=$(gh api "$url" --jq '.id')
 
           echo "DEBUG3: ${release_id} | ${{ steps.release_version.outputs.release_version }}"
           if [[ -z "$release_id" ]]; then
