@@ -42,7 +42,7 @@ jobs:
           set -euo pipefail
 
           gh release create v${{ steps.release_version.outputs.release_version }} --draft --generate-notes
-          id=$(gh api repos/${GITHUB_REPOSITORY}/releases/tags/v${{ steps.release_version.outputs.release_version }} --jq '.id')
+          release_id=$(gh api repos/${GITHUB_REPOSITORY}/releases/tags/v${{ steps.release_version.outputs.release_version }} --jq '.id')
           if [[ -z "$id" ]]; then
             echo "Could not find release id  >&2
             exit 1
