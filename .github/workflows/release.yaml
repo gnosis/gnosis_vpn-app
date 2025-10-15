@@ -12,6 +12,9 @@ on:
           - minor
           - major
 
+permissions:
+  contents: write
+
 concurrency:
   group: release
   cancel-in-progress: false
@@ -19,14 +22,17 @@ concurrency:
 jobs:
   create-release:
     runs-on: ubuntu-24.04
+    # expose step outputs as job outputs so downstream jobs can consume them
+    outputs:
+      release_version: ${{ steps.release_version.outputs.release_version }}
+      release_id: ${{ steps.create_release.outputs.release_id }}
     steps:
-      - name: Release version
+      - name: Get release version from src-tauri/Cargo.toml
         id: release_version
         shell: bash
         run: |
           set -euo pipefail
 
-          # version from src-tauri/Cargo.toml
           release_version=$(grep -m1 '^version\s*=' src-tauri/Cargo.toml | sed -E 's/.*"([0-9]+\.[0-9]+\.[0-9]+)".*/\1/')
           if [[ -z "$release_version" ]]; then
             echo "Could not find version in src-tauri/Cargo.toml" >&2
@@ -35,16 +41,19 @@ jobs:
 
           echo "release_version=${release_version}" >> "$GITHUB_OUTPUT"
 
-      - name: Create release
+      - name: Create release (gh)
         id: create_release
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
 
-          gh release create v${{ steps.release_version.outputs.release_version }} --draft --generate-notes
-          release_id=$(gh api repos/${GITHUB_REPOSITORY}/releases/tags/v${{ steps.release_version.outputs.release_version }} --jq '.id')
-          if [[ -z "$id" ]]; then
-            echo "Could not find release id  >&2
+          gh release create "v${{ steps.release_version.outputs.release_version }}" --draft --generate-notes
+
+          release_id=$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/v${{ steps.release_version.outputs.release_version }}" --jq '.id')
+          if [[ -z "$release_id" ]]; then
+            echo "Could not find release id" >&2
             exit 1
           fi
           echo "release_id=${release_id}" >> "$GITHUB_OUTPUT"
@@ -57,12 +66,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: "macos-15"
+          - runner: "macos-15"
+            target: "aarch64-apple-darwin"
             args: "--target aarch64-apple-darwin"
-          - platform: "macos-15-intel"
+          - runner: "macos-15"
+            target: "x86_64-apple-darwin"
             args: "--target x86_64-apple-darwin"
 
-    runs-on: ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -70,7 +81,7 @@ jobs:
       - name: Install Rust toolchain (stable) + targets
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.platform == 'macos-15' && 'aarch64-apple-darwin' || '' }}
+          targets: ${{ matrix.target }}
 
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
@@ -107,7 +118,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          release_type="${{ inputs.release_type }}"
+          release_type="${{ github.event.inputs.release_type }}"
 
           current_version=${{ needs.create-release.outputs.release_version }}
 
@@ -149,7 +160,8 @@ jobs:
 
           echo "bump_version=${new_version}" >> "$GITHUB_OUTPUT"
 
-      - uses: EndBug/add-and-commit@v9
+      - name: Commit bumped versions
+        uses: EndBug/add-and-commit@v9
         with:
           add: '["src-tauri/Cargo.*", "package.json" ]'
           new_branch: main
