@@ -52,8 +52,10 @@ jobs:
         run: |
           set -euo pipefail
 
+          echo "DEBUG1: ${{ steps.release_version.outputs.release_version }}"
           gh release create "v${{ steps.release_version.outputs.release_version }}" --draft --generate-notes
 
+          echo "DEBUG2: ${{ steps.release_version.outputs.release_version }}"
           release_id=$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/v${{ steps.release_version.outputs.release_version }}" --jq '.id')
           if [[ -z "$release_id" ]]; then
             echo "Could not find release id" >&2
@@ -104,9 +106,9 @@ jobs:
       - name: Double check vars
         shell: bash
         run: |
-          echo "Release version: ${{ needs.create-release.outputs.release_version }}"
-          echo "Release ID: ${{ needs.create-release.outputs.release_id }}"
-          echo "Build args: ${{ matrix.args }}"
+          echo "DEBUG3 Release version: ${{ needs.create-release.outputs.release_version }}"
+          echo "DEBUG4 Release ID: ${{ needs.create-release.outputs.release_id }}"
+          echo "DEBUG5 Build args: ${{ matrix.args }}"
 
       - name: Build tauri release
         uses: tauri-apps/tauri-action@action-v0.5.23
