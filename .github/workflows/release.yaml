@@ -27,6 +27,9 @@ jobs:
       release_version: ${{ steps.release_version.outputs.release_version }}
       release_id: ${{ steps.create_release.outputs.release_id }}
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
       - name: Get release version from src-tauri/Cargo.toml
         id: release_version
         shell: bash
