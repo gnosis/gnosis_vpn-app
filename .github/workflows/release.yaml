@@ -17,22 +17,57 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release:
+  create-release:
+    runs_on: ubuntu-24.04
+    steps:
+      - name: Release version
+        id: release_version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # version from src-tauri/Cargo.toml
+          release_version=$(grep -m1 '^version\s*=' src-tauri/Cargo.toml | sed -E 's/.*"([0-9]+\.[0-9]+\.[0-9]+)".*/\1/')
+          if [[ -z "$release_version" ]]; then
+            echo "Could not find version in src-tauri/Cargo.toml" >&2
+            exit 1
+          fi
+
+          echo "release_version=${release_version}" >> "$GITHUB_OUTPUT"
+
+      - name: Create release
+        id: create_release
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          gh release create v${{ steps.release_version.outputs.release_version }} --generate-notes
+          id=$(gh api repos/${GITHUB_REPOSITORY}/releases/tags/v${{ steps.release_version.outputs.release_version }} --jq '.id')
+          if [[ -z "$id" ]]; then
+            echo "Could not find release id  >&2
+            exit 1
+          fi
+          echo "release_id=${release_id}" >> "$GITHUB_OUTPUT"
+
+  build-tauri:
+    needs: create-release
     permissions:
       contents: write
     strategy:
       fail-fast: false
       matrix:
         include:
-          - platform: "macos-15" # GitHub-hosted macOS (macOS 15)
+          - platform: "macos-15"
             args: "--target aarch64-apple-darwin"
+          - platform: "macos-15-intel"
+            args: "--target x86_64-apple-darwin"
 
     runs-on: ${{ matrix.platform }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: install Rust toolchain (stable) + targets
+      - name: Install Rust toolchain (stable) + targets
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.platform == 'macos-15' && 'aarch64-apple-darwin' || '' }}
@@ -48,7 +83,7 @@ jobs:
         with:
           deno-version: v2.x
 
-      - name: install frontend dependencies
+      - name: Install frontend dependencies
         run: deno install
 
       - name: Build tauri release
@@ -56,27 +91,26 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: v__VERSION__
-          releaseName: "Gnosis VPN UI v__VERSION__"
-          releaseDraft: true
-          prerelease: false
+          releaseId: ${{ needs.create-release.outputs.release_id }}
           tauriScript: "deno task tauri"
           args: ${{ matrix.args }}
 
+
+  bump-version:
+    needs: [create-release, build-tauri]
+    permissions:
+      contents: write
+    runs_on: ubuntu-24.04
+    steps:
       - name: Bump Version
         id: bump
         shell: bash
         run: |
           set -euo pipefail
 
-          RELEASE_TYPE="${{ inputs.release_type }}"
+          release_type="${{ inputs.release_type }}"
 
-          # version from src-tauri/Cargo.toml
-          current_version=$(grep -m1 '^version\s*=' src-tauri/Cargo.toml | sed -E 's/.*"([0-9]+\.[0-9]+\.[0-9]+)".*/\1/')
-          if [[ -z "$current_version" ]]; then
-            echo "Could not find version in src-tauri/Cargo.toml" >&2
-            exit 1
-          fi
+          current_version=${{ needs.create-release.outputs.release_version }}
 
           # split into parts via bash parameter expansion
           major=${current_version%%.*}
@@ -85,7 +119,7 @@ jobs:
           patch=${rest#*.}
 
           echo "Current version: $current_version (major=$major minor=$minor patch=$patch)"
-          case "$RELEASE_TYPE" in
+          case "$release_type" in
             major)
               major=$((major+1)); minor=0; patch=0
               ;;
@@ -96,7 +130,7 @@ jobs:
               patch=$((patch+1))
               ;;
             *)
-              echo "Invalid release type: $RELEASE_TYPE" >&2
+              echo "Invalid release type: $release_type" >&2
               exit 1
               ;;
           esac
@@ -114,7 +148,6 @@ jobs:
             "s/(\"version\"\\s*:\\s*\")\\d+\\.\\d+\\.\\d+(\"\\b)/\$1${new_version}\$2/s" \
             -i package.json
 
-          # Expose outputs
           echo "bump_version=${new_version}" >> "$GITHUB_OUTPUT"
 
       - uses: EndBug/add-and-commit@v9
