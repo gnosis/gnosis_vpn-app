@@ -1,0 +1,38 @@
+#!/bin/bash
+#
+# Gnosis VPN Pre-Installation Script (Minimal)
+#
+# This script performs minimal non-blocking environment checks.
+# All binaries are now embedded in the PKG payload.
+#
+# Arguments:
+#   $1: Full path to the installation package
+#   $2: Full path to the installation destination (target volume)
+#   $3: Mountpoint of the destination volume
+#   $4: Root directory "/" for the current system
+
+set -euo pipefail
+
+# Source unified logging library
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/logging.sh"
+
+# Setup logging
+setup_logging "preinstall"
+
+log_info "Install package: $1"
+log_info "Target volume: $2"
+
+# Optional: warn if WireGuard tools missing (do not exit non-zero)
+if ! command -v wg &>/dev/null || ! command -v wg-quick &>/dev/null; then
+    log_warn "wireguard-tools not found"
+    log_info "WireGuard is required for VPN functionality"
+    log_info "Install with: brew install wireguard-tools"
+    log_info "Or visit: https://www.wireguard.com/install/"
+fi
+
+log_success "Pre-installation checks completed"
+log_info "Log file: $INSTALLER_LOG_FILE"
+log_script_end "success"
+
+exit 0

@@ -1,0 +1,296 @@
+#!/bin/bash
+#
+# Gnosis VPN Post-Installation Script
+#
+# This script runs after the package payload is installed.
+# It performs:
+# - Configuration file generation (config.toml)
+# - Backup of existing configuration (if present)
+# - Final permission adjustments
+# - Optional convenience symlinks
+#
+# Arguments:
+#   $1: Full path to the installation package
+#   $2: Full path to the installation destination (target volume)
+#   $3: Mountpoint of the destination volume
+#   $4: Root directory "/" for the current system
+#
+# Environment variables from Distribution.xml choices:
+#   INSTALLER_CHOICE_NETWORK: "rotsee" or "dufour"
+
+set -euo pipefail
+
+# Source unified logging library
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/logging.sh"
+
+# Setup logging
+setup_logging "postinstall"
+
+# Configuration
+CONFIG_DIR="${2}/etc/gnosisvpn"
+CONFIG_FILE="${CONFIG_DIR}/config.toml"
+TEMPLATE_DIR_BUNDLE="${SCRIPT_DIR}/../config-templates"
+BIN_DIR="${2}/usr/local/bin"
+NETWORK="${INSTALLER_CHOICE_NETWORK:-rotsee}"
+
+# Validate network selection (whitelist)
+if [[ ! "$NETWORK" =~ ^(rotsee|dufour)$ ]]; then
+    log_error "Invalid network selection: $NETWORK"
+    log_info "Valid options: rotsee, dufour"
+    exit 1
+fi
+
+log_info "Install package: $1"
+log_info "Target volume: $2"
+log_info "Binary directory: $BIN_DIR"
+log_info "Configuration directory: $CONFIG_DIR"
+log_info "Configuration file: $CONFIG_FILE"
+log_info "Network: $NETWORK"
+
+# Rollback mechanism
+ROLLBACK_STEPS=()
+ROLLBACK_ENABLED=true
+PREV_CONFIG_FILE=""
+
+# Rollback functions
+rollback_restore_config() {
+    if [[ -n "$PREV_CONFIG_FILE" ]] && [[ -f "$PREV_CONFIG_FILE" ]]; then
+        log_info "Restoring previous configuration"
+        mv -f "$PREV_CONFIG_FILE" "$CONFIG_FILE" || true
+    fi
+}
+
+rollback_remove_config() {
+    if [[ -f "$CONFIG_FILE" ]]; then
+        log_info "Removing newly created configuration"
+        rm -f "$CONFIG_FILE" || true
+    fi
+}
+
+# Add a rollback step
+add_rollback_step() {
+    local step="$1"
+    ROLLBACK_STEPS+=("$step")
+    log_debug "Rollback: Registered step - $step"
+}
+
+# Execute rollback
+execute_rollback() {
+    if [[ "$ROLLBACK_ENABLED" != "true" ]]; then
+        return 0
+    fi
+
+    log_section "ERROR: Installation failed, executing rollback"
+
+    local steps="${#ROLLBACK_STEPS[@]}"
+    if [[ $steps -eq 0 ]]; then
+        log_warn "No rollback steps registered"
+        return 0
+    fi
+
+    log_info "Rolling back $steps step(s)..."
+
+    # Execute rollback steps in reverse order
+    for ((i=${#ROLLBACK_STEPS[@]}-1; i>=0; i--)); do
+        local step="${ROLLBACK_STEPS[$i]}"
+        log_info "Rollback step $((steps - i))/$steps: $step"
+        
+        # Call the rollback function directly (no eval)
+        if "$step"; then
+            log_success "Rollback step completed"
+        else
+            log_warn "Rollback step failed (continuing anyway)"
+        fi
+    done
+
+    log_section "Rollback completed"
+}
+
+# Set up trap for automatic rollback on error
+trap 'execute_rollback' ERR EXIT
+
+# Disable rollback after successful installation
+disable_rollback() {
+    ROLLBACK_ENABLED=false
+    trap - ERR EXIT
+}
+
+# Backup existing configuration if present
+backup_config() {
+    # Create config directory if it doesn't exist
+    mkdir -p "$CONFIG_DIR"
+
+    if [[ -f "$CONFIG_FILE" ]]; then
+        local timestamp
+        timestamp=$(date +%Y%m%d-%H%M%S)
+        local backup_file="${CONFIG_DIR}/config-${timestamp}.toml.backup"
+
+        log_info "Existing configuration found. Creating backup..."
+        if cp "$CONFIG_FILE" "$backup_file"; then
+            log_success "Backup created: $backup_file"
+        else
+            log_warn "Failed to create backup of existing config"
+        fi
+    fi
+}
+
+# Generate destinations configuration based on network selection
+generate_destinations() {
+    local template_file="${TEMPLATE_DIR_BUNDLE}/${NETWORK}.toml.template"
+
+    # Check if template file exists
+    if [[ ! -f "$template_file" ]]; then
+        log_error "Template file not found: $template_file"
+        log_info "Falling back to default configuration"
+        # Fallback to rotsee template
+        template_file="${TEMPLATE_DIR_BUNDLE}/rotsee.toml.template"
+        if [[ ! -f "$template_file" ]]; then
+            log_error "Default template file not found: $template_file"
+            log_error "Template directory should be: $TEMPLATE_DIR_BUNDLE"
+            exit 1
+        fi
+    fi
+
+    # Read and output template content
+    cat "$template_file"
+}
+
+
+# Generate the configuration file
+generate_config() {
+    log_info "Generating configuration file..."
+
+    local destinations
+    destinations=$(generate_destinations)
+
+    # Save previous config file for rollback if it exists
+    if [[ -f "$CONFIG_FILE" ]]; then
+        PREV_CONFIG_FILE="${CONFIG_FILE}.pre-install"
+        cp "$CONFIG_FILE" "$PREV_CONFIG_FILE"
+        add_rollback_step "rollback_restore_config"
+    else
+        add_rollback_step "rollback_remove_config"
+    fi
+
+    # Write configuration file
+    cat > "$CONFIG_FILE" <<EOF
+###
+# Gnosis VPN service configuration file
+#
+# On unix the default config path is \`/etc/gnosisvpn/config.toml\`
+# However you can override this by using \`GNOSISVPN_CONFIG_PATH\` env var
+#
+# Generated by installer on $(date)
+# Network: $NETWORK
+###
+
+version = 4
+
+${destinations}
+EOF
+
+    if [[ -f "$CONFIG_FILE" ]]; then
+        log_success "Configuration file created: $CONFIG_FILE"
+    else
+        log_error "Failed to create configuration file"
+        exit 1
+    fi
+}
+
+# Set proper file permissions
+set_permissions() {
+    log_info "Setting file permissions..."
+
+    chmod 755 "$BIN_DIR/gnosis_vpn" 2>/dev/null || true
+    chmod 755 "$BIN_DIR/gnosis_vpn-ctl" 2>/dev/null || true
+    chmod 644 "$CONFIG_FILE" 2>/dev/null || true
+
+    # Make the config directory readable by all users
+    chmod 755 "$CONFIG_DIR" 2>/dev/null || true
+
+    # Set ownership to root:wheel
+    chown root:wheel "$BIN_DIR/gnosis_vpn" 2>/dev/null || true
+    chown root:wheel "$BIN_DIR/gnosis_vpn-ctl" 2>/dev/null || true
+    chown root:wheel "$CONFIG_FILE" 2>/dev/null || true
+    chown root:wheel "$CONFIG_DIR" 2>/dev/null || true
+
+    log_success "Permissions and ownership set"
+}
+
+# Verify binaries are in PATH
+verify_path() {
+    log_info "Verifying binaries are in PATH..."
+
+    # Binaries are already in /usr/local/bin which is typically in PATH
+    log_success "Binaries installed to $BIN_DIR (typically in PATH)"
+    log_info "You should be able to run 'gnosis_vpn' and 'gnosis_vpn-ctl' from anywhere"
+}
+
+# Verify installation
+verify_installation() {
+    log_info "Verifying installation..."
+
+    local errors=0
+
+    if [[ ! -x "$BIN_DIR/gnosis_vpn" ]]; then
+        log_error "gnosis_vpn binary not found or not executable"
+        errors=$((errors + 1))
+    fi
+
+    if [[ ! -x "$BIN_DIR/gnosis_vpn-ctl" ]]; then
+        log_error "gnosis_vpn-ctl binary not found or not executable"
+        errors=$((errors + 1))
+    fi
+
+    if [[ ! -f "$CONFIG_FILE" ]]; then
+        log_error "Configuration file not found"
+        errors=$((errors + 1))
+    fi
+
+    if [[ $errors -gt 0 ]]; then
+        log_error "Installation verification failed with $errors error(s)"
+        exit 1
+    fi
+
+    log_success "Installation verified successfully"
+}
+
+# Print installation summary
+print_summary() {
+    log_section "Installation Summary"
+    log_info "Binary directory: $BIN_DIR"
+    log_info "Configuration file: $CONFIG_FILE"
+    log_info "Network: $NETWORK"
+    echo ""
+    log_info "Installed binaries:"
+    ls -lh "$BIN_DIR"/gnosis_vpn* 2>/dev/null || true
+    echo ""
+    log_info "To get started:"
+    log_info "  1. sudo gnosis_vpn -c $CONFIG_FILE"
+    log_info "  2. gnosis_vpn-ctl status"
+    echo ""
+    log_info "Log file: $INSTALLER_LOG_FILE"
+    log_success "Post-installation completed successfully!"
+}
+
+# Main execution
+main() {
+    backup_config
+    generate_config
+    set_permissions
+    verify_path
+    verify_installation
+    print_summary
+
+    # Disable rollback after successful completion
+    disable_rollback
+
+    # Log script completion
+    log_script_end "success"
+}
+
+# Execute main function
+main
+
+exit 0
