@@ -76,6 +76,45 @@ installer/
    ./sign-pkg.sh build/GnosisVPN-Installer-1.0.0-signed.pkg --notarize
    ```
 
+## Multi-Repository Binary Support
+
+The installer supports bundling binaries from multiple repositories using environment variables. This allows you to include:
+
+- **Tauri UI Application** (from this repository)
+- **VPN System Service** (from external repository)  
+- **VPN Command Line Utility** (from external repository)
+
+### Required Environment Variables
+
+```bash
+# GitHub Release URL - installer constructs binary URLs automatically
+export GITHUB_RELEASE_URL="https://github.com/owner/repo/releases/tag/v1.0.0"
+
+# Optional: Tauri UI App
+export TAURI_APP_URL="https://releases.example.com/v1.0.0/GnosisVPN.app.tar.gz"
+```
+
+**Binary Names**: The installer expects these binaries in the GitHub release:
+- `gnosis_vpn-x86_64-apple-darwin` (VPN service)
+- `gnosis_vpn-aarch64-apple-darwin` (VPN service)
+- `gnosis_vpn-cli-x86_64-apple-darwin` (CLI utility)
+- `gnosis_vpn-cli-aarch64-apple-darwin` (CLI utility)
+
+### Usage with Environment Variables
+
+```bash
+# Set GitHub release URL
+export GITHUB_RELEASE_URL="https://github.com/owner/repo/releases/tag/v1.0.0"
+cd installer
+./build-pkg.sh latest
+```
+
+See [ENV_VARIABLES.md](ENV_VARIABLES.md) for complete documentation and examples.
+
+### Fallback Behavior
+
+If environment variables are not set, the installer falls back to downloading from the configured GitHub repository.
+
 ## What the Installer Does
 
 ### Build-Time Phase (NEW)
