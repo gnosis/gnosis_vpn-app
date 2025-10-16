@@ -102,6 +102,40 @@ The installer will download:
 - `https://github.com/owner/repo/releases/download/v1.0.0/gnosis_vpn-cli-x86_64-apple-darwin`
 - `https://github.com/owner/repo/releases/download/v1.0.0/gnosis_vpn-cli-aarch64-apple-darwin`
 
+## Incremental Updates
+
+When updating an existing installation, the installer:
+
+1. **Detects Previous Installation**: Checks for existing version and binaries
+2. **Compares Binaries**: Uses SHA-256 checksums to identify changes
+3. **Updates Selectively**: Only replaces binaries that have changed
+4. **Preserves Configuration**: Keeps user settings when compatible
+5. **Creates Backups**: Automatically backs up replaced files
+
+This makes updates faster and safer, especially for large binary files that haven't changed.
+
+## Troubleshooting
+
+### Update Issues
+- **Version Mismatch**: Check `/etc/gnosisvpn/version.txt` for current version
+- **Configuration Conflicts**: Use `gnosis-vpn-manager backups` to see available backups
+- **Binary Corruption**: Compare checksums using `gnosis-vpn-manager status`
+
+### Management Commands
+```bash
+# Check installation status
+gnosis-vpn-manager status
+
+# List available backups
+gnosis-vpn-manager backups
+
+# Restore configuration from backup
+sudo gnosis-vpn-manager restore
+
+# Clean up old backup files
+sudo gnosis-vpn-manager cleanup
+```
+
 ## Binary Requirements
 
 ### File Formats
