@@ -175,6 +175,21 @@ cleanup_system_directories() {
     echo ""
 }
 
+# Remove sudo privileges configuration
+remove_sudo_privileges() {
+    log_info "Removing sudo privileges configuration..."
+    
+    local sudoers_file="/etc/sudoers.d/gnosis-vpn"
+    
+    if [[ -f "$sudoers_file" ]]; then
+        log_info "Removing sudoers configuration: $sudoers_file"
+        rm -f "$sudoers_file"
+        log_success "Sudo privileges configuration removed"
+    else
+        log_info "No sudo privileges configuration found"
+    fi
+}
+
 # Stop running processes
 stop_processes() {
     log_info "Checking for running VPN processes..."
@@ -367,6 +382,12 @@ verify_uninstall() {
         fi
     done
     
+    # Check sudo privileges removal
+    if [[ -f "/etc/sudoers.d/gnosis-vpn" ]]; then
+        log_error "Sudo privileges configuration still exists: /etc/sudoers.d/gnosis-vpn"
+        errors=$((errors + 1))
+    fi
+    
     if [[ $errors -eq 0 ]]; then
         log_success "Uninstallation verified successfully"
     else
@@ -388,6 +409,7 @@ print_summary() {
     echo "  ✓ Binaries"
     echo "  ✓ Launchd service"
     echo "  ✓ System user and group (gnosisvpn)"
+    echo "  ✓ Sudo privileges configuration"
     echo "  ✓ System directories (/var/lib/gnosisvpn, /var/run/gnosisvpn)"
     echo "  ✓ Configuration (backed up to ~/gnosis-vpn-config-backup-*)"
     echo "  ✓ Service logs"
@@ -410,6 +432,7 @@ main() {
     remove_config
     remove_logs
     cleanup_system_directories
+    remove_sudo_privileges
     remove_system_user
     remove_system_group
     forget_package

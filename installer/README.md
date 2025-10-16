@@ -523,6 +523,24 @@ The installer creates dedicated system credentials for enhanced security:
 
 This eliminates the need to run the service as root and provides controlled access for regular users.
 
+### Sudo Privileges for Service Management
+
+The installer configures passwordless sudo access for gnosisvpn group members:
+
+- **Sudoers Configuration**: `/etc/sudoers.d/gnosis-vpn`
+- **Allowed Commands**:
+  - `launchctl bootstrap system /Library/LaunchDaemons/org.gnosis.vpn.plist`
+  - `launchctl bootout system /Library/LaunchDaemons/org.gnosis.vpn.plist`
+  - `launchctl kickstart system/org.gnosis.vpn`
+  - `launchctl print system/org.gnosis.vpn`
+  - `launchctl list org.gnosis.vpn`
+
+- **Benefits**:
+  - Group members can start/stop/restart the service without entering a password
+  - Management commands work seamlessly: `gnosis-vpn-manager start-service`
+  - Maintains security by limiting privileges to specific launchctl operations
+  - Automatically handles sudo escalation when needed
+
 ### Checksum Verification
 
 The build process automatically verifies SHA-256 checksums for all downloaded binaries:

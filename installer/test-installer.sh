@@ -171,6 +171,14 @@ test_system_user_functions() {
     run_test "uninstall has remove_system_user function" "grep -q 'remove_system_user()' '$uninstall'"
     run_test "uninstall has remove_system_group function" "grep -q 'remove_system_group()' '$uninstall'"
     run_test "uninstall has cleanup_system_directories function" "grep -q 'cleanup_system_directories()' '$uninstall'"
+    
+    # Test sudo privileges configuration
+    run_test "postinstall has configure_sudo_privileges function" "grep -q 'configure_sudo_privileges()' '$postinstall'"
+    run_test "uninstall has remove_sudo_privileges function" "grep -q 'remove_sudo_privileges()' '$uninstall'"
+    run_test "sudoers file exists" "[[ -f '$SCRIPT_DIR/resources/config/system/gnosis-vpn-sudoers' ]]"
+    run_test "sudoers file has gnosisvpn group permissions" "grep -q '%gnosisvpn' '$SCRIPT_DIR/resources/config/system/gnosis-vpn-sudoers'"
+    run_test "sudoers file allows launchctl commands" "grep -q 'launchctl' '$SCRIPT_DIR/resources/config/system/gnosis-vpn-sudoers'"
+    run_test "management script has run_launchctl function" "grep -q 'run_launchctl()' '$SCRIPT_DIR/resources/scripts/manage-installation.sh'"
 
     echo ""
 }
