@@ -30,9 +30,19 @@ setup_logging "postinstall"
 # Configuration
 CONFIG_DIR="${2}/etc/gnosisvpn"
 CONFIG_FILE="${CONFIG_DIR}/config.toml"
+VERSION_FILE="${CONFIG_DIR}/version.txt"
 TEMPLATE_DIR_BUNDLE="${SCRIPT_DIR}/../config-templates"
 BIN_DIR="${2}/usr/local/bin"
 NETWORK="${INSTALLER_CHOICE_NETWORK:-rotsee}"
+
+# Get installer version from package (if available) or use current date
+INSTALLER_VERSION="${INSTALLER_VERSION:-$(date +%Y%m%d-%H%M%S)}"
+PACKAGE_PATH="$1"
+
+# Extract version from package filename if available
+if [[ "$PACKAGE_PATH" =~ GnosisVPN-Installer-([^/]+)\.pkg ]]; then
+    INSTALLER_VERSION="${BASH_REMATCH[1]}"
+fi
 
 # Validate network selection (whitelist)
 if [[ ! "$NETWORK" =~ ^(rotsee|dufour)$ ]]; then
@@ -116,8 +126,152 @@ disable_rollback() {
     trap - ERR EXIT
 }
 
+# Check if previous installation exists
+check_previous_installation() {
+    log_info "Checking for previous installation..."
+    
+    local has_previous=false
+    local previous_version=""
+    
+    # Check for version file
+    if [[ -f "$VERSION_FILE" ]]; then
+        previous_version=$(cat "$VERSION_FILE" 2>/dev/null || echo "unknown")
+        log_info "Found previous installation version: $previous_version"
+        has_previous=true
+    fi
+    
+    # Check for existing binaries
+    if [[ -f "$BIN_DIR/gnosis_vpn" ]] || [[ -f "$BIN_DIR/gnosis_vpn-ctl" ]]; then
+        log_info "Found existing binaries in $BIN_DIR"
+        has_previous=true
+        
+        if [[ -z "$previous_version" ]]; then
+            previous_version="legacy"
+            log_info "Legacy installation detected (no version file)"
+        fi
+    fi
+    
+    if [[ "$has_previous" == true ]]; then
+        log_info "Previous installation detected (version: $previous_version)"
+        echo "update"
+    else
+        log_info "No previous installation found"
+        echo "fresh"
+    fi
+}
+
+# Compare binary checksums to determine if update is needed
+binary_needs_update() {
+    local binary_name="$1"
+    local old_path="$BIN_DIR/$binary_name"
+    local new_path="$2" # Path to new binary in temporary location
+    
+    if [[ ! -f "$old_path" ]]; then
+        log_info "$binary_name: No existing binary, update needed"
+        return 0 # Update needed
+    fi
+    
+    if [[ ! -f "$new_path" ]]; then
+        log_warn "$binary_name: New binary not found at $new_path"
+        return 1 # No update needed (or error)
+    fi
+    
+    local old_checksum new_checksum
+    old_checksum=$(shasum -a 256 "$old_path" 2>/dev/null | cut -d' ' -f1 || echo "")
+    new_checksum=$(shasum -a 256 "$new_path" 2>/dev/null | cut -d' ' -f1 || echo "")
+    
+    if [[ "$old_checksum" == "$new_checksum" ]]; then
+        log_info "$binary_name: Checksums match, no update needed"
+        return 1 # No update needed
+    else
+        log_info "$binary_name: Checksums differ, update needed"
+        log_debug "  Old: $old_checksum"
+        log_debug "  New: $new_checksum"
+        return 0 # Update needed
+    fi
+}
+
+# Update binary if changed
+update_binary_if_needed() {
+    local binary_name="$1"
+    local source_path="$2" # Source binary from package payload
+    local target_path="$BIN_DIR/$binary_name"
+    
+    log_info "Checking if $binary_name needs update..."
+    
+    if binary_needs_update "$binary_name" "$source_path"; then
+        log_info "Updating $binary_name..."
+        
+        # Backup existing binary
+        if [[ -f "$target_path" ]]; then
+            local backup_path="${target_path}.backup-$(date +%Y%m%d-%H%M%S)"
+            cp "$target_path" "$backup_path"
+            log_info "Created backup: $backup_path"
+        fi
+        
+        # Copy new binary
+        if cp "$source_path" "$target_path"; then
+            chmod 755 "$target_path"
+            chown root:wheel "$target_path" 2>/dev/null || true
+            log_success "Updated $binary_name"
+            return 0
+        else
+            log_error "Failed to update $binary_name"
+            return 1
+        fi
+    else
+        log_info "$binary_name is up to date, skipping"
+        return 0
+    fi
+}
+
+# Save current installation version
+save_version_info() {
+    log_info "Saving installation version: $INSTALLER_VERSION"
+    
+    mkdir -p "$CONFIG_DIR"
+    echo "$INSTALLER_VERSION" > "$VERSION_FILE"
+    chmod 644 "$VERSION_FILE"
+    chown root:wheel "$VERSION_FILE" 2>/dev/null || true
+    
+    log_success "Version saved to $VERSION_FILE"
+}
+
+# Cleanup old backup files (keep only the 5 most recent)
+cleanup_old_backups() {
+    log_info "Cleaning up old backup files..."
+    
+    # Clean up old config backups
+    if ls "$CONFIG_DIR"/*.backup 2>/dev/null | head -1 >/dev/null; then
+        local config_backups
+        config_backups=$(ls -t "$CONFIG_DIR"/*.backup 2>/dev/null | tail -n +6)
+        if [[ -n "$config_backups" ]]; then
+            echo "$config_backups" | xargs rm -f
+            local removed_count
+            removed_count=$(echo "$config_backups" | wc -l | tr -d ' ')
+            log_info "Removed $removed_count old configuration backup(s)"
+        fi
+    fi
+    
+    # Clean up old binary backups
+    if ls "$BIN_DIR"/*.backup-* 2>/dev/null | head -1 >/dev/null; then
+        local binary_backups
+        binary_backups=$(ls -t "$BIN_DIR"/*.backup-* 2>/dev/null | tail -n +11) # Keep 10 binary backups
+        if [[ -n "$binary_backups" ]]; then
+            echo "$binary_backups" | xargs rm -f
+            local removed_count
+            removed_count=$(echo "$binary_backups" | wc -l | tr -d ' ')
+            log_info "Removed $removed_count old binary backup(s)"
+        fi
+    fi
+    
+    log_success "Backup cleanup completed"
+}
+
 # Backup existing configuration if present
 backup_config() {
+    local installation_type="$1"
+    
     # Create config directory if it doesn't exist
     mkdir -p "$CONFIG_DIR"
 
@@ -126,7 +280,12 @@ backup_config() {
         timestamp=$(date +%Y%m%d-%H%M%S)
         local backup_file="${CONFIG_DIR}/config-${timestamp}.toml.backup"
 
-        log_info "Existing configuration found. Creating backup..."
+        if [[ "$installation_type" == "update" ]]; then
+            log_info "Update detected: Creating configuration backup..."
+        else
+            log_info "Existing configuration found: Creating backup..."
+        fi
+        
         if cp "$CONFIG_FILE" "$backup_file"; then
             log_success "Backup created: $backup_file"
         else
@@ -159,10 +318,9 @@ generate_destinations() {
 
 # Generate the configuration file
 generate_config() {
+    local installation_type="$1"
+    
     log_info "Generating configuration file..."
-
-    local destinations
-    destinations=$(generate_destinations)
 
     # Save previous config file for rollback if it exists
     if [[ -f "$CONFIG_FILE" ]]; then
@@ -172,6 +330,36 @@ generate_config() {
     else
         add_rollback_step "rollback_remove_config"
     fi
+
+    # For updates, check if we should preserve existing config
+    if [[ "$installation_type" == "update" ]] && [[ -f "$CONFIG_FILE" ]]; then
+        log_info "Update detected: Checking if configuration should be preserved..."
+        
+        # Check if existing config has user modifications
+        local existing_network=""
+        if grep -q "# Network:" "$CONFIG_FILE" 2>/dev/null; then
+            existing_network=$(grep "# Network:" "$CONFIG_FILE" | sed 's/.*Network: //' | tr -d ' ')
+        fi
+        
+        # Check if config version is compatible
+        local existing_version=""
+        if grep -q "version = " "$CONFIG_FILE" 2>/dev/null; then
+            existing_version=$(grep "version = " "$CONFIG_FILE" | sed 's/version = //' | tr -d ' ')
+        fi
+        
+        # If network matches and version is compatible, preserve existing config
+        if [[ "$existing_network" == "$NETWORK" ]] && [[ "$existing_version" == "4" ]]; then
+            log_info "Preserving existing configuration (network: $existing_network, version: $existing_version)"
+            log_success "Configuration preserved during update"
+            return 0
+        else
+            log_info "Configuration needs update (network: $existing_network->$NETWORK, version: $existing_version->4)"
+        fi
+    fi
+
+    # Generate new configuration
+    local destinations
+    destinations=$(generate_destinations)
 
     # Write configuration file
     cat > "$CONFIG_FILE" <<EOF
@@ -183,6 +371,7 @@ generate_config() {
 #
 # Generated by installer on $(date)
 # Network: $NETWORK
+# Installation type: $installation_type
 ###
 
 version = 4
@@ -191,10 +380,68 @@ ${destinations}
 EOF
 
     if [[ -f "$CONFIG_FILE" ]]; then
-        log_success "Configuration file created: $CONFIG_FILE"
+        if [[ "$installation_type" == "update" ]]; then
+            log_success "Configuration file updated: $CONFIG_FILE"
+        else
+            log_success "Configuration file created: $CONFIG_FILE"
+        fi
     else
         log_error "Failed to create configuration file"
         exit 1
+    fi
+}
+
+# Update binaries incrementally (only if changed)
+update_binaries() {
+    local installation_type="$1"
+    
+    log_info "Updating binaries..."
+    
+    # For fresh installations, just copy all binaries
+    if [[ "$installation_type" == "fresh" ]]; then
+        log_info "Fresh installation: Installing all binaries..."
+        
+        # Install gnosis_vpn
+        if [[ -f "${2}/usr/local/bin/gnosis_vpn" ]]; then
+            cp "${2}/usr/local/bin/gnosis_vpn" "$BIN_DIR/gnosis_vpn"
+            chmod 755 "$BIN_DIR/gnosis_vpn"
+            chown root:wheel "$BIN_DIR/gnosis_vpn" 2>/dev/null || true
+            log_success "Installed gnosis_vpn"
+        fi
+        
+        # Install gnosis_vpn-ctl
+        if [[ -f "${2}/usr/local/bin/gnosis_vpn-ctl" ]]; then
+            cp "${2}/usr/local/bin/gnosis_vpn-ctl" "$BIN_DIR/gnosis_vpn-ctl"
+            chmod 755 "$BIN_DIR/gnosis_vpn-ctl"
+            chown root:wheel "$BIN_DIR/gnosis_vpn-ctl" 2>/dev/null || true
+            log_success "Installed gnosis_vpn-ctl"
+        fi
+        
+    else
+        # For updates, check each binary individually
+        log_info "Update installation: Checking which binaries need updates..."
+        
+        local updates_made=0
+        
+        # Update gnosis_vpn if needed
+        if [[ -f "${2}/usr/local/bin/gnosis_vpn" ]]; then
+            if update_binary_if_needed "gnosis_vpn" "${2}/usr/local/bin/gnosis_vpn"; then
+                updates_made=$((updates_made + 1))
+            fi
+        fi
+        
+        # Update gnosis_vpn-ctl if needed
+        if [[ -f "${2}/usr/local/bin/gnosis_vpn-ctl" ]]; then
+            if update_binary_if_needed "gnosis_vpn-ctl" "${2}/usr/local/bin/gnosis_vpn-ctl"; then
+                updates_made=$((updates_made + 1))
+            fi
+        fi
+        
+        if [[ $updates_made -gt 0 ]]; then
+            log_success "Updated $updates_made binary(ies)"
+        else
+            log_info "All binaries are up to date"
+        fi
     fi
 }
 
@@ -258,30 +505,98 @@ verify_installation() {
 
 # Print installation summary
 print_summary() {
-    log_section "Installation Summary"
+    local installation_type="$1"
+    
+    if [[ "$installation_type" == "update" ]]; then
+        log_section "Update Summary"
+        log_info "Installation type: Update"
+    else
+        log_section "Installation Summary"
+        log_info "Installation type: Fresh installation"
+    fi
+    
+    log_info "Version: $INSTALLER_VERSION"
     log_info "Binary directory: $BIN_DIR"
     log_info "Configuration file: $CONFIG_FILE"
+    log_info "Version file: $VERSION_FILE"
     log_info "Network: $NETWORK"
     echo ""
     log_info "Installed binaries:"
     ls -lh "$BIN_DIR"/gnosis_vpn* 2>/dev/null || true
     echo ""
+    
+    # Show backup files if they exist
+    if ls "$CONFIG_DIR"/*.backup 2>/dev/null | head -1 >/dev/null; then
+        echo ""
+        log_info "Configuration backups:"
+        ls -lh "$CONFIG_DIR"/*.backup 2>/dev/null || true
+    fi
+    
+    if ls "$BIN_DIR"/*.backup-* 2>/dev/null | head -1 >/dev/null; then
+        echo ""
+        log_info "Binary backups:"
+        ls -lh "$BIN_DIR"/*.backup-* 2>/dev/null || true
+    fi
+    
+    echo ""
     log_info "To get started:"
     log_info "  1. sudo gnosis_vpn -c $CONFIG_FILE"
     log_info "  2. gnosis_vpn-ctl status"
     echo ""
+    log_info "Management commands:"
+    log_info "  gnosis-vpn-manager status   # Show installation status"
+    log_info "  gnosis-vpn-manager backups  # List backup files"
+    log_info "  gnosis-vpn-manager version  # Show installed version"
+    echo ""
     log_info "Log file: $INSTALLER_LOG_FILE"
-    log_success "Post-installation completed successfully!"
+    
+    if [[ "$installation_type" == "update" ]]; then
+        log_success "Update completed successfully!"
+    else
+        log_success "Installation completed successfully!"
+    fi
 }
 
 # Main execution
 main() {
-    backup_config
-    generate_config
+    # Determine installation type (fresh vs update)
+    local installation_type
+    installation_type=$(check_previous_installation)
+    
+    log_section "Installation Type: $installation_type"
+    
+    # Backup existing configuration
+    backup_config "$installation_type"
+    
+    # Update binaries (incrementally for updates, full for fresh installs)
+    update_binaries "$installation_type" "$2"
+    
+    # Install management script
+    if [[ -f "${SCRIPT_DIR}/manage-installation.sh" ]]; then
+        cp "${SCRIPT_DIR}/manage-installation.sh" "$BIN_DIR/gnosis-vpn-manager"
+        chmod 755 "$BIN_DIR/gnosis-vpn-manager"
+        chown root:wheel "$BIN_DIR/gnosis-vpn-manager" 2>/dev/null || true
+        log_success "Installed management script: gnosis-vpn-manager"
+    fi
+    
+    # Generate or update configuration
+    generate_config "$installation_type"
+    
+    # Set proper permissions
     set_permissions
+    
+    # Save version information
+    save_version_info
+    
+    # Clean up old backup files
+    cleanup_old_backups
+    
+    # Verify installation
     verify_path
     verify_installation
-    print_summary
+    
+    # Print summary
+    print_summary "$installation_type"
 
     # Disable rollback after successful completion
     disable_rollback

@@ -6,11 +6,15 @@ This directory contains the macOS PKG installer implementation for Gnosis VPN Cl
 
 - **Custom UI**: Professional welcome, readme, and completion screens with branding
 - **System Requirements Check**: Validates macOS version, architecture, and disk space
-- **Automatic Downloads**: Fetches the latest binaries from GitHub releases
+- **Incremental Updates**: Detects previous installations and only updates changed binaries
+- **Configuration Preservation**: Maintains user settings during updates when possible
+- **Version Tracking**: Tracks installation versions for better update management
+- **Automatic Backups**: Creates backups of binaries and configurations before updates
 - **WireGuard Integration**: Automatically detects and installs WireGuard tools if needed
 - **Network Selection**: Choose between Production (Gnosis Chain) or Rotsee testnet
 - **Configuration Generation**: Creates `config.toml` with selected network destinations
 - **macOS Integration**: Removes quarantine attributes and sets proper permissions
+- **Management Tools**: Includes utility for managing installations and backups
 
 ## Directory Structure
 
@@ -114,6 +118,43 @@ See [ENV_VARIABLES.md](ENV_VARIABLES.md) for complete documentation and examples
 ### Fallback Behavior
 
 If environment variables are not set, the installer falls back to downloading from the configured GitHub repository.
+
+## Incremental Updates
+
+The installer intelligently detects previous installations and performs incremental updates:
+
+### Update Detection
+- **Version Tracking**: Maintains version information in `/etc/gnosisvpn/version.txt`
+- **Binary Comparison**: Uses SHA-256 checksums to detect binary changes
+- **Configuration Preservation**: Keeps user settings when compatible
+
+### Update Process
+1. **Detection Phase**: Checks for existing installation and version
+2. **Backup Phase**: Creates timestamped backups of existing files
+3. **Update Phase**: Only updates binaries that have changed
+4. **Configuration Phase**: Preserves compatible configurations
+5. **Cleanup Phase**: Removes old backup files (keeps 5 most recent)
+
+### Management Tools
+
+The installer includes a management utility accessible via:
+
+```bash
+gnosis-vpn-manager [command]
+```
+
+**Available commands:**
+- `status` - Show complete installation status
+- `version` - Display current installation version  
+- `backups` - List available backup files
+- `restore` - Restore configuration from backup (requires sudo)
+- `cleanup` - Clean up old backup files (requires sudo)
+
+### Benefits
+- **Faster Updates**: Only changed binaries are replaced
+- **Configuration Safety**: User settings preserved during updates
+- **Rollback Capability**: Easy restoration from automatic backups
+- **Space Efficiency**: Automatic cleanup of old backup files
 
 ## What the Installer Does
 
