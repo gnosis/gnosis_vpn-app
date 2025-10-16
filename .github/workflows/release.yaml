@@ -12,30 +12,82 @@ on:
           - minor
           - major
 
+permissions:
+  contents: write
+
 concurrency:
   group: release
   cancel-in-progress: false
 
 jobs:
-  release:
-    permissions:
-      contents: write
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: "macos-15" # GitHub-hosted macOS (macOS 15)
-            args: "--target aarch64-apple-darwin"
+  create-release:
+    runs-on: ubuntu-24.04
+    outputs:
+      release_id: ${{ steps.create-release-script.outputs.result }}
+      release_version: ${{ steps.release-version.outputs.release_version }}
 
-    runs-on: ${{ matrix.platform }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: install Rust toolchain (stable) + targets
+      - name: Setup node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Get release version from src-tauri/Cargo.toml
+        id: release-version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          release_version=$(grep -m1 '^version\s*=' src-tauri/Cargo.toml | sed -E 's/.*"([0-9]+\.[0-9]+\.[0-9]+)".*/\1/')
+          if [[ -z "$release_version" ]]; then
+            echo "Could not find version in src-tauri/Cargo.toml" >&2
+            exit 1
+          fi
+          echo "Release version: $release_version"
+          echo "release_version=${release_version}" >> "$GITHUB_OUTPUT"
+
+      - name: Create release via GitHub script
+        id: create-release-script
+        uses: actions/github-script@v8
+        env:
+          RELEASE_VERSION: ${{ steps.release-version.outputs.release_version }}
+        with:
+          script: |
+            const { data } = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: `v${process.env.RELEASE_VERSION}`,
+              draft: false,
+              prerelease: false,
+              generate_release_notes: true
+            })
+            return data.id
+
+  build-tauri:
+    needs: create-release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: "macos-15"
+            target: "aarch64-apple-darwin"
+            args: "--target aarch64-apple-darwin"
+          - runner: "macos-15"
+            target: "x86_64-apple-darwin"
+            args: "--target x86_64-apple-darwin"
+
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Install Rust toolchain (stable) + targets
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.platform == 'macos-15' && 'aarch64-apple-darwin' || '' }}
+          targets: ${{ matrix.target }}
 
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
@@ -48,20 +100,31 @@ jobs:
         with:
           deno-version: v2.x
 
-      - name: install frontend dependencies
+      - name: Install frontend dependencies
         run: deno install
+
+      - name: Double check vars
+        shell: bash
+        run: |
+          echo "DEBUG3 Release version: ${{ needs.create-release.outputs.release_version }}"
+          echo "DEBUG4 Release ID: ${{ needs.create-release.outputs.release_id }}"
+          echo "DEBUG5 Build args: ${{ matrix.args }}"
 
       - name: Build tauri release
         uses: tauri-apps/tauri-action@action-v0.5.23
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: v__VERSION__
-          releaseName: "Gnosis VPN UI v__VERSION__"
-          releaseDraft: true
-          prerelease: false
+          releaseId: ${{ needs.create-release.outputs.release_id }}
           tauriScript: "deno task tauri"
           args: ${{ matrix.args }}
+
+  bump-version:
+    needs: [create-release, build-tauri]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
 
       - name: Bump Version
         id: bump
@@ -69,14 +132,9 @@ jobs:
         run: |
           set -euo pipefail
 
-          RELEASE_TYPE="${{ inputs.release_type }}"
+          release_type="${{ github.event.inputs.release_type }}"
 
-          # version from src-tauri/Cargo.toml
-          current_version=$(grep -m1 '^version\s*=' src-tauri/Cargo.toml | sed -E 's/.*"([0-9]+\.[0-9]+\.[0-9]+)".*/\1/')
-          if [[ -z "$current_version" ]]; then
-            echo "Could not find version in src-tauri/Cargo.toml" >&2
-            exit 1
-          fi
+          current_version=${{ needs.create-release.outputs.release_version }}
 
           # split into parts via bash parameter expansion
           major=${current_version%%.*}
@@ -85,7 +143,7 @@ jobs:
           patch=${rest#*.}
 
           echo "Current version: $current_version (major=$major minor=$minor patch=$patch)"
-          case "$RELEASE_TYPE" in
+          case "$release_type" in
             major)
               major=$((major+1)); minor=0; patch=0
               ;;
@@ -96,13 +154,12 @@ jobs:
               patch=$((patch+1))
               ;;
             *)
-              echo "Invalid release type: $RELEASE_TYPE" >&2
+              echo "Invalid release type: $release_type" >&2
               exit 1
               ;;
           esac
 
           new_version="${major}.${minor}.${patch}"
-          echo "New version: $new_version"
 
           # Update version in src-tauri/Cargo.toml (only inside [package] section)
           perl -0777 -pe \
@@ -114,10 +171,11 @@ jobs:
             "s/(\"version\"\\s*:\\s*\")\\d+\\.\\d+\\.\\d+(\"\\b)/\$1${new_version}\$2/s" \
             -i package.json
 
-          # Expose outputs
+          echo "New version: $new_version"
           echo "bump_version=${new_version}" >> "$GITHUB_OUTPUT"
 
-      - uses: EndBug/add-and-commit@v9
+      - name: Commit bumped versions
+        uses: EndBug/add-and-commit@v9
         with:
           add: '["src-tauri/Cargo.*", "package.json" ]'
           new_branch: main
