@@ -3,6 +3,8 @@ dist
 .local
 result
 
+.direnv/
+
 /src/.prettierrc
 
 /gnosisvpn-hopr.db

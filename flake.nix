@@ -122,11 +122,13 @@
             packages = [
               # nativeBuildInputs
               pkgs.pkg-config
-              pkgs.gobject-introspection
               pkgs.cargo-tauri
               pkgs.nodejs
               pkgs.deno
-              # buildInputs
+              pkgs.openssl
+            ] ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
+              # Linux-specific packages
+              pkgs.gobject-introspection
               pkgs.at-spi2-atk
               pkgs.atkmm
               pkgs.cairo
@@ -138,13 +140,17 @@
               pkgs.libsoup_3
               pkgs.pango
               pkgs.webkitgtk_4_1
-              pkgs.openssl
               pkgs.libayatana-appindicator
+            ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
+              # macOS-specific packages
+              pkgs.libiconv
             ];
 
-            LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath ([
-              pkgs.libayatana-appindicator
-            ]);
+            LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath (
+              pkgs.lib.optionals pkgs.stdenv.isLinux [
+                pkgs.libayatana-appindicator
+              ]
+            );
           };
           treefmt = treefmt;
         };
