@@ -51,12 +51,40 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $*"
 }
 
-# Check if running as root
+# Check if we have proper permissions to manage the service
 check_permissions() {
-    if [[ $EUID -ne 0 ]] && [[ "$1" == "restore" || "$1" == "cleanup" ]]; then
-        log_error "This command requires root privileges"
-        log_info "Please run with sudo: sudo $0 $1"
+    if [[ $EUID -eq 0 ]]; then
+        # Running as root, no issues
+        return 0
+    fi
+    
+    # Check if user is in gnosisvpn group
+    local current_user
+    current_user=$(id -un)
+    
+    if groups "$current_user" | grep -q '\bgnosisvpn\b'; then
+        log_info "User '$current_user' is in gnosisvpn group - using sudo privileges"
+        return 0
+    else
+        log_error "This command requires root privileges or membership in 'gnosisvpn' group"
+        log_info "Please run with sudo or ask an administrator to add you to the gnosisvpn group:"
+        log_info "  sudo dseditgroup -o edit -a $current_user -t user gnosisvpn"
         exit 1
+    fi
+}
+
+# Execute launchctl command with appropriate privileges
+run_launchctl() {
+    local cmd="$1"
+    shift
+    local args="$@"
+    
+    if [[ $EUID -eq 0 ]]; then
+        # Already root, run directly
+        launchctl "$cmd" "$@"
+    else
+        # Use sudo with configured privileges
+        sudo launchctl "$cmd" "$@"
     fi
 }
 
@@ -241,7 +269,7 @@ show_status() {
     
     # Service status
     log_info "Service status:"
-    if launchctl print system/org.gnosis.vpn >/dev/null 2>&1; then
+    if run_launchctl print system/org.gnosis.vpn >/dev/null 2>&1; then
         log_success "Launchd service is loaded"
         if pgrep -f "gnosis_vpn" >/dev/null 2>&1; then
             local pid
@@ -306,12 +334,12 @@ start_service() {
         exit 1
     fi
     
-    if launchctl print system/org.gnosis.vpn >/dev/null 2>&1; then
+    if run_launchctl print system/org.gnosis.vpn >/dev/null 2>&1; then
         log_info "Service is already loaded, restarting..."
-        launchctl kickstart system/org.gnosis.vpn
+        run_launchctl kickstart system/org.gnosis.vpn
     else
         log_info "Loading service..."
-        launchctl bootstrap system "$plist_path"
+        run_launchctl bootstrap system "$plist_path"
     fi
     
     # Wait and check status
@@ -331,8 +359,8 @@ stop_service() {
     
     local plist_path="/Library/LaunchDaemons/org.gnosis.vpn.plist"
     
-    if launchctl print system/org.gnosis.vpn >/dev/null 2>&1; then
-        launchctl bootout system "$plist_path"
+    if run_launchctl print system/org.gnosis.vpn >/dev/null 2>&1; then
+        run_launchctl bootout system "$plist_path"
         log_success "Service stopped"
     else
         log_info "Service was not running"

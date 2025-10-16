@@ -727,6 +727,51 @@ verify_plist_deployment() {
     return $errors
 }
 
+# Configure sudo privileges for gnosisvpn group
+configure_sudo_privileges() {
+    log_info "Configuring sudo privileges for gnosisvpn group..."
+    
+    local sudoers_file="/etc/sudoers.d/gnosis-vpn"
+    local source_sudoers="${SCRIPT_DIR}/config/system/gnosis-vpn-sudoers"
+    
+    # Fallback to development location if not found (for testing)
+    if [[ ! -f "$source_sudoers" ]]; then
+        source_sudoers="${SCRIPT_DIR}/../config/system/gnosis-vpn-sudoers"
+    fi
+    
+    if [[ ! -f "$source_sudoers" ]]; then
+        log_error "Sudoers file not found: $source_sudoers"
+        log_warn "Group members will need to use sudo for service management"
+        return 1
+    fi
+    
+    # Verify the gnosisvpn group exists
+    if ! dscl . -read "/Groups/gnosisvpn" >/dev/null 2>&1; then
+        log_warn "System group 'gnosisvpn' not found, skipping sudo configuration"
+        return 0
+    fi
+    
+    # Install sudoers file
+    log_info "Installing sudoers configuration: $sudoers_file"
+    cp "$source_sudoers" "$sudoers_file"
+    
+    # Set proper permissions for sudoers file
+    chmod 440 "$sudoers_file"
+    chown root:wheel "$sudoers_file"
+    
+    # Validate sudoers syntax
+    if visudo -c -f "$sudoers_file" >/dev/null 2>&1; then
+        log_success "Sudoers configuration installed and validated"
+        log_info "Members of 'gnosisvpn' group can now manage the service without sudo password"
+    else
+        log_error "Invalid sudoers syntax detected, removing file"
+        rm -f "$sudoers_file"
+        return 1
+    fi
+    
+    return 0
+}
+
 # Uninstall launchd service (for updates or uninstallation)
 uninstall_launchd_service() {
     log_info "Stopping Gnosis VPN service..."
@@ -1138,6 +1183,9 @@ main() {
     create_system_user
     update_user_group
     setup_user_permissions
+    
+    # Configure sudo privileges for service management
+    configure_sudo_privileges
     
     # Install launchd service
     install_launchd_service "$installation_type"
