@@ -241,10 +241,22 @@ show_status() {
     
     # Service status
     log_info "Service status:"
-    if pgrep -f "gnosis_vpn" >/dev/null 2>&1; then
-        log_success "VPN service is running"
+    if launchctl print system/org.gnosis.vpn >/dev/null 2>&1; then
+        log_success "Launchd service is loaded"
+        if pgrep -f "gnosis_vpn" >/dev/null 2>&1; then
+            local pid
+            pid=$(pgrep -f "gnosis_vpn")
+            log_success "VPN process is running (PID: $pid)"
+        else
+            log_warn "Service is loaded but process is not running"
+        fi
     else
-        log_info "VPN service is not running"
+        log_error "Launchd service is not loaded"
+        if pgrep -f "gnosis_vpn" >/dev/null 2>&1; then
+            log_warn "VPN process is running manually"
+        else
+            log_info "VPN service is not running"
+        fi
     fi
     
     echo ""
@@ -259,6 +271,108 @@ show_status() {
     log_info "  Binary backups: $binary_backups"
 }
 
+# Start VPN service
+start_service() {
+    log_info "Starting Gnosis VPN service..."
+    
+    local plist_path="/Library/LaunchDaemons/org.gnosis.vpn.plist"
+    
+    if [[ ! -f "$plist_path" ]]; then
+        log_error "Launchd service not installed"
+        log_info "Please reinstall the application to create the service"
+        exit 1
+    fi
+    
+    if launchctl print system/org.gnosis.vpn >/dev/null 2>&1; then
+        log_info "Service is already loaded, restarting..."
+        launchctl kickstart system/org.gnosis.vpn
+    else
+        log_info "Loading service..."
+        launchctl bootstrap system "$plist_path"
+    fi
+    
+    # Wait and check status
+    sleep 3
+    if pgrep -f "gnosis_vpn" >/dev/null 2>&1; then
+        log_success "Service started successfully"
+    else
+        log_error "Service failed to start"
+        log_info "Check logs: tail -f /var/log/gnosis_vpn/gnosis_vpn.error.log"
+        exit 1
+    fi
+}
+
+# Stop VPN service
+stop_service() {
+    log_info "Stopping Gnosis VPN service..."
+    
+    local plist_path="/Library/LaunchDaemons/org.gnosis.vpn.plist"
+    
+    if launchctl print system/org.gnosis.vpn >/dev/null 2>&1; then
+        launchctl bootout system "$plist_path"
+        log_success "Service stopped"
+    else
+        log_info "Service was not running"
+    fi
+    
+    # Kill any remaining processes
+    if pgrep -f "gnosis_vpn" >/dev/null 2>&1; then
+        log_info "Terminating remaining VPN processes..."
+        pkill -f "gnosis_vpn" || true
+        sleep 2
+        if pgrep -f "gnosis_vpn" >/dev/null 2>&1; then
+            log_warn "Some VPN processes may still be running"
+        else
+            log_success "All VPN processes terminated"
+        fi
+    fi
+}
+
+# Restart VPN service
+restart_service() {
+    log_info "Restarting Gnosis VPN service..."
+    stop_service
+    sleep 2
+    start_service
+}
+
+# Show service logs
+show_logs() {
+    local log_type="${1:-service}"
+    
+    case "$log_type" in
+        "service"|"info")
+            log_info "Showing service logs (last 50 lines):"
+            echo ""
+            tail -n 50 /var/log/gnosis_vpn/gnosis_vpn.log 2>/dev/null || {
+                log_error "Service log file not found"
+                exit 1
+            }
+            ;;
+        "error"|"errors")
+            log_info "Showing error logs (last 50 lines):"
+            echo ""
+            tail -n 50 /var/log/gnosis_vpn/gnosis_vpn.error.log 2>/dev/null || {
+                log_error "Error log file not found"
+                exit 1
+            }
+            ;;
+        "follow"|"tail")
+            log_info "Following service logs (Ctrl+C to stop):"
+            echo ""
+            tail -f /var/log/gnosis_vpn/gnosis_vpn.log 2>/dev/null || {
+                log_error "Service log file not found"
+                exit 1
+            }
+            ;;
+        *)
+            log_error "Unknown log type: $log_type"
+            log_info "Available options: service, error, follow"
+            exit 1
+            ;;
+    esac
+}
+
 # Show usage
 show_usage() {
     echo "Gnosis VPN Installation Manager"
@@ -267,10 +381,22 @@ show_usage() {
     echo ""
     echo "Commands:"
     echo "  version     Show current installation version"
+    echo "  status      Show complete installation status"
     echo "  backups     List available backup files"
     echo "  restore     Restore configuration from backup (requires sudo)"
     echo "  cleanup     Clean up old backup files (requires sudo)"
-    echo "  status      Show complete installation status"
+    echo ""
+    echo "Service Management:"
+    echo "  start       Start the VPN service (requires sudo)"
+    echo "  stop        Stop the VPN service (requires sudo)"
+    echo "  restart     Restart the VPN service (requires sudo)"
+    echo "  logs        Show service logs"
+    echo ""
+    echo "Log Options:"
+    echo "  logs service    Show service logs (default)"
+    echo "  logs error      Show error logs"
+    echo "  logs follow     Follow logs in real-time"
+    echo ""
     echo "  help        Show this help message"
     echo ""
 }
@@ -296,6 +422,22 @@ main() {
             ;;
         "status")
             show_status
+            ;;
+        "start")
+            check_permissions "$command"
+            start_service
+            ;;
+        "stop")
+            check_permissions "$command"
+            stop_service
+            ;;
+        "restart")
+            check_permissions "$command"
+            restart_service
+            ;;
+        "logs")
+            local log_type="${2:-service}"
+            show_logs "$log_type"
             ;;
         "help"|"-h"|"--help")
             show_usage

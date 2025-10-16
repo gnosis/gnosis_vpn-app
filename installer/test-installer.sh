@@ -120,13 +120,33 @@ test_installation_scripts() {
     echo ""
 }
 
-# Test: Config templates exist
+# Test: Configuration files exist
 test_config_templates() {
-    log_info "Testing config templates..."
+    log_info "Testing configuration files..."
 
-    run_test "config-templates directory exists" "[[ -d '$SCRIPT_DIR/resources/config-templates' ]]"
-    run_test "rotsee.toml.template exists" "[[ -f '$SCRIPT_DIR/resources/config-templates/rotsee.toml.template' ]]"
-    run_test "dufour.toml.template exists" "[[ -f '$SCRIPT_DIR/resources/config-templates/dufour.toml.template' ]]"
+    run_test "config directory exists" "[[ -d '$SCRIPT_DIR/resources/config' ]]"
+    run_test "config templates directory exists" "[[ -d '$SCRIPT_DIR/resources/config/templates' ]]"
+    run_test "config system directory exists" "[[ -d '$SCRIPT_DIR/resources/config/system' ]]"
+    run_test "rotsee.toml.template exists" "[[ -f '$SCRIPT_DIR/resources/config/templates/rotsee.toml.template' ]]"
+    run_test "dufour.toml.template exists" "[[ -f '$SCRIPT_DIR/resources/config/templates/dufour.toml.template' ]]"
+    run_test "launchd plist exists" "[[ -f '$SCRIPT_DIR/resources/config/system/org.gnosis.vpn.plist' ]]"
+
+    echo ""
+}
+
+# Test: Plist file validation
+test_plist_configuration() {
+    log_info "Testing plist configuration..."
+    
+    local plist_file="$SCRIPT_DIR/resources/config/system/org.gnosis.vpn.plist"
+    
+    run_test "plist syntax is valid" "plutil -lint '$plist_file' >/dev/null 2>&1"
+    run_test "plist has Label key" "grep -q '<key>Label</key>' '$plist_file'"
+    run_test "plist has ProgramArguments" "grep -q '<key>ProgramArguments</key>' '$plist_file'"
+    run_test "plist has RunAtLoad" "grep -q '<key>RunAtLoad</key>' '$plist_file'"
+    run_test "plist has KeepAlive" "grep -q '<key>KeepAlive</key>' '$plist_file'"
+    run_test "plist references correct binary" "grep -q '/usr/local/bin/gnosis_vpn' '$plist_file'"
+    run_test "plist references correct config" "grep -q '/etc/gnosisvpn/config.toml' '$plist_file'"
 
     echo ""
 }
@@ -136,8 +156,8 @@ test_template_syntax() {
     log_info "Testing template syntax..."
 
     # Check for basic TOML structure
-    local rotsee_template="$SCRIPT_DIR/resources/config-templates/rotsee.toml.template"
-    local dufour_template="$SCRIPT_DIR/resources/config-templates/dufour.toml.template"
+    local rotsee_template="$SCRIPT_DIR/resources/config/templates/rotsee.toml.template"
+    local dufour_template="$SCRIPT_DIR/resources/config/templates/dufour.toml.template"
 
     run_test "rotsee template has destinations section" "grep -q '\\[destinations\\.' '$rotsee_template'"
     run_test "dufour template has destinations section" "grep -q '\\[destinations\\.' '$dufour_template'"
@@ -253,6 +273,7 @@ main() {
     test_resource_files
     test_installation_scripts
     test_config_templates
+    test_plist_configuration
     test_template_syntax
     test_script_syntax
     test_distribution_xml
