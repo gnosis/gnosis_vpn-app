@@ -147,6 +147,30 @@ test_plist_configuration() {
     run_test "plist has KeepAlive" "grep -q '<key>KeepAlive</key>' '$plist_file'"
     run_test "plist references correct binary" "grep -q '/usr/local/bin/gnosis_vpn' '$plist_file'"
     run_test "plist references correct config" "grep -q '/etc/gnosisvpn/config.toml' '$plist_file'"
+    run_test "plist uses system user" "grep -A1 '<key>UserName</key>' '$plist_file' | grep -q '<string>gnosisvpn</string>'"
+    run_test "plist uses system group" "grep -A1 '<key>GroupName</key>' '$plist_file' | grep -q '<string>gnosisvpn</string>'"
+    run_test "plist uses correct working directory" "grep -A1 '<key>WorkingDirectory</key>' '$plist_file' | grep -q '<string>/var/lib/gnosisvpn</string>'"
+
+    echo ""
+}
+
+# Test: System user and group functions
+test_system_user_functions() {
+    log_info "Testing system user and group functions..."
+    
+    local postinstall="$SCRIPT_DIR/resources/scripts/postinstall"
+    
+    run_test "postinstall has create_system_user function" "grep -q 'create_system_user()' '$postinstall'"
+    run_test "postinstall has create_system_group function" "grep -q 'create_system_group()' '$postinstall'"
+    run_test "postinstall has update_user_group function" "grep -q 'update_user_group()' '$postinstall'"
+    run_test "postinstall has setup_user_permissions function" "grep -q 'setup_user_permissions()' '$postinstall'"
+    run_test "postinstall uses dscl commands" "grep -q 'dscl .' '$postinstall'"
+    run_test "postinstall uses dseditgroup" "grep -q 'dseditgroup' '$postinstall'"
+    
+    local uninstall="$SCRIPT_DIR/uninstall.sh"
+    run_test "uninstall has remove_system_user function" "grep -q 'remove_system_user()' '$uninstall'"
+    run_test "uninstall has remove_system_group function" "grep -q 'remove_system_group()' '$uninstall'"
+    run_test "uninstall has cleanup_system_directories function" "grep -q 'cleanup_system_directories()' '$uninstall'"
 
     echo ""
 }
@@ -274,6 +298,7 @@ main() {
     test_installation_scripts
     test_config_templates
     test_plist_configuration
+    test_system_user_functions
     test_template_syntax
     test_script_syntax
     test_distribution_xml

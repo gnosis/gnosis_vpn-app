@@ -261,6 +261,29 @@ show_status() {
     
     echo ""
     
+    # System user and group status
+    log_info "System user and group status:"
+    if dscl . -read "/Users/gnosisvpn" >/dev/null 2>&1; then
+        local uid gid
+        uid=$(dscl . -read "/Users/gnosisvpn" UniqueID 2>/dev/null | awk '{print $2}' || echo "unknown")
+        gid=$(dscl . -read "/Users/gnosisvpn" PrimaryGroupID 2>/dev/null | awk '{print $2}' || echo "unknown")
+        log_success "System user 'gnosisvpn' exists (UID: $uid, GID: $gid)"
+    else
+        log_warn "System user 'gnosisvpn' not found (service runs as root)"
+    fi
+    
+    if dscl . -read "/Groups/gnosisvpn" >/dev/null 2>&1; then
+        local group_gid members
+        group_gid=$(dscl . -read "/Groups/gnosisvpn" PrimaryGroupID 2>/dev/null | awk '{print $2}' || echo "unknown")
+        members=$(dscl . -read "/Groups/gnosisvpn" GroupMembership 2>/dev/null | cut -d' ' -f2- || echo "none")
+        log_success "System group 'gnosisvpn' exists (GID: $group_gid)"
+        log_info "  Group members: $members"
+    else
+        log_warn "System group 'gnosisvpn' not found"
+    fi
+    
+    echo ""
+    
     # Backup summary
     local config_backups binary_backups
     config_backups=$(ls "$CONFIG_DIR"/*.backup 2>/dev/null | wc -l | tr -d ' ')
