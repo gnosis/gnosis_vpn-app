@@ -38,13 +38,13 @@
     
     <!-- User and Group -->
     <key>UserName</key>
-    <string>root</string>
+    <string>gnosisvpn</string>
     <key>GroupName</key>
-    <string>wheel</string>
+    <string>gnosisvpn</string>
     
     <!-- Working Directory -->
     <key>WorkingDirectory</key>
-    <string>/var/log/gnosis_vpn</string>
+    <string>/var/lib/gnosisvpn</string>
     
     <!-- Logging Configuration -->
     <key>StandardOutPath</key>

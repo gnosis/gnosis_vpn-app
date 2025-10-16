@@ -500,6 +500,29 @@ pkgutil --pkgs | grep gnosis || echo "✓ Package receipt removed"
 - Universal binaries are packaged directly into the PKG
 - No personal information is collected or transmitted
 
+### System User and Group Management
+
+The installer creates dedicated system credentials for enhanced security:
+
+- **System User**: `gnosisvpn` (UID: 200-499 range)
+  - Hidden from login window and Users & Groups preferences
+  - Home directory: `/var/lib/gnosisvpn` 
+  - Shell: `/usr/bin/false` (no interactive login)
+  - Used to run the VPN service with minimal privileges
+
+- **System Group**: `gnosisvpn` (GID: 200-499 range)
+  - Contains the current user and system user
+  - Provides group-based access to VPN configuration and logs
+  - Enables non-root users to manage the service
+
+- **Permission Structure**:
+  - Configuration files: `root:gnosisvpn` with group read access
+  - Binaries: `root:gnosisvpn` with group execute access
+  - Log directories: `gnosisvpn:gnosisvpn` for service logging
+  - Runtime directories: `/var/run/gnosisvpn`, `/var/lib/gnosisvpn`
+
+This eliminates the need to run the service as root and provides controlled access for regular users.
+
 ### Checksum Verification
 
 The build process automatically verifies SHA-256 checksums for all downloaded binaries:

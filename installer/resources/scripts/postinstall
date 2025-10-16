@@ -237,6 +237,152 @@ save_version_info() {
     log_success "Version saved to $VERSION_FILE"
 }
 
+# Create dedicated system user for Gnosis VPN service
+create_system_user() {
+    log_info "Creating dedicated system user for Gnosis VPN service..."
+    
+    local username="gnosisvpn"
+    local fullname="Gnosis VPN Service"
+    local homedir="/var/lib/gnosisvpn"
+    local shell="/usr/bin/false"
+    
+    # Find next available system UID (typically 200-499 range for system users)
+    local uid
+    for uid in {200..499}; do
+        if ! dscl . -read "/Users/$username" UniqueID >/dev/null 2>&1 && \
+           ! dscl . -search /Users UniqueID "$uid" >/dev/null 2>&1; then
+            break
+        fi
+    done
+    
+    # Check if user already exists
+    if dscl . -read "/Users/$username" >/dev/null 2>&1; then
+        log_info "System user '$username' already exists"
+        
+        # Verify it's configured correctly
+        local existing_uid
+        existing_uid=$(dscl . -read "/Users/$username" UniqueID | awk '{print $2}')
+        local existing_home
+        existing_home=$(dscl . -read "/Users/$username" NFSHomeDirectory | cut -d' ' -f2-)
+        
+        log_info "Existing user details: UID=$existing_uid, Home=$existing_home"
+        
+        # Ensure home directory exists and has correct permissions
+        if [[ ! -d "$existing_home" ]]; then
+            log_info "Creating missing home directory: $existing_home"
+            mkdir -p "$existing_home"
+            chown "$username:gnosisvpn" "$existing_home"
+            chmod 750 "$existing_home"
+        fi
+        
+        return 0
+    fi
+    
+    log_info "Creating system user: $username (UID: $uid)"
+    
+    # Create the user record
+    dscl . -create "/Users/$username"
+    dscl . -create "/Users/$username" UserShell "$shell"
+    dscl . -create "/Users/$username" RealName "$fullname"
+    dscl . -create "/Users/$username" UniqueID "$uid"
+    dscl . -create "/Users/$username" PrimaryGroupID 20  # staff group initially
+    dscl . -create "/Users/$username" NFSHomeDirectory "$homedir"
+    
+    # Create home directory
+    mkdir -p "$homedir"
+    chown "$username:staff" "$homedir"
+    chmod 750 "$homedir"
+    
+    # Hide user from login window and Users & Groups preferences
+    dscl . -create "/Users/$username" IsHidden 1
+    
+    log_success "System user '$username' created successfully (UID: $uid)"
+}
+
+# Create dedicated group for Gnosis VPN operations
+create_system_group() {
+    log_info "Creating dedicated system group for Gnosis VPN..."
+    
+    local groupname="gnosisvpn"
+    local current_user
+    current_user=$(logname 2>/dev/null || who am i | awk '{print $1}' || echo "unknown")
+    
+    # Find next available system GID (typically 200-499 range for system groups)
+    local gid
+    for gid in {200..499}; do
+        if ! dscl . -read "/Groups/$groupname" PrimaryGroupID >/dev/null 2>&1 && \
+           ! dscl . -search /Groups PrimaryGroupID "$gid" >/dev/null 2>&1; then
+            break
+        fi
+    done
+    
+    # Check if group already exists
+    if dscl . -read "/Groups/$groupname" >/dev/null 2>&1; then
+        log_info "System group '$groupname' already exists"
+        
+        # Check if current user is already in the group
+        local group_members
+        group_members=$(dscl . -read "/Groups/$groupname" GroupMembership 2>/dev/null | cut -d' ' -f2- || echo "")
+        
+        if [[ "$group_members" == *"$current_user"* ]]; then
+            log_info "Current user '$current_user' is already in group '$groupname'"
+        else
+            log_info "Adding current user '$current_user' to existing group '$groupname'"
+            dseditgroup -o edit -a "$current_user" -t user "$groupname"
+            log_success "User '$current_user' added to group '$groupname'"
+        fi
+        
+        return 0
+    fi
+    
+    log_info "Creating system group: $groupname (GID: $gid)"
+    
+    # Create the group record
+    dscl . -create "/Groups/$groupname"
+    dscl . -create "/Groups/$groupname" PrimaryGroupID "$gid"
+    dscl . -create "/Groups/$groupname" RealName "Gnosis VPN System Group"
+    dscl . -create "/Groups/$groupname" RecordName "$groupname"
+    
+    # Add current user to the group
+    if [[ "$current_user" != "unknown" ]] && [[ "$current_user" != "root" ]]; then
+        log_info "Adding current user '$current_user' to group '$groupname'"
+        dseditgroup -o edit -a "$current_user" -t user "$groupname"
+        log_success "User '$current_user' added to group '$groupname'"
+    else
+        log_warn "Could not determine current user or user is root - skipping group membership"
+    fi
+    
+    log_success "System group '$groupname' created successfully (GID: $gid)"
+}
+
+# Update system user's primary group to gnosisvpn
+update_user_group() {
+    log_info "Updating system user's primary group..."
+    
+    local username="gnosisvpn"
+    local groupname="gnosisvpn"
+    
+    # Get group GID
+    local gid
+    if ! gid=$(dscl . -read "/Groups/$groupname" PrimaryGroupID 2>/dev/null | awk '{print $2}'); then
+        log_error "Could not find GID for group '$groupname'"
+        return 1
+    fi
+    
+    # Update user's primary group
+    dscl . -create "/Users/$username" PrimaryGroupID "$gid"
+    
+    # Update home directory ownership
+    local homedir
+    homedir=$(dscl . -read "/Users/$username" NFSHomeDirectory | cut -d' ' -f2-)
+    if [[ -d "$homedir" ]]; then
+        chown "$username:$groupname" "$homedir"
+        log_info "Updated home directory ownership: $homedir"
+    fi
+    
+    log_success "User '$username' primary group updated to '$groupname' (GID: $gid)"
+}
+
 # Configure plist with runtime values
 configure_plist() {
     local source_plist="$1"
@@ -267,11 +413,104 @@ configure_plist() {
         log_info "Updated config path in plist to: $config_path"
     fi
     
+    # Ensure plist uses correct user and group
+    if dscl . -read "/Users/gnosisvpn" >/dev/null 2>&1; then
+        log_info "Configuring plist to use system user 'gnosisvpn'"
+        
+        # Update UserName to gnosisvpn (handles both root and gnosisvpn defaults)
+        sed -i '' '/<key>UserName<\/key>/{N;s|<string>.*</string>|<string>gnosisvpn</string>|;}' "$target_plist"
+        
+        # Update GroupName to gnosisvpn (handles both wheel and gnosisvpn defaults)
+        sed -i '' '/<key>GroupName<\/key>/{N;s|<string>.*</string>|<string>gnosisvpn</string>|;}' "$target_plist"
+        
+        # Update WorkingDirectory to use system user's state directory
+        sed -i '' '/<key>WorkingDirectory<\/key>/{N;s|<string>.*</string>|<string>/var/lib/gnosisvpn</string>|;}' "$target_plist"
+        
+        log_success "Plist configured to run as user 'gnosisvpn' with group 'gnosisvpn'"
+        log_info "Working directory set to: /var/lib/gnosisvpn"
+    else
+        log_warn "System user 'gnosisvpn' not found, configuring plist to use root"
+        
+        # Fallback to root if system user doesn't exist
+        sed -i '' '/<key>UserName<\/key>/{N;s|<string>.*</string>|<string>root</string>|;}' "$target_plist"
+        sed -i '' '/<key>GroupName<\/key>/{N;s|<string>.*</string>|<string>wheel</string>|;}' "$target_plist"
+        
+        log_info "Plist configured to run as root user with wheel group"
+    fi
+    
     # Ensure proper permissions
     chmod 644 "$target_plist"
     chown root:wheel "$target_plist" 2>/dev/null || true
     
     return 0
+}
+
+# Set up permissions for system user
+setup_user_permissions() {
+    log_info "Setting up permissions for system user..."
+    
+    local username="gnosisvpn"
+    local groupname="gnosisvpn"
+    
+    # Verify user exists
+    if ! dscl . -read "/Users/$username" >/dev/null 2>&1; then
+        log_warn "System user '$username' not found, skipping permission setup"
+        return 0
+    fi
+    
+    log_info "Configuring file permissions for user '$username'"
+    
+    # Set ownership and permissions for configuration directory
+    if [[ -d "$CONFIG_DIR" ]]; then
+        chown -R root:$groupname "$CONFIG_DIR"
+        chmod -R g+r "$CONFIG_DIR"
+        chmod g+x "$CONFIG_DIR"
+        log_info "Configuration directory permissions updated: $CONFIG_DIR"
+    fi
+    
+    # Set ownership and permissions for log directory
+    local log_dir="/var/log/gnosis_vpn"
+    if [[ -d "$log_dir" ]]; then
+        chown -R $username:$groupname "$log_dir"
+        chmod -R 755 "$log_dir"
+        log_info "Log directory permissions updated: $log_dir"
+    fi
+    
+    # Set ownership and permissions for binaries (allow execution by group)
+    if [[ -f "${BIN_DIR}/gnosis_vpn" ]]; then
+        chown root:$groupname "${BIN_DIR}/gnosis_vpn"
+        chmod 750 "${BIN_DIR}/gnosis_vpn"
+        log_info "Binary permissions updated: ${BIN_DIR}/gnosis_vpn"
+    fi
+    
+    if [[ -f "${BIN_DIR}/gnosis_vpn-ctl" ]]; then
+        chown root:$groupname "${BIN_DIR}/gnosis_vpn-ctl"
+        chmod 750 "${BIN_DIR}/gnosis_vpn-ctl"
+        log_info "CLI binary permissions updated: ${BIN_DIR}/gnosis_vpn-ctl"
+    fi
+    
+    # Set permissions for management script (allow group access)
+    if [[ -f "${BIN_DIR}/gnosis-vpn-manager" ]]; then
+        chown root:$groupname "${BIN_DIR}/gnosis-vpn-manager"
+        chmod 750 "${BIN_DIR}/gnosis-vpn-manager"
+        log_info "Management script permissions updated: ${BIN_DIR}/gnosis-vpn-manager"
+    fi
+    
+    # Create and set permissions for runtime directory
+    local runtime_dir="/var/run/gnosisvpn"
+    mkdir -p "$runtime_dir"
+    chown $username:$groupname "$runtime_dir"
+    chmod 755 "$runtime_dir"
+    log_info "Runtime directory created: $runtime_dir"
+    
+    # Create and set permissions for state directory
+    local state_dir="/var/lib/gnosisvpn"
+    mkdir -p "$state_dir"
+    chown $username:$groupname "$state_dir"
+    chmod 750 "$state_dir"
+    log_info "State directory created: $state_dir"
+    
+    log_success "User permissions configured successfully"
 }
 
 # Install launchd service
@@ -438,6 +677,43 @@ verify_plist_deployment() {
         else
             log_error "Plist syntax is invalid"
             ((errors++))
+        fi
+        
+        # Verify user and group configuration
+        local plist_user plist_group
+        plist_user=$(grep -A1 "<key>UserName</key>" "$plist_path" | grep "<string>" | sed 's/.*<string>\(.*\)<\/string>.*/\1/')
+        plist_group=$(grep -A1 "<key>GroupName</key>" "$plist_path" | grep "<string>" | sed 's/.*<string>\(.*\)<\/string>.*/\1/')
+        
+        if [[ "$plist_user" == "gnosisvpn" ]]; then
+            log_success "Plist user correctly set to: gnosisvpn"
+        else
+            if [[ "$plist_user" == "root" ]]; then
+                log_warn "Plist user is set to root (fallback mode)"
+            else
+                log_error "Plist user has unexpected value: $plist_user"
+                ((errors++))
+            fi
+        fi
+        
+        if [[ "$plist_group" == "gnosisvpn" ]]; then
+            log_success "Plist group correctly set to: gnosisvpn"
+        else
+            if [[ "$plist_group" == "wheel" ]]; then
+                log_warn "Plist group is set to wheel (fallback mode)"
+            else
+                log_error "Plist group has unexpected value: $plist_group"
+                ((errors++))
+            fi
+        fi
+        
+        # Verify working directory
+        local plist_workdir
+        plist_workdir=$(grep -A1 "<key>WorkingDirectory</key>" "$plist_path" | grep "<string>" | sed 's/.*<string>\(.*\)<\/string>.*/\1/')
+        
+        if [[ "$plist_workdir" == "/var/lib/gnosisvpn" ]]; then
+            log_success "Plist working directory correctly set to: /var/lib/gnosisvpn"
+        else
+            log_warn "Plist working directory set to: $plist_workdir"
         fi
     fi
     
@@ -835,7 +1111,16 @@ main() {
     if [[ -f "${SCRIPT_DIR}/manage-installation.sh" ]]; then
         cp "${SCRIPT_DIR}/manage-installation.sh" "$BIN_DIR/gnosis-vpn-manager"
         chmod 755 "$BIN_DIR/gnosis-vpn-manager"
-        chown root:wheel "$BIN_DIR/gnosis-vpn-manager" 2>/dev/null || true
+        
+        # Use system group if it exists, otherwise use wheel
+        if dscl . -read "/Groups/gnosisvpn" >/dev/null 2>&1; then
+            chown root:gnosisvpn "$BIN_DIR/gnosis-vpn-manager" 2>/dev/null || true
+            log_info "Management script installed with gnosisvpn group"
+        else
+            chown root:wheel "$BIN_DIR/gnosis-vpn-manager" 2>/dev/null || true
+            log_info "Management script installed with wheel group (will be updated later)"
+        fi
+        
         log_success "Installed management script: gnosis-vpn-manager"
     fi
     
@@ -847,6 +1132,12 @@ main() {
     
     # Save version information
     save_version_info
+    
+    # Create system user and group
+    create_system_group
+    create_system_user
+    update_user_group
+    setup_user_permissions
     
     # Install launchd service
     install_launchd_service "$installation_type"

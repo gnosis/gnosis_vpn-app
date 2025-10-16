@@ -99,6 +99,82 @@ remove_launchd_service() {
     echo ""
 }
 
+# Remove system user
+remove_system_user() {
+    log_info "Removing system user..."
+    
+    local username="gnosisvpn"
+    
+    if dscl . -read "/Users/$username" >/dev/null 2>&1; then
+        log_info "Found system user: $username"
+        
+        # Get home directory before deletion
+        local homedir
+        homedir=$(dscl . -read "/Users/$username" NFSHomeDirectory 2>/dev/null | cut -d' ' -f2- || echo "")
+        
+        # Delete the user
+        dscl . -delete "/Users/$username"
+        log_success "Removed system user: $username"
+        
+        # Remove home directory if it exists
+        if [[ -n "$homedir" ]] && [[ -d "$homedir" ]]; then
+            log_info "Removing user home directory: $homedir"
+            rm -rf "$homedir"
+        fi
+    else
+        log_info "No system user '$username' found"
+    fi
+}
+
+# Remove system group
+remove_system_group() {
+    log_info "Removing system group..."
+    
+    local groupname="gnosisvpn"
+    
+    if dscl . -read "/Groups/$groupname" >/dev/null 2>&1; then
+        log_info "Found system group: $groupname"
+        
+        # Remove all users from the group first
+        local members
+        members=$(dscl . -read "/Groups/$groupname" GroupMembership 2>/dev/null | cut -d' ' -f2- || echo "")
+        
+        if [[ -n "$members" ]]; then
+            log_info "Removing users from group: $members"
+            for member in $members; do
+                dseditgroup -o edit -d "$member" -t user "$groupname" 2>/dev/null || true
+            done
+        fi
+        
+        # Delete the group
+        dscl . -delete "/Groups/$groupname"
+        log_success "Removed system group: $groupname"
+    else
+        log_info "No system group '$groupname' found"
+    fi
+}
+
+# Clean up system directories created for the service
+cleanup_system_directories() {
+    log_info "Cleaning up system directories..."
+    
+    local directories=(
+        "/var/run/gnosisvpn"
+        "/var/lib/gnosisvpn"
+        "/var/log/gnosis_vpn"
+    )
+    
+    for dir in "${directories[@]}"; do
+        if [[ -d "$dir" ]]; then
+            log_info "Removing directory: $dir"
+            rm -rf "$dir"
+        fi
+    done
+    
+    log_success "System directories cleaned up"
+    echo ""
+}
+
 # Stop running processes
 stop_processes() {
     log_info "Checking for running VPN processes..."
@@ -270,6 +346,27 @@ verify_uninstall() {
         errors=$((errors + 1))
     fi
     
+    # Check system user removal
+    if dscl . -read "/Users/gnosisvpn" >/dev/null 2>&1; then
+        log_error "System user still exists: gnosisvpn"
+        errors=$((errors + 1))
+    fi
+    
+    # Check system group removal
+    if dscl . -read "/Groups/gnosisvpn" >/dev/null 2>&1; then
+        log_error "System group still exists: gnosisvpn"
+        errors=$((errors + 1))
+    fi
+    
+    # Check system directories removal
+    local system_dirs=("/var/run/gnosisvpn" "/var/lib/gnosisvpn" "/var/log/gnosis_vpn")
+    for dir in "${system_dirs[@]}"; do
+        if [[ -d "$dir" ]]; then
+            log_error "System directory still exists: $dir"
+            errors=$((errors + 1))
+        fi
+    done
+    
     if [[ $errors -eq 0 ]]; then
         log_success "Uninstallation verified successfully"
     else
@@ -290,6 +387,8 @@ print_summary() {
     echo "What was removed:"
     echo "  ✓ Binaries"
     echo "  ✓ Launchd service"
+    echo "  ✓ System user and group (gnosisvpn)"
+    echo "  ✓ System directories (/var/lib/gnosisvpn, /var/run/gnosisvpn)"
     echo "  ✓ Configuration (backed up to ~/gnosis-vpn-config-backup-*)"
     echo "  ✓ Service logs"
     echo "  ✓ Installation logs"
@@ -310,6 +409,9 @@ main() {
     remove_binaries
     remove_config
     remove_logs
+    cleanup_system_directories
+    remove_system_user
+    remove_system_group
     forget_package
     verify_uninstall
     print_summary
