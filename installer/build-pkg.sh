@@ -161,9 +161,16 @@ prepare_build_dir() {
     mkdir -p "$BUILD_DIR/scripts"
 
     # Copy config templates to package payload
-    if [[ -d "$RESOURCES_DIR/config-templates" ]]; then
-        cp "$RESOURCES_DIR/config-templates"/*.template "$BUILD_DIR/root/etc/gnosisvpn/templates/" || true
+    if [[ -d "$RESOURCES_DIR/config/templates" ]]; then
+        cp "$RESOURCES_DIR/config/templates"/*.template "$BUILD_DIR/root/etc/gnosisvpn/templates/" || true
         log_success "Config templates copied"
+    fi
+
+    # Copy system configuration files to scripts directory (for postinstall access)
+    if [[ -d "$RESOURCES_DIR/config/system" ]]; then
+        mkdir -p "$BUILD_DIR/scripts/config/system"
+        cp "$RESOURCES_DIR/config/system"/* "$BUILD_DIR/scripts/config/system/" || true
+        log_success "System config files copied"
     fi
 
     log_success "Build directory prepared"

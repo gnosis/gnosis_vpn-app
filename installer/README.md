@@ -25,10 +25,17 @@ installer/
 │   ├── welcome.html           # Welcome screen
 │   ├── readme.html            # Requirements and info screen
 │   ├── conclusion.html        # Completion screen with instructions
+│   ├── config/                # Configuration files directory
+│   │   ├── templates/         # Network configuration templates
+│   │   │   ├── rotsee.toml.template   # Production network config
+│   │   │   └── dufour.toml.template   # Development network config
+│   │   └── system/            # System service configuration
+│   │       └── org.gnosis.vpn.plist  # LaunchD service configuration
 │   └── scripts/
-│       ├── installationCheck.js  # Pre-flight system checks
-│       ├── preinstall            # Downloads binaries and verifies WireGuard
-│       └── postinstall           # Generates configuration
+│       ├── installationCheck.js      # Pre-flight system checks
+│       ├── preinstall                # Downloads binaries and verifies WireGuard
+│       ├── postinstall               # Generates configuration & installs service
+│       └── manage-installation.sh    # Management utility for service control
 ├── Distribution.xml           # Installer flow and UI configuration
 ├── build-pkg.sh              # Build script
 ├── sign-pkg.sh               # Signing and notarization script
@@ -199,6 +206,19 @@ gnosis-vpn-manager [command]
    - Verifies installation integrity
 
 ## Configuration
+
+### Configuration Structure
+
+The installer uses a consolidated configuration directory structure:
+
+```
+resources/config/
+├── templates/          # Network configuration templates
+│   ├── rotsee.toml.template    # Production network
+│   └── dufour.toml.template    # Development network  
+└── system/            # System service configurations
+    └── org.gnosis.vpn.plist    # LaunchD service definition
+```
 
 ### Network Selection
 

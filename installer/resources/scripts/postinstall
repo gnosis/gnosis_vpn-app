@@ -31,7 +31,7 @@ setup_logging "postinstall"
 CONFIG_DIR="${2}/etc/gnosisvpn"
 CONFIG_FILE="${CONFIG_DIR}/config.toml"
 VERSION_FILE="${CONFIG_DIR}/version.txt"
-TEMPLATE_DIR_BUNDLE="${SCRIPT_DIR}/../config-templates"
+TEMPLATE_DIR_BUNDLE="${SCRIPT_DIR}/../config/templates"
 BIN_DIR="${2}/usr/local/bin"
 NETWORK="${INSTALLER_CHOICE_NETWORK:-rotsee}"
 
@@ -235,6 +235,260 @@ save_version_info() {
     chown root:wheel "$VERSION_FILE" 2>/dev/null || true
     
     log_success "Version saved to $VERSION_FILE"
+}
+
+# Configure plist with runtime values
+configure_plist() {
+    local source_plist="$1"
+    local target_plist="$2"
+    local binary_path="${BIN_DIR}/gnosis_vpn"
+    local config_path="${CONFIG_DIR}/config.toml"
+    
+    if [[ ! -f "$source_plist" ]]; then
+        log_error "Source plist not found: $source_plist"
+        return 1
+    fi
+    
+    log_info "Configuring plist with runtime paths..."
+    
+    # Copy and configure the plist with actual paths
+    cp "$source_plist" "$target_plist"
+    
+    # Update binary path in plist if it differs from default
+    if [[ "$binary_path" != "/usr/local/bin/gnosis_vpn" ]]; then
+        # Update ProgramArguments array
+        sed -i '' "s|/usr/local/bin/gnosis_vpn|${binary_path}|g" "$target_plist"
+        log_info "Updated binary path in plist to: $binary_path"
+    fi
+    
+    # Update config path in plist if it differs from default
+    if [[ "$config_path" != "/etc/gnosisvpn/config.toml" ]]; then
+        sed -i '' "s|/etc/gnosisvpn/config.toml|${config_path}|g" "$target_plist"
+        log_info "Updated config path in plist to: $config_path"
+    fi
+    
+    # Ensure proper permissions
+    chmod 644 "$target_plist"
+    chown root:wheel "$target_plist" 2>/dev/null || true
+    
+    return 0
+}
+
+# Install launchd service
+install_launchd_service() {
+    local installation_type="$1"
+    
+    log_info "Installing launchd service..."
+    
+    # Configuration
+    local launchd_dir="/Library/LaunchDaemons"
+    local plist_name="org.gnosis.vpn.plist"
+    local plist_path="${launchd_dir}/${plist_name}"
+    # During installation, the plist is in the installer scripts directory
+    local source_plist="${SCRIPT_DIR}/config/system/${plist_name}"
+    # Fallback to development location if not found (for testing)
+    if [[ ! -f "$source_plist" ]]; then
+        source_plist="${SCRIPT_DIR}/../config/system/${plist_name}"
+    fi
+    local log_dir="/var/log/gnosis_vpn"
+    
+    # Create log directory
+    mkdir -p "$log_dir"
+    chmod 755 "$log_dir"
+    chown root:wheel "$log_dir" 2>/dev/null || true
+    
+    # Handle existing service (for updates/reinstalls)
+    local service_was_running=false
+    if [[ -f "$plist_path" ]]; then
+        log_info "Existing service found, preparing for update..."
+        
+        # Check if service is currently running
+        if launchctl print system/org.gnosis.vpn >/dev/null 2>&1; then
+            service_was_running=true
+            log_info "Service is currently running, will restart after update"
+        fi
+        
+        # Stop and unload existing service
+        log_info "Stopping existing service..."
+        launchctl bootout system "$plist_path" 2>/dev/null || true
+        sleep 2
+        
+        # Backup existing plist if different
+        if [[ -f "$source_plist" ]] && ! cmp -s "$source_plist" "$plist_path"; then
+            log_info "Backing up existing plist configuration"
+            cp "$plist_path" "${plist_path}.backup.$(date +%Y%m%d-%H%M%S)" || true
+        fi
+    fi
+    
+    # Install/update plist file
+    if [[ -f "$source_plist" ]]; then
+        log_info "Installing launchd plist: $plist_path"
+        
+        # Configure plist with runtime values
+        if ! configure_plist "$source_plist" "$plist_path"; then
+            log_error "Failed to configure plist file"
+            return 1
+        fi
+        
+        # Validate plist syntax
+        if ! plutil -lint "$plist_path" >/dev/null 2>&1; then
+            log_error "Invalid plist syntax detected after configuration"
+            return 1
+        fi
+        
+        log_success "Plist configured and validated successfully"
+        
+        # Load and start the service
+        log_info "Loading Gnosis VPN service..."
+        
+        # Try to bootstrap the service
+        local bootstrap_attempts=0
+        local max_attempts=3
+        local bootstrap_success=false
+        
+        while [[ $bootstrap_attempts -lt $max_attempts ]]; do
+            if launchctl bootstrap system "$plist_path" 2>/dev/null; then
+                bootstrap_success=true
+                break
+            else
+                # Service might already be loaded, try to bootout first
+                if [[ $bootstrap_attempts -eq 0 ]]; then
+                    log_info "Service may already be loaded, attempting to reload..."
+                    launchctl bootout system "$plist_path" 2>/dev/null || true
+                    sleep 1
+                fi
+                ((bootstrap_attempts++))
+                if [[ $bootstrap_attempts -lt $max_attempts ]]; then
+                    sleep 2
+                fi
+            fi
+        done
+        
+        if [[ "$bootstrap_success" == "true" ]]; then
+            log_success "Gnosis VPN service loaded successfully"
+            
+            # Wait a moment and verify it's running
+            sleep 3
+            if launchctl print system/org.gnosis.vpn >/dev/null 2>&1; then
+                log_success "Service is running successfully"
+                
+                # Check if the binary exists and is executable
+                local binary_path="/usr/local/bin/gnosis_vpn"
+                if [[ ! -f "$binary_path" ]]; then
+                    log_warn "Binary not found at $binary_path - service may fail to start"
+                    log_info "Ensure binaries are properly installed before the service starts"
+                fi
+            else
+                log_warn "Service loaded but may not be running yet"
+                log_info "This is normal if binaries haven't been downloaded yet"
+                log_info "Check logs: tail -f $log_dir/gnosis_vpn.log"
+            fi
+        else
+            log_error "Failed to load Gnosis VPN service after $max_attempts attempts"
+            log_info "You can manually load it later with:"
+            log_info "  sudo launchctl bootstrap system $plist_path"
+        fi
+    else
+        log_error "Launchd plist file not found: $source_plist"
+        log_warn "Service will not start automatically at boot"
+        
+        # List possible locations for debugging
+        log_info "Searched locations:"
+        log_info "  - ${SCRIPT_DIR}/config/system/${plist_name}"
+        log_info "  - ${SCRIPT_DIR}/../config/system/${plist_name}"
+        return 1
+    fi
+}
+
+# Verify plist deployment
+verify_plist_deployment() {
+    log_info "Verifying plist deployment..."
+    
+    local plist_path="/Library/LaunchDaemons/org.gnosis.vpn.plist"
+    local errors=0
+    
+    # Check if plist file exists
+    if [[ ! -f "$plist_path" ]]; then
+        log_error "Plist file not found at: $plist_path"
+        ((errors++))
+    else
+        log_success "Plist file exists: $plist_path"
+        
+        # Check permissions
+        local perms
+        perms=$(stat -f "%Mp%Lp" "$plist_path")
+        if [[ "$perms" != "644" ]]; then
+            log_warn "Plist permissions are $perms, expected 644"
+        else
+            log_success "Plist permissions correct: 644"
+        fi
+        
+        # Check ownership
+        local owner
+        owner=$(stat -f "%Su:%Sg" "$plist_path")
+        if [[ "$owner" != "root:wheel" ]]; then
+            log_warn "Plist ownership is $owner, expected root:wheel"
+        else
+            log_success "Plist ownership correct: root:wheel"
+        fi
+        
+        # Validate syntax
+        if plutil -lint "$plist_path" >/dev/null 2>&1; then
+            log_success "Plist syntax is valid"
+        else
+            log_error "Plist syntax is invalid"
+            ((errors++))
+        fi
+    fi
+    
+    # Check if service is loaded
+    if launchctl print system/org.gnosis.vpn >/dev/null 2>&1; then
+        log_success "Service is loaded in launchd"
+    else
+        log_warn "Service is not loaded (this may be normal if binaries aren't ready)"
+    fi
+    
+    return $errors
+}
+
+# Uninstall launchd service (for updates or uninstallation)
+uninstall_launchd_service() {
+    log_info "Stopping Gnosis VPN service..."
+    
+    local plist_path="/Library/LaunchDaemons/org.gnosis.vpn.plist"
+    
+    if [[ -f "$plist_path" ]]; then
+        # Stop and unload the service
+        launchctl bootout system "$plist_path" 2>/dev/null || true
+        log_success "Service stopped"
+    else
+        log_info "No existing service found"
+    fi
+}
+
+# Check service status
+check_service_status() {
+    log_info "Checking service status..."
+    
+    if launchctl print system/org.gnosis.vpn >/dev/null 2>&1; then
+        local status
+        status=$(launchctl print system/org.gnosis.vpn | grep -E "(state|pid)" | head -2)
+        log_info "Service status:"
+        echo "$status" | while IFS= read -r line; do
+            log_info "  $line"
+        done
+        
+        # Check if process is actually running
+        if pgrep -f "gnosis_vpn" >/dev/null 2>&1; then
+            local pid
+            pid=$(pgrep -f "gnosis_vpn")
+            log_success "VPN process is running (PID: $pid)"
+        else
+            log_warn "Service is loaded but process is not running"
+        fi
+    else
+        log_warn "Service is not loaded in launchd"
+    fi
 }
 
 # Cleanup old backup files (keep only the 5 most recent)
@@ -539,14 +793,20 @@ print_summary() {
     fi
     
     echo ""
-    log_info "To get started:"
-    log_info "  1. sudo gnosis_vpn -c $CONFIG_FILE"
-    log_info "  2. gnosis_vpn-ctl status"
+    log_info "Service Management:"
+    log_info "  The VPN service will start automatically at boot"
+    log_info "  sudo launchctl kickstart system/org.gnosis.vpn  # Restart service"
+    log_info "  sudo launchctl bootout system/org.gnosis.vpn    # Stop service"
+    log_info "  gnosis_vpn-ctl status                           # Check VPN status"
     echo ""
     log_info "Management commands:"
     log_info "  gnosis-vpn-manager status   # Show installation status"
     log_info "  gnosis-vpn-manager backups  # List backup files"
     log_info "  gnosis-vpn-manager version  # Show installed version"
+    echo ""
+    log_info "Logs:"
+    log_info "  tail -f /var/log/gnosis_vpn/gnosis_vpn.log      # Service logs"
+    log_info "  tail -f /var/log/gnosis_vpn/gnosis_vpn.error.log # Error logs"
     echo ""
     log_info "Log file: $INSTALLER_LOG_FILE"
     
@@ -588,12 +848,21 @@ main() {
     # Save version information
     save_version_info
     
+    # Install launchd service
+    install_launchd_service "$installation_type"
+    
+    # Verify plist deployment
+    verify_plist_deployment
+    
     # Clean up old backup files
     cleanup_old_backups
     
     # Verify installation
     verify_path
     verify_installation
+    
+    # Check service status
+    check_service_status
     
     # Print summary
     print_summary "$installation_type"
