@@ -60,7 +60,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               tag_name: `v${process.env.RELEASE_VERSION}`,
-              draft: false,
+              draft: true,
               prerelease: false,
               generate_release_notes: true
             })
@@ -79,7 +79,7 @@ jobs:
             target: "x86_64-apple-darwin"
             args: "--target x86_64-apple-darwin"
           - runner: "macos-15"
-            target: "aarch64-apple-darwin"
+            target: "x86_64-apple-darwin"
             args: "--target universal-apple-darwin"
 
     runs-on: ${{ matrix.runner }}
