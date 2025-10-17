@@ -79,17 +79,17 @@ confirm_uninstall() {
 # Remove launchd service
 remove_launchd_service() {
     log_info "Removing launchd service..."
-    
+
     local plist_path="/Library/LaunchDaemons/org.gnosis.vpn.plist"
-    
-    if [[ -f "$plist_path" ]]; then
+
+    if [[ -f $plist_path ]]; then
         # Stop and unload the service
         if launchctl print system/org.gnosis.vpn >/dev/null 2>&1; then
             log_info "Stopping launchd service..."
             launchctl bootout system "$plist_path" 2>/dev/null || true
             sleep 2
         fi
-        
+
         # Remove the plist file
         rm -f "$plist_path"
         log_success "Removed launchd service: $plist_path"
@@ -102,22 +102,22 @@ remove_launchd_service() {
 # Remove system user
 remove_system_user() {
     log_info "Removing system user..."
-    
+
     local username="gnosisvpn"
-    
+
     if dscl . -read "/Users/$username" >/dev/null 2>&1; then
         log_info "Found system user: $username"
-        
+
         # Get home directory before deletion
         local homedir
         homedir=$(dscl . -read "/Users/$username" NFSHomeDirectory 2>/dev/null | cut -d' ' -f2- || echo "")
-        
+
         # Delete the user
         dscl . -delete "/Users/$username"
         log_success "Removed system user: $username"
-        
+
         # Remove home directory if it exists
-        if [[ -n "$homedir" ]] && [[ -d "$homedir" ]]; then
+        if [[ -n $homedir ]] && [[ -d $homedir ]]; then
             log_info "Removing user home directory: $homedir"
             rm -rf "$homedir"
         fi
@@ -129,23 +129,23 @@ remove_system_user() {
 # Remove system group
 remove_system_group() {
     log_info "Removing system group..."
-    
+
     local groupname="gnosisvpn"
-    
+
     if dscl . -read "/Groups/$groupname" >/dev/null 2>&1; then
         log_info "Found system group: $groupname"
-        
+
         # Remove all users from the group first
         local members
         members=$(dscl . -read "/Groups/$groupname" GroupMembership 2>/dev/null | cut -d' ' -f2- || echo "")
-        
-        if [[ -n "$members" ]]; then
+
+        if [[ -n $members ]]; then
             log_info "Removing users from group: $members"
             for member in $members; do
                 dseditgroup -o edit -d "$member" -t user "$groupname" 2>/dev/null || true
             done
         fi
-        
+
         # Delete the group
         dscl . -delete "/Groups/$groupname"
         log_success "Removed system group: $groupname"
@@ -157,20 +157,20 @@ remove_system_group() {
 # Clean up system directories created for the service
 cleanup_system_directories() {
     log_info "Cleaning up system directories..."
-    
+
     local directories=(
         "/var/run/gnosisvpn"
         "/var/lib/gnosisvpn"
         "/var/log/gnosis_vpn"
     )
-    
+
     for dir in "${directories[@]}"; do
-        if [[ -d "$dir" ]]; then
+        if [[ -d $dir ]]; then
             log_info "Removing directory: $dir"
             rm -rf "$dir"
         fi
     done
-    
+
     log_success "System directories cleaned up"
     echo ""
 }
@@ -178,10 +178,10 @@ cleanup_system_directories() {
 # Remove sudo privileges configuration
 remove_sudo_privileges() {
     log_info "Removing sudo privileges configuration..."
-    
+
     local sudoers_file="/etc/sudoers.d/gnosis-vpn"
-    
-    if [[ -f "$sudoers_file" ]]; then
+
+    if [[ -f $sudoers_file ]]; then
         log_info "Removing sudoers configuration: $sudoers_file"
         rm -f "$sudoers_file"
         log_success "Sudo privileges configuration removed"
@@ -197,25 +197,25 @@ stop_processes() {
     if pgrep -f gnosis_vpn >/dev/null 2>&1; then
         log_warn "Found running gnosis_vpn process(es)"
         log_info "Stopping VPN processes..."
-        
+
         # Try graceful shutdown first
         pkill -TERM -f gnosis_vpn 2>/dev/null || true
         sleep 2
-        
+
         # Force kill if still running
         if pgrep -f gnosis_vpn >/dev/null 2>&1; then
             log_warn "Processes still running, forcing shutdown..."
             pkill -KILL -f gnosis_vpn 2>/dev/null || true
             sleep 1
         fi
-        
+
         # Verify processes stopped
         if pgrep -f gnosis_vpn >/dev/null 2>&1; then
             log_error "Failed to stop VPN processes"
             log_info "Please stop gnosis_vpn manually before uninstalling"
             exit 1
         fi
-        
+
         log_success "VPN processes stopped"
     else
         log_info "No running VPN processes found"
@@ -225,11 +225,11 @@ stop_processes() {
 
 # Backup configuration
 backup_config() {
-    if [[ -d "$CONFIG_DIR" ]]; then
+    if [[ -d $CONFIG_DIR ]]; then
         local timestamp
         timestamp=$(date +%Y%m%d-%H%M%S)
         local backup_dir="${HOME}/gnosis-vpn-config-backup-${timestamp}"
-        
+
         log_info "Backing up configuration to: $backup_dir"
         if cp -R "$CONFIG_DIR" "$backup_dir"; then
             log_success "Configuration backed up to $backup_dir"
@@ -243,157 +243,157 @@ backup_config() {
 # Remove binaries
 remove_binaries() {
     log_info "Removing binaries..."
-    
+
     local removed=0
-    
+
     if [[ -f "$BIN_DIR/gnosis_vpn" ]]; then
         rm -f "$BIN_DIR/gnosis_vpn"
         log_success "Removed $BIN_DIR/gnosis_vpn"
         removed=$((removed + 1))
     fi
-    
+
     if [[ -f "$BIN_DIR/gnosis_vpn-ctl" ]]; then
         rm -f "$BIN_DIR/gnosis_vpn-ctl"
         log_success "Removed $BIN_DIR/gnosis_vpn-ctl"
         removed=$((removed + 1))
     fi
-    
+
     if [[ -f "$BIN_DIR/gnosis-vpn-manager" ]]; then
         rm -f "$BIN_DIR/gnosis-vpn-manager"
         log_success "Removed $BIN_DIR/gnosis-vpn-manager"
         removed=$((removed + 1))
     fi
-    
+
     if [[ $removed -eq 0 ]]; then
         log_warn "No binaries found to remove"
     fi
-    
+
     echo ""
 }
 
 # Remove configuration
 remove_config() {
     log_info "Removing configuration..."
-    
-    if [[ -d "$CONFIG_DIR" ]]; then
+
+    if [[ -d $CONFIG_DIR ]]; then
         rm -rf "$CONFIG_DIR"
         log_success "Removed $CONFIG_DIR"
     else
         log_warn "Configuration directory not found"
     fi
-    
+
     echo ""
 }
 
 # Remove logs
 remove_logs() {
     log_info "Removing installation logs..."
-    
-    if [[ -d "$LOG_DIR" ]]; then
+
+    if [[ -d $LOG_DIR ]]; then
         rm -rf "$LOG_DIR"
         log_success "Removed $LOG_DIR"
     else
         log_warn "Log directory not found"
     fi
-    
+
     # Also remove service logs
     local service_log_dir="/var/log/gnosis_vpn"
-    if [[ -d "$service_log_dir" ]]; then
+    if [[ -d $service_log_dir ]]; then
         rm -rf "$service_log_dir"
         log_success "Removed service logs: $service_log_dir"
     fi
-    
+
     echo ""
 }
 
 # Forget package receipt
 forget_package() {
     log_info "Removing package receipt..."
-    
+
     if pkgutil --pkgs | grep -q "^${PKG_ID}$"; then
         pkgutil --forget "$PKG_ID"
         log_success "Forgot package: $PKG_ID"
     else
         log_warn "Package receipt not found: $PKG_ID"
     fi
-    
+
     echo ""
 }
 
 # Verify uninstallation
 verify_uninstall() {
     log_info "Verifying uninstallation..."
-    
+
     local errors=0
-    
+
     if [[ -f "$BIN_DIR/gnosis_vpn" ]]; then
         log_error "Binary still exists: $BIN_DIR/gnosis_vpn"
         errors=$((errors + 1))
     fi
-    
+
     if [[ -f "$BIN_DIR/gnosis_vpn-ctl" ]]; then
         log_error "Binary still exists: $BIN_DIR/gnosis_vpn-ctl"
         errors=$((errors + 1))
     fi
-    
+
     if [[ -f "$BIN_DIR/gnosis-vpn-manager" ]]; then
         log_error "Management script still exists: $BIN_DIR/gnosis-vpn-manager"
         errors=$((errors + 1))
     fi
-    
+
     if [[ -f "/Library/LaunchDaemons/org.gnosis.vpn.plist" ]]; then
         log_error "Launchd service still exists: /Library/LaunchDaemons/org.gnosis.vpn.plist"
         errors=$((errors + 1))
     fi
-    
+
     if launchctl print system/org.gnosis.vpn >/dev/null 2>&1; then
         log_error "Launchd service is still loaded"
         errors=$((errors + 1))
     fi
-    
-    if [[ -d "$CONFIG_DIR" ]]; then
+
+    if [[ -d $CONFIG_DIR ]]; then
         log_error "Configuration directory still exists: $CONFIG_DIR"
         errors=$((errors + 1))
     fi
-    
+
     if pkgutil --pkgs | grep -q "^${PKG_ID}$"; then
         log_error "Package receipt still exists: $PKG_ID"
         errors=$((errors + 1))
     fi
-    
+
     # Check system user removal
     if dscl . -read "/Users/gnosisvpn" >/dev/null 2>&1; then
         log_error "System user still exists: gnosisvpn"
         errors=$((errors + 1))
     fi
-    
+
     # Check system group removal
     if dscl . -read "/Groups/gnosisvpn" >/dev/null 2>&1; then
         log_error "System group still exists: gnosisvpn"
         errors=$((errors + 1))
     fi
-    
+
     # Check system directories removal
     local system_dirs=("/var/run/gnosisvpn" "/var/lib/gnosisvpn" "/var/log/gnosis_vpn")
     for dir in "${system_dirs[@]}"; do
-        if [[ -d "$dir" ]]; then
+        if [[ -d $dir ]]; then
             log_error "System directory still exists: $dir"
             errors=$((errors + 1))
         fi
     done
-    
+
     # Check sudo privileges removal
     if [[ -f "/etc/sudoers.d/gnosis-vpn" ]]; then
         log_error "Sudo privileges configuration still exists: /etc/sudoers.d/gnosis-vpn"
         errors=$((errors + 1))
     fi
-    
+
     if [[ $errors -eq 0 ]]; then
         log_success "Uninstallation verified successfully"
     else
         log_warn "Uninstallation completed with $errors warning(s)"
     fi
-    
+
     echo ""
 }
 

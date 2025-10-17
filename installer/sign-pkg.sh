@@ -78,12 +78,12 @@ EOF
 
 # Validate input
 validate_input() {
-    if [[ -z "$PKG_FILE" ]]; then
+    if [[ -z $PKG_FILE ]]; then
         log_error "No PKG file specified"
         usage
     fi
 
-    if [[ ! -f "$PKG_FILE" ]]; then
+    if [[ ! -f $PKG_FILE ]]; then
         log_error "PKG file not found: $PKG_FILE"
         exit 1
     fi
@@ -152,13 +152,13 @@ notarize_package() {
     log_info "Submitting package for notarization..."
 
     # Check for required environment variables
-    if [[ -z "${APPLE_ID:-}" ]]; then
+    if [[ -z ${APPLE_ID:-} ]]; then
         log_error "APPLE_ID environment variable not set"
         log_info "Set your Apple ID: export APPLE_ID='your@email.com'"
         exit 1
     fi
 
-    if [[ -z "${TEAM_ID:-}" ]]; then
+    if [[ -z ${TEAM_ID:-} ]]; then
         log_error "TEAM_ID environment variable not set"
         log_info "Set your Team ID: export TEAM_ID='ABC123XYZ'"
         exit 1
@@ -211,7 +211,7 @@ print_summary() {
     echo "Signed package: $PKG_FILE"
     echo ""
 
-    if [[ -f "$PKG_FILE" ]]; then
+    if [[ -f $PKG_FILE ]]; then
         local size
         size=$(du -h "$PKG_FILE" | cut -f1)
         echo "Size:           $size"
@@ -245,7 +245,7 @@ main() {
     verify_signature
 
     # Notarize if requested
-    if [[ "$NOTARIZE" == "--notarize" ]]; then
+    if [[ $NOTARIZE == "--notarize" ]]; then
         notarize_package
         staple_ticket
     else

@@ -137,9 +137,9 @@ test_config_templates() {
 # Test: Plist file validation
 test_plist_configuration() {
     log_info "Testing plist configuration..."
-    
+
     local plist_file="$SCRIPT_DIR/resources/config/system/org.gnosis.vpn.plist"
-    
+
     run_test "plist syntax is valid" "plutil -lint '$plist_file' >/dev/null 2>&1"
     run_test "plist has Label key" "grep -q '<key>Label</key>' '$plist_file'"
     run_test "plist has ProgramArguments" "grep -q '<key>ProgramArguments</key>' '$plist_file'"
@@ -157,21 +157,21 @@ test_plist_configuration() {
 # Test: System user and group functions
 test_system_user_functions() {
     log_info "Testing system user and group functions..."
-    
+
     local postinstall="$SCRIPT_DIR/resources/scripts/postinstall"
-    
+
     run_test "postinstall has create_system_user function" "grep -q 'create_system_user()' '$postinstall'"
     run_test "postinstall has create_system_group function" "grep -q 'create_system_group()' '$postinstall'"
     run_test "postinstall has update_user_group function" "grep -q 'update_user_group()' '$postinstall'"
     run_test "postinstall has setup_user_permissions function" "grep -q 'setup_user_permissions()' '$postinstall'"
     run_test "postinstall uses dscl commands" "grep -q 'dscl .' '$postinstall'"
     run_test "postinstall uses dseditgroup" "grep -q 'dseditgroup' '$postinstall'"
-    
+
     local uninstall="$SCRIPT_DIR/uninstall.sh"
     run_test "uninstall has remove_system_user function" "grep -q 'remove_system_user()' '$uninstall'"
     run_test "uninstall has remove_system_group function" "grep -q 'remove_system_group()' '$uninstall'"
     run_test "uninstall has cleanup_system_directories function" "grep -q 'cleanup_system_directories()' '$uninstall'"
-    
+
     # Test sudo privileges configuration
     run_test "postinstall has configure_sudo_privileges function" "grep -q 'configure_sudo_privileges()' '$postinstall'"
     run_test "uninstall has remove_sudo_privileges function" "grep -q 'remove_sudo_privileges()' '$uninstall'"

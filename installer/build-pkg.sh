@@ -113,34 +113,31 @@ check_prerequisites() {
 # Validate environment variables for binary URLs
 validate_environment() {
     log_info "Validating environment variables..."
-    
-    local using_env_vars=false
-    
+
     # Check if GitHub release URL is provided
-    if [[ -n "$GITHUB_RELEASE_URL" ]]; then
-        using_env_vars=true
+    if [[ -n $GITHUB_RELEASE_URL ]]; then
         log_info "GitHub release URL detected: $GITHUB_RELEASE_URL"
-        
+
         # Validate GitHub release URL format
         local download_url
         download_url=$(parse_github_release_url "$GITHUB_RELEASE_URL")
-        
+
         log_info "Binary configuration:"
         log_info "  Download base URL: $download_url"
         log_info "  VPN Service binary: ${VPN_SERVICE_BINARY_NAME}-${X86_PLATFORM}, ${VPN_SERVICE_BINARY_NAME}-${ARM_PLATFORM}"
         log_info "  VPN CLI binary: ${VPN_CLI_BINARY_NAME}-${X86_PLATFORM}, ${VPN_CLI_BINARY_NAME}-${ARM_PLATFORM}"
-        
-        if [[ -n "$TAURI_APP_URL" ]]; then
+
+        if [[ -n $TAURI_APP_URL ]]; then
             log_info "  Tauri App: $TAURI_APP_URL"
         else
             log_warn "Tauri app URL not provided (optional)"
         fi
-        
+
         log_success "Environment variables validated"
     else
         log_info "No GitHub release URL set, will use fallback GitHub releases"
     fi
-    
+
     echo ""
 }
 
@@ -237,7 +234,7 @@ download_binary() {
     local retry_count=0
     local wait_time=2
 
-    if [[ -z "$url" ]]; then
+    if [[ -z $url ]]; then
         log_error "No URL provided for $name"
         exit 1
     fi
@@ -267,21 +264,23 @@ download_binary() {
 }
 
 # Check binary architecture and determine if universal binary creation is needed
+# Check binary architecture (utility function for debugging)
+# shellcheck disable=SC2329,SC2317
 check_binary_architecture() {
     local file="$1"
     local name="$2"
-    
-    if [[ ! -f "$file" ]]; then
+
+    if [[ ! -f $file ]]; then
         log_error "Binary file not found: $file"
         exit 1
     fi
-    
+
     # Use file command to check architecture
     local arch_info
     arch_info=$(file "$file")
-    
+
     log_info "Architecture info for $name: $arch_info"
-    
+
     # Check if it's already a universal binary
     if echo "$arch_info" | grep -q "universal binary"; then
         echo "universal"
@@ -300,10 +299,10 @@ construct_binary_url() {
     local release_url="$1"
     local binary_name="$2"
     local platform="$3"
-    
+
     # Remove trailing slash if present
     release_url="${release_url%/}"
-    
+
     # Construct the full binary URL
     echo "${release_url}/${binary_name}-${platform}"
 }
@@ -311,18 +310,18 @@ construct_binary_url() {
 # Parse GitHub release URL to extract repo info and tag
 parse_github_release_url() {
     local url="$1"
-    
+
     # Expected format: https://github.com/owner/repo/releases/tag/v1.0.0
     # or: https://github.com/owner/repo/releases/download/v1.0.0
-    
-    if [[ "$url" =~ https://github\.com/([^/]+)/([^/]+)/releases/(tag|download)/(.+) ]]; then
+
+    if [[ $url =~ https://github\.com/([^/]+)/([^/]+)/releases/(tag|download)/(.+) ]]; then
         local owner="${BASH_REMATCH[1]}"
         local repo="${BASH_REMATCH[2]}"
         local tag="${BASH_REMATCH[4]}"
-        
+
         # Convert tag URL to download URL if needed
         local download_url="https://github.com/${owner}/${repo}/releases/download/${tag}"
-        
+
         echo "$download_url"
     else
         log_error "Invalid GitHub release URL format: $url"
@@ -426,26 +425,30 @@ embed_binaries() {
     trap 'rm -rf "$tmp_dir"' EXIT
 
     # Check if GitHub release URL is provided
-    if [[ -n "$GITHUB_RELEASE_URL" ]]; then
-        
+    if [[ -n $GITHUB_RELEASE_URL ]]; then
+
         log_info "Using GitHub release URL for binary downloads..."
-        
+
         # Parse GitHub release URL to get download base URL
         local download_base_url
         download_base_url=$(parse_github_release_url "$GITHUB_RELEASE_URL")
-        
+
         # Construct binary URLs
-        local vpn_service_x86_url=$(construct_binary_url "$download_base_url" "$VPN_SERVICE_BINARY_NAME" "$X86_PLATFORM")
-        local vpn_service_arm_url=$(construct_binary_url "$download_base_url" "$VPN_SERVICE_BINARY_NAME" "$ARM_PLATFORM")
-        local vpn_cli_x86_url=$(construct_binary_url "$download_base_url" "$VPN_CLI_BINARY_NAME" "$X86_PLATFORM")
-        local vpn_cli_arm_url=$(construct_binary_url "$download_base_url" "$VPN_CLI_BINARY_NAME" "$ARM_PLATFORM")
-        
+        local vpn_service_x86_url
+        vpn_service_x86_url=$(construct_binary_url "$download_base_url" "$VPN_SERVICE_BINARY_NAME" "$X86_PLATFORM")
+        local vpn_service_arm_url
+        vpn_service_arm_url=$(construct_binary_url "$download_base_url" "$VPN_SERVICE_BINARY_NAME" "$ARM_PLATFORM")
+        local vpn_cli_x86_url
+        vpn_cli_x86_url=$(construct_binary_url "$download_base_url" "$VPN_CLI_BINARY_NAME" "$X86_PLATFORM")
+        local vpn_cli_arm_url
+        vpn_cli_arm_url=$(construct_binary_url "$download_base_url" "$VPN_CLI_BINARY_NAME" "$ARM_PLATFORM")
+
         log_info "Constructed URLs:"
         log_info "  VPN Service (x86_64): $vpn_service_x86_url"
         log_info "  VPN Service (aarch64): $vpn_service_arm_url"
         log_info "  VPN CLI (x86_64): $vpn_cli_x86_url"
         log_info "  VPN CLI (aarch64): $vpn_cli_arm_url"
-        
+
         # Download all binaries in parallel
         log_info "Starting parallel downloads..."
         download_binary "VPN Service (x86_64)" "$vpn_service_x86_url" "$tmp_dir/gnosis_vpn-x86_64" &
@@ -459,7 +462,7 @@ embed_binaries() {
 
         # Download Tauri app if URL is provided
         local tauri_pid=""
-        if [[ -n "$TAURI_APP_URL" ]]; then
+        if [[ -n $TAURI_APP_URL ]]; then
             download_binary "Tauri App" "$TAURI_APP_URL" "$tmp_dir/tauri-app" &
             tauri_pid=$!
         fi
@@ -470,17 +473,17 @@ embed_binaries() {
             log_error "One or more downloads failed"
             exit 1
         fi
-        
+
         # Wait for Tauri download if it was started
-        if [[ -n "$tauri_pid" ]]; then
+        if [[ -n $tauri_pid ]]; then
             if ! wait $tauri_pid; then
                 log_error "Tauri app download failed"
                 exit 1
             fi
         fi
-        
+
         log_success "All downloads completed"
-        
+
         # Create universal binaries
         log_info "Creating universal binaries..."
         lipo -create -output "$BUILD_DIR/root/usr/local/bin/gnosis_vpn" \
@@ -490,13 +493,14 @@ embed_binaries() {
         lipo -create -output "$BUILD_DIR/root/usr/local/bin/gnosis_vpn-ctl" \
             "$tmp_dir/gnosis_vpn-ctl-x86_64" "$tmp_dir/gnosis_vpn-ctl-aarch64"
         chmod 755 "$BUILD_DIR/root/usr/local/bin/gnosis_vpn-ctl"
-        
+
         # Handle Tauri app if downloaded
         if [[ -f "$tmp_dir/tauri-app" ]]; then
             log_info "Processing Tauri app..."
-            
+
             # Check if it's a compressed file or app bundle
-            local file_info=$(file "$tmp_dir/tauri-app")
+            local file_info
+            file_info=$(file "$tmp_dir/tauri-app")
             if echo "$file_info" | grep -q -E "(gzip|zip|tar)"; then
                 log_info "Extracting compressed Tauri app..."
                 # Handle extraction based on file type
@@ -513,14 +517,14 @@ embed_binaries() {
                 }
             fi
         fi
-        
+
     else
         log_info "Using fallback GitHub release downloads..."
         log_warn "GITHUB_RELEASE_URL not set. Using legacy download method."
-        
+
         local darwin_x86="x86_64-darwin"
         local darwin_arm="aarch64-darwin"
-        
+
         # Download all binaries in parallel for faster builds
         log_info "Starting parallel downloads..."
         download_asset "gnosis_vpn-${darwin_x86}" "$tmp_dir/gnosis_vpn-x86_64" &
@@ -553,7 +557,7 @@ embed_binaries() {
         verify_gpg_signature "gnosis_vpn-${darwin_arm}" "$tmp_dir/gnosis_vpn-aarch64"
         verify_gpg_signature "gnosis_vpn-ctl-${darwin_x86}" "$tmp_dir/gnosis_vpn-ctl-x86_64"
         verify_gpg_signature "gnosis_vpn-ctl-${darwin_arm}" "$tmp_dir/gnosis_vpn-ctl-aarch64"
-        
+
         # Create universal binaries from separate arch files
         log_info "Creating universal binaries..."
         lipo -create -output "$BUILD_DIR/root/usr/local/bin/gnosis_vpn" \
@@ -569,11 +573,11 @@ embed_binaries() {
     log_info "Verifying final binaries:"
     lipo -info "$BUILD_DIR/root/usr/local/bin/gnosis_vpn" || true
     lipo -info "$BUILD_DIR/root/usr/local/bin/gnosis_vpn-ctl" || true
-    
+
     if [[ -f "$BUILD_DIR/root/Applications/GnosisVPN" ]]; then
         lipo -info "$BUILD_DIR/root/Applications/GnosisVPN" || true
     fi
-    
+
     if [[ -d "$BUILD_DIR/root/Applications/GnosisVPN.app" ]]; then
         log_info "Tauri app bundle installed at /Applications/GnosisVPN.app"
     fi
@@ -691,12 +695,12 @@ print_summary() {
 
     echo ""
     echo "Configuration:"
-    if [[ -n "$GITHUB_RELEASE_URL" ]]; then
+    if [[ -n $GITHUB_RELEASE_URL ]]; then
         echo "  Used GitHub release URL: $GITHUB_RELEASE_URL"
     else
         echo "  Used fallback GitHub releases"
     fi
-    
+
     echo ""
     echo "Next steps:"
     echo "  1. Test the installer:"
