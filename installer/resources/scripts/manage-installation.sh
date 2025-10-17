@@ -57,11 +57,12 @@ check_permissions() {
         # Running as root, no issues
         return 0
     fi
-    
+
     # Check if user is in gnosisvpn group
     local current_user
+    local current_user
     current_user=$(id -un)
-    
+
     if groups "$current_user" | grep -q '\bgnosisvpn\b'; then
         log_info "User '$current_user' is in gnosisvpn group - using sudo privileges"
         return 0
@@ -77,8 +78,7 @@ check_permissions() {
 run_launchctl() {
     local cmd="$1"
     shift
-    local args="$@"
-    
+
     if [[ $EUID -eq 0 ]]; then
         # Already root, run directly
         launchctl "$cmd" "$@"
@@ -92,8 +92,9 @@ run_launchctl() {
 show_version() {
     log_info "Gnosis VPN Installation Version"
     echo ""
-    
-    if [[ -f "$VERSION_FILE" ]]; then
+
+    if [[ -f $VERSION_FILE ]]; then
+        local version
         local version
         version=$(cat "$VERSION_FILE" 2>/dev/null || echo "unknown")
         log_success "Installed version: $version"
@@ -111,26 +112,26 @@ show_version() {
 list_backups() {
     log_info "Available Backups"
     echo ""
-    
+
     local found_backups=false
-    
+
     # Configuration backups
-    if ls "$CONFIG_DIR"/*.backup 2>/dev/null | head -1 >/dev/null; then
+    if find "$CONFIG_DIR" -name "*.backup-*" -type f 2>/dev/null | head -1 >/dev/null; then
         log_info "Configuration backups:"
-        ls -lht "$CONFIG_DIR"/*.backup 2>/dev/null
+        find "$CONFIG_DIR" -name "*.backup-*" -type f -exec ls -lht {} + 2>/dev/null
         echo ""
         found_backups=true
     fi
-    
+
     # Binary backups
-    if ls "$BIN_DIR"/*.backup-* 2>/dev/null | head -1 >/dev/null; then
+    if find "$BIN_DIR" -name "*.backup-*" -type f 2>/dev/null | head -1 >/dev/null; then
         log_info "Binary backups:"
-        ls -lht "$BIN_DIR"/*.backup-* 2>/dev/null
+        find "$BIN_DIR" -name "*.backup-*" -type f -exec ls -lht {} + 2>/dev/null
         echo ""
         found_backups=true
     fi
-    
-    if [[ "$found_backups" != true ]]; then
+
+    if [[ $found_backups != true ]]; then
         log_info "No backup files found"
     fi
 }
@@ -139,43 +140,46 @@ list_backups() {
 restore_config() {
     log_info "Configuration Restore"
     echo ""
-    
+
     # List available config backups
     local backups
-    if ! backups=$(ls -t "$CONFIG_DIR"/*.backup 2>/dev/null); then
+    if ! backups=$(find "$CONFIG_DIR" -name "*.backup" -type f -exec ls -t {} + 2>/dev/null); then
         log_error "No configuration backups found"
         exit 1
     fi
-    
+
     echo "Available configuration backups:"
     local i=1
     while IFS= read -r backup; do
+        local backup_name
         local backup_name
         backup_name=$(basename "$backup")
         local backup_date
         backup_date=$(stat -f "%Sm" -t "%Y-%m-%d %H:%M:%S" "$backup" 2>/dev/null || echo "unknown")
         echo "  $i) $backup_name (created: $backup_date)"
         i=$((i + 1))
-    done <<< "$backups"
-    
+    done <<<"$backups"
+
     echo ""
-    read -p "Select backup to restore (number): " choice
-    
+    read -r -p "Select backup to restore (number): " choice
+
+    local selected_backup
     local selected_backup
     selected_backup=$(echo "$backups" | sed -n "${choice}p")
-    
-    if [[ -z "$selected_backup" ]]; then
+
+    if [[ -z $selected_backup ]]; then
         log_error "Invalid selection"
         exit 1
     fi
-    
+
     # Backup current config before restore
-    if [[ -f "$CONFIG_FILE" ]]; then
-        local current_backup="${CONFIG_FILE}.pre-restore-$(date +%Y%m%d-%H%M%S)"
+    if [[ -f $CONFIG_FILE ]]; then
+        local current_backup
+        current_backup="${CONFIG_FILE}.pre-restore-$(date +%Y%m%d-%H%M%S)"
         cp "$CONFIG_FILE" "$current_backup"
         log_info "Current configuration backed up to: $current_backup"
     fi
-    
+
     # Restore selected backup
     if cp "$selected_backup" "$CONFIG_FILE"; then
         log_success "Configuration restored from: $(basename "$selected_backup")"
@@ -189,14 +193,15 @@ restore_config() {
 # Clean up old backups
 cleanup_backups() {
     log_info "Cleaning up old backup files..."
-    
+
     local removed_files=0
-    
+
     # Clean up old config backups (keep 5 most recent)
-    if ls "$CONFIG_DIR"/*.backup 2>/dev/null | head -1 >/dev/null; then
+    if find "$CONFIG_DIR" -name "*.backup" -type f 2>/dev/null | head -1 >/dev/null; then
         local old_config_backups
-        old_config_backups=$(ls -t "$CONFIG_DIR"/*.backup 2>/dev/null | tail -n +6)
-        if [[ -n "$old_config_backups" ]]; then
+        local old_config_backups
+        old_config_backups=$(find "$CONFIG_DIR" -name "*.backup" -type f -exec ls -t {} + 2>/dev/null | tail -n +6)
+        if [[ -n $old_config_backups ]]; then
             echo "$old_config_backups" | xargs rm -f
             local count
             count=$(echo "$old_config_backups" | wc -l | tr -d ' ')
@@ -204,12 +209,13 @@ cleanup_backups() {
             log_info "Removed $count old configuration backup(s)"
         fi
     fi
-    
+
     # Clean up old binary backups (keep 10 most recent)
-    if ls "$BIN_DIR"/*.backup-* 2>/dev/null | head -1 >/dev/null; then
+    if find "$BIN_DIR" -name "*.backup-*" -type f 2>/dev/null | head -1 >/dev/null; then
         local old_binary_backups
-        old_binary_backups=$(ls -t "$BIN_DIR"/*.backup-* 2>/dev/null | tail -n +11)
-        if [[ -n "$old_binary_backups" ]]; then
+        local old_binary_backups
+        old_binary_backups=$(find "$BIN_DIR" -name "*.backup-*" -type f -exec ls -t {} + 2>/dev/null | tail -n +11)
+        if [[ -n $old_binary_backups ]]; then
             echo "$old_binary_backups" | xargs rm -f
             local count
             count=$(echo "$old_binary_backups" | wc -l | tr -d ' ')
@@ -217,7 +223,7 @@ cleanup_backups() {
             log_info "Removed $count old binary backup(s)"
         fi
     fi
-    
+
     if [[ $removed_files -eq 0 ]]; then
         log_info "No old backup files to clean up"
     else
@@ -229,49 +235,53 @@ cleanup_backups() {
 show_status() {
     log_info "Gnosis VPN Installation Status"
     echo ""
-    
+
     # Version info
     show_version
     echo ""
-    
+
     # Binary status
     log_info "Binary status:"
     if [[ -f "$BIN_DIR/gnosis_vpn" ]]; then
+        local vpn_version
         local vpn_version
         vpn_version=$("$BIN_DIR/gnosis_vpn" --version 2>/dev/null | head -1 || echo "unknown")
         log_success "gnosis_vpn: installed ($vpn_version)"
     else
         log_error "gnosis_vpn: not found"
     fi
-    
+
     if [[ -f "$BIN_DIR/gnosis_vpn-ctl" ]]; then
+        local ctl_version
         local ctl_version
         ctl_version=$("$BIN_DIR/gnosis_vpn-ctl" --version 2>/dev/null | head -1 || echo "unknown")
         log_success "gnosis_vpn-ctl: installed ($ctl_version)"
     else
         log_error "gnosis_vpn-ctl: not found"
     fi
-    
+
     echo ""
-    
+
     # Configuration status
     log_info "Configuration status:"
-    if [[ -f "$CONFIG_FILE" ]]; then
+    if [[ -f $CONFIG_FILE ]]; then
         log_success "Configuration file: $CONFIG_FILE"
+        local network
         local network
         network=$(grep "# Network:" "$CONFIG_FILE" 2>/dev/null | sed 's/.*Network: //' | tr -d ' ' || echo "unknown")
         log_info "Network: $network"
     else
         log_error "Configuration file not found"
     fi
-    
+
     echo ""
-    
+
     # Service status
     log_info "Service status:"
     if run_launchctl print system/org.gnosis.vpn >/dev/null 2>&1; then
         log_success "Launchd service is loaded"
         if pgrep -f "gnosis_vpn" >/dev/null 2>&1; then
+            local pid
             local pid
             pid=$(pgrep -f "gnosis_vpn")
             log_success "VPN process is running (PID: $pid)"
@@ -286,37 +296,42 @@ show_status() {
             log_info "VPN service is not running"
         fi
     fi
-    
+
     echo ""
-    
+
     # System user and group status
     log_info "System user and group status:"
     if dscl . -read "/Users/gnosisvpn" >/dev/null 2>&1; then
         local uid gid
+        local uid
         uid=$(dscl . -read "/Users/gnosisvpn" UniqueID 2>/dev/null | awk '{print $2}' || echo "unknown")
+        local gid
         gid=$(dscl . -read "/Users/gnosisvpn" PrimaryGroupID 2>/dev/null | awk '{print $2}' || echo "unknown")
         log_success "System user 'gnosisvpn' exists (UID: $uid, GID: $gid)"
     else
         log_warn "System user 'gnosisvpn' not found (service runs as root)"
     fi
-    
+
     if dscl . -read "/Groups/gnosisvpn" >/dev/null 2>&1; then
         local group_gid members
+        local group_gid
         group_gid=$(dscl . -read "/Groups/gnosisvpn" PrimaryGroupID 2>/dev/null | awk '{print $2}' || echo "unknown")
+        local members
         members=$(dscl . -read "/Groups/gnosisvpn" GroupMembership 2>/dev/null | cut -d' ' -f2- || echo "none")
         log_success "System group 'gnosisvpn' exists (GID: $group_gid)"
         log_info "  Group members: $members"
     else
         log_warn "System group 'gnosisvpn' not found"
     fi
-    
+
     echo ""
-    
+
     # Backup summary
     local config_backups binary_backups
-    config_backups=$(ls "$CONFIG_DIR"/*.backup 2>/dev/null | wc -l | tr -d ' ')
-    binary_backups=$(ls "$BIN_DIR"/*.backup-* 2>/dev/null | wc -l | tr -d ' ')
-    
+    local config_backups
+    config_backups=$(find "$CONFIG_DIR" -name "*.backup" -type f 2>/dev/null | wc -l | tr -d ' ')
+    binary_backups=$(find "$BIN_DIR" -name "*.backup-*" -type f 2>/dev/null | wc -l | tr -d ' ')
+
     log_info "Backup summary:"
     log_info "  Configuration backups: $config_backups"
     log_info "  Binary backups: $binary_backups"
@@ -325,15 +340,15 @@ show_status() {
 # Start VPN service
 start_service() {
     log_info "Starting Gnosis VPN service..."
-    
+
     local plist_path="/Library/LaunchDaemons/org.gnosis.vpn.plist"
-    
-    if [[ ! -f "$plist_path" ]]; then
+
+    if [[ ! -f $plist_path ]]; then
         log_error "Launchd service not installed"
         log_info "Please reinstall the application to create the service"
         exit 1
     fi
-    
+
     if run_launchctl print system/org.gnosis.vpn >/dev/null 2>&1; then
         log_info "Service is already loaded, restarting..."
         run_launchctl kickstart system/org.gnosis.vpn
@@ -341,7 +356,7 @@ start_service() {
         log_info "Loading service..."
         run_launchctl bootstrap system "$plist_path"
     fi
-    
+
     # Wait and check status
     sleep 3
     if pgrep -f "gnosis_vpn" >/dev/null 2>&1; then
@@ -356,16 +371,16 @@ start_service() {
 # Stop VPN service
 stop_service() {
     log_info "Stopping Gnosis VPN service..."
-    
+
     local plist_path="/Library/LaunchDaemons/org.gnosis.vpn.plist"
-    
+
     if run_launchctl print system/org.gnosis.vpn >/dev/null 2>&1; then
         run_launchctl bootout system "$plist_path"
         log_success "Service stopped"
     else
         log_info "Service was not running"
     fi
-    
+
     # Kill any remaining processes
     if pgrep -f "gnosis_vpn" >/dev/null 2>&1; then
         log_info "Terminating remaining VPN processes..."
@@ -390,37 +405,37 @@ restart_service() {
 # Show service logs
 show_logs() {
     local log_type="${1:-service}"
-    
+
     case "$log_type" in
-        "service"|"info")
-            log_info "Showing service logs (last 50 lines):"
-            echo ""
-            tail -n 50 /var/log/gnosis_vpn/gnosis_vpn.log 2>/dev/null || {
-                log_error "Service log file not found"
-                exit 1
-            }
-            ;;
-        "error"|"errors")
-            log_info "Showing error logs (last 50 lines):"
-            echo ""
-            tail -n 50 /var/log/gnosis_vpn/gnosis_vpn.error.log 2>/dev/null || {
-                log_error "Error log file not found"
-                exit 1
-            }
-            ;;
-        "follow"|"tail")
-            log_info "Following service logs (Ctrl+C to stop):"
-            echo ""
-            tail -f /var/log/gnosis_vpn/gnosis_vpn.log 2>/dev/null || {
-                log_error "Service log file not found"
-                exit 1
-            }
-            ;;
-        *)
-            log_error "Unknown log type: $log_type"
-            log_info "Available options: service, error, follow"
+    "service" | "info")
+        log_info "Showing service logs (last 50 lines):"
+        echo ""
+        tail -n 50 /var/log/gnosis_vpn/gnosis_vpn.log 2>/dev/null || {
+            log_error "Service log file not found"
             exit 1
-            ;;
+        }
+        ;;
+    "error" | "errors")
+        log_info "Showing error logs (last 50 lines):"
+        echo ""
+        tail -n 50 /var/log/gnosis_vpn/gnosis_vpn.error.log 2>/dev/null || {
+            log_error "Error log file not found"
+            exit 1
+        }
+        ;;
+    "follow" | "tail")
+        log_info "Following service logs (Ctrl+C to stop):"
+        echo ""
+        tail -f /var/log/gnosis_vpn/gnosis_vpn.log 2>/dev/null || {
+            log_error "Service log file not found"
+            exit 1
+        }
+        ;;
+    *)
+        log_error "Unknown log type: $log_type"
+        log_info "Available options: service, error, follow"
+        exit 1
+        ;;
     esac
 }
 
@@ -455,50 +470,50 @@ show_usage() {
 # Main execution
 main() {
     local command="${1:-status}"
-    
+
     case "$command" in
-        "version")
-            show_version
-            ;;
-        "backups")
-            list_backups
-            ;;
-        "restore")
-            check_permissions "$command"
-            restore_config
-            ;;
-        "cleanup")
-            check_permissions "$command"
-            cleanup_backups
-            ;;
-        "status")
-            show_status
-            ;;
-        "start")
-            check_permissions "$command"
-            start_service
-            ;;
-        "stop")
-            check_permissions "$command"
-            stop_service
-            ;;
-        "restart")
-            check_permissions "$command"
-            restart_service
-            ;;
-        "logs")
-            local log_type="${2:-service}"
-            show_logs "$log_type"
-            ;;
-        "help"|"-h"|"--help")
-            show_usage
-            ;;
-        *)
-            log_error "Unknown command: $command"
-            echo ""
-            show_usage
-            exit 1
-            ;;
+    "version")
+        show_version
+        ;;
+    "backups")
+        list_backups
+        ;;
+    "restore")
+        check_permissions "$command"
+        restore_config
+        ;;
+    "cleanup")
+        check_permissions "$command"
+        cleanup_backups
+        ;;
+    "status")
+        show_status
+        ;;
+    "start")
+        check_permissions "$command"
+        start_service
+        ;;
+    "stop")
+        check_permissions "$command"
+        stop_service
+        ;;
+    "restart")
+        check_permissions "$command"
+        restart_service
+        ;;
+    "logs")
+        local log_type="${2:-service}"
+        show_logs "$log_type"
+        ;;
+    "help" | "-h" | "--help")
+        show_usage
+        ;;
+    *)
+        log_error "Unknown command: $command"
+        echo ""
+        show_usage
+        exit 1
+        ;;
     esac
 }
 

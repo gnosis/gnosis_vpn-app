@@ -126,7 +126,8 @@
               pkgs.nodejs
               pkgs.deno
               pkgs.openssl
-            ] ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
+            ]
+            ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
               # Linux-specific packages
               pkgs.gobject-introspection
               pkgs.at-spi2-atk
@@ -141,7 +142,8 @@
               pkgs.pango
               pkgs.webkitgtk_4_1
               pkgs.libayatana-appindicator
-            ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
+            ]
+            ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
               # macOS-specific packages
               pkgs.libiconv
             ];

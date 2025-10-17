@@ -26,7 +26,7 @@ setup_logging() {
     mkdir -p "$INSTALLER_LOG_DIR"
 
     # Set script-specific log file if not already set
-    if [[ -z "${SCRIPT_LOG_FILE:-}" ]]; then
+    if [[ -z ${SCRIPT_LOG_FILE:-} ]]; then
         SCRIPT_LOG_FILE="${INSTALLER_LOG_DIR}/${script_name}.log"
     fi
 
@@ -69,7 +69,7 @@ log_error() {
 
 # Log debug message (only if DEBUG=true)
 log_debug() {
-    if [[ "${DEBUG:-false}" == "true" ]]; then
+    if [[ ${DEBUG:-false} == "true" ]]; then
         echo "[$(log_timestamp)] [DEBUG] $*"
     fi
 }
