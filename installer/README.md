@@ -106,32 +106,37 @@ installer/
 The installer supports bundling binaries from multiple repositories using
 environment variables. This allows you to include:
 
-- **Tauri UI Application** (from this repository)
+- **UI Application** (from this repository, Tauri-based)
 - **VPN System Service** (from external repository)
 - **VPN Command Line Utility** (from external repository)
 
 ### Required Environment Variables
 
 ```bash
-# GitHub Release URL - installer constructs binary URLs automatically
-export GITHUB_RELEASE_URL="https://github.com/owner/repo/releases/tag/v1.0.0"
+# GitHub Release URL for VPN client binaries
+export GITHUB_CLIENT_RELEASE_URL="https://github.com/owner/repo/releases/tag/v1.0.0"
 
-# Optional: Tauri UI App
-export TAURI_APP_URL="https://releases.example.com/v1.0.0/GnosisVPN.app.tar.gz"
+# Optional: Separate GitHub Release URL for UI app (if in different repository)
+export GITHUB_UI_RELEASE_URL="https://github.com/ui-owner/ui-repo/releases/tag/v1.0.0"
 ```
 
 **Binary Names**: The installer expects these binaries in the GitHub release:
 
-- `gnosis_vpn-x86_64-apple-darwin` (VPN service)
-- `gnosis_vpn-aarch64-apple-darwin` (VPN service)
-- `gnosis_vpn-cli-x86_64-apple-darwin` (CLI utility)
-- `gnosis_vpn-cli-aarch64-apple-darwin` (CLI utility)
+- `gnosis_vpn-x86_64-darwin` (VPN service)
+- `gnosis_vpn-aarch64-darwin` (VPN service)
+- `gnosis_vpn-cli-x86_64-darwin` (CLI utility)
+- `gnosis_vpn-cli-aarch64-darwin` (CLI utility)
+- `gnosis_vpn-ui-x86_64-darwin` (UI app - x86_64 used for both Intel and ARM
+  Macs via Rosetta)
 
 ### Usage with Environment Variables
 
 ```bash
-# Set GitHub release URL
-export GITHUB_RELEASE_URL="https://github.com/owner/repo/releases/tag/v1.0.0"
+# Set GitHub release URL for VPN client binaries
+export GITHUB_CLIENT_RELEASE_URL="https://github.com/gnosis/gnosis_vpn-client/releases/tag/v1.0.0"
+
+# Optional: Set separate UI release URL if UI is in different repository
+export GITHUB_UI_RELEASE_URL="https://github.com/gnosis/gnosis_vpn-ui/releases/tag/v1.0.0"
 cd installer
 ./build-pkg.sh latest
 ```
@@ -198,6 +203,8 @@ installation:**
    - Fetches latest version tag from GitHub (or uses specified version)
    - Downloads both x86_64 and aarch64 binaries for `gnosis_vpn` and
      `gnosis_vpn-ctl`
+   - Downloads x86_64 UI app binary (used on both Intel and ARM Macs via
+     Rosetta)
    - Creates universal binaries using `lipo` (supports both Intel and Apple
      Silicon)
    - Packages binaries into the PKG payload
