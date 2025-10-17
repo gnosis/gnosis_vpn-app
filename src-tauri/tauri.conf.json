@@ -1,7 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "gnosis_vpn-app",
-  "version": "0.1.0",
   "identifier": "eth.gnosis.vpn",
   "build": {
     "beforeDevCommand": "deno task dev",
