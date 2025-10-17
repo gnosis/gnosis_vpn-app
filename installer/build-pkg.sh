@@ -26,16 +26,17 @@ COMPONENT_PKG="GnosisVPN.pkg"
 
 # Binary URL environment variables
 # GitHub release URL - installer will construct binary URLs automatically
-GITHUB_RELEASE_URL="${GITHUB_RELEASE_URL:-}"
-TAURI_APP_URL="${TAURI_APP_URL:-}"
+GITHUB_CLIENT_RELEASE_URL="${GITHUB_CLIENT_RELEASE_URL:-}"
+GITHUB_UI_RELEASE_URL="${GITHUB_UI_RELEASE_URL:-}"
 
 # Binary names (can be customized if needed)
 VPN_SERVICE_BINARY_NAME="${VPN_SERVICE_BINARY_NAME:-gnosis_vpn}"
 VPN_CLI_BINARY_NAME="${VPN_CLI_BINARY_NAME:-gnosis_vpn-cli}"
+UI_APP_BINARY_NAME="${UI_APP_BINARY_NAME:-gnosis_vpn-ui}"
 
 # Platform suffixes for binary names
-X86_PLATFORM="${X86_PLATFORM:-x86_64-apple-darwin}"
-ARM_PLATFORM="${ARM_PLATFORM:-aarch64-apple-darwin}"
+X86_PLATFORM="${X86_PLATFORM:-x86_64-darwin}"
+ARM_PLATFORM="${ARM_PLATFORM:-aarch64-darwin}"
 
 # Fallback GitHub release config (for backward compatibility)
 REPO_OWNER="gnosis"
@@ -115,22 +116,25 @@ validate_environment() {
     log_info "Validating environment variables..."
 
     # Check if GitHub release URL is provided
-    if [[ -n $GITHUB_RELEASE_URL ]]; then
-        log_info "GitHub release URL detected: $GITHUB_RELEASE_URL"
+    if [[ -n $GITHUB_CLIENT_RELEASE_URL ]]; then
+        log_info "GitHub client release URL detected: $GITHUB_CLIENT_RELEASE_URL"
 
         # Validate GitHub release URL format
         local download_url
-        download_url=$(parse_github_release_url "$GITHUB_RELEASE_URL")
+        download_url=$(parse_GITHUB_CLIENT_RELEASE_URL "$GITHUB_CLIENT_RELEASE_URL")
 
         log_info "Binary configuration:"
         log_info "  Download base URL: $download_url"
         log_info "  VPN Service binary: ${VPN_SERVICE_BINARY_NAME}-${X86_PLATFORM}, ${VPN_SERVICE_BINARY_NAME}-${ARM_PLATFORM}"
         log_info "  VPN CLI binary: ${VPN_CLI_BINARY_NAME}-${X86_PLATFORM}, ${VPN_CLI_BINARY_NAME}-${ARM_PLATFORM}"
 
-        if [[ -n $TAURI_APP_URL ]]; then
-            log_info "  Tauri App: $TAURI_APP_URL"
+        if [[ -n $GITHUB_UI_RELEASE_URL ]]; then
+            log_info "GitHub UI release URL detected: $GITHUB_UI_RELEASE_URL"
+            local ui_download_url
+            ui_download_url=$(parse_GITHUB_CLIENT_RELEASE_URL "$GITHUB_UI_RELEASE_URL")
+            log_info "  UI App binary: ${UI_APP_BINARY_NAME}-${X86_PLATFORM} (from separate release: $ui_download_url)"
         else
-            log_warn "Tauri app URL not provided (optional)"
+            log_info "  UI App binary: ${UI_APP_BINARY_NAME}-${X86_PLATFORM} (x86_64 for Rosetta compatibility)"
         fi
 
         log_success "Environment variables validated"
@@ -308,7 +312,7 @@ construct_binary_url() {
 }
 
 # Parse GitHub release URL to extract repo info and tag
-parse_github_release_url() {
+parse_GITHUB_CLIENT_RELEASE_URL() {
     local url="$1"
 
     # Expected format: https://github.com/owner/repo/releases/tag/v1.0.0
@@ -425,13 +429,13 @@ embed_binaries() {
     trap 'rm -rf "$tmp_dir"' EXIT
 
     # Check if GitHub release URL is provided
-    if [[ -n $GITHUB_RELEASE_URL ]]; then
+    if [[ -n $GITHUB_CLIENT_RELEASE_URL ]]; then
 
         log_info "Using GitHub release URL for binary downloads..."
 
         # Parse GitHub release URL to get download base URL
         local download_base_url
-        download_base_url=$(parse_github_release_url "$GITHUB_RELEASE_URL")
+        download_base_url=$(parse_GITHUB_CLIENT_RELEASE_URL "$GITHUB_CLIENT_RELEASE_URL")
 
         # Construct binary URLs
         local vpn_service_x86_url
@@ -443,11 +447,24 @@ embed_binaries() {
         local vpn_cli_arm_url
         vpn_cli_arm_url=$(construct_binary_url "$download_base_url" "$VPN_CLI_BINARY_NAME" "$ARM_PLATFORM")
 
+        # Construct UI app URL - check for separate UI release URL first
+        local ui_app_url
+        if [[ -n $GITHUB_UI_RELEASE_URL ]]; then
+            log_info "Using separate UI release URL: $GITHUB_UI_RELEASE_URL"
+            local ui_download_base_url
+            ui_download_base_url=$(parse_GITHUB_CLIENT_RELEASE_URL "$GITHUB_UI_RELEASE_URL")
+            ui_app_url=$(construct_binary_url "$ui_download_base_url" "$UI_APP_BINARY_NAME" "$X86_PLATFORM")
+        else
+            # Fallback to using client release URL for UI app (same as VPN binaries)
+            ui_app_url=$(construct_binary_url "$download_base_url" "$UI_APP_BINARY_NAME" "$X86_PLATFORM")
+        fi
+
         log_info "Constructed URLs:"
         log_info "  VPN Service (x86_64): $vpn_service_x86_url"
         log_info "  VPN Service (aarch64): $vpn_service_arm_url"
         log_info "  VPN CLI (x86_64): $vpn_cli_x86_url"
         log_info "  VPN CLI (aarch64): $vpn_cli_arm_url"
+        log_info "  UI App: $ui_app_url (x86_64 - works on ARM via Rosetta)"
 
         # Download all binaries in parallel
         log_info "Starting parallel downloads..."
@@ -460,26 +477,15 @@ embed_binaries() {
         download_binary "VPN CLI (aarch64)" "$vpn_cli_arm_url" "$tmp_dir/gnosis_vpn-ctl-aarch64" &
         local pid4=$!
 
-        # Download Tauri app if URL is provided
-        local tauri_pid=""
-        if [[ -n $TAURI_APP_URL ]]; then
-            download_binary "Tauri App" "$TAURI_APP_URL" "$tmp_dir/tauri-app" &
-            tauri_pid=$!
-        fi
+        # Download UI app (x86_64 version for Rosetta compatibility)
+        download_binary "UI App (x86_64)" "$ui_app_url" "$tmp_dir/ui-app" &
+        local pid5=$!
 
         # Wait for all downloads to complete
         log_info "Waiting for downloads to complete..."
-        if ! wait $pid1 || ! wait $pid2 || ! wait $pid3 || ! wait $pid4; then
+        if ! wait $pid1 || ! wait $pid2 || ! wait $pid3 || ! wait $pid4 || ! wait $pid5; then
             log_error "One or more downloads failed"
             exit 1
-        fi
-
-        # Wait for Tauri download if it was started
-        if [[ -n $tauri_pid ]]; then
-            if ! wait $tauri_pid; then
-                log_error "Tauri app download failed"
-                exit 1
-            fi
         fi
 
         log_success "All downloads completed"
@@ -494,25 +500,25 @@ embed_binaries() {
             "$tmp_dir/gnosis_vpn-ctl-x86_64" "$tmp_dir/gnosis_vpn-ctl-aarch64"
         chmod 755 "$BUILD_DIR/root/usr/local/bin/gnosis_vpn-ctl"
 
-        # Handle Tauri app if downloaded
-        if [[ -f "$tmp_dir/tauri-app" ]]; then
-            log_info "Processing Tauri app..."
+        # Handle UI app if downloaded
+        if [[ -f "$tmp_dir/ui-app" ]]; then
+            log_info "Processing UI app..."
 
             # Check if it's a compressed file or app bundle
             local file_info
-            file_info=$(file "$tmp_dir/tauri-app")
+            file_info=$(file "$tmp_dir/ui-app")
             if echo "$file_info" | grep -q -E "(gzip|zip|tar)"; then
-                log_info "Extracting compressed Tauri app..."
+                log_info "Extracting compressed UI app..."
                 # Handle extraction based on file type
                 if echo "$file_info" | grep -q "gzip"; then
-                    tar -xzf "$tmp_dir/tauri-app" -C "$BUILD_DIR/root/Applications/"
+                    tar -xzf "$tmp_dir/ui-app" -C "$BUILD_DIR/root/Applications/"
                 elif echo "$file_info" | grep -q "zip"; then
-                    unzip -q "$tmp_dir/tauri-app" -d "$BUILD_DIR/root/Applications/"
+                    unzip -q "$tmp_dir/ui-app" -d "$BUILD_DIR/root/Applications/"
                 fi
             else
                 # Assume it's a direct app bundle or binary
-                cp -r "$tmp_dir/tauri-app" "$BUILD_DIR/root/Applications/GnosisVPN.app" 2>/dev/null || {
-                    cp "$tmp_dir/tauri-app" "$BUILD_DIR/root/Applications/GnosisVPN"
+                cp -r "$tmp_dir/ui-app" "$BUILD_DIR/root/Applications/GnosisVPN.app" 2>/dev/null || {
+                    cp "$tmp_dir/ui-app" "$BUILD_DIR/root/Applications/GnosisVPN"
                     chmod 755 "$BUILD_DIR/root/Applications/GnosisVPN"
                 }
             fi
@@ -520,7 +526,7 @@ embed_binaries() {
 
     else
         log_info "Using fallback GitHub release downloads..."
-        log_warn "GITHUB_RELEASE_URL not set. Using legacy download method."
+        log_warn "GITHUB_CLIENT_RELEASE_URL not set. Using legacy download method."
 
         local darwin_x86="x86_64-darwin"
         local darwin_arm="aarch64-darwin"
@@ -579,7 +585,7 @@ embed_binaries() {
     fi
 
     if [[ -d "$BUILD_DIR/root/Applications/GnosisVPN.app" ]]; then
-        log_info "Tauri app bundle installed at /Applications/GnosisVPN.app"
+        log_info "UI app bundle installed at /Applications/GnosisVPN.app"
     fi
 
     # Cleanup handled by trap
@@ -695,10 +701,14 @@ print_summary() {
 
     echo ""
     echo "Configuration:"
-    if [[ -n $GITHUB_RELEASE_URL ]]; then
-        echo "  Used GitHub release URL: $GITHUB_RELEASE_URL"
+    if [[ -n $GITHUB_CLIENT_RELEASE_URL ]]; then
+        echo "  Used GitHub client release URL: $GITHUB_CLIENT_RELEASE_URL"
     else
         echo "  Used fallback GitHub releases"
+    fi
+
+    if [[ -n $GITHUB_UI_RELEASE_URL ]]; then
+        echo "  Used GitHub UI release URL: $GITHUB_UI_RELEASE_URL"
     fi
 
     echo ""
@@ -710,8 +720,8 @@ print_summary() {
     echo "     ./sign-pkg.sh $BUILD_DIR/$PKG_NAME"
     echo ""
     echo "Environment Variables Usage:"
-    echo "  export GITHUB_RELEASE_URL='https://github.com/owner/repo/releases/tag/v1.0.0'"
-    echo "  export TAURI_APP_URL='https://example.com/app.tar.gz' # optional"
+    echo "  export GITHUB_CLIENT_RELEASE_URL='https://github.com/owner/repo/releases/tag/v1.0.0'"
+    echo "  export GITHUB_UI_RELEASE_URL='https://github.com/ui-owner/ui-repo/releases/tag/v1.0.0'  # optional"
     echo "  ./build-pkg.sh latest"
     echo ""
     echo "Binary names expected in release:"
@@ -719,6 +729,7 @@ print_summary() {
     echo "  - ${VPN_SERVICE_BINARY_NAME}-${ARM_PLATFORM}"
     echo "  - ${VPN_CLI_BINARY_NAME}-${X86_PLATFORM}"
     echo "  - ${VPN_CLI_BINARY_NAME}-${ARM_PLATFORM}"
+    echo "  - ${UI_APP_BINARY_NAME}-${X86_PLATFORM} (used for both x86_64 and ARM64 via Rosetta)"
     echo "=========================================="
 }
 
