@@ -1,0 +1,1219 @@
+#!/bin/bash
+#
+# Gnosis VPN Post-Installation Script
+#
+# This script runs after the package payload is installed.
+# It performs:
+# - Configuration file generation (config.toml)
+# - Backup of existing configuration (if present)
+# - Final permission adjustments
+# - Optional convenience symlinks
+#
+# Arguments:
+#   $1: Full path to the installation package
+#   $2: Full path to the installation destination (target volume)
+#   $3: Mountpoint of the destination volume
+#   $4: Root directory "/" for the current system
+#
+# Environment variables from Distribution.xml choices:
+#   INSTALLER_CHOICE_NETWORK: "rotsee" or "dufour"
+
+set -euo pipefail
+
+# Source unified logging library
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/logging.sh"
+
+# Setup logging
+setup_logging "postinstall"
+
+# Configuration
+CONFIG_DIR="${2}/etc/gnosisvpn"
+CONFIG_FILE="${CONFIG_DIR}/config.toml"
+VERSION_FILE="${CONFIG_DIR}/version.txt"
+TEMPLATE_DIR_BUNDLE="${SCRIPT_DIR}/../config/templates"
+BIN_DIR="${2}/usr/local/bin"
+NETWORK="${INSTALLER_CHOICE_NETWORK:-rotsee}"
+
+# Get installer version from package (if available) or use current date
+INSTALLER_VERSION="${INSTALLER_VERSION:-$(date +%Y%m%d-%H%M%S)}"
+PACKAGE_PATH="$1"
+
+# Extract version from package filename if available
+if [[ "$PACKAGE_PATH" =~ GnosisVPN-Installer-([^/]+)\.pkg ]]; then
+    INSTALLER_VERSION="${BASH_REMATCH[1]}"
+fi
+
+# Validate network selection (whitelist)
+if [[ ! "$NETWORK" =~ ^(rotsee|dufour)$ ]]; then
+    log_error "Invalid network selection: $NETWORK"
+    log_info "Valid options: rotsee, dufour"
+    exit 1
+fi
+
+log_info "Install package: $1"
+log_info "Target volume: $2"
+log_info "Binary directory: $BIN_DIR"
+log_info "Configuration directory: $CONFIG_DIR"
+log_info "Configuration file: $CONFIG_FILE"
+log_info "Network: $NETWORK"
+
+# Rollback mechanism
+ROLLBACK_STEPS=()
+ROLLBACK_ENABLED=true
+PREV_CONFIG_FILE=""
+
+# Rollback functions
+rollback_restore_config() {
+    if [[ -n "$PREV_CONFIG_FILE" ]] && [[ -f "$PREV_CONFIG_FILE" ]]; then
+        log_info "Restoring previous configuration"
+        mv -f "$PREV_CONFIG_FILE" "$CONFIG_FILE" || true
+    fi
+}
+
+rollback_remove_config() {
+    if [[ -f "$CONFIG_FILE" ]]; then
+        log_info "Removing newly created configuration"
+        rm -f "$CONFIG_FILE" || true
+    fi
+}
+
+# Add a rollback step
+add_rollback_step() {
+    local step="$1"
+    ROLLBACK_STEPS+=("$step")
+    log_debug "Rollback: Registered step - $step"
+}
+
+# Execute rollback
+execute_rollback() {
+    if [[ "$ROLLBACK_ENABLED" != "true" ]]; then
+        return 0
+    fi
+
+    log_section "ERROR: Installation failed, executing rollback"
+
+    local steps="${#ROLLBACK_STEPS[@]}"
+    if [[ $steps -eq 0 ]]; then
+        log_warn "No rollback steps registered"
+        return 0
+    fi
+
+    log_info "Rolling back $steps step(s)..."
+
+    # Execute rollback steps in reverse order
+    for ((i=${#ROLLBACK_STEPS[@]}-1; i>=0; i--)); do
+        local step="${ROLLBACK_STEPS[$i]}"
+        log_info "Rollback step $((steps - i))/$steps: $step"
+        
+        # Call the rollback function directly (no eval)
+        if "$step"; then
+            log_success "Rollback step completed"
+        else
+            log_warn "Rollback step failed (continuing anyway)"
+        fi
+    done
+
+    log_section "Rollback completed"
+}
+
+# Set up trap for automatic rollback on error
+trap 'execute_rollback' ERR EXIT
+
+# Disable rollback after successful installation
+disable_rollback() {
+    ROLLBACK_ENABLED=false
+    trap - ERR EXIT
+}
+
+# Check if previous installation exists
+check_previous_installation() {
+    log_info "Checking for previous installation..."
+    
+    local has_previous=false
+    local previous_version=""
+    
+    # Check for version file
+    if [[ -f "$VERSION_FILE" ]]; then
+        previous_version=$(cat "$VERSION_FILE" 2>/dev/null || echo "unknown")
+        log_info "Found previous installation version: $previous_version"
+        has_previous=true
+    fi
+    
+    # Check for existing binaries
+    if [[ -f "$BIN_DIR/gnosis_vpn" ]] || [[ -f "$BIN_DIR/gnosis_vpn-ctl" ]]; then
+        log_info "Found existing binaries in $BIN_DIR"
+        has_previous=true
+        
+        if [[ -z "$previous_version" ]]; then
+            previous_version="legacy"
+            log_info "Legacy installation detected (no version file)"
+        fi
+    fi
+    
+    if [[ "$has_previous" == true ]]; then
+        log_info "Previous installation detected (version: $previous_version)"
+        echo "update"
+    else
+        log_info "No previous installation found"
+        echo "fresh"
+    fi
+}
+
+# Compare binary checksums to determine if update is needed
+binary_needs_update() {
+    local binary_name="$1"
+    local old_path="$BIN_DIR/$binary_name"
+    local new_path="$2" # Path to new binary in temporary location
+    
+    if [[ ! -f "$old_path" ]]; then
+        log_info "$binary_name: No existing binary, update needed"
+        return 0 # Update needed
+    fi
+    
+    if [[ ! -f "$new_path" ]]; then
+        log_warn "$binary_name: New binary not found at $new_path"
+        return 1 # No update needed (or error)
+    fi
+    
+    local old_checksum new_checksum
+    old_checksum=$(shasum -a 256 "$old_path" 2>/dev/null | cut -d' ' -f1 || echo "")
+    new_checksum=$(shasum -a 256 "$new_path" 2>/dev/null | cut -d' ' -f1 || echo "")
+    
+    if [[ "$old_checksum" == "$new_checksum" ]]; then
+        log_info "$binary_name: Checksums match, no update needed"
+        return 1 # No update needed
+    else
+        log_info "$binary_name: Checksums differ, update needed"
+        log_debug "  Old: $old_checksum"
+        log_debug "  New: $new_checksum"
+        return 0 # Update needed
+    fi
+}
+
+# Update binary if changed
+update_binary_if_needed() {
+    local binary_name="$1"
+    local source_path="$2" # Source binary from package payload
+    local target_path="$BIN_DIR/$binary_name"
+    
+    log_info "Checking if $binary_name needs update..."
+    
+    if binary_needs_update "$binary_name" "$source_path"; then
+        log_info "Updating $binary_name..."
+        
+        # Backup existing binary
+        if [[ -f "$target_path" ]]; then
+            local backup_path="${target_path}.backup-$(date +%Y%m%d-%H%M%S)"
+            cp "$target_path" "$backup_path"
+            log_info "Created backup: $backup_path"
+        fi
+        
+        # Copy new binary
+        if cp "$source_path" "$target_path"; then
+            chmod 755 "$target_path"
+            chown root:wheel "$target_path" 2>/dev/null || true
+            log_success "Updated $binary_name"
+            return 0
+        else
+            log_error "Failed to update $binary_name"
+            return 1
+        fi
+    else
+        log_info "$binary_name is up to date, skipping"
+        return 0
+    fi
+}
+
+# Save current installation version
+save_version_info() {
+    log_info "Saving installation version: $INSTALLER_VERSION"
+    
+    mkdir -p "$CONFIG_DIR"
+    echo "$INSTALLER_VERSION" > "$VERSION_FILE"
+    chmod 644 "$VERSION_FILE"
+    chown root:wheel "$VERSION_FILE" 2>/dev/null || true
+    
+    log_success "Version saved to $VERSION_FILE"
+}
+
+# Create dedicated system user for Gnosis VPN service
+create_system_user() {
+    log_info "Creating dedicated system user for Gnosis VPN service..."
+    
+    local username="gnosisvpn"
+    local fullname="Gnosis VPN Service"
+    local homedir="/var/lib/gnosisvpn"
+    local shell="/usr/bin/false"
+    
+    # Find next available system UID (typically 200-499 range for system users)
+    local uid
+    for uid in {200..499}; do
+        if ! dscl . -read "/Users/$username" UniqueID >/dev/null 2>&1 && \
+           ! dscl . -search /Users UniqueID "$uid" >/dev/null 2>&1; then
+            break
+        fi
+    done
+    
+    # Check if user already exists
+    if dscl . -read "/Users/$username" >/dev/null 2>&1; then
+        log_info "System user '$username' already exists"
+        
+        # Verify it's configured correctly
+        local existing_uid
+        existing_uid=$(dscl . -read "/Users/$username" UniqueID | awk '{print $2}')
+        local existing_home
+        existing_home=$(dscl . -read "/Users/$username" NFSHomeDirectory | cut -d' ' -f2-)
+        
+        log_info "Existing user details: UID=$existing_uid, Home=$existing_home"
+        
+        # Ensure home directory exists and has correct permissions
+        if [[ ! -d "$existing_home" ]]; then
+            log_info "Creating missing home directory: $existing_home"
+            mkdir -p "$existing_home"
+            chown "$username:gnosisvpn" "$existing_home"
+            chmod 750 "$existing_home"
+        fi
+        
+        return 0
+    fi
+    
+    log_info "Creating system user: $username (UID: $uid)"
+    
+    # Create the user record
+    dscl . -create "/Users/$username"
+    dscl . -create "/Users/$username" UserShell "$shell"
+    dscl . -create "/Users/$username" RealName "$fullname"
+    dscl . -create "/Users/$username" UniqueID "$uid"
+    dscl . -create "/Users/$username" PrimaryGroupID 20  # staff group initially
+    dscl . -create "/Users/$username" NFSHomeDirectory "$homedir"
+    
+    # Create home directory
+    mkdir -p "$homedir"
+    chown "$username:staff" "$homedir"
+    chmod 750 "$homedir"
+    
+    # Hide user from login window and Users & Groups preferences
+    dscl . -create "/Users/$username" IsHidden 1
+    
+    log_success "System user '$username' created successfully (UID: $uid)"
+}
+
+# Create dedicated group for Gnosis VPN operations
+create_system_group() {
+    log_info "Creating dedicated system group for Gnosis VPN..."
+    
+    local groupname="gnosisvpn"
+    local current_user
+    current_user=$(logname 2>/dev/null || who am i | awk '{print $1}' || echo "unknown")
+    
+    # Find next available system GID (typically 200-499 range for system groups)
+    local gid
+    for gid in {200..499}; do
+        if ! dscl . -read "/Groups/$groupname" PrimaryGroupID >/dev/null 2>&1 && \
+           ! dscl . -search /Groups PrimaryGroupID "$gid" >/dev/null 2>&1; then
+            break
+        fi
+    done
+    
+    # Check if group already exists
+    if dscl . -read "/Groups/$groupname" >/dev/null 2>&1; then
+        log_info "System group '$groupname' already exists"
+        
+        # Check if current user is already in the group
+        local group_members
+        group_members=$(dscl . -read "/Groups/$groupname" GroupMembership 2>/dev/null | cut -d' ' -f2- || echo "")
+        
+        if [[ "$group_members" == *"$current_user"* ]]; then
+            log_info "Current user '$current_user' is already in group '$groupname'"
+        else
+            log_info "Adding current user '$current_user' to existing group '$groupname'"
+            dseditgroup -o edit -a "$current_user" -t user "$groupname"
+            log_success "User '$current_user' added to group '$groupname'"
+        fi
+        
+        return 0
+    fi
+    
+    log_info "Creating system group: $groupname (GID: $gid)"
+    
+    # Create the group record
+    dscl . -create "/Groups/$groupname"
+    dscl . -create "/Groups/$groupname" PrimaryGroupID "$gid"
+    dscl . -create "/Groups/$groupname" RealName "Gnosis VPN System Group"
+    dscl . -create "/Groups/$groupname" RecordName "$groupname"
+    
+    # Add current user to the group
+    if [[ "$current_user" != "unknown" ]] && [[ "$current_user" != "root" ]]; then
+        log_info "Adding current user '$current_user' to group '$groupname'"
+        dseditgroup -o edit -a "$current_user" -t user "$groupname"
+        log_success "User '$current_user' added to group '$groupname'"
+    else
+        log_warn "Could not determine current user or user is root - skipping group membership"
+    fi
+    
+    log_success "System group '$groupname' created successfully (GID: $gid)"
+}
+
+# Update system user's primary group to gnosisvpn
+update_user_group() {
+    log_info "Updating system user's primary group..."
+    
+    local username="gnosisvpn"
+    local groupname="gnosisvpn"
+    
+    # Get group GID
+    local gid
+    if ! gid=$(dscl . -read "/Groups/$groupname" PrimaryGroupID 2>/dev/null | awk '{print $2}'); then
+        log_error "Could not find GID for group '$groupname'"
+        return 1
+    fi
+    
+    # Update user's primary group
+    dscl . -create "/Users/$username" PrimaryGroupID "$gid"
+    
+    # Update home directory ownership
+    local homedir
+    homedir=$(dscl . -read "/Users/$username" NFSHomeDirectory | cut -d' ' -f2-)
+    if [[ -d "$homedir" ]]; then
+        chown "$username:$groupname" "$homedir"
+        log_info "Updated home directory ownership: $homedir"
+    fi
+    
+    log_success "User '$username' primary group updated to '$groupname' (GID: $gid)"
+}
+
+# Configure plist with runtime values
+configure_plist() {
+    local source_plist="$1"
+    local target_plist="$2"
+    local binary_path="${BIN_DIR}/gnosis_vpn"
+    local config_path="${CONFIG_DIR}/config.toml"
+    
+    if [[ ! -f "$source_plist" ]]; then
+        log_error "Source plist not found: $source_plist"
+        return 1
+    fi
+    
+    log_info "Configuring plist with runtime paths..."
+    
+    # Copy and configure the plist with actual paths
+    cp "$source_plist" "$target_plist"
+    
+    # Update binary path in plist if it differs from default
+    if [[ "$binary_path" != "/usr/local/bin/gnosis_vpn" ]]; then
+        # Update ProgramArguments array
+        sed -i '' "s|/usr/local/bin/gnosis_vpn|${binary_path}|g" "$target_plist"
+        log_info "Updated binary path in plist to: $binary_path"
+    fi
+    
+    # Update config path in plist if it differs from default
+    if [[ "$config_path" != "/etc/gnosisvpn/config.toml" ]]; then
+        sed -i '' "s|/etc/gnosisvpn/config.toml|${config_path}|g" "$target_plist"
+        log_info "Updated config path in plist to: $config_path"
+    fi
+    
+    # Ensure plist uses correct user and group
+    if dscl . -read "/Users/gnosisvpn" >/dev/null 2>&1; then
+        log_info "Configuring plist to use system user 'gnosisvpn'"
+        
+        # Update UserName to gnosisvpn (handles both root and gnosisvpn defaults)
+        sed -i '' '/<key>UserName<\/key>/{N;s|<string>.*</string>|<string>gnosisvpn</string>|;}' "$target_plist"
+        
+        # Update GroupName to gnosisvpn (handles both wheel and gnosisvpn defaults)
+        sed -i '' '/<key>GroupName<\/key>/{N;s|<string>.*</string>|<string>gnosisvpn</string>|;}' "$target_plist"
+        
+        # Update WorkingDirectory to use system user's state directory
+        sed -i '' '/<key>WorkingDirectory<\/key>/{N;s|<string>.*</string>|<string>/var/lib/gnosisvpn</string>|;}' "$target_plist"
+        
+        log_success "Plist configured to run as user 'gnosisvpn' with group 'gnosisvpn'"
+        log_info "Working directory set to: /var/lib/gnosisvpn"
+    else
+        log_warn "System user 'gnosisvpn' not found, configuring plist to use root"
+        
+        # Fallback to root if system user doesn't exist
+        sed -i '' '/<key>UserName<\/key>/{N;s|<string>.*</string>|<string>root</string>|;}' "$target_plist"
+        sed -i '' '/<key>GroupName<\/key>/{N;s|<string>.*</string>|<string>wheel</string>|;}' "$target_plist"
+        
+        log_info "Plist configured to run as root user with wheel group"
+    fi
+    
+    # Ensure proper permissions
+    chmod 644 "$target_plist"
+    chown root:wheel "$target_plist" 2>/dev/null || true
+    
+    return 0
+}
+
+# Set up permissions for system user
+setup_user_permissions() {
+    log_info "Setting up permissions for system user..."
+    
+    local username="gnosisvpn"
+    local groupname="gnosisvpn"
+    
+    # Verify user exists
+    if ! dscl . -read "/Users/$username" >/dev/null 2>&1; then
+        log_warn "System user '$username' not found, skipping permission setup"
+        return 0
+    fi
+    
+    log_info "Configuring file permissions for user '$username'"
+    
+    # Set ownership and permissions for configuration directory
+    if [[ -d "$CONFIG_DIR" ]]; then
+        chown -R root:$groupname "$CONFIG_DIR"
+        chmod -R g+r "$CONFIG_DIR"
+        chmod g+x "$CONFIG_DIR"
+        log_info "Configuration directory permissions updated: $CONFIG_DIR"
+    fi
+    
+    # Set ownership and permissions for log directory
+    local log_dir="/var/log/gnosis_vpn"
+    if [[ -d "$log_dir" ]]; then
+        chown -R $username:$groupname "$log_dir"
+        chmod -R 755 "$log_dir"
+        log_info "Log directory permissions updated: $log_dir"
+    fi
+    
+    # Set ownership and permissions for binaries (allow execution by group)
+    if [[ -f "${BIN_DIR}/gnosis_vpn" ]]; then
+        chown root:$groupname "${BIN_DIR}/gnosis_vpn"
+        chmod 750 "${BIN_DIR}/gnosis_vpn"
+        log_info "Binary permissions updated: ${BIN_DIR}/gnosis_vpn"
+    fi
+    
+    if [[ -f "${BIN_DIR}/gnosis_vpn-ctl" ]]; then
+        chown root:$groupname "${BIN_DIR}/gnosis_vpn-ctl"
+        chmod 750 "${BIN_DIR}/gnosis_vpn-ctl"
+        log_info "CLI binary permissions updated: ${BIN_DIR}/gnosis_vpn-ctl"
+    fi
+    
+    # Set permissions for management script (allow group access)
+    if [[ -f "${BIN_DIR}/gnosis-vpn-manager" ]]; then
+        chown root:$groupname "${BIN_DIR}/gnosis-vpn-manager"
+        chmod 750 "${BIN_DIR}/gnosis-vpn-manager"
+        log_info "Management script permissions updated: ${BIN_DIR}/gnosis-vpn-manager"
+    fi
+    
+    # Create and set permissions for runtime directory
+    local runtime_dir="/var/run/gnosisvpn"
+    mkdir -p "$runtime_dir"
+    chown $username:$groupname "$runtime_dir"
+    chmod 755 "$runtime_dir"
+    log_info "Runtime directory created: $runtime_dir"
+    
+    # Create and set permissions for state directory
+    local state_dir="/var/lib/gnosisvpn"
+    mkdir -p "$state_dir"
+    chown $username:$groupname "$state_dir"
+    chmod 750 "$state_dir"
+    log_info "State directory created: $state_dir"
+    
+    log_success "User permissions configured successfully"
+}
+
+# Install launchd service
+install_launchd_service() {
+    local installation_type="$1"
+    
+    log_info "Installing launchd service..."
+    
+    # Configuration
+    local launchd_dir="/Library/LaunchDaemons"
+    local plist_name="org.gnosis.vpn.plist"
+    local plist_path="${launchd_dir}/${plist_name}"
+    # During installation, the plist is in the installer scripts directory
+    local source_plist="${SCRIPT_DIR}/config/system/${plist_name}"
+    # Fallback to development location if not found (for testing)
+    if [[ ! -f "$source_plist" ]]; then
+        source_plist="${SCRIPT_DIR}/../config/system/${plist_name}"
+    fi
+    local log_dir="/var/log/gnosis_vpn"
+    
+    # Create log directory
+    mkdir -p "$log_dir"
+    chmod 755 "$log_dir"
+    chown root:wheel "$log_dir" 2>/dev/null || true
+    
+    # Handle existing service (for updates/reinstalls)
+    local service_was_running=false
+    if [[ -f "$plist_path" ]]; then
+        log_info "Existing service found, preparing for update..."
+        
+        # Check if service is currently running
+        if launchctl print system/org.gnosis.vpn >/dev/null 2>&1; then
+            service_was_running=true
+            log_info "Service is currently running, will restart after update"
+        fi
+        
+        # Stop and unload existing service
+        log_info "Stopping existing service..."
+        launchctl bootout system "$plist_path" 2>/dev/null || true
+        sleep 2
+        
+        # Backup existing plist if different
+        if [[ -f "$source_plist" ]] && ! cmp -s "$source_plist" "$plist_path"; then
+            log_info "Backing up existing plist configuration"
+            cp "$plist_path" "${plist_path}.backup.$(date +%Y%m%d-%H%M%S)" || true
+        fi
+    fi
+    
+    # Install/update plist file
+    if [[ -f "$source_plist" ]]; then
+        log_info "Installing launchd plist: $plist_path"
+        
+        # Configure plist with runtime values
+        if ! configure_plist "$source_plist" "$plist_path"; then
+            log_error "Failed to configure plist file"
+            return 1
+        fi
+        
+        # Validate plist syntax
+        if ! plutil -lint "$plist_path" >/dev/null 2>&1; then
+            log_error "Invalid plist syntax detected after configuration"
+            return 1
+        fi
+        
+        log_success "Plist configured and validated successfully"
+        
+        # Load and start the service
+        log_info "Loading Gnosis VPN service..."
+        
+        # Try to bootstrap the service
+        local bootstrap_attempts=0
+        local max_attempts=3
+        local bootstrap_success=false
+        
+        while [[ $bootstrap_attempts -lt $max_attempts ]]; do
+            if launchctl bootstrap system "$plist_path" 2>/dev/null; then
+                bootstrap_success=true
+                break
+            else
+                # Service might already be loaded, try to bootout first
+                if [[ $bootstrap_attempts -eq 0 ]]; then
+                    log_info "Service may already be loaded, attempting to reload..."
+                    launchctl bootout system "$plist_path" 2>/dev/null || true
+                    sleep 1
+                fi
+                ((bootstrap_attempts++))
+                if [[ $bootstrap_attempts -lt $max_attempts ]]; then
+                    sleep 2
+                fi
+            fi
+        done
+        
+        if [[ "$bootstrap_success" == "true" ]]; then
+            log_success "Gnosis VPN service loaded successfully"
+            
+            # Wait a moment and verify it's running
+            sleep 3
+            if launchctl print system/org.gnosis.vpn >/dev/null 2>&1; then
+                log_success "Service is running successfully"
+                
+                # Check if the binary exists and is executable
+                local binary_path="/usr/local/bin/gnosis_vpn"
+                if [[ ! -f "$binary_path" ]]; then
+                    log_warn "Binary not found at $binary_path - service may fail to start"
+                    log_info "Ensure binaries are properly installed before the service starts"
+                fi
+            else
+                log_warn "Service loaded but may not be running yet"
+                log_info "This is normal if binaries haven't been downloaded yet"
+                log_info "Check logs: tail -f $log_dir/gnosis_vpn.log"
+            fi
+        else
+            log_error "Failed to load Gnosis VPN service after $max_attempts attempts"
+            log_info "You can manually load it later with:"
+            log_info "  sudo launchctl bootstrap system $plist_path"
+        fi
+    else
+        log_error "Launchd plist file not found: $source_plist"
+        log_warn "Service will not start automatically at boot"
+        
+        # List possible locations for debugging
+        log_info "Searched locations:"
+        log_info "  - ${SCRIPT_DIR}/config/system/${plist_name}"
+        log_info "  - ${SCRIPT_DIR}/../config/system/${plist_name}"
+        return 1
+    fi
+}
+
+# Verify plist deployment
+verify_plist_deployment() {
+    log_info "Verifying plist deployment..."
+    
+    local plist_path="/Library/LaunchDaemons/org.gnosis.vpn.plist"
+    local errors=0
+    
+    # Check if plist file exists
+    if [[ ! -f "$plist_path" ]]; then
+        log_error "Plist file not found at: $plist_path"
+        ((errors++))
+    else
+        log_success "Plist file exists: $plist_path"
+        
+        # Check permissions
+        local perms
+        perms=$(stat -f "%Mp%Lp" "$plist_path")
+        if [[ "$perms" != "644" ]]; then
+            log_warn "Plist permissions are $perms, expected 644"
+        else
+            log_success "Plist permissions correct: 644"
+        fi
+        
+        # Check ownership
+        local owner
+        owner=$(stat -f "%Su:%Sg" "$plist_path")
+        if [[ "$owner" != "root:wheel" ]]; then
+            log_warn "Plist ownership is $owner, expected root:wheel"
+        else
+            log_success "Plist ownership correct: root:wheel"
+        fi
+        
+        # Validate syntax
+        if plutil -lint "$plist_path" >/dev/null 2>&1; then
+            log_success "Plist syntax is valid"
+        else
+            log_error "Plist syntax is invalid"
+            ((errors++))
+        fi
+        
+        # Verify user and group configuration
+        local plist_user plist_group
+        plist_user=$(grep -A1 "<key>UserName</key>" "$plist_path" | grep "<string>" | sed 's/.*<string>\(.*\)<\/string>.*/\1/')
+        plist_group=$(grep -A1 "<key>GroupName</key>" "$plist_path" | grep "<string>" | sed 's/.*<string>\(.*\)<\/string>.*/\1/')
+        
+        if [[ "$plist_user" == "gnosisvpn" ]]; then
+            log_success "Plist user correctly set to: gnosisvpn"
+        else
+            if [[ "$plist_user" == "root" ]]; then
+                log_warn "Plist user is set to root (fallback mode)"
+            else
+                log_error "Plist user has unexpected value: $plist_user"
+                ((errors++))
+            fi
+        fi
+        
+        if [[ "$plist_group" == "gnosisvpn" ]]; then
+            log_success "Plist group correctly set to: gnosisvpn"
+        else
+            if [[ "$plist_group" == "wheel" ]]; then
+                log_warn "Plist group is set to wheel (fallback mode)"
+            else
+                log_error "Plist group has unexpected value: $plist_group"
+                ((errors++))
+            fi
+        fi
+        
+        # Verify working directory
+        local plist_workdir
+        plist_workdir=$(grep -A1 "<key>WorkingDirectory</key>" "$plist_path" | grep "<string>" | sed 's/.*<string>\(.*\)<\/string>.*/\1/')
+        
+        if [[ "$plist_workdir" == "/var/lib/gnosisvpn" ]]; then
+            log_success "Plist working directory correctly set to: /var/lib/gnosisvpn"
+        else
+            log_warn "Plist working directory set to: $plist_workdir"
+        fi
+    fi
+    
+    # Check if service is loaded
+    if launchctl print system/org.gnosis.vpn >/dev/null 2>&1; then
+        log_success "Service is loaded in launchd"
+    else
+        log_warn "Service is not loaded (this may be normal if binaries aren't ready)"
+    fi
+    
+    return $errors
+}
+
+# Configure sudo privileges for gnosisvpn group
+configure_sudo_privileges() {
+    log_info "Configuring sudo privileges for gnosisvpn group..."
+    
+    local sudoers_file="/etc/sudoers.d/gnosis-vpn"
+    local source_sudoers="${SCRIPT_DIR}/config/system/gnosis-vpn-sudoers"
+    
+    # Fallback to development location if not found (for testing)
+    if [[ ! -f "$source_sudoers" ]]; then
+        source_sudoers="${SCRIPT_DIR}/../config/system/gnosis-vpn-sudoers"
+    fi
+    
+    if [[ ! -f "$source_sudoers" ]]; then
+        log_error "Sudoers file not found: $source_sudoers"
+        log_warn "Group members will need to use sudo for service management"
+        return 1
+    fi
+    
+    # Verify the gnosisvpn group exists
+    if ! dscl . -read "/Groups/gnosisvpn" >/dev/null 2>&1; then
+        log_warn "System group 'gnosisvpn' not found, skipping sudo configuration"
+        return 0
+    fi
+    
+    # Install sudoers file
+    log_info "Installing sudoers configuration: $sudoers_file"
+    cp "$source_sudoers" "$sudoers_file"
+    
+    # Set proper permissions for sudoers file
+    chmod 440 "$sudoers_file"
+    chown root:wheel "$sudoers_file"
+    
+    # Validate sudoers syntax
+    if visudo -c -f "$sudoers_file" >/dev/null 2>&1; then
+        log_success "Sudoers configuration installed and validated"
+        log_info "Members of 'gnosisvpn' group can now manage the service without sudo password"
+    else
+        log_error "Invalid sudoers syntax detected, removing file"
+        rm -f "$sudoers_file"
+        return 1
+    fi
+    
+    return 0
+}
+
+# Uninstall launchd service (for updates or uninstallation)
+uninstall_launchd_service() {
+    log_info "Stopping Gnosis VPN service..."
+    
+    local plist_path="/Library/LaunchDaemons/org.gnosis.vpn.plist"
+    
+    if [[ -f "$plist_path" ]]; then
+        # Stop and unload the service
+        launchctl bootout system "$plist_path" 2>/dev/null || true
+        log_success "Service stopped"
+    else
+        log_info "No existing service found"
+    fi
+}
+
+# Check service status
+check_service_status() {
+    log_info "Checking service status..."
+    
+    if launchctl print system/org.gnosis.vpn >/dev/null 2>&1; then
+        local status
+        status=$(launchctl print system/org.gnosis.vpn | grep -E "(state|pid)" | head -2)
+        log_info "Service status:"
+        echo "$status" | while IFS= read -r line; do
+            log_info "  $line"
+        done
+        
+        # Check if process is actually running
+        if pgrep -f "gnosis_vpn" >/dev/null 2>&1; then
+            local pid
+            pid=$(pgrep -f "gnosis_vpn")
+            log_success "VPN process is running (PID: $pid)"
+        else
+            log_warn "Service is loaded but process is not running"
+        fi
+    else
+        log_warn "Service is not loaded in launchd"
+    fi
+}
+
+# Cleanup old backup files (keep only the 5 most recent)
+cleanup_old_backups() {
+    log_info "Cleaning up old backup files..."
+    
+    # Clean up old config backups
+    if ls "$CONFIG_DIR"/*.backup 2>/dev/null | head -1 >/dev/null; then
+        local config_backups
+        config_backups=$(ls -t "$CONFIG_DIR"/*.backup 2>/dev/null | tail -n +6)
+        if [[ -n "$config_backups" ]]; then
+            echo "$config_backups" | xargs rm -f
+            local removed_count
+            removed_count=$(echo "$config_backups" | wc -l | tr -d ' ')
+            log_info "Removed $removed_count old configuration backup(s)"
+        fi
+    fi
+    
+    # Clean up old binary backups
+    if ls "$BIN_DIR"/*.backup-* 2>/dev/null | head -1 >/dev/null; then
+        local binary_backups
+        binary_backups=$(ls -t "$BIN_DIR"/*.backup-* 2>/dev/null | tail -n +11) # Keep 10 binary backups
+        if [[ -n "$binary_backups" ]]; then
+            echo "$binary_backups" | xargs rm -f
+            local removed_count
+            removed_count=$(echo "$binary_backups" | wc -l | tr -d ' ')
+            log_info "Removed $removed_count old binary backup(s)"
+        fi
+    fi
+    
+    log_success "Backup cleanup completed"
+}
+
+# Backup existing configuration if present
+backup_config() {
+    local installation_type="$1"
+    
+    # Create config directory if it doesn't exist
+    mkdir -p "$CONFIG_DIR"
+
+    if [[ -f "$CONFIG_FILE" ]]; then
+        local timestamp
+        timestamp=$(date +%Y%m%d-%H%M%S)
+        local backup_file="${CONFIG_DIR}/config-${timestamp}.toml.backup"
+
+        if [[ "$installation_type" == "update" ]]; then
+            log_info "Update detected: Creating configuration backup..."
+        else
+            log_info "Existing configuration found: Creating backup..."
+        fi
+        
+        if cp "$CONFIG_FILE" "$backup_file"; then
+            log_success "Backup created: $backup_file"
+        else
+            log_warn "Failed to create backup of existing config"
+        fi
+    fi
+}
+
+# Generate destinations configuration based on network selection
+generate_destinations() {
+    local template_file="${TEMPLATE_DIR_BUNDLE}/${NETWORK}.toml.template"
+
+    # Check if template file exists
+    if [[ ! -f "$template_file" ]]; then
+        log_error "Template file not found: $template_file"
+        log_info "Falling back to default configuration"
+        # Fallback to rotsee template
+        template_file="${TEMPLATE_DIR_BUNDLE}/rotsee.toml.template"
+        if [[ ! -f "$template_file" ]]; then
+            log_error "Default template file not found: $template_file"
+            log_error "Template directory should be: $TEMPLATE_DIR_BUNDLE"
+            exit 1
+        fi
+    fi
+
+    # Read and output template content
+    cat "$template_file"
+}
+
+
+# Generate the configuration file
+generate_config() {
+    local installation_type="$1"
+    
+    log_info "Generating configuration file..."
+
+    # Save previous config file for rollback if it exists
+    if [[ -f "$CONFIG_FILE" ]]; then
+        PREV_CONFIG_FILE="${CONFIG_FILE}.pre-install"
+        cp "$CONFIG_FILE" "$PREV_CONFIG_FILE"
+        add_rollback_step "rollback_restore_config"
+    else
+        add_rollback_step "rollback_remove_config"
+    fi
+
+    # For updates, check if we should preserve existing config
+    if [[ "$installation_type" == "update" ]] && [[ -f "$CONFIG_FILE" ]]; then
+        log_info "Update detected: Checking if configuration should be preserved..."
+        
+        # Check if existing config has user modifications
+        local existing_network=""
+        if grep -q "# Network:" "$CONFIG_FILE" 2>/dev/null; then
+            existing_network=$(grep "# Network:" "$CONFIG_FILE" | sed 's/.*Network: //' | tr -d ' ')
+        fi
+        
+        # Check if config version is compatible
+        local existing_version=""
+        if grep -q "version = " "$CONFIG_FILE" 2>/dev/null; then
+            existing_version=$(grep "version = " "$CONFIG_FILE" | sed 's/version = //' | tr -d ' ')
+        fi
+        
+        # If network matches and version is compatible, preserve existing config
+        if [[ "$existing_network" == "$NETWORK" ]] && [[ "$existing_version" == "4" ]]; then
+            log_info "Preserving existing configuration (network: $existing_network, version: $existing_version)"
+            log_success "Configuration preserved during update"
+            return 0
+        else
+            log_info "Configuration needs update (network: $existing_network->$NETWORK, version: $existing_version->4)"
+        fi
+    fi
+
+    # Generate new configuration
+    local destinations
+    destinations=$(generate_destinations)
+
+    # Write configuration file
+    cat > "$CONFIG_FILE" <<EOF
+###
+# Gnosis VPN service configuration file
+#
+# On unix the default config path is \`/etc/gnosisvpn/config.toml\`
+# However you can override this by using \`GNOSISVPN_CONFIG_PATH\` env var
+#
+# Generated by installer on $(date)
+# Network: $NETWORK
+# Installation type: $installation_type
+###
+
+version = 4
+
+${destinations}
+EOF
+
+    if [[ -f "$CONFIG_FILE" ]]; then
+        if [[ "$installation_type" == "update" ]]; then
+            log_success "Configuration file updated: $CONFIG_FILE"
+        else
+            log_success "Configuration file created: $CONFIG_FILE"
+        fi
+    else
+        log_error "Failed to create configuration file"
+        exit 1
+    fi
+}
+
+# Update binaries incrementally (only if changed)
+update_binaries() {
+    local installation_type="$1"
+    
+    log_info "Updating binaries..."
+    
+    # For fresh installations, just copy all binaries
+    if [[ "$installation_type" == "fresh" ]]; then
+        log_info "Fresh installation: Installing all binaries..."
+        
+        # Install gnosis_vpn
+        if [[ -f "${2}/usr/local/bin/gnosis_vpn" ]]; then
+            cp "${2}/usr/local/bin/gnosis_vpn" "$BIN_DIR/gnosis_vpn"
+            chmod 755 "$BIN_DIR/gnosis_vpn"
+            chown root:wheel "$BIN_DIR/gnosis_vpn" 2>/dev/null || true
+            log_success "Installed gnosis_vpn"
+        fi
+        
+        # Install gnosis_vpn-ctl
+        if [[ -f "${2}/usr/local/bin/gnosis_vpn-ctl" ]]; then
+            cp "${2}/usr/local/bin/gnosis_vpn-ctl" "$BIN_DIR/gnosis_vpn-ctl"
+            chmod 755 "$BIN_DIR/gnosis_vpn-ctl"
+            chown root:wheel "$BIN_DIR/gnosis_vpn-ctl" 2>/dev/null || true
+            log_success "Installed gnosis_vpn-ctl"
+        fi
+        
+    else
+        # For updates, check each binary individually
+        log_info "Update installation: Checking which binaries need updates..."
+        
+        local updates_made=0
+        
+        # Update gnosis_vpn if needed
+        if [[ -f "${2}/usr/local/bin/gnosis_vpn" ]]; then
+            if update_binary_if_needed "gnosis_vpn" "${2}/usr/local/bin/gnosis_vpn"; then
+                updates_made=$((updates_made + 1))
+            fi
+        fi
+        
+        # Update gnosis_vpn-ctl if needed
+        if [[ -f "${2}/usr/local/bin/gnosis_vpn-ctl" ]]; then
+            if update_binary_if_needed "gnosis_vpn-ctl" "${2}/usr/local/bin/gnosis_vpn-ctl"; then
+                updates_made=$((updates_made + 1))
+            fi
+        fi
+        
+        if [[ $updates_made -gt 0 ]]; then
+            log_success "Updated $updates_made binary(ies)"
+        else
+            log_info "All binaries are up to date"
+        fi
+    fi
+}
+
+# Set proper file permissions
+set_permissions() {
+    log_info "Setting file permissions..."
+
+    chmod 755 "$BIN_DIR/gnosis_vpn" 2>/dev/null || true
+    chmod 755 "$BIN_DIR/gnosis_vpn-ctl" 2>/dev/null || true
+    chmod 644 "$CONFIG_FILE" 2>/dev/null || true
+
+    # Make the config directory readable by all users
+    chmod 755 "$CONFIG_DIR" 2>/dev/null || true
+
+    # Set ownership to root:wheel
+    chown root:wheel "$BIN_DIR/gnosis_vpn" 2>/dev/null || true
+    chown root:wheel "$BIN_DIR/gnosis_vpn-ctl" 2>/dev/null || true
+    chown root:wheel "$CONFIG_FILE" 2>/dev/null || true
+    chown root:wheel "$CONFIG_DIR" 2>/dev/null || true
+
+    log_success "Permissions and ownership set"
+}
+
+# Verify binaries are in PATH
+verify_path() {
+    log_info "Verifying binaries are in PATH..."
+
+    # Binaries are already in /usr/local/bin which is typically in PATH
+    log_success "Binaries installed to $BIN_DIR (typically in PATH)"
+    log_info "You should be able to run 'gnosis_vpn' and 'gnosis_vpn-ctl' from anywhere"
+}
+
+# Verify installation
+verify_installation() {
+    log_info "Verifying installation..."
+
+    local errors=0
+
+    if [[ ! -x "$BIN_DIR/gnosis_vpn" ]]; then
+        log_error "gnosis_vpn binary not found or not executable"
+        errors=$((errors + 1))
+    fi
+
+    if [[ ! -x "$BIN_DIR/gnosis_vpn-ctl" ]]; then
+        log_error "gnosis_vpn-ctl binary not found or not executable"
+        errors=$((errors + 1))
+    fi
+
+    if [[ ! -f "$CONFIG_FILE" ]]; then
+        log_error "Configuration file not found"
+        errors=$((errors + 1))
+    fi
+
+    if [[ $errors -gt 0 ]]; then
+        log_error "Installation verification failed with $errors error(s)"
+        exit 1
+    fi
+
+    log_success "Installation verified successfully"
+}
+
+# Print installation summary
+print_summary() {
+    local installation_type="$1"
+    
+    if [[ "$installation_type" == "update" ]]; then
+        log_section "Update Summary"
+        log_info "Installation type: Update"
+    else
+        log_section "Installation Summary"
+        log_info "Installation type: Fresh installation"
+    fi
+    
+    log_info "Version: $INSTALLER_VERSION"
+    log_info "Binary directory: $BIN_DIR"
+    log_info "Configuration file: $CONFIG_FILE"
+    log_info "Version file: $VERSION_FILE"
+    log_info "Network: $NETWORK"
+    echo ""
+    log_info "Installed binaries:"
+    ls -lh "$BIN_DIR"/gnosis_vpn* 2>/dev/null || true
+    echo ""
+    
+    # Show backup files if they exist
+    if ls "$CONFIG_DIR"/*.backup 2>/dev/null | head -1 >/dev/null; then
+        echo ""
+        log_info "Configuration backups:"
+        ls -lh "$CONFIG_DIR"/*.backup 2>/dev/null || true
+    fi
+    
+    if ls "$BIN_DIR"/*.backup-* 2>/dev/null | head -1 >/dev/null; then
+        echo ""
+        log_info "Binary backups:"
+        ls -lh "$BIN_DIR"/*.backup-* 2>/dev/null || true
+    fi
+    
+    echo ""
+    log_info "Service Management:"
+    log_info "  The VPN service will start automatically at boot"
+    log_info "  sudo launchctl kickstart system/org.gnosis.vpn  # Restart service"
+    log_info "  sudo launchctl bootout system/org.gnosis.vpn    # Stop service"
+    log_info "  gnosis_vpn-ctl status                           # Check VPN status"
+    echo ""
+    log_info "Management commands:"
+    log_info "  gnosis-vpn-manager status   # Show installation status"
+    log_info "  gnosis-vpn-manager backups  # List backup files"
+    log_info "  gnosis-vpn-manager version  # Show installed version"
+    echo ""
+    log_info "Logs:"
+    log_info "  tail -f /var/log/gnosis_vpn/gnosis_vpn.log      # Service logs"
+    log_info "  tail -f /var/log/gnosis_vpn/gnosis_vpn.error.log # Error logs"
+    echo ""
+    log_info "Log file: $INSTALLER_LOG_FILE"
+    
+    if [[ "$installation_type" == "update" ]]; then
+        log_success "Update completed successfully!"
+    else
+        log_success "Installation completed successfully!"
+    fi
+}
+
+# Main execution
+main() {
+    # Determine installation type (fresh vs update)
+    local installation_type
+    installation_type=$(check_previous_installation)
+    
+    log_section "Installation Type: $installation_type"
+    
+    # Backup existing configuration
+    backup_config "$installation_type"
+    
+    # Update binaries (incrementally for updates, full for fresh installs)
+    update_binaries "$installation_type" "$2"
+    
+    # Install management script
+    if [[ -f "${SCRIPT_DIR}/manage-installation.sh" ]]; then
+        cp "${SCRIPT_DIR}/manage-installation.sh" "$BIN_DIR/gnosis-vpn-manager"
+        chmod 755 "$BIN_DIR/gnosis-vpn-manager"
+        
+        # Use system group if it exists, otherwise use wheel
+        if dscl . -read "/Groups/gnosisvpn" >/dev/null 2>&1; then
+            chown root:gnosisvpn "$BIN_DIR/gnosis-vpn-manager" 2>/dev/null || true
+            log_info "Management script installed with gnosisvpn group"
+        else
+            chown root:wheel "$BIN_DIR/gnosis-vpn-manager" 2>/dev/null || true
+            log_info "Management script installed with wheel group (will be updated later)"
+        fi
+        
+        log_success "Installed management script: gnosis-vpn-manager"
+    fi
+    
+    # Generate or update configuration
+    generate_config "$installation_type"
+    
+    # Set proper permissions
+    set_permissions
+    
+    # Save version information
+    save_version_info
+    
+    # Create system user and group
+    create_system_group
+    create_system_user
+    update_user_group
+    setup_user_permissions
+    
+    # Configure sudo privileges for service management
+    configure_sudo_privileges
+    
+    # Install launchd service
+    install_launchd_service "$installation_type"
+    
+    # Verify plist deployment
+    verify_plist_deployment
+    
+    # Clean up old backup files
+    cleanup_old_backups
+    
+    # Verify installation
+    verify_path
+    verify_installation
+    
+    # Check service status
+    check_service_status
+    
+    # Print summary
+    print_summary "$installation_type"
+
+    # Disable rollback after successful completion
+    disable_rollback
+
+    # Log script completion
+    log_script_end "success"
+}
+
+# Execute main function
+main
+
+exit 0
