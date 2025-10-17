@@ -78,6 +78,9 @@ jobs:
           - runner: "macos-15"
             target: "x86_64-apple-darwin"
             args: "--target x86_64-apple-darwin"
+          - runner: "macos-15"
+            target: "universal-apple-darwin"
+            args: "--target universal-apple-darwin"
 
     runs-on: ${{ matrix.runner }}
     steps:
