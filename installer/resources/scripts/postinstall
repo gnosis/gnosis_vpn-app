@@ -27,17 +27,29 @@ source "${SCRIPT_DIR}/logging.sh"
 # Setup logging
 setup_logging "postinstall"
 
+# Parameter validation and defaults
+PACKAGE_PATH="${1:-}"
+TARGET_VOLUME="${2:-/}"
+MOUNTPOINT="${3:-/}"
+ROOT_DIR="${4:-/}"
+
+# Ensure we have required parameters
+if [[ -z $PACKAGE_PATH ]]; then
+    log_error "Missing required parameter: package path"
+    exit 1
+fi
+
 # Configuration
-CONFIG_DIR="${2}/etc/gnosisvpn"
+CONFIG_DIR="${TARGET_VOLUME}/etc/gnosisvpn"
 CONFIG_FILE="${CONFIG_DIR}/config.toml"
 VERSION_FILE="${CONFIG_DIR}/version.txt"
 TEMPLATE_DIR_BUNDLE="${SCRIPT_DIR}/../config/templates"
-BIN_DIR="${2}/usr/local/bin"
+TEMPLATE_DIR_INSTALLED="${CONFIG_DIR}/templates"
+BIN_DIR="${TARGET_VOLUME}/usr/local/bin"
 NETWORK="${INSTALLER_CHOICE_NETWORK:-rotsee}"
 
 # Get installer version from package (if available) or use current date
 INSTALLER_VERSION="${INSTALLER_VERSION:-$(date +%Y%m%d-%H%M%S)}"
-PACKAGE_PATH="$1"
 
 # Extract version from package filename if available
 if [[ "$PACKAGE_PATH" =~ GnosisVPN-Installer-([^/]+)\.pkg ]]; then
@@ -51,8 +63,8 @@ if [[ ! "$NETWORK" =~ ^(rotsee|dufour)$ ]]; then
     exit 1
 fi
 
-log_info "Install package: $1"
-log_info "Target volume: $2"
+log_info "Install package: $PACKAGE_PATH"
+log_info "Target volume: $TARGET_VOLUME"
 log_info "Binary directory: $BIN_DIR"
 log_info "Configuration directory: $CONFIG_DIR"
 log_info "Configuration file: $CONFIG_FILE"
@@ -871,17 +883,17 @@ backup_config() {
 
 # Generate destinations configuration based on network selection
 generate_destinations() {
-    local template_file="${TEMPLATE_DIR_BUNDLE}/${NETWORK}.toml.template"
+    local template_file="${TEMPLATE_DIR_INSTALLED}/${NETWORK}.toml.template"
 
     # Check if template file exists
     if [[ ! -f "$template_file" ]]; then
         log_error "Template file not found: $template_file"
         log_info "Falling back to default configuration"
         # Fallback to rotsee template
-        template_file="${TEMPLATE_DIR_BUNDLE}/rotsee.toml.template"
+        template_file="${TEMPLATE_DIR_INSTALLED}/rotsee.toml.template"
         if [[ ! -f "$template_file" ]]; then
             log_error "Default template file not found: $template_file"
-            log_error "Template directory should be: $TEMPLATE_DIR_BUNDLE"
+            log_error "Template directory should be: $TEMPLATE_DIR_INSTALLED"
             exit 1
         fi
     fi
@@ -1138,6 +1150,61 @@ print_summary() {
     fi
 }
 
+# Install UI app to Applications directory
+
+
+# Install UI application with retry mechanism
+install_ui_app_with_retry() {
+    local source_app="${TARGET_VOLUME}/usr/local/share/gnosisvpn/gnosis_vpn-app.app"
+    local target_app="${TARGET_VOLUME}/Applications/gnosis_vpn-app.app"
+    local max_attempts=10
+    local attempt=1
+    
+    log_info "Installing UI application..."
+    
+    # Try multiple times as files may not be extracted immediately
+    while [[ $attempt -le $max_attempts ]]; do
+        if [[ -d "$source_app" ]]; then
+            log_info "Found UI app bundle: $source_app (attempt $attempt)"
+            
+            # Remove existing app if present
+            if [[ -d "$target_app" ]]; then
+                log_info "Removing existing UI app..."
+                rm -rf "$target_app"
+            fi
+            
+            # Copy app to Applications
+            if cp -R "$source_app" "$target_app"; then
+                log_success "UI app installed to Applications"
+                
+                # Set proper permissions
+                chmod -R 755 "$target_app"
+                chown -R root:admin "$target_app" 2>/dev/null || true
+                
+                # Clean up temporary location
+                rm -rf "$source_app"
+                log_info "Cleaned up temporary UI app files"
+                return 0
+            else
+                log_error "Failed to install UI app to Applications"
+                return 1
+            fi
+        else
+            log_info "UI app not found yet, waiting... (attempt $attempt/$max_attempts)"
+            sleep 1
+            ((attempt++))
+        fi
+    done
+    
+    log_info "No UI app found to install after $max_attempts attempts (this is normal if UI app was not included)"
+    
+    # List what's actually in the temporary directory for debugging
+    if [[ -d "${TARGET_VOLUME}/usr/local/share/gnosisvpn/" ]]; then
+        log_info "Contents of /usr/local/share/gnosisvpn/:"
+        ls -la "${TARGET_VOLUME}/usr/local/share/gnosisvpn/" 2>/dev/null || log_info "Directory is empty or inaccessible"
+    fi
+}
+
 # Main execution
 main() {
     # Determine installation type (fresh vs update)
@@ -1150,7 +1217,7 @@ main() {
     backup_config "$installation_type"
     
     # Update binaries (incrementally for updates, full for fresh installs)
-    update_binaries "$installation_type" "$2"
+    update_binaries "$installation_type" "$TARGET_VOLUME"
     
     # Install management script
     if [[ -f "${SCRIPT_DIR}/manage-installation.sh" ]]; then
@@ -1202,6 +1269,9 @@ main() {
     
     # Check service status
     check_service_status
+    
+    # Install UI application (with retry mechanism)
+    install_ui_app_with_retry
     
     # Print summary
     print_summary "$installation_type"

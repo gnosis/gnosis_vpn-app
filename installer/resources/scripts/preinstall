@@ -29,7 +29,6 @@ VERSION_FILE="${CONFIG_DIR}/version.txt"
 BIN_DIR="${2}/usr/local/bin"
 
 if [[ -f "$VERSION_FILE" ]]; then
-    local previous_version
     previous_version=$(cat "$VERSION_FILE" 2>/dev/null || echo "unknown")
     log_info "Previous installation detected (version: $previous_version)"
 elif [[ -f "$BIN_DIR/gnosis_vpn" ]] || [[ -f "$BIN_DIR/gnosis_vpn-ctl" ]]; then

@@ -136,7 +136,7 @@ validate_environment() {
             local ui_version
             ui_version=$(extract_version_from_url "$GITHUB_UI_RELEASE_URL")
             ui_version="${ui_version#v}" # Remove 'v' prefix
-            log_info "  UI App binary: gnosis_vpn-app_${ui_version}_x86_64.dmg (from separate release: $ui_download_url)"
+            log_info "  UI App binary: gnosis_vpn-app_${ui_version}_x64.dmg (from separate release: $ui_download_url)"
         else
             log_info "  UI App binary: ${UI_APP_BINARY_NAME}-${X86_PLATFORM} (x86_64 for Rosetta compatibility)"
         fi
@@ -162,7 +162,7 @@ prepare_build_dir() {
     # Create fresh build directory structure
     mkdir -p "$BUILD_DIR/root/usr/local/bin"
     mkdir -p "$BUILD_DIR/root/etc/gnosisvpn/templates"
-    mkdir -p "$BUILD_DIR/root/Applications"
+    mkdir -p "$BUILD_DIR/root/usr/local/share/gnosisvpn"
     mkdir -p "$BUILD_DIR/scripts"
 
     # Copy config templates to package payload
@@ -328,8 +328,12 @@ construct_ui_app_url() {
     # Remove 'v' prefix from version if present
     version="${version#v}"
 
-    # Extract architecture from platform (aarch64-darwin -> aarch64)
+    # Extract architecture from platform and convert to UI app format
     local arch="${platform%-darwin}"
+    # Convert x86_64 to x64 for UI app naming convention
+    if [[ $arch == "x86_64" ]]; then
+        arch="x64"
+    fi
 
     # Construct UI app URL: gnosis_vpn-app_VERSION_ARCH.dmg
     echo "${release_url}/gnosis_vpn-app_${version}_${arch}.dmg"
@@ -544,10 +548,41 @@ embed_binaries() {
         if [[ -f "$tmp_dir/ui-app" ]]; then
             log_info "Processing UI app..."
 
-            # Check if it's a compressed file or app bundle
+            # Check if it's a DMG file, compressed file, or app bundle
             local file_info
             file_info=$(file "$tmp_dir/ui-app")
-            if echo "$file_info" | grep -q -E "(gzip|zip|tar)"; then
+            
+            if echo "$file_info" | grep -q -i "zlib compressed data"; then
+                log_info "Detected DMG file, mounting and extracting..."
+                
+                # Create a temporary mount point
+                local mount_point
+                mount_point=$(mktemp -d -t gnosis-dmg-mount.XXXXXX)
+                
+                # Try to mount the DMG
+                if hdiutil attach "$tmp_dir/ui-app" -mountpoint "$mount_point" -quiet; then
+                    log_info "DMG mounted successfully at: $mount_point"
+                    
+                    # Find the .app bundle in the mounted DMG
+                    local app_bundle
+                    app_bundle=$(find "$mount_point" -name "*.app" -type d | head -1)
+                    
+                    if [[ -n $app_bundle ]]; then
+                        log_info "Found app bundle: $(basename "$app_bundle")"
+                        cp -R "$app_bundle" "$BUILD_DIR/root/usr/local/share/gnosisvpn/"
+                        log_success "UI app extracted from DMG"
+                    else
+                        log_error "No .app bundle found in DMG"
+                    fi
+                    
+                    # Unmount the DMG
+                    hdiutil detach "$mount_point" -quiet || log_warn "Failed to unmount DMG cleanly"
+                    rmdir "$mount_point" 2>/dev/null || true
+                else
+                    log_error "Failed to mount DMG file"
+                fi
+                
+            elif echo "$file_info" | grep -q -E "(gzip|zip|tar)"; then
                 log_info "Extracting compressed UI app..."
                 # Handle extraction based on file type
                 if echo "$file_info" | grep -q "gzip"; then
@@ -557,9 +592,10 @@ embed_binaries() {
                 fi
             else
                 # Assume it's a direct app bundle or binary
-                cp -r "$tmp_dir/ui-app" "$BUILD_DIR/root/Applications/GnosisVPN.app" 2>/dev/null || {
-                    cp "$tmp_dir/ui-app" "$BUILD_DIR/root/Applications/GnosisVPN"
-                    chmod 755 "$BUILD_DIR/root/Applications/GnosisVPN"
+                log_info "Copying UI app directly..."
+                cp -r "$tmp_dir/ui-app" "$BUILD_DIR/root/usr/local/share/gnosisvpn/gnosis_vpn-app.app" 2>/dev/null || {
+                    cp "$tmp_dir/ui-app" "$BUILD_DIR/root/usr/local/share/gnosisvpn/gnosis_vpn-app"
+                    chmod 755 "$BUILD_DIR/root/usr/local/share/gnosisvpn/gnosis_vpn-app"
                 }
             fi
         fi
@@ -637,6 +673,12 @@ embed_binaries() {
 copy_scripts() {
     log_info "Copying installation scripts..."
 
+    # Copy logging library (required by all scripts)
+    if [[ -f "$RESOURCES_DIR/scripts/logging.sh" ]]; then
+        cp "$RESOURCES_DIR/scripts/logging.sh" "$BUILD_DIR/scripts/"
+        log_success "Copied logging library"
+    fi
+
     # Preinstall is now a minimal no-op (optional WireGuard check only)
     if [[ -f "$RESOURCES_DIR/scripts/preinstall" ]]; then
         cp "$RESOURCES_DIR/scripts/preinstall" "$BUILD_DIR/scripts/"
@@ -649,6 +691,8 @@ copy_scripts() {
         chmod +x "$BUILD_DIR/scripts/postinstall"
         log_success "Copied postinstall script"
     fi
+
+
 
     echo ""
 }
