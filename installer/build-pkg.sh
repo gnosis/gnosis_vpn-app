@@ -31,7 +31,7 @@ GITHUB_UI_RELEASE_URL="${GITHUB_UI_RELEASE_URL:-}"
 
 # Binary names (can be customized if needed)
 VPN_SERVICE_BINARY_NAME="${VPN_SERVICE_BINARY_NAME:-gnosis_vpn}"
-VPN_CLI_BINARY_NAME="${VPN_CLI_BINARY_NAME:-gnosis_vpn-cli}"
+VPN_CLI_BINARY_NAME="${VPN_CLI_BINARY_NAME:-gnosis_vpn-ctl}"
 UI_APP_BINARY_NAME="${UI_APP_BINARY_NAME:-gnosis_vpn-ui}"
 
 # Platform suffixes for binary names
@@ -41,6 +41,7 @@ ARM_PLATFORM="${ARM_PLATFORM:-aarch64-darwin}"
 # Fallback GitHub release config (for backward compatibility)
 REPO_OWNER="gnosis"
 REPO_NAME="gnosis_vpn-client"
+FALLBACK_VERSION="v0.50.0"
 LATEST_URL="https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/LATEST"
 RELEASE_BASE_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download"
 
@@ -132,7 +133,10 @@ validate_environment() {
             log_info "GitHub UI release URL detected: $GITHUB_UI_RELEASE_URL"
             local ui_download_url
             ui_download_url=$(parse_GITHUB_CLIENT_RELEASE_URL "$GITHUB_UI_RELEASE_URL")
-            log_info "  UI App binary: ${UI_APP_BINARY_NAME}-${X86_PLATFORM} (from separate release: $ui_download_url)"
+            local ui_version
+            ui_version=$(extract_version_from_url "$GITHUB_UI_RELEASE_URL")
+            ui_version="${ui_version#v}" # Remove 'v' prefix
+            log_info "  UI App binary: gnosis_vpn-app_${ui_version}_x86_64.dmg (from separate release: $ui_download_url)"
         else
             log_info "  UI App binary: ${UI_APP_BINARY_NAME}-${X86_PLATFORM} (x86_64 for Rosetta compatibility)"
         fi
@@ -183,12 +187,13 @@ resolve_version() {
     if [[ $VERSION_ARG == "latest" ]]; then
         log_info "Fetching latest version tag from GitHub..."
         if ! VERSION=$(curl -fsSL "$LATEST_URL" | tr -d '[:space:]'); then
-            log_error "Failed to fetch LATEST version"
-            exit 1
-        fi
-        if [[ -z $VERSION ]]; then
-            log_error "LATEST file is empty"
-            exit 1
+            log_warn "Failed to fetch LATEST version from GitHub"
+            log_info "Using fallback version: $FALLBACK_VERSION"
+            VERSION="$FALLBACK_VERSION"
+        elif [[ -z $VERSION ]]; then
+            log_warn "LATEST file is empty"
+            log_info "Using fallback version: $FALLBACK_VERSION"
+            VERSION="$FALLBACK_VERSION"
         fi
         PKG_NAME="GnosisVPN-Installer-${VERSION}.pkg"
         log_success "Resolved version: $VERSION"
@@ -311,6 +316,25 @@ construct_binary_url() {
     echo "${release_url}/${binary_name}-${platform}"
 }
 
+# Construct UI app URL from GitHub release URL (special naming convention)
+construct_ui_app_url() {
+    local release_url="$1"
+    local version="$2"
+    local platform="$3"
+
+    # Remove trailing slash if present
+    release_url="${release_url%/}"
+
+    # Remove 'v' prefix from version if present
+    version="${version#v}"
+
+    # Extract architecture from platform (aarch64-darwin -> aarch64)
+    local arch="${platform%-darwin}"
+
+    # Construct UI app URL: gnosis_vpn-app_VERSION_ARCH.dmg
+    echo "${release_url}/gnosis_vpn-app_${version}_${arch}.dmg"
+}
+
 # Parse GitHub release URL to extract repo info and tag
 parse_GITHUB_CLIENT_RELEASE_URL() {
     local url="$1"
@@ -330,6 +354,20 @@ parse_GITHUB_CLIENT_RELEASE_URL() {
     else
         log_error "Invalid GitHub release URL format: $url"
         log_error "Expected format: https://github.com/owner/repo/releases/tag/v1.0.0"
+        exit 1
+    fi
+}
+
+# Extract version tag from GitHub release URL
+extract_version_from_url() {
+    local url="$1"
+
+    # Expected format: https://github.com/owner/repo/releases/tag/v1.0.0
+    if [[ $url =~ https://github\.com/([^/]+)/([^/]+)/releases/(tag|download)/(.+) ]]; then
+        local tag="${BASH_REMATCH[4]}"
+        echo "$tag"
+    else
+        log_error "Invalid GitHub release URL format: $url"
         exit 1
     fi
 }
@@ -453,7 +491,9 @@ embed_binaries() {
             log_info "Using separate UI release URL: $GITHUB_UI_RELEASE_URL"
             local ui_download_base_url
             ui_download_base_url=$(parse_GITHUB_CLIENT_RELEASE_URL "$GITHUB_UI_RELEASE_URL")
-            ui_app_url=$(construct_binary_url "$ui_download_base_url" "$UI_APP_BINARY_NAME" "$X86_PLATFORM")
+            local ui_version
+            ui_version=$(extract_version_from_url "$GITHUB_UI_RELEASE_URL")
+            ui_app_url=$(construct_ui_app_url "$ui_download_base_url" "$ui_version" "$X86_PLATFORM")
         else
             # Fallback to using client release URL for UI app (same as VPN binaries)
             ui_app_url=$(construct_binary_url "$download_base_url" "$UI_APP_BINARY_NAME" "$X86_PLATFORM")
@@ -720,8 +760,8 @@ print_summary() {
     echo "     ./sign-pkg.sh $BUILD_DIR/$PKG_NAME"
     echo ""
     echo "Environment Variables Usage:"
-    echo "  export GITHUB_CLIENT_RELEASE_URL='https://github.com/owner/repo/releases/tag/v1.0.0'"
-    echo "  export GITHUB_UI_RELEASE_URL='https://github.com/ui-owner/ui-repo/releases/tag/v1.0.0'  # optional"
+    echo "  export GITHUB_CLIENT_RELEASE_URL='https://github.com/gnosis/gnosis_vpn-client/releases/tag/v0.50.0'"
+    echo "  export GITHUB_UI_RELEASE_URL='https://github.com/gnosis/gnosis_vpn-app/releases/tag/v0.1.3'  # optional"
     echo "  ./build-pkg.sh latest"
     echo ""
     echo "Binary names expected in release:"

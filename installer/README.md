@@ -106,7 +106,7 @@ installer/
 The installer supports bundling binaries from multiple repositories using
 environment variables. This allows you to include:
 
-- **UI Application** (from this repository, Tauri-based)
+- **UI Application** (from gnosis_vpn-app repository, Tauri-based)
 - **VPN System Service** (from external repository)
 - **VPN Command Line Utility** (from external repository)
 
@@ -114,10 +114,10 @@ environment variables. This allows you to include:
 
 ```bash
 # GitHub Release URL for VPN client binaries
-export GITHUB_CLIENT_RELEASE_URL="https://github.com/owner/repo/releases/tag/v1.0.0"
+export GITHUB_CLIENT_RELEASE_URL="https://github.com/gnosis/gnosis_vpn-client/releases/tag/v0.50.0"
 
 # Optional: Separate GitHub Release URL for UI app (if in different repository)
-export GITHUB_UI_RELEASE_URL="https://github.com/ui-owner/ui-repo/releases/tag/v1.0.0"
+export GITHUB_UI_RELEASE_URL="https://github.com/gnosis/gnosis_vpn-app/releases/tag/v0.1.3"
 ```
 
 **Binary Names**: The installer expects these binaries in the GitHub release:
@@ -133,10 +133,10 @@ export GITHUB_UI_RELEASE_URL="https://github.com/ui-owner/ui-repo/releases/tag/v
 
 ```bash
 # Set GitHub release URL for VPN client binaries
-export GITHUB_CLIENT_RELEASE_URL="https://github.com/gnosis/gnosis_vpn-client/releases/tag/v1.0.0"
+export GITHUB_CLIENT_RELEASE_URL="https://github.com/gnosis/gnosis_vpn-client/releases/tag/v0.50.0"
 
 # Optional: Set separate UI release URL if UI is in different repository
-export GITHUB_UI_RELEASE_URL="https://github.com/gnosis/gnosis_vpn-ui/releases/tag/v1.0.0"
+export GITHUB_UI_RELEASE_URL="https://github.com/gnosis/gnosis_vpn-app/releases/tag/v0.1.3"
 cd installer
 ./build-pkg.sh latest
 ```
@@ -147,7 +147,9 @@ examples.
 ### Fallback Behavior
 
 If environment variables are not set, the installer falls back to downloading
-from the configured GitHub repository.
+from the configured GitHub repository (`gnosis/gnosis_vpn-client`). The fallback
+uses version `v0.50.0` if the latest version cannot be determined from the
+repository's LATEST file.
 
 ## Incremental Updates
 
@@ -399,7 +401,7 @@ Verify checksum: \`\`\`bash shasum -a 256 GnosisVPN-Installer-1.0.0-signed.pkg
 
 - Check internet connection during PKG build
 - Verify GitHub releases are accessible
-- Try specifying a specific version: `./build-pkg.sh v1.0.0`
+- Try specifying a specific version: `./build-pkg.sh v0.50.0`
 
 **"Checksum verification failed"**
 
