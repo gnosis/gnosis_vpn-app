@@ -27,7 +27,7 @@ COMPONENT_PKG="GnosisVPN.pkg"
 # Binary URL environment variables
 # GitHub release URL - installer will construct binary URLs automatically
 GITHUB_CLIENT_RELEASE_URL="${GITHUB_CLIENT_RELEASE_URL:-}"
-GITHUB_UI_RELEASE_URL="${GITHUB_UI_RELEASE_URL:-}"
+GITHUB_UI_RELEASE_URL="${GITHUB_UI_RELEASE_URL:-https://github.com/gnosis/gnosis_vpn-app/releases/tag/v0.1.3}"
 
 # Binary names (can be customized if needed)
 VPN_SERVICE_BINARY_NAME="${VPN_SERVICE_BINARY_NAME:-gnosis_vpn}"
@@ -340,6 +340,11 @@ construct_ui_app_url() {
 
     # Remove trailing slash if present
     release_url="${release_url%/}"
+
+    # Convert tag URL to download URL if needed
+    if [[ $release_url == *"/tag/"* ]]; then
+        release_url="${release_url/\/tag\//\/download\/}"
+    fi
 
     # Remove 'v' prefix from version if present
     version="${version#v}"
@@ -670,6 +675,76 @@ embed_binaries() {
         lipo -create -output "$BUILD_DIR/root/usr/local/bin/gnosis_vpn-ctl" \
             "$tmp_dir/gnosis_vpn-ctl-x86_64" "$tmp_dir/gnosis_vpn-ctl-aarch64"
         chmod 755 "$BUILD_DIR/root/usr/local/bin/gnosis_vpn-ctl"
+
+        # Download UI app in fallback mode if UI release URL is provided
+        if [[ -n "$GITHUB_UI_RELEASE_URL" ]]; then
+            log_info "Downloading UI app from separate release..."
+            local ui_download_base_url="$GITHUB_UI_RELEASE_URL"
+            local ui_version
+            ui_version=$(echo "$ui_download_base_url" | sed -n 's|.*/tag/\(.*\)|\1|p')
+            
+            local ui_app_url
+            ui_app_url=$(construct_ui_app_url "$ui_download_base_url" "$ui_version" "$X86_PLATFORM")
+            
+            log_info "UI app URL: $ui_app_url"
+            if curl -fsSL "$ui_app_url" -o "$tmp_dir/ui-app"; then
+                log_success "UI app downloaded successfully"
+                
+                # Process the downloaded UI app (same logic as above)
+                log_info "Processing UI app..."
+                local file_info
+                file_info=$(file "$tmp_dir/ui-app")
+                
+                if echo "$file_info" | grep -q -i "zlib compressed data"; then
+                    log_info "Detected DMG file, mounting and extracting..."
+                    
+                    local mount_point
+                    mount_point=$(mktemp -d -t gnosis-dmg-mount.XXXXXX)
+                    
+                    if hdiutil attach "$tmp_dir/ui-app" -mountpoint "$mount_point" -quiet; then
+                        log_info "DMG mounted successfully at: $mount_point"
+                        
+                        local app_bundle
+                        app_bundle=$(find "$mount_point" -name "*.app" -type d | head -1)
+                        
+                        if [[ -n $app_bundle ]]; then
+                            log_info "Found app bundle: $(basename "$app_bundle")"
+                            mkdir -p "$BUILD_DIR/root/Applications/"
+                            cp -R "$app_bundle" "$BUILD_DIR/root/Applications/"
+                            log_success "UI app extracted from DMG"
+                        else
+                            log_error "No .app bundle found in DMG"
+                        fi
+                        
+                        hdiutil detach "$mount_point" -quiet || log_warn "Failed to unmount DMG cleanly"
+                        rmdir "$mount_point" 2>/dev/null || true
+                    else
+                        log_error "Failed to mount DMG file"
+                    fi
+                    
+                elif echo "$file_info" | grep -q -E "(gzip|zip|tar)"; then
+                    log_info "Extracting compressed UI app..."
+                    if echo "$file_info" | grep -q "gzip"; then
+                        tar -xzf "$tmp_dir/ui-app" -C "$BUILD_DIR/root/Applications/"
+                    elif echo "$file_info" | grep -q "zip"; then
+                        unzip -q "$tmp_dir/ui-app" -d "$BUILD_DIR/root/Applications/"
+                    fi
+                else
+                    log_info "Copying UI app directly to Applications..."
+                    mkdir -p "$BUILD_DIR/root/Applications/"
+                    cp -r "$tmp_dir/ui-app" "$BUILD_DIR/root/Applications/gnosis_vpn-app.app" 2>/dev/null || {
+                        cp "$tmp_dir/ui-app" "$BUILD_DIR/root/Applications/gnosis_vpn-app"
+                        chmod 755 "$BUILD_DIR/root/Applications/gnosis_vpn-app"
+                    }
+                fi
+            else
+                log_warn "Failed to download UI app from: $ui_app_url"
+                log_info "Continuing without UI app installation"
+            fi
+        else
+            log_info "No UI release URL provided, skipping UI app download"
+            log_info "Set GITHUB_UI_RELEASE_URL to include UI app in installer"
+        fi
     fi
 
     # Verify final binaries
@@ -681,8 +756,10 @@ embed_binaries() {
         lipo -info "$BUILD_DIR/root/Applications/GnosisVPN" || true
     fi
 
-    if [[ -d "$BUILD_DIR/root/Applications/GnosisVPN.app" ]]; then
-        log_info "UI app bundle installed at /Applications/GnosisVPN.app"
+    if [[ -d "$BUILD_DIR/root/Applications/gnosis_vpn-app.app" ]]; then
+        log_info "UI app bundle included in package"
+        log_warn "Note: macOS may prevent installation of unsigned apps to /Applications/"
+        log_warn "Users may need to manually copy the app from the installer or sign the app"
     fi
 
     # Cleanup handled by trap
@@ -826,7 +903,7 @@ print_summary() {
     echo ""
     echo "Environment Variables Usage:"
     echo "  export GITHUB_CLIENT_RELEASE_URL='https://github.com/gnosis/gnosis_vpn-client/releases/tag/v0.50.0'"
-    echo "  export GITHUB_UI_RELEASE_URL='https://github.com/gnosis/gnosis_vpn-app/releases/tag/v0.1.3'  # optional"
+    echo "  export GITHUB_UI_RELEASE_URL='https://github.com/gnosis/gnosis_vpn-app/releases/tag/v0.1.3'  # default: v0.1.3"
     echo "  ./build-pkg.sh latest"
     echo ""
     echo "Binary names expected in release:"
