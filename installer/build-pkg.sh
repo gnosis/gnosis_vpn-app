@@ -162,7 +162,7 @@ prepare_build_dir() {
     # Create fresh build directory structure
     mkdir -p "$BUILD_DIR/root/usr/local/bin"
     mkdir -p "$BUILD_DIR/root/etc/gnosisvpn/templates"
-    mkdir -p "$BUILD_DIR/root/usr/local/share/gnosisvpn"
+    # UI app will be placed directly in Applications/
     mkdir -p "$BUILD_DIR/scripts"
 
     # Copy config templates to package payload
@@ -569,7 +569,9 @@ embed_binaries() {
                     
                     if [[ -n $app_bundle ]]; then
                         log_info "Found app bundle: $(basename "$app_bundle")"
-                        cp -R "$app_bundle" "$BUILD_DIR/root/usr/local/share/gnosisvpn/"
+                        # Create Applications directory in package root
+                        mkdir -p "$BUILD_DIR/root/Applications/"
+                        cp -R "$app_bundle" "$BUILD_DIR/root/Applications/"
                         log_success "UI app extracted from DMG"
                     else
                         log_error "No .app bundle found in DMG"
@@ -592,10 +594,12 @@ embed_binaries() {
                 fi
             else
                 # Assume it's a direct app bundle or binary
-                log_info "Copying UI app directly..."
-                cp -r "$tmp_dir/ui-app" "$BUILD_DIR/root/usr/local/share/gnosisvpn/gnosis_vpn-app.app" 2>/dev/null || {
-                    cp "$tmp_dir/ui-app" "$BUILD_DIR/root/usr/local/share/gnosisvpn/gnosis_vpn-app"
-                    chmod 755 "$BUILD_DIR/root/usr/local/share/gnosisvpn/gnosis_vpn-app"
+                log_info "Copying UI app directly to Applications..."
+                # Create Applications directory in package root
+                mkdir -p "$BUILD_DIR/root/Applications/"
+                cp -r "$tmp_dir/ui-app" "$BUILD_DIR/root/Applications/gnosis_vpn-app.app" 2>/dev/null || {
+                    cp "$tmp_dir/ui-app" "$BUILD_DIR/root/Applications/gnosis_vpn-app"
+                    chmod 755 "$BUILD_DIR/root/Applications/gnosis_vpn-app"
                 }
             fi
         fi

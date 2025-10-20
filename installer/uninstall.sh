@@ -271,6 +271,48 @@ remove_binaries() {
     echo ""
 }
 
+# Remove UI application
+remove_ui_app() {
+    log_info "Removing UI application..."
+
+    local removed=0
+    local ui_app_paths=(
+        "/Applications/gnosis_vpn-app.app"
+        "/Applications/GnosisVPN.app"
+        "/usr/local/share/gnosisvpn/gnosis_vpn-app.app"
+    )
+
+    for app_path in "${ui_app_paths[@]}"; do
+        if [[ -d "$app_path" ]]; then
+            log_info "Removing UI app: $app_path"
+            rm -rf "$app_path"
+            log_success "Removed $app_path"
+            removed=$((removed + 1))
+        fi
+    done
+
+    # Clean up LaunchServices registrations for the UI app
+    log_info "Cleaning up LaunchServices registrations..."
+    /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -kill -r -domain local -domain system -domain user 2>/dev/null || true
+    
+    # Try to remove any quarantine attributes that might remain
+    if command -v xattr >/dev/null 2>&1; then
+        for app_path in "${ui_app_paths[@]}"; do
+            if [[ -d "$app_path" ]]; then
+                xattr -dr com.apple.quarantine "$app_path" 2>/dev/null || true
+            fi
+        done
+    fi
+
+    if [[ $removed -eq 0 ]]; then
+        log_info "No UI application found to remove"
+    else
+        log_success "Removed $removed UI application(s)"
+    fi
+
+    echo ""
+}
+
 # Remove configuration
 remove_config() {
     log_info "Removing configuration..."
@@ -407,6 +449,7 @@ print_summary() {
     echo ""
     echo "What was removed:"
     echo "  ✓ Binaries"
+    echo "  ✓ UI Application (if installed)"
     echo "  ✓ Launchd service"
     echo "  ✓ System user and group (gnosisvpn)"
     echo "  ✓ Sudo privileges configuration"
@@ -415,6 +458,7 @@ print_summary() {
     echo "  ✓ Service logs"
     echo "  ✓ Installation logs"
     echo "  ✓ Package receipt"
+    echo "  ✓ LaunchServices registrations"
     echo ""
     echo "To reinstall, download and run the installer again."
     echo "=========================================="
@@ -429,6 +473,7 @@ main() {
     stop_processes
     backup_config
     remove_binaries
+    remove_ui_app
     remove_config
     remove_logs
     cleanup_system_directories

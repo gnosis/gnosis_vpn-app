@@ -1153,57 +1153,7 @@ print_summary() {
 # Install UI app to Applications directory
 
 
-# Install UI application with retry mechanism
-install_ui_app_with_retry() {
-    local source_app="${TARGET_VOLUME}/usr/local/share/gnosisvpn/gnosis_vpn-app.app"
-    local target_app="${TARGET_VOLUME}/Applications/gnosis_vpn-app.app"
-    local max_attempts=10
-    local attempt=1
-    
-    log_info "Installing UI application..."
-    
-    # Try multiple times as files may not be extracted immediately
-    while [[ $attempt -le $max_attempts ]]; do
-        if [[ -d "$source_app" ]]; then
-            log_info "Found UI app bundle: $source_app (attempt $attempt)"
-            
-            # Remove existing app if present
-            if [[ -d "$target_app" ]]; then
-                log_info "Removing existing UI app..."
-                rm -rf "$target_app"
-            fi
-            
-            # Copy app to Applications
-            if cp -R "$source_app" "$target_app"; then
-                log_success "UI app installed to Applications"
-                
-                # Set proper permissions
-                chmod -R 755 "$target_app"
-                chown -R root:admin "$target_app" 2>/dev/null || true
-                
-                # Clean up temporary location
-                rm -rf "$source_app"
-                log_info "Cleaned up temporary UI app files"
-                return 0
-            else
-                log_error "Failed to install UI app to Applications"
-                return 1
-            fi
-        else
-            log_info "UI app not found yet, waiting... (attempt $attempt/$max_attempts)"
-            sleep 1
-            ((attempt++))
-        fi
-    done
-    
-    log_info "No UI app found to install after $max_attempts attempts (this is normal if UI app was not included)"
-    
-    # List what's actually in the temporary directory for debugging
-    if [[ -d "${TARGET_VOLUME}/usr/local/share/gnosisvpn/" ]]; then
-        log_info "Contents of /usr/local/share/gnosisvpn/:"
-        ls -la "${TARGET_VOLUME}/usr/local/share/gnosisvpn/" 2>/dev/null || log_info "Directory is empty or inaccessible"
-    fi
-}
+
 
 # Main execution
 main() {
@@ -1270,8 +1220,7 @@ main() {
     # Check service status
     check_service_status
     
-    # Install UI application (with retry mechanism)
-    install_ui_app_with_retry
+    # UI app is installed directly to Applications by the package installer
     
     # Print summary
     print_summary "$installation_type"
