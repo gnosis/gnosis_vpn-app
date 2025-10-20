@@ -882,33 +882,58 @@ backup_config() {
 }
 
 # Generate destinations configuration based on network selection
-generate_destinations() {
-    local template_file="${TEMPLATE_DIR_INSTALLED}/${NETWORK}.toml.template"
-
-    # Check if template file exists
-    if [[ ! -f "$template_file" ]]; then
-        log_error "Template file not found: $template_file"
-        log_info "Falling back to default configuration"
-        # Fallback to rotsee template
-        template_file="${TEMPLATE_DIR_INSTALLED}/rotsee.toml.template"
-        if [[ ! -f "$template_file" ]]; then
-            log_error "Default template file not found: $template_file"
-            log_error "Template directory should be: $TEMPLATE_DIR_INSTALLED"
-            exit 1
+# Copy configuration files and create symlink
+setup_configuration_files() {
+    log_info "Setting up configuration files..."
+    
+    # Ensure config directory exists
+    mkdir -p "$CONFIG_DIR"
+    
+    # Copy template files as configuration files (remove .template suffix)
+    local template_files=("${TEMPLATE_DIR_INSTALLED}"/*.template)
+    local copied=0
+    
+    for template_file in "${template_files[@]}"; do
+        if [[ -f "$template_file" ]]; then
+            local basename=$(basename "$template_file" .template)
+            local target_file="${CONFIG_DIR}/${basename}"
+            
+            log_info "Installing configuration: $basename"
+            cp "$template_file" "$target_file"
+            chmod 644 "$target_file"
+            copied=$((copied + 1))
         fi
+    done
+    
+    if [[ $copied -eq 0 ]]; then
+        log_error "No configuration templates found in $TEMPLATE_DIR_INSTALLED"
+        return 1
     fi
-
-    # Read and output template content
-    cat "$template_file"
+    
+    log_success "Installed $copied configuration file(s)"
 }
 
-
-# Generate the configuration file
-generate_config() {
+# Create configuration symlink
+create_config_symlink() {
     local installation_type="$1"
     
-    log_info "Generating configuration file..."
-
+    log_info "Creating configuration symlink..."
+    
+    # Target configuration file
+    local target_config="${CONFIG_DIR}/${NETWORK}.toml"
+    
+    # Check if target configuration exists
+    if [[ ! -f "$target_config" ]]; then
+        log_warn "Configuration file not found: $target_config"
+        log_info "Falling back to rotsee.toml"
+        target_config="${CONFIG_DIR}/rotsee.toml"
+        
+        if [[ ! -f "$target_config" ]]; then
+            log_error "Default configuration file not found: $target_config"
+            return 1
+        fi
+    fi
+    
     # Save previous config file for rollback if it exists
     if [[ -f "$CONFIG_FILE" ]]; then
         PREV_CONFIG_FILE="${CONFIG_FILE}.pre-install"
@@ -917,65 +942,38 @@ generate_config() {
     else
         add_rollback_step "rollback_remove_config"
     fi
-
+    
     # For updates, check if we should preserve existing config
-    if [[ "$installation_type" == "update" ]] && [[ -f "$CONFIG_FILE" ]]; then
-        log_info "Update detected: Checking if configuration should be preserved..."
+    if [[ "$installation_type" == "update" ]] && [[ -L "$CONFIG_FILE" ]]; then
+        local current_target
+        current_target=$(readlink "$CONFIG_FILE" 2>/dev/null || echo "")
+        local expected_target
+        expected_target=$(basename "$target_config")
         
-        # Check if existing config has user modifications
-        local existing_network=""
-        if grep -q "# Network:" "$CONFIG_FILE" 2>/dev/null; then
-            existing_network=$(grep "# Network:" "$CONFIG_FILE" | sed 's/.*Network: //' | tr -d ' ')
-        fi
-        
-        # Check if config version is compatible
-        local existing_version=""
-        if grep -q "version = " "$CONFIG_FILE" 2>/dev/null; then
-            existing_version=$(grep "version = " "$CONFIG_FILE" | sed 's/version = //' | tr -d ' ')
-        fi
-        
-        # If network matches and version is compatible, preserve existing config
-        if [[ "$existing_network" == "$NETWORK" ]] && [[ "$existing_version" == "4" ]]; then
-            log_info "Preserving existing configuration (network: $existing_network, version: $existing_version)"
+        if [[ "$current_target" == "$expected_target" ]]; then
+            log_info "Configuration symlink already points to correct target: $expected_target"
             log_success "Configuration preserved during update"
             return 0
         else
-            log_info "Configuration needs update (network: $existing_network->$NETWORK, version: $existing_version->4)"
+            log_info "Configuration symlink needs update: $current_target -> $expected_target"
         fi
     fi
-
-    # Generate new configuration
-    local destinations
-    destinations=$(generate_destinations)
-
-    # Write configuration file
-    cat > "$CONFIG_FILE" <<EOF
-###
-# Gnosis VPN service configuration file
-#
-# On unix the default config path is \`/etc/gnosisvpn/config.toml\`
-# However you can override this by using \`GNOSISVPN_CONFIG_PATH\` env var
-#
-# Generated by installer on $(date)
-# Network: $NETWORK
-# Installation type: $installation_type
-###
-
-version = 4
-
-${destinations}
-EOF
-
-    if [[ -f "$CONFIG_FILE" ]]; then
-        if [[ "$installation_type" == "update" ]]; then
-            log_success "Configuration file updated: $CONFIG_FILE"
-        else
-            log_success "Configuration file created: $CONFIG_FILE"
-        fi
-    else
-        log_error "Failed to create configuration file"
-        exit 1
+    
+    # Remove existing config file/symlink
+    if [[ -f "$CONFIG_FILE" ]] || [[ -L "$CONFIG_FILE" ]]; then
+        rm -f "$CONFIG_FILE"
     fi
+    
+    # Create symlink to the target configuration
+    local relative_target
+    relative_target=$(basename "$target_config")
+    
+    cd "$CONFIG_DIR"
+    ln -s "$relative_target" "config.toml"
+    cd - >/dev/null
+    
+    log_success "Configuration symlink created: config.toml -> $relative_target"
+    log_info "Network: $NETWORK"
 }
 
 # Update binaries incrementally (only if changed)
@@ -1186,8 +1184,9 @@ main() {
         log_success "Installed management script: gnosis-vpn-manager"
     fi
     
-    # Generate or update configuration
-    generate_config "$installation_type"
+    # Setup configuration files and create symlink
+    setup_configuration_files
+    create_config_symlink "$installation_type"
     
     # Set proper permissions
     set_permissions
