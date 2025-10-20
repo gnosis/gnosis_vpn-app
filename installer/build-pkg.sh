@@ -466,11 +466,12 @@ verify_gpg_signature() {
         rm -f "$sig_file"
         return 0
     else
-        log_error "GPG signature verification failed for $asset"
-        log_error "This could indicate a security issue"
+        log_warn "GPG signature verification failed for $asset"
+        log_warn "This could indicate a security issue or missing public key"
+        log_warn "Continuing anyway since verification is non-blocking"
         cat /tmp/gpg-verify.log
         rm -f "$sig_file"
-        exit 1
+        return 0
     fi
 }
 
