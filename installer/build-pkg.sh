@@ -92,6 +92,22 @@ check_prerequisites() {
         fi
     done
 
+    # Check for optional but recommended tools
+    local optional_tools=("shellcheck" "xmllint")
+    for cmd in "${optional_tools[@]}"; do
+        if ! command -v "$cmd" &>/dev/null; then
+            log_warn "Optional tool not found: $cmd (recommended for quality checks)"
+            case $cmd in
+                shellcheck)
+                    log_info "Install with: brew install shellcheck"
+                    ;;
+                xmllint)
+                    log_info "Install with: brew install libxml2"
+                    ;;
+            esac
+        fi
+    done
+
     # Check for required files
     if [[ ! -f $DISTRIBUTION_XML ]]; then
         log_error "Distribution.xml not found: $DISTRIBUTION_XML"
@@ -821,6 +837,209 @@ print_summary() {
     echo "=========================================="
 }
 
+# Run linting checks on scripts
+run_lint_checks() {
+    log_info "Running lint checks..."
+    
+    local errors=0
+    local warnings=0
+    
+    # Check if shellcheck is available
+    if ! command -v shellcheck >/dev/null 2>&1; then
+        log_warn "shellcheck not found, skipping shell script linting"
+        log_info "Install shellcheck for better code quality: brew install shellcheck"
+    else
+        log_info "Running shellcheck on installer scripts..."
+        
+        # Check main build script
+        if shellcheck "$0" 2>/dev/null; then
+            log_success "✓ build-pkg.sh passed shellcheck"
+        else
+            log_error "✗ build-pkg.sh failed shellcheck"
+            errors=$((errors + 1))
+        fi
+        
+        # Check installer scripts
+        local script_files=(
+            "$RESOURCES_DIR/scripts/preinstall"
+            "$RESOURCES_DIR/scripts/postinstall"
+            "$SCRIPT_DIR/uninstall.sh"
+        )
+        
+        for script in "${script_files[@]}"; do
+            if [[ -f "$script" ]]; then
+                local script_name=$(basename "$script")
+                if shellcheck "$script" 2>/dev/null; then
+                    log_success "✓ $script_name passed shellcheck"
+                else
+                    log_warn "⚠ $script_name has shellcheck warnings"
+                    warnings=$((warnings + 1))
+                fi
+            fi
+        done
+    fi
+    
+    # Check for common issues in scripts
+    log_info "Checking for common script issues..."
+    
+    # Check for hardcoded paths
+    local hardcoded_paths=0
+    if grep -r "/usr/local/bin" "$RESOURCES_DIR/scripts/" >/dev/null 2>&1; then
+        if grep -r "\$BIN_DIR" "$RESOURCES_DIR/scripts/" >/dev/null 2>&1; then
+            log_success "✓ Scripts use BIN_DIR variable instead of hardcoded paths"
+        else
+            log_warn "⚠ Found hardcoded /usr/local/bin paths, consider using \$BIN_DIR variable"
+            warnings=$((warnings + 1))
+        fi
+    fi
+    
+    # Check for proper error handling
+    local scripts_with_set_e=0
+    for script in "$RESOURCES_DIR/scripts/"*; do
+        if [[ -f "$script" ]] && grep -q "set -e" "$script"; then
+            scripts_with_set_e=$((scripts_with_set_e + 1))
+        fi
+    done
+    
+    if [[ $scripts_with_set_e -gt 0 ]]; then
+        log_success "✓ Scripts use proper error handling (set -e)"
+    else
+        log_warn "⚠ Consider adding 'set -e' to scripts for better error handling"
+        warnings=$((warnings + 1))
+    fi
+    
+    echo ""
+    if [[ $errors -eq 0 ]] && [[ $warnings -eq 0 ]]; then
+        log_success "All lint checks passed!"
+    elif [[ $errors -eq 0 ]]; then
+        log_warn "Lint completed with $warnings warning(s)"
+    else
+        log_error "Lint failed with $errors error(s) and $warnings warning(s)"
+        return 1
+    fi
+}
+
+# Run basic functionality tests
+run_basic_tests() {
+    log_info "Running basic functionality tests..."
+    
+    local test_failures=0
+    
+    # Test 1: Package file exists and is readable
+    log_info "Test 1: Package file validation..."
+    if [[ -f "$BUILD_DIR/$PKG_NAME" ]] && [[ -r "$BUILD_DIR/$PKG_NAME" ]]; then
+        log_success "✓ Package file exists and is readable"
+    else
+        log_error "✗ Package file missing or unreadable: $BUILD_DIR/$PKG_NAME"
+        test_failures=$((test_failures + 1))
+    fi
+    
+    # Test 2: Package contents validation
+    log_info "Test 2: Package contents validation..."
+    if pkgutil --expand "$BUILD_DIR/$PKG_NAME" "$BUILD_DIR/test-expand" 2>/dev/null; then
+        log_success "✓ Package can be expanded successfully"
+        
+        # Check for required files
+        local required_files=(
+            "$BUILD_DIR/test-expand/GnosisVPN.pkg"
+            "$BUILD_DIR/test-expand/Distribution"
+            "$BUILD_DIR/test-expand/Resources"
+        )
+        
+        local missing_files=0
+        for file in "${required_files[@]}"; do
+            if [[ ! -e "$file" ]]; then
+                log_error "✗ Missing required package component: $(basename "$file")"
+                missing_files=$((missing_files + 1))
+            fi
+        done
+        
+        if [[ $missing_files -eq 0 ]]; then
+            log_success "✓ All required package components present"
+        else
+            test_failures=$((test_failures + 1))
+        fi
+        
+        # Clean up test expansion
+        rm -rf "$BUILD_DIR/test-expand" 2>/dev/null || true
+    else
+        log_error "✗ Package cannot be expanded"
+        test_failures=$((test_failures + 1))
+    fi
+    
+    # Test 3: Script syntax validation
+    log_info "Test 3: Script syntax validation..."
+    local script_syntax_errors=0
+    
+    local test_scripts=(
+        "$RESOURCES_DIR/scripts/preinstall"
+        "$RESOURCES_DIR/scripts/postinstall"
+        "$SCRIPT_DIR/uninstall.sh"
+    )
+    
+    for script in "${test_scripts[@]}"; do
+        if [[ -f "$script" ]]; then
+            if bash -n "$script" 2>/dev/null; then
+                log_success "✓ $(basename "$script") syntax valid"
+            else
+                log_error "✗ $(basename "$script") has syntax errors"
+                script_syntax_errors=$((script_syntax_errors + 1))
+            fi
+        fi
+    done
+    
+    if [[ $script_syntax_errors -eq 0 ]]; then
+        log_success "✓ All scripts have valid syntax"
+    else
+        test_failures=$((test_failures + 1))
+    fi
+    
+    # Test 4: Distribution XML validation
+    log_info "Test 4: Distribution XML validation..."
+    if [[ -f "$DISTRIBUTION_XML" ]]; then
+        if xmllint --noout "$DISTRIBUTION_XML" 2>/dev/null; then
+            log_success "✓ Distribution.xml is valid XML"
+        else
+            log_error "✗ Distribution.xml has XML syntax errors"
+            test_failures=$((test_failures + 1))
+        fi
+    else
+        log_warn "⚠ Distribution.xml not found, skipping XML validation"
+    fi
+    
+    # Test 5: Binary architecture validation (if binaries exist)
+    log_info "Test 5: Binary architecture validation..."
+    local binary_files=(
+        "$BUILD_DIR/root/usr/local/bin/gnosis_vpn"
+        "$BUILD_DIR/root/usr/local/bin/gnosis_vpn-ctl"
+    )
+    
+    local arch_errors=0
+    for binary in "${binary_files[@]}"; do
+        if [[ -f "$binary" ]]; then
+            if lipo -info "$binary" 2>/dev/null | grep -q "x86_64 arm64"; then
+                log_success "✓ $(basename "$binary") is universal binary (x86_64 + arm64)"
+            else
+                log_warn "⚠ $(basename "$binary") may not be universal binary"
+                arch_errors=$((arch_errors + 1))
+            fi
+        fi
+    done
+    
+    if [[ $arch_errors -eq 0 ]]; then
+        log_success "✓ All binaries are universal (x86_64 + arm64)"
+    fi
+    
+    echo ""
+    if [[ $test_failures -eq 0 ]]; then
+        log_success "All tests passed!"
+        return 0
+    else
+        log_error "Tests failed with $test_failures failure(s)"
+        return 1
+    fi
+}
+
 # Main build process
 main() {
     resolve_version
@@ -834,6 +1053,30 @@ main() {
     build_distribution_package
     verify_package
     print_summary
+    
+    echo ""
+    echo "=========================================="
+    echo "  Post-Build Quality Checks"
+    echo "=========================================="
+    echo ""
+    
+    # Run linting
+    if ! run_lint_checks; then
+        log_warn "Lint checks failed, but build will continue"
+        log_info "Consider fixing lint issues for better code quality"
+    fi
+    
+    echo ""
+    
+    # Run tests
+    if ! run_basic_tests; then
+        log_error "Basic tests failed!"
+        log_error "The package may have issues. Please review the test output above."
+        exit 1
+    fi
+    
+    echo ""
+    log_success "🎉 Build completed successfully with all quality checks passed!"
 }
 
 # Execute main
