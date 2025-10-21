@@ -115,14 +115,23 @@ jobs:
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
         run: |
           echo $APPLE_CERTIFICATE | base64 --decode > certificate.p12
+          echo "FOO1"; cat certificate.p12 | head -c 20
           keychain_pass=$(openssl rand -base64 24)
+          echo "FOO2: $keychain_pass"
           security create-keychain -p "$keychain_pass" build.keychain
+          echo "FOO3"; cat build.keychain | head -c 20
           security default-keychain -s build.keychain
+          echo "FOO4"
           security unlock-keychain -p "$keychain_pass" build.keychain
+          echo "FOO5"
           security set-keychain-settings -t 3600 -u build.keychain
+          echo "FOO6"
           security import certificate.p12 -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          echo "FOO7"
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_pass" build.keychain
+          echo "FOO8"
           security find-identity -v -p codesigning build.keychain
+          echo "FOO9"
 
       - name: Verify Certificate
         id: verify-certificate
