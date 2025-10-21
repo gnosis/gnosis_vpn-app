@@ -947,33 +947,39 @@ create_config_symlink() {
             return 1
         fi
     fi
-    
+
+    # Check if config.toml symlink already exists
+    if [[ -L "$CONFIG_FILE" ]]; then
+        local current_target
+        current_target=$(readlink "$CONFIG_FILE" 2>/dev/null || echo "")
+        local current_target_file="${CONFIG_DIR}/${current_target}"
+        
+        # Check if the symlink target actually exists
+        if [[ -f "$current_target_file" ]]; then
+            log_info "Configuration symlink already exists and is valid: config.toml -> $current_target"
+            log_success "Preserving existing configuration symlink"
+            return 0
+        else
+            log_warn "Existing symlink points to missing file: $current_target"
+            log_info "Will recreate symlink to valid configuration"
+        fi
+    elif [[ -f "$CONFIG_FILE" ]]; then
+        # It's a regular file, not a symlink - preserve it completely
+        log_info "Configuration file exists as regular file (not symlink): config.toml"
+        log_success "Preserving existing configuration file"
+        return 0
+    fi
+
     # Save previous config file for rollback if it exists
-    if [[ -f "$CONFIG_FILE" ]]; then
+    if [[ -f "$CONFIG_FILE" ]] || [[ -L "$CONFIG_FILE" ]]; then
         PREV_CONFIG_FILE="${CONFIG_FILE}.pre-install"
-        cp "$CONFIG_FILE" "$PREV_CONFIG_FILE"
+        cp "$CONFIG_FILE" "$PREV_CONFIG_FILE" 2>/dev/null || true
         add_rollback_step "rollback_restore_config"
     else
         add_rollback_step "rollback_remove_config"
     fi
     
-    # For updates, check if we should preserve existing config
-    if [[ "$installation_type" == "update" ]] && [[ -L "$CONFIG_FILE" ]]; then
-        local current_target
-        current_target=$(readlink "$CONFIG_FILE" 2>/dev/null || echo "")
-        local expected_target
-        expected_target=$(basename "$target_config")
-        
-        if [[ "$current_target" == "$expected_target" ]]; then
-            log_info "Configuration symlink already points to correct target: $expected_target"
-            log_success "Configuration preserved during update"
-            return 0
-        else
-            log_info "Configuration symlink needs update: $current_target -> $expected_target"
-        fi
-    fi
-    
-    # Remove existing config file/symlink
+    # Remove existing config file/symlink (only if we determined it needs replacement)
     if [[ -f "$CONFIG_FILE" ]] || [[ -L "$CONFIG_FILE" ]]; then
         rm -f "$CONFIG_FILE"
     fi
