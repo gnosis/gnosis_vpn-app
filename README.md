@@ -45,13 +45,13 @@ $ security import gnosisvpn.key -k build.keychain
 ```
 
 Open keychain access, find certificates, click export and choose .p12 format.
-Use `<anypass>` from the previous step to unlock the keychain. Provide a strong
-password for the exported .p12 file. Set this as `APPLE_CERTIFICATE_PASSWORD`
-env in the CI.
+Use `<anypass>` from the previous step to unlock the keychain. Set a strong
+password for the exported .p12 file and configure the
+`APPLE_CERTIFICATE_PASSWORD` env in the CI with this password.
 
 ```bash
 $ ls -l
-gnosisvpn.key-
+gnosisvpn.key
 gnosisvpn.pem
 gnosisvpn.p12
 $ openssl base64 -in ./gnosisvpn.p12 -out gnosisvpn-base64.txt
@@ -59,7 +59,7 @@ $ security delete-keychain build.keychain
 ```
 
 Set the content of `./gnosisvpn-base64.txt` as `APPLE_CERTIFICATE_BASE64` env in
-the CI. Set this as `APPLE_CERTIFICATE_PASSWORD` env in the CI.
+the CI.
 
 ### Continuous Integration
 
