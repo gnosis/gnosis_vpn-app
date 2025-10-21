@@ -133,8 +133,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          echo "FOO1: " $(security find-identity -v -p codesigning build.keychain)
-          CERT_INFO=$(security find-identity -v -p codesigning build.keychain | grep "Apple Development")
+          CERT_INFO=$(security find-identity -v -p codesigning build.keychain)
           CERT_ID=$(echo "$CERT_INFO" | awk -F'"' '{print $2}')
           echo "cert_id=${CERT_ID}" >> $GITHUB_OUTPUT
           echo "Certificate imported."
