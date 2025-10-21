@@ -186,6 +186,21 @@ check_previous_installation() {
     fi
 }
 
+add_artifacts() {
+    log_info "Adding artifacts needed by the application..."
+    
+    local artifacts_src_dir="$(join_path "$SCRIPT_DIR/../artifacts" "")"
+    local artifacts_dest_dir="$(join_path "$TARGET_VOLUME/usr/local/share/gnosisvpn/artifacts" "")"
+    
+    if [[ -d "$artifacts_src_dir" ]]; then
+        mkdir -p "$artifacts_dest_dir"
+        cp "$artifacts_src_dir"* "$artifacts_dest_dir/" || true
+        log_success "Artifacts copied to $artifacts_dest_dir"
+    else
+        log_warn "No artifacts directory found at $artifacts_src_dir"
+    fi
+}
+
 # Compare binary checksums to determine if update is needed
 binary_needs_update() {
     local binary_name="$1"
@@ -521,7 +536,7 @@ setup_user_permissions() {
         chmod 750 "${BIN_DIR}/gnosis-vpn-manager"
         log_info "Management script permissions updated: ${BIN_DIR}/gnosis-vpn-manager"
     fi
-    
+
     # Create and set permissions for runtime directory
     local runtime_dir="/var/run/gnosisvpn"
     mkdir -p "$runtime_dir"
@@ -1028,8 +1043,23 @@ update_binaries() {
             chmod 755 "$BIN_DIR/gnosis_vpn-ctl"
             chown root:wheel "$BIN_DIR/gnosis_vpn-ctl" 2>/dev/null || true
             log_success "Installed gnosis_vpn-ctl"
+        fi 
+
+        # Install wg
+        if [[ -f "${2}/usr/local/bin/wg" ]]; then
+            cp "${2}/usr/local/bin/wg" "$BIN_DIR/wg"
+            chmod 755 "$BIN_DIR/wg"
+            chown root:wheel "$BIN_DIR/wg" 2>/dev/null || true
+            log_success "Installed wg"
         fi
-        
+
+        # Install wg-quick
+        if [[ -f "${2}/usr/local/bin/wg-quick" ]]; then
+            cp "${2}/usr/local/bin/wg-quick" "$BIN_DIR/wg-quick"
+            chmod 755 "$BIN_DIR/wg-quick"
+            chown root:wheel "$BIN_DIR/wg-quick" 2>/dev/null || true
+            log_success "Installed wg-quick"
+        fi
     else
         # For updates, check each binary individually
         log_info "Update installation: Checking which binaries need updates..."
@@ -1046,6 +1076,20 @@ update_binaries() {
         # Update gnosis_vpn-ctl if needed
         if [[ -f "${2}/usr/local/bin/gnosis_vpn-ctl" ]]; then
             if update_binary_if_needed "gnosis_vpn-ctl" "${2}/usr/local/bin/gnosis_vpn-ctl"; then
+                updates_made=$((updates_made + 1))
+            fi
+        fi
+
+        # Update gnosis_vpn-ctl if needed
+        if [[ -f "${2}/usr/local/bin/wg" ]]; then
+            if update_binary_if_needed "wg" "${2}/usr/local/bin/wg"; then
+                updates_made=$((updates_made + 1))
+            fi
+        fi
+
+        # Update gnosis_vpn-ctl if needed
+        if [[ -f "${2}/usr/local/bin/wg-quick" ]]; then
+            if update_binary_if_needed "wg-quick" "${2}/usr/local/bin/wg-quick"; then
                 updates_made=$((updates_made + 1))
             fi
         fi

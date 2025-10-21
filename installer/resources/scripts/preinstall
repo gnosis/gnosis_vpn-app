@@ -43,14 +43,6 @@ if pgrep -f "gnosis_vpn" >/dev/null 2>&1; then
     log_info "The service will be updated but may need to be restarted after installation"
 fi
 
-if ! command -v wg &>/dev/null || ! command -v wg-quick &>/dev/null; then
-    log_warn "wireguard-tools not found"
-    log_info "WireGuard is required for VPN functionality"
-    log_info "Install with: brew install wireguard-tools"
-    log_info "Or visit: https://www.wireguard.com/install/"
-    exit -1
-fi
-
 log_success "Pre-installation checks completed"
 log_info "Log file: $INSTALLER_LOG_FILE"
 log_script_end "success"

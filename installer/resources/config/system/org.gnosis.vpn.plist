@@ -12,6 +12,8 @@
         <string>/usr/local/bin/gnosis_vpn</string>
         <string>-c</string>
         <string>/etc/gnosisvpn/config.toml</string>
+        <string>--hopr-rpc-provider</string>
+        <string>https://rpc-provider.hoprnet.org</string>
     </array>
     
     <!-- Service Behavior -->

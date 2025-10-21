@@ -1,4 +1,7 @@
 ###
+
+version = 4
+
 ## destinations section - configure available target destinations
 [destinations.0x7220CfE91F369bfE79F883c2891e97407D7a4D48]
 meta = { location = "USA", state = "Iowa" }

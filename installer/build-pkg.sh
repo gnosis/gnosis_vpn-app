@@ -194,8 +194,24 @@ prepare_build_dir() {
         log_success "System config files copied"
     fi
 
+    # Copy sartifacts needed by the application
+    if [[ -d "$RESOURCES_DIR/artifacts/" ]]; then
+        mkdir -p "BUILD_DIR/root/usr/local/bin/"
+
+        arch=$(uname -m)
+        if [ arch = "arm64" ]; then
+            cp "$RESOURCES_DIR/artifacts/wg-aarch64-darwin" "$BUILD_DIR/root/usr/local/bin/wg"
+            log_info "Copying over aarch64 wireguard binary"
+        else
+            cp "$RESOURCES_DIR/artifacts/wg-x86_64-darwin" "$BUILD_DIR/root/usr/local/bin/wg"
+            log_info "Copying over x86_64 wireguard binary"
+        fi
+
+        cp "$RESOURCES_DIR/artifacts/wg-quick" "$BUILD_DIR/root/usr/local/bin/" || true
+        log_success "Artifacts copied"
+    fi
+
     log_success "Build directory prepared"
-    echo ""
 }
 
 # Resolve version (supports "latest")

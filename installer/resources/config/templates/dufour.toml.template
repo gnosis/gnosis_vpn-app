@@ -1,4 +1,6 @@
 ###
+version = 4
+
 ## destinations section - configure available target destinations
 [destinations.0xD9c11f07BfBC1914877d7395459223aFF9Dc2739]
 meta = { location = "Germany" }
