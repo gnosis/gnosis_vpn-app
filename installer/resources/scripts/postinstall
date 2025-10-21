@@ -33,6 +33,17 @@ TARGET_VOLUME="${2:-/}"
 MOUNTPOINT="${3:-/}"
 ROOT_DIR="${4:-/}"
 
+# Path joining function to avoid double slashes
+join_path() {
+    local base="$1"
+    local path="$2"
+    if [[ "$base" == "/" ]]; then
+        echo "$path"
+    else
+        echo "${base}${path}"
+    fi
+}
+
 # Ensure we have required parameters
 if [[ -z $PACKAGE_PATH ]]; then
     log_error "Missing required parameter: package path"
@@ -40,13 +51,16 @@ if [[ -z $PACKAGE_PATH ]]; then
 fi
 
 # Configuration
-CONFIG_DIR="${TARGET_VOLUME}/etc/gnosisvpn"
+CONFIG_DIR="$(join_path "$TARGET_VOLUME" "/etc/gnosisvpn")"
 CONFIG_FILE="${CONFIG_DIR}/config.toml"
 VERSION_FILE="${CONFIG_DIR}/version.txt"
 TEMPLATE_DIR_BUNDLE="${SCRIPT_DIR}/../config/templates"
 TEMPLATE_DIR_INSTALLED="${CONFIG_DIR}/templates"
-BIN_DIR="${TARGET_VOLUME}/usr/local/bin"
+BIN_DIR="$(join_path "$TARGET_VOLUME" "/usr/local/bin")"
 NETWORK="${INSTALLER_CHOICE_NETWORK:-rotsee}"
+UI_STAGING_DIR="$(join_path "$TARGET_VOLUME" "/usr/local/share/gnosisvpn")"
+UI_STAGED_APP="${UI_STAGING_DIR}/gnosis_vpn-app.app"
+UI_TARGET_APP="$(join_path "$TARGET_VOLUME" "/Applications/gnosis_vpn-app.app")"
 
 # Get installer version from package (if available) or use current date
 INSTALLER_VERSION="${INSTALLER_VERSION:-$(date +%Y%m%d-%H%M%S)}"
@@ -1148,9 +1162,74 @@ print_summary() {
     fi
 }
 
-# Install UI app to Applications directory
-
-
+# Install UI application from staging to Applications
+install_ui_application() {
+    log_info "Installing UI application..."
+    log_info "TARGET_VOLUME: $TARGET_VOLUME"
+    log_info "UI_STAGING_DIR: $UI_STAGING_DIR"
+    log_info "UI_STAGED_APP: $UI_STAGED_APP"
+    log_info "UI_TARGET_APP: $UI_TARGET_APP"
+    
+    # Check if staging directory exists
+    if [[ -d "$UI_STAGING_DIR" ]]; then
+        log_info "Staging directory exists: $UI_STAGING_DIR"
+        log_info "Contents of staging directory:"
+        ls -la "$UI_STAGING_DIR" || log_warn "Failed to list staging directory contents"
+    else
+        log_warn "Staging directory does not exist: $UI_STAGING_DIR"
+    fi
+    
+    # Add retry mechanism with delays for package extraction timing
+    local retry_count=0
+    local max_retries=5
+    local retry_delay=2
+    
+    while [[ $retry_count -lt $max_retries ]]; do
+        if [[ -d "$UI_STAGED_APP" ]]; then
+            log_info "Found staged UI application at $UI_STAGED_APP (attempt $((retry_count + 1)))"
+            break
+        else
+            retry_count=$((retry_count + 1))
+            if [[ $retry_count -lt $max_retries ]]; then
+                log_info "UI app not found, waiting ${retry_delay}s before retry (attempt $retry_count/$max_retries)"
+                sleep $retry_delay
+                # Check directory contents again
+                if [[ -d "$UI_STAGING_DIR" ]]; then
+                    log_info "Staging directory contents after wait:"
+                    ls -la "$UI_STAGING_DIR" || true
+                fi
+            fi
+        fi
+    done
+    
+    if [[ ! -d "$UI_STAGED_APP" ]]; then
+        log_info "No staged UI application found at $UI_STAGED_APP after $max_retries attempts"
+        log_info "UI application may be shipped separately; skipping copy"
+        return 0
+    fi
+    
+    # Remove existing app if present
+    if [[ -d "$UI_TARGET_APP" ]]; then
+        log_info "Removing existing UI application"
+        rm -rf "$UI_TARGET_APP" || true
+    fi
+    
+    # Copy app to Applications
+    if cp -R "$UI_STAGED_APP" "$UI_TARGET_APP"; then
+        log_success "UI app installed to Applications"
+        
+        # Set proper permissions
+        chmod -R 755 "$UI_TARGET_APP" || true
+        chown -R root:admin "$UI_TARGET_APP" 2>/dev/null || true
+        xattr -dr com.apple.quarantine "$UI_TARGET_APP" 2>/dev/null || true
+        
+        # Clean up staging directory
+        rm -rf "$UI_STAGED_APP" || true
+        log_info "Cleaned up staging directory"
+    else
+        log_warn "Failed to install UI app to Applications"
+    fi
+}
 
 
 # Main execution
@@ -1209,6 +1288,9 @@ main() {
     # Verify plist deployment
     verify_plist_deployment
     
+    # Install UI application
+    install_ui_application
+    
     # Clean up old backup files
     cleanup_old_backups
     
@@ -1218,8 +1300,6 @@ main() {
     
     # Check service status
     check_service_status
-    
-    # UI app is installed directly to Applications by the package installer
     
     # Print summary
     print_summary "$installation_type"

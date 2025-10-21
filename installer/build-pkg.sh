@@ -591,9 +591,9 @@ embed_binaries() {
                     
                     if [[ -n $app_bundle ]]; then
                         log_info "Found app bundle: $(basename "$app_bundle")"
-                        # Create Applications directory in package root
-                        mkdir -p "$BUILD_DIR/root/Applications/"
-                        cp -R "$app_bundle" "$BUILD_DIR/root/Applications/"
+                        # Create staging directory in package root
+                        mkdir -p "$BUILD_DIR/root/usr/local/share/gnosisvpn/"
+                        cp -R "$app_bundle" "$BUILD_DIR/root/usr/local/share/gnosisvpn/"
                         log_success "UI app extracted from DMG"
                     else
                         log_error "No .app bundle found in DMG"
@@ -609,19 +609,20 @@ embed_binaries() {
             elif echo "$file_info" | grep -q -E "(gzip|zip|tar)"; then
                 log_info "Extracting compressed UI app..."
                 # Handle extraction based on file type
+                mkdir -p "$BUILD_DIR/root/usr/local/share/gnosisvpn/"
                 if echo "$file_info" | grep -q "gzip"; then
-                    tar -xzf "$tmp_dir/ui-app" -C "$BUILD_DIR/root/Applications/"
+                    tar -xzf "$tmp_dir/ui-app" -C "$BUILD_DIR/root/usr/local/share/gnosisvpn/"
                 elif echo "$file_info" | grep -q "zip"; then
-                    unzip -q "$tmp_dir/ui-app" -d "$BUILD_DIR/root/Applications/"
+                    unzip -q "$tmp_dir/ui-app" -d "$BUILD_DIR/root/usr/local/share/gnosisvpn/"
                 fi
             else
                 # Assume it's a direct app bundle or binary
-                log_info "Copying UI app directly to Applications..."
-                # Create Applications directory in package root
-                mkdir -p "$BUILD_DIR/root/Applications/"
-                cp -r "$tmp_dir/ui-app" "$BUILD_DIR/root/Applications/gnosis_vpn-app.app" 2>/dev/null || {
-                    cp "$tmp_dir/ui-app" "$BUILD_DIR/root/Applications/gnosis_vpn-app"
-                    chmod 755 "$BUILD_DIR/root/Applications/gnosis_vpn-app"
+                log_info "Copying UI app to staging directory..."
+                # Create staging directory in package root
+                mkdir -p "$BUILD_DIR/root/usr/local/share/gnosisvpn/"
+                cp -r "$tmp_dir/ui-app" "$BUILD_DIR/root/usr/local/share/gnosisvpn/gnosis_vpn-app.app" 2>/dev/null || {
+                    cp "$tmp_dir/ui-app" "$BUILD_DIR/root/usr/local/share/gnosisvpn/gnosis_vpn-app.app"
+                    chmod 755 "$BUILD_DIR/root/usr/local/share/gnosisvpn/gnosis_vpn-app.app"
                 }
             fi
         fi
@@ -709,8 +710,8 @@ embed_binaries() {
                         
                         if [[ -n $app_bundle ]]; then
                             log_info "Found app bundle: $(basename "$app_bundle")"
-                            mkdir -p "$BUILD_DIR/root/Applications/"
-                            cp -R "$app_bundle" "$BUILD_DIR/root/Applications/"
+                            mkdir -p "$BUILD_DIR/root/usr/local/share/gnosisvpn/"
+                            cp -R "$app_bundle" "$BUILD_DIR/root/usr/local/share/gnosisvpn/"
                             log_success "UI app extracted from DMG"
                         else
                             log_error "No .app bundle found in DMG"
@@ -724,17 +725,18 @@ embed_binaries() {
                     
                 elif echo "$file_info" | grep -q -E "(gzip|zip|tar)"; then
                     log_info "Extracting compressed UI app..."
+                    mkdir -p "$BUILD_DIR/root/usr/local/share/gnosisvpn/"
                     if echo "$file_info" | grep -q "gzip"; then
-                        tar -xzf "$tmp_dir/ui-app" -C "$BUILD_DIR/root/Applications/"
+                        tar -xzf "$tmp_dir/ui-app" -C "$BUILD_DIR/root/usr/local/share/gnosisvpn/"
                     elif echo "$file_info" | grep -q "zip"; then
-                        unzip -q "$tmp_dir/ui-app" -d "$BUILD_DIR/root/Applications/"
+                        unzip -q "$tmp_dir/ui-app" -d "$BUILD_DIR/root/usr/local/share/gnosisvpn/"
                     fi
                 else
-                    log_info "Copying UI app directly to Applications..."
-                    mkdir -p "$BUILD_DIR/root/Applications/"
-                    cp -r "$tmp_dir/ui-app" "$BUILD_DIR/root/Applications/gnosis_vpn-app.app" 2>/dev/null || {
-                        cp "$tmp_dir/ui-app" "$BUILD_DIR/root/Applications/gnosis_vpn-app"
-                        chmod 755 "$BUILD_DIR/root/Applications/gnosis_vpn-app"
+                    log_info "Copying UI app to staging directory..."
+                    mkdir -p "$BUILD_DIR/root/usr/local/share/gnosisvpn/"
+                    cp -r "$tmp_dir/ui-app" "$BUILD_DIR/root/usr/local/share/gnosisvpn/gnosis_vpn-app.app" 2>/dev/null || {
+                        cp "$tmp_dir/ui-app" "$BUILD_DIR/root/usr/local/share/gnosisvpn/gnosis_vpn-app.app"
+                        chmod 755 "$BUILD_DIR/root/usr/local/share/gnosisvpn/gnosis_vpn-app.app"
                     }
                 fi
             else
@@ -756,10 +758,9 @@ embed_binaries() {
         lipo -info "$BUILD_DIR/root/Applications/GnosisVPN" || true
     fi
 
-    if [[ -d "$BUILD_DIR/root/Applications/gnosis_vpn-app.app" ]]; then
-        log_info "UI app bundle included in package"
-        log_warn "Note: macOS may prevent installation of unsigned apps to /Applications/"
-        log_warn "Users may need to manually copy the app from the installer or sign the app"
+    if [[ -d "$BUILD_DIR/root/usr/local/share/gnosisvpn/gnosis_vpn-app.app" ]]; then
+        log_info "UI app bundle included in package staging directory"
+        log_info "UI app will be installed to /Applications/ by postinstall script"
     fi
 
     # Cleanup handled by trap
@@ -789,8 +790,6 @@ copy_scripts() {
         chmod +x "$BUILD_DIR/scripts/postinstall"
         log_success "Copied postinstall script"
     fi
-
-
 
     echo ""
 }
