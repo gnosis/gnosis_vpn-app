@@ -632,6 +632,14 @@ install_launchd_service() {
         if [[ "$bootstrap_success" == "true" ]]; then
             log_success "Gnosis VPN service loaded successfully"
             
+            # Enable the service to start automatically
+            log_info "Enabling service for automatic startup..."
+            if launchctl enable system/org.gnosis.vpn 2>/dev/null; then
+                log_success "Service enabled for automatic startup"
+            else
+                log_warn "Failed to enable service (it may already be enabled)"
+            fi
+            
             # Wait a moment and verify it's running
             sleep 3
             if launchctl print system/org.gnosis.vpn >/dev/null 2>&1; then
