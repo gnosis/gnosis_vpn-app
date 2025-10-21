@@ -98,12 +98,12 @@ check_prerequisites() {
         if ! command -v "$cmd" &>/dev/null; then
             log_warn "Optional tool not found: $cmd (recommended for quality checks)"
             case $cmd in
-                shellcheck)
-                    log_info "Install with: brew install shellcheck"
-                    ;;
-                xmllint)
-                    log_info "Install with: brew install libxml2"
-                    ;;
+            shellcheck)
+                log_info "Install with: brew install shellcheck"
+                ;;
+            xmllint)
+                log_info "Install with: brew install libxml2"
+                ;;
             esac
         fi
     done
@@ -178,7 +178,7 @@ prepare_build_dir() {
     # Create fresh build directory structure
     mkdir -p "$BUILD_DIR/root/usr/local/bin"
     mkdir -p "$BUILD_DIR/root/etc/gnosisvpn/templates"
-    # UI app will be placed directly in Applications/
+    # UI app archive will be added during binary embedding
     mkdir -p "$BUILD_DIR/scripts"
 
     # Copy config templates to package payload
@@ -358,6 +358,150 @@ construct_ui_app_url() {
 
     # Construct UI app URL: gnosis_vpn-app_VERSION_ARCH.dmg
     echo "${release_url}/gnosis_vpn-app_${version}_${arch}.dmg"
+}
+
+# Package UI application asset into a tar.gz archive for staging
+package_ui_app_archive() {
+    local asset_path="$1"
+    local output_archive="$2"
+
+    if [[ ! -f $asset_path ]]; then
+        log_warn "UI asset not found at $asset_path"
+        return 1
+    fi
+
+    local file_info
+    file_info=$(file "$asset_path")
+    local work_dir
+    work_dir=$(mktemp -d -t gnosis-ui-app.XXXXXX)
+    chmod 700 "$work_dir"
+
+    local staging_app_dir="$work_dir/gnosis_vpn-app.app"
+    local success=false
+
+    log_info "Packaging UI asset (type: $file_info)"
+
+    if echo "$file_info" | grep -qi "zlib compressed data"; then
+        log_info "Detected DMG file, mounting for extraction"
+        local mount_point
+        mount_point=$(mktemp -d -t gnosis-dmg-mount.XXXXXX)
+
+        if hdiutil attach "$asset_path" -mountpoint "$mount_point" -quiet; then
+            log_info "DMG mounted at $mount_point"
+            local app_bundle
+            app_bundle=$(find "$mount_point" -maxdepth 1 -type d -name "*.app" | head -1)
+
+            if [[ -n $app_bundle ]]; then
+                log_info "Found app bundle in DMG: $(basename "$app_bundle")"
+                if ditto "$app_bundle" "$staging_app_dir"; then
+                    success=true
+                else
+                    log_warn "Failed to copy app bundle from DMG"
+                fi
+            else
+                log_warn "No app bundle found inside DMG"
+            fi
+
+            hdiutil detach "$mount_point" -quiet || log_warn "Failed to detach DMG mount"
+        else
+            log_warn "Failed to mount DMG asset"
+        fi
+
+        rmdir "$mount_point" 2>/dev/null || true
+
+    elif echo "$file_info" | grep -qi "zip archive data"; then
+        log_info "Detected ZIP archive, extracting"
+        local extract_dir
+        extract_dir=$(mktemp -d -t gnosis-ui-extract.XXXXXX)
+        if unzip -q "$asset_path" -d "$extract_dir"; then
+            local app_bundle
+            app_bundle=$(find "$extract_dir" -maxdepth 2 -type d -name "*.app" | head -1)
+            if [[ -n $app_bundle ]]; then
+                log_info "Found app bundle in ZIP: $(basename "$app_bundle")"
+                if ditto "$app_bundle" "$staging_app_dir"; then
+                    success=true
+                else
+                    log_warn "Failed to copy app bundle from ZIP"
+                fi
+            else
+                log_warn "No app bundle found inside ZIP"
+            fi
+        else
+            log_warn "Failed to extract ZIP asset"
+        fi
+        rm -rf "$extract_dir" 2>/dev/null || true
+
+    elif echo "$file_info" | grep -qi "gzip compressed data"; then
+        log_info "Detected gzip-compressed tar archive, extracting"
+        local extract_dir
+        extract_dir=$(mktemp -d -t gnosis-ui-extract.XXXXXX)
+        if tar -xzf "$asset_path" -C "$extract_dir"; then
+            local app_bundle
+            app_bundle=$(find "$extract_dir" -maxdepth 2 -type d -name "*.app" | head -1)
+            if [[ -n $app_bundle ]]; then
+                log_info "Found app bundle in tar archive: $(basename "$app_bundle")"
+                if ditto "$app_bundle" "$staging_app_dir"; then
+                    success=true
+                else
+                    log_warn "Failed to copy app bundle from tar archive"
+                fi
+            else
+                log_warn "No app bundle found inside tar archive"
+            fi
+        else
+            log_warn "Failed to extract tar archive"
+        fi
+        rm -rf "$extract_dir" 2>/dev/null || true
+
+    elif echo "$file_info" | grep -qi "tar archive"; then
+        log_info "Detected uncompressed tar archive, extracting"
+        local extract_dir
+        extract_dir=$(mktemp -d -t gnosis-ui-extract.XXXXXX)
+        if tar -xf "$asset_path" -C "$extract_dir"; then
+            local app_bundle
+            app_bundle=$(find "$extract_dir" -maxdepth 2 -type d -name "*.app" | head -1)
+            if [[ -n $app_bundle ]]; then
+                log_info "Found app bundle in tar archive: $(basename "$app_bundle")"
+                if ditto "$app_bundle" "$staging_app_dir"; then
+                    success=true
+                else
+                    log_warn "Failed to copy app bundle from tar archive"
+                fi
+            else
+                log_warn "No app bundle found inside tar archive"
+            fi
+        else
+            log_warn "Failed to extract tar archive"
+        fi
+        rm -rf "$extract_dir" 2>/dev/null || true
+
+    elif [[ -d $asset_path ]]; then
+        log_info "Detected app bundle directory, preparing for archiving"
+        if ditto "$asset_path" "$staging_app_dir"; then
+            success=true
+        else
+            log_warn "Failed to copy app bundle directory"
+        fi
+    else
+        log_warn "Unsupported UI asset type: $file_info"
+    fi
+
+    local result=1
+    if [[ $success == true ]] && [[ -d $staging_app_dir ]]; then
+        mkdir -p "$(dirname "$output_archive")"
+        rm -f "$output_archive"
+        if tar -czf "$output_archive" -C "$work_dir" "$(basename "$staging_app_dir")"; then
+            log_success "Packaged UI app archive: $output_archive"
+            result=0
+        else
+            log_warn "Failed to create UI app archive at $output_archive"
+        fi
+    else
+        log_warn "UI app staging failed, archive will not be created"
+    fi
+
+    rm -rf "$work_dir" 2>/dev/null || true
+    return $result
 }
 
 # Parse GitHub release URL to extract repo info and tag
@@ -568,62 +712,12 @@ embed_binaries() {
 
         # Handle UI app if downloaded
         if [[ -f "$tmp_dir/ui-app" ]]; then
-            log_info "Processing UI app..."
-
-            # Check if it's a DMG file, compressed file, or app bundle
-            local file_info
-            file_info=$(file "$tmp_dir/ui-app")
-            
-            if echo "$file_info" | grep -q -i "zlib compressed data"; then
-                log_info "Detected DMG file, mounting and extracting..."
-                
-                # Create a temporary mount point
-                local mount_point
-                mount_point=$(mktemp -d -t gnosis-dmg-mount.XXXXXX)
-                
-                # Try to mount the DMG
-                if hdiutil attach "$tmp_dir/ui-app" -mountpoint "$mount_point" -quiet; then
-                    log_info "DMG mounted successfully at: $mount_point"
-                    
-                    # Find the .app bundle in the mounted DMG
-                    local app_bundle
-                    app_bundle=$(find "$mount_point" -name "*.app" -type d | head -1)
-                    
-                    if [[ -n $app_bundle ]]; then
-                        log_info "Found app bundle: $(basename "$app_bundle")"
-                        # Create staging directory in package root
-                        mkdir -p "$BUILD_DIR/root/usr/local/share/gnosisvpn/"
-                        cp -R "$app_bundle" "$BUILD_DIR/root/usr/local/share/gnosisvpn/"
-                        log_success "UI app extracted from DMG"
-                    else
-                        log_error "No .app bundle found in DMG"
-                    fi
-                    
-                    # Unmount the DMG
-                    hdiutil detach "$mount_point" -quiet || log_warn "Failed to unmount DMG cleanly"
-                    rmdir "$mount_point" 2>/dev/null || true
-                else
-                    log_error "Failed to mount DMG file"
-                fi
-                
-            elif echo "$file_info" | grep -q -E "(gzip|zip|tar)"; then
-                log_info "Extracting compressed UI app..."
-                # Handle extraction based on file type
-                mkdir -p "$BUILD_DIR/root/usr/local/share/gnosisvpn/"
-                if echo "$file_info" | grep -q "gzip"; then
-                    tar -xzf "$tmp_dir/ui-app" -C "$BUILD_DIR/root/usr/local/share/gnosisvpn/"
-                elif echo "$file_info" | grep -q "zip"; then
-                    unzip -q "$tmp_dir/ui-app" -d "$BUILD_DIR/root/usr/local/share/gnosisvpn/"
-                fi
+            log_info "Processing UI app for packaging..."
+            local ui_archive_path="$BUILD_DIR/root/usr/local/share/gnosisvpn/gnosis_vpn-app.tar.gz"
+            if package_ui_app_archive "$tmp_dir/ui-app" "$ui_archive_path"; then
+                log_info "UI app archive prepared for staging directory"
             else
-                # Assume it's a direct app bundle or binary
-                log_info "Copying UI app to staging directory..."
-                # Create staging directory in package root
-                mkdir -p "$BUILD_DIR/root/usr/local/share/gnosisvpn/"
-                cp -r "$tmp_dir/ui-app" "$BUILD_DIR/root/usr/local/share/gnosisvpn/gnosis_vpn-app.app" 2>/dev/null || {
-                    cp "$tmp_dir/ui-app" "$BUILD_DIR/root/usr/local/share/gnosisvpn/gnosis_vpn-app.app"
-                    chmod 755 "$BUILD_DIR/root/usr/local/share/gnosisvpn/gnosis_vpn-app.app"
-                }
+                log_warn "UI app archive could not be prepared; installer will ship without UI application"
             fi
         fi
 
@@ -678,66 +772,26 @@ embed_binaries() {
         chmod 755 "$BUILD_DIR/root/usr/local/bin/gnosis_vpn-ctl"
 
         # Download UI app in fallback mode if UI release URL is provided
-        if [[ -n "$GITHUB_UI_RELEASE_URL" ]]; then
+        if [[ -n $GITHUB_UI_RELEASE_URL ]]; then
             log_info "Downloading UI app from separate release..."
             local ui_download_base_url="$GITHUB_UI_RELEASE_URL"
             local ui_version
             ui_version=$(echo "$ui_download_base_url" | sed -n 's|.*/tag/\(.*\)|\1|p')
-            
+
             local ui_app_url
             ui_app_url=$(construct_ui_app_url "$ui_download_base_url" "$ui_version" "$X86_PLATFORM")
-            
+
             log_info "UI app URL: $ui_app_url"
             if curl -fsSL "$ui_app_url" -o "$tmp_dir/ui-app"; then
                 log_success "UI app downloaded successfully"
-                
+
                 # Process the downloaded UI app (same logic as above)
-                log_info "Processing UI app..."
-                local file_info
-                file_info=$(file "$tmp_dir/ui-app")
-                
-                if echo "$file_info" | grep -q -i "zlib compressed data"; then
-                    log_info "Detected DMG file, mounting and extracting..."
-                    
-                    local mount_point
-                    mount_point=$(mktemp -d -t gnosis-dmg-mount.XXXXXX)
-                    
-                    if hdiutil attach "$tmp_dir/ui-app" -mountpoint "$mount_point" -quiet; then
-                        log_info "DMG mounted successfully at: $mount_point"
-                        
-                        local app_bundle
-                        app_bundle=$(find "$mount_point" -name "*.app" -type d | head -1)
-                        
-                        if [[ -n $app_bundle ]]; then
-                            log_info "Found app bundle: $(basename "$app_bundle")"
-                            mkdir -p "$BUILD_DIR/root/usr/local/share/gnosisvpn/"
-                            cp -R "$app_bundle" "$BUILD_DIR/root/usr/local/share/gnosisvpn/"
-                            log_success "UI app extracted from DMG"
-                        else
-                            log_error "No .app bundle found in DMG"
-                        fi
-                        
-                        hdiutil detach "$mount_point" -quiet || log_warn "Failed to unmount DMG cleanly"
-                        rmdir "$mount_point" 2>/dev/null || true
-                    else
-                        log_error "Failed to mount DMG file"
-                    fi
-                    
-                elif echo "$file_info" | grep -q -E "(gzip|zip|tar)"; then
-                    log_info "Extracting compressed UI app..."
-                    mkdir -p "$BUILD_DIR/root/usr/local/share/gnosisvpn/"
-                    if echo "$file_info" | grep -q "gzip"; then
-                        tar -xzf "$tmp_dir/ui-app" -C "$BUILD_DIR/root/usr/local/share/gnosisvpn/"
-                    elif echo "$file_info" | grep -q "zip"; then
-                        unzip -q "$tmp_dir/ui-app" -d "$BUILD_DIR/root/usr/local/share/gnosisvpn/"
-                    fi
+                log_info "Processing UI app for packaging..."
+                local ui_archive_path="$BUILD_DIR/root/usr/local/share/gnosisvpn/gnosis_vpn-app.tar.gz"
+                if package_ui_app_archive "$tmp_dir/ui-app" "$ui_archive_path"; then
+                    log_info "UI app archive prepared for staging directory"
                 else
-                    log_info "Copying UI app to staging directory..."
-                    mkdir -p "$BUILD_DIR/root/usr/local/share/gnosisvpn/"
-                    cp -r "$tmp_dir/ui-app" "$BUILD_DIR/root/usr/local/share/gnosisvpn/gnosis_vpn-app.app" 2>/dev/null || {
-                        cp "$tmp_dir/ui-app" "$BUILD_DIR/root/usr/local/share/gnosisvpn/gnosis_vpn-app.app"
-                        chmod 755 "$BUILD_DIR/root/usr/local/share/gnosisvpn/gnosis_vpn-app.app"
-                    }
+                    log_warn "UI app archive could not be prepared; installer will ship without UI application"
                 fi
             else
                 log_warn "Failed to download UI app from: $ui_app_url"
@@ -758,8 +812,9 @@ embed_binaries() {
         lipo -info "$BUILD_DIR/root/Applications/GnosisVPN" || true
     fi
 
-    if [[ -d "$BUILD_DIR/root/usr/local/share/gnosisvpn/gnosis_vpn-app.app" ]]; then
-        log_info "UI app bundle included in package staging directory"
+    local ui_archive="$BUILD_DIR/root/usr/local/share/gnosisvpn/gnosis_vpn-app.tar.gz"
+    if [[ -f $ui_archive ]]; then
+        log_info "UI app archive included in package staging directory"
         log_info "UI app will be installed to /Applications/ by postinstall script"
     fi
 
@@ -917,17 +972,17 @@ print_summary() {
 # Run linting checks on scripts
 run_lint_checks() {
     log_info "Running lint checks..."
-    
+
     local errors=0
     local warnings=0
-    
+
     # Check if shellcheck is available
     if ! command -v shellcheck >/dev/null 2>&1; then
         log_warn "shellcheck not found, skipping shell script linting"
         log_info "Install shellcheck for better code quality: brew install shellcheck"
     else
         log_info "Running shellcheck on installer scripts..."
-        
+
         # Check main build script
         if shellcheck "$0" 2>/dev/null; then
             log_success "✓ build-pkg.sh passed shellcheck"
@@ -935,16 +990,16 @@ run_lint_checks() {
             log_error "✗ build-pkg.sh failed shellcheck"
             errors=$((errors + 1))
         fi
-        
+
         # Check installer scripts
         local script_files=(
             "$RESOURCES_DIR/scripts/preinstall"
             "$RESOURCES_DIR/scripts/postinstall"
             "$SCRIPT_DIR/uninstall.sh"
         )
-        
+
         for script in "${script_files[@]}"; do
-            if [[ -f "$script" ]]; then
+            if [[ -f $script ]]; then
                 local script_name=$(basename "$script")
                 if shellcheck "$script" 2>/dev/null; then
                     log_success "✓ $script_name passed shellcheck"
@@ -955,36 +1010,36 @@ run_lint_checks() {
             fi
         done
     fi
-    
+
     # Check for common issues in scripts
     log_info "Checking for common script issues..."
-    
+
     # Check for hardcoded paths
     local hardcoded_paths=0
     if grep -r "/usr/local/bin" "$RESOURCES_DIR/scripts/" >/dev/null 2>&1; then
-        if grep -r "\$BIN_DIR" "$RESOURCES_DIR/scripts/" >/dev/null 2>&1; then
+        if grep -r '$BIN_DIR' "$RESOURCES_DIR/scripts/" >/dev/null 2>&1; then
             log_success "✓ Scripts use BIN_DIR variable instead of hardcoded paths"
         else
-            log_warn "⚠ Found hardcoded /usr/local/bin paths, consider using \$BIN_DIR variable"
+            log_warn '⚠ Found hardcoded /usr/local/bin paths, consider using $BIN_DIR variable'
             warnings=$((warnings + 1))
         fi
     fi
-    
+
     # Check for proper error handling
     local scripts_with_set_e=0
     for script in "$RESOURCES_DIR/scripts/"*; do
-        if [[ -f "$script" ]] && grep -q "set -e" "$script"; then
+        if [[ -f $script ]] && grep -q "set -e" "$script"; then
             scripts_with_set_e=$((scripts_with_set_e + 1))
         fi
     done
-    
+
     if [[ $scripts_with_set_e -gt 0 ]]; then
         log_success "✓ Scripts use proper error handling (set -e)"
     else
         log_warn "⚠ Consider adding 'set -e' to scripts for better error handling"
         warnings=$((warnings + 1))
     fi
-    
+
     echo ""
     if [[ $errors -eq 0 ]] && [[ $warnings -eq 0 ]]; then
         log_success "All lint checks passed!"
@@ -999,9 +1054,9 @@ run_lint_checks() {
 # Run basic functionality tests
 run_basic_tests() {
     log_info "Running basic functionality tests..."
-    
+
     local test_failures=0
-    
+
     # Test 1: Package file exists and is readable
     log_info "Test 1: Package file validation..."
     if [[ -f "$BUILD_DIR/$PKG_NAME" ]] && [[ -r "$BUILD_DIR/$PKG_NAME" ]]; then
@@ -1010,52 +1065,52 @@ run_basic_tests() {
         log_error "✗ Package file missing or unreadable: $BUILD_DIR/$PKG_NAME"
         test_failures=$((test_failures + 1))
     fi
-    
+
     # Test 2: Package contents validation
     log_info "Test 2: Package contents validation..."
     if pkgutil --expand "$BUILD_DIR/$PKG_NAME" "$BUILD_DIR/test-expand" 2>/dev/null; then
         log_success "✓ Package can be expanded successfully"
-        
+
         # Check for required files
         local required_files=(
             "$BUILD_DIR/test-expand/GnosisVPN.pkg"
             "$BUILD_DIR/test-expand/Distribution"
             "$BUILD_DIR/test-expand/Resources"
         )
-        
+
         local missing_files=0
         for file in "${required_files[@]}"; do
-            if [[ ! -e "$file" ]]; then
+            if [[ ! -e $file ]]; then
                 log_error "✗ Missing required package component: $(basename "$file")"
                 missing_files=$((missing_files + 1))
             fi
         done
-        
+
         if [[ $missing_files -eq 0 ]]; then
             log_success "✓ All required package components present"
         else
             test_failures=$((test_failures + 1))
         fi
-        
+
         # Clean up test expansion
         rm -rf "$BUILD_DIR/test-expand" 2>/dev/null || true
     else
         log_error "✗ Package cannot be expanded"
         test_failures=$((test_failures + 1))
     fi
-    
+
     # Test 3: Script syntax validation
     log_info "Test 3: Script syntax validation..."
     local script_syntax_errors=0
-    
+
     local test_scripts=(
         "$RESOURCES_DIR/scripts/preinstall"
         "$RESOURCES_DIR/scripts/postinstall"
         "$SCRIPT_DIR/uninstall.sh"
     )
-    
+
     for script in "${test_scripts[@]}"; do
-        if [[ -f "$script" ]]; then
+        if [[ -f $script ]]; then
             if bash -n "$script" 2>/dev/null; then
                 log_success "✓ $(basename "$script") syntax valid"
             else
@@ -1064,16 +1119,16 @@ run_basic_tests() {
             fi
         fi
     done
-    
+
     if [[ $script_syntax_errors -eq 0 ]]; then
         log_success "✓ All scripts have valid syntax"
     else
         test_failures=$((test_failures + 1))
     fi
-    
+
     # Test 4: Distribution XML validation
     log_info "Test 4: Distribution XML validation..."
-    if [[ -f "$DISTRIBUTION_XML" ]]; then
+    if [[ -f $DISTRIBUTION_XML ]]; then
         if xmllint --noout "$DISTRIBUTION_XML" 2>/dev/null; then
             log_success "✓ Distribution.xml is valid XML"
         else
@@ -1083,17 +1138,17 @@ run_basic_tests() {
     else
         log_warn "⚠ Distribution.xml not found, skipping XML validation"
     fi
-    
+
     # Test 5: Binary architecture validation (if binaries exist)
     log_info "Test 5: Binary architecture validation..."
     local binary_files=(
         "$BUILD_DIR/root/usr/local/bin/gnosis_vpn"
         "$BUILD_DIR/root/usr/local/bin/gnosis_vpn-ctl"
     )
-    
+
     local arch_errors=0
     for binary in "${binary_files[@]}"; do
-        if [[ -f "$binary" ]]; then
+        if [[ -f $binary ]]; then
             if lipo -info "$binary" 2>/dev/null | grep -q "x86_64 arm64"; then
                 log_success "✓ $(basename "$binary") is universal binary (x86_64 + arm64)"
             else
@@ -1102,11 +1157,11 @@ run_basic_tests() {
             fi
         fi
     done
-    
+
     if [[ $arch_errors -eq 0 ]]; then
         log_success "✓ All binaries are universal (x86_64 + arm64)"
     fi
-    
+
     echo ""
     if [[ $test_failures -eq 0 ]]; then
         log_success "All tests passed!"
@@ -1130,28 +1185,28 @@ main() {
     build_distribution_package
     verify_package
     print_summary
-    
+
     echo ""
     echo "=========================================="
     echo "  Post-Build Quality Checks"
     echo "=========================================="
     echo ""
-    
+
     # Run linting
     if ! run_lint_checks; then
         log_warn "Lint checks failed, but build will continue"
         log_info "Consider fixing lint issues for better code quality"
     fi
-    
+
     echo ""
-    
+
     # Run tests
     if ! run_basic_tests; then
         log_error "Basic tests failed!"
         log_error "The package may have issues. Please review the test output above."
         exit 1
     fi
-    
+
     echo ""
     log_success "🎉 Build completed successfully with all quality checks passed!"
 }

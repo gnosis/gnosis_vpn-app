@@ -59,7 +59,7 @@ TEMPLATE_DIR_INSTALLED="${CONFIG_DIR}/templates"
 BIN_DIR="$(join_path "$TARGET_VOLUME" "/usr/local/bin")"
 NETWORK="${INSTALLER_CHOICE_NETWORK:-rotsee}"
 UI_STAGING_DIR="$(join_path "$TARGET_VOLUME" "/usr/local/share/gnosisvpn")"
-UI_STAGED_APP="${UI_STAGING_DIR}/gnosis_vpn-app.app"
+UI_STAGED_ARCHIVE="${UI_STAGING_DIR}/gnosis_vpn-app.tar.gz"
 UI_TARGET_APP="$(join_path "$TARGET_VOLUME" "/Applications/gnosis_vpn-app.app")"
 
 # Get installer version from package (if available) or use current date
@@ -1167,7 +1167,7 @@ install_ui_application() {
     log_info "Installing UI application..."
     log_info "TARGET_VOLUME: $TARGET_VOLUME"
     log_info "UI_STAGING_DIR: $UI_STAGING_DIR"
-    log_info "UI_STAGED_APP: $UI_STAGED_APP"
+    log_info "UI_STAGED_ARCHIVE: $UI_STAGED_ARCHIVE"
     log_info "UI_TARGET_APP: $UI_TARGET_APP"
     
     # Check if staging directory exists
@@ -1185,13 +1185,13 @@ install_ui_application() {
     local retry_delay=2
     
     while [[ $retry_count -lt $max_retries ]]; do
-        if [[ -d "$UI_STAGED_APP" ]]; then
-            log_info "Found staged UI application at $UI_STAGED_APP (attempt $((retry_count + 1)))"
+        if [[ -f "$UI_STAGED_ARCHIVE" ]]; then
+            log_info "Found staged UI archive at $UI_STAGED_ARCHIVE (attempt $((retry_count + 1)))"
             break
         else
             retry_count=$((retry_count + 1))
             if [[ $retry_count -lt $max_retries ]]; then
-                log_info "UI app not found, waiting ${retry_delay}s before retry (attempt $retry_count/$max_retries)"
+                log_info "UI archive not found, waiting ${retry_delay}s before retry (attempt $retry_count/$max_retries)"
                 sleep $retry_delay
                 # Check directory contents again
                 if [[ -d "$UI_STAGING_DIR" ]]; then
@@ -1202,8 +1202,8 @@ install_ui_application() {
         fi
     done
     
-    if [[ ! -d "$UI_STAGED_APP" ]]; then
-        log_info "No staged UI application found at $UI_STAGED_APP after $max_retries attempts"
+    if [[ ! -f "$UI_STAGED_ARCHIVE" ]]; then
+        log_info "No staged UI archive found at $UI_STAGED_ARCHIVE after $max_retries attempts"
         log_info "UI application may be shipped separately; skipping copy"
         return 0
     fi
@@ -1214,20 +1214,25 @@ install_ui_application() {
         rm -rf "$UI_TARGET_APP" || true
     fi
     
-    # Copy app to Applications
-    if cp -R "$UI_STAGED_APP" "$UI_TARGET_APP"; then
-        log_success "UI app installed to Applications"
+    # Ensure Applications directory exists
+    local applications_dir
+    applications_dir="$(join_path "$TARGET_VOLUME" "/Applications")"
+    mkdir -p "$applications_dir"
+
+    # Extract app archive into Applications
+    if tar -xzf "$UI_STAGED_ARCHIVE" -C "$applications_dir"; then
+        log_success "UI app extracted to Applications"
         
         # Set proper permissions
         chmod -R 755 "$UI_TARGET_APP" || true
         chown -R root:admin "$UI_TARGET_APP" 2>/dev/null || true
         xattr -dr com.apple.quarantine "$UI_TARGET_APP" 2>/dev/null || true
         
-        # Clean up staging directory
-        rm -rf "$UI_STAGED_APP" || true
-        log_info "Cleaned up staging directory"
+        # Clean up staged archive
+        rm -f "$UI_STAGED_ARCHIVE" || true
+        log_info "Removed staged archive"
     else
-        log_warn "Failed to install UI app to Applications"
+        log_warn "Failed to extract UI app archive to Applications"
     fi
 }
 

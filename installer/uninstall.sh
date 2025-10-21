@@ -283,7 +283,7 @@ remove_ui_app() {
     )
 
     for app_path in "${ui_app_paths[@]}"; do
-        if [[ -d "$app_path" ]]; then
+        if [[ -d $app_path ]]; then
             log_info "Removing UI app: $app_path"
             rm -rf "$app_path"
             log_success "Removed $app_path"
@@ -294,11 +294,11 @@ remove_ui_app() {
     # Clean up LaunchServices registrations for the UI app
     log_info "Cleaning up LaunchServices registrations..."
     /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -kill -r -domain local -domain system -domain user 2>/dev/null || true
-    
+
     # Try to remove any quarantine attributes that might remain
     if command -v xattr >/dev/null 2>&1; then
         for app_path in "${ui_app_paths[@]}"; do
-            if [[ -d "$app_path" ]]; then
+            if [[ -d $app_path ]]; then
                 xattr -dr com.apple.quarantine "$app_path" 2>/dev/null || true
             fi
         done
