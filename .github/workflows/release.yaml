@@ -114,6 +114,7 @@ jobs:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
         run: |
+          echo "FOO0: $(echo $APPLE_CERTIFICATE | head -n 10)"
           echo $APPLE_CERTIFICATE | base64 --decode > certificate.p12
           echo "FOO1"; cat certificate.p12 | head -c 20
           keychain_pass=$(openssl rand -base64 24)
