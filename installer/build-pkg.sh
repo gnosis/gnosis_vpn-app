@@ -1000,7 +1000,8 @@ run_lint_checks() {
 
         for script in "${script_files[@]}"; do
             if [[ -f $script ]]; then
-                local script_name=$(basename "$script")
+                local script_name
+                script_name=$(basename "$script")
                 if shellcheck "$script" 2>/dev/null; then
                     log_success "✓ $script_name passed shellcheck"
                 else
@@ -1015,7 +1016,6 @@ run_lint_checks() {
     log_info "Checking for common script issues..."
 
     # Check for hardcoded paths
-    local hardcoded_paths=0
     if grep -r "/usr/local/bin" "$RESOURCES_DIR/scripts/" >/dev/null 2>&1; then
         if grep -r '$BIN_DIR' "$RESOURCES_DIR/scripts/" >/dev/null 2>&1; then
             log_success "✓ Scripts use BIN_DIR variable instead of hardcoded paths"
