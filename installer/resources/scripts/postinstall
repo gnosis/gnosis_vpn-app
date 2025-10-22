@@ -285,7 +285,7 @@ create_system_user() {
     local username="gnosisvpn"
     local fullname="Gnosis VPN Service"
     local homedir="/var/lib/gnosisvpn"
-    local shell="/usr/bin/false"
+    local shell="/bin/bash"
     
     # Find next available system UID (typically 200-499 range for system users)
     local uid
