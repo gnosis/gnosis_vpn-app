@@ -63,6 +63,8 @@
         <string>/etc/gnosisvpn/config.toml</string>
         <key>HOME</key>
         <string>/var/lib/gnosis_vpn</string>
+        <key>RUST_LOG</key>
+        <string>info</string>
     </dict>
     
     <!-- Security -->
