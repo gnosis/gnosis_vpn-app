@@ -550,6 +550,13 @@ setup_user_permissions() {
     chown $username:$groupname "$state_dir"
     chmod 750 "$state_dir"
     log_info "State directory created: $state_dir"
+
+    # Create HOPR application support directory
+    local hopr_support_dir="$state_dir/Library/Application Support/org.hoprnet.gnosisvpn"
+    mkdir -p "$hopr_support_dir"
+    chown $username:$groupname "$hopr_support_dir"
+    chmod 755 "$hopr_support_dir"
+    log_info "HOPR application support directory created: $hopr_support_dir"
     
     log_success "User permissions configured successfully"
 }
@@ -575,7 +582,7 @@ install_launchd_service() {
     # Create log directory
     mkdir -p "$log_dir"
     chmod 755 "$log_dir"
-    chown root:wheel "$log_dir" 2>/dev/null || true
+    chown gnosisvpn:gnosisvpn "$log_dir" 2>/dev/null || true
     
     # Handle existing service (for updates/reinstalls)
     local service_was_running=false
@@ -841,23 +848,55 @@ check_service_status() {
     log_info "Checking service status..."
     
     if launchctl print system/org.gnosis.vpn >/dev/null 2>&1; then
-        local status
+        local status_output
+        status_output=$(launchctl print system/org.gnosis.vpn)
+
+        # Extract key information
+        local state
+        state=$(echo "$status_output" | grep "state =" | head -1)
+        local pid_info
+        pid_info=$(echo "$status_output" | grep "pid =" | head -1)
+        local last_exit
+        last_exit=$(echo "$status_output" | grep "last exit code =" | head -1)
+        local runs
+        runs=$(echo "$status_output" | grep "runs =" | head -1)
+
         status=$(launchctl print system/org.gnosis.vpn | grep -E "(state|pid)" | head -2)
         log_info "Service status:"
-        echo "$status" | while IFS= read -r line; do
-            log_info "  $line"
-        done
+        [[ -n "$state" ]] && log_info "  $state"
+        [[ -n "$pid_info" ]] && log_info "  $pid_info"
+        [[ -n "$last_exit" ]] && log_info "  $last_exit"
+        [[ -n "$runs" ]] && log_info "  $runs"
         
         # Check if process is actually running
         if pgrep -f "gnosis_vpn" >/dev/null 2>&1; then
             local pid
             pid=$(pgrep -f "gnosis_vpn")
             log_success "VPN process is running (PID: $pid)"
+
+            # Check if logs are being created
+            if [[ -f "/var/log/gnosis_vpn/gnosis_vpn.log" ]]; then
+                local log_size
+                log_size=$(wc -c < /var/log/gnosis_vpn/gnosis_vpn.log 2>/dev/null || echo "0")
+                if [[ "$log_size" -gt 0 ]]; then
+                    log_success "Service is logging to /var/log/gnosis_vpn/gnosis_vpn.log"
+                else
+                    log_info "Log file exists but is empty (service may be starting)"
+                fi
+            fi
         else
             log_warn "Service is loaded but process is not running"
+
+            # Check for configuration issues
+            if echo "$last_exit" | grep -q "78"; then
+                log_warn "Last exit code 78 indicates configuration error"
+                log_info "Check configuration file: /etc/gnosisvpn/config.toml"
+                log_info "Verify HOPR RPC provider is accessible"
+            fi
         fi
     else
         log_warn "Service is not loaded in launchd"
+        log_info "Try loading manually: sudo launchctl bootstrap system /Library/LaunchDaemons/org.gnosis.vpn.plist"
     fi
 }
 
@@ -1294,6 +1333,83 @@ install_ui_application() {
     fi
 }
 
+# Validate service environment requirements
+validate_service_environment() {
+    log_info "Validating service environment..."
+
+    local errors=0
+
+    # Check required directories exist with proper ownership
+    local required_dirs=(
+        "/var/run/gnosis_vpn:gnosisvpn:gnosisvpn:755"
+        "/var/lib/gnosis_vpn:gnosisvpn:gnosisvpn:750"
+        "/var/lib/gnosis_vpn/Library/Application Support/org.hoprnet.gnosisvpn:gnosisvpn:gnosisvpn:755"
+        "/var/log/gnosis_vpn:gnosisvpn:gnosisvpn:755"
+    )
+
+    for dir_spec in "${required_dirs[@]}"; do
+        IFS=':' read -r dir_path expected_user expected_group expected_perms <<< "$dir_spec"
+
+        if [[ ! -d "$dir_path" ]]; then
+            log_error "Required directory missing: $dir_path"
+            ((errors++))
+        else
+            # Check ownership
+            local actual_owner
+            actual_owner=$(stat -f "%Su:%Sg" "$dir_path")
+            if [[ "$actual_owner" != "$expected_user:$expected_group" ]]; then
+                log_warn "Directory ownership incorrect: $dir_path (expected: $expected_user:$expected_group, actual: $actual_owner)"
+            else
+                log_success "✓ Directory ownership correct: $dir_path"
+            fi
+
+            # Check permissions
+            local actual_perms
+            actual_perms=$(stat -f "%Mp%Lp" "$dir_path")
+            if [[ "$actual_perms" != "$expected_perms" ]]; then
+                log_warn "Directory permissions incorrect: $dir_path (expected: $expected_perms, actual: $actual_perms)"
+            else
+                log_success "✓ Directory permissions correct: $dir_path"
+            fi
+        fi
+    done
+
+    # Check that binary exists and is executable by gnosisvpn user
+    local binary_path="/usr/local/bin/gnosis_vpn"
+    if [[ ! -f "$binary_path" ]]; then
+        log_error "Binary not found: $binary_path"
+        ((errors++))
+    else
+        if sudo -u gnosisvpn test -x "$binary_path"; then
+            log_success "✓ Binary is executable by gnosisvpn user"
+        else
+            log_error "Binary is not executable by gnosisvpn user: $binary_path"
+            ((errors++))
+        fi
+    fi
+
+    # Check that config file exists and is readable by gnosisvpn user
+    local config_path="/etc/gnosisvpn/config.toml"
+    if [[ ! -f "$config_path" ]]; then
+        log_error "Config file not found: $config_path"
+        ((errors++))
+    else
+        if sudo -u gnosisvpn test -r "$config_path"; then
+            log_success "✓ Config file is readable by gnosisvpn user"
+        else
+            log_error "Config file is not readable by gnosisvpn user: $config_path"
+            ((errors++))
+        fi
+    fi
+
+    if [[ $errors -eq 0 ]]; then
+        log_success "Service environment validation passed"
+    else
+        log_warn "Service environment validation found $errors issue(s)"
+        log_info "The service may not start properly until these issues are resolved"
+    fi
+}
+
 
 # Main execution
 main() {
@@ -1344,6 +1460,9 @@ main() {
     
     # Configure sudo privileges for service management
     configure_sudo_privileges
+
+    # Validate service environment
+    validate_service_environment
     
     # Install launchd service
     install_launchd_service "$installation_type"
