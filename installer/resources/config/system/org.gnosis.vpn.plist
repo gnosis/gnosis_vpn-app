@@ -61,6 +61,8 @@
         <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
         <key>GNOSISVPN_CONFIG_PATH</key>
         <string>/etc/gnosisvpn/config.toml</string>
+        <key>HOME</key>
+        <string>/var/lib/gnosis_vpn</string>
     </dict>
     
     <!-- Security -->
