@@ -388,6 +388,15 @@ create_system_group() {
     if [[ "$current_user" != "unknown" ]] && [[ "$current_user" != "root" ]]; then
         log_info "Adding current user '$current_user' to group '$groupname'"
         dseditgroup -o edit -a "$current_user" -t user "$groupname"
+        # ===
+        # Critical Network Entitlements Needed:
+        dseditgroup -o edit -a "$groupname" -t user _networkd
+        # com.apple.developer.networking.networkextension - For VPN/tunnel creation
+        # com.apple.security.network.server - For binding to sockets
+        # com.apple.security.network.client - For outbound connections
+        # com.apple.developer.system-extension.install - For system extensions
+        # ===
+
         log_success "User '$current_user' added to group '$groupname'"
     else
         log_warn "Could not determine current user or user is root - skipping group membership"
