@@ -160,7 +160,7 @@ cleanup_system_directories() {
 
     local directories=(
         "/var/run/gnosis_vpn"
-        "/var/lib/gnosis_vpn"
+        # "/var/lib/gnosis_vpn" # should not remove the identity store
         "/var/log/gnosis_vpn"
     )
 
