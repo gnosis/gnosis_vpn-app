@@ -114,10 +114,10 @@ environment variables. This allows you to include:
 
 ```bash
 # GitHub Release URL for VPN client binaries
-export GITHUB_CLIENT_RELEASE_URL="https://github.com/gnosis/gnosis_vpn-client/releases/tag/v0.50.0"
+export GITHUB_CLIENT_RELEASE_URL="https://github.com/gnosis/gnosis_vpn-client/releases/tag/v0.50.1"
 
 # Optional: Separate GitHub Release URL for UI app (if in different repository)
-export GITHUB_UI_RELEASE_URL="https://github.com/gnosis/gnosis_vpn-app/releases/tag/v0.1.3"
+export GITHUB_UI_RELEASE_URL="https://github.com/gnosis/gnosis_vpn-app/releases/tag/v0.2.1"
 ```
 
 **Binary Names**: The installer expects these binaries in the GitHub release:
@@ -133,10 +133,10 @@ export GITHUB_UI_RELEASE_URL="https://github.com/gnosis/gnosis_vpn-app/releases/
 
 ```bash
 # Set GitHub release URL for VPN client binaries
-export GITHUB_CLIENT_RELEASE_URL="https://github.com/gnosis/gnosis_vpn-client/releases/tag/v0.50.0"
+export GITHUB_CLIENT_RELEASE_URL="https://github.com/gnosis/gnosis_vpn-client/releases/tag/v0.50.1"
 
 # Optional: Set separate UI release URL if UI is in different repository
-export GITHUB_UI_RELEASE_URL="https://github.com/gnosis/gnosis_vpn-app/releases/tag/v0.1.3"
+export GITHUB_UI_RELEASE_URL="https://github.com/gnosis/gnosis_vpn-app/releases/tag/v0.2.1"
 cd installer
 ./build-pkg.sh latest
 ```
@@ -148,7 +148,7 @@ examples.
 
 If environment variables are not set, the installer falls back to downloading
 from the configured GitHub repository (`gnosis/gnosis_vpn-client`). The fallback
-uses version `v0.50.0` if the latest version cannot be determined from the
+uses version `v0.50.1` if the latest version cannot be determined from the
 repository's LATEST file.
 
 ## Incremental Updates
@@ -401,7 +401,7 @@ Verify checksum: \`\`\`bash shasum -a 256 GnosisVPN-Installer-1.0.0-signed.pkg
 
 - Check internet connection during PKG build
 - Verify GitHub releases are accessible
-- Try specifying a specific version: `./build-pkg.sh v0.50.0`
+- Try specifying a specific version: `./build-pkg.sh v0.50.1`
 
 **"Checksum verification failed"**
 
@@ -564,8 +564,8 @@ The installer creates dedicated system credentials for enhanced security:
 
 - **System User**: `gnosisvpn` (UID: 200-499 range)
   - Hidden from login window and Users & Groups preferences
-  - Home directory: `/var/lib/gnosisvpn`
-  - Shell: `/usr/bin/false` (no interactive login)
+  - Home directory: `/var/lib/gnosis_vpn`
+  - Shell: `/bin/bash` (no interactive login)
   - Used to run the VPN service with minimal privileges
 
 - **System Group**: `gnosisvpn` (GID: 200-499 range)
@@ -577,7 +577,7 @@ The installer creates dedicated system credentials for enhanced security:
   - Configuration files: `root:gnosisvpn` with group read access
   - Binaries: `root:gnosisvpn` with group execute access
   - Log directories: `gnosisvpn:gnosisvpn` for service logging
-  - Runtime directories: `/var/run/gnosisvpn`, `/var/lib/gnosisvpn`
+  - Runtime directories: `/var/run/gnosis_vpn`, `/var/lib/gnosis_vpn`
 
 This eliminates the need to run the service as root and provides controlled
 access for regular users.

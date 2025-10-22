@@ -27,7 +27,7 @@ COMPONENT_PKG="GnosisVPN.pkg"
 # Binary URL environment variables
 # GitHub release URL - installer will construct binary URLs automatically
 GITHUB_CLIENT_RELEASE_URL="${GITHUB_CLIENT_RELEASE_URL:-}"
-GITHUB_UI_RELEASE_URL="${GITHUB_UI_RELEASE_URL:-https://github.com/gnosis/gnosis_vpn-app/releases/tag/v0.1.3}"
+GITHUB_UI_RELEASE_URL="${GITHUB_UI_RELEASE_URL:-https://github.com/gnosis/gnosis_vpn-app/releases/tag/v0.2.1}"
 
 # Binary names (can be customized if needed)
 VPN_SERVICE_BINARY_NAME="${VPN_SERVICE_BINARY_NAME:-gnosis_vpn}"
@@ -41,7 +41,7 @@ ARM_PLATFORM="${ARM_PLATFORM:-aarch64-darwin}"
 # Fallback GitHub release config (for backward compatibility)
 REPO_OWNER="gnosis"
 REPO_NAME="gnosis_vpn-client"
-FALLBACK_VERSION="v0.50.0"
+FALLBACK_VERSION="v0.50.1"
 LATEST_URL="https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/LATEST"
 RELEASE_BASE_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download"
 
@@ -973,7 +973,7 @@ print_summary() {
     echo ""
     echo "Environment Variables Usage:"
     echo "  export GITHUB_CLIENT_RELEASE_URL='https://github.com/gnosis/gnosis_vpn-client/releases/tag/v0.50.0'"
-    echo "  export GITHUB_UI_RELEASE_URL='https://github.com/gnosis/gnosis_vpn-app/releases/tag/v0.1.3'  # default: v0.1.3"
+    echo "  export GITHUB_UI_RELEASE_URL='https://github.com/gnosis/gnosis_vpn-app/releases/tag/v0.2.1'  # default: v0.2.1"
     echo "  ./build-pkg.sh latest"
     echo ""
     echo "Binary names expected in release:"

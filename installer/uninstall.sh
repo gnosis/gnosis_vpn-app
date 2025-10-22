@@ -159,8 +159,8 @@ cleanup_system_directories() {
     log_info "Cleaning up system directories..."
 
     local directories=(
-        "/var/run/gnosisvpn"
-        "/var/lib/gnosisvpn"
+        "/var/run/gnosis_vpn"
+        "/var/lib/gnosis_vpn"
         "/var/log/gnosis_vpn"
     )
 
@@ -416,7 +416,7 @@ verify_uninstall() {
     fi
 
     # Check system directories removal
-    local system_dirs=("/var/run/gnosisvpn" "/var/lib/gnosisvpn" "/var/log/gnosis_vpn")
+    local system_dirs=("/var/run/gnosis_vpn" "/var/lib/gnosis_vpn" "/var/log/gnosis_vpn")
     for dir in "${system_dirs[@]}"; do
         if [[ -d $dir ]]; then
             log_error "System directory still exists: $dir"
@@ -453,7 +453,7 @@ print_summary() {
     echo "  ✓ Launchd service"
     echo "  ✓ System user and group (gnosisvpn)"
     echo "  ✓ Sudo privileges configuration"
-    echo "  ✓ System directories (/var/lib/gnosisvpn, /var/run/gnosisvpn)"
+    echo "  ✓ System directories (/var/lib/gnosis_vpn, /var/run/gnosis_vpn)"
     echo "  ✓ Configuration (backed up to ~/gnosis-vpn-config-backup-*)"
     echo "  ✓ Service logs"
     echo "  ✓ Installation logs"

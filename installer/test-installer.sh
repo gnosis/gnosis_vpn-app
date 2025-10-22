@@ -149,7 +149,7 @@ test_plist_configuration() {
     run_test "plist references correct config" "grep -q '/etc/gnosisvpn/config.toml' '$plist_file'"
     run_test "plist uses system user" "grep -A1 '<key>UserName</key>' '$plist_file' | grep -q '<string>gnosisvpn</string>'"
     run_test "plist uses system group" "grep -A1 '<key>GroupName</key>' '$plist_file' | grep -q '<string>gnosisvpn</string>'"
-    run_test "plist uses correct working directory" "grep -A1 '<key>WorkingDirectory</key>' '$plist_file' | grep -q '<string>/var/lib/gnosisvpn</string>'"
+    run_test "plist uses correct working directory" "grep -A1 '<key>WorkingDirectory</key>' '$plist_file' | grep -q '<string>/var/lib/gnosis_vpn</string>'"
 
     echo ""
 }

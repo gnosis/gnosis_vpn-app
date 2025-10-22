@@ -284,7 +284,7 @@ create_system_user() {
     
     local username="gnosisvpn"
     local fullname="Gnosis VPN Service"
-    local homedir="/var/lib/gnosisvpn"
+    local homedir="/var/lib/gnosis_vpn"
     local shell="/bin/bash"
     
     # Find next available system UID (typically 200-499 range for system users)
@@ -465,10 +465,10 @@ configure_plist() {
         sed -i '' '/<key>GroupName<\/key>/{N;s|<string>.*</string>|<string>gnosisvpn</string>|;}' "$target_plist"
         
         # Update WorkingDirectory to use system user's state directory
-        sed -i '' '/<key>WorkingDirectory<\/key>/{N;s|<string>.*</string>|<string>/var/lib/gnosisvpn</string>|;}' "$target_plist"
+        sed -i '' '/<key>WorkingDirectory<\/key>/{N;s|<string>.*</string>|<string>/var/lib/gnosis_vpn</string>|;}' "$target_plist"
         
         log_success "Plist configured to run as user 'gnosisvpn' with group 'gnosisvpn'"
-        log_info "Working directory set to: /var/lib/gnosisvpn"
+        log_info "Working directory set to: /var/lib/gnosis_vpn"
     else
         log_warn "System user 'gnosisvpn' not found, configuring plist to use root"
         
@@ -538,14 +538,14 @@ setup_user_permissions() {
     fi
 
     # Create and set permissions for runtime directory
-    local runtime_dir="/var/run/gnosisvpn"
+    local runtime_dir="/var/run/gnosis_vpn"
     mkdir -p "$runtime_dir"
     chown $username:$groupname "$runtime_dir"
     chmod 755 "$runtime_dir"
     log_info "Runtime directory created: $runtime_dir"
     
     # Create and set permissions for state directory
-    local state_dir="/var/lib/gnosisvpn"
+    local state_dir="/var/lib/gnosis_vpn"
     mkdir -p "$state_dir"
     chown $username:$groupname "$state_dir"
     chmod 750 "$state_dir"
@@ -759,8 +759,8 @@ verify_plist_deployment() {
         local plist_workdir
         plist_workdir=$(grep -A1 "<key>WorkingDirectory</key>" "$plist_path" | grep "<string>" | sed 's/.*<string>\(.*\)<\/string>.*/\1/')
         
-        if [[ "$plist_workdir" == "/var/lib/gnosisvpn" ]]; then
-            log_success "Plist working directory correctly set to: /var/lib/gnosisvpn"
+        if [[ "$plist_workdir" == "/var/lib/gnosis_vpn" ]]; then
+            log_success "Plist working directory correctly set to: /var/lib/gnosis_vpn"
         else
             log_warn "Plist working directory set to: $plist_workdir"
         fi
