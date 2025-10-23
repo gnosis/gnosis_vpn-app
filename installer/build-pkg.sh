@@ -196,10 +196,10 @@ prepare_build_dir() {
 
     # Copy sartifacts needed by the application
     if [[ -d "$RESOURCES_DIR/artifacts/" ]]; then
-        mkdir -p "BUILD_DIR/root/usr/local/bin/"
+        mkdir -p "$BUILD_DIR/root/usr/local/bin/"
 
         arch=$(uname -m)
-        if [ arch = "arm64" ]; then
+        if [ "$arch" = "arm64" ]; then
             cp "$RESOURCES_DIR/artifacts/wg-aarch64-darwin" "$BUILD_DIR/root/usr/local/bin/wg"
             log_info "Copying over aarch64 wireguard binary"
         else
@@ -650,7 +650,7 @@ embed_binaries() {
     chmod 700 "$tmp_dir"
 
     # Ensure cleanup on exit
-    trap 'rm -rf "$tmp_dir"' EXIT
+    trap 'if [[ -n "${tmp_dir:-}" ]]; then rm -rf "$tmp_dir"; fi' EXIT
 
     # Check if GitHub release URL is provided
     if [[ -n $GITHUB_CLIENT_RELEASE_URL ]]; then
@@ -836,6 +836,11 @@ embed_binaries() {
 
     # Cleanup handled by trap
     log_success "Binaries embedded"
+
+    # Reset trap and cleanup temp directory
+    trap - EXIT
+    rm -rf "$tmp_dir"
+
     echo ""
 }
 
