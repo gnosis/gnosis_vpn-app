@@ -17,3 +17,6 @@ path = { intermediates = ["0x2Cf9E5951C9e60e01b579f654dF447087468fc04"] }
 [destinations.0x9454fc1F54DC7682124BA2d153345f4F6b404A79]
 meta = { location = "India" }
 path = { intermediates = [ "0x652cDe234ec643De0E70Fb3a4415345D42bAc7B2" ] }
+
+[connection.buffer]
+main = "10 MB"
