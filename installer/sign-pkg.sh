@@ -22,6 +22,7 @@ set -euo pipefail
 
 # Configuration
 PKG_FILE="${1:-}"
+SIGNED_PKG_FILE="${PKG_FILE%.pkg}-signed.pkg"
 NOTARIZE="${2:-}"
 SIGNING_IDENTITY="${SIGNING_IDENTITY:-Developer ID Installer}"
 SIGNING_KEYCHAIN="${SIGNING_KEYCHAIN:-$HOME/Library/Keychains/login.keychain-db}"
@@ -195,7 +196,9 @@ notarize_package() {
             log_success "Notarization successful"
             echo ""
         else
-            log_error "Notarization failed"
+            local exit_code=$?
+            log_error "Notarization failed with exit code: $exit_code"
+            log_info "Run with verbose output to see detailed error information"
             exit 1
         fi
     else
@@ -207,10 +210,13 @@ notarize_package() {
             log_success "Notarization successful"
             echo ""
         else
-            log_error "Notarization failed"
+            local exit_code=$?
+            log_error "Notarization failed with exit code: $exit_code"
             log_info "To create a keychain profile, run:"
             log_info "  xcrun notarytool store-credentials $keychain_profile --apple-id $APPLE_ID --team-id $TEAM_ID --password"
             log_info "Or set APP_SPECIFIC_PASSWORD environment variable to use direct password authentication"
+            log_info "To check notarization logs manually, run:"
+            log_info "  xcrun notarytool history --apple-id $APPLE_ID --team-id $TEAM_ID --keychain-profile $keychain_profile"
             exit 1
         fi
     fi
@@ -220,11 +226,15 @@ notarize_package() {
 staple_ticket() {
     log_info "Stapling notarization ticket to package..."
 
-    if xcrun stapler staple "$PKG_FILE"; then
+    if xcrun stapler staple "$SIGNED_PKG_FILE" -v; then
         log_success "Notarization ticket stapled successfully"
         echo ""
     else
-        log_warn "Failed to staple ticket (package is still valid, but requires internet for verification)"
+        local exit_code=$?
+        log_warn "Failed to staple ticket (exit code: $exit_code)"
+        log_warn "Package is still valid, but requires internet for verification"
+        log_info "To check stapler status manually, run:"
+        log_info "  xcrun stapler validate '$SIGNED_PKG_FILE'"
         echo ""
     fi
 }
