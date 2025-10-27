@@ -68,11 +68,16 @@ Environment variables:
     SIGNING_KEYCHAIN    Keychain to search for signing identity (default: login.keychain-db)
     APPLE_ID            Apple ID for notarization
     TEAM_ID             Apple Developer Team ID
-    KEYCHAIN_PROFILE    Keychain profile name for notarization credentials
+    KEYCHAIN_PROFILE    Keychain profile name for notarization credentials (default: AC_PASSWORD)
+    APP_SPECIFIC_PASSWORD  App-specific password (alternative to keychain profile)
 
 Example:
     export SIGNING_IDENTITY="Developer ID Installer: Your Name (TEAM123)"
     export SIGNING_KEYCHAIN="$HOME/Library/Keychains/login.keychain-db"
+    $0 build/GnosisVPN-Installer-1.0.0.pkg --notarize
+
+    # Alternative with app-specific password:
+    export APP_SPECIFIC_PASSWORD="your-app-specific-password"
     $0 build/GnosisVPN-Installer-1.0.0.pkg --notarize
 
 EOF
@@ -179,19 +184,35 @@ notarize_package() {
     # Submit for notarization
     log_info "Submitting to Apple (this may take several minutes)..."
 
-    if xcrun notarytool submit "$PKG_FILE" \
-        --apple-id "$APPLE_ID" \
-        --team-id "$TEAM_ID" \
-        --keychain-profile "$keychain_profile" \
-        --wait; then
-
-        log_success "Notarization successful"
-        echo ""
+    # Try with keychain profile first, fall back to password if APP_SPECIFIC_PASSWORD is set
+    if [[ -n ${APP_SPECIFIC_PASSWORD:-} ]]; then
+        log_info "Using app-specific password instead of keychain profile"
+        if xcrun notarytool submit "$PKG_FILE" \
+            --apple-id "$APPLE_ID" \
+            --team-id "$TEAM_ID" \
+            --password "$APP_SPECIFIC_PASSWORD" \
+            --wait; then
+            log_success "Notarization successful"
+            echo ""
+        else
+            log_error "Notarization failed"
+            exit 1
+        fi
     else
-        log_error "Notarization failed"
-        log_info "Check the notarization log for details:"
-        log_info "  xcrun notarytool log <submission-id> --keychain-profile $keychain_profile"
-        exit 1
+        if xcrun notarytool submit "$PKG_FILE" \
+            --apple-id "$APPLE_ID" \
+            --team-id "$TEAM_ID" \
+            --keychain-profile "$keychain_profile" \
+            --wait; then
+            log_success "Notarization successful"
+            echo ""
+        else
+            log_error "Notarization failed"
+            log_info "To create a keychain profile, run:"
+            log_info "  xcrun notarytool store-credentials $keychain_profile --apple-id $APPLE_ID --team-id $TEAM_ID --password"
+            log_info "Or set APP_SPECIFIC_PASSWORD environment variable to use direct password authentication"
+            exit 1
+        fi
     fi
 }
 
