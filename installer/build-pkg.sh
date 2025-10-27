@@ -1038,9 +1038,11 @@ run_lint_checks() {
 
     # Check for hardcoded paths
     if grep -r "/usr/local/bin" "$RESOURCES_DIR/scripts/" >/dev/null 2>&1; then
+        # shellcheck disable=SC2016  # We want the literal string $BIN_DIR, not variable expansion
         if grep -r '$BIN_DIR' "$RESOURCES_DIR/scripts/" >/dev/null 2>&1; then
             log_success "✓ Scripts use BIN_DIR variable instead of hardcoded paths"
         else
+            # shellcheck disable=SC2016  # We want the literal string $BIN_DIR, not variable expansion
             log_warn '⚠ Found hardcoded /usr/local/bin paths, consider using $BIN_DIR variable'
             warnings=$((warnings + 1))
         fi
