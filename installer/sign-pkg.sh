@@ -24,6 +24,7 @@ set -euo pipefail
 PKG_FILE="${1:-}"
 NOTARIZE="${2:-}"
 SIGNING_IDENTITY="${SIGNING_IDENTITY:-Developer ID Installer}"
+SIGNING_KEYCHAIN="${SIGNING_KEYCHAIN:-$HOME/Library/Keychains/login.keychain-db}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -64,12 +65,14 @@ Options:
 
 Environment variables:
     SIGNING_IDENTITY    Developer ID certificate name (default: "Developer ID Installer")
+    SIGNING_KEYCHAIN    Keychain to search for signing identity (default: login.keychain-db)
     APPLE_ID            Apple ID for notarization
     TEAM_ID             Apple Developer Team ID
     KEYCHAIN_PROFILE    Keychain profile name for notarization credentials
 
 Example:
     export SIGNING_IDENTITY="Developer ID Installer: Your Name (TEAM123)"
+    export SIGNING_KEYCHAIN="$HOME/Library/Keychains/login.keychain-db"
     $0 build/GnosisVPN-Installer-1.0.0.pkg --notarize
 
 EOF
@@ -95,17 +98,18 @@ validate_input() {
 check_certificate() {
     log_info "Checking for signing certificate..."
 
-    # List available installer certificates
+    # List available installer certificates in the specified keychain
     local certs
-    if certs=$(security find-identity -v -p basic | grep "Developer ID Installer"); then
-        log_success "Found signing certificates:"
+    if certs=$(security find-identity -v -p basic "$SIGNING_KEYCHAIN" | grep "Developer ID Installer"); then
+        log_success "Found signing certificates in $SIGNING_KEYCHAIN:"
         echo "$certs"
         echo ""
     else
-        log_error "No Developer ID Installer certificate found in keychain"
+        log_error "No Developer ID Installer certificate found in keychain: $SIGNING_KEYCHAIN"
         log_info "To install a certificate:"
         log_info "  1. Download your certificate from https://developer.apple.com"
         log_info "  2. Double-click the .cer file to install it in Keychain Access"
+        log_info "  3. Or import a .p12 with private key using: security import /path/to/cert.p12 -k $SIGNING_KEYCHAIN"
         exit 1
     fi
 }
@@ -118,6 +122,7 @@ sign_package() {
 
     if productsign \
         --sign "$SIGNING_IDENTITY" \
+        --keychain "$SIGNING_KEYCHAIN" \
         "$PKG_FILE" \
         "$signed_pkg"; then
 
