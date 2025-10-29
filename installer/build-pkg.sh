@@ -198,14 +198,12 @@ prepare_build_dir() {
     if [[ -d "$RESOURCES_DIR/artifacts/" ]]; then
         mkdir -p "$BUILD_DIR/root/usr/local/bin/"
 
-        arch=$(uname -m)
-        if [ "$arch" = "arm64" ]; then
-            cp "$RESOURCES_DIR/artifacts/wg-aarch64-darwin" "$BUILD_DIR/root/usr/local/bin/wg"
-            log_info "Copying over aarch64 wireguard binary"
-        else
-            cp "$RESOURCES_DIR/artifacts/wg-x86_64-darwin" "$BUILD_DIR/root/usr/local/bin/wg"
-            log_info "Copying over x86_64 wireguard binary"
-        fi
+        log_info "Creating universal binary for the 'wg'..."
+        lipo -create -output "$BUILD_DIR/root/usr/local/bin/wg" \
+            "$RESOURCES_DIR/artifacts/wg-x86_64-darwin" "$RESOURCES_DIR/artifacts/wg-aarch64-darwin"
+        chmod 755 "$BUILD_DIR/root/usr/local/bin/wg"
+
+        # TODO: add signing of the wg binary by the `Developer ID Application` certificate
 
         cp "$RESOURCES_DIR/artifacts/wg-quick" "$BUILD_DIR/root/usr/local/bin/" || true
         log_success "Artifacts copied"
