@@ -50,7 +50,7 @@
     <!-- Rotsee network sub-choice -->
     <choice id="rotsee"
             title="Rotsee Network (Recommended)"
-            description="Connect to VPN nodes on Rotsee network - USA (Iowa), UK (London)">
+            description="Connect to VPN nodes on Rotsee network - US, UK">
     </choice>
 
     <!-- Dufour network sub-choice -->

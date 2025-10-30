@@ -262,8 +262,8 @@ resources/config/
 During installation, users can choose between:
 
 - **Rotsee Network** - Default (Recommended)
-  - USA (Iowa)
-  - UK (London)
+  - USA
+  - UK
 
 - **Dufour Network**
   - Germany

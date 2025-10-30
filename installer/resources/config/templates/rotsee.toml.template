@@ -12,6 +12,3 @@ path = { hops = 0 }
 meta = { location = "UK", city = "London" }
 path = { intermediates = [ "0xc00B7d90463394eC29a080393fF09A2ED82a0F86" ] }
 # path = { hops = 0 }
-
-[connection.buffer]
-main = "10 MB"

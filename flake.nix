@@ -49,6 +49,17 @@
 
           craneLib = crane.mkLib pkgs;
 
+          generate-lockfile = {
+            type = "app";
+            program = toString (
+              pkgs.writeShellScript "generate-lockfile" ''
+                export PATH="${craneLib.rustc}/bin:$PATH"
+                exec cargo generate-lockfile "$@"
+              ''
+            );
+            meta.description = "Generate Cargo.lock with minimal dependencies (Rust toolchain only)";
+          };
+
           treefmt = {
             projectRootFile = "LICENSE";
 
@@ -154,6 +165,11 @@
               ]
             );
           };
+
+          apps = {
+            inherit generate-lockfile;
+          };
+
           treefmt = treefmt;
         };
     };

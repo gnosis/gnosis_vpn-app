@@ -1,0 +1,170 @@
+#################################################################################
+# Pipeline to build binaries
+#################################################################################
+name: Create binaries
+on:
+  workflow_call:
+    inputs:
+      branch:
+        required: true
+        type: string
+      architecture:
+        required: true
+        type: string
+      version_type:
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      architecture:
+        type: choice
+        options:
+          - aarch64-darwin
+          - x86_64-darwin
+          - universal-darwin
+        required: true
+        description: "Architecture to build for"
+concurrency:
+  group: ${{ github.ref }}-build-binary-${{ inputs.architecture }}
+  cancel-in-progress: true
+jobs:
+  binary:
+    if: >-
+      github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action != 'closed' && contains(github.event.pull_request.labels.*.name, format('binary:{0}', inputs.architecture))) || (github.event_name == 'pull_request' && github.event.pull_request.merged)
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - name: Set environment variables
+        id: vars
+        run: |
+          declare branch architecture publish_type
+          if [[ "${{ inputs.branch }}" != "" ]]; then
+            echo "The workflow is triggered by other pipeline"
+            # It can be triggered by the build, merge or release pipelines
+            branch=${{ inputs.branch }}
+            architecture=${{ inputs.architecture }}
+          else
+            echo "The workflow is triggered manually"
+            branch=${{ github.ref_name }}
+            architecture=${{ github.event.inputs.architecture }}
+          fi
+          tauri_args="${architecture/-darwin/}-apple-darwin"
+          rust_toolchain_target="${tauri_args/universal-/x86_64-}"
+          echo "Invocation parameters:"
+          echo "branch=${branch}" | tee -a $GITHUB_OUTPUT
+          echo "architecture=${architecture}" | tee -a $GITHUB_OUTPUT
+          echo "rust_toolchain_target=${rust_toolchain_target}" | tee -a $GITHUB_OUTPUT
+          echo "tauri_args=${tauri_args}" | tee -a $GITHUB_OUTPUT
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ steps.vars.outputs.branch }}
+      - name: Get PR labels
+        id: pr-labels
+        uses: joerick/pr-labels-action@0543b277721e852d821c6738d449f2f4dea03d5f # v1.0.9
+      - name: Install Rust toolchain (stable) + targets
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ steps.vars.outputs.rust_toolchain_target }}
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+      - name: Use Nix Cache
+        uses: cachix/cachix-action@v16
+        with:
+          name: gnosis-vpn-app
+          authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
+        env:
+          USER: runner
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            ./src-tauri -> target
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Install frontend dependencies
+        run: deno install
+      - name: Get version
+        if: inputs.version_type != ''
+        id: version
+        run: |
+          base_version=$(grep -E '^version\s*=' src-tauri/Cargo.toml | awk -F\" '{print $2}')
+          if [[ "${{ inputs.version_type }}" == "commit" ]]; then
+            bump_version=${base_version}+commit.$(git rev-parse --short HEAD)
+            echo "binary_version=${bump_version}" | tee -a $GITHUB_OUTPUT
+            if [ "${GITHUB_PR_LABEL_PUBLISH_COMMITS:-0}" == '1' ]; then
+              echo "publish_type=artifact-registry" | tee -a $GITHUB_OUTPUT
+            else
+              echo "publish_type=workflow" | tee -a $GITHUB_OUTPUT
+            fi
+          elif [[ "${{ inputs.version_type }}" == "pr" ]]; then
+            bump_version=${base_version}+pr.${{ github.event.pull_request.number }}
+            echo "binary_version=${bump_version}" | tee -a $GITHUB_OUTPUT
+            echo "publish_type=artifact-registry" | tee -a $GITHUB_OUTPUT
+          elif [[ "${{ inputs.version_type }}" == "release" ]]; then
+            bump_version=${base_version}
+            echo "binary_version=${bump_version}" | tee -a $GITHUB_OUTPUT
+            echo "publish_type=github" | tee -a $GITHUB_OUTPUT
+          else
+            echo "Invoked with unknown version_type (workflow dispatch), defaulting to commit-based versioning"
+            echo "binary_version=${base_version}-commit.$(git rev-parse --short HEAD)" | tee -a $GITHUB_OUTPUT
+            echo "publish_type=workflow" | tee -a $GITHUB_OUTPUT
+          fi
+          sed -i.bak -E "s/(^version = \")([0-9]+\.[0-9]+\.[0-9]+)(\")/\1${bump_version}\3/" src-tauri/Cargo.toml
+          nix run .#generate-lockfile
+          rm src-tauri/Cargo.toml.bak
+
+      - name: Import Apple Developer Certificate
+        id: certificate
+        shell: bash
+        env:
+          APPLE_CERTIFICATE_DEVELOPER_P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_DEVELOPER_P12_BASE64 }}
+          APPLE_CERTIFICATE_DEVELOPER_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_DEVELOPER_PASSWORD }}
+        run: |
+          set -euo pipefail
+          set -x
+          echo $APPLE_CERTIFICATE_DEVELOPER_P12_BASE64 | base64 --decode > gnosisvpn-developer.p12
+          keychain_pass=$(openssl rand -base64 24)
+          security create-keychain -p "$keychain_pass" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$keychain_pass" build.keychain
+          security set-keychain-settings -lut 21600 -u build.keychain
+          security import gnosisvpn-developer.p12 -k build.keychain -P "$APPLE_CERTIFICATE_DEVELOPER_PASSWORD" -T /usr/bin/codesign
+          echo "Certificate imported."
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_pass" build.keychain
+          signing_identity=$(security find-identity -v -p codesigning build.keychain | awk -F'"' '{print $2}')
+          echo "Apple signing identity: $signing_identity"
+          echo "signing_identity=${signing_identity}" | tee -a $GITHUB_OUTPUT
+
+      - name: Build tauri release
+        id: build-tauri
+        uses: tauri-apps/tauri-action@action-v0.5.23
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE_DEVELOPER_P12_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_DEVELOPER_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ steps.certificate.outputs.signing_identity }}
+        with:
+          tauriScript: "deno task tauri"
+          args: ${{ steps.vars.outputs.tauri_args }}
+      - name: Publish Artifact registry
+        if: steps.version.outputs.publish_type == 'artifact-registry' || steps.version.outputs.publish_type == 'github'
+        run: |
+          set -x
+          for artifactPath in ${{ steps.build-tauri.outputs.artifactPaths }}; do
+            local filename=$(basename -- "$artifactPath")
+            gcloud artifacts generic upload --location=europe-west3 --repository="rust-binaries" --version=${{ steps.version.outputs.binary_version }} --package=gnosis_vpn-app --source=${artifactPath}
+            if [[ "${{ inputs.version_type }}" == "release" ]]; then
+                shasum -a 256 ${artifactPath} > ${artifactPath}.sha256
+                gcloud artifacts generic upload --location=europe-west3 --repository="rust-binaries" --version=${{ steps.version.outputs.binary_version }} --package=gnosis_vpn-app --source=${artifactPath}.sha256
+            fi
+          done
+      - name: Upload ${{ steps.vars.outputs.architecture }} binaries
+        if: steps.version.outputs.publish_type == 'workflow'
+        uses: actions/upload-artifact@v5
+        with:
+          name: binary-${{ steps.vars.outputs.architecture }}
+          path: |
+            ${{ steps.build-tauri.outputs.artifactPaths }}

@@ -14,6 +14,8 @@
         <string>/etc/gnosisvpn/config.toml</string>
         <string>--hopr-rpc-provider</string>
         <string>https://rpc-provider.hoprnet.org</string>
+        <string>--hopr-network</string>
+        <string>rotsee</string>
     </array>
     
     <!-- Service Behavior -->

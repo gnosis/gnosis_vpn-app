@@ -30,3 +30,17 @@ jobs:
           USER: runner
       - name: Run flake checks
         run: nix flake check
+  build-binaries:
+    strategy:
+      matrix:
+        binary:
+          - architecture: universal-darwin
+          - architecture: aarch64-darwin
+          - architecture: x86_64-darwin
+    name: Binary ${{ matrix.binary.architecture }}
+    uses: ./.github/workflows/build-binaries.yaml
+    with:
+      branch: ${{ github.event.pull_request.head.ref }}
+      architecture: ${{ matrix.binary.architecture }}
+      version_type: "commit"
+    secrets: inherit

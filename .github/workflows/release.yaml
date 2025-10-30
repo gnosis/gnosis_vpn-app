@@ -20,194 +20,110 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  create-release:
-    runs-on: ubuntu-24.04
-    outputs:
-      release_id: ${{ steps.create-release-script.outputs.result }}
-      release_version: ${{ steps.release-version.outputs.release_version }}
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-
-      - name: Setup node
-        uses: actions/setup-node@v6
-        with:
-          node-version: 24
-
-      - name: Get release version from src-tauri/Cargo.toml
-        id: release-version
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          release_version=$(grep -m1 '^version\s*=' src-tauri/Cargo.toml | sed -E 's/.*"([0-9]+\.[0-9]+\.[0-9]+)".*/\1/')
-          if [[ -z "$release_version" ]]; then
-            echo "Could not find version in src-tauri/Cargo.toml" >&2
-            exit 1
-          fi
-          echo "Release version: $release_version"
-          echo "release_version=${release_version}" >> "$GITHUB_OUTPUT"
-
-      - name: Create release via GitHub script
-        id: create-release-script
-        uses: actions/github-script@v8
-        env:
-          RELEASE_VERSION: ${{ steps.release-version.outputs.release_version }}
-        with:
-          script: |
-            const { data } = await github.rest.repos.createRelease({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              tag_name: `v${process.env.RELEASE_VERSION}`,
-              draft: true,
-              prerelease: false,
-              generate_release_notes: true
-            })
-            return data.id
-
-  build-tauri:
-    needs: create-release
-    timeout-minutes: 60
+  build-binaries:
     strategy:
-      fail-fast: false
       matrix:
-        include:
-          - runner: "macos-15"
-            target: "aarch64-apple-darwin"
-            args: "--target aarch64-apple-darwin"
-          - runner: "macos-15"
-            target: "x86_64-apple-darwin"
-            args: "--target x86_64-apple-darwin"
-          - runner: "macos-15"
-            target: "x86_64-apple-darwin"
-            args: "--target universal-apple-darwin"
-
-    runs-on: ${{ matrix.runner }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-
-      - name: Install Rust toolchain (stable) + targets
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
-
-      - name: Rust cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: |
-            ./src-tauri -> target
-
-      - name: Setup Deno
-        uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
-
-      - name: Install frontend dependencies
-        run: deno install
-
-      - name: Import Apple Developer Certificate
-        shell: bash
-        env:
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-        run: |
-          set -euo pipefail
-
-          echo $APPLE_CERTIFICATE | base64 --decode > certificate.p12
-          keychain_pass=$(openssl rand -base64 24)
-          security create-keychain -p "$keychain_pass" build.keychain
-          security default-keychain -s build.keychain
-          security unlock-keychain -p "$keychain_pass" build.keychain
-          security set-keychain-settings -t 3600 -u build.keychain
-          security import certificate.p12 -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_pass" build.keychain
-          security find-identity -v -p codesigning build.keychain
-
-      - name: Verify Certificate
-        id: verify-certificate
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          CERT_INFO=$(security find-identity -v -p codesigning build.keychain)
-          echo "Certificate Info: $CERT_INFO"
-          CERT_ID=$(echo "$CERT_INFO" | awk -F'"' '{print $2}')
-          echo "cert_id=${CERT_ID}" >> $GITHUB_OUTPUT
-          echo "Certificate imported."
-
-      - name: Build tauri release
-        uses: tauri-apps/tauri-action@action-v0.5.23
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ steps.verify-certificate.outputs.cert_id }}
-        with:
-          releaseId: ${{ needs.create-release.outputs.release_id }}
-          tauriScript: "deno task tauri"
-          args: ${{ matrix.args }}
-
-  bump-version:
-    needs: [create-release, build-tauri]
+        binary:
+          - architecture: universal-darwin
+          - architecture: aarch64-darwin
+          - architecture: x86_64-darwin
+    name: Binary ${{ matrix.binary.architecture }}
+    uses: ./.github/workflows/build-binaries.yaml
+    with:
+      branch: main
+      architecture: ${{ matrix.binary.architecture }}
+      version_type: "release"
+    secrets: inherit
+  release:
+    name: Close release
+    needs:
+      - build-binaries
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
-
+      - name: Setup GCP
+        id: gcp
+        uses: hoprnet/hopr-workflows/actions/setup-gcp@master
+        with:
+          google-credentials: ${{ secrets.GCP_SA_GITHUB_ACTIONS }}
+          install-sdk: "true"
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+      - name: Setup environment variables
+        id: environment
+        run: |
+          release_version=$(grep -E '^version\s*=' src-tauri/Cargo.toml | awk -F\" '{print $2}')
+          echo "release_version=${release_version}" | tee -a $GITHUB_OUTPUT
+      - name: Create release and publish binaries
+        run: |
+          architectures=("universal-darwin" "aarch64-darwin" "x86_64-darwin" )
+          mkdir -p binaries
+          echo "Generating release notes"
+          gh release create v${{ steps.environment.outputs.release_version }} --generate-notes
+          echo "Preparing binaries for upload"
+          for architecture in "${architectures[@]}"; do
+              echo "Downloading from GCP binary for ${architecture}"
+              gcloud artifacts files download --project=gnosisvpn-production --location=europe-west3 --repository=rust-binaries gnosis_vpn-app:${{ steps.environment.outputs.release_version }}:gnosis_vpn-app-${architecture} --destination=./binaries --local-filename=gnosis_vpn-app-${architecture}
+              echo "Uploading binary for ${architecture}"
+              gh release upload v${{ steps.environment.outputs.release_version }} "$PWD/binaries/gnosis_vpn-app-${architecture}" --clobber
+              echo "Downloading checksum for ${architecture}"
+              gcloud artifacts files download --project=gnosisvpn-production --location=europe-west3 --repository=rust-binaries gnosis_vpn-app:${{ steps.environment.outputs.release_version }}:gnosis_vpn-app-${architecture}.sha256 --destination=./binaries --local-filename=gnosis_vpn-app-${architecture}.sha256
+              echo "Uploading checksum for ${architecture}"
+              gh release upload v${{ steps.environment.outputs.release_version }} "$PWD/binaries/gnosis_vpn-app-${architecture}.sha256" --clobber
+          done
+          echo "Release v${{ steps.environment.outputs.release_version }} created and binaries uploaded"
+        env:
+          GH_TOKEN: ${{ github.token }}
       - name: Bump Version
         id: bump
         shell: bash
         run: |
-          set -euo pipefail
+          current_version=$(grep -E '^version\s*=' src-tauri/Cargo.toml | awk -F\" '{print $2}')
+          # Extract parts without IFS or read
+          IFS='.' read -r major_version minor_version patch_version <<< "${current_version}"
+          echo "Current version $major_version $minor_version $patch_version"
 
-          release_type="${{ github.event.inputs.release_type }}"
-
-          current_version=${{ needs.create-release.outputs.release_version }}
-
-          # split into parts via bash parameter expansion
-          major=${current_version%%.*}
-          rest=${current_version#*.}
-          minor=${rest%%.*}
-          patch=${rest#*.}
-
-          echo "Current version: $current_version (major=$major minor=$minor patch=$patch)"
-          case "$release_type" in
-            major)
-              major=$((major+1)); minor=0; patch=0
-              ;;
-            minor)
-              minor=$((minor+1)); patch=0
-              ;;
-            patch)
-              patch=$((patch+1))
-              ;;
-            *)
-              echo "Invalid release type: $release_type" >&2
-              exit 1
-              ;;
+          # Bump the appropriate part
+          echo "Bumping ${{ inputs.release_type }} version"
+          case "${{ inputs.release_type }}" in
+              major)
+                  major_version=$((major_version+1))
+                  minor_version=0
+                  patch_version=0
+                  ;;
+              minor)
+                  minor_version=$((minor_version+1))
+                  patch_version=0
+                  ;;
+              patch)
+                  patch_version=$((patch_version+1))
+                  ;;
+              *)
+                  echo "Invalid release type"
+                  exit 1
+                  ;;
           esac
+          echo "New version: ${major_version}.${minor_version}.${patch_version}"
 
-          new_version="${major}.${minor}.${patch}"
+          bump_version="${major_version}.${minor_version}.${patch_version}"
+          echo "Updating version from $current_version to $bump_version"
 
-          # Update version in src-tauri/Cargo.toml (only inside [package] section)
+          # Update the version in src-tauri/Cargo.toml
+          # capture group 1: version = "
+          # capture group 2: the version number
+          # capture group 3: "
+          sed -i.bak -E "s/(^version = \")([0-9]+\.[0-9]+\.[0-9]+)(\")/\1${bump_version}\3/" src-tauri/Cargo.toml
+          rm src-tauri/Cargo.toml.bak
+          nix run .#generate-lockfile
           perl -0777 -pe \
-            "s/(\[package\].*?version\\s*=\\s*\")\\d+\\.\\d+\\.\\d+(\"\\b)/\$1${new_version}\$2/s" \
-            -i src-tauri/Cargo.toml
-
-          # Update version in package.json (top-level "version" field)
-          perl -0777 -pe \
-            "s/(\"version\"\\s*:\\s*\")\\d+\\.\\d+\\.\\d+(\"\\b)/\$1${new_version}\$2/s" \
+            "s/(\"version\"\\s*:\\s*\")\\d+\\.\\d+\\.\\d+(\"\\b)/\$1${bump_version}\$2/s" \
             -i package.json
+          echo "bump_version=${bump_version}" | tee -a $GITHUB_OUTPUT
 
-          echo "New version: $new_version"
-          echo "bump_version=${new_version}" >> "$GITHUB_OUTPUT"
-
-      - name: Commit bumped versions
-        uses: EndBug/add-and-commit@v9
+      - uses: EndBug/add-and-commit@v9
         with:
-          add: '["src-tauri/Cargo.*", "package.json" ]'
+          add: '["src-tauri/Cargo.*", "package.json"]'
           new_branch: main
           message: "Bump to version ${{ steps.bump.outputs.bump_version }}"
           pathspec_error_handling: exitImmediately

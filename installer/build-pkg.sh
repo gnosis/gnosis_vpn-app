@@ -27,7 +27,7 @@ COMPONENT_PKG="GnosisVPN.pkg"
 # Binary URL environment variables
 # GitHub release URL - installer will construct binary URLs automatically
 GITHUB_CLIENT_RELEASE_URL="${GITHUB_CLIENT_RELEASE_URL:-}"
-GITHUB_UI_RELEASE_URL="${GITHUB_UI_RELEASE_URL:-https://github.com/gnosis/gnosis_vpn-app/releases/tag/v0.2.1}"
+GITHUB_UI_RELEASE_URL="${GITHUB_UI_RELEASE_URL:-https://github.com/gnosis/gnosis_vpn-app/releases/tag/v0.2.2}"
 
 # Binary names (can be customized if needed)
 VPN_SERVICE_BINARY_NAME="${VPN_SERVICE_BINARY_NAME:-gnosis_vpn}"
@@ -41,9 +41,14 @@ ARM_PLATFORM="${ARM_PLATFORM:-aarch64-darwin}"
 # Fallback GitHub release config (for backward compatibility)
 REPO_OWNER="gnosis"
 REPO_NAME="gnosis_vpn-client"
-FALLBACK_VERSION="v0.50.1"
+FALLBACK_VERSION="v0.50.7"
 LATEST_URL="https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/LATEST"
 RELEASE_BASE_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download"
+
+# Signing binaries and Installer
+APPLE_CERTIFICATE_DEVELOPER_PATH="${APPLE_CERTIFICATE_DEVELOPER_PATH:-gnosisvpn-developer.p12}"
+APPLE_CERTIFICATE_DEVELOPER_PASSWORD="${APPLE_CERTIFICATE_DEVELOPER_PASSWORD:-}"
+
 
 # Colors for output
 RED='\033[0;31m'
@@ -69,6 +74,12 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $*"
 }
 
+# shellcheck disable=SC2317
+cleanup() {
+    security delete-keychain gnosisvpn-binary.keychain >/dev/null 2>&1 || true
+}
+trap 'cleanup' EXIT INT TERM
+
 # Print banner
 print_banner() {
     echo "=========================================="
@@ -85,7 +96,7 @@ check_prerequisites() {
     local missing=0
 
     # Check for required tools
-    for cmd in pkgbuild productbuild curl lipo; do
+    for cmd in pkgbuild productbuild curl lipo openssl; do
         if ! command -v "$cmd" &>/dev/null; then
             log_error "Required tool not found: $cmd"
             missing=$((missing + 1))
@@ -162,6 +173,18 @@ validate_environment() {
         log_info "No GitHub release URL set, will use fallback GitHub releases"
     fi
 
+    if [[ ! -f $APPLE_CERTIFICATE_DEVELOPER_PATH ]] || [[ -z $APPLE_CERTIFICATE_DEVELOPER_PASSWORD ]]; then
+        log_error "Apple Developer certificate or password not set; binaries will not be code-signed"
+        exit 1
+    else
+        if ! command -v openssl pkcs12 -info -in "$APPLE_CERTIFICATE_DEVELOPER_PATH" -passin pass:"$APPLE_CERTIFICATE_DEVELOPER_PASSWORD" -nokeys -nomacver -nodes 2>/dev/null >/dev/null; then
+            log_error "Password for $APPLE_CERTIFICATE_DEVELOPER_PATH certificate is incorrect or certificate file is invalid"
+            exit 1
+        else
+            log_info "Apple Developer certificate detected"
+        fi
+    fi
+
     echo ""
 }
 
@@ -203,7 +226,19 @@ prepare_build_dir() {
             "$RESOURCES_DIR/artifacts/wg-x86_64-darwin" "$RESOURCES_DIR/artifacts/wg-aarch64-darwin"
         chmod 755 "$BUILD_DIR/root/usr/local/bin/wg"
 
-        # TODO: add signing of the wg binary by the `Developer ID Application` certificate
+        # Signing of the wg binary by the `Developer ID Application` certificate
+        local keychain_password
+        keychain_password=$(openssl rand -base64 24)
+        security create-keychain -p "${keychain_password}" gnosisvpn-binary.keychain
+        security default-keychain -s gnosisvpn-binary.keychain
+        security set-keychain-settings -lut 21600 gnosisvpn-binary.keychain
+        security unlock-keychain -p "${keychain_password}" gnosisvpn-binary.keychain
+        security list-keychains -d user -s gnosisvpn-binary.keychain login.keychain
+        security import "${APPLE_CERTIFICATE_DEVELOPER_PATH}" -k gnosisvpn-binary.keychain -P "${APPLE_CERTIFICATE_DEVELOPER_PASSWORD}" -T /usr/bin/codesign
+        security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${keychain_password}" gnosisvpn-binary.keychain
+        CERT_ID=$(security find-identity -v -p codesigning gnosisvpn-binary.keychain | awk -F'"' '{print $2}' | tr -d '\n')
+        codesign --sign "${CERT_ID}" --options runtime --timestamp "$BUILD_DIR/root/usr/local/bin/wg"
+        codesign --verify --deep --strict --verbose=4 "$BUILD_DIR/root/usr/local/bin/wg"
 
         cp "$RESOURCES_DIR/artifacts/wg-quick" "$BUILD_DIR/root/usr/local/bin/" || true
         log_success "Artifacts copied"
@@ -975,8 +1010,8 @@ print_summary() {
     echo "     ./sign-pkg.sh $BUILD_DIR/$PKG_NAME"
     echo ""
     echo "Environment Variables Usage:"
-    echo "  export GITHUB_CLIENT_RELEASE_URL='https://github.com/gnosis/gnosis_vpn-client/releases/tag/v0.50.0'"
-    echo "  export GITHUB_UI_RELEASE_URL='https://github.com/gnosis/gnosis_vpn-app/releases/tag/v0.2.1'  # default: v0.2.1"
+    echo "  export GITHUB_CLIENT_RELEASE_URL='https://github.com/gnosis/gnosis_vpn-client/releases/tag/${FALLBACK_VERSION}'"
+    echo "  export GITHUB_UI_RELEASE_URL='${GITHUB_UI_RELEASE_URL}'"
     echo "  ./build-pkg.sh latest"
     echo ""
     echo "Binary names expected in release:"

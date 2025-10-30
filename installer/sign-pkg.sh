@@ -24,8 +24,8 @@ set -euo pipefail
 PKG_FILE="${1:-}"
 SIGNED_PKG_FILE="${PKG_FILE%.pkg}-signed.pkg"
 NOTARIZE="${2:-}"
-SIGNING_IDENTITY="${SIGNING_IDENTITY:-Developer ID Installer}"
-SIGNING_KEYCHAIN="${SIGNING_KEYCHAIN:-$HOME/Library/Keychains/login.keychain-db}"
+APPLE_CERTIFICATE_INSTALLER_PATH="${APPLE_CERTIFICATE_INSTALLER_PATH:-gnosisvpn-installer.p12}"
+APPLE_CERTIFICATE_INSTALLER_PASSWORD="${APPLE_CERTIFICATE_INSTALLER_PASSWORD:-}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -65,16 +65,16 @@ Options:
     --notarize      Submit for notarization after signing
 
 Environment variables:
-    SIGNING_IDENTITY    Developer ID certificate name (default: "Developer ID Installer")
-    SIGNING_KEYCHAIN    Keychain to search for signing identity (default: login.keychain-db)
+    APPLE_CERTIFICATE_INSTALLER_PATH    Path to the Apple Installer certificate (.p12 file)
+    APPLE_CERTIFICATE_INSTALLER_PASSWORD    Password for the Apple Installer certificate
     APPLE_ID            Apple ID for notarization
     TEAM_ID             Apple Developer Team ID
     KEYCHAIN_PROFILE    Keychain profile name for notarization credentials (default: AC_PASSWORD)
     APP_SPECIFIC_PASSWORD  App-specific password (alternative to keychain profile)
 
 Example:
-    export SIGNING_IDENTITY="Developer ID Installer: Your Name (TEAM123)"
-    export SIGNING_KEYCHAIN="$HOME/Library/Keychains/login.keychain-db"
+    export APPLE_CERTIFICATE_INSTALLER_PATH="path/to/your/certificate.p12"
+    export APPLE_CERTIFICATE_INSTALLER_PASSWORD="your-certificate-password"
     $0 build/GnosisVPN-Installer-1.0.0.pkg --notarize
 
     # Alternative with app-specific password:
@@ -84,6 +84,11 @@ Example:
 EOF
     exit 1
 }
+
+cleanup() {
+    security delete-keychain gnosisvpn-installer.keychain >/dev/null 2>&1 || true
+}
+trap 'cleanup' EXIT INT TERM
 
 # Validate input
 validate_input() {
@@ -102,45 +107,52 @@ validate_input() {
 
 # Check for signing certificate
 check_certificate() {
+    if [[ ! -f $APPLE_CERTIFICATE_INSTALLER_PATH ]] || [[ -z $APPLE_CERTIFICATE_INSTALLER_PASSWORD ]]; then
+        log_error "Apple Installer certificate or password not set; binaries will not be code-signed"
+        exit 1
+    else
+        if ! command -v openssl pkcs12 -info -in "$APPLE_CERTIFICATE_INSTALLER_PATH" -passin pass:"$APPLE_CERTIFICATE_INSTALLER_PASSWORD" -nokeys -nomacver -nodes 2>/dev/null >/dev/null; then
+            log_error "Password for $APPLE_CERTIFICATE_INSTALLER_PATH certificate is incorrect or certificate file is invalid"
+            exit 1
+        else
+            log_info "Apple Installer certificate detected"
+        fi
+    fi
+
+    local keychain_password
+    keychain_password=$(openssl rand -base64 24)
+    security create-keychain -p "${keychain_password}" gnosisvpn-installer.keychain
+    security default-keychain -s gnosisvpn-installer.keychain
+    security set-keychain-settings -lut 21600 gnosisvpn-installer.keychain
+    security unlock-keychain -p "${keychain_password}" gnosisvpn-installer.keychain
+    security import "${APPLE_CERTIFICATE_INSTALLER_PATH}" -k gnosisvpn-installer.keychain -P "${APPLE_CERTIFICATE_INSTALLER_PASSWORD}" -T /usr/bin/productsign -T /usr/bin/xcrun
+    security set-key-partition-list -S apple-tool:,apple:,productsign:,xcrun: -s -k "${keychain_password}" gnosisvpn-installer.keychain
+    local signing_identity=$(security find-identity -v -p basic gnosisvpn-installer.keychain | awk -F'"' '{print $2}')
     log_info "Checking for signing certificate..."
 
     # List available installer certificates in the specified keychain
-    local certs
-    if certs=$(security find-identity -v -p basic "$SIGNING_KEYCHAIN" | grep "Developer ID Installer"); then
-        log_success "Found signing certificates in $SIGNING_KEYCHAIN:"
-        echo "$certs"
+    if echo "${signing_identity}" | grep -q "Developer ID Installer"; then
+        log_success "Found signing certificates in $APPLE_CERTIFICATE_INSTALLER_PATH"
         echo ""
     else
-        log_error "No Developer ID Installer certificate found in keychain: $SIGNING_KEYCHAIN"
-        log_info "To install a certificate:"
-        log_info "  1. Download your certificate from https://developer.apple.com"
-        log_info "  2. Double-click the .cer file to install it in Keychain Access"
-        log_info "  3. Or import a .p12 with private key using: security import /path/to/cert.p12 -k $SIGNING_KEYCHAIN"
+        log_error "No Developer ID Installer certificate found in $APPLE_CERTIFICATE_INSTALLER_PATH"
         exit 1
     fi
 }
 
 # Sign the package
 sign_package() {
-    log_info "Signing package with identity: $SIGNING_IDENTITY"
-
-    local signed_pkg="${PKG_FILE%.pkg}-signed.pkg"
-
-    if productsign \
-        --sign "$SIGNING_IDENTITY" \
-        --keychain "$SIGNING_KEYCHAIN" \
-        "$PKG_FILE" \
-        "$signed_pkg"; then
-
-        log_success "Package signed successfully: $signed_pkg"
+    log_info "Signing package..."
+    local signing_identity=$(security find-identity -v -p basic gnosisvpn-installer.keychain | awk -F'"' '{print $2}')
+    if productsign --sign "$signing_identity" --keychain gnosisvpn-installer.keychain "$PKG_FILE" "$SIGNED_PKG_FILE"; then
+        log_success "Package signed successfully: $SIGNED_PKG_FILE"
         echo ""
 
         # Update PKG_FILE to point to signed version
-        PKG_FILE="$signed_pkg"
+        PKG_FILE="$SIGNED_PKG_FILE"
     else
         log_error "Failed to sign package"
         log_info "Make sure the signing identity is correct:"
-        log_info "  export SIGNING_IDENTITY='Developer ID Installer: Your Name (TEAM_ID)'"
         exit 1
     fi
 }
@@ -226,7 +238,7 @@ notarize_package() {
 staple_ticket() {
     log_info "Stapling notarization ticket to package..."
 
-    if xcrun stapler staple "$SIGNED_PKG_FILE" -v; then
+    if xcrun stapler staple -v "$SIGNED_PKG_FILE"; then
         log_success "Notarization ticket stapled successfully"
         echo ""
     else

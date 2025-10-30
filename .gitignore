@@ -10,3 +10,4 @@ result
 /gnosisvpn-hopr.db
 
 target/
+gcp-sa-*.json
