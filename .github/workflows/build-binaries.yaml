@@ -145,19 +145,15 @@ jobs:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE_DEVELOPER_P12_BASE64 }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_DEVELOPER_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ steps.certificate.outputs.signing_identity }}
-          TAURI_LOG: "debug"            # Enables verbose Tauri logs
-          RUST_BACKTRACE: "1"           # Prints full Rust backtraces if a panic occurs
         with:
           tauriScript: "deno task tauri"
-          #args: ${{ steps.vars.outputs.tauri_args }}
-          args: "--target aarch64-apple-darwin -- --verbose"
-
-      - name: Debugging info
+          args: ${{ steps.vars.outputs.tauri_args }}
+      - name: Debugging bundle_dmg.sh
         if: always()
         run: |
           echo "Build completed with the following artifacts:"
-          ls -la src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/bundle_dmg.sh
-          cat src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/bundle_dmg.sh
+          ls -la src-tauri/target/${architecture/-darwin/}-apple-darwin/release/bundle/dmg/bundle_dmg.sh
+          cat src-tauri/target/${architecture/-darwin/}-apple-darwin/release/bundle/dmg/bundle_dmg.sh
       - name: Publish Artifact registry
         if: steps.version.outputs.publish_type == 'artifact-registry' || steps.version.outputs.publish_type == 'github'
         run: |
