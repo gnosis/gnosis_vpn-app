@@ -150,8 +150,10 @@ jobs:
           args: ${{ steps.vars.outputs.tauri_args }}
       - name: Debugging bundle_dmg.sh
         if: always()
+        continue-on-error: true
         run: |
           echo "Build completed with the following artifacts:"
+          architecture=${{ steps.vars.outputs.architecture }}
           ls -la src-tauri/target/${architecture/-darwin/}-apple-darwin/release/bundle/dmg/bundle_dmg.sh
           cat src-tauri/target/${architecture/-darwin/}-apple-darwin/release/bundle/dmg/bundle_dmg.sh
       - name: Publish Artifact registry
