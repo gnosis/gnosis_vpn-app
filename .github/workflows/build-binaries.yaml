@@ -148,12 +148,17 @@ jobs:
         with:
           tauriScript: "deno task tauri"
           args: ${{ steps.vars.outputs.tauri_args }}
-      - name: Get Binary path
-        id: dmg-path
+      - name: Filter DMG artifact
+        id: dmg
         run: |
-          dmg_path=$(echo "${{ steps.build-tauri.outputs.artifactPaths }}" \
-            | jq -r '.[] | select(endswith(".dmg"))')
-          echo "dmg_path=${dmg_path}" | tee -a $GITHUB_OUTPUT
+          dmg_path=""
+          for path in ${{ steps.build-tauri.outputs.artifactPaths }}; do
+            if [[ "$path" == *.dmg ]]; then
+              dmg_path="$path"
+              break
+            fi
+          done
+          echo "dmg_path=$dmg_path" | tee -a $GITHUB_OUTPUT
       - name: Publish Artifact registry
         if: steps.version.outputs.publish_type == 'artifact-registry' || steps.version.outputs.publish_type == 'github'
         run: |
@@ -171,4 +176,4 @@ jobs:
         uses: actions/upload-artifact@v5
         with:
           name: binary-${{ steps.vars.outputs.architecture }}
-          path: ${{ steps.dmg-path.outputs.dmg_path }}
+          path: ${{ steps.dmg.outputs.dmg_path }}
