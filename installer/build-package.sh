@@ -6,7 +6,6 @@
 # It uses pkgbuild and productbuild to create a standard macOS installer package.
 #
 
-
 set -euo pipefail
 set -x
 
@@ -56,110 +55,110 @@ log_error() {
 
 # Usage help message
 usage() {
-  echo "Usage: $0 --package-version <version> --cli-version <version> --app-version <version> --binary-certificate-path <path> --installer-certificate-path <path> [--sign]"
-  echo
-  echo "Options:"
-  echo "  --package-version <version>  Set the package version (e.g., 1.0.0)"
-  echo "  --cli-version <version>   Set the CLI version (e.g., latest, v0.50.7, 0.50.7-pr.465)"
-  echo "  --app-version <version>   Set the App version (e.g., latest, v0.2.2, 0.2.2-pr.10)"
-  echo "  --binary-certificate-path <path>  Set the path to the certificate for signing binaries"
-  echo "  --installer-certificate-path <path>  Set the path to the certificate for signing the installer"
-  echo "  --sign                    Enable code signing"
-  echo "  -h, --help                Show this help message"
-  exit 1
+    echo "Usage: $0 --package-version <version> --cli-version <version> --app-version <version> --binary-certificate-path <path> --installer-certificate-path <path> [--sign]"
+    echo
+    echo "Options:"
+    echo "  --package-version <version>  Set the package version (e.g., 1.0.0)"
+    echo "  --cli-version <version>   Set the CLI version (e.g., latest, v0.50.7, 0.50.7-pr.465)"
+    echo "  --app-version <version>   Set the App version (e.g., latest, v0.2.2, 0.2.2-pr.10)"
+    echo "  --binary-certificate-path <path>  Set the path to the certificate for signing binaries"
+    echo "  --installer-certificate-path <path>  Set the path to the certificate for signing the installer"
+    echo "  --sign                    Enable code signing"
+    echo "  -h, --help                Show this help message"
+    exit 1
 }
 
 # Parse command-line arguments
 parse_args() {
     while [[ $# -gt 0 ]]; do
-    case "$1" in
+        case "$1" in
         --package-version)
-        PACKAGE_VERSION="${2:-}"
-        if [[ -z "$PACKAGE_VERSION" ]]; then
-            log_error "--package-version requires a value"
-            usage
-        fi
-        shift 2
-        ;;
+            PACKAGE_VERSION="${2:-}"
+            if [[ -z $PACKAGE_VERSION ]]; then
+                log_error "--package-version requires a value"
+                usage
+            fi
+            shift 2
+            ;;
         --cli-version)
-        CLI_VERSION="${2:-}"
-        if [[ -z "$CLI_VERSION" ]]; then
-            log_error "--cli-version requires a value"
-            usage
-        else
-            check_version_syntax "$CLI_VERSION"
-        fi
-        shift 2
-        ;;
+            CLI_VERSION="${2:-}"
+            if [[ -z $CLI_VERSION ]]; then
+                log_error "--cli-version requires a value"
+                usage
+            else
+                check_version_syntax "$CLI_VERSION"
+            fi
+            shift 2
+            ;;
         --app-version)
-        APP_VERSION="${2:-}"
-        if [[ -z "$APP_VERSION" ]]; then
-            log_error "--app-version requires a value"
-            usage
-        else
-            check_version_syntax "$APP_VERSION"
-        fi
-        shift 2
-        ;;
+            APP_VERSION="${2:-}"
+            if [[ -z $APP_VERSION ]]; then
+                log_error "--app-version requires a value"
+                usage
+            else
+                check_version_syntax "$APP_VERSION"
+            fi
+            shift 2
+            ;;
         --sign)
-        SIGN=true
-        shift
-        ;;
+            SIGN=true
+            shift
+            ;;
         --binary-certificate-path)
-        APPLE_CERTIFICATE_DEVELOPER_PATH="${2:-}"
-        if [[ -z "$APPLE_CERTIFICATE_DEVELOPER_PATH" ]]; then
-            log_error "--binary-certificate-path requires a value"
-            usage
-        else
-            if [[ ! -f "$APPLE_CERTIFICATE_DEVELOPER_PATH" ]]; then
-                log_error "Certificate file not found: $APPLE_CERTIFICATE_DEVELOPER_PATH"
-                exit 1
+            APPLE_CERTIFICATE_DEVELOPER_PATH="${2:-}"
+            if [[ -z $APPLE_CERTIFICATE_DEVELOPER_PATH ]]; then
+                log_error "--binary-certificate-path requires a value"
+                usage
+            else
+                if [[ ! -f $APPLE_CERTIFICATE_DEVELOPER_PATH ]]; then
+                    log_error "Certificate file not found: $APPLE_CERTIFICATE_DEVELOPER_PATH"
+                    exit 1
+                fi
             fi
-        fi
-        shift 2
-        ;;
+            shift 2
+            ;;
         --installer-certificate-path)
-        APPLE_CERTIFICATE_INSTALLER_PATH="${2:-}"
-        if [[ -z "$APPLE_CERTIFICATE_INSTALLER_PATH" ]]; then
-            log_error "--installer-certificate-path requires a value"
-            usage
-        else
-            if [[ ! -f "$APPLE_CERTIFICATE_INSTALLER_PATH" ]]; then
-                log_error "Certificate file not found: $APPLE_CERTIFICATE_INSTALLER_PATH"
-                exit 1
+            APPLE_CERTIFICATE_INSTALLER_PATH="${2:-}"
+            if [[ -z $APPLE_CERTIFICATE_INSTALLER_PATH ]]; then
+                log_error "--installer-certificate-path requires a value"
+                usage
+            else
+                if [[ ! -f $APPLE_CERTIFICATE_INSTALLER_PATH ]]; then
+                    log_error "Certificate file not found: $APPLE_CERTIFICATE_INSTALLER_PATH"
+                    exit 1
+                fi
             fi
-        fi
-        shift 2
-        ;;
+            shift 2
+            ;;
 
-        -h|--help)
-        usage
-        ;;
+        -h | --help)
+            usage
+            ;;
         *)
-        echo "Unknown argument: $1" >&2
-        usage
-        ;;
-    esac
+            echo "Unknown argument: $1" >&2
+            usage
+            ;;
+        esac
     done
 
     # Validate required arguments
-    if [[ "$SIGN" == true ]] && [[ -z "$APPLE_CERTIFICATE_DEVELOPER_PATH" ]]; then
-    echo "Error: --binary-certificate-path is required" >&2
-    usage
+    if [[ $SIGN == true ]] && [[ -z $APPLE_CERTIFICATE_DEVELOPER_PATH ]]; then
+        echo "Error: --binary-certificate-path is required" >&2
+        usage
     fi
 
-    if [[ "$SIGN" == true ]] && [[ -z "$APPLE_CERTIFICATE_INSTALLER_PATH" ]]; then
-    echo "Error: --installer-certificate-path is required" >&2
-    usage
+    if [[ $SIGN == true ]] && [[ -z $APPLE_CERTIFICATE_INSTALLER_PATH ]]; then
+        echo "Error: --installer-certificate-path is required" >&2
+        usage
     fi
 
     log_success "Command-line arguments parsed successfully"
 }
 
 # Validate environment variables for signing
-parse_env_vars(){
+parse_env_vars() {
 
-    if [[ "$SIGN" == true ]]; then
+    if [[ $SIGN == true ]]; then
         if [[ -z $APPLE_CERTIFICATE_DEVELOPER_PASSWORD ]]; then
             log_error "Apple Developer certificate password not set in APPLE_CERTIFICATE_DEVELOPER_PASSWORD environment variable"
             exit 1
@@ -206,8 +205,8 @@ print_banner() {
     echo "  Package Version: $PACKAGE_VERSION"
     echo "  Client Version: ${CLI_VERSION}"
     echo "  App Version: ${APP_VERSION}"
-    echo "  Signing: $(if [[ "$SIGN" == true ]]; then echo "Enabled"; else echo "Disabled"; fi)"
-    if [[ "$SIGN" == true ]]; then
+    echo "  Signing: $(if [[ $SIGN == true ]]; then echo "Enabled"; else echo "Disabled"; fi)"
+    if [[ $SIGN == true ]]; then
         echo "APPLE_CERTIFICATE_DEVELOPER_PATH = $APPLE_CERTIFICATE_DEVELOPER_PATH"
         echo "APPLE_CERTIFICATE_INSTALLER_PATH = $APPLE_CERTIFICATE_INSTALLER_PATH"
     fi
@@ -277,7 +276,7 @@ prepare_build_dir() {
         chmod 755 "$BUILD_DIR/root/usr/local/bin/wg"
 
         # Signing of the wg binary by the `Developer ID Application` certificate
-        if [[ "$SIGN" == true ]]; then
+        if [[ $SIGN == true ]]; then
             trap 'cleanup_binary' EXIT INT TERM
             local keychain_password
             keychain_password=$(openssl rand -base64 24)
@@ -456,19 +455,19 @@ embed_binaries() {
     chmod 700 "${BUILD_DIR}/binaries"
 
     gcloud artifacts files download --project=gnosisvpn-production --location=europe-west3 --repository=rust-binaries --destination="${BUILD_DIR}/binaries" \
-    "gnosis_vpn:${CLI_VERSION}:gnosis_vpn-aarch64-darwin" --local-filename=gnosis_vpn-aarch64-darwin &
+        "gnosis_vpn:${CLI_VERSION}:gnosis_vpn-aarch64-darwin" --local-filename=gnosis_vpn-aarch64-darwin &
     local pid1=$!
     gcloud artifacts files download --project=gnosisvpn-production --location=europe-west3 --repository=rust-binaries --destination="${BUILD_DIR}/binaries" \
-    "gnosis_vpn:${CLI_VERSION}:gnosis_vpn-ctl-aarch64-darwin" --local-filename=gnosis_vpn-ctl-aarch64-darwin &
+        "gnosis_vpn:${CLI_VERSION}:gnosis_vpn-ctl-aarch64-darwin" --local-filename=gnosis_vpn-ctl-aarch64-darwin &
     local pid2=$!
     gcloud artifacts files download --project=gnosisvpn-production --location=europe-west3 --repository=rust-binaries --destination="${BUILD_DIR}/binaries" \
-    "gnosis_vpn:${CLI_VERSION}:gnosis_vpn-x86_64-darwin" --local-filename=gnosis_vpn-x86_64-darwin &
+        "gnosis_vpn:${CLI_VERSION}:gnosis_vpn-x86_64-darwin" --local-filename=gnosis_vpn-x86_64-darwin &
     local pid3=$!
     gcloud artifacts files download --project=gnosisvpn-production --location=europe-west3 --repository=rust-binaries --destination="${BUILD_DIR}/binaries" \
-    "gnosis_vpn:${CLI_VERSION}:gnosis_vpn-ctl-x86_64-darwin" --local-filename=gnosis_vpn-ctl-x86_64-darwin &
+        "gnosis_vpn:${CLI_VERSION}:gnosis_vpn-ctl-x86_64-darwin" --local-filename=gnosis_vpn-ctl-x86_64-darwin &
     local pid4=$!
     gcloud artifacts files download --project=gnosisvpn-production --location=europe-west3 --repository=rust-binaries --destination="${BUILD_DIR}/binaries" \
-    "gnosis_vpn-app:${APP_VERSION}:gnosis_vpn-app-universal-darwin" --local-filename=gnosis_vpn-app-universal-darwin &
+        "gnosis_vpn-app:${APP_VERSION}:gnosis_vpn-app-universal-darwin" --local-filename=gnosis_vpn-app-universal-darwin &
     local pid5=$!
 
     # Wait for all downloads to complete
