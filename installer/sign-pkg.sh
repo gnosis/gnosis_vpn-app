@@ -85,6 +85,7 @@ EOF
     exit 1
 }
 
+# shellcheck disable=SC2317
 cleanup() {
     security delete-keychain gnosisvpn-installer.keychain >/dev/null 2>&1 || true
 }
@@ -127,7 +128,8 @@ check_certificate() {
     security unlock-keychain -p "${keychain_password}" gnosisvpn-installer.keychain
     security import "${APPLE_CERTIFICATE_INSTALLER_PATH}" -k gnosisvpn-installer.keychain -P "${APPLE_CERTIFICATE_INSTALLER_PASSWORD}" -T /usr/bin/productsign -T /usr/bin/xcrun
     security set-key-partition-list -S apple-tool:,apple:,productsign:,xcrun: -s -k "${keychain_password}" gnosisvpn-installer.keychain
-    local signing_identity=$(security find-identity -v -p basic gnosisvpn-installer.keychain | awk -F'"' '{print $2}')
+    local signing_identity
+    signing_identity=$(security find-identity -v -p basic gnosisvpn-installer.keychain | awk -F'"' '{print $2}')
     log_info "Checking for signing certificate..."
 
     # List available installer certificates in the specified keychain
@@ -143,7 +145,8 @@ check_certificate() {
 # Sign the package
 sign_package() {
     log_info "Signing package..."
-    local signing_identity=$(security find-identity -v -p basic gnosisvpn-installer.keychain | awk -F'"' '{print $2}')
+    local signing_identity
+    signing_identity=$(security find-identity -v -p basic gnosisvpn-installer.keychain | awk -F'"' '{print $2}')
     if productsign --sign "$signing_identity" --keychain gnosisvpn-installer.keychain "$PKG_FILE" "$SIGNED_PKG_FILE"; then
         log_success "Package signed successfully: $SIGNED_PKG_FILE"
         echo ""
