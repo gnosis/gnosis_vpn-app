@@ -53,7 +53,7 @@
             type = "app";
             program = toString (
               pkgs.writeShellScript "generate-lockfile" ''
-                export PATH="${craneLib.rustc}/bin:$PATH"
+                export PATH="${pkgs.rustc}/bin:${pkgs.cargo}/bin:$PATH"
                 exec cargo generate-lockfile "$@"
               ''
             );
