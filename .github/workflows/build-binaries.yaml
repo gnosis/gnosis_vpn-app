@@ -54,7 +54,7 @@ jobs:
           echo "branch=${branch}" | tee -a $GITHUB_OUTPUT
           echo "architecture=${architecture}" | tee -a $GITHUB_OUTPUT
           echo "rust_toolchain_target=${rust_toolchain_target}" | tee -a $GITHUB_OUTPUT
-          echo "tauri_args=${tauri_args}" | tee -a $GITHUB_OUTPUT
+          echo "tauri_args='--target ${tauri_args}'" | tee -a $GITHUB_OUTPUT
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
