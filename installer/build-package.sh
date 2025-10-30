@@ -455,20 +455,20 @@ embed_binaries() {
     mkdir -p "${BUILD_DIR}/binaries"
     chmod 700 "${BUILD_DIR}/binaries"
 
-    gcloud artifacts files download --project=gnosisvpn-production --location=europe-west3 --repository=rust-binaries --destination=${BUILD_DIR}/binaries \
-    gnosis_vpn:${CLI_VERSION}:gnosis_vpn-aarch64-darwin --local-filename=gnosis_vpn-aarch64-darwin &
+    gcloud artifacts files download --project=gnosisvpn-production --location=europe-west3 --repository=rust-binaries --destination="${BUILD_DIR}/binaries" \
+    "gnosis_vpn:${CLI_VERSION}:gnosis_vpn-aarch64-darwin" --local-filename=gnosis_vpn-aarch64-darwin &
     local pid1=$!
-    gcloud artifacts files download --project=gnosisvpn-production --location=europe-west3 --repository=rust-binaries --destination=${BUILD_DIR}/binaries \
-    gnosis_vpn:${CLI_VERSION}:gnosis_vpn-ctl-aarch64-darwin --local-filename=gnosis_vpn-ctl-aarch64-darwin &
+    gcloud artifacts files download --project=gnosisvpn-production --location=europe-west3 --repository=rust-binaries --destination="${BUILD_DIR}/binaries" \
+    "gnosis_vpn:${CLI_VERSION}:gnosis_vpn-ctl-aarch64-darwin" --local-filename=gnosis_vpn-ctl-aarch64-darwin &
     local pid2=$!
-    gcloud artifacts files download --project=gnosisvpn-production --location=europe-west3 --repository=rust-binaries --destination=${BUILD_DIR}/binaries \
-    gnosis_vpn:${CLI_VERSION}:gnosis_vpn-x86_64-darwin --local-filename=gnosis_vpn-x86_64-darwin &
+    gcloud artifacts files download --project=gnosisvpn-production --location=europe-west3 --repository=rust-binaries --destination="${BUILD_DIR}/binaries" \
+    "gnosis_vpn:${CLI_VERSION}:gnosis_vpn-x86_64-darwin" --local-filename=gnosis_vpn-x86_64-darwin &
     local pid3=$!
-    gcloud artifacts files download --project=gnosisvpn-production --location=europe-west3 --repository=rust-binaries --destination=${BUILD_DIR}/binaries \
-    gnosis_vpn:${CLI_VERSION}:gnosis_vpn-ctl-x86_64-darwin --local-filename=gnosis_vpn-ctl-x86_64-darwin &
+    gcloud artifacts files download --project=gnosisvpn-production --location=europe-west3 --repository=rust-binaries --destination="${BUILD_DIR}/binaries" \
+    "gnosis_vpn:${CLI_VERSION}:gnosis_vpn-ctl-x86_64-darwin" --local-filename=gnosis_vpn-ctl-x86_64-darwin &
     local pid4=$!
-    gcloud artifacts files download --project=gnosisvpn-production --location=europe-west3 --repository=rust-binaries --destination=${BUILD_DIR}/binaries \
-    gnosis_vpn-app:${APP_VERSION}:gnosis_vpn-app-universal-darwin --local-filename=gnosis_vpn-app-universal-darwin &
+    gcloud artifacts files download --project=gnosisvpn-production --location=europe-west3 --repository=rust-binaries --destination="${BUILD_DIR}/binaries" \
+    "gnosis_vpn-app:${APP_VERSION}:gnosis_vpn-app-universal-darwin" --local-filename=gnosis_vpn-app-universal-darwin &
     local pid5=$!
 
     # Wait for all downloads to complete
