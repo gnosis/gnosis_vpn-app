@@ -148,14 +148,12 @@ jobs:
         with:
           tauriScript: "deno task tauri"
           args: ${{ steps.vars.outputs.tauri_args }}
-      - name: Debugging bundle_dmg.sh
-        if: always()
-        continue-on-error: true
+      - name: Get Binary path
+        id: dmg-path
         run: |
-          echo "Build completed with the following artifacts:"
-          architecture=${{ steps.vars.outputs.architecture }}
-          ls -la src-tauri/target/${architecture/-darwin/}-apple-darwin/release/bundle/dmg/bundle_dmg.sh
-          cat src-tauri/target/${architecture/-darwin/}-apple-darwin/release/bundle/dmg/bundle_dmg.sh
+          dmg_path=$(echo "${{ steps.build-tauri.outputs.artifactPaths }}" \
+            | jq -r '.[] | select(endswith(".dmg"))')
+          echo "dmg_path=${dmg_path}" | tee -a $GITHUB_OUTPUT
       - name: Publish Artifact registry
         if: steps.version.outputs.publish_type == 'artifact-registry' || steps.version.outputs.publish_type == 'github'
         run: |
@@ -173,5 +171,4 @@ jobs:
         uses: actions/upload-artifact@v5
         with:
           name: binary-${{ steps.vars.outputs.architecture }}
-          path: |
-            ${{ steps.build-tauri.outputs.artifactPaths }}
+          path: ${{ steps.dmg-path.outputs.dmg_path }}
