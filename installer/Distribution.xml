@@ -1,11 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <installer-gui-script minSpecVersion="2">
-    <title>Gnosis VPN Client</title>
-    <organization>org.gnosis.vpn</organization>
+    <title>Gnosis VPN</title>
+    <allowed-os-versions>
+        <os-version min="14"/>
+    </allowed-os-versions>
+    <organization>org.hoprnet.gnosisvpn</organization>
     <domains enable_anywhere="true"/>
 
     <!-- Package metadata -->
-    <pkg-ref id="org.gnosis.vpn.client"/>
+    <pkg-ref id="org.hoprnet.gnosisvpn.client"/>
 
     <!-- Options -->
     <options customize="allow" require-scripts="false" hostArchitectures="x86_64,arm64"/>
@@ -33,7 +36,7 @@
             visible="false"
             enabled="true"
             selected="true">
-        <pkg-ref id="org.gnosis.vpn.client"/>
+        <pkg-ref id="org.hoprnet.gnosisvpn.client"/>
     </choice>
 
     <!-- Network selection choice -->
@@ -60,7 +63,7 @@
     </choice>
 
     <!-- Component package reference -->
-    <pkg-ref id="org.gnosis.vpn.client"
+    <pkg-ref id="org.hoprnet.gnosisvpn.client"
              version="0"
              auth="root"
              installKBytes="16384"
