@@ -151,13 +151,8 @@ jobs:
       - name: Filter DMG artifact
         id: dmg
         run: |
-          dmg_path=""
-          for path in ${{ steps.build-tauri.outputs.artifactPaths }}; do
-            if [[ "$path" == *.dmg ]]; then
-              dmg_path="$path"
-              break
-            fi
-          done
+          artifact_json='${{ steps.build-tauri.outputs.artifactPaths }}'
+          dmg_path=$(echo "$artifact_json" | jq -r '.[] | select(endswith(".dmg"))')
           echo "dmg_path=$dmg_path" | tee -a $GITHUB_OUTPUT
       - name: Publish Artifact registry
         if: steps.version.outputs.publish_type == 'artifact-registry' || steps.version.outputs.publish_type == 'github'
