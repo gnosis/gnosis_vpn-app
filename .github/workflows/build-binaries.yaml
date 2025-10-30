@@ -170,5 +170,5 @@ jobs:
         if: steps.version.outputs.publish_type == 'workflow'
         uses: actions/upload-artifact@v5
         with:
-          name: binary-${{ steps.vars.outputs.architecture }}
+          name: gnosis_vpn-app-${{ steps.vars.outputs.architecture }}
           path: ${{ steps.dmg.outputs.dmg_path }}
