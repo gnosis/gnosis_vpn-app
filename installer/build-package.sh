@@ -142,7 +142,7 @@ parse_args() {
         esac
     done
 
-    if [[ -z "$GNOSISVPN_PACKAGE_VERSION" ]]; then
+    if [[ -z $GNOSISVPN_PACKAGE_VERSION ]]; then
         log_error "--package-version is required"
         usage
     fi
@@ -459,7 +459,7 @@ download_binaries() {
     chmod 700 "${BUILD_DIR}/binaries"
 
     gcloud artifacts files download --project=gnosisvpn-production --location=europe-west3 --repository=rust-binaries --destination="${BUILD_DIR}/binaries" \
-    "gnosis_vpn:${GNOSISVPN_CLI_VERSION}:gnosis_vpn-aarch64-darwin" --local-filename=gnosis_vpn-aarch64-darwin
+        "gnosis_vpn:${GNOSISVPN_CLI_VERSION}:gnosis_vpn-aarch64-darwin" --local-filename=gnosis_vpn-aarch64-darwin
 
     gcloud artifacts files download --project=gnosisvpn-production --location=europe-west3 --repository=rust-binaries --destination="${BUILD_DIR}/binaries" \
         "gnosis_vpn:${GNOSISVPN_CLI_VERSION}:gnosis_vpn-ctl-aarch64-darwin" --local-filename=gnosis_vpn-ctl-aarch64-darwin
