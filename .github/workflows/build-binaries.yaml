@@ -153,6 +153,12 @@ jobs:
           artifact_json='${{ steps.build-tauri.outputs.artifactPaths }}'
           dmg_path=$(echo "$artifact_json" | jq -r '.[] | select(endswith(".dmg"))')
           mv "${dmg_path}" "gnosis_vpn-app-${{ steps.vars.outputs.architecture }}.dmg"
+      - name: Setup GCP
+        if: steps.version.outputs.publish_type == 'artifact-registry' || steps.version.outputs.publish_type == 'github'
+        uses: hoprnet/hopr-workflows/actions/setup-gcp@master
+        with:
+          google-credentials: ${{ secrets.GCP_SA_GITHUB_ACTIONS }}
+          install-sdk: "true"
       - name: Publish Artifact registry
         if: steps.version.outputs.publish_type == 'artifact-registry' || steps.version.outputs.publish_type == 'github'
         run: |

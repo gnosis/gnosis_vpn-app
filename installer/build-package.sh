@@ -180,18 +180,26 @@ parse_args() {
     done
 
     if [[ -z $GNOSISVPN_PACKAGE_VERSION ]]; then
-        log_error "'--package-version <version>' is required or environment variable GNOSISVPN_PACKAGE_VERSION must be set"
-        usage
+        GNOSISVPN_PACKAGE_VERSION="$(date +%Y.%m.%d+build.%H%M%S)"
+        log_info "Parameter '--package-version' not specified, defaulting to build timestamp"
     fi
 
     if [[ -z $GNOSISVPN_CLI_VERSION ]]; then
-        log_error "'--cli-version <version>' is required or environment variable GNOSISVPN_CLI_VERSION must be set"
-        usage
+          local current_version
+          local latest_pr
+          current_version=$(gh api "repos/gnosis/gnosis_vpn-client/contents/Cargo.toml?ref=main" -q '.content' | base64 --decode | grep '^version =' | sed -E 's/version = "(.*)"/\1/')
+          latest_pr=$(gh pr list -R "gnosis/gnosis_vpn-client" --state merged --limit 1 --json number --jq '.[0].number')
+          GNOSISVPN_CLI_VERSION="${current_version}+pr.${latest_pr}"
+          log_info "Parameter '--gnosis_vpn-cli' not specified, defaulting to latest merged PR at main branch"
     fi
 
     if [[ -z $GNOSISVPN_APP_VERSION ]]; then
-        log_error "'--app-version <version>' is required or environment variable GNOSISVPN_APP_VERSION must be set"
-        usage
+          local current_version
+          local latest_pr
+          current_version=$(gh api "repos/gnosis/gnosis_vpn-app/contents/src-tauri/Cargo.toml?ref=main" -q '.content' | base64 --decode | grep '^version =' | sed -E 's/version = "(.*)"/\1/')
+          latest_pr=$(gh pr list -R "gnosis/gnosis_vpn-app" --state merged --limit 1 --json number --jq '.[0].number')
+          GNOSISVPN_APP_VERSION="${current_version}+pr.${latest_pr}"
+          log_info "Parameter '--gnosis_vpn-app' not specified, defaulting to latest merged PR at main branch"
     fi
 
     # Validate required arguments
