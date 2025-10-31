@@ -660,7 +660,7 @@ sign_package() {
         local signing_identity
         signing_identity=$(security find-identity -v -p basic "${KEYCHAIN_NAME}" | grep "Developer ID Installer" | awk -F'"' '{print $2}')
 
-        if [[ -n "$signing_identity" ]]; then
+        if [[ -n $signing_identity ]]; then
             log_info "Found signing certificate: $signing_identity"
 
             # Sign the package
@@ -741,7 +741,7 @@ print_summary() {
     echo "Package:        $package_name"
     echo "Component:      ${BUILD_DIR}/$COMPONENT_PKG"
 
-    if [[ -f "$package_name" ]]; then
+    if [[ -f $package_name ]]; then
         local pkg_size
         pkg_size=$(du -h "$package_name" | cut -f1)
         echo "Package size:  $pkg_size"
