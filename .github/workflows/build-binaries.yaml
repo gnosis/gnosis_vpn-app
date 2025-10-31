@@ -149,26 +149,21 @@ jobs:
           tauriScript: "deno task tauri"
           args: ${{ steps.vars.outputs.tauri_args }}
       - name: Filter DMG artifact
-        id: dmg
         run: |
           artifact_json='${{ steps.build-tauri.outputs.artifactPaths }}'
           dmg_path=$(echo "$artifact_json" | jq -r '.[] | select(endswith(".dmg"))')
-          echo "dmg_path=$dmg_path" | tee -a $GITHUB_OUTPUT
+          mv "${dmg_path}" "gnosis_vpn-app-${{ steps.vars.outputs.architecture }}.dmg"
       - name: Publish Artifact registry
         if: steps.version.outputs.publish_type == 'artifact-registry' || steps.version.outputs.publish_type == 'github'
         run: |
-          set -x
-          for artifactPath in ${{ steps.build-tauri.outputs.artifactPaths }}; do
-            local filename=$(basename -- "$artifactPath")
-            gcloud artifacts generic upload --location=europe-west3 --repository="rust-binaries" --version=${{ steps.version.outputs.binary_version }} --package=gnosis_vpn-app --source=${artifactPath}
-            if [[ "${{ inputs.version_type }}" == "release" ]]; then
-                shasum -a 256 ${artifactPath} > ${artifactPath}.sha256
-                gcloud artifacts generic upload --location=europe-west3 --repository="rust-binaries" --version=${{ steps.version.outputs.binary_version }} --package=gnosis_vpn-app --source=${artifactPath}.sha256
-            fi
-          done
+          gcloud artifacts generic upload --location=europe-west3 --repository="rust-binaries" --version=${{ steps.version.outputs.binary_version }} --package=gnosis_vpn-app --source=gnosis_vpn-app-${{ steps.vars.outputs.architecture }}.dmg
+          if [[ "${{ inputs.version_type }}" == "release" ]]; then
+             shasum -a 256 gnosis_vpn-app-${{ steps.vars.outputs.architecture }}.dmg > gnosis_vpn-app-${{ steps.vars.outputs.architecture }}.dmg.sha256
+             gcloud artifacts generic upload --location=europe-west3 --repository="rust-binaries" --version=${{ steps.version.outputs.binary_version }} --package=gnosis_vpn-app --source=gnosis_vpn-app-${{ steps.vars.outputs.architecture }}.dmg.sha256
+          fi
       - name: Upload ${{ steps.vars.outputs.architecture }} binaries
         if: steps.version.outputs.publish_type == 'workflow'
         uses: actions/upload-artifact@v5
         with:
           name: gnosis_vpn-app-${{ steps.vars.outputs.architecture }}
-          path: ${{ steps.dmg.outputs.dmg_path }}
+          path: gnosis_vpn-app-${{ steps.vars.outputs.architecture }}.dmg

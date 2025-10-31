@@ -8,12 +8,11 @@
 
 
 set -euo pipefail
-set -x
 
 # Default values
+PACKAGE_VERSION=""
 CLI_VERSION="latest"
 APP_VERSION="latest"
-PACKAGE_VERSION="latest"
 APPLE_CERTIFICATE_DEVELOPER_PATH=""
 APPLE_CERTIFICATE_INSTALLER_PATH=""
 SIGN=false
@@ -29,7 +28,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BUILD_DIR="${SCRIPT_DIR}/build"
 RESOURCES_DIR="${SCRIPT_DIR}/resources"
 DISTRIBUTION_XML="${SCRIPT_DIR}/Distribution.xml"
-PKG_NAME="GnosisVPN-Installer.pkg"
 COMPONENT_PKG="GnosisVPN.pkg"
 
 # shellcheck disable=SC2317
@@ -79,6 +77,7 @@ parse_args() {
             log_error "--package-version requires a value"
             usage
         fi
+        PKG_NAME="GnosisVPN-Installer-${PACKAGE_VERSION}.pkg"
         shift 2
         ;;
         --cli-version)
@@ -142,6 +141,11 @@ parse_args() {
     esac
     done
 
+    if [[ -z "$PACKAGE_VERSION" ]]; then
+        log_error "--package-version is required"
+        usage
+    fi
+
     # Validate required arguments
     if [[ "$SIGN" == true ]] && [[ -z "$APPLE_CERTIFICATE_DEVELOPER_PATH" ]]; then
     echo "Error: --binary-certificate-path is required" >&2
@@ -203,10 +207,10 @@ check_version_syntax() {
 print_banner() {
     echo "=========================================="
     echo "  Gnosis VPN PKG Installer Builder"
-    echo "  Package Version: $PACKAGE_VERSION"
-    echo "  Client Version: ${CLI_VERSION}"
-    echo "  App Version: ${APP_VERSION}"
-    echo "  Signing: $(if [[ "$SIGN" == true ]]; then echo "Enabled"; else echo "Disabled"; fi)"
+    echo "  Package Version: ${PACKAGE_VERSION}"
+    echo "  Client Version:  ${CLI_VERSION}"
+    echo "  App Version:     ${APP_VERSION}"
+    echo "  Signing:         $(if [[ "$SIGN" == true ]]; then echo "Enabled"; else echo "Disabled"; fi)"
     if [[ "$SIGN" == true ]]; then
         echo "APPLE_CERTIFICATE_DEVELOPER_PATH = $APPLE_CERTIFICATE_DEVELOPER_PATH"
         echo "APPLE_CERTIFICATE_INSTALLER_PATH = $APPLE_CERTIFICATE_INSTALLER_PATH"
@@ -235,7 +239,6 @@ check_prerequisites() {
     fi
 
     log_success "Prerequisites check passed"
-    echo ""
 }
 
 # Clean and prepare build directory
@@ -449,34 +452,27 @@ package_ui_app_archive() {
 }
 
 # Download binaries and create universal binaries if needed
-embed_binaries() {
-    log_info "Embedding binaries into staging directory..."
+download_binaries() {
+    log_info "Downloading binaries into staging directory..."
 
     mkdir -p "${BUILD_DIR}/binaries"
     chmod 700 "${BUILD_DIR}/binaries"
 
     gcloud artifacts files download --project=gnosisvpn-production --location=europe-west3 --repository=rust-binaries --destination="${BUILD_DIR}/binaries" \
-    "gnosis_vpn:${CLI_VERSION}:gnosis_vpn-aarch64-darwin" --local-filename=gnosis_vpn-aarch64-darwin &
-    local pid1=$!
-    gcloud artifacts files download --project=gnosisvpn-production --location=europe-west3 --repository=rust-binaries --destination="${BUILD_DIR}/binaries" \
-    "gnosis_vpn:${CLI_VERSION}:gnosis_vpn-ctl-aarch64-darwin" --local-filename=gnosis_vpn-ctl-aarch64-darwin &
-    local pid2=$!
-    gcloud artifacts files download --project=gnosisvpn-production --location=europe-west3 --repository=rust-binaries --destination="${BUILD_DIR}/binaries" \
-    "gnosis_vpn:${CLI_VERSION}:gnosis_vpn-x86_64-darwin" --local-filename=gnosis_vpn-x86_64-darwin &
-    local pid3=$!
-    gcloud artifacts files download --project=gnosisvpn-production --location=europe-west3 --repository=rust-binaries --destination="${BUILD_DIR}/binaries" \
-    "gnosis_vpn:${CLI_VERSION}:gnosis_vpn-ctl-x86_64-darwin" --local-filename=gnosis_vpn-ctl-x86_64-darwin &
-    local pid4=$!
-    gcloud artifacts files download --project=gnosisvpn-production --location=europe-west3 --repository=rust-binaries --destination="${BUILD_DIR}/binaries" \
-    "gnosis_vpn-app:${APP_VERSION}:gnosis_vpn-app-universal-darwin" --local-filename=gnosis_vpn-app-universal-darwin &
-    local pid5=$!
+    "gnosis_vpn:${CLI_VERSION}:gnosis_vpn-aarch64-darwin" --local-filename=gnosis_vpn-aarch64-darwin
 
-    # Wait for all downloads to complete
-    log_info "Waiting for downloads to complete..."
-    if ! wait $pid1 || ! wait $pid2 || ! wait $pid3 || ! wait $pid4 || ! wait $pid5; then
-        log_error "One or more downloads failed"
-        exit 1
-    fi
+    gcloud artifacts files download --project=gnosisvpn-production --location=europe-west3 --repository=rust-binaries --destination="${BUILD_DIR}/binaries" \
+    "gnosis_vpn:${CLI_VERSION}:gnosis_vpn-ctl-aarch64-darwin" --local-filename=gnosis_vpn-ctl-aarch64-darwin
+
+    gcloud artifacts files download --project=gnosisvpn-production --location=europe-west3 --repository=rust-binaries --destination="${BUILD_DIR}/binaries" \
+    "gnosis_vpn:${CLI_VERSION}:gnosis_vpn-x86_64-darwin" --local-filename=gnosis_vpn-x86_64-darwin
+
+    gcloud artifacts files download --project=gnosisvpn-production --location=europe-west3 --repository=rust-binaries --destination="${BUILD_DIR}/binaries" \
+    "gnosis_vpn:${CLI_VERSION}:gnosis_vpn-ctl-x86_64-darwin" --local-filename=gnosis_vpn-ctl-x86_64-darwin
+
+    gcloud artifacts files download --project=gnosisvpn-production --location=europe-west3 --repository=rust-binaries --destination="${BUILD_DIR}/binaries" \
+    "gnosis_vpn-app:${APP_VERSION}:gnosis_vpn-app-universal-darwin.dmg" --local-filename=gnosis_vpn-app-universal-darwin.dmg
+
     log_success "All downloads completed"
 
     # Create universal binaries
@@ -491,7 +487,7 @@ embed_binaries() {
 
     log_info "Processing UI app for packaging..."
     local ui_archive_path="$BUILD_DIR/root/usr/local/share/gnosisvpn/gnosis_vpn-app.tar.gz"
-    if package_ui_app_archive "${BUILD_DIR}/binaries/gnosis_vpn-app-universal-darwin" "$ui_archive_path"; then
+    if package_ui_app_archive "${BUILD_DIR}/binaries/gnosis_vpn-app-universal-darwin.dmg" "$ui_archive_path"; then
         log_info "UI app archive prepared for staging directory"
     else
         log_error "UI app archive could not be prepared; installer will ship without UI application"
@@ -507,8 +503,7 @@ embed_binaries() {
         lipo -info "$BUILD_DIR/root/Applications/GnosisVPN" || true
     fi
 
-    log_success "Binaries embedded"
-    echo ""
+    log_success "Binaries downloaded"
 }
 
 # Copy installation scripts
@@ -533,8 +528,6 @@ copy_scripts() {
         chmod +x "$BUILD_DIR/scripts/postinstall"
         log_success "Copied postinstall script"
     fi
-
-    echo ""
 }
 
 # Build component package
@@ -558,8 +551,6 @@ build_component_package() {
         log_error "Failed to create component package"
         exit 1
     fi
-
-    echo ""
 }
 
 # Build distribution package
@@ -581,8 +572,6 @@ build_distribution_package() {
         log_error "Failed to create distribution package"
         exit 1
     fi
-
-    echo ""
 }
 
 # Verify package
@@ -609,23 +598,23 @@ print_summary() {
     echo "  Build Summary"
     echo "=========================================="
     echo "Version:        $PACKAGE_VERSION"
-    echo "Build Date:    $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+    echo "Build Date:     $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
     echo "Client Version: ${CLI_VERSION}"
     echo "App Version:    ${APP_VERSION}"
     echo "Package:        $BUILD_DIR/$PKG_NAME"
     echo "Component:      $BUILD_DIR/$COMPONENT_PKG"
-    echo ""
 
     if [[ -f "$BUILD_DIR/$PKG_NAME" ]]; then
         local pkg_size
         pkg_size=$(du -h "$BUILD_DIR/$PKG_NAME" | cut -f1)
-        echo "Package size:   $pkg_size"
+        echo "Package size:  $pkg_size"
 
         local sha256
         sha256=$(shasum -a 256 "$BUILD_DIR/$PKG_NAME" | cut -d' ' -f1)
         echo "SHA256:         $sha256"
     fi
     echo "=========================================="
+    echo ""
 }
 
 # Run basic functionality tests
@@ -635,7 +624,6 @@ run_basic_tests() {
     local test_failures=0
 
     # Test 1: Package file exists and is readable
-    log_info "Test 1: Package file validation..."
     if [[ -f "$BUILD_DIR/$PKG_NAME" ]] && [[ -r "$BUILD_DIR/$PKG_NAME" ]]; then
         log_success "✓ Package file exists and is readable"
     else
@@ -644,7 +632,6 @@ run_basic_tests() {
     fi
 
     # Test 2: Package contents validation
-    log_info "Test 2: Package contents validation..."
     if pkgutil --expand "$BUILD_DIR/$PKG_NAME" "$BUILD_DIR/test-expand" 2>/dev/null; then
         log_success "✓ Package can be expanded successfully"
 
@@ -677,7 +664,6 @@ run_basic_tests() {
     fi
 
     # Test 3: Script syntax validation
-    log_info "Test 3: Script syntax validation..."
     local script_syntax_errors=0
 
     local test_scripts=(
@@ -704,7 +690,6 @@ run_basic_tests() {
     fi
 
     # Test 4: Distribution XML validation
-    log_info "Test 4: Distribution XML validation..."
     if [[ -f $DISTRIBUTION_XML ]]; then
         if xmllint --noout "$DISTRIBUTION_XML" 2>/dev/null; then
             log_success "✓ Distribution.xml is valid XML"
@@ -717,7 +702,6 @@ run_basic_tests() {
     fi
 
     # Test 5: Binary architecture validation (if binaries exist)
-    log_info "Test 5: Binary architecture validation..."
     local binary_files=(
         "$BUILD_DIR/root/usr/local/bin/gnosis_vpn"
         "$BUILD_DIR/root/usr/local/bin/gnosis_vpn-ctl"
@@ -741,7 +725,7 @@ run_basic_tests() {
 
     echo ""
     if [[ $test_failures -eq 0 ]]; then
-        log_success "All tests passed!"
+        log_success "✓ All tests passed!"
         return 0
     else
         log_error "Tests failed with $test_failures failure(s)"
@@ -755,19 +739,12 @@ main() {
     print_banner
     check_prerequisites
     prepare_build_dir
-    embed_binaries
+    download_binaries
     copy_scripts
     build_component_package
     build_distribution_package
     verify_package
     print_summary
-
-    echo ""
-    echo "=========================================="
-    echo "  Post-Build Quality Checks"
-    echo "=========================================="
-    echo ""
-    echo ""
 
     # Run tests
     if ! run_basic_tests; then
