@@ -351,7 +351,7 @@ prepare_build_dir() {
             security unlock-keychain -p "${KEYCHAIN_PASSWORD}" "${KEYCHAIN_NAME}"
             security list-keychains -d user -s "${KEYCHAIN_NAME}" login.keychain
             security import "${GNOSISVPN_APPLE_CERTIFICATE_DEVELOPER_PATH}" -k "${KEYCHAIN_NAME}" -P "${GNOSISVPN_APPLE_CERTIFICATE_DEVELOPER_PASSWORD}" -T /usr/bin/codesign
-            security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${KEYCHAIN_PASSWORD}" "${KEYCHAIN_NAME}" 2>/dev/null > /dev/null
+            security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${KEYCHAIN_PASSWORD}" "${KEYCHAIN_NAME}" 2>/dev/null >/dev/null
             CERT_ID=$(security find-identity -v -p codesigning "${KEYCHAIN_NAME}" | awk -F'"' '{print $2}' | tr -d '\n')
             codesign --sign "${CERT_ID}" --options runtime --timestamp "${BUILD_DIR}/root/usr/local/bin/wg"
             codesign --verify --deep --strict --verbose=4 "${BUILD_DIR}/root/usr/local/bin/wg"
@@ -656,7 +656,7 @@ sign_package() {
         log_info "Signing package for distribution..."
         security unlock-keychain -p "${KEYCHAIN_PASSWORD}" "${KEYCHAIN_NAME}"
         security import "${GNOSISVPN_APPLE_CERTIFICATE_INSTALLER_PATH}" -k "${KEYCHAIN_NAME}" -P "${GNOSISVPN_APPLE_CERTIFICATE_INSTALLER_PASSWORD}" -T /usr/bin/productsign -T /usr/bin/xcrun
-        security set-key-partition-list -S apple-tool:,apple:,productsign:,xcrun: -s -k "${KEYCHAIN_PASSWORD}" "${KEYCHAIN_NAME}" 2>/dev/null > /dev/null
+        security set-key-partition-list -S apple-tool:,apple:,productsign:,xcrun: -s -k "${KEYCHAIN_PASSWORD}" "${KEYCHAIN_NAME}" 2>/dev/null >/dev/null
         local signing_identity
         signing_identity=$(security find-identity -v -p basic "${KEYCHAIN_NAME}" | grep "Developer ID Installer" | awk -F'"' '{print $2}')
 
@@ -720,8 +720,6 @@ staple_ticket() {
         echo ""
     fi
 }
-
-
 
 # Print build summary
 print_summary() {
