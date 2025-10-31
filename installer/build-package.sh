@@ -82,9 +82,10 @@ usage() {
 get_default_version() {
     local repo_name="$1"
     local cargo_path="$2"
+    local branch="${3:-main}"
     local current_version
     local latest_pr
-    current_version=$(gh api "repos/gnosis/${repo_name}/contents/${cargo_path}?ref=main" -q '.content' | base64 --decode | grep '^version =' | sed -E 's/version = "(.*)"/\1/')
+    current_version=$(gh api "repos/gnosis/${repo_name}/contents/${cargo_path}?ref=${branch}" -q '.content' | base64 --decode | grep '^version =' | sed -E 's/version = "(.*)"/\1/')
     if [[ -z $current_version ]]; then
         log_error "Could not determine current version for ${repo_name} from ${cargo_path}"
         exit 1
