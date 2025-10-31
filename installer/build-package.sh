@@ -185,21 +185,21 @@ parse_args() {
     fi
 
     if [[ -z $GNOSISVPN_CLI_VERSION ]]; then
-          local current_version
-          local latest_pr
-          current_version=$(gh api "repos/gnosis/gnosis_vpn-client/contents/Cargo.toml?ref=main" -q '.content' | base64 --decode | grep '^version =' | sed -E 's/version = "(.*)"/\1/')
-          latest_pr=$(gh pr list -R "gnosis/gnosis_vpn-client" --state merged --limit 1 --json number --jq '.[0].number')
-          GNOSISVPN_CLI_VERSION="${current_version}+pr.${latest_pr}"
-          log_info "Parameter '--gnosis_vpn-cli' not specified, defaulting to latest merged PR at main branch"
+        local current_version
+        local latest_pr
+        current_version=$(gh api "repos/gnosis/gnosis_vpn-client/contents/Cargo.toml?ref=main" -q '.content' | base64 --decode | grep '^version =' | sed -E 's/version = "(.*)"/\1/')
+        latest_pr=$(gh pr list -R "gnosis/gnosis_vpn-client" --state merged --limit 1 --json number --jq '.[0].number')
+        GNOSISVPN_CLI_VERSION="${current_version}+pr.${latest_pr}"
+        log_info "Parameter '--gnosis_vpn-cli' not specified, defaulting to latest merged PR at main branch"
     fi
 
     if [[ -z $GNOSISVPN_APP_VERSION ]]; then
-          local current_version
-          local latest_pr
-          current_version=$(gh api "repos/gnosis/gnosis_vpn-app/contents/src-tauri/Cargo.toml?ref=main" -q '.content' | base64 --decode | grep '^version =' | sed -E 's/version = "(.*)"/\1/')
-          latest_pr=$(gh pr list -R "gnosis/gnosis_vpn-app" --state merged --limit 1 --json number --jq '.[0].number')
-          GNOSISVPN_APP_VERSION="${current_version}+pr.${latest_pr}"
-          log_info "Parameter '--gnosis_vpn-app' not specified, defaulting to latest merged PR at main branch"
+        local current_version
+        local latest_pr
+        current_version=$(gh api "repos/gnosis/gnosis_vpn-app/contents/src-tauri/Cargo.toml?ref=main" -q '.content' | base64 --decode | grep '^version =' | sed -E 's/version = "(.*)"/\1/')
+        latest_pr=$(gh pr list -R "gnosis/gnosis_vpn-app" --state merged --limit 1 --json number --jq '.[0].number')
+        GNOSISVPN_APP_VERSION="${current_version}+pr.${latest_pr}"
+        log_info "Parameter '--gnosis_vpn-app' not specified, defaulting to latest merged PR at main branch"
     fi
 
     # Validate required arguments
