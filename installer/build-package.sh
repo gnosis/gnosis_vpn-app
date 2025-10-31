@@ -85,12 +85,12 @@ get_default_version() {
     local current_version
     local latest_pr
     current_version=$(gh api "repos/gnosis/${repo_name}/contents/${cargo_path}?ref=main" -q '.content' | base64 --decode | grep '^version =' | sed -E 's/version = "(.*)"/\1/')
-    if [[ -z "$current_version" ]]; then
+    if [[ -z $current_version ]]; then
         log_error "Could not determine current version for ${repo_name} from ${cargo_path}"
         exit 1
     fi
     latest_pr=$(gh pr list -R "gnosis/${repo_name}" --state merged --limit 1 --json number --jq '.[0].number')
-    if [[ -z "$latest_pr" || "$latest_pr" == "null" ]]; then
+    if [[ -z $latest_pr || $latest_pr == "null" ]]; then
         log_error "Could not find the latest merged PR for ${repo_name}"
         exit 1
     fi
