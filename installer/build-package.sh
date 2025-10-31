@@ -39,7 +39,7 @@ KEYCHAIN_PASSWORD=$(openssl rand -base64 24)
 # shellcheck disable=SC2317
 cleanup() {
     if [[ $GNOSISVPN_ENABLE_SIGNATURE == true ]]; then
-        security delete-keychain ${KEYCHAIN_NAME} >/dev/null 2>&1 || true
+        security delete-keychain "${KEYCHAIN_NAME}" >/dev/null 2>&1 || true
     fi
 }
 trap 'cleanup' EXIT INT TERM
@@ -747,7 +747,7 @@ print_summary() {
         echo "Package size:  $pkg_size"
 
         local sha256
-        sha256=$(shasum -a 256 "$package_name" | cut -d' ' -f1 | tee $package_name.sha256)
+        sha256=$(shasum -a 256 "$package_name" | cut -d' ' -f1 | tee "$package_name".sha256)
         echo "SHA256:         $sha256"
     fi
     echo "=========================================="
