@@ -79,6 +79,25 @@ usage() {
     exit 1
 }
 
+get_default_version() {
+    local repo_name="$1"
+    local cargo_path="$2"
+    local branch="${3:-main}"
+    local current_version
+    local latest_pr
+    current_version=$(gh api "repos/gnosis/${repo_name}/contents/${cargo_path}?ref=${branch}" -q '.content' | base64 --decode | grep '^version =' | sed -E 's/version = "(.*)"/\1/')
+    if [[ -z $current_version ]]; then
+        log_error "Could not determine current version for ${repo_name} from ${cargo_path}"
+        exit 1
+    fi
+    latest_pr=$(gh pr list -R "gnosis/${repo_name}" --state merged --limit 1 --json number --jq '.[0].number')
+    if [[ -z $latest_pr || $latest_pr == "null" ]]; then
+        log_error "Could not find the latest merged PR for ${repo_name}"
+        exit 1
+    fi
+    echo "${current_version}+pr.${latest_pr}"
+}
+
 # Parse command-line arguments
 parse_args() {
     while [[ $# -gt 0 ]]; do
@@ -180,18 +199,18 @@ parse_args() {
     done
 
     if [[ -z $GNOSISVPN_PACKAGE_VERSION ]]; then
-        log_error "'--package-version <version>' is required or environment variable GNOSISVPN_PACKAGE_VERSION must be set"
-        usage
+        GNOSISVPN_PACKAGE_VERSION="$(date +%Y.%m.%d+build.%H%M%S)"
+        log_info "Parameter '--package-version' not specified, defaulting to build timestamp"
     fi
 
     if [[ -z $GNOSISVPN_CLI_VERSION ]]; then
-        log_error "'--cli-version <version>' is required or environment variable GNOSISVPN_CLI_VERSION must be set"
-        usage
+        GNOSISVPN_CLI_VERSION=$(get_default_version "gnosis_vpn-client" "Cargo.toml")
+        log_info "Parameter '--gnosis_vpn-cli' not specified, defaulting to latest merged PR at main branch"
     fi
 
     if [[ -z $GNOSISVPN_APP_VERSION ]]; then
-        log_error "'--app-version <version>' is required or environment variable GNOSISVPN_APP_VERSION must be set"
-        usage
+        GNOSISVPN_APP_VERSION=$(get_default_version "gnosis_vpn-app" "src-tauri/Cargo.toml")
+        log_info "Parameter '--gnosis_vpn-app' not specified, defaulting to latest merged PR at main branch"
     fi
 
     # Validate required arguments
