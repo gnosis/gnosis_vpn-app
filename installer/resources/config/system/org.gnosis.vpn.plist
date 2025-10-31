@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Service Identification -->
+    <key>Label</key>
+    <string>org.gnosis.vpn</string>
+    
+    <!-- Program Configuration -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/gnosis_vpn</string>
+        <string>-c</string>
+        <string>/etc/gnosisvpn/config.toml</string>
+        <string>--hopr-rpc-provider</string>
+        <string>https://rpc-provider.hoprnet.org</string>
+        <string>--hopr-network</string>
+        <string>rotsee</string>
+    </array>
+    
+    <!-- Service Behavior -->
+    <key>RunAtLoad</key>
+    <true/>
+    
+    <key>KeepAlive</key>
+    <dict>
+        <!-- Restart if crashed -->
+        <key>Crashed</key>
+        <true/>
+        <!-- Restart if exited unexpectedly -->
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+    
+    <!-- Restart Configuration -->
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+    
+    <!-- Process Management -->
+    <key>ProcessType</key>
+    <string>Background</string>
+    
+    <!-- User and Group -->
+    <key>UserName</key>
+    <string>gnosisvpn</string>
+    <key>GroupName</key>
+    <string>gnosisvpn</string>
+    
+    <!-- Working Directory -->
+    <key>WorkingDirectory</key>
+    <string>/var/lib/gnosis_vpn</string>
+    
+    <!-- Logging Configuration -->
+    <key>StandardOutPath</key>
+    <string>/var/log/gnosis_vpn/gnosis_vpn.log</string>
+    <key>StandardErrorPath</key>
+    <string>/var/log/gnosis_vpn/gnosis_vpn.error.log</string>
+    
+    <!-- Environment Variables -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>GNOSISVPN_CONFIG_PATH</key>
+        <string>/etc/gnosisvpn/config.toml</string>
+        <key>HOME</key>
+        <string>/var/lib/gnosis_vpn</string>
+        <key>RUST_LOG</key>
+        <string>info</string>
+    </dict>
+    
+    <!-- Security -->
+    <key>HardResourceLimits</key>
+    <dict>
+        <key>NumberOfFiles</key>
+        <integer>1024</integer>
+        <key>NumberOfProcesses</key>
+        <integer>100</integer>
+    </dict>
+    
+    <key>SoftResourceLimits</key>
+    <dict>
+        <key>NumberOfFiles</key>
+        <integer>512</integer>
+        <key>NumberOfProcesses</key>
+        <integer>50</integer>
+    </dict>
+    
+    <!-- Exit Timeout -->
+    <key>ExitTimeOut</key>
+    <integer>30</integer>
+    
+    <!-- Network Condition (optional - only start if network is available) -->
+    <key>LaunchOnlyOnce</key>
+    <false/>
+    
+    <!-- Nice level (lower priority) -->
+    <key>Nice</key>
+    <integer>5</integer>
+</dict>
+</plist>

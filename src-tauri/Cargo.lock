@@ -4605,7 +4605,7 @@ dependencies = [
 
 [[package]]
 name = "gnosis_vpn-app"
-version = "0.2.1"
+version = "0.2.3"
 dependencies = [
  "gnosis_vpn-lib",
  "liblzma",

@@ -1,0 +1,314 @@
+#!/bin/bash
+#
+# Sign and notarize script for Gnosis VPN macOS PKG installer
+#
+# This script signs the PKG installer with a Developer ID certificate
+# and optionally submits it for notarization with Apple.
+#
+# Prerequisites:
+#   - Apple Developer account with Developer ID Installer certificate
+#   - Certificate installed in Keychain
+#   - App-specific password for notarization (stored in keychain)
+#
+# Usage:
+#   ./sign-pkg.sh <path-to-pkg> [--notarize]
+#
+# Example:
+#   ./sign-pkg.sh build/GnosisVPN-Installer-1.0.0.pkg
+#   ./sign-pkg.sh build/GnosisVPN-Installer-1.0.0.pkg --notarize
+#
+
+set -euo pipefail
+
+# Configuration
+PKG_FILE="${1:-}"
+SIGNED_PKG_FILE="${PKG_FILE%.pkg}-signed.pkg"
+NOTARIZE="${2:-}"
+APPLE_CERTIFICATE_INSTALLER_PATH="${APPLE_CERTIFICATE_INSTALLER_PATH:-gnosisvpn-installer.p12}"
+APPLE_CERTIFICATE_INSTALLER_PASSWORD="${APPLE_CERTIFICATE_INSTALLER_PASSWORD:-}"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Logging functions
+log_info() {
+    echo -e "${BLUE}[INFO]${NC} $*"
+}
+
+log_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $*"
+}
+
+log_warn() {
+    echo -e "${YELLOW}[WARN]${NC} $*"
+}
+
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $*"
+}
+
+# Print usage
+usage() {
+    cat <<EOF
+Usage: $0 <path-to-pkg> [--notarize]
+
+Sign and optionally notarize a macOS PKG installer.
+
+Arguments:
+    path-to-pkg     Path to the unsigned PKG file
+
+Options:
+    --notarize      Submit for notarization after signing
+
+Environment variables:
+    APPLE_CERTIFICATE_INSTALLER_PATH    Path to the Apple Installer certificate (.p12 file)
+    APPLE_CERTIFICATE_INSTALLER_PASSWORD    Password for the Apple Installer certificate
+    APPLE_ID            Apple ID for notarization
+    TEAM_ID             Apple Developer Team ID
+    KEYCHAIN_PROFILE    Keychain profile name for notarization credentials (default: AC_PASSWORD)
+    APP_SPECIFIC_PASSWORD  App-specific password (alternative to keychain profile)
+
+Example:
+    export APPLE_CERTIFICATE_INSTALLER_PATH="path/to/your/certificate.p12"
+    export APPLE_CERTIFICATE_INSTALLER_PASSWORD="your-certificate-password"
+    $0 build/GnosisVPN-Installer-1.0.0.pkg --notarize
+
+    # Alternative with app-specific password:
+    export APP_SPECIFIC_PASSWORD="your-app-specific-password"
+    $0 build/GnosisVPN-Installer-1.0.0.pkg --notarize
+
+EOF
+    exit 1
+}
+
+# shellcheck disable=SC2317
+cleanup() {
+    security delete-keychain gnosisvpn-installer.keychain >/dev/null 2>&1 || true
+}
+trap 'cleanup' EXIT INT TERM
+
+# Validate input
+validate_input() {
+    if [[ -z $PKG_FILE ]]; then
+        log_error "No PKG file specified"
+        usage
+    fi
+
+    if [[ ! -f $PKG_FILE ]]; then
+        log_error "PKG file not found: $PKG_FILE"
+        exit 1
+    fi
+
+    log_info "Package to sign: $PKG_FILE"
+}
+
+# Check for signing certificate
+check_certificate() {
+    if [[ ! -f $APPLE_CERTIFICATE_INSTALLER_PATH ]] || [[ -z $APPLE_CERTIFICATE_INSTALLER_PASSWORD ]]; then
+        log_error "Apple Installer certificate or password not set; binaries will not be code-signed"
+        exit 1
+    else
+        if ! command -v openssl pkcs12 -info -in "$APPLE_CERTIFICATE_INSTALLER_PATH" -passin pass:"$APPLE_CERTIFICATE_INSTALLER_PASSWORD" -nokeys -nomacver -nodes 2>/dev/null >/dev/null; then
+            log_error "Password for $APPLE_CERTIFICATE_INSTALLER_PATH certificate is incorrect or certificate file is invalid"
+            exit 1
+        else
+            log_info "Apple Installer certificate detected"
+        fi
+    fi
+
+    local keychain_password
+    keychain_password=$(openssl rand -base64 24)
+    security create-keychain -p "${keychain_password}" gnosisvpn-installer.keychain
+    security default-keychain -s gnosisvpn-installer.keychain
+    security set-keychain-settings -lut 21600 gnosisvpn-installer.keychain
+    security unlock-keychain -p "${keychain_password}" gnosisvpn-installer.keychain
+    security import "${APPLE_CERTIFICATE_INSTALLER_PATH}" -k gnosisvpn-installer.keychain -P "${APPLE_CERTIFICATE_INSTALLER_PASSWORD}" -T /usr/bin/productsign -T /usr/bin/xcrun
+    security set-key-partition-list -S apple-tool:,apple:,productsign:,xcrun: -s -k "${keychain_password}" gnosisvpn-installer.keychain
+    local signing_identity
+    signing_identity=$(security find-identity -v -p basic gnosisvpn-installer.keychain | awk -F'"' '{print $2}')
+    log_info "Checking for signing certificate..."
+
+    # List available installer certificates in the specified keychain
+    if echo "${signing_identity}" | grep -q "Developer ID Installer"; then
+        log_success "Found signing certificates in $APPLE_CERTIFICATE_INSTALLER_PATH"
+        echo ""
+    else
+        log_error "No Developer ID Installer certificate found in $APPLE_CERTIFICATE_INSTALLER_PATH"
+        exit 1
+    fi
+}
+
+# Sign the package
+sign_package() {
+    log_info "Signing package..."
+    local signing_identity
+    signing_identity=$(security find-identity -v -p basic gnosisvpn-installer.keychain | awk -F'"' '{print $2}')
+    if productsign --sign "$signing_identity" --keychain gnosisvpn-installer.keychain "$PKG_FILE" "$SIGNED_PKG_FILE"; then
+        log_success "Package signed successfully: $SIGNED_PKG_FILE"
+        echo ""
+
+        # Update PKG_FILE to point to signed version
+        PKG_FILE="$SIGNED_PKG_FILE"
+    else
+        log_error "Failed to sign package"
+        log_info "Make sure the signing identity is correct:"
+        exit 1
+    fi
+}
+
+# Verify signature
+verify_signature() {
+    log_info "Verifying package signature..."
+
+    if pkgutil --check-signature "$PKG_FILE"; then
+        log_success "Signature verification passed"
+        echo ""
+    else
+        log_error "Signature verification failed"
+        exit 1
+    fi
+}
+
+# Submit for notarization
+notarize_package() {
+    log_info "Submitting package for notarization..."
+
+    # Check for required environment variables
+    if [[ -z ${APPLE_ID:-} ]]; then
+        log_error "APPLE_ID environment variable not set"
+        log_info "Set your Apple ID: export APPLE_ID='your@email.com'"
+        exit 1
+    fi
+
+    if [[ -z ${TEAM_ID:-} ]]; then
+        log_error "TEAM_ID environment variable not set"
+        log_info "Set your Team ID: export TEAM_ID='ABC123XYZ'"
+        exit 1
+    fi
+
+    local keychain_profile="${KEYCHAIN_PROFILE:-AC_PASSWORD}"
+
+    log_info "Using Apple ID: $APPLE_ID"
+    log_info "Using Team ID: $TEAM_ID"
+    log_info "Using keychain profile: $keychain_profile"
+    echo ""
+
+    # Submit for notarization
+    log_info "Submitting to Apple (this may take several minutes)..."
+
+    # Try with keychain profile first, fall back to password if APP_SPECIFIC_PASSWORD is set
+    if [[ -n ${APP_SPECIFIC_PASSWORD:-} ]]; then
+        log_info "Using app-specific password instead of keychain profile"
+        if xcrun notarytool submit "$PKG_FILE" \
+            --apple-id "$APPLE_ID" \
+            --team-id "$TEAM_ID" \
+            --password "$APP_SPECIFIC_PASSWORD" \
+            --wait; then
+            log_success "Notarization successful"
+            echo ""
+        else
+            local exit_code=$?
+            log_error "Notarization failed with exit code: $exit_code"
+            log_info "Run with verbose output to see detailed error information"
+            exit 1
+        fi
+    else
+        if xcrun notarytool submit "$PKG_FILE" \
+            --apple-id "$APPLE_ID" \
+            --team-id "$TEAM_ID" \
+            --keychain-profile "$keychain_profile" \
+            --wait; then
+            log_success "Notarization successful"
+            echo ""
+        else
+            local exit_code=$?
+            log_error "Notarization failed with exit code: $exit_code"
+            log_info "To create a keychain profile, run:"
+            log_info "  xcrun notarytool store-credentials $keychain_profile --apple-id $APPLE_ID --team-id $TEAM_ID --password"
+            log_info "Or set APP_SPECIFIC_PASSWORD environment variable to use direct password authentication"
+            log_info "To check notarization logs manually, run:"
+            log_info "  xcrun notarytool history --apple-id $APPLE_ID --team-id $TEAM_ID --keychain-profile $keychain_profile"
+            exit 1
+        fi
+    fi
+}
+
+# Staple notarization ticket
+staple_ticket() {
+    log_info "Stapling notarization ticket to package..."
+
+    if xcrun stapler staple -v "$SIGNED_PKG_FILE"; then
+        log_success "Notarization ticket stapled successfully"
+        echo ""
+    else
+        local exit_code=$?
+        log_warn "Failed to staple ticket (exit code: $exit_code)"
+        log_warn "Package is still valid, but requires internet for verification"
+        log_info "To check stapler status manually, run:"
+        log_info "  xcrun stapler validate '$SIGNED_PKG_FILE'"
+        echo ""
+    fi
+}
+
+# Print summary
+print_summary() {
+    echo "=========================================="
+    echo "  Signing Summary"
+    echo "=========================================="
+    echo "Signed package: $PKG_FILE"
+    echo ""
+
+    if [[ -f $PKG_FILE ]]; then
+        local size
+        size=$(du -h "$PKG_FILE" | cut -f1)
+        echo "Size:           $size"
+
+        local sha256
+        sha256=$(shasum -a 256 "$PKG_FILE" | cut -d' ' -f1)
+        echo "SHA256:         $sha256"
+    fi
+
+    echo ""
+    echo "The package is ready for distribution!"
+    echo ""
+    echo "To distribute:"
+    echo "  1. Upload to GitHub releases"
+    echo "  2. Share the SHA256 checksum"
+    echo "  3. Users can verify with: shasum -a 256 <pkg-file>"
+    echo ""
+    echo "=========================================="
+}
+
+# Main process
+main() {
+    echo "=========================================="
+    echo "  Gnosis VPN PKG Signing Tool"
+    echo "=========================================="
+    echo ""
+
+    validate_input
+    check_certificate
+    sign_package
+    verify_signature
+
+    # Notarize if requested
+    if [[ $NOTARIZE == "--notarize" ]]; then
+        notarize_package
+        staple_ticket
+    else
+        log_warn "Skipping notarization (use --notarize flag to notarize)"
+        log_info "For distribution outside of known developers, notarization is required for macOS 10.15+"
+        echo ""
+    fi
+
+    print_summary
+}
+
+# Execute main
+main
+
+exit 0

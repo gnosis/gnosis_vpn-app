@@ -3,6 +3,11 @@ dist
 .local
 result
 
+.direnv/
+
 /src/.prettierrc
 
 /gnosisvpn-hopr.db
+
+target/
+gcp-sa-*.json
