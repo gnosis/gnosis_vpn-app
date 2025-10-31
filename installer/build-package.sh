@@ -6,16 +6,15 @@
 # It uses pkgbuild and productbuild to create a standard macOS installer package.
 #
 
-
 set -euo pipefail
 
-# Default values
-PACKAGE_VERSION=""
-CLI_VERSION="latest"
-APP_VERSION="latest"
-APPLE_CERTIFICATE_DEVELOPER_PATH=""
-APPLE_CERTIFICATE_INSTALLER_PATH=""
-SIGN=false
+# Safe default values
+: "${GNOSISVPN_PACKAGE_VERSION:=}"
+: "${GNOSISVPN_CLI_VERSION:=}"
+: "${GNOSISVPN_APP_VERSION:=}"
+: "${GNOSISVPN_ENABLE_SIGNATURE:=false}"
+: "${GNOSISVPN_APPLE_CERTIFICATE_DEVELOPER_PATH:=}"
+: "${GNOSISVPN_APPLE_CERTIFICATE_INSTALLER_PATH:=}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -54,134 +53,135 @@ log_error() {
 
 # Usage help message
 usage() {
-  echo "Usage: $0 --package-version <version> --cli-version <version> --app-version <version> --binary-certificate-path <path> --installer-certificate-path <path> [--sign]"
-  echo
-  echo "Options:"
-  echo "  --package-version <version>  Set the package version (e.g., 1.0.0)"
-  echo "  --cli-version <version>   Set the CLI version (e.g., latest, v0.50.7, 0.50.7-pr.465)"
-  echo "  --app-version <version>   Set the App version (e.g., latest, v0.2.2, 0.2.2-pr.10)"
-  echo "  --binary-certificate-path <path>  Set the path to the certificate for signing binaries"
-  echo "  --installer-certificate-path <path>  Set the path to the certificate for signing the installer"
-  echo "  --sign                    Enable code signing"
-  echo "  -h, --help                Show this help message"
-  exit 1
+    echo "Usage: $0 --package-version <version> --cli-version <version> --app-version <version> --binary-certificate-path <path> --installer-certificate-path <path> [--sign]"
+    echo
+    echo "Options:"
+    echo "  --package-version <version>  Set the package version (e.g., 1.0.0)"
+    echo "  --cli-version <version>   Set the CLI version (e.g., latest, v0.50.7, 0.50.7-pr.465)"
+    echo "  --app-version <version>   Set the App version (e.g., latest, v0.2.2, 0.2.2-pr.10)"
+    echo "  --binary-certificate-path <path>  Set the path to the certificate for signing binaries"
+    echo "  --installer-certificate-path <path>  Set the path to the certificate for signing the installer"
+    echo "  --sign                    Enable code signing"
+    echo "  -h, --help                Show this help message"
+    exit 1
 }
 
 # Parse command-line arguments
 parse_args() {
     while [[ $# -gt 0 ]]; do
-    case "$1" in
+        case "$1" in
         --package-version)
-        PACKAGE_VERSION="${2:-}"
-        if [[ -z "$PACKAGE_VERSION" ]]; then
-            log_error "--package-version requires a value"
-            usage
-        fi
-        PKG_NAME="GnosisVPN-Installer-${PACKAGE_VERSION}.pkg"
-        shift 2
-        ;;
+            GNOSISVPN_PACKAGE_VERSION="${2:-}"
+            if [[ -z $GNOSISVPN_PACKAGE_VERSION ]]; then
+                log_error "--package-version requires a value"
+                usage
+            else
+                check_version_syntax "$GNOSISVPN_PACKAGE_VERSION"
+            fi
+            PKG_NAME="GnosisVPN-Installer-${GNOSISVPN_PACKAGE_VERSION}.pkg"
+            shift 2
+            ;;
         --cli-version)
-        CLI_VERSION="${2:-}"
-        if [[ -z "$CLI_VERSION" ]]; then
-            log_error "--cli-version requires a value"
-            usage
-        else
-            check_version_syntax "$CLI_VERSION"
-        fi
-        shift 2
-        ;;
+            GNOSISVPN_CLI_VERSION="${2:-}"
+            if [[ -z $GNOSISVPN_CLI_VERSION ]]; then
+                log_error "--cli-version requires a value"
+                usage
+            else
+                check_version_syntax "$GNOSISVPN_CLI_VERSION"
+            fi
+            shift 2
+            ;;
         --app-version)
-        APP_VERSION="${2:-}"
-        if [[ -z "$APP_VERSION" ]]; then
-            log_error "--app-version requires a value"
-            usage
-        else
-            check_version_syntax "$APP_VERSION"
-        fi
-        shift 2
-        ;;
+            GNOSISVPN_APP_VERSION="${2:-}"
+            if [[ -z $GNOSISVPN_APP_VERSION ]]; then
+                log_error "--app-version requires a value"
+                usage
+            else
+                check_version_syntax "$GNOSISVPN_APP_VERSION"
+            fi
+            shift 2
+            ;;
         --sign)
-        SIGN=true
-        shift
-        ;;
+            GNOSISVPN_ENABLE_SIGNATURE=true
+            shift
+            ;;
         --binary-certificate-path)
-        APPLE_CERTIFICATE_DEVELOPER_PATH="${2:-}"
-        if [[ -z "$APPLE_CERTIFICATE_DEVELOPER_PATH" ]]; then
-            log_error "--binary-certificate-path requires a value"
-            usage
-        else
-            if [[ ! -f "$APPLE_CERTIFICATE_DEVELOPER_PATH" ]]; then
-                log_error "Certificate file not found: $APPLE_CERTIFICATE_DEVELOPER_PATH"
-                exit 1
+            GNOSISVPN_APPLE_CERTIFICATE_DEVELOPER_PATH="${2:-}"
+            if [[ -z $GNOSISVPN_APPLE_CERTIFICATE_DEVELOPER_PATH ]]; then
+                log_error "--binary-certificate-path requires a value"
+                usage
+            else
+                if [[ ! -f $GNOSISVPN_APPLE_CERTIFICATE_DEVELOPER_PATH ]]; then
+                    log_error "Certificate file not found: $GNOSISVPN_APPLE_CERTIFICATE_DEVELOPER_PATH"
+                    exit 1
+                fi
             fi
-        fi
-        shift 2
-        ;;
+            shift 2
+            ;;
         --installer-certificate-path)
-        APPLE_CERTIFICATE_INSTALLER_PATH="${2:-}"
-        if [[ -z "$APPLE_CERTIFICATE_INSTALLER_PATH" ]]; then
-            log_error "--installer-certificate-path requires a value"
-            usage
-        else
-            if [[ ! -f "$APPLE_CERTIFICATE_INSTALLER_PATH" ]]; then
-                log_error "Certificate file not found: $APPLE_CERTIFICATE_INSTALLER_PATH"
-                exit 1
+            GNOSISVPN_APPLE_CERTIFICATE_INSTALLER_PATH="${2:-}"
+            if [[ -z $GNOSISVPN_APPLE_CERTIFICATE_INSTALLER_PATH ]]; then
+                log_error "--installer-certificate-path requires a value"
+                usage
+            else
+                if [[ ! -f $GNOSISVPN_APPLE_CERTIFICATE_INSTALLER_PATH ]]; then
+                    log_error "Certificate file not found: $GNOSISVPN_APPLE_CERTIFICATE_INSTALLER_PATH"
+                    exit 1
+                fi
             fi
-        fi
-        shift 2
-        ;;
+            shift 2
+            ;;
 
-        -h|--help)
-        usage
-        ;;
+        -h | --help)
+            usage
+            ;;
         *)
-        echo "Unknown argument: $1" >&2
-        usage
-        ;;
-    esac
+            echo "Unknown argument: $1" >&2
+            usage
+            ;;
+        esac
     done
 
-    if [[ -z "$PACKAGE_VERSION" ]]; then
+    if [[ -z "$GNOSISVPN_PACKAGE_VERSION" ]]; then
         log_error "--package-version is required"
         usage
     fi
 
     # Validate required arguments
-    if [[ "$SIGN" == true ]] && [[ -z "$APPLE_CERTIFICATE_DEVELOPER_PATH" ]]; then
-    echo "Error: --binary-certificate-path is required" >&2
-    usage
+    if [[ $GNOSISVPN_ENABLE_SIGNATURE == true ]] && [[ -z $GNOSISVPN_APPLE_CERTIFICATE_DEVELOPER_PATH ]]; then
+        echo "Error: --binary-certificate-path is required" >&2
+        usage
     fi
 
-    if [[ "$SIGN" == true ]] && [[ -z "$APPLE_CERTIFICATE_INSTALLER_PATH" ]]; then
-    echo "Error: --installer-certificate-path is required" >&2
-    usage
+    if [[ $GNOSISVPN_ENABLE_SIGNATURE == true ]] && [[ -z $GNOSISVPN_APPLE_CERTIFICATE_INSTALLER_PATH ]]; then
+        echo "Error: --installer-certificate-path is required" >&2
+        usage
     fi
 
     log_success "Command-line arguments parsed successfully"
 }
 
 # Validate environment variables for signing
-parse_env_vars(){
-
-    if [[ "$SIGN" == true ]]; then
-        if [[ -z $APPLE_CERTIFICATE_DEVELOPER_PASSWORD ]]; then
-            log_error "Apple Developer certificate password not set in APPLE_CERTIFICATE_DEVELOPER_PASSWORD environment variable"
+parse_env_vars() {
+    if [[ $GNOSISVPN_ENABLE_SIGNATURE == true ]]; then
+        if [[ -z ${GNOSISVPN_APPLE_CERTIFICATE_DEVELOPER_PASSWORD:-} ]]; then
+            log_error "Apple Developer certificate password not set in GNOSISVPN_APPLE_CERTIFICATE_DEVELOPER_PASSWORD environment variable"
             exit 1
         else
-            if ! command -v openssl pkcs12 -info -in "$APPLE_CERTIFICATE_DEVELOPER_PATH" -passin pass:"$APPLE_CERTIFICATE_DEVELOPER_PASSWORD" -nokeys -nomacver -nodes 2>/dev/null >/dev/null; then
-                log_error "Password for $APPLE_CERTIFICATE_DEVELOPER_PATH certificate is incorrect or certificate file is invalid"
+            if ! command -v openssl pkcs12 -info -in "$GNOSISVPN_APPLE_CERTIFICATE_DEVELOPER_PATH" -passin pass:"$GNOSISVPN_APPLE_CERTIFICATE_DEVELOPER_PASSWORD" -nokeys -nomacver -nodes 2>/dev/null >/dev/null; then
+                log_error "Password for $GNOSISVPN_APPLE_CERTIFICATE_DEVELOPER_PATH certificate is incorrect or certificate file is invalid"
                 exit 1
             else
                 log_info "Apple Developer certificate detected"
             fi
         fi
 
-        if [[ -z $APPLE_CERTIFICATE_INSTALLER_PASSWORD ]]; then
-            log_error "Apple Installer certificate password not set in APPLE_CERTIFICATE_INSTALLER_PASSWORD environment variable"
+        if [[ -z ${GNOSISVPN_APPLE_CERTIFICATE_INSTALLER_PASSWORD:-} ]]; then
+            log_error "Apple Installer certificate password not set in GNOSISVPN_APPLE_CERTIFICATE_INSTALLER_PASSWORD environment variable"
             exit 1
         else
-            if ! command -v openssl pkcs12 -info -in "$APPLE_CERTIFICATE_INSTALLER_PATH" -passin pass:"$APPLE_CERTIFICATE_INSTALLER_PASSWORD" -nokeys -nomacver -nodes 2>/dev/null >/dev/null; then
-                log_error "Password for $APPLE_CERTIFICATE_INSTALLER_PATH certificate is incorrect or certificate file is invalid"
+            if ! command -v openssl pkcs12 -info -in "$GNOSISVPN_APPLE_CERTIFICATE_INSTALLER_PATH" -passin pass:"$GNOSISVPN_APPLE_CERTIFICATE_INSTALLER_PASSWORD" -nokeys -nomacver -nodes 2>/dev/null >/dev/null; then
+                log_error "Password for $GNOSISVPN_APPLE_CERTIFICATE_INSTALLER_PATH certificate is incorrect or certificate file is invalid"
                 exit 1
             else
                 log_info "Apple Installer certificate detected"
@@ -207,13 +207,13 @@ check_version_syntax() {
 print_banner() {
     echo "=========================================="
     echo "  Gnosis VPN PKG Installer Builder"
-    echo "  Package Version: ${PACKAGE_VERSION}"
-    echo "  Client Version:  ${CLI_VERSION}"
-    echo "  App Version:     ${APP_VERSION}"
-    echo "  Signing:         $(if [[ "$SIGN" == true ]]; then echo "Enabled"; else echo "Disabled"; fi)"
-    if [[ "$SIGN" == true ]]; then
-        echo "APPLE_CERTIFICATE_DEVELOPER_PATH = $APPLE_CERTIFICATE_DEVELOPER_PATH"
-        echo "APPLE_CERTIFICATE_INSTALLER_PATH = $APPLE_CERTIFICATE_INSTALLER_PATH"
+    echo "  Package Version: ${GNOSISVPN_PACKAGE_VERSION}"
+    echo "  Client Version:  ${GNOSISVPN_CLI_VERSION}"
+    echo "  App Version:     ${GNOSISVPN_APP_VERSION}"
+    echo "  Signing:         $(if [[ $GNOSISVPN_ENABLE_SIGNATURE == true ]]; then echo "Enabled"; else echo "Disabled"; fi)"
+    if [[ $GNOSISVPN_ENABLE_SIGNATURE == true ]]; then
+        echo "GNOSISVPN_APPLE_CERTIFICATE_DEVELOPER_PATH: $GNOSISVPN_APPLE_CERTIFICATE_DEVELOPER_PATH"
+        echo "GNOSISVPN_APPLE_CERTIFICATE_INSTALLER_PATH: $GNOSISVPN_APPLE_CERTIFICATE_INSTALLER_PATH"
     fi
     echo "=========================================="
     echo ""
@@ -280,7 +280,7 @@ prepare_build_dir() {
         chmod 755 "$BUILD_DIR/root/usr/local/bin/wg"
 
         # Signing of the wg binary by the `Developer ID Application` certificate
-        if [[ "$SIGN" == true ]]; then
+        if [[ $GNOSISVPN_ENABLE_SIGNATURE == true ]]; then
             trap 'cleanup_binary' EXIT INT TERM
             local keychain_password
             keychain_password=$(openssl rand -base64 24)
@@ -289,7 +289,7 @@ prepare_build_dir() {
             security set-keychain-settings -lut 21600 gnosisvpn-binary.keychain
             security unlock-keychain -p "${keychain_password}" gnosisvpn-binary.keychain
             security list-keychains -d user -s gnosisvpn-binary.keychain login.keychain
-            security import "${APPLE_CERTIFICATE_DEVELOPER_PATH}" -k gnosisvpn-binary.keychain -P "${APPLE_CERTIFICATE_DEVELOPER_PASSWORD}" -T /usr/bin/codesign
+            security import "${GNOSISVPN_APPLE_CERTIFICATE_DEVELOPER_PATH}" -k gnosisvpn-binary.keychain -P "${GNOSISVPN_APPLE_CERTIFICATE_DEVELOPER_PASSWORD}" -T /usr/bin/codesign
             security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${keychain_password}" gnosisvpn-binary.keychain
             CERT_ID=$(security find-identity -v -p codesigning gnosisvpn-binary.keychain | awk -F'"' '{print $2}' | tr -d '\n')
             codesign --sign "${CERT_ID}" --options runtime --timestamp "$BUILD_DIR/root/usr/local/bin/wg"
@@ -459,19 +459,19 @@ download_binaries() {
     chmod 700 "${BUILD_DIR}/binaries"
 
     gcloud artifacts files download --project=gnosisvpn-production --location=europe-west3 --repository=rust-binaries --destination="${BUILD_DIR}/binaries" \
-    "gnosis_vpn:${CLI_VERSION}:gnosis_vpn-aarch64-darwin" --local-filename=gnosis_vpn-aarch64-darwin
+    "gnosis_vpn:${GNOSISVPN_CLI_VERSION}:gnosis_vpn-aarch64-darwin" --local-filename=gnosis_vpn-aarch64-darwin
 
     gcloud artifacts files download --project=gnosisvpn-production --location=europe-west3 --repository=rust-binaries --destination="${BUILD_DIR}/binaries" \
-    "gnosis_vpn:${CLI_VERSION}:gnosis_vpn-ctl-aarch64-darwin" --local-filename=gnosis_vpn-ctl-aarch64-darwin
+        "gnosis_vpn:${GNOSISVPN_CLI_VERSION}:gnosis_vpn-ctl-aarch64-darwin" --local-filename=gnosis_vpn-ctl-aarch64-darwin
 
     gcloud artifacts files download --project=gnosisvpn-production --location=europe-west3 --repository=rust-binaries --destination="${BUILD_DIR}/binaries" \
-    "gnosis_vpn:${CLI_VERSION}:gnosis_vpn-x86_64-darwin" --local-filename=gnosis_vpn-x86_64-darwin
+        "gnosis_vpn:${GNOSISVPN_CLI_VERSION}:gnosis_vpn-x86_64-darwin" --local-filename=gnosis_vpn-x86_64-darwin
 
     gcloud artifacts files download --project=gnosisvpn-production --location=europe-west3 --repository=rust-binaries --destination="${BUILD_DIR}/binaries" \
-    "gnosis_vpn:${CLI_VERSION}:gnosis_vpn-ctl-x86_64-darwin" --local-filename=gnosis_vpn-ctl-x86_64-darwin
+        "gnosis_vpn:${GNOSISVPN_CLI_VERSION}:gnosis_vpn-ctl-x86_64-darwin" --local-filename=gnosis_vpn-ctl-x86_64-darwin
 
     gcloud artifacts files download --project=gnosisvpn-production --location=europe-west3 --repository=rust-binaries --destination="${BUILD_DIR}/binaries" \
-    "gnosis_vpn-app:${APP_VERSION}:gnosis_vpn-app-universal-darwin.dmg" --local-filename=gnosis_vpn-app-universal-darwin.dmg
+        "gnosis_vpn-app:${GNOSISVPN_APP_VERSION}:gnosis_vpn-app-universal-darwin.dmg" --local-filename=gnosis_vpn-app-universal-darwin.dmg
 
     log_success "All downloads completed"
 
@@ -538,7 +538,7 @@ build_component_package() {
         --root "$BUILD_DIR/root" \
         --scripts "$BUILD_DIR/scripts" \
         --identifier "org.gnosis.vpn.client" \
-        --version "$PACKAGE_VERSION" \
+        --version "$GNOSISVPN_PACKAGE_VERSION" \
         --install-location "/" \
         --ownership recommended \
         "$BUILD_DIR/$COMPONENT_PKG"
@@ -561,7 +561,7 @@ build_distribution_package() {
         --distribution "$DISTRIBUTION_XML" \
         --resources "$RESOURCES_DIR" \
         --package-path "$BUILD_DIR" \
-        --version "$PACKAGE_VERSION" \
+        --version "$GNOSISVPN_PACKAGE_VERSION" \
         "$BUILD_DIR/$PKG_NAME"
 
     if [[ -f "$BUILD_DIR/$PKG_NAME" ]]; then
@@ -597,10 +597,10 @@ print_summary() {
     echo "=========================================="
     echo "  Build Summary"
     echo "=========================================="
-    echo "Version:        $PACKAGE_VERSION"
+    echo "Version:        $GNOSISVPN_PACKAGE_VERSION"
     echo "Build Date:     $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
-    echo "Client Version: ${CLI_VERSION}"
-    echo "App Version:    ${APP_VERSION}"
+    echo "Client Version: ${GNOSISVPN_CLI_VERSION}"
+    echo "App Version:    ${GNOSISVPN_APP_VERSION}"
     echo "Package:        $BUILD_DIR/$PKG_NAME"
     echo "Component:      $BUILD_DIR/$COMPONENT_PKG"
 
