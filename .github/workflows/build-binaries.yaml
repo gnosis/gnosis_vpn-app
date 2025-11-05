@@ -24,9 +24,6 @@ on:
           - universal-darwin
         required: true
         description: "Architecture to build for"
-concurrency:
-  group: ${{ github.ref }}-build-binary-${{ inputs.architecture }}
-  cancel-in-progress: true
 jobs:
   binary:
     if: >-

@@ -64,11 +64,11 @@ jobs:
           echo "Preparing binaries for upload"
           for architecture in "${architectures[@]}"; do
               echo "Downloading from GCP binary for ${architecture}"
-              gcloud artifacts files download --project=gnosisvpn-production --location=europe-west3 --repository=rust-binaries gnosis_vpn-app:${{ steps.environment.outputs.release_version }}:gnosis_vpn-app-${architecture} --destination=./binaries --local-filename=gnosis_vpn-app-${architecture}
+              gcloud artifacts files download --project=gnosisvpn-production --location=europe-west3 --repository=rust-binaries gnosis_vpn-app:${{ steps.environment.outputs.release_version }}:gnosis_vpn-app-${architecture}.dmg --destination=./binaries --local-filename=gnosis_vpn-app-${architecture}.dmg
               echo "Uploading binary for ${architecture}"
               gh release upload v${{ steps.environment.outputs.release_version }} "$PWD/binaries/gnosis_vpn-app-${architecture}" --clobber
               echo "Downloading checksum for ${architecture}"
-              gcloud artifacts files download --project=gnosisvpn-production --location=europe-west3 --repository=rust-binaries gnosis_vpn-app:${{ steps.environment.outputs.release_version }}:gnosis_vpn-app-${architecture}.sha256 --destination=./binaries --local-filename=gnosis_vpn-app-${architecture}.sha256
+              gcloud artifacts files download --project=gnosisvpn-production --location=europe-west3 --repository=rust-binaries gnosis_vpn-app:${{ steps.environment.outputs.release_version }}:gnosis_vpn-app-${architecture}.dmg.sha256 --destination=./binaries --local-filename=gnosis_vpn-app-${architecture}.dmg.sha256
               echo "Uploading checksum for ${architecture}"
               gh release upload v${{ steps.environment.outputs.release_version }} "$PWD/binaries/gnosis_vpn-app-${architecture}.sha256" --clobber
           done
