@@ -12,7 +12,7 @@ export default function Settings() {
   const [appState] = useAppStore();
   const [settings, settingsActions] = useSettingsStore();
 
-  const availableDestinations = appState.availableDestinations.map((e) => {
+  const availableDestinations = appState.availableDestinations.map((e: any) => {
     return {
       address: e.address,
       label: formatDestination(e),
@@ -26,13 +26,13 @@ export default function Settings() {
       <Toggle
         label="Connect on application startup"
         checked={settings.connectOnStartup}
-        onChange={(e) =>
+        onChange={(e: any) =>
           void settingsActions.setConnectOnStartup(e.currentTarget.checked)}
       />
       <Toggle
         label="Start application minimized"
         checked={settings.startMinimized}
-        onChange={(e) =>
+        onChange={(e: any) =>
           void settingsActions.setStartMinimized(e.currentTarget.checked)}
       />
 
@@ -45,7 +45,7 @@ export default function Settings() {
           }
         >
           <Dropdown
-            options={appState.availableDestinations.map((e) => {
+            options={appState.availableDestinations.map((e: any) => {
               return {
                 address: e.address,
                 label: formatDestination(e),
@@ -60,10 +60,10 @@ export default function Settings() {
                 ),
               }
               : null}
-            onChange={(e) =>
+            onChange={(e: any) =>
               void settingsActions.setPreferredLocation(e.address)}
             size="sm"
-            itemToString={(e) => e.label}
+            itemToString={(e: any) => e.label}
           />
         </Show>
       </label>

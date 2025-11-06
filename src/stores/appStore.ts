@@ -15,6 +15,7 @@ import {
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import { getVpnStatus, isConnected, isConnecting } from "@src/utils/status.ts";
 import { getEthAddress } from "@src/utils/address.ts";
+import { useNodeAnalyticsStore } from "@src/stores/nodeAnalyticsStore.ts";
 
 export type AppScreen = "main" | "onboarding" | "synchronization";
 
@@ -76,8 +77,10 @@ export function createAppStore(): AppStoreTuple {
 
   let pollingId: ReturnType<typeof globalThis.setInterval> | undefined;
   let pollInFlight = false;
+  let currentConnectionStart: number | null = null;
 
   const [settings] = useSettingsStore();
+  const [, analyticsActions] = useNodeAnalyticsStore();
   let lastPreferredLocation: string | null = settings.preferredLocation;
   let hasInitializedPreferred = false;
 
@@ -89,7 +92,7 @@ export function createAppStore(): AppStoreTuple {
   const applyDestinationSelection = () => {
     const available = state.availableDestinations;
     const userSelected = state.selectedAddress
-      ? available.find((d) => d.address === state.selectedAddress)
+      ? available.find((d: Destination) => d.address === state.selectedAddress)
       : undefined;
     if (userSelected) {
       if (state.destination?.address !== userSelected.address) {
@@ -99,7 +102,7 @@ export function createAppStore(): AppStoreTuple {
     }
 
     const preferred = settings.preferredLocation
-      ? available.find((d) => d.address === settings.preferredLocation)
+      ? available.find((d: Destination) => d.address === settings.preferredLocation)
       : undefined;
     if (preferred) {
       if (state.destination?.address !== preferred.address) {
@@ -286,7 +289,9 @@ export function createAppStore(): AppStoreTuple {
         log(`Connecting to ${reasonForLog}: ${targetAddress ?? "none"}`);
 
         if (targetAddress) {
+          currentConnectionStart = Date.now();
           await VPNService.connect(targetAddress);
+          analyticsActions.recordConnection(targetAddress, true);
         }
         await getStatus();
         applyDestinationSelection();
@@ -294,6 +299,9 @@ export function createAppStore(): AppStoreTuple {
         const message = error instanceof Error ? error.message : String(error);
         log(message);
         setState("error", message);
+        if (state.selectedAddress) {
+          analyticsActions.recordConnection(state.selectedAddress, false);
+        }
       } finally {
         setState("isLoading", false);
       }
@@ -302,6 +310,13 @@ export function createAppStore(): AppStoreTuple {
     disconnect: async () => {
       setState("isLoading", true);
       try {
+        // Record session duration if we have a connection
+        if (currentConnectionStart && state.destination) {
+          const duration = (Date.now() - currentConnectionStart) / 1000;
+          analyticsActions.updateSessionDuration(state.destination.address, duration);
+          currentConnectionStart = null;
+        }
+
         await VPNService.disconnect();
         await getStatus();
       } catch (error) {

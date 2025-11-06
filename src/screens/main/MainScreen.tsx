@@ -1,4 +1,4 @@
-import { createEffect, createSignal, onCleanup, onMount } from "solid-js";
+import { createEffect, createSignal, onCleanup, onMount, Show } from "solid-js";
 import { useAppStore } from "@src/stores/appStore";
 import { StatusIndicator } from "@src/components/StatusIndicator";
 import Navigation from "@src/components/Navigation";
@@ -6,6 +6,8 @@ import ExitNode from "@src/components/ExitNode";
 import ConnectButton from "@src/components/ConnectButton";
 import StatusHero from "@src/components/StatusHero";
 import StatusLine from "@src/components/StatusLine";
+import { PathVisualization } from "@src/components/PathVisualization";
+import { ChannelDashboard } from "@src/components/ChannelDashboard";
 
 export function MainScreen() {
   const [appState] = useAppStore();
@@ -38,7 +40,7 @@ export function MainScreen() {
   console.log("appState", appState);
 
   return (
-    <div class="flex w-full flex-col h-full py-6 px-4">
+    <div class="flex w-full flex-col h-full py-6 px-4 gap-4 overflow-y-auto">
       <div class="flex flex-row justify-between z-60">
         <StatusIndicator />
         <Navigation />
@@ -54,6 +56,15 @@ export function MainScreen() {
         </div>
         <StatusLine heightPx={connectorHeight()} />
         <div class="flex-grow z-10"></div>
+        
+        {/* Show decentralized VPN features when connected */}
+        <Show when={appState.vpnStatus === "Connected"}>
+          <div class="w-full space-y-4 mb-4">
+            <PathVisualization />
+            <ChannelDashboard />
+          </div>
+        </Show>
+        
         <ConnectButton />
       </main>
     </div>
