@@ -53,7 +53,7 @@ export type FundingState =
 
 export type StatusResponse = {
   run_mode: RunMode;
-  available_destinations: Destination[];
+  destinations: DestinationState[];
   network: string;
 };
 
@@ -152,7 +152,7 @@ export class VPNService {
 
     // Sort by address for consistent selection
     const sorted = [...destinations].sort((a, b) =>
-      a.address.localeCompare(b.address)
+      a.address.localeCompare(b.address),
     );
     return sorted[0].address;
   }
