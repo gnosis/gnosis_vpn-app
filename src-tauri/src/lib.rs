@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use tauri_plugin_store::StoreExt;
 
 use std::collections::HashMap;
-use std::time::{SystemTime, Duration};
+use std::time::{Duration, SystemTime};
 use std::{path::PathBuf, sync::Mutex};
 
 #[derive(Clone, Debug, Serialize, Default)]
@@ -60,11 +60,9 @@ pub enum RunMode {
     /// Subsequent service start up in this state and after preparing safe
     Warmup,
     /// Normal operation where connections can be made
-    Running {
-        funding: FundingState,
-    },
+    Running { funding: FundingState },
     /// Shutdown service
-    Shutdown
+    Shutdown,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -120,9 +118,13 @@ impl From<command::ConnectionState> for ConnectionState {
     fn from(cs: command::ConnectionState) -> Self {
         match cs {
             command::ConnectionState::None => ConnectionState::None,
-            command::ConnectionState::Connecting(since, phase) => ConnectionState::Connecting(since, phase.to_string()),
+            command::ConnectionState::Connecting(since, phase) => {
+                ConnectionState::Connecting(since, phase.to_string())
+            }
             command::ConnectionState::Connected(since) => ConnectionState::Connected(since),
-            command::ConnectionState::Disconnecting(since, phase) => ConnectionState::Disconnecting(since, phase.to_string()),
+            command::ConnectionState::Disconnecting(since, phase) => {
+                ConnectionState::Disconnecting(since, phase.to_string())
+            }
         }
     }
 }
@@ -130,9 +132,7 @@ impl From<command::ConnectionState> for ConnectionState {
 impl From<command::RunMode> for RunMode {
     fn from(rm: command::RunMode) -> Self {
         match rm {
-            command::RunMode::Init | command::RunMode::ValueingTicket => {
-                RunMode::Warmup
-            }
+            command::RunMode::Init | command::RunMode::ValueingTicket => RunMode::Warmup,
             command::RunMode::PreparingSafe {
                 node_address,
                 node_xdai,
@@ -144,9 +144,7 @@ impl From<command::RunMode> for RunMode {
                 node_wxhopr: node_wxhopr.amount().to_string(),
                 funding_tool,
             },
-            command::RunMode::Warmup {
-                hopr_state: _,
-            } => RunMode::Warmup ,
+            command::RunMode::Warmup { hopr_state: _ } => RunMode::Warmup,
             command::RunMode::Running {
                 funding,
                 hopr_state: _,
@@ -166,11 +164,7 @@ impl From<command::StatusResponse> for StatusResponse {
     fn from(sr: command::StatusResponse) -> Self {
         StatusResponse {
             run_mode: sr.run_mode.into(),
-            destinations: sr
-                .destinations
-                .into_iter()
-                .map(|d| d.into())
-                .collect(),
+            destinations: sr.destinations.into_iter().map(|d| d.into()).collect(),
             network: sr.network.to_string(),
         }
     }
@@ -179,7 +173,9 @@ impl From<command::StatusResponse> for StatusResponse {
 #[tauri::command]
 async fn status() -> Result<StatusResponse, String> {
     let p = PathBuf::from(socket::DEFAULT_PATH);
-    let resp = socket::process_cmd(&p, &command::Command::Status).await.map_err(|e| e.to_string())?;
+    let resp = socket::process_cmd(&p, &command::Command::Status)
+        .await
+        .map_err(|e| e.to_string())?;
     let status_resp: command::StatusResponse = match resp {
         command::Response::Status(resp) => resp,
         _ => return Err("Unexpected response type".to_string()),
@@ -193,7 +189,9 @@ async fn connect(address: String) -> Result<command::ConnectResponse, String> {
     let p = PathBuf::from(socket::DEFAULT_PATH);
     let conv_address = address.parse::<Address>().map_err(|e| e.to_string())?;
     let cmd = command::Command::Connect(conv_address);
-    let resp = socket::process_cmd(&p, &cmd).await.map_err(|e| e.to_string())?;
+    let resp = socket::process_cmd(&p, &cmd)
+        .await
+        .map_err(|e| e.to_string())?;
     match resp {
         command::Response::Connect(resp) => Ok(resp),
         _ => Err("Unexpected response type".to_string()),
@@ -204,7 +202,9 @@ async fn connect(address: String) -> Result<command::ConnectResponse, String> {
 async fn disconnect() -> Result<command::DisconnectResponse, String> {
     let p = PathBuf::from(socket::DEFAULT_PATH);
     let cmd = command::Command::Disconnect;
-    let resp = socket::process_cmd(&p, &cmd).await.map_err(|e| e.to_string())?;
+    let resp = socket::process_cmd(&p, &cmd)
+        .await
+        .map_err(|e| e.to_string())?;
     match resp {
         command::Response::Disconnect(resp) => Ok(resp),
         _ => Err("Unexpected response type".to_string()),
@@ -215,7 +215,9 @@ async fn disconnect() -> Result<command::DisconnectResponse, String> {
 async fn balance() -> Result<Option<command::BalanceResponse>, String> {
     let p = PathBuf::from(socket::DEFAULT_PATH);
     let cmd = command::Command::Balance;
-    let resp = socket::process_cmd(&p, &cmd).await.map_err(|e| e.to_string())?;
+    let resp = socket::process_cmd(&p, &cmd)
+        .await
+        .map_err(|e| e.to_string())?;
     match resp {
         command::Response::Balance(resp) => Ok(resp),
         _ => Err("Unexpected response type".to_string()),
@@ -226,7 +228,9 @@ async fn balance() -> Result<Option<command::BalanceResponse>, String> {
 async fn refresh_node() -> Result<(), String> {
     let p = PathBuf::from(socket::DEFAULT_PATH);
     let cmd = command::Command::RefreshNode;
-    let resp = socket::process_cmd(&p, &cmd).await.map_err(|e| e.to_string())?;
+    let resp = socket::process_cmd(&p, &cmd)
+        .await
+        .map_err(|e| e.to_string())?;
     match resp {
         command::Response::Empty => Ok(()),
         _ => Err("Unexpected response type".to_string()),
@@ -237,7 +241,9 @@ async fn refresh_node() -> Result<(), String> {
 async fn funding_tool(secret: String) -> Result<(), String> {
     let p = PathBuf::from(socket::DEFAULT_PATH);
     let cmd = command::Command::FundingTool(secret);
-    let resp = socket::process_cmd(&p, &cmd).await.map_err(|e| e.to_string())?;
+    let resp = socket::process_cmd(&p, &cmd)
+        .await
+        .map_err(|e| e.to_string())?;
     match resp {
         command::Response::Empty => Ok(()),
         _ => Err("Unexpected response type".to_string()),
