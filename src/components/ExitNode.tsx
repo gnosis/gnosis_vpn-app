@@ -26,7 +26,7 @@ export default function ExitNode() {
             ...appState.availableDestinations,
           ]}
           value={(appState.selectedAddress
-            ? (appState.availableDestinations.find((d) =>
+            ? (appState.availableDestinations.find((d: Destination) =>
               d.address === appState.selectedAddress
             ) ??
               ({ type: "default" } as DefaultOption))
@@ -54,7 +54,7 @@ export default function ExitNode() {
           }}
           placeholder="Default"
           disabled={appState.isLoading ||
-            appState.connectionStatus === "ServiceUnavailable"}
+            appState.vpnStatus === "ServiceUnavailable"}
         />
       </div>
       <ExitNodeWarning
