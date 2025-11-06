@@ -17,8 +17,11 @@ export interface Destination {
 
 export type ConnectionState =
   | "None"
+  // Connecting tuple (since: timestamp, phase/status: string) - see gnosis_vpn-lib/src/core/conn.rs
   | { Connecting: [number, string] }
+  // Connected since timestamp
   | { Connected: number }
+  // Disconecting tuple (since: timestamp, phase/status: string) - see gnosis_vpn-lib/src/core/disconn.rs
   | { Disconnecting: [number, string] };
 
 export interface PreparingSafe {
@@ -146,14 +149,14 @@ export class VPNService {
   }
 
   static getBestDestination(
-    destinations: StatusResponse["available_destinations"],
+    destinations: StatusResponse["destinations"],
   ): string | null {
     if (destinations.length === 0) return null;
 
     // Sort by address for consistent selection
     const sorted = [...destinations].sort((a, b) =>
-      a.address.localeCompare(b.address),
+      a.destination.address.localeCompare(b.destination.address),
     );
-    return sorted[0].address;
+    return sorted[0].destination.address;
   }
 }
