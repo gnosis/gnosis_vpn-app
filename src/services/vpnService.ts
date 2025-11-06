@@ -3,11 +3,23 @@ import { invoke } from "@tauri-apps/api/core";
 
 export type Path = { Hops: number } | { IntermediatePath: string[] };
 
+export interface DestinationState {
+  destination: Destination;
+  connection_state: ConnectionState;
+  last_connection_error: string | null;
+}
+
 export interface Destination {
   meta: Record<string, string>;
   address: string;
   path: Path;
 }
+
+export type ConnectionState =
+  | "None"
+  | { Connecting: [number, string] }
+  | { Connected: number }
+  | { Disconnecting: [number, string] };
 
 export interface PreparingSafe {
   node_address: string;
@@ -16,13 +28,7 @@ export interface PreparingSafe {
   funding_tool: FundingTool;
 }
 
-export interface Warmup {
-  /// number between 0.0 and 1.0, can go higher than 1.0 and can jump backwards
-  sync_progress: number;
-}
-
 export interface Running {
-  connection: ConnectionState;
   funding: FundingState;
 }
 
@@ -31,13 +37,6 @@ export type FundingTool =
   | "InProgress"
   | "CompletedSuccess"
   | "CompletedError";
-
-export type ConnectionState =
-  | { Connecting: Destination }
-  | { Disconnecting: Destination }
-  | { Connected: Destination }
-  | "ServiceUnavailable"
-  | "Disconnected";
 
 export type FundingIssue =
   | "Unfunded" // cannot work at all - initial state
@@ -62,9 +61,11 @@ export type RunMode =
   /// Initial start, after creating safe this state will not be reached again
   | { PreparingSafe: PreparingSafe }
   /// Subsequent service start up in this state and after preparing safe
-  | { Warmup: Warmup }
+  | "Warmup"
   /// Normal operation where connections can be made
-  | { Running: Running };
+  | { Running: Running }
+  /// Service shutting down
+  | "Shutdown";
 
 export type ConnectResponse = { Connecting: Destination } | "AddressNotFound";
 export type DisconnectResponse =
