@@ -1,4 +1,4 @@
-import type { Destination, Path } from "@src/services/vpnService.ts";
+import type { Destination, RoutingOptions } from "@src/services/vpnService.ts";
 
 export const canonicalizeMeta = (
   meta: Record<string, string> | undefined,
@@ -10,16 +10,16 @@ export const canonicalizeMeta = (
   return JSON.stringify(ordered);
 };
 
-export const canonicalizePath = (path: Path): string => {
-  if ("Hops" in path) return `Hops:${path.Hops}`;
-  return `IntermediatePath:${(path.IntermediatePath || []).join(",")}`;
+export const canonicalizePath = (routing: RoutingOptions): string => {
+  if ("Hops" in routing) return `Hops:${routing.Hops}`;
+  return `IntermediatePath:${(routing.IntermediatePath || []).join(",")}`;
 };
 
 export const destinationSignature = (dest: Destination): string => {
   return [
     dest.address,
     canonicalizeMeta(dest.meta),
-    canonicalizePath(dest.path),
+    canonicalizePath(dest.routing),
   ].join("|");
 };
 
