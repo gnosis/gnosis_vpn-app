@@ -57,7 +57,6 @@ export type FundingState =
 export type StatusResponse = {
   run_mode: RunMode;
   destinations: DestinationState[];
-  network: string;
 };
 
 export type RunMode =
@@ -75,16 +74,18 @@ export type DisconnectResponse =
   | { Disconnecting: Destination }
   | "NotConnected";
 
-export type Addresses = {
-  node: string;
-  safe: string;
+export type Info = {
+  node_address: string;
+  node_peer_id: string;
+  safe_address: string;
+  network: string;
 };
 
 export type BalanceResponse = {
   node: string;
   safe: string;
   channels_out: string;
-  addresses: Addresses;
+  info: Info;
   issues: FundingIssue[];
 };
 

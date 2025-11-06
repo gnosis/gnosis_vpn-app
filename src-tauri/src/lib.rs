@@ -25,7 +25,6 @@ struct AppSettings {
 pub struct StatusResponse {
     pub run_mode: RunMode,
     pub destinations: Vec<DestinationState>,
-    pub network: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -165,7 +164,6 @@ impl From<command::StatusResponse> for StatusResponse {
         StatusResponse {
             run_mode: sr.run_mode.into(),
             destinations: sr.destinations.into_iter().map(|d| d.into()).collect(),
-            network: sr.network.to_string(),
         }
     }
 }
