@@ -1,6 +1,14 @@
 import { createStore, type Store } from "solid-js/store";
 import { Store as TauriStore } from "@tauri-apps/plugin-store";
 
+// Configuration constants for reliability scoring
+const MAX_NODES_STORED = 100; // Prevent memory leak
+const NODE_INACTIVITY_DAYS = 90; // Prune nodes not used in 90 days
+const HISTORY_BONUS_DIVISOR = 10;
+const HISTORY_BONUS_CAP = 10;
+const RECENCY_WINDOW_MS = 86400000; // 24 hours
+const RECENCY_BONUS = 5;
+
 /**
  * Tracks performance metrics for decentralized VPN exit nodes
  * Helps users make informed decisions about which nodes to use
@@ -49,6 +57,7 @@ type NodeAnalyticsActions = {
   recordChannelActivity: (activity: Omit<ChannelActivity, "timestamp">) => void;
   getNodeReliability: (address: string) => number; // 0-100 score
   getBestNodes: (count: number) => NodePerformanceMetrics[];
+  pruneOldNodes: (metricsMap: Map<string, NodePerformanceMetrics>) => void;
   setPathPreference: (pref: "shortest" | "balanced" | "most_private") => Promise<void>;
   load: () => Promise<void>;
   save: () => Promise<void>;
@@ -91,6 +100,12 @@ export function createNodeAnalyticsStore(): NodeAnalyticsStoreTuple {
         setState("networkStats", "totalSuccessfulConnections", (c: number) => c + 1);
       }
 
+      // Track newly discovered nodes BEFORE adding to map
+      const isNewNode = !state.nodeMetrics.has(address);
+      if (isNewNode) {
+        setState("networkStats", "totalNodesDiscovered", (c) => c + 1);
+      }
+
       setState("nodeMetrics", (metrics: Map<string, NodePerformanceMetrics>) => {
         const existing = metrics.get(address);
         const updated: NodePerformanceMetrics = existing
@@ -119,16 +134,13 @@ export function createNodeAnalyticsStore(): NodeAnalyticsStoreTuple {
 
         const newMap = new Map(metrics);
         newMap.set(address, updated);
+        
+        // Prune old nodes if we exceed MAX_NODES_STORED
+        if (newMap.size > MAX_NODES_STORED) {
+          actions.pruneOldNodes(newMap);
+        }
+        
         return newMap;
-      });
-
-      // Track newly discovered nodes
-      setState("networkStats", (stats: NetworkStats) => {
-        const totalUnique = state.nodeMetrics.size + 1; // +1 for the one we're adding
-        return {
-          ...stats,
-          totalNodesDiscovered: Math.max(stats.totalNodesDiscovered, totalUnique),
-        };
       });
 
       void actions.save();
@@ -141,7 +153,7 @@ export function createNodeAnalyticsStore(): NodeAnalyticsStoreTuple {
 
         const newTotalUptime = existing.totalUptime + duration;
         const avgDuration =
-          existing.totalConnections > 0
+          existing.successfulConnections > 0
             ? newTotalUptime / existing.successfulConnections
             : 0;
 
@@ -230,16 +242,52 @@ export function createNodeAnalyticsStore(): NodeAnalyticsStoreTuple {
         (metrics.successfulConnections / metrics.totalConnections) * 100;
 
       // Boost score for nodes with more history (more reliable data)
-      const historyBonus = Math.min(metrics.totalConnections / 10, 1) * 10;
+      const historyBonus = Math.min(metrics.totalConnections / HISTORY_BONUS_DIVISOR, 1) * HISTORY_BONUS_CAP;
 
       // Boost for recent usage
       const recencyBonus = metrics.lastConnected
-        ? Date.now() - new Date(metrics.lastConnected).getTime() < 86400000 // within 24h
-          ? 5
+        ? Date.now() - new Date(metrics.lastConnected).getTime() < RECENCY_WINDOW_MS
+          ? RECENCY_BONUS
           : 0
         : 0;
 
       return Math.min(100, successRate + historyBonus + recencyBonus);
+    },
+
+    pruneOldNodes: (metricsMap: Map<string, NodePerformanceMetrics>) => {
+      // Remove nodes that haven't been used in NODE_INACTIVITY_DAYS
+      const cutoffTime = Date.now() - (NODE_INACTIVITY_DAYS * 24 * 60 * 60 * 1000);
+      const nodesToRemove: string[] = [];
+
+      metricsMap.forEach((metrics, address) => {
+        const lastUsed = metrics.lastConnected 
+          ? new Date(metrics.lastConnected).getTime()
+          : 0;
+        
+        // Don't remove favorites, but remove old inactive non-favorites
+        if (!metrics.isFavorite && lastUsed < cutoffTime) {
+          nodesToRemove.push(address);
+        }
+      });
+
+      // Remove oldest nodes first until under limit
+      if (metricsMap.size > MAX_NODES_STORED) {
+        const sortedByAge = Array.from(metricsMap.values())
+          .filter(m => !m.isFavorite) // Never remove favorites
+          .sort((a, b) => {
+            const aTime = a.lastConnected ? new Date(a.lastConnected).getTime() : 0;
+            const bTime = b.lastConnected ? new Date(b.lastConnected).getTime() : 0;
+            return aTime - bTime; // Oldest first
+          });
+
+        const excessCount = metricsMap.size - MAX_NODES_STORED;
+        for (let i = 0; i < Math.min(excessCount, sortedByAge.length); i++) {
+          nodesToRemove.push(sortedByAge[i].address);
+        }
+      }
+
+      // Remove the nodes
+      nodesToRemove.forEach(address => metricsMap.delete(address));
     },
 
     getBestNodes: (count: number): NodePerformanceMetrics[] => {

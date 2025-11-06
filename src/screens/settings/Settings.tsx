@@ -2,6 +2,7 @@ import { Dropdown } from "@src/components/common/Dropdown";
 import Toggle from "@src/components/common/Toggle.tsx";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
+import { type Destination } from "@src/services/vpnService.ts";
 import {
   formatDestination,
   formatDestinationByAddress,
@@ -12,7 +13,7 @@ export default function Settings() {
   const [appState] = useAppStore();
   const [settings, settingsActions] = useSettingsStore();
 
-  const availableDestinations = appState.availableDestinations.map((e: any) => {
+  const availableDestinations = appState.availableDestinations.map((e: Destination) => {
     return {
       address: e.address,
       label: formatDestination(e),
@@ -26,13 +27,13 @@ export default function Settings() {
       <Toggle
         label="Connect on application startup"
         checked={settings.connectOnStartup}
-        onChange={(e: any) =>
+        onChange={(e: Event & { currentTarget: HTMLInputElement }) =>
           void settingsActions.setConnectOnStartup(e.currentTarget.checked)}
       />
       <Toggle
         label="Start application minimized"
         checked={settings.startMinimized}
-        onChange={(e: any) =>
+        onChange={(e: Event & { currentTarget: HTMLInputElement }) =>
           void settingsActions.setStartMinimized(e.currentTarget.checked)}
       />
 
@@ -45,7 +46,7 @@ export default function Settings() {
           }
         >
           <Dropdown
-            options={appState.availableDestinations.map((e: any) => {
+            options={appState.availableDestinations.map((e: Destination) => {
               return {
                 address: e.address,
                 label: formatDestination(e),
@@ -60,10 +61,10 @@ export default function Settings() {
                 ),
               }
               : null}
-            onChange={(e: any) =>
+            onChange={(e: { address: string; label: string }) =>
               void settingsActions.setPreferredLocation(e.address)}
             size="sm"
-            itemToString={(e: any) => e.label}
+            itemToString={(e: { address: string; label: string }) => e.label}
           />
         </Show>
       </label>

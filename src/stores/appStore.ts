@@ -1,4 +1,5 @@
 import { createStore, reconcile, type Store } from "solid-js/store";
+import { createEffect } from "solid-js";
 import {
   type Destination,
   type RunMode,
@@ -78,6 +79,8 @@ export function createAppStore(): AppStoreTuple {
   let pollingId: ReturnType<typeof globalThis.setInterval> | undefined;
   let pollInFlight = false;
   let currentConnectionStart: number | null = null;
+  let previousVpnStatus: string | null = null;
+  let lastConnectedAddress: string | null = null;
 
   const [settings] = useSettingsStore();
   const [, analyticsActions] = useNodeAnalyticsStore();
@@ -88,6 +91,24 @@ export function createAppStore(): AppStoreTuple {
   const log = (content: string) => logActions.append(content);
   const logStatus = (response: StatusResponse) =>
     logActions.appendStatus(response);
+
+  // Watch for status transitions from Connected to any other state
+  createEffect(() => {
+    const currentStatus = state.vpnStatus;
+    
+    // Detect transition from Connected to Disconnected/Disconnecting
+    if (previousVpnStatus === "Connected" && currentStatus !== "Connected") {
+      // Record session duration for any disconnection (manual, error, network drop)
+      if (currentConnectionStart && lastConnectedAddress) {
+        const duration = (Date.now() - currentConnectionStart) / 1000;
+        analyticsActions.updateSessionDuration(lastConnectedAddress, duration);
+        currentConnectionStart = null;
+        lastConnectedAddress = null;
+      }
+    }
+    
+    previousVpnStatus = currentStatus;
+  });
 
   const applyDestinationSelection = () => {
     const available = state.availableDestinations;
@@ -290,6 +311,7 @@ export function createAppStore(): AppStoreTuple {
 
         if (targetAddress) {
           currentConnectionStart = Date.now();
+          lastConnectedAddress = targetAddress;
           await VPNService.connect(targetAddress);
           analyticsActions.recordConnection(targetAddress, true);
         }
@@ -310,13 +332,7 @@ export function createAppStore(): AppStoreTuple {
     disconnect: async () => {
       setState("isLoading", true);
       try {
-        // Record session duration if we have a connection
-        if (currentConnectionStart && state.destination) {
-          const duration = (Date.now() - currentConnectionStart) / 1000;
-          analyticsActions.updateSessionDuration(state.destination.address, duration);
-          currentConnectionStart = null;
-        }
-
+        // Session duration will be recorded by createEffect watching vpnStatus
         await VPNService.disconnect();
         await getStatus();
       } catch (error) {

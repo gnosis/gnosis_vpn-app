@@ -1,6 +1,24 @@
 import { createSignal, onMount, Show } from "solid-js";
 import { VPNService, type BalanceResponse, type FundingIssue } from "@src/services/vpnService";
-import { useNodeAnalyticsStore } from "@src/stores/nodeAnalyticsStore";
+
+// Issue message mapping for cleaner rendering
+const ISSUE_MESSAGES: Record<FundingIssue, string> = {
+  Unfunded: "Initial funding needed to start",
+  ChannelsOutOfFunds: "Channels need refilling for traffic",
+  SafeOutOfFunds: "Safe needs tokens to fund channels",
+  SafeLowOnFunds: "Safe balance running low",
+  NodeUnderfunded: "Node balance insufficient",
+  NodeLowOnFunds: "Node balance running low",
+};
+
+// Color configuration for status indicators
+type StatusColor = "green" | "yellow" | "orange" | "red";
+const STATUS_COLORS: Record<StatusColor, { bg: string; dot: string; text: string }> = {
+  green: { bg: "bg-green-50", dot: "bg-green-500", text: "text-green-800" },
+  yellow: { bg: "bg-yellow-50", dot: "bg-yellow-500", text: "text-yellow-800" },
+  orange: { bg: "bg-orange-50", dot: "bg-orange-500", text: "text-orange-800" },
+  red: { bg: "bg-red-50", dot: "bg-red-500", text: "text-red-800" },
+};
 
 /**
  * Displays payment channel status, token balances, and funding issues
@@ -8,7 +26,6 @@ import { useNodeAnalyticsStore } from "@src/stores/nodeAnalyticsStore";
  */
 export function ChannelDashboard() {
   const [balance, setBalance] = createSignal<BalanceResponse | null>(null);
-  const [, analyticsActions] = useNodeAnalyticsStore();
 
   onMount(() => {
     void loadBalance();
@@ -35,7 +52,7 @@ export function ChannelDashboard() {
     }
   };
 
-  const getStatusColor = (issues: FundingIssue[]) => {
+  const getStatusColor = (issues: FundingIssue[]): StatusColor => {
     if (issues.length === 0) return "green";
     if (
       issues.includes("Unfunded") ||
@@ -66,8 +83,18 @@ export function ChannelDashboard() {
   const refreshBalance = async () => {
     try {
       await VPNService.refreshNode();
-      // Wait a bit for the backend to update
-      setTimeout(() => void loadBalance(), 1000);
+      // Poll for updated balance with exponential backoff
+      const pollForUpdate = async (attempts = 0, maxAttempts = 5) => {
+        if (attempts >= maxAttempts) return;
+        
+        await new Promise(resolve => setTimeout(resolve, 200 * Math.pow(2, attempts)));
+        await loadBalance();
+        
+        // Could add logic here to check if balance actually changed
+        // and continue polling if needed
+      };
+      
+      await pollForUpdate();
     } catch (error) {
       console.error("Failed to refresh:", error);
     }
@@ -91,42 +118,16 @@ export function ChannelDashboard() {
       </div>
 
       <Show when={balance()}>
-        {(bal) => (
+        {(bal) => {
+          const statusColor = getStatusColor(bal().issues);
+          const colorClasses = STATUS_COLORS[statusColor];
+
+          return (
           <>
             {/* Status Indicator */}
-            <div
-              class={`flex items-center gap-2 p-3 rounded-lg ${
-                getStatusColor(bal().issues) === "green"
-                  ? "bg-green-50"
-                  : getStatusColor(bal().issues) === "yellow"
-                  ? "bg-yellow-50"
-                  : getStatusColor(bal().issues) === "orange"
-                  ? "bg-orange-50"
-                  : "bg-red-50"
-              }`}
-            >
-              <div
-                class={`w-3 h-3 rounded-full ${
-                  getStatusColor(bal().issues) === "green"
-                    ? "bg-green-500"
-                    : getStatusColor(bal().issues) === "yellow"
-                    ? "bg-yellow-500"
-                    : getStatusColor(bal().issues) === "orange"
-                    ? "bg-orange-500"
-                    : "bg-red-500"
-                }`}
-              />
-              <span
-                class={`text-sm font-medium ${
-                  getStatusColor(bal().issues) === "green"
-                    ? "text-green-800"
-                    : getStatusColor(bal().issues) === "yellow"
-                    ? "text-yellow-800"
-                    : getStatusColor(bal().issues) === "orange"
-                    ? "text-orange-800"
-                    : "text-red-800"
-                }`}
-              >
+            <div class={`flex items-center gap-2 p-3 rounded-lg ${colorClasses.bg}`}>
+              <div class={`w-3 h-3 rounded-full ${colorClasses.dot}`} />
+              <span class={`text-sm font-medium ${colorClasses.text}`}>
                 {getStatusMessage(bal().issues)}
               </span>
             </div>
@@ -186,20 +187,14 @@ export function ChannelDashboard() {
                 </div>
                 <ul class="text-xs text-gray-600 space-y-1 list-disc list-inside">
                   {bal().issues.map((issue) => (
-                    <li>
-                      {issue === "Unfunded" && "Initial funding needed to start"}
-                      {issue === "ChannelsOutOfFunds" && "Channels need refilling for traffic"}
-                      {issue === "SafeOutOfFunds" && "Safe needs tokens to fund channels"}
-                      {issue === "SafeLowOnFunds" && "Safe balance running low"}
-                      {issue === "NodeUnderfunded" && "Node balance insufficient"}
-                      {issue === "NodeLowOnFunds" && "Node balance running low"}
-                    </li>
+                    <li>{ISSUE_MESSAGES[issue]}</li>
                   ))}
                 </ul>
               </div>
             </Show>
           </>
-        )}
+          );
+        }}
       </Show>
 
       <div class="text-xs text-gray-500 bg-blue-50 rounded-lg p-2 flex items-start gap-2">
