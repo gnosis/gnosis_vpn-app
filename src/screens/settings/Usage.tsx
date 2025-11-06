@@ -20,7 +20,6 @@ export default function Usage() {
 
   async function loadBalance() {
     setIsBalanceLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 2000));
     setBalanceError(undefined);
     try {
       const result = await VPNService.balance();
@@ -80,21 +79,16 @@ export default function Usage() {
       <div class="flex flex-row items-center gap-2 max-w-md">
         <div class="text-xs text-slate-600 px-2">
           <WarningIcon />
-          It may take up to 2 minutes until your funds have been registered
-          after transaction.
+          It may take up to 2 minutes until your funds have been registered after transaction.
         </div>
         <div class="w-8 h-8">
-          <button
-            type="button"
-            class="h-8 w-8 hover:cursor-pointer"
-            onClick={handleRefresh}
-          >
+          <button type="button" class="h-8 w-8 hover:cursor-pointer" onClick={handleRefresh}>
             <img src={refreshIcon} alt="Refresh" class="h-8 w-8" />
           </button>
         </div>
       </div>
 
-      <div class="flex-grow"></div>
+      <div class="grow"></div>
       <Help />
       <AirdropClaimBanner />
     </div>

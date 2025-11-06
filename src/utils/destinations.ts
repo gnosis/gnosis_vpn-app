@@ -1,8 +1,6 @@
-import type { Destination, Path } from "@src/services/vpnService.ts";
+import type { Destination, RoutingOptions } from "@src/services/vpnService.ts";
 
-export const canonicalizeMeta = (
-  meta: Record<string, string> | undefined,
-): string => {
+export const canonicalizeMeta = (meta: Record<string, string> | undefined): string => {
   if (!meta) return "";
   const keys = Object.keys(meta).sort();
   const ordered: Record<string, string> = {};
@@ -10,23 +8,16 @@ export const canonicalizeMeta = (
   return JSON.stringify(ordered);
 };
 
-export const canonicalizePath = (path: Path): string => {
-  if ("Hops" in path) return `Hops:${path.Hops}`;
-  return `IntermediatePath:${(path.IntermediatePath || []).join(",")}`;
+export const canonicalizePath = (routing: RoutingOptions): string => {
+  if ("Hops" in routing) return `Hops:${routing.Hops}`;
+  return `IntermediatePath:${(routing.IntermediatePath || []).join(",")}`;
 };
 
 export const destinationSignature = (dest: Destination): string => {
-  return [
-    dest.address,
-    canonicalizeMeta(dest.meta),
-    canonicalizePath(dest.path),
-  ].join("|");
+  return [dest.address, canonicalizeMeta(dest.meta), canonicalizePath(dest.routing)].join("|");
 };
 
-export const areDestinationsEqualUnordered = (
-  a: Destination[],
-  b: Destination[],
-): boolean => {
+export const areDestinationsEqualUnordered = (a: Destination[], b: Destination[]): boolean => {
   if (a.length !== b.length) return false;
   if (a.length === 0) return true;
   const setA = new Set(a.map(destinationSignature));
@@ -60,10 +51,8 @@ export function getPreferredAvailabilityChangeMessage(
 ): string | null {
   if (previous.length === 0) return null;
   if (!preferredAddress) return null;
-  const previouslyHadPreferred = previous.some((d) =>
-    d.address === preferredAddress
-  );
-  const nowHasPreferred = next.some((d) => d.address === preferredAddress);
+  const previouslyHadPreferred = previous.some(d => d.address === preferredAddress);
+  const nowHasPreferred = next.some(d => d.address === preferredAddress);
   if (previouslyHadPreferred === nowHasPreferred) return null;
   return nowHasPreferred
     ? `Preferred location ${preferredAddress} is available again.`
@@ -77,7 +66,7 @@ export function selectTargetAddress(
 ): { address: string | undefined; reason: string } {
   if (addressArg) return { address: addressArg, reason: "address parameter" };
   if (preferredAddress) {
-    const hasPreferred = available.some((d) => d.address === preferredAddress);
+    const hasPreferred = available.some(d => d.address === preferredAddress);
     if (hasPreferred) {
       return { address: preferredAddress, reason: "preferred location" };
     }
@@ -94,17 +83,12 @@ export function selectTargetAddress(
 
 export function formatDestination(destination: Destination): string {
   const meta = destination.meta || {};
-  const parts = [meta.city, meta.state, meta.location].map((v) =>
-    (v ?? "").trim()
-  ).filter((v) => v.length > 0);
+  const parts = [meta.city, meta.state, meta.location].map(v => (v ?? "").trim()).filter(v => v.length > 0);
   return parts.join(" ");
 }
 
-export function formatDestinationByAddress(
-  address: string | null | undefined,
-  available: Destination[],
-): string {
+export function formatDestinationByAddress(address: string | null | undefined, available: Destination[]): string {
   if (!address) return "Not set";
-  const dest = available.find((d) => d.address === address);
+  const dest = available.find(d => d.address === address);
   return dest ? formatDestination(dest) : `${address} (unavailable)`;
 }

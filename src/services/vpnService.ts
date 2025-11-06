@@ -1,7 +1,7 @@
 // import { toBytes20 } from "@src/utils/address";
 import { invoke } from "@tauri-apps/api/core";
 
-export type Path = { Hops: number } | { IntermediatePath: string[] };
+export type RoutingOptions = { Hops: number } | { IntermediatePath: string[] };
 
 export interface DestinationState {
   destination: Destination;
@@ -12,15 +12,15 @@ export interface DestinationState {
 export interface Destination {
   meta: Record<string, string>;
   address: string;
-  path: Path;
+  routing: RoutingOptions;
 }
 
 export type ConnectionState =
   | "None"
   // Connecting tuple (since: timestamp, phase/status: string) - see gnosis_vpn-lib/src/core/conn.rs
   | { Connecting: [number, string] }
-  // Connected since timestamp
-  | { Connected: number }
+  // Connected since timestamp (SystemTime serializes as timestamp number)
+  | { Connected: [number] }
   // Disconecting tuple (since: timestamp, phase/status: string) - see gnosis_vpn-lib/src/core/disconn.rs
   | { Disconnecting: [number, string] };
 
@@ -35,11 +35,7 @@ export interface Running {
   funding: FundingState;
 }
 
-export type FundingTool =
-  | "NotStarted"
-  | "InProgress"
-  | "CompletedSuccess"
-  | "CompletedError";
+export type FundingTool = "NotStarted" | "InProgress" | "CompletedSuccess" | "CompletedError";
 
 export type FundingIssue =
   | "Unfunded" // cannot work at all - initial state
@@ -49,10 +45,7 @@ export type FundingIssue =
   | "NodeUnderfunded" // keeps working until channels are drained - cannot open new or top up existing channels
   | "NodeLowOnFunds"; // warning before NodeUnderfunded
 
-export type FundingState =
-  | "Unknown"
-  | { TopIssue: FundingIssue }
-  | "WellFunded";
+export type FundingState = "Unknown" | { TopIssue: FundingIssue } | "WellFunded";
 
 export type StatusResponse = {
   run_mode: RunMode;
@@ -71,9 +64,7 @@ export type RunMode =
   | "Shutdown";
 
 export type ConnectResponse = { Connecting: Destination } | "AddressNotFound";
-export type DisconnectResponse =
-  | { Disconnecting: Destination }
-  | "NotConnected";
+export type DisconnectResponse = { Disconnecting: Destination } | "NotConnected";
 
 export type Addresses = {
   node: string;
@@ -118,12 +109,24 @@ export class VPNService {
 
   /**
    * Request latest balance from VPN node.
-   * Will return `null` if balance information was not yet available.
-   * Regularly updates every 60 seconds - can be manually triggered via **refreshNode()**.
+   *
+   * Returns `null` when:
+   * - Balance information has not been queried yet by the service
+   * - Service is in Warmup or PreparingSafe state (balance not available)
+   * - Balance data is being fetched asynchronously (updates every ~60 seconds)
+   *
+   * To manually trigger a balance update, call `refreshNode()` first, then wait a moment
+   * before calling `balance()` again.
+   *
+   * @returns BalanceResponse with node, safe, and channel balances, or null if not available
    */
   static async balance(): Promise<BalanceResponse | null> {
     try {
-      return (await invoke("balance")) as BalanceResponse | null;
+      const result = (await invoke("balance")) as BalanceResponse | null;
+      if (result === null) {
+        console.log("Balance not available yet - may need to call refreshNode() or wait for service to be ready");
+      }
+      return result;
     } catch (error) {
       console.error("Failed to query VPN balance", error);
       throw new Error(`Balance Error: ${error}`);
@@ -148,15 +151,11 @@ export class VPNService {
     }
   }
 
-  static getBestDestination(
-    destinations: StatusResponse["destinations"],
-  ): string | null {
+  static getBestDestination(destinations: StatusResponse["destinations"]): string | null {
     if (destinations.length === 0) return null;
 
     // Sort by address for consistent selection
-    const sorted = [...destinations].sort((a, b) =>
-      a.destination.address.localeCompare(b.destination.address)
-    );
+    const sorted = [...destinations].sort((a, b) => a.destination.address.localeCompare(b.destination.address));
     return sorted[0].destination.address;
   }
 }
