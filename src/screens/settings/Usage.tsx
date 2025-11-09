@@ -62,7 +62,7 @@ export default function Usage() {
         subtitle="For traffic"
         balance={balance()?.safe}
         ticker="wxHOPR"
-        address={balance()?.addresses.safe}
+        address={balance()?.info.safe_address}
         status={safeStatus() ?? "Sufficient"}
         isLoading={isBalanceLoading()}
       />
@@ -71,7 +71,7 @@ export default function Usage() {
         subtitle="For channels"
         balance={balance()?.node}
         ticker="xDAI"
-        address={balance()?.addresses.node}
+        address={balance()?.info.node_address}
         status={nodeStatus() ?? "Sufficient"}
         isLoading={isBalanceLoading()}
       />
@@ -79,15 +79,10 @@ export default function Usage() {
       <div class="flex flex-row items-center gap-2 max-w-md">
         <div class="text-xs text-slate-600 px-2">
           <WarningIcon />
-          It may take up to 2 minutes until your funds have been registered
-          after transaction.
+          It may take up to 2 minutes until your funds have been registered after transaction.
         </div>
         <div class="w-8 h-8">
-          <button
-            type="button"
-            class="h-8 w-8 hover:cursor-pointer"
-            onClick={handleRefresh}
-          >
+          <button type="button" class="h-8 w-8 hover:cursor-pointer" onClick={handleRefresh}>
             <img src={refreshIcon} alt="Refresh" class="h-8 w-8" />
           </button>
         </div>
