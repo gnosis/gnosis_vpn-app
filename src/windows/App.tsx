@@ -5,7 +5,24 @@ import { onCleanup, onMount } from "solid-js";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import Onboarding from "@src/screens/main/Onboarding";
 import Synchronization from "@src/screens/main/Synchronization";
-import { listen } from "@tauri-apps/api/event";
+import { emit, listen } from "@tauri-apps/api/event";
+
+const validScreens = ["main", "onboarding", "synchronization"] as const;
+type ValidScreen = (typeof validScreens)[number];
+type OnboardingStep = "start" | "airdrop" | "manually";
+type NavigatePayload = ValidScreen | { screen: ValidScreen; step?: OnboardingStep };
+
+const isValidScreen = (s: string): s is ValidScreen => (validScreens as readonly string[]).includes(s);
+
+function handleNavigate(payload: NavigatePayload, setScreen: (s: ValidScreen) => void): void {
+  const screen = typeof payload === "string" ? payload : payload.screen;
+  if (!isValidScreen(screen)) return;
+  setScreen(screen);
+  if (screen === "onboarding") {
+    const step = typeof payload === "string" ? undefined : payload.step;
+    if (step) void emit("onboarding:set-step", step);
+  }
+}
 
 const screens = {
   main: MainScreen,
@@ -28,15 +45,9 @@ function App() {
         await appActions.connect();
       }
 
-      const validScreens = ["main", "onboarding", "synchronization"] as const;
-      type ValidScreen = (typeof validScreens)[number];
-      const isValidScreen = (s: string): s is ValidScreen =>
-        (validScreens as readonly string[]).includes(s);
-      unlistenNavigate = await listen<string>("navigate", ({ payload }) => {
-        if (isValidScreen(payload)) {
-          appActions.setScreen(payload);
-        }
-      });
+      unlistenNavigate = await listen<NavigatePayload>("navigate", ({ payload }) =>
+        handleNavigate(payload, s => appActions.setScreen(s)),
+      );
     })();
   });
 
