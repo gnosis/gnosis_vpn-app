@@ -4,14 +4,12 @@ import Airdrop from "@src/components/onboarding/Airdrop";
 import { Dynamic } from "solid-js/web";
 import Manually from "@src/components/onboarding/Manually";
 import { listen } from "@tauri-apps/api/event";
-import Synchronization from "@src/screens/main/Synchronization";
 import StatusIndicator from "@src/components/StatusIndicator";
 
 const steps = {
   start: Start,
   airdrop: Airdrop,
   manually: Manually,
-  synchronization: Synchronization,
 };
 
 export default function Onboarding() {

@@ -333,8 +333,14 @@ export function createAppStore(): AppStoreTuple {
       const tick = async () => {
         if (pollInFlight) return;
         pollInFlight = true;
-        await getStatus();
-        pollInFlight = false;
+        try {
+          await getStatus();
+        } catch (e) {
+          // swallow to keep interval alive
+          console.error("status polling tick failed", e);
+        } finally {
+          pollInFlight = false;
+        }
       };
 
       // immediate tick, then interval
@@ -351,14 +357,12 @@ export function createAppStore(): AppStoreTuple {
 
     claimAirdrop: async (secret: string) => {
       try {
-        const result = await VPNService.fundingTool(secret);
-        console.log("result of claimAirdrop", result);
+        await VPNService.fundingTool(secret);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         log(message);
         setState("error", message);
       }
-      // await getStatus();
     },
   } as const;
 
