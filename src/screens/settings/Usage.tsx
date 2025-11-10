@@ -20,7 +20,6 @@ export default function Usage() {
 
   async function loadBalance() {
     setIsBalanceLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 2000));
     setBalanceError(undefined);
     try {
       const result = await VPNService.balance();
@@ -63,7 +62,7 @@ export default function Usage() {
         subtitle="For traffic"
         balance={balance()?.safe}
         ticker="wxHOPR"
-        address={balance()?.addresses.safe}
+        address={balance()?.info.safe_address}
         status={safeStatus() ?? "Sufficient"}
         isLoading={isBalanceLoading()}
       />
@@ -72,7 +71,7 @@ export default function Usage() {
         subtitle="For channels"
         balance={balance()?.node}
         ticker="xDAI"
-        address={balance()?.addresses.node}
+        address={balance()?.info.node_address}
         status={nodeStatus() ?? "Sufficient"}
         isLoading={isBalanceLoading()}
       />
@@ -94,7 +93,7 @@ export default function Usage() {
         </div>
       </div>
 
-      <div class="flex-grow"></div>
+      <div class="grow"></div>
       <Help />
       <AirdropClaimBanner />
     </div>

@@ -1,13 +1,28 @@
 // import { toBytes20 } from "@src/utils/address";
 import { invoke } from "@tauri-apps/api/core";
 
-export type Path = { Hops: number } | { IntermediatePath: string[] };
+export type RoutingOptions = { Hops: number } | { IntermediatePath: string[] };
+
+export interface DestinationState {
+  destination: Destination;
+  connection_state: ConnectionState;
+  last_connection_error: string | null;
+}
 
 export interface Destination {
   meta: Record<string, string>;
   address: string;
-  path: Path;
+  routing: RoutingOptions;
 }
+
+export type ConnectionState =
+  | "None"
+  // Connecting tuple (since: timestamp, phase/status: string) - see gnosis_vpn-lib/src/core/conn.rs
+  | { Connecting: [number, string] }
+  // Connected since timestamp (SystemTime serializes as timestamp number)
+  | { Connected: [number] }
+  // Disconecting tuple (since: timestamp, phase/status: string) - see gnosis_vpn-lib/src/core/disconn.rs
+  | { Disconnecting: [number, string] };
 
 export interface PreparingSafe {
   node_address: string;
@@ -16,13 +31,7 @@ export interface PreparingSafe {
   funding_tool: FundingTool;
 }
 
-export interface Warmup {
-  /// number between 0.0 and 1.0, can go higher than 1.0 and can jump backwards
-  sync_progress: number;
-}
-
 export interface Running {
-  connection: ConnectionState;
   funding: FundingState;
 }
 
@@ -31,13 +40,6 @@ export type FundingTool =
   | "InProgress"
   | "CompletedSuccess"
   | "CompletedError";
-
-export type ConnectionState =
-  | { Connecting: Destination }
-  | { Disconnecting: Destination }
-  | { Connected: Destination }
-  | "ServiceUnavailable"
-  | "Disconnected";
 
 export type FundingIssue =
   | "Unfunded" // cannot work at all - initial state
@@ -54,33 +56,36 @@ export type FundingState =
 
 export type StatusResponse = {
   run_mode: RunMode;
-  available_destinations: Destination[];
-  network: string;
+  destinations: DestinationState[];
 };
 
 export type RunMode =
   /// Initial start, after creating safe this state will not be reached again
   | { PreparingSafe: PreparingSafe }
   /// Subsequent service start up in this state and after preparing safe
-  | { Warmup: Warmup }
+  | "Warmup"
   /// Normal operation where connections can be made
-  | { Running: Running };
+  | { Running: Running }
+  /// Service shutting down
+  | "Shutdown";
 
 export type ConnectResponse = { Connecting: Destination } | "AddressNotFound";
 export type DisconnectResponse =
   | { Disconnecting: Destination }
   | "NotConnected";
 
-export type Addresses = {
-  node: string;
-  safe: string;
+export type Info = {
+  node_address: string;
+  node_peer_id: string;
+  safe_address: string;
+  network: string;
 };
 
 export type BalanceResponse = {
   node: string;
   safe: string;
   channels_out: string;
-  addresses: Addresses;
+  info: Info;
   issues: FundingIssue[];
 };
 
@@ -114,12 +119,26 @@ export class VPNService {
 
   /**
    * Request latest balance from VPN node.
-   * Will return `null` if balance information was not yet available.
-   * Regularly updates every 60 seconds - can be manually triggered via **refreshNode()**.
+   *
+   * Returns `null` when:
+   * - Balance information has not been queried yet by the service
+   * - Service is in Warmup or PreparingSafe state (balance not available)
+   * - Balance data is being fetched asynchronously (updates every ~60 seconds)
+   *
+   * To manually trigger a balance update, call `refreshNode()` first, then wait a moment
+   * before calling `balance()` again.
+   *
+   * @returns BalanceResponse with node, safe, and channel balances, or null if not available
    */
   static async balance(): Promise<BalanceResponse | null> {
     try {
-      return (await invoke("balance")) as BalanceResponse | null;
+      const result = (await invoke("balance")) as BalanceResponse | null;
+      if (result === null) {
+        console.log(
+          "Balance not available yet - may need to call refreshNode() or wait for service to be ready",
+        );
+      }
+      return result;
     } catch (error) {
       console.error("Failed to query VPN balance", error);
       throw new Error(`Balance Error: ${error}`);
@@ -145,14 +164,14 @@ export class VPNService {
   }
 
   static getBestDestination(
-    destinations: StatusResponse["available_destinations"],
+    destinations: StatusResponse["destinations"],
   ): string | null {
     if (destinations.length === 0) return null;
 
     // Sort by address for consistent selection
     const sorted = [...destinations].sort((a, b) =>
-      a.address.localeCompare(b.address)
+      a.destination.address.localeCompare(b.destination.address)
     );
-    return sorted[0].address;
+    return sorted[0].destination.address;
   }
 }
