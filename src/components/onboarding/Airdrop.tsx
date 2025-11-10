@@ -49,7 +49,7 @@ export default function Airdrop({ setStep }: { setStep: (step: string) => void }
         </button>
         Before we connect
       </h1>
-      <div class="flex flex-col items-center gap-2 w-full flex-grow">
+      <div class="flex flex-col items-center gap-2 w-full grow">
         <img src={parachute} alt="Parachute" class="w-1/3 mb-8" />
         <div class="w-full text-left">If you’re a tester, claim wxHOPR and xDAI</div>
         <label class="flex flex-col gap-1 w-full">
