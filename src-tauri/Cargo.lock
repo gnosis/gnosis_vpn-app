@@ -4631,7 +4631,7 @@ dependencies = [
 
 [[package]]
 name = "gnosis_vpn-app"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "gnosis_vpn-lib",
  "liblzma",
@@ -4646,7 +4646,7 @@ dependencies = [
 [[package]]
 name = "gnosis_vpn-lib"
 version = "0.53.0"
-source = "git+https://github.com/gnosis/gnosis_vpn-client.git?rev=fd2862f13e09d8b28a50b68f262c8880d39ea2b0#fd2862f13e09d8b28a50b68f262c8880d39ea2b0"
+source = "git+https://github.com/gnosis/gnosis_vpn-client.git?rev=29b42502ab5919c7a0586996754fa986b4235bbb#29b42502ab5919c7a0586996754fa986b4235bbb"
 dependencies = [
  "alloy",
  "anyhow",

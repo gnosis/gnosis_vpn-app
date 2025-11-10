@@ -1,5 +1,6 @@
-use gnosis_vpn_lib::prelude::Address;
-use gnosis_vpn_lib::{balance, command, connection, socket};
+use gnosis_vpn_lib::connection;
+use gnosis_vpn_lib::connection::destination::{Address, Destination};
+use gnosis_vpn_lib::{balance, command, socket};
 use tauri::{
     AppHandle, Emitter, Manager,
     menu::{Menu, MenuBuilder, MenuItem},
@@ -10,7 +11,6 @@ use platform::{Platform, PlatformInterface};
 use serde::{Deserialize, Serialize};
 use tauri_plugin_store::StoreExt;
 
-use std::collections::HashMap;
 use std::time::{Duration, SystemTime};
 use std::{path::PathBuf, sync::Mutex};
 
@@ -32,13 +32,6 @@ pub struct DestinationState {
     pub destination: Destination,
     pub connection_state: ConnectionState,
     pub last_connection_error: Option<String>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Destination {
-    pub meta: HashMap<String, String>,
-    pub address: String,
-    pub routing: RoutingOptions,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -96,19 +89,9 @@ impl From<connection::destination::RoutingOptions> for RoutingOptions {
 impl From<command::DestinationState> for DestinationState {
     fn from(ds: command::DestinationState) -> Self {
         DestinationState {
-            destination: ds.destination.into(),
+            destination: ds.destination.clone(),
             connection_state: ds.connection_state.into(),
             last_connection_error: ds.last_connection_error,
-        }
-    }
-}
-
-impl From<command::Destination> for Destination {
-    fn from(dest: command::Destination) -> Self {
-        Destination {
-            meta: dest.meta,
-            address: dest.address.to_string(),
-            routing: dest.path.into(),
         }
     }
 }
