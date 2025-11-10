@@ -4645,8 +4645,8 @@ dependencies = [
 
 [[package]]
 name = "gnosis_vpn-lib"
-version = "0.50.9"
-source = "git+https://github.com/gnosis/gnosis_vpn-client.git?rev=b033bd4caa02a49b2ab9ec088ad881978bb79ba7#b033bd4caa02a49b2ab9ec088ad881978bb79ba7"
+version = "0.53.0"
+source = "git+https://github.com/gnosis/gnosis_vpn-client.git?rev=fd2862f13e09d8b28a50b68f262c8880d39ea2b0#fd2862f13e09d8b28a50b68f262c8880d39ea2b0"
 dependencies = [
  "alloy",
  "anyhow",
