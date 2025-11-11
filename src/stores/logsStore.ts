@@ -3,6 +3,8 @@ import { type StatusResponse } from "@src/services/vpnService.ts";
 import { formatDestination } from "@src/utils/destinations.ts";
 import { getEthAddress } from "@src/utils/address";
 import { shortAddress } from "@src/utils/shortAddress";
+import { emit, listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
 interface LogsState {
   logs: LogEntry[];
@@ -20,13 +22,10 @@ export type LogEntry = { date: string; message: string };
 
 export function createLogsStore(): LogsStoreTuple {
   const [state, setState] = createStore<LogsState>({ logs: [] });
+  const isMainWindow = getCurrentWindow().label === "main";
 
-  function buildStatusLog(
-    args: { response?: StatusResponse; error?: string },
-  ): string | undefined {
-    const lastMessage = state.logs.length
-      ? state.logs[state.logs.length - 1].message
-      : undefined;
+  function buildStatusLog(args: { response?: StatusResponse; error?: string }): string | undefined {
+    const lastMessage = state.logs.length ? state.logs[state.logs.length - 1].message : undefined;
     return buildLogContent(args, lastMessage);
   }
 
@@ -42,46 +41,32 @@ export function createLogsStore(): LogsStoreTuple {
       const rm = args.response.run_mode;
       // Check connection state from destinations (connection info is in DestinationState, not RunMode)
       const connectedDest = args.response.destinations.find(
-        (ds) =>
-          typeof ds.connection_state === "object" &&
-          "Connected" in ds.connection_state,
+        ds => typeof ds.connection_state === "object" && "Connected" in ds.connection_state,
       );
       const connectingDest = args.response.destinations.find(
-        (ds) =>
-          typeof ds.connection_state === "object" &&
-          "Connecting" in ds.connection_state,
+        ds => typeof ds.connection_state === "object" && "Connecting" in ds.connection_state,
       );
       const disconnectingDest = args.response.destinations.find(
-        (ds) =>
-          typeof ds.connection_state === "object" &&
-          "Disconnecting" in ds.connection_state,
+        ds => typeof ds.connection_state === "object" && "Disconnecting" in ds.connection_state,
       );
 
       if (connectedDest) {
         const destination = connectedDest.destination;
         const where = formatDestination(destination);
-        content = `Connected: ${where} - ${
-          shortAddress(getEthAddress(destination.address))
-        }`;
+        content = `Connected: ${where} - ${shortAddress(getEthAddress(destination.address))}`;
       } else if (connectingDest) {
         const destination = connectingDest.destination;
         const where = formatDestination(destination);
-        content = `Connecting: ${where} - ${
-          shortAddress(getEthAddress(destination.address))
-        }`;
+        content = `Connecting: ${where} - ${shortAddress(getEthAddress(destination.address))}`;
       } else if (disconnectingDest) {
         const destination = disconnectingDest.destination;
         const where = formatDestination(destination);
-        content = `Disconnecting: ${where} - ${
-          shortAddress(getEthAddress(destination.address))
-        }`;
+        content = `Disconnecting: ${where} - ${shortAddress(getEthAddress(destination.address))}`;
       } else if (typeof rm === "object" && "Running" in rm) {
         // Running but no active connection
-        const lastWasDisconnected = Boolean(
-          lastMessage && lastMessage.startsWith("Disconnected"),
-        );
+        const lastWasDisconnected = Boolean(lastMessage && lastMessage.startsWith("Disconnected"));
         if (!lastWasDisconnected) {
-          const lines = args.response.destinations.map((ds) => {
+          const lines = args.response.destinations.map(ds => {
             const d = ds.destination;
             const where = formatDestination(d);
             return `- ${where} - ${shortAddress(getEthAddress(d.address))}`;
@@ -106,14 +91,12 @@ export function createLogsStore(): LogsStoreTuple {
 
   const actions = {
     append: (message: string) => {
-      setState("logs", (existing) => {
-        const lastMessage = existing.length
-          ? existing[existing.length - 1].message
-          : "";
-        if (lastMessage === message) return existing;
-        const entry: LogEntry = { date: new Date().toISOString(), message };
-        return [...existing, entry];
-      });
+      const lastMessage = state.logs.length ? state.logs[state.logs.length - 1].message : "";
+      if (lastMessage === message) return;
+      const entry: LogEntry = { date: new Date().toISOString(), message };
+      setState("logs", existing => [...existing, entry]);
+      // Broadcast to other windows only from main window to avoid echo loops
+      if (isMainWindow) void emit("logs:append", entry);
     },
 
     appendStatus: (response: StatusResponse) => {
@@ -123,6 +106,26 @@ export function createLogsStore(): LogsStoreTuple {
 
     clear: () => setState("logs", []),
   };
+
+  // Cross-window synchronization
+  void listen<LogEntry>("logs:append", ({ payload }) => {
+    // Ignore if duplicate of last (idempotent)
+    const last = state.logs.length ? state.logs[state.logs.length - 1] : undefined;
+    if (last && last.date === payload.date && last.message === payload.message) return;
+    setState("logs", existing => [...existing, payload]);
+  });
+
+  if (isMainWindow) {
+    // Respond to snapshot requests from other windows
+    void listen("logs:request-snapshot", () => {
+      void emit("logs:snapshot", state.logs);
+    });
+  }
+
+  // Accept snapshot to hydrate fresh windows
+  void listen<LogEntry[]>("logs:snapshot", ({ payload }) => {
+    setState("logs", Array.isArray(payload) ? payload : []);
+  });
 
   return [state, actions] as const;
 }
