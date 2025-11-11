@@ -24,8 +24,12 @@ export function createLogsStore(): LogsStoreTuple {
   const [state, setState] = createStore<LogsState>({ logs: [] });
   const isMainWindow = getCurrentWindow().label === "main";
 
-  function buildStatusLog(args: { response?: StatusResponse; error?: string }): string | undefined {
-    const lastMessage = state.logs.length ? state.logs[state.logs.length - 1].message : undefined;
+  function buildStatusLog(
+    args: { response?: StatusResponse; error?: string },
+  ): string | undefined {
+    const lastMessage = state.logs.length
+      ? state.logs[state.logs.length - 1].message
+      : undefined;
     return buildLogContent(args, lastMessage);
   }
 
@@ -41,32 +45,46 @@ export function createLogsStore(): LogsStoreTuple {
       const rm = args.response.run_mode;
       // Check connection state from destinations (connection info is in DestinationState, not RunMode)
       const connectedDest = args.response.destinations.find(
-        ds => typeof ds.connection_state === "object" && "Connected" in ds.connection_state,
+        (ds) =>
+          typeof ds.connection_state === "object" &&
+          "Connected" in ds.connection_state,
       );
       const connectingDest = args.response.destinations.find(
-        ds => typeof ds.connection_state === "object" && "Connecting" in ds.connection_state,
+        (ds) =>
+          typeof ds.connection_state === "object" &&
+          "Connecting" in ds.connection_state,
       );
       const disconnectingDest = args.response.destinations.find(
-        ds => typeof ds.connection_state === "object" && "Disconnecting" in ds.connection_state,
+        (ds) =>
+          typeof ds.connection_state === "object" &&
+          "Disconnecting" in ds.connection_state,
       );
 
       if (connectedDest) {
         const destination = connectedDest.destination;
         const where = formatDestination(destination);
-        content = `Connected: ${where} - ${shortAddress(getEthAddress(destination.address))}`;
+        content = `Connected: ${where} - ${
+          shortAddress(getEthAddress(destination.address))
+        }`;
       } else if (connectingDest) {
         const destination = connectingDest.destination;
         const where = formatDestination(destination);
-        content = `Connecting: ${where} - ${shortAddress(getEthAddress(destination.address))}`;
+        content = `Connecting: ${where} - ${
+          shortAddress(getEthAddress(destination.address))
+        }`;
       } else if (disconnectingDest) {
         const destination = disconnectingDest.destination;
         const where = formatDestination(destination);
-        content = `Disconnecting: ${where} - ${shortAddress(getEthAddress(destination.address))}`;
+        content = `Disconnecting: ${where} - ${
+          shortAddress(getEthAddress(destination.address))
+        }`;
       } else if (typeof rm === "object" && "Running" in rm) {
         // Running but no active connection
-        const lastWasDisconnected = Boolean(lastMessage && lastMessage.startsWith("Disconnected"));
+        const lastWasDisconnected = Boolean(
+          lastMessage && lastMessage.startsWith("Disconnected"),
+        );
         if (!lastWasDisconnected) {
-          const lines = args.response.destinations.map(ds => {
+          const lines = args.response.destinations.map((ds) => {
             const d = ds.destination;
             const where = formatDestination(d);
             return `- ${where} - ${shortAddress(getEthAddress(d.address))}`;
@@ -91,10 +109,12 @@ export function createLogsStore(): LogsStoreTuple {
 
   const actions = {
     append: (message: string) => {
-      const lastMessage = state.logs.length ? state.logs[state.logs.length - 1].message : "";
+      const lastMessage = state.logs.length
+        ? state.logs[state.logs.length - 1].message
+        : "";
       if (lastMessage === message) return;
       const entry: LogEntry = { date: new Date().toISOString(), message };
-      setState("logs", existing => [...existing, entry]);
+      setState("logs", (existing) => [...existing, entry]);
       // Broadcast to other windows only from main window to avoid echo loops
       if (isMainWindow) void emit("logs:append", entry);
     },
@@ -110,9 +130,13 @@ export function createLogsStore(): LogsStoreTuple {
   // Cross-window synchronization
   void listen<LogEntry>("logs:append", ({ payload }) => {
     // Ignore if duplicate of last (idempotent)
-    const last = state.logs.length ? state.logs[state.logs.length - 1] : undefined;
-    if (last && last.date === payload.date && last.message === payload.message) return;
-    setState("logs", existing => [...existing, payload]);
+    const last = state.logs.length
+      ? state.logs[state.logs.length - 1]
+      : undefined;
+    if (
+      last && last.date === payload.date && last.message === payload.message
+    ) return;
+    setState("logs", (existing) => [...existing, payload]);
   });
 
   if (isMainWindow) {

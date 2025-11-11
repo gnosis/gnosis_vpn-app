@@ -8,8 +8,8 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useAppStore } from "@src/stores/appStore.ts";
 
 (() => {
-  const [, ] = useSettingsStore();
-  const [, ] = useAppStore();
+  const [,] = useSettingsStore();
+  const [,] = useAppStore();
 
   const label = getCurrentWindow().label;
 

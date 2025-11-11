@@ -13,13 +13,17 @@ type OnboardingStep = "start" | "airdrop" | "manually";
 type NavigatePayload =
   | ValidScreen
   | {
-      screen: ValidScreen;
-      step?: OnboardingStep;
-    };
+    screen: ValidScreen;
+    step?: OnboardingStep;
+  };
 
-const isValidScreen = (s: string): s is ValidScreen => (validScreens as readonly string[]).includes(s);
+const isValidScreen = (s: string): s is ValidScreen =>
+  (validScreens as readonly string[]).includes(s);
 
-function handleNavigate(payload: NavigatePayload, setScreen: (s: ValidScreen) => void): void {
+function handleNavigate(
+  payload: NavigatePayload,
+  setScreen: (s: ValidScreen) => void,
+): void {
   const screen = typeof payload === "string" ? payload : payload.screen;
   if (!isValidScreen(screen)) return;
   setScreen(screen);
@@ -53,8 +57,10 @@ function App() {
         await appActions.connect();
       }
 
-      unlistenNavigate = await listen<NavigatePayload>("navigate", ({ payload }) =>
-        handleNavigate(payload, s => appActions.setScreen(s)),
+      unlistenNavigate = await listen<NavigatePayload>(
+        "navigate",
+        ({ payload }) =>
+          handleNavigate(payload, (s) => appActions.setScreen(s)),
       );
     })();
   });
