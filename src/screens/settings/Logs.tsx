@@ -4,8 +4,6 @@ import { useLogsStore } from "@src/stores/logsStore";
 export default function Logs() {
   const [logsState] = useLogsStore();
 
-  console.log("logsState", logsState.logs);
-
   return (
     <div class="w-full p-2">
       <Show when={logsState.logs.length > 0} fallback={<div>No logs</div>}>
