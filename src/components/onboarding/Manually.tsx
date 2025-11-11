@@ -6,8 +6,9 @@ import Checkbox from "@src/components/common/Checkbox";
 import Help from "@src/components/Help";
 import { useLogsStore } from "@src/stores/logsStore";
 import checkIcon from "@assets/icons/checked-box-filled.svg";
-import { isWxHOPRTransferred, isXDAITransferred } from "@src/utils/status.ts";
+import { isPreparingSafe, isWxHOPRTransferred, isXDAITransferred } from "@src/utils/status.ts";
 import backIcon from "@assets/icons/arrow-left.svg";
+import FundingAddress from "@src/components/FundingAddress";
 
 export default function Manually({ setStep }: { setStep: (step: string) => void }) {
   const [appState, appActions] = useAppStore();
@@ -72,7 +73,9 @@ export default function Manually({ setStep }: { setStep: (step: string) => void 
           </div>
         </label>
 
-        {/* <FundingAddress address={appState.runMode?.PreparingSafe?.node_address ?? ""} /> */}
+        <FundingAddress
+          address={isPreparingSafe(appState) ? (appState.runMode?.PreparingSafe?.node_address ?? "") : ""}
+        />
         <div class="text-sm text-gray-500">
           After the tx has been made, it can take up to two minutes, until your App can connect.
         </div>

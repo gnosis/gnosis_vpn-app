@@ -22,8 +22,6 @@ export default function Airdrop({ setStep }: { setStep: (step: string) => void }
   const handleClaim = async () => {
     try {
       setLoading(true);
-      // claim airdrop
-      // await new Promise((resolve) => setTimeout(resolve, 1500));
       await appActions.claimAirdrop(secretCode());
       setClaimed(true);
     } catch (error) {
