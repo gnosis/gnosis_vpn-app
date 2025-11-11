@@ -1,12 +1,4 @@
-import {
-  createEffect,
-  createMemo,
-  createSignal,
-  For,
-  onCleanup,
-  onMount,
-  Show,
-} from "solid-js";
+import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import { Portal } from "solid-js/web";
 import arrowDownIcon from "@assets/icons/arrow-down.svg";
 
@@ -58,11 +50,7 @@ export function Dropdown<T>(props: DropdownProps<T>) {
     });
   };
 
-  const selectedIdx = createMemo(() =>
-    props.options.findIndex((o) =>
-      toString(o) === toString(props.value ?? null)
-    )
-  );
+  const selectedIdx = createMemo(() => props.options.findIndex(o => toString(o) === toString(props.value ?? null)));
 
   const onDocClick = (e: MouseEvent) => {
     const target = e.target as Node;
@@ -116,12 +104,10 @@ export function Dropdown<T>(props: DropdownProps<T>) {
   const onListKey = (e: KeyboardEvent) => {
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setActiveIdx((i) =>
-        Math.min(props.options.length - 1, i < 0 ? 0 : i + 1)
-      );
+      setActiveIdx(i => Math.min(props.options.length - 1, i < 0 ? 0 : i + 1));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setActiveIdx((i) => Math.max(0, i < 0 ? 0 : i - 1));
+      setActiveIdx(i => Math.max(0, i < 0 ? 0 : i - 1));
     } else if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       selectByIndex(activeIdx());
@@ -136,20 +122,16 @@ export function Dropdown<T>(props: DropdownProps<T>) {
       <div
         ref={root}
         class={`relative text-left ${
-          props.size === "sm"
-            ? "bg-black white pr-0 pl-4 py-2 rounded-full min-w-48"
-            : "w-full"
+          props.size === "sm" ? "bg-black white pr-0 pl-4 py-2 rounded-full min-w-48" : "w-full"
         } flex flex-row gap-2 items-center ${props.class ?? ""}`}
       >
-        <div class="flex flex-col flex-grow">
+        <div class="flex flex-col grow">
           <Show when={props.label}>
             <div class="mb-1 text-xs text-gray-500">{props.label}</div>
           </Show>
 
           <span class={`${props.size === "sm" ? "text-white" : "font-bold "}`}>
-            {props.value
-              ? toString(props.value)
-              : (props.placeholder ?? "Select…")}
+            {props.value ? toString(props.value) : (props.placeholder ?? "Select…")}
           </span>
         </div>
         <button
@@ -161,16 +143,13 @@ export function Dropdown<T>(props: DropdownProps<T>) {
           class={`inline-flex items-center justify-center rounded-2xl px-4 py-2
                bg-black text-white shadow disabled:opacity-50 hover:cursor-pointer outline-none
                transition-transform duration-150 ease-out select-none ${
-            props.size === "sm" ? "h-6 w-10" : "h-10 w-16"
-          }`}
+                 props.size === "sm" ? "h-6 w-10" : "h-10 w-16"
+               }`}
           classList={{ "btn-press": pressed() }}
           onPointerDown={() => playPressAnimation()}
           onClick={() => !props.disabled && setOpen(!open())}
-          onKeyDown={(e) => {
-            if (
-              (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") &&
-              !open()
-            ) {
+          onKeyDown={e => {
+            if ((e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") && !open()) {
               e.preventDefault();
               setOpen(true);
             }
@@ -193,17 +172,11 @@ export function Dropdown<T>(props: DropdownProps<T>) {
             ref={list}
             tabindex="0"
             role="listbox"
-            aria-activedescendant={activeIdx() >= 0
-              ? `opt-${activeIdx()}`
-              : undefined}
+            aria-activedescendant={activeIdx() >= 0 ? `opt-${activeIdx()}` : undefined}
             onKeyDown={onListKey}
             class={`fixed z-50 max-h-64 overflow-auto rounded-xl bg-white shadow-lg ring-1 ring-black/10 p-1 outline-none
                      transition-all duration-200 ease-out origin-top
-                     ${
-              open()
-                ? "opacity-100 translate-y-0"
-                : "opacity-0 -translate-y-2 pointer-events-none"
-            }`}
+                     ${open() ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2 pointer-events-none"}`}
             style={{
               top: `${listPos().top}px`,
               left: `${listPos().left}px`,
@@ -221,14 +194,10 @@ export function Dropdown<T>(props: DropdownProps<T>) {
                     role="option"
                     aria-selected={isSelected()}
                     class={`cursor-pointer rounded-xl px-3 py-2 text-sm
-                             ${
-                      isActive() ? "bg-black text-white" : "hover:bg-gray-100"
-                    }
-                             ${
-                      isSelected() && !isActive() ? "font-semibold" : ""
-                    }`}
+                             ${isActive() ? "bg-black text-white" : "hover:bg-gray-100"}
+                             ${isSelected() && !isActive() ? "font-semibold" : ""}`}
                     onMouseEnter={() => setActiveIdx(idx)}
-                    onMouseDown={(e) => e.preventDefault()}
+                    onMouseDown={e => e.preventDefault()}
                     onClick={() => selectByIndex(idx)}
                   >
                     {toString(opt)}
