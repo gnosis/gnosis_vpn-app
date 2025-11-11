@@ -79,7 +79,6 @@ export function createAppStore(): AppStoreTuple {
 
   let pollingId: ReturnType<typeof globalThis.setInterval> | undefined;
   let pollInFlight = false;
-  let lastStatusFingerprint: string | undefined;
 
   const [settings] = useSettingsStore();
   let lastPreferredLocation: string | null = settings.preferredLocation;
@@ -121,14 +120,6 @@ export function createAppStore(): AppStoreTuple {
     try {
       const response = await VPNService.getStatus();
       console.log("response", response);
-      {
-        const fingerprint = JSON.stringify(response);
-        if (fingerprint !== lastStatusFingerprint) {
-          console.log("new status", fingerprint);
-          log(fingerprint);
-          lastStatusFingerprint = fingerprint;
-        }
-      }
 
       let normalizedRunMode: RunMode;
       if (
@@ -186,7 +177,6 @@ export function createAppStore(): AppStoreTuple {
         normalizedAvailable,
         settings.preferredLocation,
       );
-      console.log("prefMsg", prefMsg);
       if (prefMsg) log(prefMsg);
 
       if (!hasInitializedPreferred) {
