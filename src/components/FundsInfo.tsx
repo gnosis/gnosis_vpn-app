@@ -53,7 +53,7 @@ export default function FundsInfo(props: Props) {
           </Show>
         </div>
 
-        <div class="flex-grow"></div>
+        <div class="grow"></div>
         <Show
           when={!props.isLoading}
           fallback={

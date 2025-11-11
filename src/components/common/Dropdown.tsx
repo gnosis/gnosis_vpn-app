@@ -141,7 +141,7 @@ export function Dropdown<T>(props: DropdownProps<T>) {
             : "w-full"
         } flex flex-row gap-2 items-center ${props.class ?? ""}`}
       >
-        <div class="flex flex-col flex-grow">
+        <div class="flex flex-col grow">
           <Show when={props.label}>
             <div class="mb-1 text-xs text-gray-500">{props.label}</div>
           </Show>

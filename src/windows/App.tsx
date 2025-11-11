@@ -10,10 +10,12 @@ import { emit, listen } from "@tauri-apps/api/event";
 const validScreens = ["main", "onboarding", "synchronization"] as const;
 type ValidScreen = (typeof validScreens)[number];
 type OnboardingStep = "start" | "airdrop" | "manually";
-type NavigatePayload = ValidScreen | {
-  screen: ValidScreen;
-  step?: OnboardingStep;
-};
+type NavigatePayload =
+  | ValidScreen
+  | {
+    screen: ValidScreen;
+    step?: OnboardingStep;
+  };
 
 const isValidScreen = (s: string): s is ValidScreen =>
   (validScreens as readonly string[]).includes(s);
@@ -39,11 +41,14 @@ const screens = {
 
 function App() {
   const [appState, appActions] = useAppStore();
-  const [settings] = useSettingsStore();
+  const [settings, settingsActions] = useSettingsStore();
   let unlistenNavigate: (() => void) | undefined;
 
   onMount(() => {
     void (async () => {
+      appActions.startStatusPolling(2000);
+      await Promise.all([settingsActions.load(), appActions.refreshStatus()]);
+
       if (
         settings.connectOnStartup &&
         appState.vpnStatus === "Disconnected" &&
@@ -62,6 +67,7 @@ function App() {
 
   onCleanup(() => {
     if (unlistenNavigate) unlistenNavigate();
+    appActions.stopStatusPolling();
   });
 
   return (

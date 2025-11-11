@@ -26,8 +26,6 @@ export default function Airdrop(
   const handleClaim = async () => {
     try {
       setLoading(true);
-      // claim airdrop
-      // await new Promise((resolve) => setTimeout(resolve, 1500));
       await appActions.claimAirdrop(secretCode());
       setClaimed(true);
     } catch (error) {
@@ -59,7 +57,7 @@ export default function Airdrop(
         </button>
         Before we connect
       </h1>
-      <div class="flex flex-col items-center gap-2 w-full flex-grow">
+      <div class="flex flex-col items-center gap-2 w-full grow">
         <img src={parachute} alt="Parachute" class="w-1/3 mb-8" />
         <div class="w-full text-left">
           If you’re a tester, claim wxHOPR and xDAI

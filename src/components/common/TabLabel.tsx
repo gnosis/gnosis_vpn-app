@@ -16,7 +16,7 @@ export default function TabLabel(props: { label: string }) {
 
   return (
     <div class="flex flex-col items-center gap-1 w-12 h-12 p-2">
-      <div class="w-full flex-grow flex items-center justify-center">
+      <div class="w-full grow flex items-center justify-center">
         <img src={getIcon()} alt={props.label} class="h-6 w-6" />
       </div>
       <span class="text-xs">{props.label}</span>
