@@ -1,9 +1,13 @@
 import syncIcon from "@assets/icons/sync.svg";
 import { useAppStore } from "@src/stores/appStore.ts";
 import StatusIndicator from "@src/components/StatusIndicator";
+import { useLogsStore } from "@src/stores/logsStore";
 
 export default function Synchronization() {
   const [state] = useAppStore();
+
+  const [logsState] = useLogsStore();
+  console.log("logsState", logsState.logs);
 
   return (
     <div class="h-full w-full flex flex-col items-center p-6 pb-0">
@@ -21,7 +25,7 @@ export default function Synchronization() {
       />
       {/* <div>{progressPct()}%</div> */}
       <div class="text-sm text-gray-500">This can take up to 10 minutes</div>
-      <div class="flex-grow"></div>
+      <div class="grow"></div>
       <StatusIndicator size="sm" />
     </div>
   );

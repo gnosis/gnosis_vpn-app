@@ -17,13 +17,7 @@ export default function AirdropClaimBanner() {
             if (mainWin) {
               await mainWin.show();
               await mainWin.setFocus();
-              globalThis.setTimeout(() => {
-                void emit("navigate", "onboarding");
-                // After navigating to onboarding, set step to airdrop
-                globalThis.setTimeout(() => {
-                  void emit("onboarding:set-step", "airdrop");
-                }, 25);
-              }, 25);
+              void emit("navigate", { screen: "onboarding", step: "airdrop" });
             }
             if (settingsWin) {
               await settingsWin.hide();

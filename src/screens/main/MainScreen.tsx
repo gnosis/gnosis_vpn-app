@@ -35,8 +35,6 @@ export function MainScreen() {
     requestAnimationFrame(() => computeConnectorHeight());
   });
 
-  console.log("appState", appState);
-
   return (
     <div class="flex w-full flex-col h-full py-6 px-4">
       <div class="flex flex-row justify-between z-60">
@@ -53,7 +51,7 @@ export function MainScreen() {
           <ExitNode />
         </div>
         <StatusLine heightPx={connectorHeight()} />
-        <div class="flex-grow z-10"></div>
+        <div class="grow z-10"></div>
         <ConnectButton />
       </main>
     </div>

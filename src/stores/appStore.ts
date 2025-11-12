@@ -1,6 +1,7 @@
 import { createStore, reconcile, type Store } from "solid-js/store";
 import {
   type Destination,
+  type DestinationState,
   type RunMode,
   type StatusResponse,
   VPNService,
@@ -33,6 +34,7 @@ export type AppScreen = "main" | "onboarding" | "synchronization";
 export interface AppState {
   currentScreen: AppScreen;
   availableDestinations: Destination[];
+  destinations: DestinationState[]; // Full destination states with connection info
   isLoading: boolean;
   // fundingStatus: FundingState;
   error?: string;
@@ -67,6 +69,7 @@ export function createAppStore(): AppStoreTuple {
   const [state, setState] = createStore<AppState>({
     currentScreen: "main",
     availableDestinations: [],
+    destinations: [],
     isLoading: false,
     destination: null,
     selectedAddress: null,
@@ -119,7 +122,10 @@ export function createAppStore(): AppStoreTuple {
       console.log("response", response);
 
       let normalizedRunMode: RunMode;
-      if ("PreparingSafe" in response.run_mode) {
+      if (
+        typeof response.run_mode === "object" &&
+        "PreparingSafe" in response.run_mode
+      ) {
         const prep = response.run_mode.PreparingSafe;
         const normalizedPreparingSafe = {
           ...prep,
@@ -133,39 +139,37 @@ export function createAppStore(): AppStoreTuple {
         } as typeof prep;
         normalizedRunMode = { PreparingSafe: normalizedPreparingSafe };
         setState("currentScreen", "onboarding");
-      } else if ("Warmup" in response.run_mode) {
+      } else if (response.run_mode === "Warmup") {
         normalizedRunMode = response.run_mode;
         setState("currentScreen", "synchronization");
       } else {
-        normalizedRunMode = response.run_mode; // Running
+        normalizedRunMode = response.run_mode; // Running or Shutdown
         setState("currentScreen", "main");
       }
 
-      const normalizedAvailable = response.available_destinations.map(
-        (d: unknown) => {
-          const anyD = d as {
-            address?: unknown;
-            array?: unknown;
-            meta?: Record<string, string>;
-            path?: unknown;
-            routing?: unknown;
-          };
-          const source = Array.isArray(anyD.address)
-            ? anyD.address
-            : Array.isArray(anyD.array)
-            ? anyD.array
-            : anyD.address;
+      // Store full destination states with connection info
+      const normalizedDestinations = response.destinations.map(
+        (ds: DestinationState) => {
+          const dest = ds.destination;
+          const source = Array.isArray(dest.address)
+            ? dest.address
+            : dest.address;
           const address = typeof source === "string"
             ? source
             : getEthAddress((source ?? []) as number[]);
-          // Backend may send `routing`; frontend currently expects `path` → normalize
-          const path = (anyD.path ?? anyD.routing) as unknown;
           return {
-            address,
-            meta: (anyD.meta ?? {}) as Record<string, string>,
-            path,
-          } as Destination;
+            ...ds,
+            destination: {
+              ...dest,
+              address,
+            },
+          } as DestinationState;
         },
+      );
+
+      // Extract destinations for backward compatibility
+      const normalizedAvailable = normalizedDestinations.map((ds) =>
+        ds.destination
       );
 
       const prefMsg = getPreferredAvailabilityChangeMessage(
@@ -208,11 +212,15 @@ export function createAppStore(): AppStoreTuple {
       }
       setState("runMode", reconcile(normalizedRunMode));
 
+      // Update destinations with connection state first (needed for getVpnStatus)
+      setState("destinations", normalizedDestinations);
+
       // Derive and update vpnStatus when it changes
       {
         const next = getVpnStatus(state);
         if (next !== state.vpnStatus) setState("vpnStatus", next);
       }
+
       if (
         !areDestinationsEqualUnordered(
           normalizedAvailable,
@@ -234,6 +242,7 @@ export function createAppStore(): AppStoreTuple {
       setState("isLoading", false);
       setState("runMode", null);
       setState("availableDestinations", []);
+      setState("destinations", []);
       setState("error", error instanceof Error ? error.message : String(error));
       if (state.destination !== null) setState("destination", null);
       // Ensure vpnStatus reflects service unavailability
@@ -324,8 +333,14 @@ export function createAppStore(): AppStoreTuple {
       const tick = async () => {
         if (pollInFlight) return;
         pollInFlight = true;
-        await getStatus();
-        pollInFlight = false;
+        try {
+          await getStatus();
+        } catch (e) {
+          // swallow to keep interval alive
+          console.error("status polling tick failed", e);
+        } finally {
+          pollInFlight = false;
+        }
       };
 
       // immediate tick, then interval
@@ -342,14 +357,12 @@ export function createAppStore(): AppStoreTuple {
 
     claimAirdrop: async (secret: string) => {
       try {
-        const result = await VPNService.fundingTool(secret);
-        console.log("result of claimAirdrop", result);
+        await VPNService.fundingTool(secret);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         log(message);
         setState("error", message);
       }
-      // await getStatus();
     },
   } as const;
 

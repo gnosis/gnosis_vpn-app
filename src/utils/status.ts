@@ -1,127 +1,98 @@
 import {
   type Destination,
-  type FundingState,
+  type DestinationState,
   PreparingSafe,
   RunMode,
-  Warmup,
 } from "@src/services/vpnService.ts";
 import type { AppState } from "@src/stores/appStore.ts";
 
-export function isConnected(
-  state: AppState,
-): state is AppState & {
-  runMode: {
-    Running: { connection: { Connected: Destination }; funding: FundingState };
-  };
-} {
-  const runMode: RunMode | null | undefined = state?.runMode;
-  if (!runMode || typeof runMode !== "object") return false;
-  return (
-    "Running" in runMode &&
-    typeof (runMode as { Running: unknown }).Running === "object" &&
-    "connection" in (runMode as { Running: { connection: unknown } }).Running &&
-    typeof (runMode as { Running: { connection: unknown } }).Running
-        .connection === "object" &&
-    "Connected" in
-      (runMode as { Running: { connection: Record<string, unknown> } }).Running
-        .connection
+function getDestinationsWithConnection(state: AppState): DestinationState[] {
+  return state.destinations || [];
+}
+
+export function isConnected(state: AppState): boolean {
+  const destinations = getDestinationsWithConnection(state);
+  return destinations.some((ds) =>
+    typeof ds.connection_state === "object" &&
+    "Connected" in ds.connection_state
   );
 }
 
-export function isConnecting(
-  state: AppState,
-): state is AppState & {
-  runMode: {
-    Running: { connection: { Connecting: Destination }; funding: FundingState };
-  };
-} {
-  const runMode: RunMode | null | undefined = state?.runMode;
-  if (!runMode || typeof runMode !== "object") return false;
-  return (
-    "Running" in runMode &&
-    typeof (runMode as { Running: unknown }).Running === "object" &&
-    "connection" in (runMode as { Running: { connection: unknown } }).Running &&
-    typeof (runMode as { Running: { connection: unknown } }).Running
-        .connection === "object" &&
-    "Connecting" in
-      (runMode as { Running: { connection: Record<string, unknown> } }).Running
-        .connection
+export function isConnecting(state: AppState): boolean {
+  const destinations = getDestinationsWithConnection(state);
+  return destinations.some((ds) =>
+    typeof ds.connection_state === "object" &&
+    "Connecting" in ds.connection_state
   );
 }
 
-export function isDisconnecting(
-  state: AppState,
-): state is AppState & {
-  runMode: {
-    Running: {
-      connection: { Disconnecting: Destination };
-      funding: FundingState;
-    };
-  };
-} {
-  const runMode: RunMode | null | undefined = state?.runMode;
-  if (!runMode || typeof runMode !== "object") return false;
-  return (
-    "Running" in runMode &&
-    typeof (runMode as { Running: unknown }).Running === "object" &&
-    "connection" in (runMode as { Running: { connection: unknown } }).Running &&
-    typeof (runMode as { Running: { connection: unknown } }).Running
-        .connection === "object" &&
-    "Disconnecting" in
-      (runMode as { Running: { connection: Record<string, unknown> } }).Running
-        .connection
+export function isDisconnecting(state: AppState): boolean {
+  const destinations = getDestinationsWithConnection(state);
+  return destinations.some((ds) =>
+    typeof ds.connection_state === "object" &&
+    "Disconnecting" in ds.connection_state
   );
 }
 
 export function isDisconnected(state: AppState): boolean {
   const runMode: RunMode | null | undefined = state?.runMode;
-  return (
-    !!runMode &&
-    typeof runMode === "object" &&
-    "Running" in runMode &&
-    typeof (runMode as { Running: unknown }).Running === "object" &&
-    "connection" in (runMode as { Running: { connection: unknown } }).Running &&
-    (runMode as { Running: { connection: unknown } }).Running.connection ===
-      "Disconnected"
-  );
+  if (!runMode) return true;
+
+  if (typeof runMode === "object" && "Running" in runMode) {
+    const destinations = getDestinationsWithConnection(state);
+    return destinations.every((ds) => ds.connection_state === "None");
+  }
+
+  return false;
 }
 
 export function isServiceUnavailable(state: AppState): boolean {
-  const runMode: RunMode | null | undefined = state?.runMode;
-  return (
-    !!runMode &&
-    typeof runMode === "object" &&
-    "Running" in runMode &&
-    typeof (runMode as { Running: unknown }).Running === "object" &&
-    "connection" in (runMode as { Running: { connection: unknown } }).Running &&
-    (runMode as { Running: { connection: unknown } }).Running.connection ===
-      "ServiceUnavailable"
-  );
+  return !state.runMode;
 }
 
 export function isConnectedTo(
   state: AppState,
   destination: Destination,
 ): boolean {
-  return isConnected(state) &&
-    state.runMode.Running.connection.Connected.address === destination.address;
+  const destinations = getDestinationsWithConnection(state);
+  const destState = destinations.find((ds) =>
+    ds.destination.address === destination.address
+  );
+  if (destState) {
+    return typeof destState.connection_state === "object" &&
+      "Connected" in destState.connection_state;
+  }
+  return false;
 }
 
 export function isConnectingTo(
   state: AppState,
   destination: Destination,
 ): boolean {
-  return isConnecting(state) &&
-    state.runMode.Running.connection.Connecting.address === destination.address;
+  const destinations = getDestinationsWithConnection(state);
+  const destState = destinations.find((ds) =>
+    ds.destination.address === destination.address
+  );
+  if (destState) {
+    return typeof destState.connection_state === "object" &&
+      "Connecting" in destState.connection_state;
+  }
+  return false;
 }
 
 export function isDisconnectingFrom(
   state: AppState,
   destination: Destination,
 ): boolean {
-  return isDisconnecting(state) &&
-    state.runMode.Running.connection.Disconnecting.address ===
-      destination.address;
+  const destinations = getDestinationsWithConnection(state);
+  const destState = destinations.find((ds) =>
+    ds.destination.address === destination.address
+  );
+  if (destState) {
+    return typeof destState.connection_state === "object" &&
+      "Disconnecting" in destState.connection_state;
+  }
+  return false;
 }
 
 export function isPreparingSafe(
@@ -133,20 +104,25 @@ export function isPreparingSafe(
 
 export function isWarmup(
   state: AppState,
-): state is AppState & { runMode: { Warmup: Warmup } } {
+): state is AppState & { runMode: "Warmup" } {
   const runMode: RunMode | null | undefined = state?.runMode;
-  return !!runMode && typeof runMode === "object" && "Warmup" in runMode;
+  return runMode === "Warmup";
 }
 
 export function getVpnStatus(state: AppState): AppState["vpnStatus"] {
   if (!state || !state.runMode) return "ServiceUnavailable";
-  if (isServiceUnavailable(state)) return "ServiceUnavailable";
-  if (isConnected(state)) return "Connected";
-  if (isConnecting(state)) return "Connecting";
-  if (isDisconnecting(state)) return "Disconnecting";
-  if (isDisconnected(state)) return "Disconnected";
+
   if (isPreparingSafe(state)) return "PreparingSafe";
   if (isWarmup(state)) return "Warmup";
+  if (state.runMode === "Shutdown") return "ServiceUnavailable";
+
+  if (typeof state.runMode === "object" && "Running" in state.runMode) {
+    if (isConnected(state)) return "Connected";
+    if (isConnecting(state)) return "Connecting";
+    if (isDisconnecting(state)) return "Disconnecting";
+    if (isDisconnected(state)) return "Disconnected";
+  }
+
   return "ServiceUnavailable";
 }
 
