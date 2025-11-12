@@ -1,6 +1,6 @@
 import gnosisVpnLogo from "@assets/img/gnosis-vpn.svg";
 import Button from "@src/components/common/Button";
-import WarningIcon from "@src/components/common/WarningIcon";
+// import WarningIcon from "@src/components/common/WarningIcon";
 import { useAppStore } from "@src/stores/appStore";
 
 export default function Start(
@@ -13,10 +13,12 @@ export default function Start(
       <img src={gnosisVpnLogo} alt="Gnosis VPN" class="w-full mt-6" />
       <div class="text-4xl font-bold">(MVP)</div>
       <div class="w-full flex flex-col gap-2">
-        <div class="text-sm text-center">
+        {
+          /* <div class="text-sm text-center">
           <WarningIcon />
           Early release disclaimer here.
-        </div>
+        </div> */
+        }
         <Button
           size="lg"
           onClick={() => setStep("airdrop")}
