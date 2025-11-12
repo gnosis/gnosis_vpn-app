@@ -3,8 +3,6 @@ import { useAppStore } from "@src/stores/appStore";
 export function StatusIndicator({ size }: { size?: "sm" | "lg" }) {
   const [appState] = useAppStore();
 
-  console.log("vpn status", appState.vpnStatus);
-
   const containerClass = size === "sm" ? "" : "rounded-full bg-white px-4 h-10";
   const status = () => {
     if (appState.vpnStatus === "Connected") {

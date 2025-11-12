@@ -126,34 +126,12 @@ export function getVpnStatus(state: AppState): AppState["vpnStatus"] {
   return "ServiceUnavailable";
 }
 
-function bigintStringGreaterThanZero(value: unknown): boolean {
-  if (typeof value !== "string") return false;
-  try {
-    const n = BigInt(value);
-    return n > 0n;
-  } catch {
-    return false;
-  }
-}
-
 export function isXDAITransferred(state: AppState): boolean {
-  return (
-    !!state &&
-    isPreparingSafe(state) &&
-    bigintStringGreaterThanZero(
-      (state.runMode.PreparingSafe as unknown as { node_xdai: unknown })
-        .node_xdai,
-    )
-  );
+  return !!state && isPreparingSafe(state) &&
+    parseInt(state.runMode.PreparingSafe.node_xdai) >= 0.01;
 }
 
 export function isWxHOPRTransferred(state: AppState): boolean {
-  return (
-    !!state &&
-    isPreparingSafe(state) &&
-    bigintStringGreaterThanZero(
-      (state.runMode.PreparingSafe as unknown as { node_wxhopr: unknown })
-        .node_wxhopr,
-    )
-  );
+  return !!state && isPreparingSafe(state) &&
+    parseInt(state.runMode.PreparingSafe.node_wxhopr) >= 0.01;
 }

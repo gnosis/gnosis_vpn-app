@@ -1,8 +1,7 @@
-import { createSignal, Show } from "solid-js";
+import { createMemo, createSignal, Show } from "solid-js";
 import { useAppStore } from "@src/stores/appStore";
 import Button from "@src/components/common/Button";
 import Checkbox from "@src/components/common/Checkbox";
-// import FundingAddress from "@src/components/FundingAddress";
 import Help from "@src/components/Help";
 import { useLogsStore } from "@src/stores/logsStore";
 import checkIcon from "@assets/icons/checked-box-filled.svg";
@@ -30,15 +29,18 @@ export default function Manually(
     return "Confirm";
   };
 
-  console.log("appState", appState);
+  const nodeAddress = createMemo(() => {
+    if (isPreparingSafe(appState)) {
+      const address = appState.runMode.PreparingSafe.node_address;
+      return address && address !== "unknown" ? address : undefined;
+    }
+    return undefined;
+  });
 
   const handleClick = async () => {
     if (!ready()) {
       try {
         setLoading(true);
-        // check if it's ready
-        // simulate readiness check delay
-        await new Promise((resolve) => setTimeout(resolve, 1500));
         setReady(true);
       } catch (error) {
         logActions.append(`Error checking if node is funded: ${String(error)}`);
@@ -93,11 +95,18 @@ export default function Manually(
           </div>
         </label>
 
-        <FundingAddress
-          address={isPreparingSafe(appState)
-            ? (appState.runMode?.PreparingSafe?.node_address ?? "")
-            : ""}
-        />
+        <Show
+          when={nodeAddress()}
+          fallback={
+            <div class="text-sm text-red-500">No funding address found</div>
+          }
+        >
+          <FundingAddress
+            address={isPreparingSafe(appState)
+              ? (appState.runMode?.PreparingSafe?.node_address ?? "")
+              : ""}
+          />
+        </Show>
         <div class="text-sm text-gray-500">
           After the tx has been made, it can take up to two minutes, until your
           App can connect.
