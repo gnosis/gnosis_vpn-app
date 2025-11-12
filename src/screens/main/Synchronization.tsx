@@ -1,9 +1,13 @@
 import syncIcon from "@assets/icons/sync.svg";
 import { useAppStore } from "@src/stores/appStore.ts";
 import StatusIndicator from "@src/components/StatusIndicator";
+import { useLogsStore } from "@src/stores/logsStore";
 
 export default function Synchronization() {
   const [state] = useAppStore();
+
+  const [logsState] = useLogsStore();
+  console.log("logsState", logsState.logs);
 
   return (
     <div class="h-full w-full flex flex-col items-center p-6 pb-0">
