@@ -14,7 +14,12 @@ import {
   selectTargetAddress,
 } from "@src/utils/destinations.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
-import { getVpnStatus, isConnected, isConnecting } from "@src/utils/status.ts";
+import {
+  getVpnStatus,
+  isConnected,
+  isConnecting,
+  isDisconnecting,
+} from "@src/utils/status.ts";
 import { getEthAddress } from "@src/utils/address.ts";
 
 export type AppScreen = "main" | "onboarding" | "synchronization";
@@ -255,10 +260,16 @@ export function createAppStore(): AppStoreTuple {
     setScreen: (screen: AppScreen) => setState("currentScreen", screen),
 
     chooseDestination: (address: string | null) => {
+      const previousAddress = state.selectedAddress;
       setState("selectedAddress", address ?? null);
       applyDestinationSelection();
 
-      if (address && (isConnected(state) || isConnecting(state))) {
+      // Reconnect if destination changed and we have an active connection state
+      if (
+        address &&
+        address !== previousAddress &&
+        (isConnected(state) || isConnecting(state) || isDisconnecting(state))
+      ) {
         setState("isLoading", true);
         void (async () => {
           try {
