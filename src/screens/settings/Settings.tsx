@@ -12,15 +12,6 @@ export default function Settings() {
   const [appState] = useAppStore();
   const [settings, settingsActions] = useSettingsStore();
 
-  const availableDestinations = appState.availableDestinations.map((e) => {
-    return {
-      address: e.address,
-      label: formatDestination(e),
-    };
-  });
-
-  console.log(availableDestinations);
-
   return (
     <div class="space-y-4 w-full p-6 max-w-lg">
       <Toggle

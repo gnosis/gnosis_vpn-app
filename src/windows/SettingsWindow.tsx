@@ -26,9 +26,8 @@ export default function SettingsWindow() {
         startedPollingHere = true;
         await Promise.all([settingsActions.load(), appActions.refreshStatus()]);
       } else {
-        await settingsActions.load();
+        await Promise.all([settingsActions.load(), appActions.refreshStatus()]);
       }
-      // Ask main window for existing logs snapshot
       void emit("logs:request-snapshot");
       unlisten = await listen<string>("navigate", (event) => {
         const next = event.payload;
