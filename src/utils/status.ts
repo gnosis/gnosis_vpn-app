@@ -133,5 +133,5 @@ export function isXDAITransferred(state: AppState): boolean {
 
 export function isWxHOPRTransferred(state: AppState): boolean {
   return !!state && isPreparingSafe(state) &&
-    parseInt(state.runMode.PreparingSafe.node_wxhopr) >= 0.01;
+    parseFloat(state.runMode.PreparingSafe.node_wxhopr) >= 0.01;
 }
