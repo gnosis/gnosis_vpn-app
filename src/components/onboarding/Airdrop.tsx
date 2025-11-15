@@ -291,7 +291,7 @@ export default function Airdrop(
       </div>
       <Show when={fundingTool() !== "CompletedSuccess"}>
         <Button size="lg" variant="outline" onClick={() => setStep("manually")}>
-          Skip now
+          Skip
         </Button>
       </Show>
     </div>

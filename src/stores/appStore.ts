@@ -24,28 +24,14 @@ import { getEthAddress } from "@src/utils/address.ts";
 
 export type AppScreen = "main" | "onboarding" | "synchronization";
 
-// export interface AppState {
-//   currentScreen: AppScreen;
-//   connectionStatus: Status;
-//   availableDestinations: Destination[];
-//   isLoading: boolean;
-//   // fundingStatus: FundingState;
-//   error?: string;
-//   destination: Destination | null;
-//   selectedAddress: string | null;
-//   preparingSafe: PreparingSafe | null;
-// }
-
 export interface AppState {
   currentScreen: AppScreen;
   availableDestinations: Destination[];
   destinations: DestinationState[]; // Full destination states with connection info
   isLoading: boolean;
-  // fundingStatus: FundingState;
   error?: string;
   destination: Destination | null;
   selectedAddress: string | null;
-  // preparingSafe: PreparingSafe | null;
   runMode: RunMode | null;
   vpnStatus:
     | "ServiceUnavailable"
@@ -126,6 +112,21 @@ export function createAppStore(): AppStoreTuple {
       const response = await VPNService.getStatus();
       console.log("response", response);
 
+      const formatFundingTool = (
+        ft: "NotStarted" | "InProgress" | "CompletedSuccess" | "CompletedError",
+      ): string => {
+        switch (ft) {
+          case "NotStarted":
+            return "Not started";
+          case "InProgress":
+            return "In progress";
+          case "CompletedSuccess":
+            return "Completed successfully";
+          case "CompletedError":
+            return "Completed with error";
+        }
+      };
+
       let normalizedRunMode: RunMode;
       if (
         typeof response.run_mode === "object" &&
@@ -152,7 +153,21 @@ export function createAppStore(): AppStoreTuple {
         setState("currentScreen", "main");
       }
 
-      // Store full destination states with connection info
+      {
+        const prevTool = typeof state.runMode === "object" && state.runMode &&
+            "PreparingSafe" in state.runMode
+          ? state.runMode.PreparingSafe.funding_tool
+          : undefined;
+        const nextTool =
+          typeof normalizedRunMode === "object" && normalizedRunMode &&
+            "PreparingSafe" in normalizedRunMode
+            ? normalizedRunMode.PreparingSafe.funding_tool
+            : undefined;
+        if (nextTool && nextTool !== prevTool) {
+          log(`Funding Tool - ${formatFundingTool(nextTool)}`);
+        }
+      }
+
       const normalizedDestinations = response.destinations.map(
         (ds: DestinationState) => {
           const dest = ds.destination;
@@ -172,7 +187,6 @@ export function createAppStore(): AppStoreTuple {
         },
       );
 
-      // Extract destinations for backward compatibility
       const normalizedAvailable = normalizedDestinations.map((ds) =>
         ds.destination
       );
@@ -236,7 +250,6 @@ export function createAppStore(): AppStoreTuple {
         applyDestinationSelection();
       }
       setState("error", undefined);
-      // setState("fundingStatus", response.funding);
 
       if (preferredChanged) {
         applyDestinationSelection();
