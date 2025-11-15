@@ -6,7 +6,7 @@ import Help from "@src/components/Help";
 import { useLogsStore } from "@src/stores/logsStore";
 import checkIcon from "@assets/icons/checked-box-filled.svg";
 import {
-  isPreparingSafe,
+  getPreparingSafeNodeAddress,
   isWxHOPRTransferred,
   isXDAITransferred,
 } from "@src/utils/status.ts";
@@ -30,11 +30,7 @@ export default function Manually(
   };
 
   const nodeAddress = createMemo(() => {
-    if (isPreparingSafe(appState)) {
-      const address = appState.runMode.PreparingSafe.node_address;
-      return address && address !== "unknown" ? address : undefined;
-    }
-    return undefined;
+    return getPreparingSafeNodeAddress(appState);
   });
 
   const handleClick = async () => {
@@ -95,18 +91,7 @@ export default function Manually(
           </div>
         </label>
 
-        <Show
-          when={nodeAddress()}
-          fallback={
-            <div class="text-sm text-red-500">No funding address found</div>
-          }
-        >
-          <FundingAddress
-            address={isPreparingSafe(appState)
-              ? (appState.runMode?.PreparingSafe?.node_address ?? "")
-              : ""}
-          />
-        </Show>
+        <FundingAddress address={nodeAddress()} />
         <div class="text-sm text-gray-500">
           After the tx has been made, it can take up to two minutes, until your
           App can connect.

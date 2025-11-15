@@ -63,7 +63,7 @@ export default function FundsInfo(props: Props) {
             </div>
           }
         >
-          <FundingAddress address={props.address ?? ""} full />
+          <FundingAddress address={props.address} full />
         </Show>
       </div>
     </div>

@@ -6,7 +6,10 @@ import checkIcon from "@assets/icons/checked-box-filled.svg";
 import { useAppStore } from "@src/stores/appStore";
 import backIcon from "@assets/icons/arrow-left.svg";
 import Spinner from "@src/components/common/Spinner";
-import { isPreparingSafe } from "@src/utils/status";
+import {
+  getPreparingSafeNodeAddress,
+  isPreparingSafe,
+} from "@src/utils/status";
 
 export default function Airdrop(
   { setStep }: { setStep: (step: string) => void },
@@ -34,11 +37,7 @@ export default function Airdrop(
   });
 
   const nodeAddress = createMemo(() => {
-    if (isPreparingSafe(appState)) {
-      const address = appState.runMode.PreparingSafe.node_address;
-      return address && address !== "unknown" ? address : undefined;
-    }
-    return undefined;
+    return getPreparingSafeNodeAddress(appState);
   });
 
   const isServiceRunning = createMemo(() => {

@@ -135,3 +135,13 @@ export function isWxHOPRTransferred(state: AppState): boolean {
   return !!state && isPreparingSafe(state) &&
     parseFloat(state.runMode.PreparingSafe.node_wxhopr) >= 0.01;
 }
+
+export function getPreparingSafeNodeAddress(
+  state: AppState,
+): string | undefined {
+  if (isPreparingSafe(state)) {
+    const address = state.runMode.PreparingSafe.node_address;
+    return address && address !== "unknown" ? address : undefined;
+  }
+  return undefined;
+}
