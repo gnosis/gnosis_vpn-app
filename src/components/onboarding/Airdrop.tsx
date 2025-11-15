@@ -95,62 +95,60 @@ export default function Airdrop(
     await claimAirdrop();
   };
 
-  createEffect(() => {
-    const tool = fundingTool();
-    const isClaimed = claimed();
-    const pendingState = pendingClaimState();
-    const prevState = previousToolState();
-    const seenUpdate = hasSeenStateUpdate();
-
-    if (!isClaimed) {
-      return;
-    }
-
+  function markSeenUpdates(
+    tool: string | undefined,
+    pendingState: string | undefined,
+    prevState: string | undefined,
+  ) {
     if (pendingState !== undefined && tool !== pendingState) {
       setHasSeenStateUpdate(true);
     }
     if (prevState !== undefined && tool !== prevState) {
       setHasSeenStateUpdate(true);
     }
+  }
 
-    if (tool === "CompletedError") {
-      // Determine if this is a new error:
-      // 1. If previous state was InProgress, this is definitely a new error (we went through the process)
-      // 2. If we don't have a pending state, this is a standalone error
-      // 3. If pendingState is not CompletedError, we started from a different state
-      // 4. If we've seen ANY state update since starting the claim, this is a new error
-      // 5. If we're loading and pendingState is CompletedError, this means we retried and got a new error
-      //    (even if state is the same, the server processed our request and returned a new error)
-      const isRetryingFromError = pendingState === "CompletedError" &&
-        !seenUpdate && loading();
-      const isNewError = prevState === "InProgress" ||
-        pendingState === undefined ||
-        pendingState !== "CompletedError" ||
-        seenUpdate ||
-        !isRetryingFromError;
+  function handleCompletedError(
+    tool: string | undefined,
+    pendingState: string | undefined,
+    prevState: string | undefined,
+    seenUpdate: boolean,
+  ) {
+    const isRetryingFromError = pendingState === "CompletedError" &&
+      !seenUpdate && loading();
+    const isNewError = prevState === "InProgress" ||
+      pendingState === undefined ||
+      pendingState !== "CompletedError" ||
+      seenUpdate ||
+      !isRetryingFromError;
 
-      if (isNewError) {
-        setLoading(false);
-        setError("Funding failed. Please try again.");
-        setPendingClaimState(undefined);
-        setPreviousToolState(tool);
-        setHasSeenStateUpdate(false);
-      } else {
-        setHasSeenStateUpdate(true);
-      }
-      if (prevState !== tool) {
-        setPreviousToolState(tool);
-      }
-      return;
+    if (isNewError) {
+      setLoading(false);
+      setError("Funding failed. Please try again.");
+      setPendingClaimState(undefined);
+      setPreviousToolState(tool);
+      setHasSeenStateUpdate(false);
+    } else {
+      setHasSeenStateUpdate(true);
     }
-
-    if (
-      pendingState !== undefined && tool === pendingState && loading() &&
-      !seenUpdate
-    ) {
-      return;
+    if (prevState !== tool) {
+      setPreviousToolState(tool);
     }
+  }
 
+  function shouldWaitPendingStable(
+    tool: string | undefined,
+    pendingState: string | undefined,
+    seenUpdate: boolean,
+  ): boolean {
+    return pendingState !== undefined && tool === pendingState && loading() &&
+      !seenUpdate;
+  }
+
+  function handleToolTransition(
+    tool: string | undefined,
+    prevState: string | undefined,
+  ) {
     if (tool === "InProgress") {
       setLoading(true);
       setError(undefined);
@@ -174,6 +172,31 @@ export default function Airdrop(
         setPreviousToolState(tool);
       }
     }
+  }
+
+  createEffect(() => {
+    const tool = fundingTool();
+    const isClaimed = claimed();
+    const pendingState = pendingClaimState();
+    const prevState = previousToolState();
+    const seenUpdate = hasSeenStateUpdate();
+
+    if (!isClaimed) {
+      return;
+    }
+
+    markSeenUpdates(tool, pendingState, prevState);
+
+    if (tool === "CompletedError") {
+      handleCompletedError(tool, pendingState, prevState, seenUpdate);
+      return;
+    }
+
+    if (shouldWaitPendingStable(tool, pendingState, seenUpdate)) {
+      return;
+    }
+
+    handleToolTransition(tool, prevState);
   });
 
   createEffect(() => {
