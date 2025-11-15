@@ -1,5 +1,4 @@
 use gnosis_vpn_lib::connection;
-use gnosis_vpn_lib::connection::destination::{Address, Destination};
 use gnosis_vpn_lib::{balance, command, socket};
 use tauri::{
     AppHandle, Emitter, Manager,
@@ -8,39 +7,47 @@ use tauri::{
 };
 mod platform;
 use platform::{Platform, PlatformInterface};
-use serde::{Deserialize, Serialize};
+use serde::{Serialize};
 use tauri_plugin_store::StoreExt;
 
+use std::collections::HashMap;
 use std::time::{Duration, SystemTime};
 use std::{path::PathBuf, sync::Mutex};
 
-#[derive(Clone, Debug, Serialize, Default)]
+#[derive(Clone, Serialize, Default)]
 struct AppSettings {
     preferred_location: Option<String>,
     connect_on_startup: bool,
     start_minimized: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Serialize)]
 pub struct StatusResponse {
     pub run_mode: RunMode,
     pub destinations: Vec<DestinationState>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Serialize)]
 pub struct DestinationState {
     pub destination: Destination,
     pub connection_state: ConnectionState,
-    pub last_connection_error: Option<String>,
+    pub health: Option<DestinationHealth>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Serialize)]
+pub struct Destination {
+    pub meta: HashMap<String, String>,
+    pub address: String,
+    pub routing: RoutingOptions,
+}
+
+#[derive(Serialize)]
 pub enum RoutingOptions {
     Hops(usize),
     IntermediatePath(Vec<String>),
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Serialize)]
 pub enum RunMode {
     /// Initial start, after creating safe this state will not be reached again
     PreparingSafe {
@@ -52,12 +59,12 @@ pub enum RunMode {
     /// Subsequent service start up in this state and after preparing safe
     Warmup,
     /// Normal operation where connections can be made
-    Running { funding: FundingState },
+    Running { funding: command::FundingState },
     /// Shutdown service
     Shutdown,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Serialize)]
 pub enum ConnectionState {
     None,
     Connecting(SystemTime, String),
@@ -65,13 +72,23 @@ pub enum ConnectionState {
     Disconnecting(SystemTime, String),
 }
 
-// in order of priority
-#[derive(Debug, Serialize, Deserialize)]
-pub enum FundingState {
-    Unknown,                         // state not queried yet
-    TopIssue(balance::FundingIssue), // there is at least one issue
-    WellFunded,
+#[derive(Serialize)]
+pub struct DestinationHealth {
+    pub last_error: Option<String>,
+    pub health: connection::destination_health::Health,
+    need: Need,
 }
+
+/// Requirements to be able to connect to this destination
+/// This is statically derived at construction time from a destination's routing options.
+#[derive(Serialize)]
+pub enum Need {
+    Channel(String),
+    AnyChannel,
+    Peering(String),
+    Nothing,
+}
+
 
 impl From<connection::destination::RoutingOptions> for RoutingOptions {
     fn from(ro: connection::destination::RoutingOptions) -> Self {
@@ -86,12 +103,37 @@ impl From<connection::destination::RoutingOptions> for RoutingOptions {
     }
 }
 
+impl From<connection::destination::Destination> for Destination {
+    fn from(d: connection::destination::Destination) -> Self {
+        Destination {
+            meta: d.meta.clone(),
+            address: d.address.to_string(),
+            routing: d.routing.into(),
+        }
+    }
+}
+
+impl From<connection::destination_health::DestinationHealth> for DestinationHealth {
+    fn from(d: connection::destination_health::DestinationHealth) -> Self {
+        DestinationHealth {
+            last_error: d.last_error.clone(),
+            health: d.health.clone(),
+            need: match d.need {
+                connection::destination_health::Need::Channel(c) => Need::Channel(c.to_string()),
+                connection::destination_health::Need::AnyChannel => Need::AnyChannel,
+                connection::destination_health::Need::Peering(p) => Need::Peering(p.to_string()),
+                connection::destination_health::Need::Nothing => Need::Nothing,
+            },
+        }
+    }
+}
+
 impl From<command::DestinationState> for DestinationState {
     fn from(ds: command::DestinationState) -> Self {
         DestinationState {
-            destination: ds.destination.clone(),
+            destination: ds.destination.into(),
             connection_state: ds.connection_state.into(),
-            last_connection_error: ds.last_connection_error,
+            health: ds.health.map(|h| h.into()),
         }
     }
 }
@@ -126,17 +168,11 @@ impl From<command::RunMode> for RunMode {
                 node_wxhopr: node_wxhopr.amount().to_string(),
                 funding_tool,
             },
-            command::RunMode::Warmup { hopr_state: _ } => RunMode::Warmup,
+            command::RunMode::Warmup { hopr_status: _ } => RunMode::Warmup,
             command::RunMode::Running {
                 funding,
-                hopr_state: _,
-            } => RunMode::Running {
-                funding: match funding {
-                    command::FundingState::Unknown => FundingState::Unknown,
-                    command::FundingState::TopIssue(issue) => FundingState::TopIssue(issue),
-                    command::FundingState::WellFunded => FundingState::WellFunded,
-                },
-            },
+                hopr_status: _,
+            } => RunMode::Running { funding },
             command::RunMode::Shutdown => RunMode::Shutdown,
         }
     }
@@ -168,7 +204,7 @@ async fn status() -> Result<StatusResponse, String> {
 #[tauri::command]
 async fn connect(address: String) -> Result<command::ConnectResponse, String> {
     let p = PathBuf::from(socket::DEFAULT_PATH);
-    let conv_address = address.parse::<Address>().map_err(|e| e.to_string())?;
+    let conv_address = address.parse::<connection::destination::Address>().map_err(|e| e.to_string())?;
     let cmd = command::Command::Connect(conv_address);
     let resp = socket::process_cmd(&p, &cmd)
         .await
