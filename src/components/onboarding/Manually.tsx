@@ -33,7 +33,7 @@ export default function Manually(
     return getPreparingSafeNodeAddress(appState);
   });
 
-  const handleClick = async () => {
+  const handleClick = () => {
     if (!ready()) {
       try {
         setLoading(true);
