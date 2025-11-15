@@ -20,6 +20,8 @@ struct AppSettings {
     start_minimized: bool,
 }
 
+// Sanitized library responses
+
 #[derive(Serialize)]
 pub struct StatusResponse {
     pub run_mode: RunMode,
@@ -27,24 +29,29 @@ pub struct StatusResponse {
 }
 
 #[derive(Serialize)]
-pub struct DestinationState {
-    pub destination: Destination,
-    pub connection_state: ConnectionState,
-    pub health: Option<DestinationHealth>,
+pub enum ConnectResponse {
+    Connecting(Destination),
+    WaitingToConnect(Destination, Option<DestinationHealth>),
+    UnableToConnect(Destination, DestinationHealth),
+    AddressNotFound,
 }
 
 #[derive(Serialize)]
-pub struct Destination {
-    pub meta: HashMap<String, String>,
-    pub address: String,
-    pub routing: RoutingOptions,
+pub enum DisconnectResponse {
+    Disconnecting(Destination),
+    NotConnected,
 }
 
 #[derive(Serialize)]
-pub enum RoutingOptions {
-    Hops(usize),
-    IntermediatePath(Vec<String>),
+pub struct BalanceResponse {
+    pub node: String,
+    pub safe: String,
+    pub channels_out: String,
+    pub info: Info,
+    pub issues: Vec<balance::FundingIssue>,
 }
+
+// Sanitized library structs
 
 #[derive(Serialize)]
 pub enum RunMode {
@@ -61,6 +68,26 @@ pub enum RunMode {
     Running { funding: command::FundingState },
     /// Shutdown service
     Shutdown,
+}
+
+#[derive(Serialize)]
+pub struct DestinationState {
+    pub destination: Destination,
+    pub connection_state: ConnectionState,
+    pub health: Option<DestinationHealth>,
+}
+
+#[derive(Serialize)]
+pub enum RoutingOptions {
+    Hops(usize),
+    IntermediatePath(Vec<String>),
+}
+
+#[derive(Serialize)]
+pub struct Destination {
+    pub meta: HashMap<String, String>,
+    pub address: String,
+    pub routing: RoutingOptions,
 }
 
 #[derive(Serialize)]
@@ -96,30 +123,7 @@ pub struct Info {
     pub network: String,
 }
 
-
-#[derive(Serialize)]
-pub enum ConnectResponse {
-    Connecting(Destination),
-    WaitingToConnect(Destination, Option<DestinationHealth>),
-    UnableToConnect(Destination, DestinationHealth),
-    AddressNotFound,
-}
-
-#[derive(Serialize)]
-pub enum DisconnectResponse {
-    Disconnecting(Destination),
-    NotConnected,
-}
-
-#[derive(Serialize)]
-pub struct BalanceResponse {
-    pub node: String,
-    pub safe: String,
-    pub channels_out: String,
-    pub info: Info,
-    pub issues: Vec<balance::FundingIssue>,
-}
-
+// Conversions from library types to sanitized types
 
 impl From<connection::destination::RoutingOptions> for RoutingOptions {
     fn from(ro: connection::destination::RoutingOptions) -> Self {
