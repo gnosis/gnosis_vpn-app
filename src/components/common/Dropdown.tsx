@@ -3,6 +3,7 @@ import {
   createMemo,
   createSignal,
   For,
+  type JSX,
   onCleanup,
   onMount,
   Show,
@@ -18,6 +19,7 @@ export type DropdownProps<T> = {
   placeholder?: string;
   disabled?: boolean;
   itemToString?: (v: T) => string;
+  renderValue?: (v: T) => JSX.Element;
   class?: string;
   size?: "sm" | "lg";
 };
@@ -148,7 +150,9 @@ export function Dropdown<T>(props: DropdownProps<T>) {
 
           <span class={`${props.size === "sm" ? "text-white" : "font-bold "}`}>
             {props.value
-              ? toString(props.value)
+              ? (props.renderValue
+                ? props.renderValue(props.value)
+                : toString(props.value))
               : (props.placeholder ?? "Select…")}
           </span>
         </div>

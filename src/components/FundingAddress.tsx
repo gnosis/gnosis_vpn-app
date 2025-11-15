@@ -9,8 +9,24 @@ import qrIcon from "@assets/icons/qr.png";
 import { getEthAddress } from "@src/utils/address";
 
 export default function FundingAddress(
-  props: { address: string; full?: boolean },
+  props: { address: string | undefined; full?: boolean },
 ) {
+  const raw = (props.address ?? "").trim();
+  const isMissing = raw.length === 0 || raw.toLowerCase() === "unknown";
+
+  let safeAddress: string | undefined;
+  if (!isMissing) {
+    try {
+      safeAddress = getEthAddress(raw);
+    } catch {
+      safeAddress = undefined;
+    }
+  }
+
+  if (!safeAddress) {
+    return <div class="text-sm text-red-500">No funding address found</div>;
+  }
+
   const [showQR, setShowQR] = createSignal(false);
 
   const [, logActions] = useLogsStore();
@@ -20,15 +36,15 @@ export default function FundingAddress(
     setShowQR(true);
   }
 
-  async function copy(addr = props.address) {
+  async function copy(addr = safeAddress) {
     try {
-      await navigator.clipboard.writeText(addr);
+      await navigator.clipboard.writeText(addr ?? "");
     } catch (error) {
       log(`Error copying address: ${String(error)}`);
     }
   }
 
-  const address = getEthAddress(props.address);
+  const address = safeAddress;
 
   return (
     <>

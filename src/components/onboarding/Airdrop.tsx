@@ -1,11 +1,15 @@
 import parachute from "@assets/img/parachute.png";
 import Button from "@src/components/common/Button";
-import { createMemo, createSignal, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, Show } from "solid-js";
 import { useLogsStore } from "@src/stores/logsStore";
 import checkIcon from "@assets/icons/checked-box-filled.svg";
 import { useAppStore } from "@src/stores/appStore";
 import backIcon from "@assets/icons/arrow-left.svg";
 import Spinner from "@src/components/common/Spinner";
+import {
+  getPreparingSafeNodeAddress,
+  isPreparingSafe,
+} from "@src/utils/status";
 
 export default function Airdrop(
   { setStep }: { setStep: (step: string) => void },
@@ -13,6 +17,15 @@ export default function Airdrop(
   const [secretCode, setSecretCode] = createSignal("");
   const [loading, setLoading] = createSignal(false);
   const [claimed, setClaimed] = createSignal(false);
+  const [error, setError] = createSignal<string | undefined>();
+  const [pendingClaimState, setPendingClaimState] = createSignal<
+    string | undefined
+  >();
+  const [previousToolState, setPreviousToolState] = createSignal<
+    string | undefined
+  >();
+  const [hasSeenStateUpdate, setHasSeenStateUpdate] = createSignal(false);
+
   const [, logActions] = useLogsStore();
   const [appState, appActions] = useAppStore();
 
@@ -23,27 +36,169 @@ export default function Airdrop(
       : undefined;
   });
 
-  const handleClaim = async () => {
-    try {
-      setLoading(true);
-      await appActions.claimAirdrop(secretCode());
-      setClaimed(true);
-    } catch (error) {
-      logActions.append(`Error claiming airdrop: ${String(error)}`);
-    } finally {
-      setLoading(false);
+  const nodeAddress = createMemo(() => {
+    return getPreparingSafeNodeAddress(appState);
+  });
+
+  const isServiceRunning = createMemo(() => {
+    return appState.vpnStatus !== "ServiceUnavailable";
+  });
+
+  const isDisabled = createMemo(() => {
+    return !isServiceRunning() || nodeAddress() === undefined;
+  });
+
+  const handleInputSecretCode = (e: Event) => {
+    const newValue = (e.currentTarget as HTMLInputElement).value;
+    setSecretCode(newValue);
+    if (claimed() && fundingTool() === "CompletedError") {
+      setClaimed(false);
+      setError(undefined);
+      setPendingClaimState(undefined);
+      setPreviousToolState(undefined);
+      setHasSeenStateUpdate(false);
     }
   };
 
-  const handleInputSecretCode = (e: Event) => {
-    setSecretCode((e.currentTarget as HTMLInputElement).value);
-    setClaimed(false);
+  const handleClaim = async () => {
+    try {
+      setLoading(true);
+      setError(undefined);
+      setClaimed(true);
+      const currentTool = fundingTool();
+      setPendingClaimState(currentTool);
+      setPreviousToolState(currentTool);
+      setHasSeenStateUpdate(false);
+      await appActions.claimAirdrop(secretCode());
+    } catch (error) {
+      logActions.append(`Error claiming airdrop: ${String(error)}`);
+      setError("Funding failed. Please try again.");
+      setLoading(false);
+      setPendingClaimState(undefined);
+      setPreviousToolState(undefined);
+      setHasSeenStateUpdate(false);
+    }
   };
 
-  const handleRefresh = () => {
-    setClaimed(false);
-    setSecretCode("");
-  };
+  function markSeenUpdates(
+    tool: string | undefined,
+    pendingState: string | undefined,
+    prevState: string | undefined,
+  ) {
+    if (pendingState !== undefined && tool !== pendingState) {
+      setHasSeenStateUpdate(true);
+    }
+    if (prevState !== undefined && tool !== prevState) {
+      setHasSeenStateUpdate(true);
+    }
+  }
+
+  function handleCompletedError(
+    tool: string | undefined,
+    pendingState: string | undefined,
+    prevState: string | undefined,
+    seenUpdate: boolean,
+  ) {
+    const isRetryingFromError = pendingState === "CompletedError" &&
+      !seenUpdate && loading();
+    const isNewError = prevState === "InProgress" ||
+      pendingState === undefined ||
+      pendingState !== "CompletedError" ||
+      seenUpdate ||
+      !isRetryingFromError;
+
+    if (isNewError) {
+      setLoading(false);
+      setError("Funding failed. Please try again.");
+      setPendingClaimState(undefined);
+      setPreviousToolState(tool);
+      setHasSeenStateUpdate(false);
+    } else {
+      setHasSeenStateUpdate(true);
+    }
+    if (prevState !== tool) {
+      setPreviousToolState(tool);
+    }
+  }
+
+  function shouldWaitPendingStable(
+    tool: string | undefined,
+    pendingState: string | undefined,
+    seenUpdate: boolean,
+  ): boolean {
+    return pendingState !== undefined && tool === pendingState && loading() &&
+      !seenUpdate;
+  }
+
+  function handleToolTransition(
+    tool: string | undefined,
+    prevState: string | undefined,
+  ) {
+    if (tool === "InProgress") {
+      setLoading(true);
+      setError(undefined);
+      setPreviousToolState(tool);
+      setHasSeenStateUpdate(true);
+    } else if (tool === "CompletedSuccess") {
+      setLoading(false);
+      setError(undefined);
+      setPendingClaimState(undefined);
+      setPreviousToolState(tool);
+      setHasSeenStateUpdate(false);
+    } else if (tool === "NotStarted" || tool === undefined) {
+      setLoading(false);
+      setError(undefined);
+      setClaimed(false);
+      setPendingClaimState(undefined);
+      setPreviousToolState(undefined);
+      setHasSeenStateUpdate(false);
+    } else {
+      if (prevState !== tool) {
+        setPreviousToolState(tool);
+      }
+    }
+  }
+
+  createEffect(() => {
+    const tool = fundingTool();
+    const isClaimed = claimed();
+    const pendingState = pendingClaimState();
+    const prevState = previousToolState();
+    const seenUpdate = hasSeenStateUpdate();
+
+    if (!isClaimed) {
+      return;
+    }
+
+    markSeenUpdates(tool, pendingState, prevState);
+
+    if (tool === "CompletedError") {
+      handleCompletedError(tool, pendingState, prevState, seenUpdate);
+      return;
+    }
+
+    if (shouldWaitPendingStable(tool, pendingState, seenUpdate)) {
+      return;
+    }
+
+    handleToolTransition(tool, prevState);
+  });
+
+  createEffect(() => {
+    if (!isServiceRunning()) {
+      return;
+    }
+
+    if (nodeAddress() === undefined && isPreparingSafe(appState)) {
+      setError("Waiting for node address");
+      setLoading(false);
+      setClaimed(false);
+    } else if (
+      nodeAddress() !== undefined && error() === "Waiting for node address"
+    ) {
+      setError(undefined);
+    }
+  });
 
   return (
     <div class="h-full w-full flex flex-col items-center p-6 pb-0 gap-2">
@@ -60,20 +215,24 @@ export default function Airdrop(
       <div class="flex flex-col items-center gap-2 w-full grow">
         <img src={parachute} alt="Parachute" class="w-1/3 mb-8" />
         <div class="w-full text-left">
-          If you’re a tester, claim wxHOPR and xDAI
+          If you're a tester, claim wxHOPR and xDAI
         </div>
         <label class="flex flex-col gap-1 w-full">
           <span class="text-sm font-bold">Secret code</span>
           <input
             type="text"
-            class="rounded-xl border border-gray-700 p-2 w-full focus:outline-none"
+            class="rounded-xl border border-gray-700 p-2 w-full focus:outline-none disabled:cursor-not-allowed"
             value={secretCode()}
             onInput={handleInputSecretCode}
+            disabled={isDisabled()}
             onKeyDown={(e) => {
               if ((e as KeyboardEvent).key === "Enter") {
                 e.preventDefault();
-                const canClaim = secretCode().length > 0 && !loading() &&
-                  !claimed() && fundingTool() !== "CompletedSuccess";
+                const canClaim = secretCode().length > 0 &&
+                  !loading() &&
+                  !claimed() &&
+                  fundingTool() !== "CompletedSuccess" &&
+                  !isDisabled();
                 if (canClaim) {
                   void handleClaim();
                 }
@@ -87,22 +246,26 @@ export default function Airdrop(
           <Button
             size="lg"
             onClick={handleClaim}
-            disabled={secretCode().length === 0}
+            disabled={secretCode().length === 0 || isDisabled()}
             loading={loading()}
           >
             {loading() ? "Claiming..." : "Claim"}
           </Button>
         </Show>
         <Show when={fundingTool() === "CompletedError" && claimed()}>
-          <Button size="lg" onClick={handleRefresh}>
-            Retry
+          <Button
+            size="lg"
+            onClick={handleClaim}
+            disabled={isDisabled()}
+            loading={loading()}
+          >
+            {loading() ? "Retrying..." : "Retry"}
           </Button>
-          <div class="text-red-500 text-sm">
-            Funding failed. Please try again.
-          </div>
         </Show>
-
-        <Show when={fundingTool() === "InProgress"}>
+        <Show when={error()}>
+          <div class="text-red-500 text-sm">{error()}</div>
+        </Show>
+        <Show when={loading()}>
           <div class="flex flex-row w-full items-center fade-in-up">
             <div class="flex flex-row">
               <div class="w-5 h-5 mr-4">

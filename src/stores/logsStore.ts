@@ -92,7 +92,19 @@ export function createLogsStore(): LogsStoreTuple {
           content = `Disconnected. Available:\n${lines.join("\n")}`;
         }
       } else if (typeof rm === "object" && "PreparingSafe" in rm) {
-        content = "PreparingSafe";
+        const addr =
+          (rm as { PreparingSafe: { node_address: unknown } }).PreparingSafe
+            .node_address;
+        let isUnknown = false;
+        if (typeof addr === "string") {
+          const s = addr.trim().toLowerCase();
+          isUnknown = s.length === 0 || s === "unknown";
+        } else if (Array.isArray(addr)) {
+          isUnknown = addr.length === 0;
+        }
+        if (isUnknown) {
+          content = "Waiting for node address";
+        }
       } else if (rm === "Warmup") {
         content = "Warmup";
       } else if (rm === "Shutdown") {
