@@ -1,4 +1,4 @@
-use gnosis_vpn_lib::{balance, connection, info, command, socket};
+use gnosis_vpn_lib::{balance, command, connection, info, socket};
 use tauri::{
     AppHandle, Emitter, Manager,
     menu::{Menu, MenuBuilder, MenuItem},
@@ -6,7 +6,7 @@ use tauri::{
 };
 mod platform;
 use platform::{Platform, PlatformInterface};
-use serde::{Serialize};
+use serde::Serialize;
 use tauri_plugin_store::StoreExt;
 
 use std::collections::HashMap;
@@ -225,14 +225,9 @@ impl From<command::StatusResponse> for StatusResponse {
 impl From<command::ConnectResponse> for ConnectResponse {
     fn from(cr: command::ConnectResponse) -> Self {
         match cr {
-            command::ConnectResponse::Connecting(dest) => {
-                ConnectResponse::Connecting(dest.into())
-            }
+            command::ConnectResponse::Connecting(dest) => ConnectResponse::Connecting(dest.into()),
             command::ConnectResponse::WaitingToConnect(dest, health) => {
-                ConnectResponse::WaitingToConnect(
-                    dest.into(),
-                    health.map(|h| h.into()),
-                )
+                ConnectResponse::WaitingToConnect(dest.into(), health.map(|h| h.into()))
             }
             command::ConnectResponse::UnableToConnect(dest, health) => {
                 ConnectResponse::UnableToConnect(dest.into(), health.into())
@@ -276,7 +271,6 @@ impl From<command::BalanceResponse> for BalanceResponse {
     }
 }
 
-
 #[tauri::command]
 async fn status() -> Result<StatusResponse, String> {
     let p = PathBuf::from(socket::DEFAULT_PATH);
@@ -294,7 +288,9 @@ async fn status() -> Result<StatusResponse, String> {
 #[tauri::command]
 async fn connect(address: String) -> Result<ConnectResponse, String> {
     let p = PathBuf::from(socket::DEFAULT_PATH);
-    let conv_address = address.parse::<connection::destination::Address>().map_err(|e| e.to_string())?;
+    let conv_address = address
+        .parse::<connection::destination::Address>()
+        .map_err(|e| e.to_string())?;
     let cmd = command::Command::Connect(conv_address);
     let resp = socket::process_cmd(&p, &cmd)
         .await

@@ -206,7 +206,7 @@ export class VPNService {
 
     // Sort by address for consistent selection
     const sorted = [...destinations].sort((a, b) =>
-      a.destination.address.localeCompare(b.destination.address),
+      a.destination.address.localeCompare(b.destination.address)
     );
     return sorted[0].destination.address;
   }
