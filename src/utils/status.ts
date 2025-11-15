@@ -128,7 +128,7 @@ export function getVpnStatus(state: AppState): AppState["vpnStatus"] {
 
 export function isXDAITransferred(state: AppState): boolean {
   return !!state && isPreparingSafe(state) &&
-    parseInt(state.runMode.PreparingSafe.node_xdai) >= 0.01;
+    parseFloat(state.runMode.PreparingSafe.node_xdai) >= 0.01;
 }
 
 export function isWxHOPRTransferred(state: AppState): boolean {
