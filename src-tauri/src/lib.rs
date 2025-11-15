@@ -1,5 +1,4 @@
-use gnosis_vpn_lib::connection;
-use gnosis_vpn_lib::{balance, command, socket};
+use gnosis_vpn_lib::{balance, connection, info, command, socket};
 use tauri::{
     AppHandle, Emitter, Manager,
     menu::{Menu, MenuBuilder, MenuItem},
@@ -87,6 +86,38 @@ pub enum Need {
     AnyChannel,
     Peering(String),
     Nothing,
+}
+
+#[derive(Serialize)]
+pub struct Info {
+    pub node_address: String,
+    pub node_peer_id: String,
+    pub safe_address: String,
+    pub network: String,
+}
+
+
+#[derive(Serialize)]
+pub enum ConnectResponse {
+    Connecting(Destination),
+    WaitingToConnect(Destination, Option<DestinationHealth>),
+    UnableToConnect(Destination, DestinationHealth),
+    AddressNotFound,
+}
+
+#[derive(Serialize)]
+pub enum DisconnectResponse {
+    Disconnecting(Destination),
+    NotConnected,
+}
+
+#[derive(Serialize)]
+pub struct BalanceResponse {
+    pub node: String,
+    pub safe: String,
+    pub channels_out: String,
+    pub info: Info,
+    pub issues: Vec<balance::FundingIssue>,
 }
 
 
@@ -187,6 +218,61 @@ impl From<command::StatusResponse> for StatusResponse {
     }
 }
 
+impl From<command::ConnectResponse> for ConnectResponse {
+    fn from(cr: command::ConnectResponse) -> Self {
+        match cr {
+            command::ConnectResponse::Connecting(dest) => {
+                ConnectResponse::Connecting(dest.into())
+            }
+            command::ConnectResponse::WaitingToConnect(dest, health) => {
+                ConnectResponse::WaitingToConnect(
+                    dest.into(),
+                    health.map(|h| h.into()),
+                )
+            }
+            command::ConnectResponse::UnableToConnect(dest, health) => {
+                ConnectResponse::UnableToConnect(dest.into(), health.into())
+            }
+            command::ConnectResponse::AddressNotFound => ConnectResponse::AddressNotFound,
+        }
+    }
+}
+
+impl From<command::DisconnectResponse> for DisconnectResponse {
+    fn from(dr: command::DisconnectResponse) -> Self {
+        match dr {
+            command::DisconnectResponse::Disconnecting(dest) => {
+                DisconnectResponse::Disconnecting(dest.into())
+            }
+            command::DisconnectResponse::NotConnected => DisconnectResponse::NotConnected,
+        }
+    }
+}
+
+impl From<info::Info> for Info {
+    fn from(i: info::Info) -> Self {
+        Info {
+            node_address: i.node_address.to_string(),
+            node_peer_id: i.node_peer_id,
+            safe_address: i.safe_address.to_string(),
+            network: i.network,
+        }
+    }
+}
+
+impl From<command::BalanceResponse> for BalanceResponse {
+    fn from(br: command::BalanceResponse) -> Self {
+        BalanceResponse {
+            node: br.node.amount().to_string(),
+            safe: br.safe.amount().to_string(),
+            channels_out: br.channels_out.amount().to_string(),
+            info: br.info.into(),
+            issues: br.issues,
+        }
+    }
+}
+
+
 #[tauri::command]
 async fn status() -> Result<StatusResponse, String> {
     let p = PathBuf::from(socket::DEFAULT_PATH);
@@ -202,7 +288,7 @@ async fn status() -> Result<StatusResponse, String> {
 }
 
 #[tauri::command]
-async fn connect(address: String) -> Result<command::ConnectResponse, String> {
+async fn connect(address: String) -> Result<ConnectResponse, String> {
     let p = PathBuf::from(socket::DEFAULT_PATH);
     let conv_address = address.parse::<connection::destination::Address>().map_err(|e| e.to_string())?;
     let cmd = command::Command::Connect(conv_address);
@@ -210,33 +296,33 @@ async fn connect(address: String) -> Result<command::ConnectResponse, String> {
         .await
         .map_err(|e| e.to_string())?;
     match resp {
-        command::Response::Connect(resp) => Ok(resp),
+        command::Response::Connect(resp) => Ok(resp.into()),
         _ => Err("Unexpected response type".to_string()),
     }
 }
 
 #[tauri::command]
-async fn disconnect() -> Result<command::DisconnectResponse, String> {
+async fn disconnect() -> Result<DisconnectResponse, String> {
     let p = PathBuf::from(socket::DEFAULT_PATH);
     let cmd = command::Command::Disconnect;
     let resp = socket::process_cmd(&p, &cmd)
         .await
         .map_err(|e| e.to_string())?;
     match resp {
-        command::Response::Disconnect(resp) => Ok(resp),
+        command::Response::Disconnect(resp) => Ok(resp.into()),
         _ => Err("Unexpected response type".to_string()),
     }
 }
 
 #[tauri::command]
-async fn balance() -> Result<Option<command::BalanceResponse>, String> {
+async fn balance() -> Result<Option<BalanceResponse>, String> {
     let p = PathBuf::from(socket::DEFAULT_PATH);
     let cmd = command::Command::Balance;
     let resp = socket::process_cmd(&p, &cmd)
         .await
         .map_err(|e| e.to_string())?;
     match resp {
-        command::Response::Balance(resp) => Ok(resp),
+        command::Response::Balance(resp) => Ok(resp.map(|b| b.into())),
         _ => Err("Unexpected response type".to_string()),
     }
 }
