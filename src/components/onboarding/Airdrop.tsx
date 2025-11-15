@@ -60,7 +60,7 @@ export default function Airdrop(
     }
   };
 
-  const claimAirdrop = async () => {
+  const handleClaim = async () => {
     try {
       setLoading(true);
       setError(undefined);
@@ -78,21 +78,6 @@ export default function Airdrop(
       setPreviousToolState(undefined);
       setHasSeenStateUpdate(false);
     }
-  };
-
-  const handleClaim = async () => {
-    await claimAirdrop();
-  };
-
-  const handleRefresh = async () => {
-    setLoading(true);
-    setError(undefined);
-    setClaimed(true);
-    const currentTool = fundingTool();
-    setPendingClaimState(currentTool);
-    setPreviousToolState(currentTool);
-    setHasSeenStateUpdate(false);
-    await claimAirdrop();
   };
 
   function markSeenUpdates(
@@ -270,7 +255,7 @@ export default function Airdrop(
         <Show when={fundingTool() === "CompletedError" && claimed()}>
           <Button
             size="lg"
-            onClick={handleRefresh}
+            onClick={handleClaim}
             disabled={isDisabled()}
             loading={loading()}
           >
