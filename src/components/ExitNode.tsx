@@ -12,8 +12,7 @@ import type {
 import { shortAddress } from "@src/utils/shortAddress";
 import { createMemo } from "solid-js";
 import { useSettingsStore } from "@src/stores/settingsStore";
-import NodeHealth from "@src/components/NodeHealth";
-import { isConnectedTo } from "@src/utils/status";
+import NodeStatus from "@src/components/NodeStatus";
 
 export default function ExitNode() {
   const [appState, appActions] = useAppStore();
@@ -21,12 +20,10 @@ export default function ExitNode() {
   type DefaultOption = { type: "default" };
   type ExitOption = Destination | DefaultOption;
 
-  const healthByAddress = createMemo(() => {
-    const map = new Map<string, Health>();
+  const stateByAddress = createMemo(() => {
+    const map = new Map<string, DestinationState>();
     for (const ds of appState.destinations as DestinationState[]) {
-      const addr = ds.destination.address;
-      const h: Health | undefined = ds.health?.health as Health | undefined;
-      if (addr && h) map.set(addr, h);
+      map.set(ds.destination.address, ds);
     }
     return map;
   });
@@ -57,13 +54,15 @@ export default function ExitNode() {
         renderOption={(opt: ExitOption) => {
           if ("address" in opt) {
             const name = formatDestination(opt) || shortAddress(opt.address);
-            const health: Health | undefined = healthByAddress().get(
-              opt.address,
-            );
+            const ds = stateByAddress().get(opt.address);
+            const cs = ds?.connection_state;
+            const health: Health | undefined = ds?.health?.health as
+              | Health
+              | undefined;
             return (
               <div class="flex flex-col">
                 <span>{name}</span>
-                <NodeHealth health={health} />
+                <NodeStatus connectionState={cs} health={health} />
               </div>
             );
           }
@@ -102,18 +101,15 @@ export default function ExitNode() {
         renderValue={(opt: ExitOption) => {
           if ("address" in opt) {
             const name = formatDestination(opt) || shortAddress(opt.address);
-            const health: Health | undefined = healthByAddress().get(
-              opt.address,
-            );
-            const connected = isConnectedTo(appState, opt);
+            const ds = stateByAddress().get(opt.address);
+            const cs = ds?.connection_state;
+            const health: Health | undefined = ds?.health?.health as
+              | Health
+              | undefined;
             return (
               <span class="flex flex-col">
                 <span>{name}</span>
-                <NodeHealth
-                  health={health}
-                  connected={connected}
-                  hideWhenConnected
-                />
+                <NodeStatus connectionState={cs} health={health} />
               </span>
             );
           }
@@ -121,10 +117,11 @@ export default function ExitNode() {
           if (defaultDest) {
             const destName = formatDestination(defaultDest) ||
               shortAddress(defaultDest.address);
-            const health: Health | undefined = healthByAddress().get(
-              defaultDest.address,
-            );
-            const connected = isConnectedTo(appState, defaultDest);
+            const ds = stateByAddress().get(defaultDest.address);
+            const cs = ds?.connection_state;
+            const health: Health | undefined = ds?.health?.health as
+              | Health
+              | undefined;
             return (
               <span class="flex flex-col">
                 <span>
@@ -133,11 +130,7 @@ export default function ExitNode() {
                     {destName}
                   </span>
                 </span>
-                <NodeHealth
-                  health={health}
-                  connected={connected}
-                  hideWhenConnected
-                />
+                <NodeStatus connectionState={cs} health={health} />
               </span>
             );
           }

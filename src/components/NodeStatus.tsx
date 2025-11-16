@@ -1,0 +1,32 @@
+import {
+  type DestinationState,
+  formatHealth,
+  type Health,
+} from "@src/services/vpnService";
+import { getConnectionLabel } from "@src/utils/status";
+
+export default function NodeStatus(
+  props: {
+    connectionState?: DestinationState["connection_state"];
+    health?: Health;
+  },
+) {
+  const label = props.connectionState
+    ? getConnectionLabel(props.connectionState)
+    : "Unknown";
+
+  let text: string | undefined;
+  if (label === "Connecting" || label === "Disconnecting") {
+    text = label;
+  } else if (label === "Connected") {
+    text = "Connected";
+  } else {
+    text = props.health ? formatHealth(props.health) : "";
+  }
+
+  return (
+    <span class="text-xs text-gray-500 font-light">
+      {text && text.length > 0 ? text : "\u00A0"}
+    </span>
+  );
+}
