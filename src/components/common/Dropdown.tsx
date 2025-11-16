@@ -20,6 +20,7 @@ export type DropdownProps<T> = {
   disabled?: boolean;
   itemToString?: (v: T) => string;
   renderValue?: (v: T) => JSX.Element;
+  renderOption?: (v: T) => JSX.Element;
   class?: string;
   size?: "sm" | "lg";
 };
@@ -235,7 +236,9 @@ export function Dropdown<T>(props: DropdownProps<T>) {
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => selectByIndex(idx)}
                   >
-                    {toString(opt)}
+                    {props.renderOption
+                      ? props.renderOption(opt)
+                      : toString(opt)}
                   </li>
                 );
               }}

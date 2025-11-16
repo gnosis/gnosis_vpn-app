@@ -1,5 +1,7 @@
 import { createStore, type Store as SolidStore } from "solid-js/store";
 import { Store as TauriStore } from "@tauri-apps/plugin-store";
+import { getEthAddress } from "@src/utils/address";
+import { emit, listen } from "@tauri-apps/api/event";
 
 export interface SettingsState {
   preferredLocation: string | null;
@@ -60,7 +62,15 @@ export function createSettingsStore(): SettingsStoreTuple {
         ];
 
       if (preferredLocation !== undefined) {
-        loaded.preferredLocation = preferredLocation;
+        if (typeof preferredLocation === "string") {
+          try {
+            loaded.preferredLocation = getEthAddress(preferredLocation);
+          } catch {
+            loaded.preferredLocation = preferredLocation;
+          }
+        } else {
+          loaded.preferredLocation = preferredLocation;
+        }
       }
       if (connectOnStartup !== undefined) {
         loaded.connectOnStartup = connectOnStartup;
@@ -72,18 +82,26 @@ export function createSettingsStore(): SettingsStoreTuple {
       setState({ ...loaded });
 
       const missingAny = preferredLocation === undefined ||
-        connectOnStartup === undefined ||
-        startMinimized === undefined;
+        connectOnStartup === undefined || startMinimized === undefined;
       if (missingAny) {
         await saveAllToDisk(loaded);
       }
     },
 
     setPreferredLocation: async (address: string | null) => {
-      setState("preferredLocation", address);
+      let normalized: string | null = address;
+      if (address) {
+        try {
+          normalized = getEthAddress(address);
+        } catch {
+          normalized = address;
+        }
+      }
+      setState("preferredLocation", normalized);
       const store = await getTauriStore();
-      await store.set("preferredLocation", address);
+      await store.set("preferredLocation", normalized);
       await store.save();
+      void emit("settings:update", { preferredLocation: normalized });
     },
 
     setConnectOnStartup: async (enabled: boolean) => {
@@ -91,6 +109,7 @@ export function createSettingsStore(): SettingsStoreTuple {
       const store = await getTauriStore();
       await store.set("connectOnStartup", enabled);
       await store.save();
+      void emit("settings:update", { connectOnStartup: enabled });
     },
 
     setStartMinimized: async (enabled: boolean) => {
@@ -98,12 +117,25 @@ export function createSettingsStore(): SettingsStoreTuple {
       const store = await getTauriStore();
       await store.set("startMinimized", enabled);
       await store.save();
+      void emit("settings:update", { startMinimized: enabled });
     },
 
     save: async () => {
       await saveAllToDisk(state);
     },
   } as const;
+
+  void listen<Partial<SettingsState>>("settings:update", ({ payload }) => {
+    if (payload.preferredLocation !== undefined) {
+      setState("preferredLocation", payload.preferredLocation);
+    }
+    if (payload.connectOnStartup !== undefined) {
+      setState("connectOnStartup", payload.connectOnStartup);
+    }
+    if (payload.startMinimized !== undefined) {
+      setState("startMinimized", payload.startMinimized);
+    }
+  });
 
   return [state, actions] as const;
 }
