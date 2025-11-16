@@ -2,6 +2,8 @@ import { createStore, reconcile, type Store } from "solid-js/store";
 import {
   type Destination,
   type DestinationState,
+  formatFundingTool,
+  isPreparingSafeRunMode,
   type RunMode,
   type StatusResponse,
   VPNService,
@@ -15,6 +17,7 @@ import {
   selectTargetAddress,
 } from "@src/utils/destinations.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
+import { getConnectionLabel, getConnectionPhase } from "@src/utils/status.ts";
 import {
   getVpnStatus,
   isConnected,
@@ -114,36 +117,16 @@ export function createAppStore(): AppStoreTuple {
       const response = await VPNService.getStatus();
       console.log("response", response);
 
-      const formatFundingTool = (
-        ft: "NotStarted" | "InProgress" | "CompletedSuccess" | "CompletedError",
-      ): string => {
-        switch (ft) {
-          case "NotStarted":
-            return "Not started";
-          case "InProgress":
-            return "In progress";
-          case "CompletedSuccess":
-            return "Completed successfully";
-          case "CompletedError":
-            return "Completed with error";
-        }
-      };
-
       let normalizedRunMode: RunMode;
-      if (
-        typeof response.run_mode === "object" &&
-        "PreparingSafe" in response.run_mode
-      ) {
+      if (isPreparingSafeRunMode(response.run_mode)) {
         const prep = response.run_mode.PreparingSafe;
         const normalizedPreparingSafe = {
           ...prep,
-          node_address: Array.isArray(
-              (prep as unknown as { node_address: unknown }).node_address,
-            )
-            ? getEthAddress(
-              (prep as unknown as { node_address: number[] }).node_address,
-            )
-            : prep.node_address,
+          node_address: (() => {
+            const maybe =
+              (prep as { node_address: string | number[] }).node_address;
+            return Array.isArray(maybe) ? getEthAddress(maybe) : maybe;
+          })(),
         } as typeof prep;
         normalizedRunMode = { PreparingSafe: normalizedPreparingSafe };
         setState("currentScreen", "onboarding");
@@ -156,15 +139,12 @@ export function createAppStore(): AppStoreTuple {
       }
 
       {
-        const prevTool = typeof state.runMode === "object" && state.runMode &&
-            "PreparingSafe" in state.runMode
+        const prevTool = isPreparingSafeRunMode(state.runMode)
           ? state.runMode.PreparingSafe.funding_tool
           : undefined;
-        const nextTool =
-          typeof normalizedRunMode === "object" && normalizedRunMode &&
-            "PreparingSafe" in normalizedRunMode
-            ? normalizedRunMode.PreparingSafe.funding_tool
-            : undefined;
+        const nextTool = isPreparingSafeRunMode(normalizedRunMode)
+          ? normalizedRunMode.PreparingSafe.funding_tool
+          : undefined;
         if (nextTool && nextTool !== prevTool) {
           log(`Funding Tool - ${formatFundingTool(nextTool)}`);
         }
@@ -189,39 +169,17 @@ export function createAppStore(): AppStoreTuple {
         },
       );
 
-      // Log connection state changes per destination
       {
         const prevByAddress = new Map(
           state.destinations.map((p) => [p.destination.address, p]),
         );
-        let didLogConnChange = false;
-        const labelFor = (cs: DestinationState["connection_state"]): string => {
-          if (cs === "None") return "Disconnected";
-          if (typeof cs === "object" && "Connecting" in cs) return "Connecting";
-          if (typeof cs === "object" && "Connected" in cs) return "Connected";
-          if (typeof cs === "object" && "Disconnecting" in cs) {
-            return "Disconnecting";
-          }
-          return "Unknown";
-        };
-        const phaseOf = (
-          cs: DestinationState["connection_state"],
-        ): string | undefined => {
-          if (typeof cs === "object" && "Connecting" in cs) {
-            return cs.Connecting[1];
-          }
-          if (typeof cs === "object" && "Disconnecting" in cs) {
-            return cs.Disconnecting[1];
-          }
-          return undefined;
-        };
         for (const next of normalizedDestinations) {
           const prev = prevByAddress.get(next.destination.address);
           if (!prev) continue;
-          const prevLabel = labelFor(prev.connection_state);
-          const nextLabel = labelFor(next.connection_state);
-          const prevPhase = phaseOf(prev.connection_state);
-          const nextPhase = phaseOf(next.connection_state);
+          const prevLabel = getConnectionLabel(prev.connection_state);
+          const nextLabel = getConnectionLabel(next.connection_state);
+          const prevPhase = getConnectionPhase(prev.connection_state);
+          const nextPhase = getConnectionPhase(next.connection_state);
           const labelChanged = prevLabel !== nextLabel;
           const phaseChanged =
             (nextLabel === "Connecting" || nextLabel === "Disconnecting") &&
@@ -233,16 +191,8 @@ export function createAppStore(): AppStoreTuple {
               : shortAddress(getEthAddress(next.destination.address));
             const phaseSuffix = nextPhase ? ` - ${nextPhase}` : "";
             log(`${nextLabel}: ${display}${phaseSuffix}`);
-            didLogConnChange = true;
           }
         }
-        // If we already logged connection changes, avoid duplicating with appendStatus summary
-        if (didLogConnChange) {
-          // Prevent the generic status log this tick
-          // by marking preferredChanged to true in this scope so the outer block won't call logStatus
-          // Instead, we will gate the call below using this local flag.
-        }
-        // Move the decision to log status below after this block using didLogConnChange
       }
 
       const normalizedAvailable = normalizedDestinations.map((ds) =>
@@ -284,9 +234,7 @@ export function createAppStore(): AppStoreTuple {
         }
         lastPreferredLocation = settings.preferredLocation;
       }
-      // Avoid duplicate logs: if we already logged per-destination connection changes, skip the summary
       {
-        // didLogConnChange is scoped in the block above; recompute quickly here
         const hasConnChange = state.destinations.some((prev) => {
           const next = normalizedDestinations.find((d) =>
             d.destination.address === prev.destination.address
@@ -295,33 +243,18 @@ export function createAppStore(): AppStoreTuple {
           const prevState = prev.connection_state;
           const nextState = next.connection_state;
           if (prevState === nextState) return false;
-          // Any change in label or phase counts as a change
-          const prevLabel = prevState === "None"
-            ? "None"
-            : "Connecting" in (prevState as any)
-            ? "Connecting"
-            : "Connected" in (prevState as any)
-            ? "Connected"
-            : "Disconnecting" in (prevState as any)
-            ? "Disconnecting"
-            : "Unknown";
-          const nextLabel = nextState === "None"
-            ? "None"
-            : "Connecting" in (nextState as any)
-            ? "Connecting"
-            : "Connected" in (nextState as any)
-            ? "Connected"
-            : "Disconnecting" in (nextState as any)
-            ? "Disconnecting"
-            : "Unknown";
+          const prevLabel = getConnectionLabel(prevState);
+          const nextLabel = getConnectionLabel(nextState);
           if (prevLabel !== nextLabel) return true;
           if (nextLabel === "Connecting") {
-            return (prevState as any).Connecting?.[1] !==
-              (nextState as any).Connecting?.[1];
+            const prevPhase = getConnectionPhase(prevState);
+            const nextPhase = getConnectionPhase(nextState);
+            return prevPhase !== nextPhase;
           }
           if (nextLabel === "Disconnecting") {
-            return (prevState as any).Disconnecting?.[1] !==
-              (nextState as any).Disconnecting?.[1];
+            const prevPhase = getConnectionPhase(prevState);
+            const nextPhase = getConnectionPhase(nextState);
+            return prevPhase !== nextPhase;
           }
           return false;
         });
@@ -330,11 +263,8 @@ export function createAppStore(): AppStoreTuple {
         }
       }
       setState("runMode", reconcile(normalizedRunMode));
-
-      // Update destinations with connection state first (needed for getVpnStatus)
       setState("destinations", normalizedDestinations);
 
-      // Derive and update vpnStatus when it changes
       {
         const next = getVpnStatus(state);
         if (next !== state.vpnStatus) setState("vpnStatus", next);
@@ -363,7 +293,6 @@ export function createAppStore(): AppStoreTuple {
       setState("destinations", []);
       setState("error", error instanceof Error ? error.message : String(error));
       if (state.destination !== null) setState("destination", null);
-      // Ensure vpnStatus reflects service unavailability
       const next = getVpnStatus(state);
       if (next !== state.vpnStatus) setState("vpnStatus", next);
     }
@@ -377,7 +306,6 @@ export function createAppStore(): AppStoreTuple {
       setState("selectedAddress", address ?? null);
       applyDestinationSelection();
 
-      // Reconnect if destination changed and we have an active connection state
       if (
         address &&
         address !== previousAddress &&

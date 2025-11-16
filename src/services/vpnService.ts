@@ -148,6 +148,34 @@ export function formatHealth(health: Health): string {
   }
 }
 
+export function formatFundingTool(ft: FundingTool): string {
+  switch (ft) {
+    case "NotStarted":
+      return "Not started";
+    case "InProgress":
+      return "In progress";
+    case "CompletedSuccess":
+      return "Completed successfully";
+    case "CompletedError":
+      return "Completed with error";
+    default:
+      return String(ft);
+  }
+}
+
+// Type guards for RunMode variants to avoid repetitive typeof/in checks
+export function isPreparingSafeRunMode(
+  rm: RunMode | null | undefined,
+): rm is { PreparingSafe: PreparingSafe } {
+  return !!rm && typeof rm === "object" && "PreparingSafe" in rm;
+}
+
+export function isRunningRunMode(
+  rm: RunMode | null | undefined,
+): rm is { Running: Running } {
+  return !!rm && typeof rm === "object" && "Running" in rm;
+}
+
 export class VPNService {
   static async getStatus(): Promise<StatusResponse> {
     try {
