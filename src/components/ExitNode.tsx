@@ -6,6 +6,7 @@ import {
 } from "@src/utils/destinations";
 import type { Destination } from "@src/services/vpnService";
 import { shortAddress } from "@src/utils/shortAddress";
+import { formatHealth } from "@src/services/vpnService";
 import { createMemo } from "solid-js";
 import { useSettingsStore } from "@src/stores/settingsStore";
 
@@ -14,6 +15,17 @@ export default function ExitNode() {
   const [settings] = useSettingsStore();
   type DefaultOption = { type: "default" };
   type ExitOption = Destination | DefaultOption;
+
+  const healthByAddress = createMemo(() => {
+    const map = new Map<string, string>();
+    for (const ds of appState.destinations) {
+      const addr = ds.destination.address;
+      const h = (ds as unknown as { health?: { health?: string } }).health
+        ?.health;
+      if (addr && h) map.set(addr, h);
+    }
+    return map;
+  });
 
   const defaultDestination = createMemo(() => {
     const available = appState.availableDestinations;
@@ -38,6 +50,25 @@ export default function ExitNode() {
           { type: "default" } as DefaultOption,
           ...appState.availableDestinations,
         ]}
+        renderOption={(opt: ExitOption) => {
+          if ("address" in opt) {
+            const name = formatDestination(opt) || shortAddress(opt.address);
+            const health = healthByAddress().get(opt.address);
+            return (
+              <div class="flex flex-col">
+                <span>{name}</span>
+                <span class="text-xs text-gray-500 font-light">
+                  {health ? formatHealth(health as any) : ""}
+                </span>
+              </div>
+            );
+          }
+          return (
+            <div class="flex flex-col">
+              <span class="font-bold">Default</span>
+            </div>
+          );
+        }}
         value={(appState.selectedAddress
           ? (appState.availableDestinations.find((d) =>
             d.address === appState.selectedAddress
@@ -59,28 +90,56 @@ export default function ExitNode() {
         }}
         itemToString={(opt: ExitOption) => {
           if ("address" in opt) {
-            const name = formatDestination(opt);
-            return name && name.length > 0 ? name : shortAddress(opt.address);
+            const name = formatDestination(opt) || shortAddress(opt.address);
+            return name;
           }
           return "Default";
         }}
         renderValue={(opt: ExitOption) => {
           if ("address" in opt) {
-            const name = formatDestination(opt);
-            return name && name.length > 0 ? name : shortAddress(opt.address);
+            const name = formatDestination(opt) || shortAddress(opt.address);
+            const health = healthByAddress().get(opt.address);
+            return (
+              <span class="flex flex-col">
+                <span>{name}</span>
+                {health
+                  ? (
+                    <span class="text-xs text-gray-500 font-light">
+                      {formatHealth(health as any)}
+                    </span>
+                  )
+                  : null}
+              </span>
+            );
           }
           const defaultDest = defaultDestination();
           if (defaultDest) {
             const destName = formatDestination(defaultDest) ||
               shortAddress(defaultDest.address);
+            const health = healthByAddress().get(defaultDest.address);
             return (
-              <span>
-                <span class="font-bold">Default</span>{" "}
-                <span class="text-sm text-gray-500 font-light">{destName}</span>
+              <span class="flex flex-col">
+                <span>
+                  <span class="font-bold">Default</span>{" "}
+                  <span class="text-sm text-gray-500 font-light">
+                    {destName}
+                  </span>
+                </span>
+                {health
+                  ? (
+                    <span class="text-xs text-gray-500 font-light">
+                      {formatHealth(health as any)}
+                    </span>
+                  )
+                  : null}
               </span>
             );
           }
-          return <span class="font-bold">Default</span>;
+          return (
+            <span class="flex flex-col">
+              <span class="font-bold">Default</span>
+            </span>
+          );
         }}
         placeholder="Default"
         disabled={appState.isLoading ||

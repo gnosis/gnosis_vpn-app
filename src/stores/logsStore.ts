@@ -69,15 +69,31 @@ export function createLogsStore(): LogsStoreTuple {
       } else if (connectingDest) {
         const destination = connectingDest.destination;
         const where = formatDestination(destination);
+        const phase = typeof connectingDest.connection_state === "object" &&
+            "Connecting" in connectingDest.connection_state
+          ? (connectingDest.connection_state as {
+            Connecting: [number, string];
+          }).Connecting[1]
+          : undefined;
+        const phaseSuffix = phase ? ` - ${phase}` : "";
         content = `Connecting: ${where} - ${
           shortAddress(getEthAddress(destination.address))
-        }`;
+        }${phaseSuffix}`;
       } else if (disconnectingDest) {
         const destination = disconnectingDest.destination;
         const where = formatDestination(destination);
+        const phase = typeof disconnectingDest.connection_state === "object" &&
+            "Disconnecting" in disconnectingDest.connection_state
+          ? (
+            disconnectingDest.connection_state as {
+              Disconnecting: [number, string];
+            }
+          ).Disconnecting[1]
+          : undefined;
+        const phaseSuffix = phase ? ` - ${phase}` : "";
         content = `Disconnecting: ${where} - ${
           shortAddress(getEthAddress(destination.address))
-        }`;
+        }${phaseSuffix}`;
       } else if (typeof rm === "object" && "Running" in rm) {
         // Running but no active connection
         const lastWasDisconnected = Boolean(

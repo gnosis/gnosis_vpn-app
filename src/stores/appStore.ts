@@ -9,6 +9,7 @@ import {
 import { useLogsStore } from "@src/stores/logsStore.ts";
 import {
   areDestinationsEqualUnordered,
+  formatDestination,
   formatDestinationByAddress,
   getPreferredAvailabilityChangeMessage,
   selectTargetAddress,
@@ -21,6 +22,7 @@ import {
   isDisconnecting,
 } from "@src/utils/status.ts";
 import { getEthAddress } from "@src/utils/address.ts";
+import { shortAddress } from "@src/utils/shortAddress";
 
 export type AppScreen = "main" | "onboarding" | "synchronization";
 
@@ -187,6 +189,62 @@ export function createAppStore(): AppStoreTuple {
         },
       );
 
+      // Log connection state changes per destination
+      {
+        const prevByAddress = new Map(
+          state.destinations.map((p) => [p.destination.address, p]),
+        );
+        let didLogConnChange = false;
+        const labelFor = (cs: DestinationState["connection_state"]): string => {
+          if (cs === "None") return "Disconnected";
+          if (typeof cs === "object" && "Connecting" in cs) return "Connecting";
+          if (typeof cs === "object" && "Connected" in cs) return "Connected";
+          if (typeof cs === "object" && "Disconnecting" in cs) {
+            return "Disconnecting";
+          }
+          return "Unknown";
+        };
+        const phaseOf = (
+          cs: DestinationState["connection_state"],
+        ): string | undefined => {
+          if (typeof cs === "object" && "Connecting" in cs) {
+            return cs.Connecting[1];
+          }
+          if (typeof cs === "object" && "Disconnecting" in cs) {
+            return cs.Disconnecting[1];
+          }
+          return undefined;
+        };
+        for (const next of normalizedDestinations) {
+          const prev = prevByAddress.get(next.destination.address);
+          if (!prev) continue;
+          const prevLabel = labelFor(prev.connection_state);
+          const nextLabel = labelFor(next.connection_state);
+          const prevPhase = phaseOf(prev.connection_state);
+          const nextPhase = phaseOf(next.connection_state);
+          const labelChanged = prevLabel !== nextLabel;
+          const phaseChanged =
+            (nextLabel === "Connecting" || nextLabel === "Disconnecting") &&
+            prevPhase !== nextPhase;
+          if ((labelChanged && nextLabel !== "Unknown") || phaseChanged) {
+            const where = formatDestination(next.destination);
+            const display = where && where.length > 0
+              ? where
+              : shortAddress(getEthAddress(next.destination.address));
+            const phaseSuffix = nextPhase ? ` - ${nextPhase}` : "";
+            log(`${nextLabel}: ${display}${phaseSuffix}`);
+            didLogConnChange = true;
+          }
+        }
+        // If we already logged connection changes, avoid duplicating with appendStatus summary
+        if (didLogConnChange) {
+          // Prevent the generic status log this tick
+          // by marking preferredChanged to true in this scope so the outer block won't call logStatus
+          // Instead, we will gate the call below using this local flag.
+        }
+        // Move the decision to log status below after this block using didLogConnChange
+      }
+
       const normalizedAvailable = normalizedDestinations.map((ds) =>
         ds.destination
       );
@@ -226,8 +284,50 @@ export function createAppStore(): AppStoreTuple {
         }
         lastPreferredLocation = settings.preferredLocation;
       }
-      if (!preferredChanged) {
-        logStatus(response);
+      // Avoid duplicate logs: if we already logged per-destination connection changes, skip the summary
+      {
+        // didLogConnChange is scoped in the block above; recompute quickly here
+        const hasConnChange = state.destinations.some((prev) => {
+          const next = normalizedDestinations.find((d) =>
+            d.destination.address === prev.destination.address
+          );
+          if (!next) return false;
+          const prevState = prev.connection_state;
+          const nextState = next.connection_state;
+          if (prevState === nextState) return false;
+          // Any change in label or phase counts as a change
+          const prevLabel = prevState === "None"
+            ? "None"
+            : "Connecting" in (prevState as any)
+            ? "Connecting"
+            : "Connected" in (prevState as any)
+            ? "Connected"
+            : "Disconnecting" in (prevState as any)
+            ? "Disconnecting"
+            : "Unknown";
+          const nextLabel = nextState === "None"
+            ? "None"
+            : "Connecting" in (nextState as any)
+            ? "Connecting"
+            : "Connected" in (nextState as any)
+            ? "Connected"
+            : "Disconnecting" in (nextState as any)
+            ? "Disconnecting"
+            : "Unknown";
+          if (prevLabel !== nextLabel) return true;
+          if (nextLabel === "Connecting") {
+            return (prevState as any).Connecting?.[1] !==
+              (nextState as any).Connecting?.[1];
+          }
+          if (nextLabel === "Disconnecting") {
+            return (prevState as any).Disconnecting?.[1] !==
+              (nextState as any).Disconnecting?.[1];
+          }
+          return false;
+        });
+        if (!preferredChanged && !hasConnChange) {
+          logStatus(response);
+        }
       }
       setState("runMode", reconcile(normalizedRunMode));
 
@@ -286,7 +386,15 @@ export function createAppStore(): AppStoreTuple {
         setState("isLoading", true);
         void (async () => {
           try {
-            log(`Connecting to selected exit node: ${address}`);
+            const selected = state.availableDestinations.find((d) =>
+              d.address === address
+            );
+            const name = selected ? formatDestination(selected) : "";
+            const short = shortAddress(getEthAddress(address));
+            const pretty = name && name.length > 0
+              ? `${name} - ${short}`
+              : short;
+            log(`Connecting to selected exit node: ${pretty}`);
             await VPNService.connect(address);
             await getStatus();
           } catch (error) {

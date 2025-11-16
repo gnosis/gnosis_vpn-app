@@ -125,6 +125,29 @@ export type Need =
   | { Peering: string }
   | "Nothing";
 
+export function formatHealth(health: Health): string {
+  switch (health) {
+    case "ReadyToConnect":
+      return "Ready to connect";
+    case "MissingPeeredFundedChannel":
+      return "Missing peered funded channel";
+    case "MissingPeeredChannel":
+      return "Missing peered channel";
+    case "MissingFundedChannel":
+      return "Missing funded channel";
+    case "NotPeered":
+      return "Not peered";
+    case "NotAllowed":
+      return "Not allowed";
+    case "InvalidAddress":
+      return "Invalid address";
+    case "InvalidPath":
+      return "Invalid path";
+    default:
+      return String(health);
+  }
+}
+
 export class VPNService {
   static async getStatus(): Promise<StatusResponse> {
     try {
