@@ -10,9 +10,10 @@ import type {
   Health,
 } from "@src/services/vpnService";
 import { shortAddress } from "@src/utils/shortAddress";
-import { formatHealth } from "@src/services/vpnService";
 import { createMemo } from "solid-js";
 import { useSettingsStore } from "@src/stores/settingsStore";
+import NodeHealth from "@src/components/NodeHealth";
+import { isConnectedTo } from "@src/utils/status";
 
 export default function ExitNode() {
   const [appState, appActions] = useAppStore();
@@ -62,9 +63,7 @@ export default function ExitNode() {
             return (
               <div class="flex flex-col">
                 <span>{name}</span>
-                <span class="text-xs text-gray-500 font-light">
-                  {health ? formatHealth(health) : ""}
-                </span>
+                <NodeHealth health={health} />
               </div>
             );
           }
@@ -106,16 +105,15 @@ export default function ExitNode() {
             const health: Health | undefined = healthByAddress().get(
               opt.address,
             );
+            const connected = isConnectedTo(appState, opt);
             return (
               <span class="flex flex-col">
                 <span>{name}</span>
-                {health
-                  ? (
-                    <span class="text-xs text-gray-500 font-light">
-                      {formatHealth(health)}
-                    </span>
-                  )
-                  : null}
+                <NodeHealth
+                  health={health}
+                  connected={connected}
+                  hideWhenConnected
+                />
               </span>
             );
           }
@@ -126,6 +124,7 @@ export default function ExitNode() {
             const health: Health | undefined = healthByAddress().get(
               defaultDest.address,
             );
+            const connected = isConnectedTo(appState, defaultDest);
             return (
               <span class="flex flex-col">
                 <span>
@@ -134,13 +133,11 @@ export default function ExitNode() {
                     {destName}
                   </span>
                 </span>
-                {health
-                  ? (
-                    <span class="text-xs text-gray-500 font-light">
-                      {formatHealth(health)}
-                    </span>
-                  )
-                  : null}
+                <NodeHealth
+                  health={health}
+                  connected={connected}
+                  hideWhenConnected
+                />
               </span>
             );
           }
