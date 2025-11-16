@@ -10,7 +10,7 @@ export type StatusResponse = {
 
 export type ConnectResponse =
   | { Connecting: Destination }
-  | { WatingToConnect: [Destination, DestinationHealth | null] }
+  | { WaitingToConnect: [Destination, DestinationHealth | null] }
   | { UnableToConnect: [Destination, DestinationHealth] }
   | "AddressNotFound";
 
