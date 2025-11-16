@@ -184,11 +184,15 @@ export function createAppStore(): AppStoreTuple {
           const phaseChanged =
             (nextLabel === "Connecting" || nextLabel === "Disconnecting") &&
             prevPhase !== nextPhase;
-          if ((labelChanged && nextLabel !== "Unknown") || phaseChanged) {
+          if (
+            (labelChanged && nextLabel !== "Unknown" && nextLabel !== "None") ||
+            phaseChanged
+          ) {
             const where = formatDestination(next.destination);
+            const short = shortAddress(getEthAddress(next.destination.address));
             const display = where && where.length > 0
-              ? where
-              : shortAddress(getEthAddress(next.destination.address));
+              ? `${where} - ${short}`
+              : short;
             const phaseSuffix = nextPhase ? ` - ${nextPhase}` : "";
             log(`${nextLabel}: ${display}${phaseSuffix}`);
           }
@@ -245,7 +249,10 @@ export function createAppStore(): AppStoreTuple {
           if (prevState === nextState) return false;
           const prevLabel = getConnectionLabel(prevState);
           const nextLabel = getConnectionLabel(nextState);
-          if (prevLabel !== nextLabel) return true;
+          if (
+            prevLabel !== nextLabel && nextLabel !== "None" &&
+            nextLabel !== "Unknown"
+          ) return true;
           if (nextLabel === "Connecting") {
             const prevPhase = getConnectionPhase(prevState);
             const nextPhase = getConnectionPhase(nextState);
