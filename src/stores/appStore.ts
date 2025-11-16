@@ -352,7 +352,15 @@ export function createAppStore(): AppStoreTuple {
         const reasonForLog = state.selectedAddress
           ? "selected exit node"
           : selectionReason;
-        log(`Connecting to ${reasonForLog}: ${targetAddress ?? "none"}`);
+        if (targetAddress && reasonForLog !== "selected exit node") {
+          const selected = state.availableDestinations.find((d) =>
+            d.address === targetAddress
+          );
+          const name = selected ? formatDestination(selected) : "";
+          const short = shortAddress(getEthAddress(targetAddress));
+          const pretty = name && name.length > 0 ? `${name} - ${short}` : short;
+          log(`Connecting to ${reasonForLog}: ${pretty}`);
+        }
 
         if (targetAddress) {
           await VPNService.connect(targetAddress);

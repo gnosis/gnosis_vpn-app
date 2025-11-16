@@ -4,7 +4,11 @@ import {
   formatDestination,
   selectTargetAddress,
 } from "@src/utils/destinations";
-import type { Destination } from "@src/services/vpnService";
+import type {
+  Destination,
+  DestinationState,
+  Health,
+} from "@src/services/vpnService";
 import { shortAddress } from "@src/utils/shortAddress";
 import { formatHealth } from "@src/services/vpnService";
 import { createMemo } from "solid-js";
@@ -17,11 +21,10 @@ export default function ExitNode() {
   type ExitOption = Destination | DefaultOption;
 
   const healthByAddress = createMemo(() => {
-    const map = new Map<string, string>();
-    for (const ds of appState.destinations) {
+    const map = new Map<string, Health>();
+    for (const ds of appState.destinations as DestinationState[]) {
       const addr = ds.destination.address;
-      const h = (ds as unknown as { health?: { health?: string } }).health
-        ?.health;
+      const h: Health | undefined = ds.health?.health as Health | undefined;
       if (addr && h) map.set(addr, h);
     }
     return map;
@@ -53,12 +56,14 @@ export default function ExitNode() {
         renderOption={(opt: ExitOption) => {
           if ("address" in opt) {
             const name = formatDestination(opt) || shortAddress(opt.address);
-            const health = healthByAddress().get(opt.address);
+            const health: Health | undefined = healthByAddress().get(
+              opt.address,
+            );
             return (
               <div class="flex flex-col">
                 <span>{name}</span>
                 <span class="text-xs text-gray-500 font-light">
-                  {health ? formatHealth(health as any) : ""}
+                  {health ? formatHealth(health) : ""}
                 </span>
               </div>
             );
@@ -98,14 +103,16 @@ export default function ExitNode() {
         renderValue={(opt: ExitOption) => {
           if ("address" in opt) {
             const name = formatDestination(opt) || shortAddress(opt.address);
-            const health = healthByAddress().get(opt.address);
+            const health: Health | undefined = healthByAddress().get(
+              opt.address,
+            );
             return (
               <span class="flex flex-col">
                 <span>{name}</span>
                 {health
                   ? (
                     <span class="text-xs text-gray-500 font-light">
-                      {formatHealth(health as any)}
+                      {formatHealth(health)}
                     </span>
                   )
                   : null}
@@ -116,7 +123,9 @@ export default function ExitNode() {
           if (defaultDest) {
             const destName = formatDestination(defaultDest) ||
               shortAddress(defaultDest.address);
-            const health = healthByAddress().get(defaultDest.address);
+            const health: Health | undefined = healthByAddress().get(
+              defaultDest.address,
+            );
             return (
               <span class="flex flex-col">
                 <span>
@@ -128,7 +137,7 @@ export default function ExitNode() {
                 {health
                   ? (
                     <span class="text-xs text-gray-500 font-light">
-                      {formatHealth(health as any)}
+                      {formatHealth(health)}
                     </span>
                   )
                   : null}
