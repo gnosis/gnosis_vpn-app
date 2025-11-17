@@ -68,7 +68,7 @@ export default function ExitNode() {
           }
           return (
             <div class="flex flex-col">
-              <span class="font-bold">Default</span>
+              <span>Default</span>
             </div>
           );
         }}
