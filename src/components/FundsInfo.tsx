@@ -1,5 +1,5 @@
-import FundingAddress from "@src/components/FundingAddress";
 import { Show } from "solid-js";
+import { fromWeiToFixed } from "@src/utils/units";
 
 type Props = {
   name?: string;
@@ -13,57 +13,38 @@ type Props = {
 
 export default function FundsInfo(props: Props) {
   return (
-    <div class="border border-black/10 px-4 py-2 text-slate-900 w-md h-32">
-      <div class="flex flex-col gap-1 h-full">
-        <div class="flex flex-row justify-between w-full">
-          <div class="flex flex-row gap-1 items-baseline">
-            <div class="font-semibold">{props.name}</div>
-            <span class="text-sm text-slate-600">{props.subtitle}</span>
-          </div>
-
-          <Show
-            when={!props.isLoading}
-            fallback={
-              <div class="h-5 w-20 rounded bg-slate-200 animate-pulse" />
-            }
-          >
-            <span
-              class={`font-extrabold ${
-                props.status === "Sufficient"
-                  ? "text-emerald-600"
-                  : props.status === "Empty"
-                  ? "text-red-600"
-                  : "text-amber-600"
-              }
-            `}
-            >
-              {props.status}
-            </span>
-          </Show>
-        </div>
-        <div class="">
-          {/* <span class="font-medium">{props.ticker}</span> */}
-          <Show
-            when={!props.isLoading}
-            fallback={
-              <div class="h-6 w-32 rounded bg-sky-600/15 animate-pulse" />
-            }
-          >
-            <span class="text-sky-600 font-semibold">{props.balance}</span>
-          </Show>
-        </div>
-
-        <div class="grow"></div>
+    <div class="flex flex-row gap-1 items-baseline w-64 py-1">
+      <div class="w-1/3 flex flex-row justify-end">
         <Show
           when={!props.isLoading}
           fallback={
-            <div class="flex flex-col gap-2 animate-pulse">
-              <div class="h-4 w-full rounded bg-slate-200" />
-              <div class="h-4 w-2/3 rounded bg-slate-200" />
-            </div>
+            <div class="h-6 w-32 rounded bg-sky-600/15 animate-pulse" />
           }
         >
-          <FundingAddress address={props.address} full />
+          <span class="font-semibold">
+            {fromWeiToFixed(props.balance ?? "0")}
+          </span>
+        </Show>
+      </div>
+
+      <div class="flex flex-row items-baseline gap-2 w-2/3 justify-between">
+        <span class="text-slate-600">{props.ticker}</span>
+        <Show
+          when={!props.isLoading}
+          fallback={<div class="h-5 w-20 rounded bg-slate-200 animate-pulse" />}
+        >
+          <span
+            class={`font-bold text-xs ${
+              props.status === "Sufficient"
+                ? "text-emerald-600"
+                : props.status === "Empty"
+                ? "text-red-600"
+                : "text-amber-600"
+            }
+              `}
+          >
+            {props.status}
+          </span>
         </Show>
       </div>
     </div>

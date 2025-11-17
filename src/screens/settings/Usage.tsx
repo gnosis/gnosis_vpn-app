@@ -23,6 +23,7 @@ export default function Usage() {
     setBalanceError(undefined);
     try {
       const result = await VPNService.balance();
+      console.log("result", result);
       setBalance(result);
       if (result) {
         applyFundingIssues(result.issues, setSafeStatus, setNodeStatus);
@@ -48,6 +49,7 @@ export default function Usage() {
     void loadBalance();
   });
 
+  console.log("balance", balance());
   return (
     <div class="px-4 py-2 flex flex-col w-full h-full items-center gap-4 justify-between">
       <Show when={balanceError()}>
