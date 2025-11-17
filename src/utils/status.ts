@@ -145,3 +145,30 @@ export function getPreparingSafeNodeAddress(
   }
   return undefined;
 }
+
+export type ConnectionLabel =
+  | "None"
+  | "Connecting"
+  | "Connected"
+  | "Disconnecting"
+  | "Unknown";
+
+export function getConnectionLabel(
+  cs: DestinationState["connection_state"],
+): ConnectionLabel {
+  if (cs === "None") return "None";
+  if (typeof cs === "object" && "Connecting" in cs) return "Connecting";
+  if (typeof cs === "object" && "Connected" in cs) return "Connected";
+  if (typeof cs === "object" && "Disconnecting" in cs) return "Disconnecting";
+  return "Unknown";
+}
+
+export function getConnectionPhase(
+  cs: DestinationState["connection_state"],
+): string | undefined {
+  if (typeof cs === "object" && "Connecting" in cs) return cs.Connecting[1];
+  if (typeof cs === "object" && "Disconnecting" in cs) {
+    return cs.Disconnecting[1];
+  }
+  return undefined;
+}

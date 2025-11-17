@@ -1,19 +1,46 @@
 // import { toBytes20 } from "@src/utils/address";
 import { invoke } from "@tauri-apps/api/core";
 
+// Library responses
+
+export type StatusResponse = {
+  run_mode: RunMode;
+  destinations: DestinationState[];
+};
+
+export type ConnectResponse =
+  | { Connecting: Destination }
+  | { WaitingToConnect: [Destination, DestinationHealth | null] }
+  | { UnableToConnect: [Destination, DestinationHealth] }
+  | "AddressNotFound";
+
+export type DisconnectResponse =
+  | { Disconnecting: Destination }
+  | "NotConnected";
+
+export type BalanceResponse = {
+  node: string;
+  safe: string;
+  channels_out: string;
+  info: Info;
+  issues: FundingIssue[];
+};
+
+// Library types
+
 export type RoutingOptions = { Hops: number } | { IntermediatePath: string[] };
 
-export interface DestinationState {
+export type DestinationState = {
   destination: Destination;
   connection_state: ConnectionState;
-  last_connection_error: string | null;
-}
+  health: DestinationHealth;
+};
 
-export interface Destination {
+export type Destination = {
   meta: Record<string, string>;
   address: string;
   routing: RoutingOptions;
-}
+};
 
 export type ConnectionState =
   | "None"
@@ -24,16 +51,16 @@ export type ConnectionState =
   // Disconecting tuple (since: timestamp, phase/status: string) - see gnosis_vpn-lib/src/core/disconn.rs
   | { Disconnecting: [number, string] };
 
-export interface PreparingSafe {
+export type PreparingSafe = {
   node_address: string;
   node_xdai: string;
   node_wxhopr: string;
   funding_tool: FundingTool;
-}
+};
 
-export interface Running {
+export type Running = {
   funding: FundingState;
-}
+};
 
 export type FundingTool =
   | "NotStarted"
@@ -50,14 +77,9 @@ export type FundingIssue =
   | "NodeLowOnFunds"; // warning before NodeUnderfunded
 
 export type FundingState =
-  | "Unknown"
+  | "Querying"
   | { TopIssue: FundingIssue }
   | "WellFunded";
-
-export type StatusResponse = {
-  run_mode: RunMode;
-  destinations: DestinationState[];
-};
 
 export type RunMode =
   /// Initial start, after creating safe this state will not be reached again
@@ -69,11 +91,6 @@ export type RunMode =
   /// Service shutting down
   | "Shutdown";
 
-export type ConnectResponse = { Connecting: Destination } | "AddressNotFound";
-export type DisconnectResponse =
-  | { Disconnecting: Destination }
-  | "NotConnected";
-
 export type Info = {
   node_address: string;
   node_peer_id: string;
@@ -81,13 +98,83 @@ export type Info = {
   network: string;
 };
 
-export type BalanceResponse = {
-  node: string;
-  safe: string;
-  channels_out: string;
-  info: Info;
-  issues: FundingIssue[];
+export type DestinationHealth = {
+  last_error: string | null;
+  health: Health;
+  need: Need;
 };
+
+export type Health =
+  | "ReadyToConnect"
+  | "MissingPeeredFundedChannel"
+  | "MissingPeeredChannel"
+  | "MissingFundedChannel"
+  | "NotPeered"
+  // final - not allowed to connect to this destination
+  | "NotAllowed"
+  // final - destination address is invalid - should be impossible due to config deserialization
+  | "InvalidAddress"
+  // final - destination path is invalid - should be impossible due to config deserialization
+  | "InvalidPath";
+
+/// Requirements to be able to connect to this destination
+/// This is statically derived at construction time from a destination's routing options.
+export type Need =
+  | { Channel: string }
+  | "AnyChannel"
+  | { Peering: string }
+  | "Nothing";
+
+export function formatHealth(health: Health): string {
+  switch (health) {
+    case "ReadyToConnect":
+      return "Ready to connect";
+    case "MissingPeeredFundedChannel":
+      return "Missing peered funded channel";
+    case "MissingPeeredChannel":
+      return "Missing peered channel";
+    case "MissingFundedChannel":
+      return "Missing funded channel";
+    case "NotPeered":
+      return "Not peered";
+    case "NotAllowed":
+      return "Not allowed";
+    case "InvalidAddress":
+      return "Invalid address";
+    case "InvalidPath":
+      return "Invalid path";
+    default:
+      return String(health);
+  }
+}
+
+export function formatFundingTool(ft: FundingTool): string {
+  switch (ft) {
+    case "NotStarted":
+      return "Not started";
+    case "InProgress":
+      return "In progress";
+    case "CompletedSuccess":
+      return "Completed successfully";
+    case "CompletedError":
+      return "Completed with error";
+    default:
+      return String(ft);
+  }
+}
+
+// Type guards for RunMode variants to avoid repetitive typeof/in checks
+export function isPreparingSafeRunMode(
+  rm: RunMode | null | undefined,
+): rm is { PreparingSafe: PreparingSafe } {
+  return !!rm && typeof rm === "object" && "PreparingSafe" in rm;
+}
+
+export function isRunningRunMode(
+  rm: RunMode | null | undefined,
+): rm is { Running: Running } {
+  return !!rm && typeof rm === "object" && "Running" in rm;
+}
 
 export class VPNService {
   static async getStatus(): Promise<StatusResponse> {

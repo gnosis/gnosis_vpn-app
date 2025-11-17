@@ -1,6 +1,5 @@
-use gnosis_vpn_lib::connection;
-use gnosis_vpn_lib::connection::destination::{Address, Destination};
-use gnosis_vpn_lib::{balance, command, socket};
+use gnosis_vpn_lib::{balance, command, connection, info, socket};
+use tauri::State;
 use tauri::{
     AppHandle, Emitter, Manager,
     menu::{Menu, MenuBuilder, MenuItem},
@@ -8,39 +7,58 @@ use tauri::{
 };
 mod platform;
 use platform::{Platform, PlatformInterface};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
+use tauri_plugin_positioner::{Position, WindowExt};
 use tauri_plugin_store::StoreExt;
 
+use std::collections::HashMap;
 use std::time::{Duration, SystemTime};
 use std::{path::PathBuf, sync::Mutex};
 
-#[derive(Clone, Debug, Serialize, Default)]
+// State to hold a reference to the tray "status" menu item so we can update it
+struct TrayStatusItem(Mutex<MenuItem<tauri::Wry>>);
+
+#[derive(Clone, Serialize, Default)]
 struct AppSettings {
     preferred_location: Option<String>,
     connect_on_startup: bool,
     start_minimized: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+// Sanitized library responses
+
+#[derive(Serialize)]
 pub struct StatusResponse {
     pub run_mode: RunMode,
     pub destinations: Vec<DestinationState>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct DestinationState {
-    pub destination: Destination,
-    pub connection_state: ConnectionState,
-    pub last_connection_error: Option<String>,
+#[derive(Serialize)]
+pub enum ConnectResponse {
+    Connecting(Destination),
+    WaitingToConnect(Destination, Option<DestinationHealth>),
+    UnableToConnect(Destination, DestinationHealth),
+    AddressNotFound,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum RoutingOptions {
-    Hops(usize),
-    IntermediatePath(Vec<String>),
+#[derive(Serialize)]
+pub enum DisconnectResponse {
+    Disconnecting(Destination),
+    NotConnected,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Serialize)]
+pub struct BalanceResponse {
+    pub node: String,
+    pub safe: String,
+    pub channels_out: String,
+    pub info: Info,
+    pub issues: Vec<balance::FundingIssue>,
+}
+
+// Sanitized library structs
+
+#[derive(Serialize)]
 pub enum RunMode {
     /// Initial start, after creating safe this state will not be reached again
     PreparingSafe {
@@ -52,12 +70,32 @@ pub enum RunMode {
     /// Subsequent service start up in this state and after preparing safe
     Warmup,
     /// Normal operation where connections can be made
-    Running { funding: FundingState },
+    Running { funding: command::FundingState },
     /// Shutdown service
     Shutdown,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Serialize)]
+pub struct DestinationState {
+    pub destination: Destination,
+    pub connection_state: ConnectionState,
+    pub health: Option<DestinationHealth>,
+}
+
+#[derive(Serialize)]
+pub enum RoutingOptions {
+    Hops(usize),
+    IntermediatePath(Vec<String>),
+}
+
+#[derive(Serialize)]
+pub struct Destination {
+    pub meta: HashMap<String, String>,
+    pub address: String,
+    pub routing: RoutingOptions,
+}
+
+#[derive(Serialize)]
 pub enum ConnectionState {
     None,
     Connecting(SystemTime, String),
@@ -65,13 +103,32 @@ pub enum ConnectionState {
     Disconnecting(SystemTime, String),
 }
 
-// in order of priority
-#[derive(Debug, Serialize, Deserialize)]
-pub enum FundingState {
-    Unknown,                         // state not queried yet
-    TopIssue(balance::FundingIssue), // there is at least one issue
-    WellFunded,
+#[derive(Serialize)]
+pub struct DestinationHealth {
+    pub last_error: Option<String>,
+    pub health: connection::destination_health::Health,
+    need: Need,
 }
+
+/// Requirements to be able to connect to this destination
+/// This is statically derived at construction time from a destination's routing options.
+#[derive(Serialize)]
+pub enum Need {
+    Channel(String),
+    AnyChannel,
+    Peering(String),
+    Nothing,
+}
+
+#[derive(Serialize)]
+pub struct Info {
+    pub node_address: String,
+    pub node_peer_id: String,
+    pub safe_address: String,
+    pub network: String,
+}
+
+// Conversions from library types to sanitized types
 
 impl From<connection::destination::RoutingOptions> for RoutingOptions {
     fn from(ro: connection::destination::RoutingOptions) -> Self {
@@ -86,12 +143,37 @@ impl From<connection::destination::RoutingOptions> for RoutingOptions {
     }
 }
 
+impl From<connection::destination::Destination> for Destination {
+    fn from(d: connection::destination::Destination) -> Self {
+        Destination {
+            meta: d.meta.clone(),
+            address: d.address.to_string(),
+            routing: d.routing.into(),
+        }
+    }
+}
+
+impl From<connection::destination_health::DestinationHealth> for DestinationHealth {
+    fn from(d: connection::destination_health::DestinationHealth) -> Self {
+        DestinationHealth {
+            last_error: d.last_error.clone(),
+            health: d.health.clone(),
+            need: match d.need {
+                connection::destination_health::Need::Channel(c) => Need::Channel(c.to_string()),
+                connection::destination_health::Need::AnyChannel => Need::AnyChannel,
+                connection::destination_health::Need::Peering(p) => Need::Peering(p.to_string()),
+                connection::destination_health::Need::Nothing => Need::Nothing,
+            },
+        }
+    }
+}
+
 impl From<command::DestinationState> for DestinationState {
     fn from(ds: command::DestinationState) -> Self {
         DestinationState {
-            destination: ds.destination.clone(),
+            destination: ds.destination.into(),
             connection_state: ds.connection_state.into(),
-            last_connection_error: ds.last_connection_error,
+            health: ds.health.map(|h| h.into()),
         }
     }
 }
@@ -126,17 +208,11 @@ impl From<command::RunMode> for RunMode {
                 node_wxhopr: node_wxhopr.amount().to_string(),
                 funding_tool,
             },
-            command::RunMode::Warmup { hopr_state: _ } => RunMode::Warmup,
+            command::RunMode::Warmup { hopr_status: _ } => RunMode::Warmup,
             command::RunMode::Running {
                 funding,
-                hopr_state: _,
-            } => RunMode::Running {
-                funding: match funding {
-                    command::FundingState::Unknown => FundingState::Unknown,
-                    command::FundingState::TopIssue(issue) => FundingState::TopIssue(issue),
-                    command::FundingState::WellFunded => FundingState::WellFunded,
-                },
-            },
+                hopr_status: _,
+            } => RunMode::Running { funding },
             command::RunMode::Shutdown => RunMode::Shutdown,
         }
     }
@@ -151,56 +227,142 @@ impl From<command::StatusResponse> for StatusResponse {
     }
 }
 
-#[tauri::command]
-async fn status() -> Result<StatusResponse, String> {
-    let p = PathBuf::from(socket::DEFAULT_PATH);
-    let resp = socket::process_cmd(&p, &command::Command::Status)
-        .await
-        .map_err(|e| e.to_string())?;
-    let status_resp: command::StatusResponse = match resp {
-        command::Response::Status(resp) => resp,
-        _ => return Err("Unexpected response type".to_string()),
-    };
-    // Convert types for frontend
-    Ok(status_resp.into())
+impl From<command::ConnectResponse> for ConnectResponse {
+    fn from(cr: command::ConnectResponse) -> Self {
+        match cr {
+            command::ConnectResponse::Connecting(dest) => ConnectResponse::Connecting(dest.into()),
+            command::ConnectResponse::WaitingToConnect(dest, health) => {
+                ConnectResponse::WaitingToConnect(dest.into(), health.map(|h| h.into()))
+            }
+            command::ConnectResponse::UnableToConnect(dest, health) => {
+                ConnectResponse::UnableToConnect(dest.into(), health.into())
+            }
+            command::ConnectResponse::AddressNotFound => ConnectResponse::AddressNotFound,
+        }
+    }
+}
+
+impl From<command::DisconnectResponse> for DisconnectResponse {
+    fn from(dr: command::DisconnectResponse) -> Self {
+        match dr {
+            command::DisconnectResponse::Disconnecting(dest) => {
+                DisconnectResponse::Disconnecting(dest.into())
+            }
+            command::DisconnectResponse::NotConnected => DisconnectResponse::NotConnected,
+        }
+    }
+}
+
+impl From<info::Info> for Info {
+    fn from(i: info::Info) -> Self {
+        Info {
+            node_address: i.node_address.to_string(),
+            node_peer_id: i.node_peer_id,
+            safe_address: i.safe_address.to_string(),
+            network: i.network,
+        }
+    }
+}
+
+impl From<command::BalanceResponse> for BalanceResponse {
+    fn from(br: command::BalanceResponse) -> Self {
+        BalanceResponse {
+            node: br.node.amount().to_string(),
+            safe: br.safe.amount().to_string(),
+            channels_out: br.channels_out.amount().to_string(),
+            info: br.info.into(),
+            issues: br.issues,
+        }
+    }
 }
 
 #[tauri::command]
-async fn connect(address: String) -> Result<command::ConnectResponse, String> {
+async fn status(status_item: State<'_, TrayStatusItem>) -> Result<StatusResponse, String> {
     let p = PathBuf::from(socket::DEFAULT_PATH);
-    let conv_address = address.parse::<Address>().map_err(|e| e.to_string())?;
+    let resp = socket::process_cmd(&p, &command::Command::Status).await;
+    match resp {
+        Ok(command::Response::Status(status_resp)) => {
+            // Derive simplified label from destinations
+            let mut derived: &str = "Disconnected";
+            for ds in &status_resp.destinations {
+                match ds.connection_state {
+                    command::ConnectionState::Connected(_) => {
+                        derived = "Connected";
+                        break;
+                    }
+                    command::ConnectionState::Connecting(_, _) => {
+                        if derived != "Connected" {
+                            derived = "Connecting";
+                        }
+                    }
+                    command::ConnectionState::Disconnecting(_, _) => {
+                        if derived != "Connected" {
+                            derived = "Disconnecting";
+                        }
+                    }
+                    command::ConnectionState::None => {}
+                }
+            }
+            // Update tray menu label
+            if let Ok(guard) = status_item.0.lock() {
+                let _ = guard.set_text(&format!("Status: {}", derived));
+            }
+            // Convert for frontend
+            Ok(status_resp.into())
+        }
+        Ok(_) => {
+            if let Ok(guard) = status_item.0.lock() {
+                let _ = guard.set_text("Status: Not available");
+            }
+            Err("Unexpected response type".to_string())
+        }
+        Err(e) => {
+            if let Ok(guard) = status_item.0.lock() {
+                let _ = guard.set_text("Status: Not available");
+            }
+            Err(e.to_string())
+        }
+    }
+}
+
+#[tauri::command]
+async fn connect(address: String) -> Result<ConnectResponse, String> {
+    let p = PathBuf::from(socket::DEFAULT_PATH);
+    let conv_address = address
+        .parse::<connection::destination::Address>()
+        .map_err(|e| e.to_string())?;
     let cmd = command::Command::Connect(conv_address);
     let resp = socket::process_cmd(&p, &cmd)
         .await
         .map_err(|e| e.to_string())?;
     match resp {
-        command::Response::Connect(resp) => Ok(resp),
+        command::Response::Connect(resp) => Ok(resp.into()),
         _ => Err("Unexpected response type".to_string()),
     }
 }
 
 #[tauri::command]
-async fn disconnect() -> Result<command::DisconnectResponse, String> {
+async fn disconnect() -> Result<DisconnectResponse, String> {
     let p = PathBuf::from(socket::DEFAULT_PATH);
     let cmd = command::Command::Disconnect;
     let resp = socket::process_cmd(&p, &cmd)
         .await
         .map_err(|e| e.to_string())?;
     match resp {
-        command::Response::Disconnect(resp) => Ok(resp),
+        command::Response::Disconnect(resp) => Ok(resp.into()),
         _ => Err("Unexpected response type".to_string()),
     }
 }
 
 #[tauri::command]
-async fn balance() -> Result<Option<command::BalanceResponse>, String> {
+async fn balance() -> Result<Option<BalanceResponse>, String> {
     let p = PathBuf::from(socket::DEFAULT_PATH);
     let cmd = command::Command::Balance;
     let resp = socket::process_cmd(&p, &cmd)
         .await
         .map_err(|e| e.to_string())?;
     match resp {
-        command::Response::Balance(resp) => Ok(resp),
+        command::Response::Balance(resp) => Ok(resp.map(|b| b.into())),
         _ => Err("Unexpected response type".to_string()),
     }
 }
@@ -240,6 +402,9 @@ fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error> {
     let usage_item = MenuItem::with_id(app, "usage", "Usage", true, None::<&str>)?;
     let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
 
+    // Expose the status menu item via app state so commands can update it
+    app.manage(TrayStatusItem(Mutex::new(status_item.clone())));
+
     MenuBuilder::new(app)
         .item(&status_item)
         .separator()
@@ -251,130 +416,50 @@ fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error> {
         .build()
 }
 
-fn toggle_main_window_visibility(app: &AppHandle) {
+fn toggle_main_window_visibility(app: &AppHandle, triggered_by_tray: bool) {
     if let Some(window) = app.get_webview_window("main") {
-        // let is_visible = window.is_visible().unwrap_or(false);
+        let is_visible = window.is_visible().unwrap_or(false);
         let is_focused = window.is_focused().unwrap_or(false);
-        if is_focused {
-            // Slide out to the right and then hide (anchor at top-right of current monitor)
-            if let Ok(size) = window.outer_size() {
-                let width = size.width as i32;
-                // Determine target monitor geometry
-                let (mon_x, mon_y, mon_w) = window
-                    .current_monitor()
-                    .ok()
-                    .flatten()
-                    .map(|m| (m.position().x, m.position().y, m.size().width as i32))
-                    .or_else(|| {
-                        window
-                            .primary_monitor()
-                            .ok()
-                            .flatten()
-                            .map(|m| (m.position().x, m.position().y, m.size().width as i32))
-                    })
-                    .unwrap_or((0, 0, 1920));
-
-                let margin: i32 = 20;
-                let start_x = window
-                    .outer_position()
-                    .map(|p| p.x)
-                    .unwrap_or(mon_x + mon_w - width - margin);
-                // Align to top margin consistently
-                let start_y = mon_y + margin;
-                let end_x = mon_x + mon_w + 10; // a bit off-screen to the right
-
-                let steps: i32 = 16;
-                let step_ms = 10u64;
-                let handle = window.clone();
-                tauri::async_runtime::spawn(async move {
-                    for i in 0..=steps {
-                        let t = i as f32 / steps as f32;
-                        // smoothstep easing (ease-in-out): t^2 * (3 - 2t)
-                        let te = t * t * (3.0 - 2.0 * t);
-                        let x = (start_x as f32 + (end_x - start_x) as f32 * te).round() as i32;
-                        let _ = handle.set_position(tauri::Position::Physical(
-                            tauri::PhysicalPosition { x, y: start_y },
-                        ));
-                        std::thread::sleep(Duration::from_millis(step_ms));
-                    }
-                    let _ = handle.hide();
-                });
-            } else {
-                let _ = window.hide();
-            }
-            #[cfg(target_os = "macos")]
-            {
-                let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
-            }
-        } else {
-            // Slide in from the right to the top-right corner (with margins) of the current (or primary) monitor
+        if !is_visible || !is_focused {
             #[cfg(target_os = "macos")]
             {
                 let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
             }
-
-            let width = window.outer_size().map(|s| s.width as i32).unwrap_or(360);
-            // Determine target monitor geometry
-            let (mon_x, mon_y, mon_w) = window
-                .current_monitor()
-                .ok()
-                .flatten()
-                .map(|m| (m.position().x, m.position().y, m.size().width as i32))
-                .or_else(|| {
-                    window
-                        .primary_monitor()
-                        .ok()
-                        .flatten()
-                        .map(|m| (m.position().x, m.position().y, m.size().width as i32))
-                })
-                .unwrap_or((0, 0, 1920));
-
-            let margin: i32 = 20;
-            let target_x: i32 = mon_x + mon_w - width - margin; // top-right with right margin
-            let target_y: i32 = mon_y + margin; // top with top margin
-            // Start off-screen on the right
-            let _ = window.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
-                x: mon_x + mon_w + 10,
-                y: target_y,
-            }));
-
-            let steps: i32 = 16;
-            let step_ms = 10u64;
-            let handle = window.clone();
-            tauri::async_runtime::spawn(async move {
-                // Ensure first visible frame is off-screen to avoid flash, then show and focus
-                let _ = handle.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
-                    x: mon_x + mon_w + 10,
-                    y: target_y,
-                }));
-                let _ = handle.show();
-                let _ = handle.set_focus();
-                for i in 0..=steps {
-                    let t = i as f32 / steps as f32;
-                    // smoothstep easing (ease-in-out)
-                    let te = t * t * (3.0 - 2.0 * t);
-                    let start_x = (mon_x + mon_w + 10) as f32;
-                    let x = (start_x + (target_x as f32 - start_x) * te).round() as i32;
-                    let _ =
-                        handle.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
-                            x,
-                            y: target_y,
-                        }));
-                    std::thread::sleep(Duration::from_millis(step_ms));
-                }
-            });
+            // Only try to position by the tray when triggered by a tray icon click
+            if triggered_by_tray {
+                // Move first while hidden so the initial paint appears in the correct spot
+                let _ = window.move_window(Position::TrayBottomLeft);
+            }
+            let _ = window.show();
+            let _ = window.set_focus();
+            if triggered_by_tray {
+                // Re-apply shortly after to ensure it snaps tightly to the tray on multi-monitor
+                let handle = window.clone();
+                tauri::async_runtime::spawn(async move {
+                    std::thread::sleep(Duration::from_millis(10));
+                    let _ = handle.move_window(Position::TrayBottomLeft);
+                });
+            }
+        } else {
+            let _ = window.hide();
+            #[cfg(target_os = "macos")]
+            {
+                let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+            }
         }
     }
 }
 
 fn handle_tray_event(app: &AppHandle, event: TrayIconEvent) {
+    // Register tray position for the positioner plugin
+    tauri_plugin_positioner::on_tray_event(app.app_handle(), &event);
     if let TrayIconEvent::Click {
         button: tauri::tray::MouseButton::Left,
         button_state: tauri::tray::MouseButtonState::Up,
         ..
     } = event
     {
-        toggle_main_window_visibility(app);
+        toggle_main_window_visibility(app, true);
     }
 }
 
@@ -393,9 +478,13 @@ fn show_settings(app: &AppHandle, target: &str) {
         }
         let _ = window.show();
         let _ = window.set_focus();
-        if let Err(e) = window.emit("navigate", target) {
-            eprintln!("Failed to emit navigate event: {e}");
-        }
+        // Emit navigate after a short delay to ensure the frontend listener is attached
+        let handle = window.clone();
+        let target_owned = target.to_string();
+        tauri::async_runtime::spawn(async move {
+            std::thread::sleep(Duration::from_millis(120));
+            let _ = handle.emit("navigate", target_owned);
+        });
     }
 }
 
@@ -404,6 +493,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_positioner::init())
         .setup(|app| {
             // Load settings from the shared store (settings.json) before any UI decisions
             let mut loaded: AppSettings = AppSettings::default();
@@ -438,28 +528,20 @@ pub fn run() {
                 .map_err(|e| format!("Failed to load tray icon: {e}"))?;
 
             // Create tray icon
-            let _tray = TrayIconBuilder::new()
+            let mut builder = TrayIconBuilder::with_id("menu_extra")
                 .menu(&menu)
-                .icon(icon)
+                .icon(icon);
+            #[cfg(target_os = "macos")]
+            {
+                builder = builder.icon_as_template(true);
+            }
+            let _tray = builder
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "quit" => {
                         app.exit(0);
                     }
                     "show" => {
-                        if let Some(window) = app.get_webview_window("main") {
-                            let is_visible = window.is_visible().unwrap_or(false);
-                            if is_visible {
-                                let _ = window.hide();
-                            } else {
-                                #[cfg(target_os = "macos")]
-                                {
-                                    let _ =
-                                        app.set_activation_policy(tauri::ActivationPolicy::Regular);
-                                }
-                                let _ = window.show();
-                                let _ = window.set_focus();
-                            }
-                        }
+                        toggle_main_window_visibility(app, false);
                     }
                     // Open the dedicated settings window and navigate within it
                     "settings" => show_settings(app, "settings"),
