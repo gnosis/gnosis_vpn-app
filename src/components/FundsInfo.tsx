@@ -13,7 +13,7 @@ type Props = {
 
 export default function FundsInfo(props: Props) {
   return (
-    <div class="flex flex-row gap-1 items-baseline w-64 py-1">
+    <div class="flex flex-row gap-1 items-baseline w-full py-1">
       <div class="w-1/3 flex flex-row justify-end">
         <Show
           when={!props.isLoading}
@@ -27,7 +27,7 @@ export default function FundsInfo(props: Props) {
         </Show>
       </div>
 
-      <div class="flex flex-row items-baseline gap-2 w-2/3 justify-between">
+      <div class="flex flex-row items-baseline gap-2 w-2/3 justify-between px-2">
         <span class="text-slate-600">{props.ticker}</span>
         <Show
           when={!props.isLoading}
