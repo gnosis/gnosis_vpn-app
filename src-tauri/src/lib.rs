@@ -1,4 +1,5 @@
 use gnosis_vpn_lib::{balance, command, connection, info, socket};
+use tauri::State;
 use tauri::{
     AppHandle, Emitter, Manager,
     menu::{Menu, MenuBuilder, MenuItem},
@@ -13,6 +14,9 @@ use tauri_plugin_store::StoreExt;
 use std::collections::HashMap;
 use std::time::{Duration, SystemTime};
 use std::{path::PathBuf, sync::Mutex};
+
+// State to hold a reference to the tray "status" menu item so we can update it
+struct TrayStatusItem(Mutex<MenuItem<tauri::Wry>>);
 
 #[derive(Clone, Serialize, Default)]
 struct AppSettings {
@@ -273,17 +277,52 @@ impl From<command::BalanceResponse> for BalanceResponse {
 }
 
 #[tauri::command]
-async fn status() -> Result<StatusResponse, String> {
+async fn status(status_item: State<'_, TrayStatusItem>) -> Result<StatusResponse, String> {
     let p = PathBuf::from(socket::DEFAULT_PATH);
-    let resp = socket::process_cmd(&p, &command::Command::Status)
-        .await
-        .map_err(|e| e.to_string())?;
-    let status_resp: command::StatusResponse = match resp {
-        command::Response::Status(resp) => resp,
-        _ => return Err("Unexpected response type".to_string()),
-    };
-    // Convert types for frontend
-    Ok(status_resp.into())
+    let resp = socket::process_cmd(&p, &command::Command::Status).await;
+    match resp {
+        Ok(command::Response::Status(status_resp)) => {
+            // Derive simplified label from destinations
+            let mut derived: &str = "Disconnected";
+            for ds in &status_resp.destinations {
+                match ds.connection_state {
+                    command::ConnectionState::Connected(_) => {
+                        derived = "Connected";
+                        break;
+                    }
+                    command::ConnectionState::Connecting(_, _) => {
+                        if derived != "Connected" {
+                            derived = "Connecting";
+                        }
+                    }
+                    command::ConnectionState::Disconnecting(_, _) => {
+                        if derived != "Connected" {
+                            derived = "Disconnecting";
+                        }
+                    }
+                    command::ConnectionState::None => {}
+                }
+            }
+            // Update tray menu label
+            if let Ok(guard) = status_item.0.lock() {
+                let _ = guard.set_text(&format!("Status: {}", derived));
+            }
+            // Convert for frontend
+            Ok(status_resp.into())
+        }
+        Ok(_) => {
+            if let Ok(guard) = status_item.0.lock() {
+                let _ = guard.set_text("Status: Not available");
+            }
+            Err("Unexpected response type".to_string())
+        }
+        Err(e) => {
+            if let Ok(guard) = status_item.0.lock() {
+                let _ = guard.set_text("Status: Not available");
+            }
+            Err(e.to_string())
+        }
+    }
 }
 
 #[tauri::command]
@@ -362,6 +401,9 @@ fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error> {
     let logs_item = MenuItem::with_id(app, "logs", "Logs", true, None::<&str>)?;
     let usage_item = MenuItem::with_id(app, "usage", "Usage", true, None::<&str>)?;
     let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+
+    // Expose the status menu item via app state so commands can update it
+    app.manage(TrayStatusItem(Mutex::new(status_item.clone())));
 
     MenuBuilder::new(app)
         .item(&status_item)
