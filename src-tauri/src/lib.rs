@@ -7,6 +7,7 @@ use tauri::{
 mod platform;
 use platform::{Platform, PlatformInterface};
 use serde::Serialize;
+use tauri_plugin_positioner::{Position, WindowExt};
 use tauri_plugin_store::StoreExt;
 
 use std::collections::HashMap;
@@ -373,130 +374,50 @@ fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error> {
         .build()
 }
 
-fn toggle_main_window_visibility(app: &AppHandle) {
+fn toggle_main_window_visibility(app: &AppHandle, triggered_by_tray: bool) {
     if let Some(window) = app.get_webview_window("main") {
-        // let is_visible = window.is_visible().unwrap_or(false);
+        let is_visible = window.is_visible().unwrap_or(false);
         let is_focused = window.is_focused().unwrap_or(false);
-        if is_focused {
-            // Slide out to the right and then hide (anchor at top-right of current monitor)
-            if let Ok(size) = window.outer_size() {
-                let width = size.width as i32;
-                // Determine target monitor geometry
-                let (mon_x, mon_y, mon_w) = window
-                    .current_monitor()
-                    .ok()
-                    .flatten()
-                    .map(|m| (m.position().x, m.position().y, m.size().width as i32))
-                    .or_else(|| {
-                        window
-                            .primary_monitor()
-                            .ok()
-                            .flatten()
-                            .map(|m| (m.position().x, m.position().y, m.size().width as i32))
-                    })
-                    .unwrap_or((0, 0, 1920));
-
-                let margin: i32 = 20;
-                let start_x = window
-                    .outer_position()
-                    .map(|p| p.x)
-                    .unwrap_or(mon_x + mon_w - width - margin);
-                // Align to top margin consistently
-                let start_y = mon_y + margin;
-                let end_x = mon_x + mon_w + 10; // a bit off-screen to the right
-
-                let steps: i32 = 16;
-                let step_ms = 10u64;
-                let handle = window.clone();
-                tauri::async_runtime::spawn(async move {
-                    for i in 0..=steps {
-                        let t = i as f32 / steps as f32;
-                        // smoothstep easing (ease-in-out): t^2 * (3 - 2t)
-                        let te = t * t * (3.0 - 2.0 * t);
-                        let x = (start_x as f32 + (end_x - start_x) as f32 * te).round() as i32;
-                        let _ = handle.set_position(tauri::Position::Physical(
-                            tauri::PhysicalPosition { x, y: start_y },
-                        ));
-                        std::thread::sleep(Duration::from_millis(step_ms));
-                    }
-                    let _ = handle.hide();
-                });
-            } else {
-                let _ = window.hide();
-            }
-            #[cfg(target_os = "macos")]
-            {
-                let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
-            }
-        } else {
-            // Slide in from the right to the top-right corner (with margins) of the current (or primary) monitor
+        if !is_visible || !is_focused {
             #[cfg(target_os = "macos")]
             {
                 let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
             }
-
-            let width = window.outer_size().map(|s| s.width as i32).unwrap_or(360);
-            // Determine target monitor geometry
-            let (mon_x, mon_y, mon_w) = window
-                .current_monitor()
-                .ok()
-                .flatten()
-                .map(|m| (m.position().x, m.position().y, m.size().width as i32))
-                .or_else(|| {
-                    window
-                        .primary_monitor()
-                        .ok()
-                        .flatten()
-                        .map(|m| (m.position().x, m.position().y, m.size().width as i32))
-                })
-                .unwrap_or((0, 0, 1920));
-
-            let margin: i32 = 20;
-            let target_x: i32 = mon_x + mon_w - width - margin; // top-right with right margin
-            let target_y: i32 = mon_y + margin; // top with top margin
-            // Start off-screen on the right
-            let _ = window.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
-                x: mon_x + mon_w + 10,
-                y: target_y,
-            }));
-
-            let steps: i32 = 16;
-            let step_ms = 10u64;
-            let handle = window.clone();
-            tauri::async_runtime::spawn(async move {
-                // Ensure first visible frame is off-screen to avoid flash, then show and focus
-                let _ = handle.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
-                    x: mon_x + mon_w + 10,
-                    y: target_y,
-                }));
-                let _ = handle.show();
-                let _ = handle.set_focus();
-                for i in 0..=steps {
-                    let t = i as f32 / steps as f32;
-                    // smoothstep easing (ease-in-out)
-                    let te = t * t * (3.0 - 2.0 * t);
-                    let start_x = (mon_x + mon_w + 10) as f32;
-                    let x = (start_x + (target_x as f32 - start_x) * te).round() as i32;
-                    let _ =
-                        handle.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
-                            x,
-                            y: target_y,
-                        }));
-                    std::thread::sleep(Duration::from_millis(step_ms));
-                }
-            });
+            // Only try to position by the tray when triggered by a tray icon click
+            if triggered_by_tray {
+                // Move first while hidden so the initial paint appears in the correct spot
+                let _ = window.move_window(Position::TrayBottomLeft);
+            }
+            let _ = window.show();
+            let _ = window.set_focus();
+            if triggered_by_tray {
+                // Re-apply shortly after to ensure it snaps tightly to the tray on multi-monitor
+                let handle = window.clone();
+                tauri::async_runtime::spawn(async move {
+                    std::thread::sleep(Duration::from_millis(10));
+                    let _ = handle.move_window(Position::TrayBottomLeft);
+                });
+            }
+        } else {
+            let _ = window.hide();
+            #[cfg(target_os = "macos")]
+            {
+                let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+            }
         }
     }
 }
 
 fn handle_tray_event(app: &AppHandle, event: TrayIconEvent) {
+    // Register tray position for the positioner plugin
+    tauri_plugin_positioner::on_tray_event(app.app_handle(), &event);
     if let TrayIconEvent::Click {
         button: tauri::tray::MouseButton::Left,
         button_state: tauri::tray::MouseButtonState::Up,
         ..
     } = event
     {
-        toggle_main_window_visibility(app);
+        toggle_main_window_visibility(app, true);
     }
 }
 
@@ -526,6 +447,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_positioner::init())
         .setup(|app| {
             // Load settings from the shared store (settings.json) before any UI decisions
             let mut loaded: AppSettings = AppSettings::default();
@@ -560,28 +482,20 @@ pub fn run() {
                 .map_err(|e| format!("Failed to load tray icon: {e}"))?;
 
             // Create tray icon
-            let _tray = TrayIconBuilder::new()
+            let mut builder = TrayIconBuilder::with_id("menu_extra")
                 .menu(&menu)
-                .icon(icon)
+                .icon(icon);
+            #[cfg(target_os = "macos")]
+            {
+                builder = builder.icon_as_template(true);
+            }
+            let _tray = builder
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "quit" => {
                         app.exit(0);
                     }
                     "show" => {
-                        if let Some(window) = app.get_webview_window("main") {
-                            let is_visible = window.is_visible().unwrap_or(false);
-                            if is_visible {
-                                let _ = window.hide();
-                            } else {
-                                #[cfg(target_os = "macos")]
-                                {
-                                    let _ =
-                                        app.set_activation_policy(tauri::ActivationPolicy::Regular);
-                                }
-                                let _ = window.show();
-                                let _ = window.set_focus();
-                            }
-                        }
+                        toggle_main_window_visibility(app, false);
                     }
                     // Open the dedicated settings window and navigate within it
                     "settings" => show_settings(app, "settings"),
