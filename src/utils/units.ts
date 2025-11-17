@@ -32,7 +32,7 @@ export function fromWeiToFixed(
     if (showLen > decimals) showLen = decimals;
 
     const scale = 10n ** BigInt(showLen);
-    let rounded = (fracPart * scale + base / 2n) / base;
+    const rounded = (fracPart * scale + base / 2n) / base;
     if (rounded === scale) {
       intPart = intPart + 1n;
       return `${intPart.toString()}.${"0".repeat(showLen)}`;
