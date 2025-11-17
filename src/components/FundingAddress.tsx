@@ -6,10 +6,11 @@ import QrCode from "@src/components/QrCode";
 import linkIcon from "@assets/icons/link.svg";
 import copyIcon from "@assets/icons/copy.svg";
 import qrIcon from "@assets/icons/qr.png";
+import checkIcon from "@assets/icons/checked-box.svg";
 import { getEthAddress } from "@src/utils/address";
 
 export default function FundingAddress(
-  props: { address: string | undefined; full?: boolean },
+  props: { address: string | undefined; full?: boolean; title?: string },
 ) {
   const raw = (props.address ?? "").trim();
   const isMissing = raw.length === 0 || raw.toLowerCase() === "unknown";
@@ -28,6 +29,7 @@ export default function FundingAddress(
   }
 
   const [showQR, setShowQR] = createSignal(false);
+  const [copied, setCopied] = createSignal(false);
 
   const [, logActions] = useLogsStore();
   const log = (message: string) => logActions.append(message);
@@ -39,6 +41,8 @@ export default function FundingAddress(
   async function copy(addr = safeAddress) {
     try {
       await navigator.clipboard.writeText(addr ?? "");
+      setCopied(true);
+      globalThis.setTimeout(() => setCopied(false), 1500);
     } catch (error) {
       log(`Error copying address: ${String(error)}`);
     }
@@ -80,10 +84,15 @@ export default function FundingAddress(
           <button
             class="inline-flex items-center gap-1 p-1 hover:cursor-pointer"
             onClick={() => copy()}
-            title="Copy address"
+            title={copied() ? "Copied" : "Copy address"}
             type="button"
           >
-            <img src={copyIcon} height={20} width={20} alt="Copy address" />
+            <img
+              src={copied() ? checkIcon : copyIcon}
+              height={20}
+              width={20}
+              alt={copied() ? "Copied" : "Copy address"}
+            />
           </button>
 
           <button
@@ -100,7 +109,7 @@ export default function FundingAddress(
         open={showQR()}
         onClose={() => setShowQR(false)}
         value={address}
-        title={shortAddress(address)}
+        title={`${props.title ?? "Funding Address"} ${shortAddress(address)}`}
         size={256}
       />
     </>

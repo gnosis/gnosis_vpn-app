@@ -10,7 +10,7 @@ export type StatusResponse = {
 
 export type ConnectResponse =
   | { Connecting: Destination }
-  | { WatingToConnect: [Destination, DestinationHealth | null] }
+  | { WaitingToConnect: [Destination, DestinationHealth | null] }
   | { UnableToConnect: [Destination, DestinationHealth] }
   | "AddressNotFound";
 
@@ -124,6 +124,57 @@ export type Need =
   | "AnyChannel"
   | { Peering: string }
   | "Nothing";
+
+export function formatHealth(health: Health): string {
+  switch (health) {
+    case "ReadyToConnect":
+      return "Ready to connect";
+    case "MissingPeeredFundedChannel":
+      return "Missing peered funded channel";
+    case "MissingPeeredChannel":
+      return "Missing peered channel";
+    case "MissingFundedChannel":
+      return "Missing funded channel";
+    case "NotPeered":
+      return "Not peered";
+    case "NotAllowed":
+      return "Not allowed";
+    case "InvalidAddress":
+      return "Invalid address";
+    case "InvalidPath":
+      return "Invalid path";
+    default:
+      return String(health);
+  }
+}
+
+export function formatFundingTool(ft: FundingTool): string {
+  switch (ft) {
+    case "NotStarted":
+      return "Not started";
+    case "InProgress":
+      return "In progress";
+    case "CompletedSuccess":
+      return "Completed successfully";
+    case "CompletedError":
+      return "Completed with error";
+    default:
+      return String(ft);
+  }
+}
+
+// Type guards for RunMode variants to avoid repetitive typeof/in checks
+export function isPreparingSafeRunMode(
+  rm: RunMode | null | undefined,
+): rm is { PreparingSafe: PreparingSafe } {
+  return !!rm && typeof rm === "object" && "PreparingSafe" in rm;
+}
+
+export function isRunningRunMode(
+  rm: RunMode | null | undefined,
+): rm is { Running: Running } {
+  return !!rm && typeof rm === "object" && "Running" in rm;
+}
 
 export class VPNService {
   static async getStatus(): Promise<StatusResponse> {

@@ -19,6 +19,13 @@ export default function SettingsWindow() {
 
   onMount(() => {
     void (async () => {
+      unlisten = await listen<string>("navigate", (event) => {
+        const next = event.payload;
+        if (next === "settings" || next === "usage" || next === "logs") {
+          setTab(next);
+        }
+      });
+
       const mainWin = await WebviewWindow.getByLabel("main");
       const isMainVisible = mainWin ? await mainWin.isVisible() : false;
       if (!isMainVisible) {
@@ -26,16 +33,9 @@ export default function SettingsWindow() {
         startedPollingHere = true;
         await Promise.all([settingsActions.load(), appActions.refreshStatus()]);
       } else {
-        await settingsActions.load();
+        await Promise.all([settingsActions.load(), appActions.refreshStatus()]);
       }
-      // Ask main window for existing logs snapshot
       void emit("logs:request-snapshot");
-      unlisten = await listen<string>("navigate", (event) => {
-        const next = event.payload;
-        if (next === "settings" || next === "usage" || next === "logs") {
-          setTab(next);
-        }
-      });
     })();
   });
 
