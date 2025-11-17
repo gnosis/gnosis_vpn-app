@@ -19,6 +19,13 @@ export default function SettingsWindow() {
 
   onMount(() => {
     void (async () => {
+      unlisten = await listen<string>("navigate", (event) => {
+        const next = event.payload;
+        if (next === "settings" || next === "usage" || next === "logs") {
+          setTab(next);
+        }
+      });
+
       const mainWin = await WebviewWindow.getByLabel("main");
       const isMainVisible = mainWin ? await mainWin.isVisible() : false;
       if (!isMainVisible) {
@@ -29,12 +36,6 @@ export default function SettingsWindow() {
         await Promise.all([settingsActions.load(), appActions.refreshStatus()]);
       }
       void emit("logs:request-snapshot");
-      unlisten = await listen<string>("navigate", (event) => {
-        const next = event.payload;
-        if (next === "settings" || next === "usage" || next === "logs") {
-          setTab(next);
-        }
-      });
     })();
   });
 

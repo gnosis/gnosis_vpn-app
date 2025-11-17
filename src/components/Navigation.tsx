@@ -18,9 +18,7 @@ function Navigation() {
       await settingsWin.show();
       await settingsWin.setFocus();
       if (target) {
-        globalThis.setTimeout(() => {
-          void emit("navigate", target);
-        }, 25);
+        await settingsWin.emit("navigate", target);
       }
     }
   };

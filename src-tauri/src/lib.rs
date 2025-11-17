@@ -478,9 +478,13 @@ fn show_settings(app: &AppHandle, target: &str) {
         }
         let _ = window.show();
         let _ = window.set_focus();
-        if let Err(e) = window.emit("navigate", target) {
-            eprintln!("Failed to emit navigate event: {e}");
-        }
+        // Emit navigate after a short delay to ensure the frontend listener is attached
+        let handle = window.clone();
+        let target_owned = target.to_string();
+        tauri::async_runtime::spawn(async move {
+            std::thread::sleep(Duration::from_millis(120));
+            let _ = handle.emit("navigate", target_owned);
+        });
     }
 }
 
