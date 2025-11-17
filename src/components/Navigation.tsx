@@ -7,11 +7,8 @@ import logsIcon from "@assets/icons/logs.svg";
 // import fundsOutIcon from "@assets/icons/funds-out.svg";
 import fundsEmptyIcon from "@assets/icons/funds-empty.svg";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { emit } from "@tauri-apps/api/event";
-// import { useAppStore } from "@src/stores/appStore.ts";
 
 function Navigation() {
-  // const [appState, appActions] = useAppStore();
   const openSettingsWindow = async (target?: "settings" | "usage" | "logs") => {
     const settingsWin = await WebviewWindow.getByLabel("settings");
     if (settingsWin) {
