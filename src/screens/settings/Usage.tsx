@@ -71,7 +71,7 @@ export default function Usage() {
             balance={balance()?.safe}
             ticker="wxHOPR"
             address={balance()?.info.safe_address}
-            status={safeStatus() ?? "Sufficient"}
+            status={safeStatus() ?? "Unknown"}
             isLoading={isBalanceLoading()}
           />
           <FundsInfo
@@ -80,7 +80,7 @@ export default function Usage() {
             balance={balance()?.node}
             ticker="xDAI"
             address={balance()?.info.node_address}
-            status={nodeStatus() ?? "Sufficient"}
+            status={nodeStatus() ?? "Unknown"}
             isLoading={isBalanceLoading()}
           />
         </div>
