@@ -114,9 +114,7 @@ export default function Usage() {
         <div class="flex flex-col gap-8">
           <div class="text-base font-semibold">Add funds</div>
           <div class="flex flex-col gap-4 my-2">
-            <div class="text-xl font-bold">
-              Transfer xDAI to your EOA address
-            </div>
+            <div class="text-xl font-bold">Transfer xDAI to EOA address</div>
             <FundingAddress
               address={balance()?.info.node_address}
               full
@@ -125,7 +123,7 @@ export default function Usage() {
           </div>
           <div class="flex flex-col gap-4 my-2">
             <div class="text-xl font-bold">
-              Transfer wxHOPR to your Safe address
+              Transfer wxHOPR to Safe wallet address
             </div>
             <FundingAddress
               address={balance()?.info.safe_address}
