@@ -61,6 +61,7 @@ export default function Airdrop(
   };
 
   const handleClaim = async () => {
+    console.log("handleClaim", secretCode());
     try {
       setLoading(true);
       setError(undefined);
@@ -115,6 +116,9 @@ export default function Airdrop(
       setHasSeenStateUpdate(false);
     } else {
       setHasSeenStateUpdate(true);
+      if (!error()) {
+        setError("Funding failed. Please try again.");
+      }
     }
     if (prevState !== tool) {
       setPreviousToolState(tool);
