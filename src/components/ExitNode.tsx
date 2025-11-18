@@ -98,6 +98,14 @@ export default function ExitNode() {
           }
           return "Default";
         }}
+        isOptionDisabled={(opt: ExitOption) => {
+          if ("address" in opt) {
+            const ds = stateByAddress().get(opt.address);
+            const health = ds?.health?.health;
+            return health !== "ReadyToConnect";
+          }
+          return false;
+        }}
         renderValue={(opt: ExitOption) => {
           if ("address" in opt) {
             const name = formatDestination(opt) || shortAddress(opt.address);
