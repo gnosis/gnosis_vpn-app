@@ -4,7 +4,7 @@ import { useAppStore } from "@src/stores/appStore";
 import { useSettingsStore } from "@src/stores/settingsStore";
 import { selectTargetAddress } from "@src/utils/destinations";
 import NodeStatus from "@src/components/NodeStatus";
-import { type Health, isReadyToConnect } from "@src/services/vpnService";
+import { isReadyToConnect } from "@src/services/vpnService";
 
 export default function ConnectButton() {
   const [appState, appActions] = useAppStore();
