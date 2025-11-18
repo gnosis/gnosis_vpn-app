@@ -139,11 +139,7 @@ export function Dropdown<T>(props: DropdownProps<T>) {
 
   const selectByIndex = (i: number) => {
     const opt = props.options[i];
-    const disabled = opt === undefined
-      ? true
-      : props.isOptionDisabled
-      ? !!props.isOptionDisabled(opt)
-      : false;
+    const disabled = isDisabledIndex(i);
     if (opt !== undefined && !disabled && !props.disabled) {
       props.onChange(opt);
       setOpen(false);

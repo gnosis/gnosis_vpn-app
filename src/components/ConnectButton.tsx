@@ -33,10 +33,9 @@ export default function ConnectButton() {
     )
   );
 
-  const targetHealth = createMemo<Health | undefined>(
-    () => targetDestinationState()?.health?.health as Health | undefined,
+  const targetHealth = createMemo(() =>
+    targetDestinationState()?.health?.health
   );
-
   const isTargetReady = createMemo(() => isReadyToConnect(targetHealth()));
 
   const handleClick = async () => {

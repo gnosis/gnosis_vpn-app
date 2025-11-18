@@ -87,7 +87,7 @@ export function selectTargetAddress(
     };
   }
   return {
-    address: available[1]?.address,
+    address: available[0]?.address,
     reason: "fallback: no preferred set",
   };
 }
