@@ -21,6 +21,7 @@ export type DropdownProps<T> = {
   itemToString?: (v: T) => string;
   renderValue?: (v: T) => JSX.Element;
   renderOption?: (v: T) => JSX.Element;
+  isOptionDisabled?: (v: T) => boolean;
   class?: string;
   size?: "sm" | "lg";
 };
@@ -67,6 +68,31 @@ export function Dropdown<T>(props: DropdownProps<T>) {
     )
   );
 
+  const isDisabledIndex = (i: number): boolean => {
+    const opt = props.options[i];
+    return opt === undefined
+      ? true
+      : props.isOptionDisabled
+      ? !!props.isOptionDisabled(opt)
+      : false;
+  };
+
+  const firstEnabledIndex = (): number => {
+    for (let i = 0; i < props.options.length; i++) {
+      if (!isDisabledIndex(i)) return i;
+    }
+    return -1;
+  };
+
+  const nextEnabledIndex = (from: number, dir: 1 | -1): number => {
+    let i = from;
+    while (true) {
+      i += dir;
+      if (i < 0 || i >= props.options.length) return from;
+      if (!isDisabledIndex(i)) return i;
+    }
+  };
+
   const onDocClick = (e: MouseEvent) => {
     const target = e.target as Node;
     if (!root.contains(target) && !(list && list.contains(target))) {
@@ -87,7 +113,11 @@ export function Dropdown<T>(props: DropdownProps<T>) {
       if (closeTimeout !== undefined) globalThis.clearTimeout(closeTimeout);
       setMounted(true);
       const idx = selectedIdx();
-      setActiveIdx(idx >= 0 ? idx : 0);
+      if (idx >= 0 && !isDisabledIndex(idx)) {
+        setActiveIdx(idx);
+      } else {
+        setActiveIdx(firstEnabledIndex());
+      }
       updatePosition();
       queueMicrotask(() => list?.focus());
     } else if (mounted()) {
@@ -109,7 +139,12 @@ export function Dropdown<T>(props: DropdownProps<T>) {
 
   const selectByIndex = (i: number) => {
     const opt = props.options[i];
-    if (opt !== undefined) {
+    const disabled = opt === undefined
+      ? true
+      : props.isOptionDisabled
+      ? !!props.isOptionDisabled(opt)
+      : false;
+    if (opt !== undefined && !disabled && !props.disabled) {
       props.onChange(opt);
       setOpen(false);
       btn?.focus();
@@ -119,12 +154,18 @@ export function Dropdown<T>(props: DropdownProps<T>) {
   const onListKey = (e: KeyboardEvent) => {
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setActiveIdx((i) =>
-        Math.min(props.options.length - 1, i < 0 ? 0 : i + 1)
-      );
+      setActiveIdx((i) => {
+        const start = i < 0 ? firstEnabledIndex() : i;
+        if (start < 0) return -1;
+        return nextEnabledIndex(start, 1);
+      });
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setActiveIdx((i) => Math.max(0, i < 0 ? 0 : i - 1));
+      setActiveIdx((i) => {
+        const start = i < 0 ? firstEnabledIndex() : i;
+        if (start < 0) return -1;
+        return nextEnabledIndex(start, -1);
+      });
     } else if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       selectByIndex(activeIdx());
@@ -151,9 +192,9 @@ export function Dropdown<T>(props: DropdownProps<T>) {
 
           <span class={`${props.size === "sm" ? "text-white" : "font-bold "}`}>
             {props.value
-              ? (props.renderValue
+              ? props.renderValue
                 ? props.renderValue(props.value)
-                : toString(props.value))
+                : toString(props.value)
               : (props.placeholder ?? "Select…")}
           </span>
         </div>
@@ -220,21 +261,29 @@ export function Dropdown<T>(props: DropdownProps<T>) {
                 const idx = i();
                 const isActive = () => activeIdx() === idx;
                 const isSelected = () => selectedIdx() === idx;
+                const isDisabled = () => (props.isOptionDisabled
+                  ? !!props.isOptionDisabled(opt)
+                  : false);
                 return (
                   <li
                     id={`opt-${idx}`}
                     role="option"
                     aria-selected={isSelected()}
+                    aria-disabled={isDisabled()}
                     class={`cursor-pointer rounded-xl px-3 py-2 text-sm
                              ${
-                      isActive() ? "bg-black text-white" : "hover:bg-gray-100"
+                      isActive() && !isDisabled()
+                        ? "bg-black text-white"
+                        : !isDisabled()
+                        ? "hover:bg-gray-100"
+                        : "opacity-50 cursor-not-allowed"
                     }
                              ${
                       isSelected() && !isActive() ? "font-semibold" : ""
                     }`}
-                    onMouseEnter={() => setActiveIdx(idx)}
+                    onMouseEnter={() => !isDisabled() && setActiveIdx(idx)}
                     onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => selectByIndex(idx)}
+                    onClick={() => !isDisabled() && selectByIndex(idx)}
                   >
                     {props.renderOption
                       ? props.renderOption(opt)

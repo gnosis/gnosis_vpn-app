@@ -117,6 +117,10 @@ export type Health =
   // final - destination path is invalid - should be impossible due to config deserialization
   | "InvalidPath";
 
+export function isReadyToConnect(health: Health | undefined): boolean {
+  return health === "ReadyToConnect";
+}
+
 /// Requirements to be able to connect to this destination
 /// This is statically derived at construction time from a destination's routing options.
 export type Need =

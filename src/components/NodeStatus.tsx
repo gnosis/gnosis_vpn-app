@@ -5,12 +5,11 @@ import {
 } from "@src/services/vpnService";
 import { getConnectionLabel } from "@src/utils/status";
 
-export default function NodeStatus(
-  props: {
-    connectionState?: DestinationState["connection_state"];
-    health?: Health;
-  },
-) {
+export default function NodeStatus(props: {
+  connectionState?: DestinationState["connection_state"];
+  health?: Health;
+  warning?: boolean;
+}) {
   const label = props.connectionState
     ? getConnectionLabel(props.connectionState)
     : "Unknown";
@@ -25,7 +24,11 @@ export default function NodeStatus(
   }
 
   return (
-    <span class="text-xs text-gray-500 font-light">
+    <span
+      class={`text-xs text-gray-500 font-light ${
+        props.warning ? "text-red-500" : ""
+      }`}
+    >
       {text && text.length > 0 ? text : "\u00A0"}
     </span>
   );
