@@ -138,15 +138,15 @@ export function formatHealth(health: Health): string {
     case "MissingPeeredChannel":
       return "Waiting on peer discovery";
     case "MissingFundedChannel":
-      return "Waiting on funding check";
+      return "Checking channel funds";
     case "NotPeered":
       return "Waiting on peer discovery";
     case "NotAllowed":
       return "Connection not allowed";
     case "InvalidAddress":
-      return "Invalid address";
+      return "Connection impossible";
     case "InvalidPath":
-      return "Invalid path";
+      return "Connection impossible";
     default:
       return String(health);
   }
