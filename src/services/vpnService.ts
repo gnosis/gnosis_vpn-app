@@ -159,7 +159,7 @@ export function formatFundingTool(ft: FundingTool): string {
     case "InProgress":
       return "In progress";
     case "CompletedSuccess":
-      return "Completed successful";
+      return "Completed successfully";
     default:
       return `Failed: ${ft.CompletedError}`;
   }
