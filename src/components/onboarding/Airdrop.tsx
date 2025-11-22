@@ -105,7 +105,7 @@ export default function Airdrop(
       !seenUpdate && loading();
     const isNewError = prevState === "InProgress" ||
       pendingState === undefined ||
-      (!(isFundingError(pendingState))) ||
+      !isFundingError(pendingState) ||
       seenUpdate ||
       !isRetryingFromError;
 
