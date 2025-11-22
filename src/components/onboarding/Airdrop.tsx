@@ -11,7 +11,7 @@ import {
   isPreparingSafe,
 } from "@src/utils/status";
 
-import { isFundingError, FundingTool } from "@src/services/vpnService";
+import { FundingTool, isFundingError } from "@src/services/vpnService";
 
 export default function Airdrop(
   { setStep }: { setStep: (step: string) => void },
