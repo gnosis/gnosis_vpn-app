@@ -11,6 +11,8 @@ import {
   isPreparingSafe,
 } from "@src/utils/status";
 
+import { isFundingError, FundingTool } from "@src/services/vpnService";
+
 export default function Airdrop(
   { setStep }: { setStep: (step: string) => void },
 ) {
@@ -19,17 +21,17 @@ export default function Airdrop(
   const [claimed, setClaimed] = createSignal(false);
   const [error, setError] = createSignal<string | undefined>();
   const [pendingClaimState, setPendingClaimState] = createSignal<
-    string | undefined
+    FundingTool | undefined
   >();
   const [previousToolState, setPreviousToolState] = createSignal<
-    string | undefined
+    FundingTool | undefined
   >();
   const [hasSeenStateUpdate, setHasSeenStateUpdate] = createSignal(false);
 
   const [, logActions] = useLogsStore();
   const [appState, appActions] = useAppStore();
 
-  const fundingTool = createMemo(() => {
+  const fundingTool: () => FundingTool | undefined = createMemo(() => {
     const rm = appState.runMode;
     return rm && typeof rm === "object" && "PreparingSafe" in rm
       ? rm.PreparingSafe.funding_tool
@@ -51,7 +53,7 @@ export default function Airdrop(
   const handleInputSecretCode = (e: Event) => {
     const newValue = (e.currentTarget as HTMLInputElement).value;
     setSecretCode(newValue);
-    if (claimed() && fundingTool() === "CompletedError") {
+    if (claimed() && isFundingError(fundingTool())) {
       setClaimed(false);
       setError(undefined);
       setPendingClaimState(undefined);
@@ -61,7 +63,6 @@ export default function Airdrop(
   };
 
   const handleClaim = async () => {
-    console.log("handleClaim", secretCode());
     try {
       setLoading(true);
       setError(undefined);
@@ -82,9 +83,9 @@ export default function Airdrop(
   };
 
   function markSeenUpdates(
-    tool: string | undefined,
-    pendingState: string | undefined,
-    prevState: string | undefined,
+    tool: FundingTool | undefined,
+    pendingState: FundingTool | undefined,
+    prevState: FundingTool | undefined,
   ) {
     if (pendingState !== undefined && tool !== pendingState) {
       setHasSeenStateUpdate(true);
@@ -95,22 +96,22 @@ export default function Airdrop(
   }
 
   function handleCompletedError(
-    tool: string | undefined,
-    pendingState: string | undefined,
-    prevState: string | undefined,
+    tool: { CompletedError: string },
+    pendingState: FundingTool | undefined,
+    prevState: FundingTool | undefined,
     seenUpdate: boolean,
   ) {
-    const isRetryingFromError = pendingState === "CompletedError" &&
+    const isRetryingFromError = isFundingError(pendingState) &&
       !seenUpdate && loading();
     const isNewError = prevState === "InProgress" ||
       pendingState === undefined ||
-      pendingState !== "CompletedError" ||
+      (!(isFundingError(pendingState))) ||
       seenUpdate ||
       !isRetryingFromError;
 
     if (isNewError) {
       setLoading(false);
-      setError("Funding failed. Please try again.");
+      setError(`Funding failed: ${tool.CompletedError}`);
       setPendingClaimState(undefined);
       setPreviousToolState(tool);
       setHasSeenStateUpdate(false);
@@ -126,8 +127,8 @@ export default function Airdrop(
   }
 
   function shouldWaitPendingStable(
-    tool: string | undefined,
-    pendingState: string | undefined,
+    tool: FundingTool | undefined,
+    pendingState: FundingTool | undefined,
     seenUpdate: boolean,
   ): boolean {
     return pendingState !== undefined && tool === pendingState && loading() &&
@@ -135,8 +136,8 @@ export default function Airdrop(
   }
 
   function handleToolTransition(
-    tool: string | undefined,
-    prevState: string | undefined,
+    tool: FundingTool | undefined,
+    prevState: FundingTool | undefined,
   ) {
     if (tool === "InProgress") {
       setLoading(true);
@@ -176,7 +177,7 @@ export default function Airdrop(
 
     markSeenUpdates(tool, pendingState, prevState);
 
-    if (tool === "CompletedError") {
+    if (isFundingError(tool)) {
       handleCompletedError(tool, pendingState, prevState, seenUpdate);
       return;
     }
@@ -256,7 +257,7 @@ export default function Airdrop(
             {loading() ? "Claiming..." : "Claim"}
           </Button>
         </Show>
-        <Show when={fundingTool() === "CompletedError" && claimed()}>
+        <Show when={isFundingError(fundingTool()) && claimed()}>
           <Button
             size="lg"
             onClick={handleClaim}

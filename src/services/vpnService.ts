@@ -66,7 +66,7 @@ export type FundingTool =
   | "NotStarted"
   | "InProgress"
   | "CompletedSuccess"
-  | "CompletedError";
+  | { CompletedError: string };
 
 export type FundingIssue =
   | "Unfunded" // cannot work at all - initial state
@@ -159,11 +159,9 @@ export function formatFundingTool(ft: FundingTool): string {
     case "InProgress":
       return "In progress";
     case "CompletedSuccess":
-      return "Completed successfully";
-    case "CompletedError":
-      return "Completed with error";
+      return "Completed successful";
     default:
-      return String(ft);
+      return `Failed: ${ft.CompletedError}`;
   }
 }
 
@@ -178,6 +176,12 @@ export function isRunningRunMode(
   rm: RunMode | null | undefined,
 ): rm is { Running: Running } {
   return !!rm && typeof rm === "object" && "Running" in rm;
+}
+
+export function isFundingError(
+  ft: FundingTool | undefined,
+): ft is { CompletedError: string } {
+  return !!ft && typeof ft === "object" && "CompletedError" in ft;
 }
 
 export class VPNService {
@@ -261,7 +265,7 @@ export class VPNService {
 
     // Sort by address for consistent selection
     const sorted = [...destinations].sort((a, b) =>
-      a.destination.address.localeCompare(b.destination.address)
+      a.destination.address.localeCompare(b.destination.address),
     );
     return sorted[0].destination.address;
   }
