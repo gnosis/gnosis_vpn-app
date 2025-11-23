@@ -66,7 +66,7 @@ export type FundingTool =
   | "NotStarted"
   | "InProgress"
   | "CompletedSuccess"
-  | "CompletedError";
+  | { CompletedError: string };
 
 export type FundingIssue =
   | "Unfunded" // cannot work at all - initial state
@@ -160,10 +160,8 @@ export function formatFundingTool(ft: FundingTool): string {
       return "In progress";
     case "CompletedSuccess":
       return "Completed successfully";
-    case "CompletedError":
-      return "Completed with error";
     default:
-      return String(ft);
+      return `Failed: ${ft.CompletedError}`;
   }
 }
 
@@ -178,6 +176,23 @@ export function isRunningRunMode(
   rm: RunMode | null | undefined,
 ): rm is { Running: Running } {
   return !!rm && typeof rm === "object" && "Running" in rm;
+}
+
+export function isFundingError(
+  ft: FundingTool | undefined,
+): ft is { CompletedError: string } {
+  return !!ft && typeof ft === "object" && "CompletedError" in ft;
+}
+
+export function equalFundingTool(
+  a: FundingTool | undefined,
+  b: FundingTool | undefined,
+): boolean {
+  if (typeof a !== typeof b) return false;
+  if (isFundingError(a) && isFundingError(b)) {
+    return a.CompletedError === b.CompletedError;
+  }
+  return a === b;
 }
 
 export class VPNService {
