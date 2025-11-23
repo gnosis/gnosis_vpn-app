@@ -11,7 +11,7 @@ import {
   isPreparingSafe,
 } from "@src/utils/status";
 
-import { FundingTool, isFundingError } from "@src/services/vpnService";
+import { sameFundingToolState, FundingTool, isFundingError } from "@src/services/vpnService";
 
 export default function Airdrop(
   { setStep }: { setStep: (step: string) => void },
@@ -87,10 +87,10 @@ export default function Airdrop(
     pendingState: FundingTool | undefined,
     prevState: FundingTool | undefined,
   ) {
-    if (pendingState !== undefined && tool !== pendingState) {
+    if (pendingState !== undefined && !sameFundingToolState(tool,pendingState)) {
       setHasSeenStateUpdate(true);
     }
-    if (prevState !== undefined && tool !== prevState) {
+    if (prevState !== undefined && !sameFundingToolState(tool, prevState)) {
       setHasSeenStateUpdate(true);
     }
   }
@@ -118,7 +118,7 @@ export default function Airdrop(
     } else {
       setHasSeenStateUpdate(true);
       if (!error()) {
-        setError("Funding failed. Please try again.");
+          setError(`Funding failed: ${tool.CompletedError}`);
       }
     }
     if (prevState !== tool) {
@@ -131,7 +131,7 @@ export default function Airdrop(
     pendingState: FundingTool | undefined,
     seenUpdate: boolean,
   ): boolean {
-    return pendingState !== undefined && tool === pendingState && loading() &&
+    return pendingState !== undefined && sameFundingToolState(tool, pendingState) && loading() &&
       !seenUpdate;
   }
 

@@ -184,6 +184,19 @@ export function isFundingError(
   return !!ft && typeof ft === "object" && "CompletedError" in ft;
 }
 
+// Compare two FundingTool states for equality, ignoring specific error messages
+export function sameFundingToolState(
+  a: FundingTool | undefined,
+  b: FundingTool | undefined,
+): boolean {
+  if (typeof a !== typeof b) return false;
+  if (isFundingError(a) && isFundingError(b)) {
+    // ignore specific error message
+    return true;
+  }
+  return a === b;
+}
+
 export class VPNService {
   static async getStatus(): Promise<StatusResponse> {
     try {
@@ -265,7 +278,7 @@ export class VPNService {
 
     // Sort by address for consistent selection
     const sorted = [...destinations].sort((a, b) =>
-      a.destination.address.localeCompare(b.destination.address)
+      a.destination.address.localeCompare(b.destination.address),
     );
     return sorted[0].destination.address;
   }
