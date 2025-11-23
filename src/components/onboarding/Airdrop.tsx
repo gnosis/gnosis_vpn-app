@@ -12,9 +12,9 @@ import {
 } from "@src/utils/status";
 
 import {
+  equalFundingTool,
   FundingTool,
   isFundingError,
-  sameFundingToolState,
 } from "@src/services/vpnService";
 
 export default function Airdrop(
@@ -91,12 +91,10 @@ export default function Airdrop(
     pendingState: FundingTool | undefined,
     prevState: FundingTool | undefined,
   ) {
-    if (
-      pendingState !== undefined && !sameFundingToolState(tool, pendingState)
-    ) {
+    if (pendingState !== undefined && !equalFundingTool(tool, pendingState)) {
       setHasSeenStateUpdate(true);
     }
-    if (prevState !== undefined && !sameFundingToolState(tool, prevState)) {
+    if (prevState !== undefined && !equalFundingTool(tool, prevState)) {
       setHasSeenStateUpdate(true);
     }
   }
@@ -137,8 +135,8 @@ export default function Airdrop(
     pendingState: FundingTool | undefined,
     seenUpdate: boolean,
   ): boolean {
-    return pendingState !== undefined &&
-      sameFundingToolState(tool, pendingState) && loading() &&
+    return pendingState !== undefined && equalFundingTool(tool, pendingState) &&
+      loading() &&
       !seenUpdate;
   }
 

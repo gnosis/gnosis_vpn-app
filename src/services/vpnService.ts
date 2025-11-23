@@ -184,15 +184,13 @@ export function isFundingError(
   return !!ft && typeof ft === "object" && "CompletedError" in ft;
 }
 
-// Compare two FundingTool states for equality, ignoring specific error messages
-export function sameFundingToolState(
+export function equalFundingTool(
   a: FundingTool | undefined,
   b: FundingTool | undefined,
 ): boolean {
   if (typeof a !== typeof b) return false;
   if (isFundingError(a) && isFundingError(b)) {
-    // ignore specific error message
-    return true;
+    return a.CompletedError === b.CompletedError;
   }
   return a === b;
 }
