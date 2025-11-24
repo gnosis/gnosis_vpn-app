@@ -305,7 +305,7 @@ async fn status(status_item: State<'_, TrayStatusItem>) -> Result<StatusResponse
             }
             // Update tray menu label
             if let Ok(guard) = status_item.0.lock() {
-                let _ = guard.set_text(&format!("Status: {}", derived));
+                let _ = guard.set_text(format!("Status: {}", derived));
             }
             // Convert for frontend
             Ok(status_resp.into())
@@ -528,13 +528,10 @@ pub fn run() {
                 .map_err(|e| format!("Failed to load tray icon: {e}"))?;
 
             // Create tray icon
-            let mut builder = TrayIconBuilder::with_id("menu_extra")
+            let builder = TrayIconBuilder::with_id("menu_extra")
                 .menu(&menu)
-                .icon(icon);
-            #[cfg(target_os = "macos")]
-            {
-                builder = builder.icon_as_template(true);
-            }
+                .icon(icon)
+                .icon_as_template(true);
             let _tray = builder
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "quit" => {

@@ -433,6 +433,7 @@ export function createAppStore(): AppStoreTuple {
     claimAirdrop: async (secret: string) => {
       try {
         await VPNService.fundingTool(secret);
+        await getStatus();
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         log(message);
