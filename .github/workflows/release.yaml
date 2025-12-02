@@ -27,6 +27,7 @@ jobs:
           - architecture: universal-darwin
           - architecture: aarch64-darwin
           - architecture: x86_64-darwin
+          - architecture: x86_64-linux
     name: Binary ${{ matrix.binary.architecture }}
     uses: ./.github/workflows/build-binaries.yaml
     with:
