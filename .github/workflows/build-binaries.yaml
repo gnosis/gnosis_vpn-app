@@ -35,6 +35,7 @@ jobs:
       - name: Set environment variables
         id: vars
         run: |
+          set -x
           declare branch architecture publish_type
           if [[ "${{ inputs.branch }}" != "" ]]; then
             echo "The workflow is triggered by other pipeline"
@@ -46,7 +47,7 @@ jobs:
             branch=${{ github.ref_name }}
             architecture=${{ github.event.inputs.architecture }}
           fi
-          if [[ "$architecture" ~= "-darwin" ]]; then
+          if [[ "$architecture" =~ "-darwin" ]]; then
             architecture_apple_darwin="${architecture/-darwin/}-apple-darwin"
             rust_toolchain_target="${architecture_apple_darwin/universal-/x86_64-}"
             tauri_args="--target ${architecture_apple_darwin}"
