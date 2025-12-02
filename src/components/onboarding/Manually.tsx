@@ -10,12 +10,10 @@ import {
   isWxHOPRTransferred,
   isXDAITransferred,
 } from "@src/utils/status.ts";
-import backIcon from "@assets/icons/arrow-left.svg";
 import FundingAddress from "@src/components/FundingAddress";
+import Spinner from "@src/components/common/Spinner";
 
-export default function Manually(
-  { setStep }: { setStep: (step: string) => void },
-) {
+export default function Manually() {
   const [appState, appActions] = useAppStore();
   const [, logActions] = useLogsStore();
   const wxhoprTransferred = () => isWxHOPRTransferred(appState);
@@ -51,14 +49,7 @@ export default function Manually(
   return (
     <div class="h-full w-full flex flex-col items-stretch p-6 gap-4">
       <h1 class="w-full text-2xl font-bold text-center my-6 flex flex-row">
-        <button
-          type="button"
-          class="text-sm text-gray-500 hover:cursor-pointer"
-          onClick={() => setStep("airdrop")}
-        >
-          <img src={backIcon} alt="Back" class="h-4 w-4 mr-4" />
-        </button>
-        Before we connect
+        Before we connect...
       </h1>
       <div class="flex flex-col gap-4 grow">
         <label class="flex flex-row w-full hover:cursor-pointer">
@@ -86,7 +77,7 @@ export default function Manually(
           <div class="flex flex-col">
             <div class="font-bold">2. Transfer xDAI (Gnosis Chain)</div>
             <div class="text-sm text-gray-500">
-              1xDAI is enough for one year switching exit nodes.
+              1 xDAI is enough for one year switching exit nodes.
             </div>
           </div>
         </label>
@@ -94,8 +85,33 @@ export default function Manually(
         <FundingAddress address={nodeAddress()} />
         <div class="text-sm text-gray-500">
           After the tx has been made, it can take up to two minutes, until your
-          App can connect.
+          App can connect. In the case it will auto-forward to the next step.
         </div>
+
+        <Show when={!xdaiTransferred() && !wxhoprTransferred()}>
+          <div class="flex flex-row w-full h-full items-center fade-in-up">
+            <div class="flex flex-row">
+              <Spinner />
+              <div class="text-sm">Checking...</div>
+            </div>
+          </div>
+        </Show>
+        <Show when={xdaiTransferred() && !wxhoprTransferred()}>
+          <div class="flex flex-row w-full h-full items-center fade-in-up">
+            <div class="flex flex-row">
+              <Spinner />
+              <div class="text-sm">xDAI received, checking for wxHOPR...</div>
+            </div>
+          </div>
+        </Show>
+        <Show when={!xdaiTransferred() && wxhoprTransferred()}>
+          <div class="flex flex-row w-full h-full items-center fade-in-up">
+            <div class="flex flex-row">
+              <Spinner />
+              <div class="text-sm">wxHOPR received, checking for xDAI...</div>
+            </div>
+          </div>
+        </Show>
 
         <Show when={ready()}>
           <div class="flex flex-row w-full h-full items-center fade-in-up">

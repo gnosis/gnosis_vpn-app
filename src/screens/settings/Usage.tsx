@@ -3,7 +3,6 @@ import { type BalanceResponse, VPNService } from "@src/services/vpnService.ts";
 import { onMount } from "solid-js";
 import FundsInfo from "@src/components/FundsInfo.tsx";
 import { Show } from "solid-js";
-import AirdropClaimBanner from "@src/components/AirdropClaimBanner";
 import Help from "@src/components/Help.tsx";
 import { applyFundingIssues } from "@src/utils/funding.ts";
 import WarningIcon from "@src/components/common/WarningIcon.tsx";
@@ -107,7 +106,6 @@ export default function Usage() {
 
         <div class="grow"></div>
         <Help />
-        <AirdropClaimBanner />
       </div>
 
       <Modal open={isAddFundsOpen()} onClose={() => setIsAddFundsOpen(false)}>
