@@ -88,27 +88,17 @@ export default function Manually() {
           App can connect. In the case it will auto-forward to the next step.
         </div>
 
-        <Show when={!xdaiTransferred() && !wxhoprTransferred()}>
+        <Show when={!wxhoprTransferred() || !xdaiTransferred()}>
           <div class="flex flex-row w-full h-full items-center fade-in-up">
             <div class="flex flex-row">
               <Spinner />
-              <div class="text-sm">Checking...</div>
-            </div>
-          </div>
-        </Show>
-        <Show when={xdaiTransferred() && !wxhoprTransferred()}>
-          <div class="flex flex-row w-full h-full items-center fade-in-up">
-            <div class="flex flex-row">
-              <Spinner />
-              <div class="text-sm">xDAI received, checking for wxHOPR...</div>
-            </div>
-          </div>
-        </Show>
-        <Show when={!xdaiTransferred() && wxhoprTransferred()}>
-          <div class="flex flex-row w-full h-full items-center fade-in-up">
-            <div class="flex flex-row">
-              <Spinner />
-              <div class="text-sm">wxHOPR received, checking for xDAI...</div>
+              <div class="text-sm">
+                {!xdaiTransferred() && !wxhoprTransferred()
+                  ? "Checking..."
+                  : xdaiTransferred()
+                  ? "xDAI received, checking for wxHOPR..."
+                  : "wxHOPR received, checking for xDAI..."}
+              </div>
             </div>
           </div>
         </Show>
