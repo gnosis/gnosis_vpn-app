@@ -19,23 +19,29 @@ on:
       architecture:
         type: choice
         options:
-          - x86_64-linux
           - aarch64-darwin
           - x86_64-darwin
           - universal-darwin
+          - x86_64-linux
         required: true
         description: "Architecture to build for"
+      runner:
+        type: choice
+        options:
+          - macos-15
+          - ubuntu-22.04
+        required: true
+        description: "Runner to use"
 jobs:
   binary:
     if: >-
       github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action != 'closed' && contains(github.event.pull_request.labels.*.name, format('binary:{0}', inputs.architecture))) || (github.event_name == 'pull_request' && github.event.pull_request.merged)
-    runs-on: macos-15
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 90
     steps:
       - name: Set environment variables
         id: vars
         run: |
-          set -x
           declare branch architecture publish_type
           if [[ "${{ inputs.branch }}" != "" ]]; then
             echo "The workflow is triggered by other pipeline"
@@ -129,7 +135,6 @@ jobs:
           APPLE_CERTIFICATE_DEVELOPER_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_DEVELOPER_PASSWORD }}
         run: |
           set -euo pipefail
-          set -x
           echo $APPLE_CERTIFICATE_DEVELOPER_P12_BASE64 | base64 --decode > gnosisvpn-developer.p12
           keychain_pass=$(openssl rand -base64 24)
           security create-keychain -p "$keychain_pass" build.keychain
@@ -143,7 +148,7 @@ jobs:
           echo "Apple signing identity: $signing_identity"
           echo "signing_identity=${signing_identity}" | tee -a $GITHUB_OUTPUT
 
-      - name: Build tauri mac release
+      - name: Build tauri mac artifact
         if: ${{ endsWith(steps.vars.outputs.architecture, '-darwin') }}
         id: build-tauri-mac
         uses: tauri-apps/tauri-action@action-v0.5.23
@@ -156,7 +161,7 @@ jobs:
           tauriScript: "deno task tauri"
           args: ${{ steps.vars.outputs.tauri_args }}
 
-      - name: Build tauri linux release
+      - name: Build tauri linux artifact
         if: ${{ endsWith(steps.vars.outputs.architecture, '-linux') }}
         id: build-tauri-linux
         uses: tauri-apps/tauri-action@action-v0.5.23
