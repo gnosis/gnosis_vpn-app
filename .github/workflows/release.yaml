@@ -37,6 +37,7 @@ jobs:
     with:
       branch: main
       architecture: ${{ matrix.binary.architecture }}
+      runner: ${{ matrix.binary.runner }}
       version_type: "release"
     secrets: inherit
   release:

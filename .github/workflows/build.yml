@@ -47,5 +47,6 @@ jobs:
     with:
       branch: ${{ github.event.pull_request.head.ref }}
       architecture: ${{ matrix.binary.architecture }}
+      runner: ${{ matrix.binary.runner }}
       version_type: "commit"
     secrets: inherit

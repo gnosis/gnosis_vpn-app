@@ -27,5 +27,6 @@ jobs:
     with:
       branch: ${{ github.event.pull_request.base.ref }}
       architecture: ${{ matrix.binary.architecture }}
+      runner: ${{ matrix.binary.runner }}
       version_type: "pr"
     secrets: inherit
