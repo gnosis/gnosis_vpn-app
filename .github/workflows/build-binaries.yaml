@@ -121,7 +121,7 @@ jobs:
           rm src-tauri/Cargo.toml.bak
 
       - name: Import Apple Developer Certificate
-        if: ${{ steps.vars.outputs.architecture }} =~ "-darwin"
+        if: ${{ endsWith(steps.vars.outputs.architecture, '-darwin') }}
         id: certificate
         shell: bash
         env:
@@ -144,7 +144,7 @@ jobs:
           echo "signing_identity=${signing_identity}" | tee -a $GITHUB_OUTPUT
 
       - name: Build tauri mac release
-        if: ${{ steps.vars.outputs.architecture }} =~ "-darwin"
+        if: ${{ endsWith(steps.vars.outputs.architecture, '-darwin') }}
         id: build-tauri-mac
         uses: tauri-apps/tauri-action@action-v0.5.23
         env:
@@ -157,7 +157,7 @@ jobs:
           args: ${{ steps.vars.outputs.tauri_args }}
 
       - name: Build tauri linux release
-        if: ${{ steps.vars.outputs.architecture }} == 'x86_64-linux'
+        if: ${{ endsWith(steps.vars.outputs.architecture, '-linux') }}
         id: build-tauri-linux
         uses: tauri-apps/tauri-action@action-v0.5.23
         env:
