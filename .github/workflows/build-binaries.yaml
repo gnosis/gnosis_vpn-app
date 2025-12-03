@@ -181,7 +181,6 @@ jobs:
       - name: Parsing artifact path
         id: path
         run: |
-          set -x
           if [[ "${{ steps.vars.outputs.architecture }}" =~ "-darwin" ]]; then
             echo "Filtering DMG artifact for architecture ${{ steps.vars.outputs.architecture }}"
             artifact_json='${{ steps.build-tauri-mac.outputs.artifactPaths }}'
