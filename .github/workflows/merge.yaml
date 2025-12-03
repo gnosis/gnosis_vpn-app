@@ -15,12 +15,18 @@ jobs:
       matrix:
         binary:
           - architecture: universal-darwin
+            runner: macos-15
           - architecture: aarch64-darwin
+            runner: macos-15
           - architecture: x86_64-darwin
+            runner: macos-15
+          - architecture: x86_64-linux
+            runner: ubuntu-22.04
     name: Binary ${{ matrix.binary.architecture }}
     uses: ./.github/workflows/build-binaries.yaml
     with:
       branch: ${{ github.event.pull_request.base.ref }}
       architecture: ${{ matrix.binary.architecture }}
+      runner: ${{ matrix.binary.runner }}
       version_type: "pr"
     secrets: inherit
