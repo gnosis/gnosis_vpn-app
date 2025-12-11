@@ -1,6 +1,5 @@
 import { createSignal, onCleanup, onMount } from "solid-js";
 import Start from "@src/components/onboarding/Start";
-import Airdrop from "@src/components/onboarding/Airdrop";
 import { Dynamic } from "solid-js/web";
 import Manually from "@src/components/onboarding/Manually";
 import { listen } from "@tauri-apps/api/event";
@@ -8,19 +7,16 @@ import StatusIndicator from "@src/components/StatusIndicator";
 
 const steps = {
   start: Start,
-  airdrop: Airdrop,
   manually: Manually,
 };
 
 export default function Onboarding() {
-  const [step, setStep] = createSignal<"start" | "airdrop" | "manually">(
-    "start",
-  );
+  const [step, setStep] = createSignal<"start" | "manually">("start");
   let unlistenSetStep: (() => void) | undefined;
 
   onMount(() => {
     void (async () => {
-      unlistenSetStep = await listen<"start" | "airdrop" | "manually">(
+      unlistenSetStep = await listen<"start" | "manually">(
         "onboarding:set-step",
         ({ payload }) => {
           setStep(payload);
