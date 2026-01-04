@@ -33,7 +33,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "category": "Network",
+    "category": "Utility",
     "resources": ["icons/tray-icon.png"],
     "icon": [
       "icons/32x32.png",
