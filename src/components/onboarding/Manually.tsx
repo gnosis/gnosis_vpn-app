@@ -2,7 +2,7 @@ import { createMemo, createSignal, Show } from "solid-js";
 import { useAppStore } from "@src/stores/appStore";
 import Button from "@src/components/common/Button";
 import Checkbox from "@src/components/common/Checkbox";
-import Help from "@src/components/Help";
+// import Help from "@src/components/Help";
 import { useLogsStore } from "@src/stores/logsStore";
 import checkIcon from "@assets/icons/checked-box-filled.svg";
 import {
@@ -116,7 +116,7 @@ export default function Manually() {
         </Show>
       </div>
 
-      <Help />
+      {/* <Help /> */}
       <Button
         onClick={handleClick}
         disabled={!wxhoprTransferred() || !xdaiTransferred()}
