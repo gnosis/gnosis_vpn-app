@@ -428,29 +428,28 @@ async fn compress_logs(_app: AppHandle, dest_path: Option<String>) -> Result<Str
     });
     let out_path = requested_dest.ok_or_else(|| "Destination path not provided".to_string())?;
 
-    // Build shell command
-    // - If multiple files: tar them and pipe to zstd
+    // Compress logs
+    // - If multiple files: concatenate with cat and pipe to zstd
     // - If single file: compress directly
     let status = if existing.len() > 1 {
-        // Concatenate text logs and compress: cat FILES | zstd -T0 -19 -f -o OUT
-        fn quote_single(s: &str) -> String {
-            let escaped = s.replace('\'', "'\\''");
-            format!("'{}'", escaped)
+        // Concatenate text logs and compress by piping cat stdout to zstd stdin
+        use std::process::Stdio;
+
+        let mut cat_cmd = Command::new("cat");
+        for file in &existing {
+            cat_cmd.arg(file);
         }
-        let mut files_joined = String::new();
-        for (idx, p) in existing.iter().enumerate() {
-            if idx > 0 {
-                files_joined.push(' ');
-            }
-            files_joined.push_str(&quote_single(p));
-        }
-        let out_quoted = quote_single(&out_path);
-        let cmd = format!("cat {} | zstd -T0 -19 -f -o {}", files_joined, out_quoted);
-        Command::new("sh")
-            .arg("-lc")
-            .arg(cmd)
+
+        let cat_child = cat_cmd
+            .stdout(Stdio::piped())
+            .spawn()
+            .map_err(|e| format!("Failed to spawn cat: {}", e))?;
+
+        Command::new("zstd")
+            .args(["-T0", "-19", "-f", "-o", &out_path])
+            .stdin(cat_child.stdout.ok_or("Failed to get cat stdout")?)
             .status()
-            .map_err(|e| format!("Failed to spawn compressor: {}", e))?
+            .map_err(|e| format!("Failed to run zstd: {}", e))?
     } else {
         Command::new("zstd")
             .arg("-T0")
