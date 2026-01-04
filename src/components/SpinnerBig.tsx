@@ -1,13 +1,13 @@
 import type { JSX } from "solid-js";
 
 type Props = {
-  size?: number; // px
-  color?: string; // any CSS color
-  speed?: number; // seconds for a full cycle
+  size?: number;
+  color?: string;
+  speed?: number;
   class?: string;
 };
 
-export default function Spinner(props: Props): JSX.Element {
+export default function SpinnerBig(props: Props): JSX.Element {
   const size = props.size ?? 112;
   const color = props.color ?? "#111";
   const speed = props.speed ?? 1.7;

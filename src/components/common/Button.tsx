@@ -24,9 +24,15 @@ const variantClasses: Record<NonNullable<ButtonProps["variant"]>, string> = {
 };
 
 const sizeClasses: Record<NonNullable<ButtonProps["size"]>, string> = {
-  sm: "h-8 px-3 text-sm",
+  sm: "h-8 px-3 text-sm rounded-md",
   md: "h-10 px-4 text-sm rounded-lg",
   lg: "h-14 px-6 text-base rounded-2xl",
+};
+
+const leadingOffsetClasses: Record<NonNullable<ButtonProps["size"]>, string> = {
+  sm: "-ml-4 h-5 w-5 flex items-center justify-center",
+  md: "-ml-6 h-5 w-5 flex items-center justify-center",
+  lg: "-ml-8 h-6 w-6 flex items-center justify-center",
 };
 
 export default function Button(allProps: ButtonProps): JSX.Element {
@@ -83,12 +89,12 @@ export default function Button(allProps: ButtonProps): JSX.Element {
       onPointerDown={() => playPressAnimation()}
       onClick={() => local.onClick?.()}
     >
-      <div class={`${local.size === "lg" ? "-ml-8 w-6 h-6" : "-ml-6 w-4 h-4"}`}>
+      <div class={leadingOffsetClasses[local.size!]}>
         <Show when={local.loading}>
           <Spinner />
         </Show>
       </div>
-      {local.children}
+      <div>{local.children}</div>
     </button>
   );
 }

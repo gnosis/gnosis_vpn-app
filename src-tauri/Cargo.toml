@@ -26,3 +26,4 @@ tauri = { version = "2.9.0", features = ["tray-icon", "image-png"] }
 tauri-plugin-opener = "2.5.0"
 tauri-plugin-positioner = { version = "2.0.0", features = ["tray-icon"] }
 tauri-plugin-store = "2.4.0"
+tauri-plugin-dialog = "2.4.2"

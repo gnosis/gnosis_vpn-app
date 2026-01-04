@@ -1,6 +1,6 @@
 import { Show } from "solid-js";
 import { useAppStore } from "@src/stores/appStore";
-import Spinner from "@src/components/Spinner";
+import SpinnerBig from "@src/components/SpinnerBig";
 import connectedImg from "@assets/img/connected.svg";
 import disconnectedImg from "@assets/img/disconnected.svg";
 
@@ -15,7 +15,7 @@ export function StatusHero() {
     <div class="w-full h-1/3 flex flex-col items-center justify-center gap-3">
       <div class="h-24 flex items-center justify-center">
         <Show when={isBusy()}>
-          <Spinner />
+          <SpinnerBig />
         </Show>
         <Show when={appState.vpnStatus === "Connected"}>
           <img src={connectedImg} alt="Connected" class="h-24" />

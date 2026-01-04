@@ -12,6 +12,8 @@ use tauri_plugin_positioner::{Position, WindowExt};
 use tauri_plugin_store::StoreExt;
 
 use std::collections::HashMap;
+use std::path::Path;
+use std::process::Command;
 use std::time::{Duration, SystemTime};
 use std::{path::PathBuf, sync::Mutex};
 
@@ -393,6 +395,83 @@ async fn funding_tool(secret: String) -> Result<(), String> {
     }
 }
 
+#[tauri::command]
+async fn compress_logs(_app: AppHandle, dest_path: Option<String>) -> Result<String, String> {
+    // Resolve candidate log files by platform
+    #[cfg(target_os = "macos")]
+    let candidates: Vec<&str> = vec![
+        "/var/log/gnosis_vpn/gnosis_vpn.log",
+        "/var/log/gnosis_vpn/gnosis_vpn.error.log",
+    ];
+    #[cfg(target_os = "linux")]
+    let candidates: Vec<&str> = vec!["/var/log/gnosis_vpn/gnosis_vpn.log"];
+    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+    let candidates: Vec<&str> = vec![];
+
+    let existing: Vec<&str> = candidates
+        .into_iter()
+        .filter(|p| Path::new(p).exists())
+        .collect();
+
+    if existing.is_empty() {
+        return Err("No gnosis_vpn log files found in /var/log/gnosis_vpn/".to_string());
+    }
+
+    // Determine output path (must be provided by caller)
+    let requested_dest = dest_path.and_then(|p| {
+        let trimmed = p.trim().to_string();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed)
+        }
+    });
+    let out_path = requested_dest.ok_or_else(|| "Destination path not provided".to_string())?;
+
+    // Build shell command
+    // - If multiple files: tar them and pipe to zstd
+    // - If single file: compress directly
+    let status = if existing.len() > 1 {
+        // Concatenate text logs and compress: cat FILES | zstd -T0 -19 -f -o OUT
+        fn quote_single(s: &str) -> String {
+            let escaped = s.replace('\'', "'\\''");
+            format!("'{}'", escaped)
+        }
+        let mut files_joined = String::new();
+        for (idx, p) in existing.iter().enumerate() {
+            if idx > 0 {
+                files_joined.push(' ');
+            }
+            files_joined.push_str(&quote_single(p));
+        }
+        let out_quoted = quote_single(&out_path);
+        let cmd = format!("cat {} | zstd -T0 -19 -f -o {}", files_joined, out_quoted);
+        Command::new("sh")
+            .arg("-lc")
+            .arg(cmd)
+            .status()
+            .map_err(|e| format!("Failed to spawn compressor: {}", e))?
+    } else {
+        Command::new("zstd")
+            .arg("-T0")
+            .arg("-19")
+            .arg("-f")
+            .arg("-o")
+            .arg(&out_path)
+            .arg(existing[0])
+            .status()
+            .map_err(|e| format!("Failed to spawn zstd: {}", e))?
+    };
+
+    if !status.success() {
+        return Err(
+            "Compression failed. Ensure zstd is installed and files are readable.".to_string(),
+        );
+    }
+
+    Ok(out_path)
+}
+
 fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error> {
     let status_item =
         MenuItem::with_id(app, "status", "Status: Disconnected", false, None::<&str>)?;
@@ -493,6 +572,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_positioner::init())
         .setup(|app| {
             // Load settings from the shared store (settings.json) before any UI decisions
@@ -613,7 +693,8 @@ pub fn run() {
             disconnect,
             balance,
             refresh_node,
-            funding_tool
+            funding_tool,
+            compress_logs
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
