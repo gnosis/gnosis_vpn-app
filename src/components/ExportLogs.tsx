@@ -72,7 +72,7 @@ export default function ExportLogs() {
           <Match when={error()}>
             <span class="text-xs text-red-600">{error()}</span>
           </Match>
-          <Match when={true}>
+          <Match when>
             <span class="text-xs invisible">-</span>
           </Match>
         </Switch>
