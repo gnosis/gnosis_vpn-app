@@ -4,7 +4,10 @@ import { onMount } from "solid-js";
 import FundsInfo from "@src/components/FundsInfo.tsx";
 import { Show } from "solid-js";
 // import Help from "@src/components/Help.tsx";
-import { applyFundingIssues } from "@src/utils/funding.ts";
+import {
+  calculateGlobalFundingStatus,
+  type GlobalFundingStatus,
+} from "@src/utils/funding.ts";
 import WarningIcon from "@src/components/common/WarningIcon.tsx";
 import { useLogsStore } from "@src/stores/logsStore.ts";
 import refreshIcon from "@assets/icons/refresh.svg";
@@ -16,8 +19,11 @@ export default function Usage() {
   const [balance, setBalance] = createSignal<BalanceResponse | null>(null);
   const [isBalanceLoading, setIsBalanceLoading] = createSignal(true);
   const [balanceError, setBalanceError] = createSignal<string | undefined>();
-  const [safeStatus, setSafeStatus] = createSignal<string | undefined>();
-  const [nodeStatus, setNodeStatus] = createSignal<string | undefined>();
+  const [fundingStatus, setFundingStatus] = createSignal<GlobalFundingStatus>({
+    overall: "Sufficient",
+    safeStatus: "Sufficient",
+    nodeStatus: "Sufficient",
+  });
   const [isAddFundsOpen, setIsAddFundsOpen] = createSignal(false);
   const [, logActions] = useLogsStore();
 
@@ -26,10 +32,15 @@ export default function Usage() {
     setBalanceError(undefined);
     try {
       const result = await VPNService.balance();
-      console.log("result", result);
+      console.log("balance result", result);
       setBalance(result);
       if (result) {
-        applyFundingIssues(result.issues, setSafeStatus, setNodeStatus);
+        const status = calculateGlobalFundingStatus(result.issues, {
+          safe: result.safe,
+          node: result.node,
+        });
+        setFundingStatus(status);
+        console.log("Global funding status:", status);
       }
     } catch (error) {
       setBalanceError(error instanceof Error ? error.message : String(error));
@@ -52,7 +63,6 @@ export default function Usage() {
     void loadBalance();
   });
 
-  console.log("balance", balance());
   return (
     <>
       <div class="px-4 py-2 flex flex-col w-full h-full items-center gap-4 justify-between">
@@ -63,6 +73,24 @@ export default function Usage() {
           <div class="text-sm text-gray-500">Not available yet</div>
         </Show>
 
+        {/* Global funding status indicator */}
+        <Show when={fundingStatus().description}>
+          <div
+            class={`px-4 py-2 rounded-lg text-sm font-medium ${
+              fundingStatus().overall === "Empty"
+                ? "bg-red-100 text-red-800"
+                : fundingStatus().overall === "Low"
+                ? "bg-amber-100 text-amber-800"
+                : "bg-emerald-100 text-emerald-800"
+            }`}
+          >
+            <div class="flex items-center gap-2">
+              <WarningIcon />
+              <span>{fundingStatus().description}</span>
+            </div>
+          </div>
+        </Show>
+
         <div class="flex flex-col gap-2 py-4 my-4 w-64">
           <FundsInfo
             name="Safe"
@@ -70,7 +98,7 @@ export default function Usage() {
             balance={balance()?.safe}
             ticker="wxHOPR"
             address={balance()?.info.safe_address}
-            status={safeStatus() ?? "Unknown"}
+            status={fundingStatus().safeStatus}
             isLoading={isBalanceLoading()}
           />
           <FundsInfo
@@ -79,7 +107,7 @@ export default function Usage() {
             balance={balance()?.node}
             ticker="xDAI"
             address={balance()?.info.node_address}
-            status={nodeStatus() ?? "Unknown"}
+            status={fundingStatus().nodeStatus}
             isLoading={isBalanceLoading()}
           />
         </div>
