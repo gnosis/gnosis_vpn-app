@@ -35,8 +35,10 @@
     "targets": "all",
     "category": "Utility",
     "resources": [
-      "icons/tray-icon.png",
-      "icons/app-icons/app-icon.png",
+      "icons/tray-icons/tray-icon-connected.png",
+      "icons/tray-icons/tray-icon-disconnected.png",
+      "icons/tray-icons/tray-icon-connecting.png",
+      "icons/app-icons/app-icon-disconnected.png",
       "icons/app-icons/app-icon-connected.png",
       "icons/app-icons/app-icon-connecting-1.png",
       "icons/app-icons/app-icon-connecting-2.png",

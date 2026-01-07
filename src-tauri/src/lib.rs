@@ -7,7 +7,7 @@ use tauri::State;
 use tauri::{
     AppHandle, Emitter, Manager,
     menu::{Menu, MenuBuilder, MenuItem},
-    tray::{TrayIconBuilder, TrayIconEvent},
+    tray::{TrayIcon, TrayIconBuilder, TrayIconEvent},
 };
 mod platform;
 use platform::{Platform, PlatformInterface};
@@ -25,6 +25,9 @@ use std::{path::PathBuf, sync::Mutex};
 
 // State to hold a reference to the tray "status" menu item so we can update it
 struct TrayStatusItem(Mutex<MenuItem<tauri::Wry>>);
+
+// State to hold a reference to the tray icon so we can update it
+struct TrayIconState(Mutex<TrayIcon<tauri::Wry>>);
 
 // State to track which connecting icon to show (for animation) and if animation is active
 struct ConnectingIconState {
@@ -322,7 +325,15 @@ fn determine_app_icon(connection_state: &str, run_mode: &command::RunMode) -> St
         ("Connected", false) => "app-icon-connected.png".to_string(),
         ("Connecting" | "Disconnecting", _) => "app-icon-connecting-1.png".to_string(), // Will be animated by heartbeat
         (_, true) => "app-icon-disconnected-low-funds.png".to_string(), // Disconnected with low funds
-        (_, false) => "app-icon.png".to_string(),                       // Disconnected
+        (_, false) => "app-icon-disconnected.png".to_string(),          // Disconnected
+    }
+}
+
+fn determine_tray_icon(connection_state: &str) -> &'static str {
+    match connection_state {
+        "Connected" => "tray-icons/tray-icon-connected.png",
+        "Connecting" | "Disconnecting" => "tray-icons/tray-icon-connecting.png",
+        _ => "tray-icons/tray-icon-disconnected.png",
     }
 }
 
@@ -361,9 +372,9 @@ fn start_icon_heartbeat(app: AppHandle, icon_state: Arc<ConnectingIconState>) {
 async fn status(
     app: AppHandle,
     status_item: State<'_, TrayStatusItem>,
+    tray_icon_state: State<'_, TrayIconState>,
     icon_state: State<'_, Arc<ConnectingIconState>>,
 ) -> Result<StatusResponse, String> {
-    println!("status");
     let p = PathBuf::from(socket::DEFAULT_PATH);
     let resp = socket::process_cmd(&p, &command::Command::Status).await;
     match resp {
@@ -392,7 +403,20 @@ async fn status(
                 let _ = guard.set_text(format!("Status: {}", derived));
             }
 
-            // Update app icon on all platforms
+            // Update tray icon on all platforms
+            let tray_icon_name = determine_tray_icon(derived);
+            if let Ok(tray_icon_path) = app
+                .path()
+                .resource_dir()
+                .map(|p| p.join("icons").join(tray_icon_name))
+            {
+                if let Ok(tray_image) = tauri::image::Image::from_path(&tray_icon_path) {
+                    if let Ok(guard) = tray_icon_state.0.lock() {
+                        let _ = guard.set_icon(Some(tray_image));
+                    }
+                }
+            }
+
             let icon_name = determine_app_icon(derived, &status_resp.run_mode);
             let should_animate = derived == "Connecting" || derived == "Disconnecting";
 
@@ -781,7 +805,8 @@ pub fn run() {
             // Create tray menu
             let menu = create_tray_menu(app.handle())?;
 
-            let icon_name: &str = "tray-icon.png";
+            // Start with disconnected tray icon
+            let icon_name: &str = "tray-icons/tray-icon-disconnected.png";
 
             let tray_icon_path: PathBuf = app
                 .path()
@@ -798,7 +823,7 @@ pub fn run() {
                 .menu(&menu)
                 .icon(icon)
                 .icon_as_template(true);
-            let _tray = builder
+            let tray = builder
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "quit" => {
                         app.exit(0);
@@ -819,15 +844,15 @@ pub fn run() {
                 .show_menu_on_left_click(false)
                 .build(app)?;
 
-            // Initialize app icon animation state
+            app.manage(TrayIconState(Mutex::new(tray)));
+
             let icon_state = Arc::new(ConnectingIconState {
                 toggle: AtomicBool::new(false),
                 is_animating: AtomicBool::new(false),
-                current_icon: Mutex::new("app-icon.png".to_string()),
+                current_icon: Mutex::new("app-icon-disconnected.png".to_string()),
             });
             app.manage(icon_state.clone());
 
-            // Start the icon animation heartbeat task
             start_icon_heartbeat(app.handle().clone(), icon_state);
 
             // Setup platform-specific functionality
