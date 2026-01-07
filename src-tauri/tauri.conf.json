@@ -34,7 +34,15 @@
     "active": true,
     "targets": "all",
     "category": "Utility",
-    "resources": ["icons/tray-icon.png"],
+    "resources": [
+      "icons/tray-icon.png",
+      "icons/app-icons/app-icon.png",
+      "icons/app-icons/app-icon-connected.png",
+      "icons/app-icons/app-icon-connecting-1.png",
+      "icons/app-icons/app-icon-connecting-2.png",
+      "icons/app-icons/app-icon-connected-low-funds.png",
+      "icons/app-icons/app-icon-disconnected-low-funds.png"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
