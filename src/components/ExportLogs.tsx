@@ -29,15 +29,10 @@ export default function ExportLogs() {
         ).padStart(2, "0")
       }`;
       const defaultName = `gnosis_vpn-${ts}.log.zst`;
-      const destRaw = await save({
+      const dest = await save({
         defaultPath: defaultName,
         filters: [{ name: "Zstandard archive", extensions: ["zst"] }],
       });
-      const dest = typeof destRaw === "string"
-        ? destRaw
-        : destRaw && typeof destRaw === "object" && "path" in destRaw
-        ? String((destRaw as { path?: string }).path ?? "")
-        : "";
       if (!dest) {
         setError("Export canceled");
         return;
