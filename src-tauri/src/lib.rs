@@ -27,7 +27,6 @@ use std::{path::PathBuf, sync::Mutex};
 struct TrayStatusItem(Mutex<MenuItem<tauri::Wry>>);
 
 // State to track which connecting icon to show (for animation) and if animation is active
-#[cfg(target_os = "macos")]
 struct ConnectingIconState {
     toggle: AtomicBool,
     is_animating: AtomicBool,
@@ -292,7 +291,6 @@ impl From<command::BalanceResponse> for BalanceResponse {
     }
 }
 
-#[cfg(target_os = "macos")]
 fn determine_app_icon(connection_state: &str, run_mode: &command::RunMode) -> String {
     // Check for low funds in Running mode
     let has_low_funds = if let command::RunMode::Running {
@@ -328,7 +326,6 @@ fn determine_app_icon(connection_state: &str, run_mode: &command::RunMode) -> St
     }
 }
 
-#[cfg(target_os = "macos")]
 fn start_icon_heartbeat(app: AppHandle, icon_state: Arc<ConnectingIconState>) {
     std::thread::spawn(move || {
         loop {
@@ -347,7 +344,7 @@ fn start_icon_heartbeat(app: AppHandle, icon_state: Arc<ConnectingIconState>) {
                 let app_clone = app.clone();
                 let icon_name_clone = icon_name.to_string();
                 tauri::async_runtime::spawn(async move {
-                    if let Err(e) = set_dock_icon(app_clone, icon_name_clone).await {
+                    if let Err(e) = set_app_icon(app_clone, icon_name_clone).await {
                         eprintln!("Failed to update dock icon in heartbeat: {}", e);
                     }
                 });
@@ -364,7 +361,7 @@ fn start_icon_heartbeat(app: AppHandle, icon_state: Arc<ConnectingIconState>) {
 async fn status(
     app: AppHandle,
     status_item: State<'_, TrayStatusItem>,
-    #[cfg(target_os = "macos")] icon_state: State<'_, Arc<ConnectingIconState>>,
+    icon_state: State<'_, Arc<ConnectingIconState>>,
 ) -> Result<StatusResponse, String> {
     println!("status");
     let p = PathBuf::from(socket::DEFAULT_PATH);
@@ -395,22 +392,20 @@ async fn status(
                 let _ = guard.set_text(format!("Status: {}", derived));
             }
 
-            #[cfg(target_os = "macos")]
-            {
-                let icon_name = determine_app_icon(derived, &status_resp.run_mode);
-                let should_animate = derived == "Connecting" || derived == "Disconnecting";
+            // Update app icon on all platforms
+            let icon_name = determine_app_icon(derived, &status_resp.run_mode);
+            let should_animate = derived == "Connecting" || derived == "Disconnecting";
 
-                icon_state
-                    .is_animating
-                    .store(should_animate, Ordering::Relaxed);
+            icon_state
+                .is_animating
+                .store(should_animate, Ordering::Relaxed);
 
-                if !should_animate {
-                    if let Ok(mut current_icon) = icon_state.current_icon.lock() {
-                        *current_icon = icon_name.clone();
-                    }
-                    if let Err(e) = set_dock_icon(app, icon_name).await {
-                        eprintln!("Failed to update dock icon: {}", e);
-                    }
+            if !should_animate {
+                if let Ok(mut current_icon) = icon_state.current_icon.lock() {
+                    *current_icon = icon_name.clone();
+                }
+                if let Err(e) = set_app_icon(app, icon_name).await {
+                    eprintln!("Failed to update app icon: {}", e);
                 }
             }
 
@@ -502,7 +497,7 @@ async fn funding_tool(secret: String) -> Result<(), String> {
 #[cfg(target_os = "macos")]
 #[allow(unexpected_cfgs)]
 #[tauri::command]
-async fn set_dock_icon(app: AppHandle, icon_name: String) -> Result<(), String> {
+async fn set_app_icon(app: AppHandle, icon_name: String) -> Result<(), String> {
     use dispatch::Queue;
     use std::fs;
     use std::sync::mpsc;
@@ -563,8 +558,27 @@ async fn set_dock_icon(app: AppHandle, icon_name: String) -> Result<(), String> 
 
 #[cfg(not(target_os = "macos"))]
 #[tauri::command]
-async fn set_dock_icon(_app: AppHandle, _icon_name: String) -> Result<(), String> {
-    // No-op on non-macOS platforms
+async fn set_app_icon(app: AppHandle, icon_name: String) -> Result<(), String> {
+    use std::fs;
+    use tauri::image::Image;
+
+    let icon_path = app
+        .path()
+        .resource_dir()
+        .map_err(|e| format!("Failed to get resource dir: {}", e))?
+        .join("icons")
+        .join("app-icons")
+        .join(&icon_name);
+
+    let icon_data = fs::read(&icon_path)
+        .map_err(|e| format!("Failed to read icon file {}: {}", icon_path.display(), e))?;
+
+    let image = Image::from_bytes(&icon_data)
+        .map_err(|e| format!("Failed to create image from icon data: {}", e))?;
+
+    app.set_icon(image)
+        .map_err(|e| format!("Failed to set app icon: {}", e))?;
+
     Ok(())
 }
 
@@ -655,21 +669,6 @@ fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error> {
 
     // Expose the status menu item via app state so commands can update it
     app.manage(TrayStatusItem(Mutex::new(status_item.clone())));
-
-    // Initialize connecting icon state for animation on macOS
-    #[cfg(target_os = "macos")]
-    {
-        let icon_state = Arc::new(ConnectingIconState {
-            toggle: AtomicBool::new(false),
-            is_animating: AtomicBool::new(false),
-            current_icon: Mutex::new("app-icon.png".to_string()),
-        });
-        app.manage(icon_state.clone());
-
-        // Start the icon animation heartbeat task
-        let app_handle = app.clone();
-        start_icon_heartbeat(app_handle, icon_state);
-    }
 
     MenuBuilder::new(app)
         .item(&status_item)
@@ -820,6 +819,17 @@ pub fn run() {
                 .show_menu_on_left_click(false)
                 .build(app)?;
 
+            // Initialize app icon animation state
+            let icon_state = Arc::new(ConnectingIconState {
+                toggle: AtomicBool::new(false),
+                is_animating: AtomicBool::new(false),
+                current_icon: Mutex::new("app-icon.png".to_string()),
+            });
+            app.manage(icon_state.clone());
+
+            // Start the icon animation heartbeat task
+            start_icon_heartbeat(app.handle().clone(), icon_state);
+
             // Setup platform-specific functionality
             let _ = Platform::setup_system_tray();
 
@@ -882,7 +892,7 @@ pub fn run() {
             refresh_node,
             funding_tool,
             compress_logs,
-            set_dock_icon
+            set_app_icon
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
