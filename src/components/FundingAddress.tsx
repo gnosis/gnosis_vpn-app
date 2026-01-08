@@ -10,7 +10,9 @@ import checkIcon from "@assets/icons/checked-box.svg";
 import { getEthAddress } from "@src/utils/address";
 import * as opener from "@tauri-apps/plugin-opener";
 
-export default function FundingAddress(props: { address: string | undefined; full?: boolean; title?: string }) {
+export default function FundingAddress(
+  props: { address: string | undefined; full?: boolean; title?: string },
+) {
   const raw = (props.address ?? "").trim();
   const isMissing = raw.length === 0 || raw.toLowerCase() === "unknown";
 
@@ -62,7 +64,12 @@ export default function FundingAddress(props: { address: string | undefined; ful
       <div class="flex flex-row justify-between items-center">
         <div class="text-sm">
           <div class="font-bold">Funding Address</div>
-          <button class="font-mono text-xs" onClick={() => copy()} title="Copy address" type="button">
+          <button
+            class="font-mono text-xs"
+            onClick={() => copy()}
+            title="Copy address"
+            type="button"
+          >
             {props.full ? address : shortAddress(address)}
           </button>
         </div>
@@ -74,7 +81,12 @@ export default function FundingAddress(props: { address: string | undefined; ful
             title="Open on Gnosisscan"
             type="button"
           >
-            <img src={linkIcon} height={20} width={20} alt="Open on Gnosisscan" />
+            <img
+              src={linkIcon}
+              height={20}
+              width={20}
+              alt="Open on Gnosisscan"
+            />
           </button>
 
           <button
