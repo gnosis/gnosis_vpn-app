@@ -2,7 +2,8 @@
 #[macro_use]
 extern crate objc;
 
-use gnosis_vpn_lib::{balance, command, connection, info, socket};
+use gnosis_vpn_lib::{balance, command, connection, info};
+use gnosis_vpn_lib::socket::{root as root_socket};
 use tauri::State;
 use tauri::{
     AppHandle, Emitter, Manager,
@@ -375,8 +376,8 @@ async fn status(
     tray_icon_state: State<'_, TrayIconState>,
     icon_state: State<'_, Arc<ConnectingIconState>>,
 ) -> Result<StatusResponse, String> {
-    let p = PathBuf::from(socket::DEFAULT_PATH);
-    let resp = socket::process_cmd(&p, &command::Command::Status).await;
+    let p = PathBuf::from(root_socket::DEFAULT_PATH);
+    let resp = root_socket::process_cmd(&p, &command::Command::Status).await;
     match resp {
         Ok(command::Response::Status(status_resp)) => {
             let mut derived: &str = "Disconnected";
@@ -457,12 +458,12 @@ async fn status(
 
 #[tauri::command]
 async fn connect(address: String) -> Result<ConnectResponse, String> {
-    let p = PathBuf::from(socket::DEFAULT_PATH);
+    let p = PathBuf::from(root_socket::DEFAULT_PATH);
     let conv_address = address
         .parse::<connection::destination::Address>()
         .map_err(|e| e.to_string())?;
     let cmd = command::Command::Connect(conv_address);
-    let resp = socket::process_cmd(&p, &cmd)
+    let resp = root_socket::process_cmd(&p, &cmd)
         .await
         .map_err(|e| e.to_string())?;
     match resp {
@@ -473,9 +474,9 @@ async fn connect(address: String) -> Result<ConnectResponse, String> {
 
 #[tauri::command]
 async fn disconnect() -> Result<DisconnectResponse, String> {
-    let p = PathBuf::from(socket::DEFAULT_PATH);
+    let p = PathBuf::from(root_socket::DEFAULT_PATH);
     let cmd = command::Command::Disconnect;
-    let resp = socket::process_cmd(&p, &cmd)
+    let resp = root_socket::process_cmd(&p, &cmd)
         .await
         .map_err(|e| e.to_string())?;
     match resp {
@@ -486,9 +487,9 @@ async fn disconnect() -> Result<DisconnectResponse, String> {
 
 #[tauri::command]
 async fn balance() -> Result<Option<BalanceResponse>, String> {
-    let p = PathBuf::from(socket::DEFAULT_PATH);
+    let p = PathBuf::from(root_socket::DEFAULT_PATH);
     let cmd = command::Command::Balance;
-    let resp = socket::process_cmd(&p, &cmd)
+    let resp = root_socket::process_cmd(&p, &cmd)
         .await
         .map_err(|e| e.to_string())?;
     match resp {
@@ -499,9 +500,9 @@ async fn balance() -> Result<Option<BalanceResponse>, String> {
 
 #[tauri::command]
 async fn refresh_node() -> Result<(), String> {
-    let p = PathBuf::from(socket::DEFAULT_PATH);
+    let p = PathBuf::from(root_socket::DEFAULT_PATH);
     let cmd = command::Command::RefreshNode;
-    let resp = socket::process_cmd(&p, &cmd)
+    let resp = root_socket::process_cmd(&p, &cmd)
         .await
         .map_err(|e| e.to_string())?;
     match resp {
@@ -512,9 +513,9 @@ async fn refresh_node() -> Result<(), String> {
 
 #[tauri::command]
 async fn funding_tool(secret: String) -> Result<(), String> {
-    let p = PathBuf::from(socket::DEFAULT_PATH);
+    let p = PathBuf::from(root_socket::DEFAULT_PATH);
     let cmd = command::Command::FundingTool(secret);
-    let resp = socket::process_cmd(&p, &cmd)
+    let resp = root_socket::process_cmd(&p, &cmd)
         .await
         .map_err(|e| e.to_string())?;
     match resp {
