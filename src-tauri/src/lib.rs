@@ -609,13 +609,13 @@ async fn set_app_icon(app: AppHandle, icon_name: String) -> Result<(), String> {
     let mut errors = Vec::new();
 
     if let Some(window) = app.get_webview_window("main") {
-        if let Err(e) = window.set_icon(Some(image.clone())) {
+        if let Err(e) = window.set_icon(image.clone()) {
             errors.push(format!("Failed to set main window icon: {}", e));
         }
     }
 
     if let Some(window) = app.get_webview_window("settings") {
-        if let Err(e) = window.set_icon(Some(image)) {
+        if let Err(e) = window.set_icon(image) {
             errors.push(format!("Failed to set settings window icon: {}", e));
         }
     }
