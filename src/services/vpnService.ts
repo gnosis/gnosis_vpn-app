@@ -97,7 +97,6 @@ export type Info = {
   node_address: string;
   node_peer_id: string;
   safe_address: string;
-  network: string;
 };
 
 export type DestinationHealth = {

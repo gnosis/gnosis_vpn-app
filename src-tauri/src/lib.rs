@@ -147,7 +147,6 @@ pub struct Info {
     pub node_address: String,
     pub node_peer_id: String,
     pub safe_address: String,
-    pub network: String,
 }
 
 // Conversions from library types to sanitized types
@@ -218,7 +217,7 @@ impl From<command::ConnectionState> for ConnectionState {
 impl From<command::RunMode> for RunMode {
     fn from(rm: command::RunMode) -> Self {
         match rm {
-            command::RunMode::Init | command::RunMode::ValueingTicket => RunMode::Warmup,
+            command::RunMode::Init => RunMode::Warmup,
             command::RunMode::PreparingSafe {
                 node_address,
                 node_xdai,
@@ -281,7 +280,6 @@ impl From<info::Info> for Info {
             node_address: i.node_address.to_string(),
             node_peer_id: i.node_peer_id,
             safe_address: i.safe_address.to_string(),
-            network: i.network,
         }
     }
 }
