@@ -299,24 +299,20 @@ impl From<command::BalanceResponse> for BalanceResponse {
 fn determine_app_icon(connection_state: &str, run_mode: &command::RunMode) -> String {
     // Check for low funds in Running mode
     let has_low_funds = if let command::RunMode::Running {
-        funding,
+        funding: command::FundingState::TopIssue(issue),
         hopr_status: _,
     } = run_mode
     {
-        if let command::FundingState::TopIssue(issue) = funding {
-            use balance::FundingIssue;
-            matches!(
-                issue,
-                FundingIssue::Unfunded
-                    | FundingIssue::ChannelsOutOfFunds
-                    | FundingIssue::SafeOutOfFunds
-                    | FundingIssue::SafeLowOnFunds
-                    | FundingIssue::NodeUnderfunded
-                    | FundingIssue::NodeLowOnFunds
-            )
-        } else {
-            false
-        }
+        use balance::FundingIssue;
+        matches!(
+            issue,
+            FundingIssue::Unfunded
+                | FundingIssue::ChannelsOutOfFunds
+                | FundingIssue::SafeOutOfFunds
+                | FundingIssue::SafeLowOnFunds
+                | FundingIssue::NodeUnderfunded
+                | FundingIssue::NodeLowOnFunds
+        )
     } else {
         false
     };
