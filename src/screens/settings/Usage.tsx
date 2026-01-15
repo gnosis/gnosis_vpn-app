@@ -11,9 +11,9 @@ import {
 import WarningIcon from "@src/components/common/WarningIcon.tsx";
 import { useLogsStore } from "@src/stores/logsStore.ts";
 import refreshIcon from "@assets/icons/refresh.svg";
-import { Modal } from "@src/components/common/Modal";
-import Button from "@src/components/common/Button";
-import FundingAddress from "@src/components/FundingAddress";
+import { Modal } from "../../components/common/Modal.tsx";
+import Button from "../../components/common/Button.tsx";
+import FundingAddress from "../../components/FundingAddress.tsx";
 
 export default function Usage() {
   const [balance, setBalance] = createSignal<BalanceResponse | null>(null);

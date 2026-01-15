@@ -1,5 +1,5 @@
 import { createSignal, type JSX, mergeProps, Show, splitProps } from "solid-js";
-import Spinner from "@src/components/common/Spinner";
+import Spinner from "./Spinner.tsx";
 
 export interface ButtonProps {
   variant?: "primary" | "secondary" | "outline";

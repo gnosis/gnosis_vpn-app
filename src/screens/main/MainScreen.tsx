@@ -1,11 +1,11 @@
 import { createEffect, createSignal, onCleanup, onMount } from "solid-js";
-import { useAppStore } from "@src/stores/appStore";
-import { StatusIndicator } from "@src/components/StatusIndicator";
-import Navigation from "@src/components/Navigation";
-import ExitNode from "@src/components/ExitNode";
-import ConnectButton from "@src/components/ConnectButton";
-import StatusHero from "@src/components/StatusHero";
-import StatusLine from "@src/components/StatusLine";
+import { useAppStore } from "../../stores/appStore.ts";
+import { StatusIndicator } from "../../components/StatusIndicator.tsx";
+import Navigation from "../../components/Navigation.tsx";
+import ExitNode from "../../components/ExitNode.tsx";
+import ConnectButton from "../../components/ConnectButton.tsx";
+import StatusHero from "../../components/StatusHero.tsx";
+import StatusLine from "../../components/StatusLine.tsx";
 
 export function MainScreen() {
   const [appState] = useAppStore();

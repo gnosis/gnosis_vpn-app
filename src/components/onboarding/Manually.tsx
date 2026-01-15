@@ -1,17 +1,17 @@
 import { createMemo, createSignal, Show } from "solid-js";
-import { useAppStore } from "@src/stores/appStore";
-import Button from "@src/components/common/Button";
-import Checkbox from "@src/components/common/Checkbox";
+import { useAppStore } from "../../stores/appStore.ts";
+import Button from "../common/Button.tsx";
+import Checkbox from "../common/Checkbox.tsx";
 // import Help from "@src/components/Help";
-import { useLogsStore } from "@src/stores/logsStore";
+import { useLogsStore } from "../../stores/logsStore.ts";
 import checkIcon from "@assets/icons/checked-box-filled.svg";
 import {
   getPreparingSafeNodeAddress,
   isWxHOPRTransferred,
   isXDAITransferred,
 } from "@src/utils/status.ts";
-import FundingAddress from "@src/components/FundingAddress";
-import Spinner from "@src/components/common/Spinner";
+import FundingAddress from "../FundingAddress.tsx";
+import Spinner from "../common/Spinner.tsx";
 
 export default function Manually() {
   const [appState, appActions] = useAppStore();

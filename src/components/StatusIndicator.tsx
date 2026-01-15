@@ -1,4 +1,4 @@
-import { useAppStore } from "@src/stores/appStore";
+import { useAppStore } from "../stores/appStore.ts";
 
 export function StatusIndicator({ size }: { size?: "sm" | "lg" }) {
   const [appState] = useAppStore();

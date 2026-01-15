@@ -1,7 +1,7 @@
 import { createSignal, Match, Switch } from "solid-js";
 import { save } from "@tauri-apps/plugin-dialog";
-import { VPNService } from "@src/services/vpnService";
-import Button from "@src/components/common/Button";
+import { VPNService } from "../services/vpnService.ts";
+import Button from "./common/Button.tsx";
 
 export default function ExportLogs() {
   const [loading, setLoading] = createSignal(false);

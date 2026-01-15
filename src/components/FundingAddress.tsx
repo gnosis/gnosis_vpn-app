@@ -1,13 +1,13 @@
 import { createSignal } from "solid-js";
-import { useLogsStore } from "@src/stores/logsStore";
-import { explorerUrl } from "@src/utils/explorerUrl";
-import { shortAddress } from "@src/utils/shortAddress";
-import QrCode from "@src/components/QrCode";
+import { useLogsStore } from "../stores/logsStore.ts";
+import { explorerUrl } from "../utils/explorerUrl.ts";
+import { shortAddress } from "../utils/shortAddress.ts";
+import QrCode from "./QrCode.tsx";
 import linkIcon from "@assets/icons/link.svg";
 import copyIcon from "@assets/icons/copy.svg";
 import qrIcon from "@assets/icons/qr.png";
 import checkIcon from "@assets/icons/checked-box.svg";
-import { getEthAddress } from "@src/utils/address";
+import { getEthAddress } from "../utils/address.ts";
 import * as opener from "@tauri-apps/plugin-opener";
 
 export default function FundingAddress(

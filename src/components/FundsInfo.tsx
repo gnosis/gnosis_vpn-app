@@ -1,5 +1,5 @@
 import { Show } from "solid-js";
-import { fromWeiToFixed } from "@src/utils/units";
+import { fromWeiToFixed } from "../utils/units.ts";
 
 type Props = {
   name?: string;

@@ -1,6 +1,6 @@
 import { For, Show } from "solid-js";
-import { useLogsStore } from "@src/stores/logsStore";
-import ExportLogs from "@src/components/ExportLogs";
+import { useLogsStore } from "../../stores/logsStore.ts";
+import ExportLogs from "../../components/ExportLogs.tsx";
 
 export default function Logs() {
   const [logsState] = useLogsStore();

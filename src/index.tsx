@@ -1,9 +1,9 @@
 /* @refresh reload */
 import "@src/index.css";
 import { render } from "solid-js/web";
-import App from "@src/windows/App";
+import App from "./windows/App.tsx";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
-import SettingsWindow from "@src/windows/SettingsWindow";
+import SettingsWindow from "./windows/SettingsWindow.tsx";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useAppStore } from "@src/stores/appStore.ts";
 

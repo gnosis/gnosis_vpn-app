@@ -25,7 +25,7 @@ import {
   isDisconnecting,
 } from "@src/utils/status.ts";
 import { getEthAddress } from "@src/utils/address.ts";
-import { shortAddress } from "@src/utils/shortAddress";
+import { shortAddress } from "../utils/shortAddress.ts";
 
 export type AppScreen = "main" | "onboarding" | "synchronization";
 

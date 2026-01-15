@@ -1,10 +1,10 @@
-import { MainScreen } from "@src/screens/main/MainScreen";
+import { MainScreen } from "../screens/main/MainScreen.tsx";
 import { Dynamic } from "solid-js/web";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { onCleanup, onMount } from "solid-js";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
-import Onboarding from "@src/screens/main/Onboarding";
-import Synchronization from "@src/screens/main/Synchronization";
+import Onboarding from "../screens/main/Onboarding.tsx";
+import Synchronization from "../screens/main/Synchronization.tsx";
 import { emit, listen } from "@tauri-apps/api/event";
 
 const validScreens = ["main", "onboarding", "synchronization"] as const;
