@@ -2,14 +2,15 @@
 #[macro_use]
 extern crate objc;
 
+use gnosis_vpn_lib::socket::root as root_socket;
 use gnosis_vpn_lib::{balance, command, connection, info};
-use gnosis_vpn_lib::socket::{root as root_socket};
 use tauri::State;
 use tauri::{
     AppHandle, Emitter, Manager,
     menu::{Menu, MenuBuilder, MenuItem},
     tray::{TrayIcon, TrayIconBuilder, TrayIconEvent},
 };
+use zstd::stream::Encoder;
 mod platform;
 use platform::{Platform, PlatformInterface};
 use serde::Serialize;
@@ -17,12 +18,14 @@ use tauri_plugin_positioner::{Position, WindowExt};
 use tauri_plugin_store::StoreExt;
 
 use std::collections::HashMap;
-use std::path::Path;
-use std::process::Command;
+use std::fs::File;
+use std::io::{self, BufReader};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, SystemTime};
 use std::{path::PathBuf, sync::Mutex};
+
+const LOG_FILE_PATH: &str = "/var/log/gnosis_vpn/gnosis_vpn.log";
 
 // State to hold a reference to the tray "status" menu item so we can update it
 struct TrayStatusItem(Mutex<MenuItem<tauri::Wry>>);
@@ -629,79 +632,21 @@ async fn set_app_icon(app: AppHandle, icon_name: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-async fn compress_logs(_app: AppHandle, dest_path: Option<String>) -> Result<String, String> {
-    // Resolve candidate log files by platform
-    #[cfg(target_os = "macos")]
-    let candidates: Vec<&str> = vec![
-        "/var/log/gnosis_vpn/gnosis_vpn.log",
-        "/var/log/gnosis_vpn/gnosis_vpn.error.log",
-    ];
-    #[cfg(target_os = "linux")]
-    let candidates: Vec<&str> = vec!["/var/log/gnosis_vpn/gnosis_vpn.log"];
-    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
-    let candidates: Vec<&str> = vec![];
+async fn compress_logs(_app: AppHandle, dest_path: String) -> Result<(), String> {
+    let input_file =
+        File::open(LOG_FILE_PATH).map_err(|e| format!("Failed to open log file: {}", e))?;
+    let output_file =
+        File::create(dest_path).map_err(|e| format!("Failed to create output file: {}", e))?;
 
-    let existing: Vec<&str> = candidates
-        .into_iter()
-        .filter(|p| Path::new(p).exists())
-        .collect();
-
-    if existing.is_empty() {
-        return Err("No gnosis_vpn log files found in /var/log/gnosis_vpn/".to_string());
-    }
-
-    // Determine output path (must be provided by caller)
-    let requested_dest = dest_path.and_then(|p| {
-        let trimmed = p.trim().to_string();
-        if trimmed.is_empty() {
-            None
-        } else {
-            Some(trimmed)
-        }
-    });
-    let out_path = requested_dest.ok_or_else(|| "Destination path not provided".to_string())?;
-
-    // Compress logs
-    // - If multiple files: concatenate with cat and pipe to zstd
-    // - If single file: compress directly
-    let status = if existing.len() > 1 {
-        // Concatenate text logs and compress by piping cat stdout to zstd stdin
-        use std::process::Stdio;
-
-        let mut cat_cmd = Command::new("cat");
-        for file in &existing {
-            cat_cmd.arg(file);
-        }
-
-        let cat_child = cat_cmd
-            .stdout(Stdio::piped())
-            .spawn()
-            .map_err(|e| format!("Failed to spawn cat: {}", e))?;
-
-        Command::new("zstd")
-            .args(["-T0", "-19", "-f", "-o", &out_path])
-            .stdin(cat_child.stdout.ok_or("Failed to get cat stdout")?)
-            .status()
-            .map_err(|e| format!("Failed to run zstd: {}", e))?
-    } else {
-        Command::new("zstd")
-            .arg("-T0")
-            .arg("-19")
-            .arg("-f")
-            .arg("-o")
-            .arg(&out_path)
-            .arg(existing[0])
-            .status()
-            .map_err(|e| format!("Failed to spawn zstd: {}", e))?
-    };
-
-    if !status.success() {
-        return Err(
-            "Compression failed. Ensure zstd is installed and files are readable.".to_string(),
-        );
-    }
-
-    Ok(out_path)
+    // compression level 5 - default is 3 (see zstd docs for details)
+    let mut encoder = Encoder::new(&output_file, 5)
+        .map_err(|e| format!("Failed to create zstd encoder: {}", e))?;
+    io::copy(&mut BufReader::new(input_file), &mut encoder)
+        .map_err(|e| format!("Failed to compress log file: {}", e))?;
+    encoder
+        .finish()
+        .map_err(|e| format!("Failed to finalize compression: {}", e))?;
+    Ok(())
 }
 
 fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error> {

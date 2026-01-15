@@ -4688,6 +4688,7 @@ dependencies = [
  "tauri-plugin-opener",
  "tauri-plugin-positioner",
  "tauri-plugin-store",
+ "zstd",
 ]
 
 [[package]]
