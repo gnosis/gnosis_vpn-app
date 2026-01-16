@@ -1,4 +1,4 @@
-import Button from "@src/components/common/Button";
+import Button from "./common/Button.tsx";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { emit } from "@tauri-apps/api/event";
 

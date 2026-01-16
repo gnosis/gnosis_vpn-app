@@ -15,14 +15,21 @@ name = "gnosis_vpn_app_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2.5.0", features = [] }
+tauri-build = { version = "2.5.3", features = [] }
 
 [dependencies]
-gnosis_vpn-lib = { git = "https://github.com/gnosis/gnosis_vpn-client.git", rev = "b80590938dd2e08078e465b17d3a6f2af3ca8172" }
+gnosis_vpn-lib = { git = "https://github.com/gnosis/gnosis_vpn-client.git", rev = "389c4dbe15698daf6938f5bb9c03b72dafeec5dc" }
 liblzma = { version = "0.4.5", default-features = false, features = ["static"] }
 serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.145"
-tauri = { version = "2.9.0", features = ["tray-icon", "image-png"] }
-tauri-plugin-opener = "2.5.0"
-tauri-plugin-positioner = { version = "2.0.0", features = ["tray-icon"] }
+serde_json = "1.0.149"
+tauri = { version = "2.9.5", features = ["tray-icon", "image-png"] }
+tauri-plugin-opener = "2.5.3"
+tauri-plugin-positioner = { version = "2.3.1", features = ["tray-icon"] }
 tauri-plugin-store = "2.4.0"
+tauri-plugin-dialog = "2.6.0"
+zstd = "0.13.3"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+cocoa = "0.25"
+objc = "0.2"
+dispatch = "0.2"

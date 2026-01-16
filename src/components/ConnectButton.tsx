@@ -1,10 +1,10 @@
 import { createMemo, Show } from "solid-js";
-import Button from "@src/components/common/Button";
-import { useAppStore } from "@src/stores/appStore";
-import { useSettingsStore } from "@src/stores/settingsStore";
-import { selectTargetAddress } from "@src/utils/destinations";
-import NodeStatus from "@src/components/NodeStatus";
-import { isReadyToConnect } from "@src/services/vpnService";
+import Button from "./common/Button.tsx";
+import { useAppStore } from "../stores/appStore.ts";
+import { useSettingsStore } from "../stores/settingsStore.ts";
+import { selectTargetAddress } from "../utils/destinations.ts";
+import NodeStatus from "./NodeStatus.tsx";
+import { isReadyToConnect } from "../services/vpnService.ts";
 
 export default function ConnectButton() {
   const [appState, appActions] = useAppStore();

@@ -66,7 +66,9 @@ export type FundingTool =
   | "NotStarted"
   | "InProgress"
   | "CompletedSuccess"
-  | { CompletedError: string };
+  | {
+    CompletedError: string;
+  };
 
 export type FundingIssue =
   | "Unfunded" // cannot work at all - initial state
@@ -95,7 +97,6 @@ export type Info = {
   node_address: string;
   node_peer_id: string;
   safe_address: string;
-  network: string;
 };
 
 export type DestinationHealth = {
@@ -257,6 +258,17 @@ export class VPNService {
     } catch (error) {
       console.error("Failed to request VPN node balance update", error);
       throw new Error(`Refresh Node Error: ${error}`);
+    }
+  }
+
+  static async compressLogs(destPath: string): Promise<void> {
+    try {
+      // Tauri v2 command parameter mapping defaults to camelCase,
+      // so we pass `destPath` here to match the backend param `dest_path`.
+      return await invoke("compress_logs", { destPath });
+    } catch (error) {
+      console.error("Failed to compress logs", error);
+      throw new Error(`Compress Logs Error: ${error}`);
     }
   }
 

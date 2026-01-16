@@ -1,9 +1,9 @@
 import { createSignal, onCleanup, onMount } from "solid-js";
-import Start from "@src/components/onboarding/Start";
+import Start from "../../components/onboarding/Start.tsx";
 import { Dynamic } from "solid-js/web";
-import Manually from "@src/components/onboarding/Manually";
+import Manually from "../../components/onboarding/Manually.tsx";
 import { listen } from "@tauri-apps/api/event";
-import StatusIndicator from "@src/components/StatusIndicator";
+import StatusIndicator from "../../components/StatusIndicator.tsx";
 
 const steps = {
   start: Start,

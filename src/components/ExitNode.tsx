@@ -1,18 +1,18 @@
-import { useAppStore } from "@src/stores/appStore";
-import { Dropdown } from "@src/components/common/Dropdown";
+import { useAppStore } from "../stores/appStore.ts";
+import { Dropdown } from "./common/Dropdown.tsx";
 import {
   formatDestination,
   selectTargetAddress,
-} from "@src/utils/destinations";
+} from "../utils/destinations.ts";
 import type {
   Destination,
   DestinationState,
   Health,
-} from "@src/services/vpnService";
-import { shortAddress } from "@src/utils/shortAddress";
+} from "../services/vpnService.ts";
+import { shortAddress } from "../utils/shortAddress.ts";
 import { createMemo } from "solid-js";
-import { useSettingsStore } from "@src/stores/settingsStore";
-import NodeStatus from "@src/components/NodeStatus";
+import { useSettingsStore } from "../stores/settingsStore.ts";
+import NodeStatus from "./NodeStatus.tsx";
 
 export default function ExitNode() {
   const [appState, appActions] = useAppStore();

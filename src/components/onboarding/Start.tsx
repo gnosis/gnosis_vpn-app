@@ -1,6 +1,6 @@
 import gnosisVpnLogo from "@assets/img/gnosis-vpn.svg";
-import Button from "@src/components/common/Button";
-import { useAppStore } from "@src/stores/appStore";
+import Button from "../common/Button.tsx";
+import { useAppStore } from "../../stores/appStore.ts";
 
 export default function Start(
   { setStep }: { setStep: (step: string) => void },

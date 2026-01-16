@@ -2,8 +2,8 @@ import {
   type DestinationState,
   formatHealth,
   type Health,
-} from "@src/services/vpnService";
-import { getConnectionLabel } from "@src/utils/status";
+} from "../services/vpnService.ts";
+import { getConnectionLabel } from "../utils/status.ts";
 
 export default function NodeStatus(props: {
   connectionState?: DestinationState["connection_state"];

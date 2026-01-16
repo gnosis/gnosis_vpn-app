@@ -7,8 +7,8 @@ import fundsLowIcon from "@assets/icons/funds-low.svg";
 import fundsOutIcon from "@assets/icons/funds-out.svg";
 import fundsEmptyIcon from "@assets/icons/funds-empty.svg";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { useAppStore } from "@src/stores/appStore";
-import { isRunningRunMode } from "@src/services/vpnService";
+import { useAppStore } from "../stores/appStore.ts";
+import { isRunningRunMode } from "../services/vpnService.ts";
 
 function Navigation() {
   const [appState] = useAppStore();

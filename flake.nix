@@ -137,6 +137,7 @@
               pkgs.nodejs
               pkgs.deno
               pkgs.openssl
+              pkgs.rust-analyzer
             ]
             ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
               # Linux-specific packages

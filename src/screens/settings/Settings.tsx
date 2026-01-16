@@ -1,4 +1,4 @@
-import { Dropdown } from "@src/components/common/Dropdown";
+import { Dropdown } from "../../components/common/Dropdown.tsx";
 import Toggle from "@src/components/common/Toggle.tsx";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";

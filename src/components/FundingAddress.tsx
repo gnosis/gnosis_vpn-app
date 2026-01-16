@@ -1,13 +1,14 @@
 import { createSignal } from "solid-js";
-import { useLogsStore } from "@src/stores/logsStore";
-import { explorerUrl } from "@src/utils/explorerUrl";
-import { shortAddress } from "@src/utils/shortAddress";
-import QrCode from "@src/components/QrCode";
+import { useLogsStore } from "../stores/logsStore.ts";
+import { explorerUrl } from "../utils/explorerUrl.ts";
+import { shortAddress } from "../utils/shortAddress.ts";
+import QrCode from "./QrCode.tsx";
 import linkIcon from "@assets/icons/link.svg";
 import copyIcon from "@assets/icons/copy.svg";
 import qrIcon from "@assets/icons/qr.png";
 import checkIcon from "@assets/icons/checked-box.svg";
-import { getEthAddress } from "@src/utils/address";
+import { getEthAddress } from "../utils/address.ts";
+import * as opener from "@tauri-apps/plugin-opener";
 
 export default function FundingAddress(
   props: { address: string | undefined; full?: boolean; title?: string },
@@ -48,6 +49,14 @@ export default function FundingAddress(
     }
   }
 
+  async function openExplorer() {
+    try {
+      await opener.openUrl(explorerUrl(address));
+    } catch (error) {
+      log(`Error opening explorer: ${String(error)}`);
+    }
+  }
+
   const address = safeAddress;
 
   return (
@@ -66,12 +75,11 @@ export default function FundingAddress(
         </div>
 
         <div class="flex gap-1 items-center h-[20px]">
-          <a
-            href={explorerUrl(address)}
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            onClick={openExplorer}
             class="inline-flex items-center gap-1 p-1 hover:cursor-pointer"
             title="Open on Gnosisscan"
+            type="button"
           >
             <img
               src={linkIcon}
@@ -79,7 +87,7 @@ export default function FundingAddress(
               width={20}
               alt="Open on Gnosisscan"
             />
-          </a>
+          </button>
 
           <button
             class="inline-flex items-center gap-1 p-1 hover:cursor-pointer"

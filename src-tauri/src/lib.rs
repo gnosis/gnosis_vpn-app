@@ -1,10 +1,16 @@
-use gnosis_vpn_lib::{balance, command, connection, info, socket};
+#[cfg(target_os = "macos")]
+#[macro_use]
+extern crate objc;
+
+use gnosis_vpn_lib::socket::root as root_socket;
+use gnosis_vpn_lib::{balance, command, connection, info};
 use tauri::State;
 use tauri::{
     AppHandle, Emitter, Manager,
     menu::{Menu, MenuBuilder, MenuItem},
-    tray::{TrayIconBuilder, TrayIconEvent},
+    tray::{TrayIcon, TrayIconBuilder, TrayIconEvent},
 };
+use zstd::stream::Encoder;
 mod platform;
 use platform::{Platform, PlatformInterface};
 use serde::Serialize;
@@ -12,11 +18,27 @@ use tauri_plugin_positioner::{Position, WindowExt};
 use tauri_plugin_store::StoreExt;
 
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::{self, BufReader};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, SystemTime};
 use std::{path::PathBuf, sync::Mutex};
 
+const LOG_FILE_PATH: &str = "/var/log/gnosisvpn/gnosisvpn.log";
+
 // State to hold a reference to the tray "status" menu item so we can update it
 struct TrayStatusItem(Mutex<MenuItem<tauri::Wry>>);
+
+// State to hold a reference to the tray icon so we can update it
+struct TrayIconState(Mutex<TrayIcon<tauri::Wry>>);
+
+// State to track which connecting icon to show (for animation) and if animation is active
+struct ConnectingIconState {
+    toggle: AtomicBool,
+    is_animating: AtomicBool,
+    current_icon: Mutex<String>,
+}
 
 #[derive(Clone, Serialize, Default)]
 struct AppSettings {
@@ -125,7 +147,6 @@ pub struct Info {
     pub node_address: String,
     pub node_peer_id: String,
     pub safe_address: String,
-    pub network: String,
 }
 
 // Conversions from library types to sanitized types
@@ -196,7 +217,7 @@ impl From<command::ConnectionState> for ConnectionState {
 impl From<command::RunMode> for RunMode {
     fn from(rm: command::RunMode) -> Self {
         match rm {
-            command::RunMode::Init | command::RunMode::ValueingTicket => RunMode::Warmup,
+            command::RunMode::Init => RunMode::Warmup,
             command::RunMode::PreparingSafe {
                 node_address,
                 node_xdai,
@@ -259,7 +280,6 @@ impl From<info::Info> for Info {
             node_address: i.node_address.to_string(),
             node_peer_id: i.node_peer_id,
             safe_address: i.safe_address.to_string(),
-            network: i.network,
         }
     }
 }
@@ -276,13 +296,87 @@ impl From<command::BalanceResponse> for BalanceResponse {
     }
 }
 
+fn determine_app_icon(connection_state: &str, run_mode: &command::RunMode) -> String {
+    // Check for low funds in Running mode
+    let has_low_funds = if let command::RunMode::Running {
+        funding: command::FundingState::TopIssue(issue),
+        hopr_status: _,
+    } = run_mode
+    {
+        use balance::FundingIssue;
+        matches!(
+            issue,
+            FundingIssue::Unfunded
+                | FundingIssue::ChannelsOutOfFunds
+                | FundingIssue::SafeOutOfFunds
+                | FundingIssue::SafeLowOnFunds
+                | FundingIssue::NodeUnderfunded
+                | FundingIssue::NodeLowOnFunds
+        )
+    } else {
+        false
+    };
+
+    // Determine icon based on connection state and funding status
+    match (connection_state, has_low_funds) {
+        ("Connected", true) => "app-icon-connected-low-funds.png".to_string(),
+        ("Connected", false) => "app-icon-connected.png".to_string(),
+        ("Connecting" | "Disconnecting", _) => "app-icon-connecting-1.png".to_string(), // Will be animated by heartbeat
+        (_, true) => "app-icon-disconnected-low-funds.png".to_string(), // Disconnected with low funds
+        (_, false) => "app-icon-disconnected.png".to_string(),          // Disconnected
+    }
+}
+
+fn determine_tray_icon(connection_state: &str) -> &'static str {
+    match connection_state {
+        "Connected" => "tray-icons/tray-icon-connected.png",
+        "Connecting" | "Disconnecting" => "tray-icons/tray-icon-connecting.png",
+        _ => "tray-icons/tray-icon-disconnected.png",
+    }
+}
+
+fn start_icon_heartbeat(app: AppHandle, icon_state: Arc<ConnectingIconState>) {
+    std::thread::spawn(move || {
+        loop {
+            if icon_state.is_animating.load(Ordering::Relaxed) {
+                let current = icon_state.toggle.fetch_xor(true, Ordering::Relaxed);
+                let (icon_name, sleep_duration) = if current {
+                    ("app-icon-connecting-2.png", Duration::from_millis(600))
+                } else {
+                    ("app-icon-connecting-1.png", Duration::from_millis(200))
+                };
+
+                if let Ok(mut current_icon) = icon_state.current_icon.lock() {
+                    *current_icon = icon_name.to_string();
+                }
+
+                let app_clone = app.clone();
+                let icon_name_clone = icon_name.to_string();
+                tauri::async_runtime::spawn(async move {
+                    if let Err(e) = set_app_icon(app_clone, icon_name_clone).await {
+                        eprintln!("Failed to update dock icon in heartbeat: {}", e);
+                    }
+                });
+
+                std::thread::sleep(sleep_duration);
+            } else {
+                std::thread::sleep(Duration::from_millis(500));
+            }
+        }
+    });
+}
+
 #[tauri::command]
-async fn status(status_item: State<'_, TrayStatusItem>) -> Result<StatusResponse, String> {
-    let p = PathBuf::from(socket::DEFAULT_PATH);
-    let resp = socket::process_cmd(&p, &command::Command::Status).await;
+async fn status(
+    app: AppHandle,
+    status_item: State<'_, TrayStatusItem>,
+    tray_icon_state: State<'_, TrayIconState>,
+    icon_state: State<'_, Arc<ConnectingIconState>>,
+) -> Result<StatusResponse, String> {
+    let p = PathBuf::from(root_socket::DEFAULT_PATH);
+    let resp = root_socket::process_cmd(&p, &command::Command::Status).await;
     match resp {
         Ok(command::Response::Status(status_resp)) => {
-            // Derive simplified label from destinations
             let mut derived: &str = "Disconnected";
             for ds in &status_resp.destinations {
                 match ds.connection_state {
@@ -303,11 +397,45 @@ async fn status(status_item: State<'_, TrayStatusItem>) -> Result<StatusResponse
                     command::ConnectionState::None => {}
                 }
             }
-            // Update tray menu label
             if let Ok(guard) = status_item.0.lock() {
                 let _ = guard.set_text(format!("Status: {}", derived));
             }
-            // Convert for frontend
+
+            // Update tray icon on all platforms
+            let tray_icon_name = determine_tray_icon(derived);
+            if let Ok(tray_icon_path) = app
+                .path()
+                .resource_dir()
+                .map(|p| p.join("icons").join(tray_icon_name))
+            {
+                if let Ok(tray_image) = tauri::image::Image::from_path(&tray_icon_path) {
+                    if let Ok(guard) = tray_icon_state.0.lock() {
+                        let _ = guard.set_icon(Some(tray_image));
+
+                        #[cfg(target_os = "macos")]
+                        {
+                            let _ = guard.set_icon_as_template(true);
+                        }
+                    }
+                }
+            }
+
+            let icon_name = determine_app_icon(derived, &status_resp.run_mode);
+            let should_animate = derived == "Connecting" || derived == "Disconnecting";
+
+            icon_state
+                .is_animating
+                .store(should_animate, Ordering::Relaxed);
+
+            if !should_animate {
+                if let Ok(mut current_icon) = icon_state.current_icon.lock() {
+                    *current_icon = icon_name.clone();
+                }
+                if let Err(e) = set_app_icon(app, icon_name).await {
+                    eprintln!("Failed to update app icon: {}", e);
+                }
+            }
+
             Ok(status_resp.into())
         }
         Ok(_) => {
@@ -327,12 +455,12 @@ async fn status(status_item: State<'_, TrayStatusItem>) -> Result<StatusResponse
 
 #[tauri::command]
 async fn connect(address: String) -> Result<ConnectResponse, String> {
-    let p = PathBuf::from(socket::DEFAULT_PATH);
+    let p = PathBuf::from(root_socket::DEFAULT_PATH);
     let conv_address = address
         .parse::<connection::destination::Address>()
         .map_err(|e| e.to_string())?;
     let cmd = command::Command::Connect(conv_address);
-    let resp = socket::process_cmd(&p, &cmd)
+    let resp = root_socket::process_cmd(&p, &cmd)
         .await
         .map_err(|e| e.to_string())?;
     match resp {
@@ -343,9 +471,9 @@ async fn connect(address: String) -> Result<ConnectResponse, String> {
 
 #[tauri::command]
 async fn disconnect() -> Result<DisconnectResponse, String> {
-    let p = PathBuf::from(socket::DEFAULT_PATH);
+    let p = PathBuf::from(root_socket::DEFAULT_PATH);
     let cmd = command::Command::Disconnect;
-    let resp = socket::process_cmd(&p, &cmd)
+    let resp = root_socket::process_cmd(&p, &cmd)
         .await
         .map_err(|e| e.to_string())?;
     match resp {
@@ -356,9 +484,9 @@ async fn disconnect() -> Result<DisconnectResponse, String> {
 
 #[tauri::command]
 async fn balance() -> Result<Option<BalanceResponse>, String> {
-    let p = PathBuf::from(socket::DEFAULT_PATH);
+    let p = PathBuf::from(root_socket::DEFAULT_PATH);
     let cmd = command::Command::Balance;
-    let resp = socket::process_cmd(&p, &cmd)
+    let resp = root_socket::process_cmd(&p, &cmd)
         .await
         .map_err(|e| e.to_string())?;
     match resp {
@@ -369,9 +497,9 @@ async fn balance() -> Result<Option<BalanceResponse>, String> {
 
 #[tauri::command]
 async fn refresh_node() -> Result<(), String> {
-    let p = PathBuf::from(socket::DEFAULT_PATH);
+    let p = PathBuf::from(root_socket::DEFAULT_PATH);
     let cmd = command::Command::RefreshNode;
-    let resp = socket::process_cmd(&p, &cmd)
+    let resp = root_socket::process_cmd(&p, &cmd)
         .await
         .map_err(|e| e.to_string())?;
     match resp {
@@ -382,15 +510,137 @@ async fn refresh_node() -> Result<(), String> {
 
 #[tauri::command]
 async fn funding_tool(secret: String) -> Result<(), String> {
-    let p = PathBuf::from(socket::DEFAULT_PATH);
+    let p = PathBuf::from(root_socket::DEFAULT_PATH);
     let cmd = command::Command::FundingTool(secret);
-    let resp = socket::process_cmd(&p, &cmd)
+    let resp = root_socket::process_cmd(&p, &cmd)
         .await
         .map_err(|e| e.to_string())?;
     match resp {
         command::Response::Empty => Ok(()),
         _ => Err("Unexpected response type".to_string()),
     }
+}
+
+#[cfg(target_os = "macos")]
+#[allow(unexpected_cfgs)]
+#[tauri::command]
+async fn set_app_icon(app: AppHandle, icon_name: String) -> Result<(), String> {
+    use dispatch::Queue;
+    use std::fs;
+    use std::sync::mpsc;
+
+    let icon_path = app
+        .path()
+        .resource_dir()
+        .map_err(|e| format!("Failed to get resource dir: {}", e))?
+        .join("icons")
+        .join("app-icons")
+        .join(&icon_name);
+
+    let icon_data = fs::read(&icon_path)
+        .map_err(|e| format!("Failed to read icon file {}: {}", icon_path.display(), e))?;
+
+    let (tx, rx) = mpsc::channel();
+
+    Queue::main().exec_async(move || unsafe {
+        use cocoa::{
+            appkit::NSImage,
+            base::{id, nil},
+            foundation::NSData,
+        };
+
+        let result = (|| {
+            let app: id = msg_send![class!(NSApplication), sharedApplication];
+            if app == nil {
+                return Err("Failed to get NSApplication".to_string());
+            }
+
+            let data = NSData::dataWithBytes_length_(
+                nil,
+                icon_data.as_ptr() as *const std::os::raw::c_void,
+                icon_data.len() as u64,
+            );
+
+            if data == nil {
+                return Err("Failed to create NSData".to_string());
+            }
+
+            let app_icon = NSImage::initWithData_(NSImage::alloc(nil), data);
+            if app_icon == nil {
+                return Err("Failed to create NSImage from data".to_string());
+            }
+
+            let _: () = msg_send![app, setApplicationIconImage: app_icon];
+
+            Ok(())
+        })();
+
+        let _ = tx.send(result);
+    });
+
+    // Wait for the result from the main thread
+    rx.recv()
+        .map_err(|e| format!("Failed to receive result from main thread: {}", e))?
+}
+
+#[cfg(not(target_os = "macos"))]
+#[tauri::command]
+async fn set_app_icon(app: AppHandle, icon_name: String) -> Result<(), String> {
+    use std::fs;
+    use tauri::image::Image;
+
+    let icon_path = app
+        .path()
+        .resource_dir()
+        .map_err(|e| format!("Failed to get resource dir: {}", e))?
+        .join("icons")
+        .join("app-icons")
+        .join(&icon_name);
+
+    let icon_data = fs::read(&icon_path)
+        .map_err(|e| format!("Failed to read icon file {}: {}", icon_path.display(), e))?;
+
+    let image = Image::from_bytes(&icon_data)
+        .map_err(|e| format!("Failed to create image from icon data: {}", e))?;
+
+    // Set icon on all windows (main and settings)
+    let mut errors = Vec::new();
+
+    if let Some(window) = app.get_webview_window("main") {
+        if let Err(e) = window.set_icon(image.clone()) {
+            errors.push(format!("Failed to set main window icon: {}", e));
+        }
+    }
+
+    if let Some(window) = app.get_webview_window("settings") {
+        if let Err(e) = window.set_icon(image) {
+            errors.push(format!("Failed to set settings window icon: {}", e));
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors.join("; "))
+    }
+}
+
+#[tauri::command]
+async fn compress_logs(_app: AppHandle, dest_path: String) -> Result<(), String> {
+    let input_file =
+        File::open(LOG_FILE_PATH).map_err(|e| format!("Failed to open log file: {}", e))?;
+    let output_file =
+        File::create(dest_path).map_err(|e| format!("Failed to create output file: {}", e))?;
+
+    // compression level 5 - default is 3 (see zstd docs for details)
+    let mut encoder = Encoder::new(&output_file, 5)
+        .map_err(|e| format!("Failed to create zstd encoder: {}", e))?;
+    io::copy(&mut BufReader::new(input_file), &mut encoder)
+        .map_err(|e| format!("Failed to compress log file: {}", e))?;
+    encoder
+        .finish()
+        .map_err(|e| format!("Failed to finalize compression: {}", e))?;
+    Ok(())
 }
 
 fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error> {
@@ -493,6 +743,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_positioner::init())
         .setup(|app| {
             // Load settings from the shared store (settings.json) before any UI decisions
@@ -515,7 +766,8 @@ pub fn run() {
             // Create tray menu
             let menu = create_tray_menu(app.handle())?;
 
-            let icon_name: &str = "tray-icon.png";
+            // Start with disconnected tray icon
+            let icon_name: &str = "tray-icons/tray-icon-disconnected.png";
 
             let tray_icon_path: PathBuf = app
                 .path()
@@ -532,7 +784,7 @@ pub fn run() {
                 .menu(&menu)
                 .icon(icon)
                 .icon_as_template(true);
-            let _tray = builder
+            let tray = builder
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "quit" => {
                         app.exit(0);
@@ -552,6 +804,17 @@ pub fn run() {
                 })
                 .show_menu_on_left_click(false)
                 .build(app)?;
+
+            app.manage(TrayIconState(Mutex::new(tray)));
+
+            let icon_state = Arc::new(ConnectingIconState {
+                toggle: AtomicBool::new(false),
+                is_animating: AtomicBool::new(false),
+                current_icon: Mutex::new("app-icon-disconnected.png".to_string()),
+            });
+            app.manage(icon_state.clone());
+
+            start_icon_heartbeat(app.handle().clone(), icon_state);
 
             // Setup platform-specific functionality
             let _ = Platform::setup_system_tray();
@@ -613,7 +876,9 @@ pub fn run() {
             disconnect,
             balance,
             refresh_node,
-            funding_tool
+            funding_tool,
+            compress_logs,
+            set_app_icon
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

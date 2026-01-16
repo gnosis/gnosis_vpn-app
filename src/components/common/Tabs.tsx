@@ -1,5 +1,5 @@
 import { For } from "solid-js";
-import TabLabel from "@src/components/common/TabLabel";
+import TabLabel from "./TabLabel.tsx";
 
 export interface TabItem {
   id: string;

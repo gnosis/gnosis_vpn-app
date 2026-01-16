@@ -1,21 +1,21 @@
 import parachute from "@assets/img/parachute.png";
-import Button from "@src/components/common/Button";
+import Button from "../common/Button.tsx";
 import { createEffect, createMemo, createSignal, Show } from "solid-js";
-import { useLogsStore } from "@src/stores/logsStore";
+import { useLogsStore } from "../../stores/logsStore.ts";
 import checkIcon from "@assets/icons/checked-box-filled.svg";
-import { useAppStore } from "@src/stores/appStore";
+import { useAppStore } from "../../stores/appStore.ts";
 import backIcon from "@assets/icons/arrow-left.svg";
-import Spinner from "@src/components/common/Spinner";
+import Spinner from "../common/Spinner.tsx";
 import {
   getPreparingSafeNodeAddress,
   isPreparingSafe,
-} from "@src/utils/status";
+} from "../../utils/status.ts";
 
 import {
   equalFundingTool,
   FundingTool,
   isFundingError,
-} from "@src/services/vpnService";
+} from "../../services/vpnService.ts";
 
 export default function Airdrop(
   { setStep }: { setStep: (step: string) => void },

@@ -1,5 +1,5 @@
 import { type JSX, Show } from "solid-js";
-import { useAppStore } from "@src/stores/appStore";
+import { useAppStore } from "../stores/appStore.ts";
 
 export default function StatusLine(
   props: { heightPx: number },
