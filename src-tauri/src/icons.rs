@@ -8,6 +8,22 @@ use tauri::{AppHandle, Manager, Theme, tray::TrayIcon};
 use crate::set_app_icon;
 use gnosis_vpn_lib::{balance, command};
 
+// App icon constants
+pub const APP_ICON_CONNECTED: &str = "app-icon-connected.png";
+pub const APP_ICON_CONNECTED_LOW_FUNDS: &str = "app-icon-connected-low-funds.png";
+pub const APP_ICON_CONNECTING_1: &str = "app-icon-connecting-1.png";
+pub const APP_ICON_CONNECTING_2: &str = "app-icon-connecting-2.png";
+pub const APP_ICON_DISCONNECTED: &str = "app-icon-disconnected.png";
+pub const APP_ICON_DISCONNECTED_LOW_FUNDS: &str = "app-icon-disconnected-low-funds.png";
+
+// Tray icon constants
+pub const TRAY_ICON_CONNECTED: &str = "tray-icons/tray-icon-connected.png";
+pub const TRAY_ICON_CONNECTED_BLACK: &str = "tray-icons/tray-icon-connected-black.png";
+pub const TRAY_ICON_CONNECTING: &str = "tray-icons/tray-icon-connecting.png";
+pub const TRAY_ICON_CONNECTING_BLACK: &str = "tray-icons/tray-icon-connecting-black.png";
+pub const TRAY_ICON_DISCONNECTED: &str = "tray-icons/tray-icon-disconnected.png";
+pub const TRAY_ICON_DISCONNECTED_BLACK: &str = "tray-icons/tray-icon-disconnected-black.png";
+
 // State to hold a reference to the tray icon so we can update it
 pub struct TrayIconState {
     pub tray: Mutex<TrayIcon<tauri::Wry>>,
@@ -31,7 +47,10 @@ pub fn update_icon_name_if_changed(current: &Mutex<String>, next: &str) -> bool 
                 true
             }
         }
-        Err(_) => true,
+        Err(e) => {
+            eprintln!("Failed to lock current_icon mutex: {}", e);
+            true
+        }
     }
 }
 
@@ -58,23 +77,23 @@ pub fn determine_app_icon(connection_state: &str, run_mode: &command::RunMode) -
 
     // Determine icon based on connection state and funding status
     match (connection_state, has_low_funds) {
-        ("Connected", true) => "app-icon-connected-low-funds.png".to_string(),
-        ("Connected", false) => "app-icon-connected.png".to_string(),
-        ("Connecting" | "Disconnecting", _) => "app-icon-connecting-1.png".to_string(), // Will be animated by heartbeat
-        (_, true) => "app-icon-disconnected-low-funds.png".to_string(), // Disconnected with low funds
-        (_, false) => "app-icon-disconnected.png".to_string(),          // Disconnected
+        ("Connected", true) => APP_ICON_CONNECTED_LOW_FUNDS.to_string(),
+        ("Connected", false) => APP_ICON_CONNECTED.to_string(),
+        ("Connecting" | "Disconnecting", _) => APP_ICON_CONNECTING_1.to_string(), // Will be animated by heartbeat
+        (_, true) => APP_ICON_DISCONNECTED_LOW_FUNDS.to_string(), // Disconnected with low funds
+        (_, false) => APP_ICON_DISCONNECTED.to_string(),          // Disconnected
     }
 }
 
 pub fn determine_tray_icon(connection_state: &str, theme: Option<Theme>) -> &'static str {
     let use_black_icons = !cfg!(target_os = "macos") && matches!(theme, Some(Theme::Light));
     match (connection_state, use_black_icons) {
-        ("Connected", true) => "tray-icons/tray-icon-connected-black.png",
-        ("Connected", false) => "tray-icons/tray-icon-connected.png",
-        ("Connecting" | "Disconnecting", true) => "tray-icons/tray-icon-connecting-black.png",
-        ("Connecting" | "Disconnecting", false) => "tray-icons/tray-icon-connecting.png",
-        (_, true) => "tray-icons/tray-icon-disconnected-black.png",
-        (_, false) => "tray-icons/tray-icon-disconnected.png",
+        ("Connected", true) => TRAY_ICON_CONNECTED_BLACK,
+        ("Connected", false) => TRAY_ICON_CONNECTED,
+        ("Connecting" | "Disconnecting", true) => TRAY_ICON_CONNECTING_BLACK,
+        ("Connecting" | "Disconnecting", false) => TRAY_ICON_CONNECTING,
+        (_, true) => TRAY_ICON_DISCONNECTED_BLACK,
+        (_, false) => TRAY_ICON_DISCONNECTED,
     }
 }
 
@@ -122,9 +141,9 @@ pub fn start_app_icon_heartbeat(app: AppHandle, app_icon_state: Arc<AppIconState
                     .animation_toggle
                     .fetch_xor(true, Ordering::Relaxed);
                 let (icon_name, sleep_duration) = if current {
-                    ("app-icon-connecting-2.png", Duration::from_millis(600))
+                    (APP_ICON_CONNECTING_2, Duration::from_millis(600))
                 } else {
-                    ("app-icon-connecting-1.png", Duration::from_millis(200))
+                    (APP_ICON_CONNECTING_1, Duration::from_millis(200))
                 };
 
                 if let Ok(mut current_icon) = app_icon_state.current_icon.lock() {

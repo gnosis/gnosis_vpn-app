@@ -731,7 +731,7 @@ pub fn run() {
             let app_icon_state = Arc::new(AppIconState {
                 animation_toggle: AtomicBool::new(false),
                 is_animating: AtomicBool::new(false),
-                current_icon: Mutex::new("app-icon-disconnected.png".to_string()),
+                current_icon: Mutex::new(icons::APP_ICON_DISCONNECTED.to_string()),
             });
             app.manage(app_icon_state.clone());
 

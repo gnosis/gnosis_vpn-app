@@ -1,16 +1,16 @@
-import IconButton from "@src/components/common/IconButton.tsx";
-import BalancePopup from "@src/components/BalancePopup.tsx";
+import IconButton from "./common/IconButton.tsx";
+import BalancePopup from "./BalancePopup.tsx";
 import { Portal } from "solid-js/web";
-import settingsIcon from "@assets/icons/settings.svg";
-import logsIcon from "@assets/icons/logs.svg";
+import settingsIcon from "../assets/icons/settings.svg";
+import logsIcon from "../assets/icons/logs.svg";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { isRunningRunMode } from "@src/services/vpnService";
-import fundsFullIcon from "@assets/icons/funds-full.svg";
-import fundsLowIcon from "@assets/icons/funds-low.svg";
-import fundsOutIcon from "@assets/icons/funds-out.svg";
-import fundsEmptyIcon from "@assets/icons/funds-empty.svg";
+import { isRunningRunMode } from "../services/vpnService.ts";
+import fundsFullIcon from "../assets/icons/funds-full.svg";
+import fundsLowIcon from "../assets/icons/funds-low.svg";
+import fundsOutIcon from "../assets/icons/funds-out.svg";
+import fundsEmptyIcon from "../assets/icons/funds-empty.svg";
 import { createSignal } from "solid-js";
-import { useAppStore } from "@src/stores/appStore";
+import { useAppStore } from "../stores/appStore.ts";
 
 function Navigation() {
   const [appState] = useAppStore();
