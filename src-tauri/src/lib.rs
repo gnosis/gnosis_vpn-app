@@ -766,7 +766,7 @@ pub fn run() {
                             .lock()
                             .map(|icon| extract_connection_state_from_icon(&icon))
                             .unwrap_or("Disconnected");
-                        let theme_option = Some(theme);
+                        let theme_option = Some(*theme);
                         update_tray_icon(
                             &app_handle_for_theme,
                             tray_icon_state.inner(),
