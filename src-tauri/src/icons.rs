@@ -78,6 +78,16 @@ pub fn determine_tray_icon(connection_state: &str, theme: Option<Theme>) -> &'st
     }
 }
 
+pub fn extract_connection_state_from_icon(icon_name: &str) -> &'static str {
+    if icon_name.contains("connected") && !icon_name.contains("connecting") {
+        "Connected"
+    } else if icon_name.contains("connecting") {
+        "Connecting"
+    } else {
+        "Disconnected"
+    }
+}
+
 pub fn update_tray_icon(
     app: &AppHandle,
     tray_icon_state: &TrayIconState,

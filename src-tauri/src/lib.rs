@@ -27,8 +27,9 @@ use std::time::{Duration, SystemTime};
 use std::{path::PathBuf, sync::Mutex};
 
 use icons::{
-    AppIconState, TrayIconState, determine_app_icon, determine_tray_icon, start_app_icon_heartbeat,
-    update_icon_name_if_changed, update_tray_icon,
+    AppIconState, TrayIconState, determine_app_icon, determine_tray_icon,
+    extract_connection_state_from_icon, start_app_icon_heartbeat, update_icon_name_if_changed,
+    update_tray_icon,
 };
 
 const LOG_FILE_PATH: &str = "/var/log/gnosisvpn/gnosisvpn.log";
@@ -740,12 +741,15 @@ pub fn run() {
             let _ = Platform::setup_system_tray();
 
             // Intercept window close to hide to tray instead of exiting
+            // Also listen for OS theme changes and update tray icon (non-macOS only)
             if let Some(window) = app.get_webview_window("main") {
                 #[cfg(target_os = "macos")]
                 let app_handle = app.handle().clone();
+                #[cfg(not(target_os = "macos"))]
+                let app_handle_for_theme = app.handle().clone();
                 let window_clone = window.clone();
-                window.on_window_event(move |event| {
-                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                window.on_window_event(move |event| match event {
+                    tauri::WindowEvent::CloseRequested { api, .. } => {
                         api.prevent_close();
                         let _ = window_clone.hide();
                         #[cfg(target_os = "macos")]
@@ -754,13 +758,8 @@ pub fn run() {
                                 .set_activation_policy(tauri::ActivationPolicy::Accessory);
                         }
                     }
-                });
-
-                // Listen for OS theme changes and update tray icon (non-macOS only)
-                #[cfg(not(target_os = "macos"))]
-                {
-                    let app_handle_for_theme = app.handle().clone();
-                    window.on_theme_changed(move |_window, theme| {
+                    #[cfg(not(target_os = "macos"))]
+                    tauri::WindowEvent::ThemeChanged(theme) => {
                         let tray_icon_state = app_handle_for_theme.state::<TrayIconState>();
                         let connection_state = tray_icon_state
                             .current_icon
@@ -774,8 +773,9 @@ pub fn run() {
                             connection_state,
                             theme_option,
                         );
-                    });
-                }
+                    }
+                    _ => {}
+                });
             }
 
             // Intercept settings window close to hide instead of destroying the window
