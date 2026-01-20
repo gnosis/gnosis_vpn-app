@@ -3,7 +3,7 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
-use tauri::{AppHandle, tray::TrayIcon};
+use tauri::{AppHandle, Theme, tray::TrayIcon};
 
 use crate::set_app_icon;
 use gnosis_vpn_lib::{balance, command};
@@ -66,11 +66,15 @@ pub fn determine_app_icon(connection_state: &str, run_mode: &command::RunMode) -
     }
 }
 
-pub fn determine_tray_icon(connection_state: &str) -> &'static str {
-    match connection_state {
-        "Connected" => "tray-icons/tray-icon-connected.png",
-        "Connecting" | "Disconnecting" => "tray-icons/tray-icon-connecting.png",
-        _ => "tray-icons/tray-icon-disconnected.png",
+pub fn determine_tray_icon(connection_state: &str, theme: Option<Theme>) -> &'static str {
+    let use_black_icons = !cfg!(target_os = "macos") && matches!(theme, Some(Theme::Light));
+    match (connection_state, use_black_icons) {
+        ("Connected", true) => "tray-icons/tray-icon-connected-black.png",
+        ("Connected", false) => "tray-icons/tray-icon-connected.png",
+        ("Connecting" | "Disconnecting", true) => "tray-icons/tray-icon-connecting-black.png",
+        ("Connecting" | "Disconnecting", false) => "tray-icons/tray-icon-connecting.png",
+        (_, true) => "tray-icons/tray-icon-disconnected-black.png",
+        (_, false) => "tray-icons/tray-icon-disconnected.png",
     }
 }
 

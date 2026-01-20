@@ -328,7 +328,9 @@ async fn status(
             }
 
             // Update tray icon on all platforms
-            let tray_icon_name = determine_tray_icon(derived);
+            let theme = app.get_webview_window("main")
+                .and_then(|w| w.theme().ok());
+            let tray_icon_name = determine_tray_icon(derived, theme);
             if update_icon_name_if_changed(&tray_icon_state.current_icon, tray_icon_name) {
                 if let Ok(tray_icon_path) = app
                     .path()
@@ -694,7 +696,9 @@ pub fn run() {
             let menu = create_tray_menu(app.handle())?;
 
             // Start with disconnected tray icon
-            let icon_name: &str = "tray-icons/tray-icon-disconnected.png";
+            let theme = app.get_webview_window("main")
+                .and_then(|w| w.theme().ok());
+            let icon_name: &str = determine_tray_icon("Disconnected", theme);
 
             let tray_icon_path: PathBuf = app
                 .path()
