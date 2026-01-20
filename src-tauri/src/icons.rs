@@ -3,7 +3,7 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
-use tauri::{AppHandle, Theme, tray::TrayIcon};
+use tauri::{AppHandle, Manager, Theme, tray::TrayIcon};
 
 use crate::set_app_icon;
 use gnosis_vpn_lib::{balance, command};
@@ -75,6 +75,32 @@ pub fn determine_tray_icon(connection_state: &str, theme: Option<Theme>) -> &'st
         ("Connecting" | "Disconnecting", false) => "tray-icons/tray-icon-connecting.png",
         (_, true) => "tray-icons/tray-icon-disconnected-black.png",
         (_, false) => "tray-icons/tray-icon-disconnected.png",
+    }
+}
+
+pub fn update_tray_icon(
+    app: &AppHandle,
+    tray_icon_state: &TrayIconState,
+    connection_state: &str,
+    theme: Option<Theme>,
+) {
+    let tray_icon_name = determine_tray_icon(connection_state, theme);
+    if update_icon_name_if_changed(&tray_icon_state.current_icon, tray_icon_name) {
+        if let Ok(tray_icon_path) = Manager::path(app)
+            .resource_dir()
+            .map(|p| p.join("icons").join(tray_icon_name))
+        {
+            if let Ok(tray_image) = tauri::image::Image::from_path(&tray_icon_path) {
+                if let Ok(guard) = tray_icon_state.tray.lock() {
+                    let _ = guard.set_icon(Some(tray_image));
+
+                    #[cfg(target_os = "macos")]
+                    {
+                        let _ = guard.set_icon_as_template(true);
+                    }
+                }
+            }
+        }
     }
 }
 

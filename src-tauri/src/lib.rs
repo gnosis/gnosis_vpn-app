@@ -28,7 +28,7 @@ use std::{path::PathBuf, sync::Mutex};
 
 use icons::{
     AppIconState, TrayIconState, determine_app_icon, determine_tray_icon, start_app_icon_heartbeat,
-    update_icon_name_if_changed,
+    update_icon_name_if_changed, update_tray_icon,
 };
 
 const LOG_FILE_PATH: &str = "/var/log/gnosisvpn/gnosisvpn.log";
@@ -328,27 +328,11 @@ async fn status(
             }
 
             // Update tray icon on all platforms
-            let theme = app.get_webview_window("main")
-                .and_then(|w| w.theme().ok());
-            let tray_icon_name = determine_tray_icon(derived, theme);
-            if update_icon_name_if_changed(&tray_icon_state.current_icon, tray_icon_name) {
-                if let Ok(tray_icon_path) = app
-                    .path()
-                    .resource_dir()
-                    .map(|p| p.join("icons").join(tray_icon_name))
-                {
-                    if let Ok(tray_image) = tauri::image::Image::from_path(&tray_icon_path) {
-                        if let Ok(guard) = tray_icon_state.tray.lock() {
-                            let _ = guard.set_icon(Some(tray_image));
-
-                            #[cfg(target_os = "macos")]
-                            {
-                                let _ = guard.set_icon_as_template(true);
-                            }
-                        }
-                    }
-                }
-            }
+            #[cfg(not(target_os = "macos"))]
+            let theme = app.get_webview_window("main").and_then(|w| w.theme().ok());
+            #[cfg(target_os = "macos")]
+            let theme = None;
+            update_tray_icon(&app, tray_icon_state.inner(), derived, theme);
 
             let icon_name = determine_app_icon(derived, &status_resp.run_mode);
             let should_animate = derived == "Connecting" || derived == "Disconnecting";
@@ -696,8 +680,10 @@ pub fn run() {
             let menu = create_tray_menu(app.handle())?;
 
             // Start with disconnected tray icon
-            let theme = app.get_webview_window("main")
-                .and_then(|w| w.theme().ok());
+            #[cfg(not(target_os = "macos"))]
+            let theme = app.get_webview_window("main").and_then(|w| w.theme().ok());
+            #[cfg(target_os = "macos")]
+            let theme = None;
             let icon_name: &str = determine_tray_icon("Disconnected", theme);
 
             let tray_icon_path: PathBuf = app
@@ -769,6 +755,27 @@ pub fn run() {
                         }
                     }
                 });
+
+                // Listen for OS theme changes and update tray icon (non-macOS only)
+                #[cfg(not(target_os = "macos"))]
+                {
+                    let app_handle_for_theme = app.handle().clone();
+                    window.on_theme_changed(move |_window, theme| {
+                        let tray_icon_state = app_handle_for_theme.state::<TrayIconState>();
+                        let connection_state = tray_icon_state
+                            .current_icon
+                            .lock()
+                            .map(|icon| extract_connection_state_from_icon(&icon))
+                            .unwrap_or("Disconnected");
+                        let theme_option = Some(theme);
+                        update_tray_icon(
+                            &app_handle_for_theme,
+                            tray_icon_state.inner(),
+                            connection_state,
+                            theme_option,
+                        );
+                    });
+                }
             }
 
             // Intercept settings window close to hide instead of destroying the window
