@@ -47,7 +47,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
       - name: Setup GCP
         id: gcp
         uses: hoprnet/hopr-workflows/actions/setup-gcp@master
@@ -55,7 +55,7 @@ jobs:
           google-credentials: ${{ secrets.GCP_SA_GITHUB_ACTIONS }}
           install-sdk: "true"
       - name: Install Nix
-        uses: cachix/install-nix-action@v31
+        uses: cachix/install-nix-action@4e002c8ec80594ecd40e759629461e26c8abed15 # v31
       - name: Setup environment variables
         id: environment
         run: |
@@ -126,7 +126,7 @@ jobs:
           # nix run .#generate-lockfile
           jq --arg v "$bump_version" '.version = $v' package.json > package-tmp.json && mv package-tmp.json package.json
           echo "bump_version=${bump_version}" | tee -a $GITHUB_OUTPUT
-      - uses: EndBug/add-and-commit@v9
+      - uses: EndBug/add-and-commit@a94899bca583c204427a224a7af87c02f9b325d5 # v9
         with:
           add: '["src-tauri/Cargo.*", "package.json"]'
           new_branch: main
