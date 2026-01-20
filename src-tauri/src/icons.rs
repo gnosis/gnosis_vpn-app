@@ -68,10 +68,6 @@ pub fn determine_app_icon(connection_state: &str, run_mode: &command::RunMode) -
 
 pub fn determine_tray_icon(connection_state: &str, theme: Option<Theme>) -> &'static str {
     let use_black_icons = !cfg!(target_os = "macos") && matches!(theme, Some(Theme::Light));
-    eprintln!(
-        "[determine_tray_icon] theme: {:?}, use_black_icons: {}, connection_state: {}",
-        theme, use_black_icons, connection_state
-    );
     match (connection_state, use_black_icons) {
         ("Connected", true) => "tray-icons/tray-icon-connected-black.png",
         ("Connected", false) => "tray-icons/tray-icon-connected.png",
