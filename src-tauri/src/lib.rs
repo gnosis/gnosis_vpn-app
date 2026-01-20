@@ -8,9 +8,10 @@ use tauri::State;
 use tauri::{
     AppHandle, Emitter, Manager,
     menu::{Menu, MenuBuilder, MenuItem},
-    tray::{TrayIcon, TrayIconBuilder, TrayIconEvent},
+    tray::{TrayIconBuilder, TrayIconEvent},
 };
 use zstd::stream::Encoder;
+mod icons;
 mod platform;
 use platform::{Platform, PlatformInterface};
 use serde::Serialize;
@@ -25,20 +26,15 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, SystemTime};
 use std::{path::PathBuf, sync::Mutex};
 
+use icons::{
+    AppIconState, TrayIconState, determine_app_icon, determine_tray_icon, start_app_icon_heartbeat,
+    update_icon_name_if_changed,
+};
+
 const LOG_FILE_PATH: &str = "/var/log/gnosisvpn/gnosisvpn.log";
 
 // State to hold a reference to the tray "status" menu item so we can update it
 struct TrayStatusItem(Mutex<MenuItem<tauri::Wry>>);
-
-// State to hold a reference to the tray icon so we can update it
-struct TrayIconState(Mutex<TrayIcon<tauri::Wry>>);
-
-// State to track which connecting icon to show (for animation) and if animation is active
-struct ConnectingIconState {
-    toggle: AtomicBool,
-    is_animating: AtomicBool,
-    current_icon: Mutex<String>,
-}
 
 #[derive(Clone, Serialize, Default)]
 struct AppSettings {
@@ -296,82 +292,12 @@ impl From<command::BalanceResponse> for BalanceResponse {
     }
 }
 
-fn determine_app_icon(connection_state: &str, run_mode: &command::RunMode) -> String {
-    // Check for low funds in Running mode
-    let has_low_funds = if let command::RunMode::Running {
-        funding: command::FundingState::TopIssue(issue),
-        hopr_status: _,
-    } = run_mode
-    {
-        use balance::FundingIssue;
-        matches!(
-            issue,
-            FundingIssue::Unfunded
-                | FundingIssue::ChannelsOutOfFunds
-                | FundingIssue::SafeOutOfFunds
-                | FundingIssue::SafeLowOnFunds
-                | FundingIssue::NodeUnderfunded
-                | FundingIssue::NodeLowOnFunds
-        )
-    } else {
-        false
-    };
-
-    // Determine icon based on connection state and funding status
-    match (connection_state, has_low_funds) {
-        ("Connected", true) => "app-icon-connected-low-funds.png".to_string(),
-        ("Connected", false) => "app-icon-connected.png".to_string(),
-        ("Connecting" | "Disconnecting", _) => "app-icon-connecting-1.png".to_string(), // Will be animated by heartbeat
-        (_, true) => "app-icon-disconnected-low-funds.png".to_string(), // Disconnected with low funds
-        (_, false) => "app-icon-disconnected.png".to_string(),          // Disconnected
-    }
-}
-
-fn determine_tray_icon(connection_state: &str) -> &'static str {
-    match connection_state {
-        "Connected" => "tray-icons/tray-icon-connected.png",
-        "Connecting" | "Disconnecting" => "tray-icons/tray-icon-connecting.png",
-        _ => "tray-icons/tray-icon-disconnected.png",
-    }
-}
-
-fn start_icon_heartbeat(app: AppHandle, icon_state: Arc<ConnectingIconState>) {
-    std::thread::spawn(move || {
-        loop {
-            if icon_state.is_animating.load(Ordering::Relaxed) {
-                let current = icon_state.toggle.fetch_xor(true, Ordering::Relaxed);
-                let (icon_name, sleep_duration) = if current {
-                    ("app-icon-connecting-2.png", Duration::from_millis(600))
-                } else {
-                    ("app-icon-connecting-1.png", Duration::from_millis(200))
-                };
-
-                if let Ok(mut current_icon) = icon_state.current_icon.lock() {
-                    *current_icon = icon_name.to_string();
-                }
-
-                let app_clone = app.clone();
-                let icon_name_clone = icon_name.to_string();
-                tauri::async_runtime::spawn(async move {
-                    if let Err(e) = set_app_icon(app_clone, icon_name_clone).await {
-                        eprintln!("Failed to update dock icon in heartbeat: {}", e);
-                    }
-                });
-
-                std::thread::sleep(sleep_duration);
-            } else {
-                std::thread::sleep(Duration::from_millis(500));
-            }
-        }
-    });
-}
-
 #[tauri::command]
 async fn status(
     app: AppHandle,
     status_item: State<'_, TrayStatusItem>,
     tray_icon_state: State<'_, TrayIconState>,
-    icon_state: State<'_, Arc<ConnectingIconState>>,
+    app_icon_state: State<'_, Arc<AppIconState>>,
 ) -> Result<StatusResponse, String> {
     let p = PathBuf::from(root_socket::DEFAULT_PATH);
     let resp = root_socket::process_cmd(&p, &command::Command::Status).await;
@@ -403,18 +329,20 @@ async fn status(
 
             // Update tray icon on all platforms
             let tray_icon_name = determine_tray_icon(derived);
-            if let Ok(tray_icon_path) = app
-                .path()
-                .resource_dir()
-                .map(|p| p.join("icons").join(tray_icon_name))
-            {
-                if let Ok(tray_image) = tauri::image::Image::from_path(&tray_icon_path) {
-                    if let Ok(guard) = tray_icon_state.0.lock() {
-                        let _ = guard.set_icon(Some(tray_image));
+            if update_icon_name_if_changed(&tray_icon_state.current_icon, tray_icon_name) {
+                if let Ok(tray_icon_path) = app
+                    .path()
+                    .resource_dir()
+                    .map(|p| p.join("icons").join(tray_icon_name))
+                {
+                    if let Ok(tray_image) = tauri::image::Image::from_path(&tray_icon_path) {
+                        if let Ok(guard) = tray_icon_state.tray.lock() {
+                            let _ = guard.set_icon(Some(tray_image));
 
-                        #[cfg(target_os = "macos")]
-                        {
-                            let _ = guard.set_icon_as_template(true);
+                            #[cfg(target_os = "macos")]
+                            {
+                                let _ = guard.set_icon_as_template(true);
+                            }
                         }
                     }
                 }
@@ -423,14 +351,13 @@ async fn status(
             let icon_name = determine_app_icon(derived, &status_resp.run_mode);
             let should_animate = derived == "Connecting" || derived == "Disconnecting";
 
-            icon_state
+            app_icon_state
                 .is_animating
                 .store(should_animate, Ordering::Relaxed);
 
-            if !should_animate {
-                if let Ok(mut current_icon) = icon_state.current_icon.lock() {
-                    *current_icon = icon_name.clone();
-                }
+            if !should_animate
+                && update_icon_name_if_changed(&app_icon_state.current_icon, &icon_name)
+            {
                 if let Err(e) = set_app_icon(app, icon_name).await {
                     eprintln!("Failed to update app icon: {}", e);
                 }
@@ -805,16 +732,19 @@ pub fn run() {
                 .show_menu_on_left_click(false)
                 .build(app)?;
 
-            app.manage(TrayIconState(Mutex::new(tray)));
+            app.manage(TrayIconState {
+                tray: Mutex::new(tray),
+                current_icon: Mutex::new(icon_name.to_string()),
+            });
 
-            let icon_state = Arc::new(ConnectingIconState {
-                toggle: AtomicBool::new(false),
+            let app_icon_state = Arc::new(AppIconState {
+                animation_toggle: AtomicBool::new(false),
                 is_animating: AtomicBool::new(false),
                 current_icon: Mutex::new("app-icon-disconnected.png".to_string()),
             });
-            app.manage(icon_state.clone());
+            app.manage(app_icon_state.clone());
 
-            start_icon_heartbeat(app.handle().clone(), icon_state);
+            start_app_icon_heartbeat(app.handle().clone(), app_icon_state);
 
             // Setup platform-specific functionality
             let _ = Platform::setup_system_tray();
