@@ -8,6 +8,8 @@ import {
   type StatusText,
 } from "@src/utils/funding.ts";
 
+const BALANCE_REFRESH_INTERVAL_MS = 60000;
+
 type Props = {
   show: boolean;
   buttonRect: DOMRect | null;
@@ -55,7 +57,7 @@ export default function BalancePopup(props: Props) {
     void loadBalance();
     const interval = setInterval(() => {
       void loadBalance();
-    }, 60000);
+    }, BALANCE_REFRESH_INTERVAL_MS);
 
     onCleanup(() => clearInterval(interval));
   });
