@@ -74,9 +74,9 @@ export default function Usage() {
 
   return (
     <>
-      <div class="px-4 py-2 flex flex-col w-full h-full items-center gap-4 justify-between">
+      <div class="px-4 py-2 flex flex-col w-full h-full items-center gap-4 justify-between bg-bg-primary">
         <Show when={!isBalanceLoading() && balance() === null}>
-          <div class="text-sm text-gray-500">Not available</div>
+          <div class="text-sm text-text-secondary">Not available</div>
         </Show>
 
         <Show when={fundingStatus()?.description}>
@@ -120,7 +120,7 @@ export default function Usage() {
         <div class="w-64 flex flex-col gap-2">
           <Button onClick={() => setIsAddFundsOpen(true)}>Add funds</Button>
           <div class="flex flex-row items-center gap-2 max-w-md">
-            <div class="text-xs text-slate-600 px-2">
+            <div class="text-xs text-text-secondary px-2">
               <WarningIcon />
               It may take up to 2 minutes until your funds have been registered
               after transaction.
@@ -131,7 +131,11 @@ export default function Usage() {
                 class="h-8 w-8 hover:cursor-pointer"
                 onClick={handleRefresh}
               >
-                <img src={refreshIcon} alt="Refresh" class="h-8 w-8" />
+                <img
+                  src={refreshIcon}
+                  alt="Refresh"
+                  class="h-8 w-8 dark-mode-icon"
+                />
               </button>
             </div>
           </div>

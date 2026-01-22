@@ -28,7 +28,7 @@ export default function FundsInfo(props: Props) {
       </div>
 
       <div class="flex flex-row items-baseline gap-2 w-2/3 justify-between px-2">
-        <span class="text-slate-600">{props.ticker}</span>
+        <span class="text-text-secondary">{props.ticker}</span>
         <Show
           when={!props.isLoading && props.status}
           fallback={props.isLoading

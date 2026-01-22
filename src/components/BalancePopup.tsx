@@ -99,31 +99,31 @@ export default function BalancePopup(props: Props) {
               height: "0",
               "border-left": "6px solid transparent",
               "border-right": "6px solid transparent",
-              "border-bottom": "6px solid black",
+              "border-bottom": "6px solid var(--color-accent)",
             }}
           />
 
           <div
-            class="bg-black text-white rounded-lg shadow-2xl px-3 py-2.5 -translate-x-1/2"
+            class="bg-accent text-accent-text rounded-lg shadow-2xl px-3 py-2.5 -translate-x-1/2"
             style={{
               width: `${props.containerRect!.width}px`,
             }}
           >
-            <div class="text-xs font-medium mb-2 text-gray-400">
+            <div class="text-xs font-medium mb-2 text-accent-text/70">
               Funds remaining
             </div>
 
             <div class="mb-2">
               <div class="flex items-center gap-1 mb-0.5">
                 <StatusDot status={fundingStatus().safeStatus} />
-                <div class="text-[9px] text-gray-400 uppercase tracking-wide">
+                <div class="text-[9px] text-accent-text/70 uppercase tracking-wide">
                   TRAFFIC
                 </div>
               </div>
               <Show
                 when={balance()}
                 fallback={
-                  <div class="text-[10px] text-gray-400">Loading...</div>
+                  <div class="text-[10px] text-accent-text/70">Loading...</div>
                 }
               >
                 {(b) => (
@@ -137,14 +137,14 @@ export default function BalancePopup(props: Props) {
             <div>
               <div class="flex items-center gap-1 mb-0.5">
                 <StatusDot status={fundingStatus().nodeStatus} />
-                <div class="text-[9px] text-gray-400 uppercase tracking-wide">
+                <div class="text-[9px] text-accent-text/70 uppercase tracking-wide">
                   CUSTOM EXIT NODES
                 </div>
               </div>
               <Show
                 when={balance()}
                 fallback={
-                  <div class="text-[10px] text-gray-400">Loading...</div>
+                  <div class="text-[10px] text-accent-text/70">Loading...</div>
                 }
               >
                 {(b) => (

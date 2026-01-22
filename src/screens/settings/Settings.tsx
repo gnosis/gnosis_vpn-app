@@ -13,26 +13,13 @@ export default function Settings() {
   const [settings, settingsActions] = useSettingsStore();
 
   return (
-    <div class="space-y-4 w-full p-6 max-w-lg">
-      <Toggle
-        label="Connect on application startup"
-        checked={settings.connectOnStartup}
-        onChange={(e) =>
-          void settingsActions.setConnectOnStartup(e.currentTarget.checked)}
-      />
-      <Toggle
-        label="Start application minimized"
-        checked={settings.startMinimized}
-        onChange={(e) =>
-          void settingsActions.setStartMinimized(e.currentTarget.checked)}
-      />
-
-      <label class="flex items-center justify-between gap-2">
+    <div class="space-y-4 w-full p-6 max-w-lg bg-bg-primary">
+      <label class="flex items-center justify-between gap-2 text-text-primary">
         Preferred server location
         <Show
           when={appState.availableDestinations.length > 0}
           fallback={
-            <div class="text-sm text-gray-500">No servers available</div>
+            <div class="text-sm text-text-secondary">No servers available</div>
           }
         >
           <Dropdown
@@ -58,6 +45,24 @@ export default function Settings() {
           />
         </Show>
       </label>
+      <Toggle
+        label="Connect on application startup"
+        checked={settings.connectOnStartup}
+        onChange={(e) =>
+          void settingsActions.setConnectOnStartup(e.currentTarget.checked)}
+      />
+      <Toggle
+        label="Start application minimized"
+        checked={settings.startMinimized}
+        onChange={(e) =>
+          void settingsActions.setStartMinimized(e.currentTarget.checked)}
+      />
+      <Toggle
+        label="Dark mode"
+        checked={settings.darkMode}
+        onChange={(e) =>
+          void settingsActions.setDarkMode(e.currentTarget.checked)}
+      />
     </div>
   );
 }

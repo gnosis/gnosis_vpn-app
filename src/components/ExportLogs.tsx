@@ -60,7 +60,7 @@ export default function ExportLogs() {
       <div class="w-full h-4 flex items-center justify-center">
         <Switch>
           <Match when={savedPath()}>
-            <span class="text-xs text-slate-600 overflow-x-auto">
+            <span class="text-xs text-text-secondary overflow-x-auto">
               Saved to: <span class="font-mono">{savedPath()}</span>
             </span>
           </Match>

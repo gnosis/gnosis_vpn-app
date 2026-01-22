@@ -25,14 +25,72 @@
   width: 100%;
   height: 100%;
 
-  color: #0f0f0f;
-  background-color: #f6f6f6;
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-primary);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-text-size-adjust: 100%;
+
+  /* Background colors */
+  --color-bg-primary: #f6f6f6;
+  --color-bg-surface: #ffffff;
+  --color-bg-overlay: rgba(0, 0, 0, 0.5);
+
+  /* Text colors */
+  --color-text-primary: #0f0f0f;
+  --color-text-secondary: #6b7280;
+  --color-text-muted: #9ca3af;
+
+  /* Border colors */
+  --color-border: #e5e7eb;
+
+  /* Accent color - used for buttons, icon buttons, popups, and dropdown highlights */
+  --color-accent: #000000;
+  --color-accent-text: #ffffff;
+  --color-accent-hover: #2e2929;
+
+  /* Secondary button colors */
+  --color-btn-secondary-bg: #374151;
+  --color-btn-secondary-text: #ffffff;
+  --color-btn-secondary-hover: #4b5563;
+
+  /* Toggle colors */
+  --color-toggle-bg: #e5e7eb;
+  --color-toggle-checked: var(--color-accent);
+  --color-toggle-thumb: #ffffff;
+}
+
+:root.dark {
+  /* Background colors */
+  --color-bg-primary: #111827;
+  --color-bg-surface: #1f2937;
+  --color-bg-overlay: rgba(0, 0, 0, 0.7);
+
+  /* Text colors */
+  --color-text-primary: #f9fafb;
+  --color-text-secondary: #d1d5db;
+  --color-text-muted: #9ca3af;
+
+  /* Border colors */
+  --color-border: #374151;
+
+  /* Accent color */
+  --color-accent: #4335df;
+  --color-accent-text: #f9fafb;
+  --color-accent-hover: #2c20ab;
+
+  /* Secondary button colors */
+  --color-btn-secondary-bg: #4b5563;
+  --color-btn-secondary-text: #f9fafb;
+  --color-btn-secondary-hover: #6b7280;
+
+  /* Toggle colors */
+  --color-toggle-bg: #374151;
+  --color-toggle-checked: var(--color-accent);
+  --color-toggle-thumb: #d1d5db;
 }
 
 /* Button press animation */
@@ -57,6 +115,28 @@
   --color-vpn-dark-green: #083d1c;
   --color-vpn-light-green: #16a34a;
   --color-vpn-red: #ff7272;
+
+  --color-bg-primary: var(--color-bg-primary);
+  --color-bg-surface: var(--color-bg-surface);
+  --color-bg-overlay: var(--color-bg-overlay);
+
+  --color-text-primary: var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-muted: var(--color-text-muted);
+
+  --color-border: var(--color-border);
+
+  --color-accent: var(--color-accent);
+  --color-accent-text: var(--color-accent-text);
+  --color-accent-hover: var(--color-accent-hover);
+
+  --color-btn-secondary-bg: var(--color-btn-secondary-bg);
+  --color-btn-secondary-text: var(--color-btn-secondary-text);
+  --color-btn-secondary-hover: var(--color-btn-secondary-hover);
+
+  --color-toggle-bg: var(--color-toggle-bg);
+  --color-toggle-checked: var(--color-toggle-checked);
+  --color-toggle-thumb: var(--color-toggle-thumb);
 }
 
 /* Tick-spin: rotate to 180°, pause, then to 360°, pause */
@@ -218,8 +298,17 @@
 }
 
 .system-window {
-  background-color: color-mix(in oklab, canvas, canvas 92%);
-  /* Fallbacks for older engines */
-  background-color: -apple-system-control-background;
-  background-color: #f5f5f7;
+  background-color: var(--color-bg-primary);
+}
+
+:root.dark .system-window {
+  background-color: var(--color-bg-primary);
+}
+
+:root.dark .tab-icon {
+  filter: brightness(0) invert(1);
+}
+
+:root.dark .dark-mode-icon {
+  filter: brightness(0) invert(1);
 }

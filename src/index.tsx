@@ -6,15 +6,32 @@ import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import SettingsWindow from "./windows/SettingsWindow.tsx";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useAppStore } from "@src/stores/appStore.ts";
+import { createEffect } from "solid-js";
 
 (() => {
-  const [,] = useSettingsStore();
+  const [settings, settingsActions] = useSettingsStore();
   const [,] = useAppStore();
 
-  const label = getCurrentWindow().label;
+  void settingsActions.load().then(() => {
+    const label = getCurrentWindow().label;
 
-  render(
-    () => (label === "settings" ? <SettingsWindow /> : <App />),
-    document.getElementById("root") as HTMLElement,
-  );
+    if (settings.darkMode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+
+    createEffect(() => {
+      if (settings.darkMode) {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
+    });
+
+    render(
+      () => (label === "settings" ? <SettingsWindow /> : <App />),
+      document.getElementById("root") as HTMLElement,
+    );
+  });
 })();

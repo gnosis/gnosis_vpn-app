@@ -30,7 +30,7 @@ export default function Onboarding() {
   });
 
   return (
-    <div class="h-screen bg-gray-100 flex flex-col items-center justify-between">
+    <div class="h-screen bg-bg-primary flex flex-col items-center justify-between">
       <Dynamic component={steps[step()]} setStep={setStep} />
       <StatusIndicator size="sm" />
     </div>

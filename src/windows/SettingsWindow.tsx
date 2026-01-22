@@ -45,7 +45,7 @@ export default function SettingsWindow() {
   });
 
   return (
-    <div class="system-window w-full h-screen flex flex-col items-center">
+    <div class="system-window w-full h-screen flex flex-col items-center bg-bg-primary">
       <Tabs
         tabs={[
           { id: "settings", label: "Settings" },

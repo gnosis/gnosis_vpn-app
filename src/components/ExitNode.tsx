@@ -44,7 +44,7 @@ export default function ExitNode() {
   });
 
   return (
-    <div class="w-full flex flex-row bg-white rounded-2xl p-4">
+    <div class="w-full flex flex-row bg-bg-surface rounded-2xl p-4">
       <Dropdown<ExitOption>
         label="Exit Node"
         options={[
@@ -133,8 +133,8 @@ export default function ExitNode() {
             return (
               <span class="flex flex-col">
                 <span>
-                  <span class="font-bold">Random</span>{" "}
-                  <span class="text-sm text-gray-500 font-light">
+                  <span class="font-bold">Random</span>
+                  <span class="text-sm text-text-secondary font-light ml-2">
                     {destName}
                   </span>
                 </span>
