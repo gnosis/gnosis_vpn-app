@@ -1,9 +1,8 @@
 import { createSignal } from "solid-js";
 import { type BalanceResponse, VPNService } from "@src/services/vpnService.ts";
-import { onMount } from "solid-js";
+import { onCleanup, onMount } from "solid-js";
 import FundsInfo from "@src/components/FundsInfo.tsx";
 import { Show } from "solid-js";
-// import Help from "@src/components/Help.tsx";
 import {
   calculateGlobalFundingStatus,
   type GlobalFundingStatus,
@@ -15,21 +14,19 @@ import { Modal } from "../../components/common/Modal.tsx";
 import Button from "../../components/common/Button.tsx";
 import FundingAddress from "../../components/FundingAddress.tsx";
 
+const BALANCE_REFRESH_INTERVAL_MS = 30000;
+
 export default function Usage() {
   const [balance, setBalance] = createSignal<BalanceResponse | null>(null);
   const [isBalanceLoading, setIsBalanceLoading] = createSignal(true);
-  const [balanceError, setBalanceError] = createSignal<string | undefined>();
-  const [fundingStatus, setFundingStatus] = createSignal<GlobalFundingStatus>({
-    overall: "Sufficient",
-    safeStatus: "Sufficient",
-    nodeStatus: "Sufficient",
-  });
+  const [fundingStatus, setFundingStatus] = createSignal<
+    GlobalFundingStatus | null
+  >(null);
   const [isAddFundsOpen, setIsAddFundsOpen] = createSignal(false);
   const [, logActions] = useLogsStore();
 
   async function loadBalance() {
     setIsBalanceLoading(true);
-    setBalanceError(undefined);
     try {
       const result = await VPNService.balance();
       console.log("balance result", result);
@@ -40,11 +37,12 @@ export default function Usage() {
           node: result.node,
         });
         setFundingStatus(status);
-        console.log("Global funding status:", status);
+      } else {
+        setFundingStatus(null);
       }
     } catch (error) {
-      setBalanceError(error instanceof Error ? error.message : String(error));
       logActions.append(`Error loading balance: ${String(error)}`);
+      setFundingStatus(null);
     } finally {
       setIsBalanceLoading(false);
     }
@@ -59,34 +57,41 @@ export default function Usage() {
     }
   }
 
+  let intervalId: ReturnType<typeof setInterval> | undefined;
+
   onMount(() => {
     void loadBalance();
+    intervalId = setInterval(() => {
+      void loadBalance();
+    }, BALANCE_REFRESH_INTERVAL_MS);
+  });
+
+  onCleanup(() => {
+    if (intervalId) {
+      clearInterval(intervalId);
+    }
   });
 
   return (
     <>
       <div class="px-4 py-2 flex flex-col w-full h-full items-center gap-4 justify-between">
-        <Show when={balanceError()}>
-          <div class="text-sm text-red-600">{balanceError()}</div>
-        </Show>
         <Show when={!isBalanceLoading() && balance() === null}>
-          <div class="text-sm text-gray-500">Not available yet</div>
+          <div class="text-sm text-gray-500">Not available</div>
         </Show>
 
-        {/* Global funding status indicator */}
-        <Show when={fundingStatus().description}>
+        <Show when={fundingStatus()?.description}>
           <div
             class={`px-4 py-2 rounded-lg text-sm font-medium ${
-              fundingStatus().overall === "Empty"
+              fundingStatus()?.overall === "Empty"
                 ? "bg-red-100 text-red-800"
-                : fundingStatus().overall === "Low"
+                : fundingStatus()?.overall === "Low"
                 ? "bg-amber-100 text-amber-800"
                 : "bg-emerald-100 text-emerald-800"
             }`}
           >
             <div class="flex items-center gap-2">
               <WarningIcon />
-              <span>{fundingStatus().description}</span>
+              <span>{fundingStatus()?.description}</span>
             </div>
           </div>
         </Show>
@@ -98,7 +103,7 @@ export default function Usage() {
             balance={balance()?.safe}
             ticker="wxHOPR"
             address={balance()?.info.safe_address}
-            status={fundingStatus().safeStatus}
+            status={fundingStatus()?.safeStatus}
             isLoading={isBalanceLoading()}
           />
           <FundsInfo
@@ -107,7 +112,7 @@ export default function Usage() {
             balance={balance()?.node}
             ticker="xDAI"
             address={balance()?.info.node_address}
-            status={fundingStatus().nodeStatus}
+            status={fundingStatus()?.nodeStatus}
             isLoading={isBalanceLoading()}
           />
         </div>
@@ -133,7 +138,6 @@ export default function Usage() {
         </div>
 
         <div class="grow"></div>
-        {/* <Help /> */}
       </div>
 
       <Modal open={isAddFundsOpen()} onClose={() => setIsAddFundsOpen(false)}>

@@ -7,7 +7,7 @@ type Props = {
   balance?: string;
   ticker?: string;
   address?: string;
-  status?: "Sufficient" | "Low" | "Empty" | string;
+  status?: "Sufficient" | "Low" | "Empty" | string | null;
   isLoading?: boolean;
 };
 
@@ -30,8 +30,10 @@ export default function FundsInfo(props: Props) {
       <div class="flex flex-row items-baseline gap-2 w-2/3 justify-between px-2">
         <span class="text-slate-600">{props.ticker}</span>
         <Show
-          when={!props.isLoading}
-          fallback={<div class="h-5 w-20 rounded bg-slate-200 animate-pulse" />}
+          when={!props.isLoading && props.status}
+          fallback={props.isLoading
+            ? <div class="h-5 w-20 rounded bg-slate-200 animate-pulse" />
+            : null}
         >
           <span
             class={`font-bold text-xs ${
