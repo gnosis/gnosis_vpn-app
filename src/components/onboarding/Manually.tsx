@@ -92,7 +92,7 @@ export default function Manually() {
           <div class="flex flex-row w-full h-full items-center fade-in-up">
             <div class="flex flex-row">
               <Spinner />
-              <div class="text-sm">
+              <div class="text-sm ml-2">
                 {!xdaiTransferred() && !wxhoprTransferred()
                   ? "Checking..."
                   : xdaiTransferred()
