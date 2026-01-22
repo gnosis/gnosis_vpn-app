@@ -131,17 +131,38 @@
   opacity: 0;
 }
 
-/* Disconnecting: reverse the connecting animation, with yellow->red gradient */
-.vpn-connector-line.disconnecting {
+/* Disconnecting: static line with color fade animation, no shrinking */
+.vpn-connector-line.disconnecting-static {
   background: linear-gradient(
     to top,
     var(--color-vpn-red, #ff7272),
     var(--color-vpn-light-green, #16a34a),
     var(--color-vpn-dark-green, #083d1c)
   );
-  animation: vpn-shrink 1s ease-in forwards, vpn-fade 3s ease-in-out infinite;
+  transform: translateX(-50%) scaleY(1);
+  animation: vpn-fade 3s ease-in-out infinite;
 }
-.vpn-connector-line.disconnecting::before {
+.vpn-connector-line.disconnecting-static::before {
+  background: linear-gradient(
+    to top,
+    var(--color-vpn-red, #ff7272),
+    var(--color-vpn-light-green, #16a34a),
+    var(--color-vpn-dark-green, #083d1c)
+  );
+  opacity: 1;
+}
+
+/* Disconnected (after Disconnecting): shrinking animation */
+.vpn-connector-line.disconnected-shrinking {
+  background: linear-gradient(
+    to top,
+    var(--color-vpn-red, #ff7272),
+    var(--color-vpn-light-green, #16a34a),
+    var(--color-vpn-dark-green, #083d1c)
+  );
+  animation: vpn-shrink 1s ease-in forwards;
+}
+.vpn-connector-line.disconnected-shrinking::before {
   background: linear-gradient(
     to top,
     var(--color-vpn-red, #ff7272),
@@ -181,7 +202,6 @@
   }
 }
 
-/* Generic appear animation for inline notices */
 .fade-in-up {
   animation: fade-in-up 240ms ease-out both;
 }
