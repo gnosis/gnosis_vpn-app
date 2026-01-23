@@ -26,10 +26,11 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, SystemTime};
 use std::{path::PathBuf, sync::Mutex};
 
+#[cfg_attr(target_os = "macos", allow(dead_code, unused_imports))]
+use icons::update_tray_icon;
 use icons::{
-    AppIconState, TrayIconState, determine_app_icon, determine_tray_icon,
-    extract_connection_state_from_icon, start_app_icon_heartbeat, update_icon_name_if_changed,
-    update_tray_icon,
+    AppIconState, TrayIconState, determine_app_icon, determine_tray_icon, start_app_icon_heartbeat,
+    update_icon_name_if_changed,
 };
 
 const LOG_FILE_PATH: &str = "/var/log/gnosisvpn/gnosisvpn.log";
@@ -294,6 +295,7 @@ impl From<command::BalanceResponse> for BalanceResponse {
 }
 
 #[tauri::command]
+#[cfg_attr(target_os = "macos", allow(unused_variables))]
 async fn status(
     app: AppHandle,
     status_item: State<'_, TrayStatusItem>,
@@ -330,10 +332,7 @@ async fn status(
 
             // Update tray icon on all platforms
             #[cfg(not(target_os = "macos"))]
-            let theme = app.get_webview_window("main").and_then(|w| w.theme().ok());
-            #[cfg(target_os = "macos")]
-            let theme = None;
-            update_tray_icon(&app, tray_icon_state.inner(), derived, theme);
+            update_tray_icon(&app, tray_icon_state.inner(), derived);
 
             let icon_name = determine_app_icon(derived, &status_resp.run_mode);
             let should_animate = derived == "Connecting" || derived == "Disconnecting";
@@ -681,11 +680,7 @@ pub fn run() {
             let menu = create_tray_menu(app.handle())?;
 
             // Start with disconnected tray icon
-            #[cfg(not(target_os = "macos"))]
-            let theme = app.get_webview_window("main").and_then(|w| w.theme().ok());
-            #[cfg(target_os = "macos")]
-            let theme = None;
-            let icon_name: &str = determine_tray_icon("Disconnected", theme);
+            let icon_name: &str = determine_tray_icon("Disconnected");
 
             let tray_icon_path: PathBuf = app
                 .path()
@@ -741,12 +736,9 @@ pub fn run() {
             let _ = Platform::setup_system_tray();
 
             // Intercept window close to hide to tray instead of exiting
-            // Also listen for OS theme changes and update tray icon (non-macOS only)
             if let Some(window) = app.get_webview_window("main") {
                 #[cfg(target_os = "macos")]
                 let app_handle = app.handle().clone();
-                #[cfg(not(target_os = "macos"))]
-                let app_handle_for_theme = app.handle().clone();
                 let window_clone = window.clone();
                 window.on_window_event(move |event| match event {
                     tauri::WindowEvent::CloseRequested { api, .. } => {
@@ -757,22 +749,6 @@ pub fn run() {
                             let _ = app_handle
                                 .set_activation_policy(tauri::ActivationPolicy::Accessory);
                         }
-                    }
-                    #[cfg(not(target_os = "macos"))]
-                    tauri::WindowEvent::ThemeChanged(theme) => {
-                        let tray_icon_state = app_handle_for_theme.state::<TrayIconState>();
-                        let connection_state = tray_icon_state
-                            .current_icon
-                            .lock()
-                            .map(|icon| extract_connection_state_from_icon(&icon))
-                            .unwrap_or("Disconnected");
-                        let theme_option = Some(*theme);
-                        update_tray_icon(
-                            &app_handle_for_theme,
-                            tray_icon_state.inner(),
-                            connection_state,
-                            theme_option,
-                        );
                     }
                     _ => {}
                 });

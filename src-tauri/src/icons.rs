@@ -3,7 +3,7 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
-use tauri::{AppHandle, Manager, Theme, tray::TrayIcon};
+use tauri::{AppHandle, Manager, tray::TrayIcon};
 
 use crate::set_app_icon;
 use gnosis_vpn_lib::{balance, command};
@@ -89,7 +89,7 @@ pub fn determine_app_icon(connection_state: &str, run_mode: &command::RunMode) -
     }
 }
 
-pub fn determine_tray_icon(connection_state: &str, theme: Option<Theme>) -> &'static str {
+pub fn determine_tray_icon(connection_state: &str) -> &'static str {
     let use_bw_icons = !cfg!(target_os = "macos");
     match (connection_state, use_bw_icons) {
         ("Connected", true) => TRAY_ICON_CONNECTED_BW,
@@ -101,6 +101,7 @@ pub fn determine_tray_icon(connection_state: &str, theme: Option<Theme>) -> &'st
     }
 }
 
+#[cfg_attr(target_os = "macos", allow(dead_code))]
 pub fn extract_connection_state_from_icon(icon_name: &str) -> &'static str {
     if icon_name.contains("connected") && !icon_name.contains("connecting") {
         "Connected"
@@ -111,13 +112,8 @@ pub fn extract_connection_state_from_icon(icon_name: &str) -> &'static str {
     }
 }
 
-pub fn update_tray_icon(
-    app: &AppHandle,
-    tray_icon_state: &TrayIconState,
-    connection_state: &str,
-    theme: Option<Theme>,
-) {
-    let tray_icon_name = determine_tray_icon(connection_state, theme);
+pub fn update_tray_icon(app: &AppHandle, tray_icon_state: &TrayIconState, connection_state: &str) {
+    let tray_icon_name = determine_tray_icon(connection_state);
     if update_icon_name_if_changed(&tray_icon_state.current_icon, tray_icon_name) {
         if let Ok(tray_icon_path) = Manager::path(app)
             .resource_dir()
