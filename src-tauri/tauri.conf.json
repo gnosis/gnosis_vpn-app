@@ -39,9 +39,9 @@
       "icons/tray-icons/tray-icon-disconnected.png",
       "icons/tray-icons/tray-icon-connecting.png",
 
-      "icons/tray-icons/tray-icon-connected-black.png",
-      "icons/tray-icons/tray-icon-disconnected-black.png",
-      "icons/tray-icons/tray-icon-connecting-black.png",
+      "icons/tray-icons/tray-icon-connected-bw.png",
+      "icons/tray-icons/tray-icon-disconnected-bw.png",
+      "icons/tray-icons/tray-icon-connecting-bw.png",
 
       "icons/app-icons/app-icon-disconnected.png",
       "icons/app-icons/app-icon-connected.png",
