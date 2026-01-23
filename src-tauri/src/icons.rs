@@ -18,11 +18,15 @@ pub const APP_ICON_DISCONNECTED_LOW_FUNDS: &str = "app-icon-disconnected-low-fun
 
 // Tray icon constants
 pub const TRAY_ICON_CONNECTED: &str = "tray-icons/tray-icon-connected.png";
-pub const TRAY_ICON_CONNECTED_BLACK: &str = "tray-icons/tray-icon-connected-black.png";
 pub const TRAY_ICON_CONNECTING: &str = "tray-icons/tray-icon-connecting.png";
-pub const TRAY_ICON_CONNECTING_BLACK: &str = "tray-icons/tray-icon-connecting-black.png";
 pub const TRAY_ICON_DISCONNECTED: &str = "tray-icons/tray-icon-disconnected.png";
-pub const TRAY_ICON_DISCONNECTED_BLACK: &str = "tray-icons/tray-icon-disconnected-black.png";
+
+// pub const TRAY_ICON_CONNECTED_BLACK: &str = "tray-icons/tray-icon-connected-black.png";
+// pub const TRAY_ICON_CONNECTING_BLACK: &str = "tray-icons/tray-icon-connecting-black.png";
+// pub const TRAY_ICON_DISCONNECTED_BLACK: &str = "tray-icons/tray-icon-disconnected-black.png";
+pub const TRAY_ICON_CONNECTED_BW: &str = "tray-icons/tray-icon-connected-bw.png";
+pub const TRAY_ICON_CONNECTING_BW: &str = "tray-icons/tray-icon-connecting-bw.png";
+pub const TRAY_ICON_DISCONNECTED_BW: &str = "tray-icons/tray-icon-disconnected-bw.png";
 
 // State to hold a reference to the tray icon so we can update it
 pub struct TrayIconState {
@@ -86,13 +90,13 @@ pub fn determine_app_icon(connection_state: &str, run_mode: &command::RunMode) -
 }
 
 pub fn determine_tray_icon(connection_state: &str, theme: Option<Theme>) -> &'static str {
-    let use_black_icons = !cfg!(target_os = "macos") && matches!(theme, Some(Theme::Light));
-    match (connection_state, use_black_icons) {
-        ("Connected", true) => TRAY_ICON_CONNECTED_BLACK,
+    let use_bw_icons = !cfg!(target_os = "macos");
+    match (connection_state, use_bw_icons) {
+        ("Connected", true) => TRAY_ICON_CONNECTED_BW,
         ("Connected", false) => TRAY_ICON_CONNECTED,
-        ("Connecting" | "Disconnecting", true) => TRAY_ICON_CONNECTING_BLACK,
+        ("Connecting" | "Disconnecting", true) => TRAY_ICON_CONNECTING_BW,
         ("Connecting" | "Disconnecting", false) => TRAY_ICON_CONNECTING,
-        (_, true) => TRAY_ICON_DISCONNECTED_BLACK,
+        (_, true) => TRAY_ICON_DISCONNECTED_BW,
         (_, false) => TRAY_ICON_DISCONNECTED,
     }
 }
