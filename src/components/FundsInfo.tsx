@@ -13,26 +13,24 @@ type Props = {
 
 export default function FundsInfo(props: Props) {
   return (
-    <div class="flex flex-row gap-1 items-baseline w-full py-1">
-      <div class="w-1/3 flex flex-row justify-end">
-        <Show
-          when={!props.isLoading}
-          fallback={
-            <div class="h-6 w-32 rounded bg-sky-600/15 animate-pulse" />
-          }
-        >
-          <span class="font-semibold">
-            {fromWeiToFixed(props.balance ?? "0")}
-          </span>
-        </Show>
-      </div>
+    <div class="flex h-6 flex-row gap-1 w-full items-center">
+      <Show
+        when={!props.isLoading}
+        fallback={
+          <span class="h-6 w-1/3 rounded bg-sky-600/15 animate-pulse" />
+        }
+      >
+        <span class="font-semibold w-1/3 text-right">
+          {fromWeiToFixed(props.balance ?? "0")}
+        </span>
+      </Show>
 
-      <div class="flex flex-row items-baseline gap-2 w-2/3 justify-between px-2">
+      <div class="flex flex-row items-center gap-2 w-2/3 justify-between px-2">
         <span class="text-slate-600">{props.ticker}</span>
         <Show
           when={!props.isLoading && props.status}
           fallback={props.isLoading
-            ? <div class="h-5 w-20 rounded bg-slate-200 animate-pulse" />
+            ? <span class="h-6 w-20 rounded bg-slate-200 animate-pulse" />
             : null}
         >
           <span
