@@ -1,20 +1,37 @@
 import { createSignal } from "solid-js";
-import { type BalanceResponse, VPNService } from "@src/services/vpnService.ts";
+import { type BalanceResponse, VPNService } from "../../services/vpnService.ts";
 import { onCleanup, onMount } from "solid-js";
-import FundsInfo from "@src/components/FundsInfo.tsx";
+import FundsInfo from "../../components/FundsInfo.tsx";
 import { Show } from "solid-js";
 import {
   calculateGlobalFundingStatus,
   type GlobalFundingStatus,
-} from "@src/utils/funding.ts";
-import WarningIcon from "@src/components/common/WarningIcon.tsx";
-import { useLogsStore } from "@src/stores/logsStore.ts";
-import refreshIcon from "@assets/icons/refresh.svg";
+} from "../../utils/funding.ts";
+import WarningIcon from "../../components/common/WarningIcon.tsx";
+import { useLogsStore } from "../../stores/logsStore.ts";
+import refreshIcon from "../../assets/icons/refresh.svg";
 import { Modal } from "../../components/common/Modal.tsx";
 import Button from "../../components/common/Button.tsx";
 import FundingAddress from "../../components/FundingAddress.tsx";
 
-const BALANCE_REFRESH_INTERVAL_MS = 30000;
+const BALANCE_REFRESH_INTERVAL_MS = 1000;
+
+function balancesEqual(
+  a: BalanceResponse | null,
+  b: BalanceResponse | null,
+): boolean {
+  if (a === null && b === null) return true;
+  if (a === null || b === null) return false;
+  return (
+    a.node === b.node &&
+    a.safe === b.safe &&
+    a.channels_out === b.channels_out &&
+    a.info.node_address === b.info.node_address &&
+    a.info.node_peer_id === b.info.node_peer_id &&
+    a.info.safe_address === b.info.safe_address &&
+    JSON.stringify(a.issues) === JSON.stringify(b.issues)
+  );
+}
 
 export default function Usage() {
   const [balance, setBalance] = createSignal<BalanceResponse | null>(null);
@@ -26,19 +43,21 @@ export default function Usage() {
   const [, logActions] = useLogsStore();
 
   async function loadBalance() {
-    setIsBalanceLoading(true);
     try {
       const result = await VPNService.balance();
-      console.log("balance result", result);
-      setBalance(result);
-      if (result) {
-        const status = calculateGlobalFundingStatus(result.issues, {
-          safe: result.safe,
-          node: result.node,
-        });
-        setFundingStatus(status);
-      } else {
-        setFundingStatus(null);
+      const currentBalance = balance();
+
+      if (!balancesEqual(result, currentBalance)) {
+        setBalance(result);
+        if (result) {
+          const status = calculateGlobalFundingStatus(result.issues, {
+            safe: result.safe,
+            node: result.node,
+          });
+          setFundingStatus(status);
+        } else {
+          setFundingStatus(null);
+        }
       }
     } catch (error) {
       logActions.append(`Error loading balance: ${String(error)}`);
@@ -51,19 +70,27 @@ export default function Usage() {
   async function handleRefresh() {
     try {
       await VPNService.refreshNode();
+      setIsBalanceLoading(true);
       await loadBalance();
     } catch (error) {
       logActions.append(`Error refreshing node: ${String(error)}`);
+    } finally {
+      setIsBalanceLoading(false);
     }
   }
 
   let intervalId: ReturnType<typeof setInterval> | undefined;
 
   onMount(() => {
-    void loadBalance();
-    intervalId = setInterval(() => {
+    try {
+      setIsBalanceLoading(true);
       void loadBalance();
-    }, BALANCE_REFRESH_INTERVAL_MS);
+      intervalId = setInterval(() => {
+        void loadBalance();
+      }, BALANCE_REFRESH_INTERVAL_MS);
+    } finally {
+      setIsBalanceLoading(false);
+    }
   });
 
   onCleanup(() => {
@@ -74,10 +101,12 @@ export default function Usage() {
 
   return (
     <>
-      <div class="px-4 py-2 flex flex-col w-full h-full items-center gap-4 justify-between bg-bg-primary">
-        <Show when={!isBalanceLoading() && balance() === null}>
-          <div class="text-sm text-text-secondary">Not available</div>
-        </Show>
+      <div class="px-4 py-2 flex flex-col w-full h-full items-center gap-4 justify-between">
+        <div class="w-full h-5">
+          <Show when={!isBalanceLoading() && balance() === null}>
+            <div class="text-sm text-center text-red-500">Not available</div>
+          </Show>
+        </div>
 
         <Show when={fundingStatus()?.description}>
           <div
