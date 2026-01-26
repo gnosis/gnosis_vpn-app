@@ -13,7 +13,7 @@ import { invoke } from "@tauri-apps/api/core";
   const [,] = useAppStore();
 
   const label = getCurrentWindow().label;
-  const darkMedia = window.matchMedia("(prefers-color-scheme: dark)");
+  const darkMedia = globalThis.matchMedia("(prefers-color-scheme: dark)");
   const emitThemeChanged = (isDark: boolean) => {
     void invoke("theme_changed", { theme: isDark ? "dark" : "light" });
   };
