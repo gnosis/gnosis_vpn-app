@@ -101,6 +101,17 @@ pub fn determine_tray_icon(connection_state: &str) -> &'static str {
     }
 }
 
+#[cfg_attr(target_os = "macos", allow(dead_code))]
+pub fn extract_connection_state_from_icon(icon_name: &str) -> &'static str {
+    if icon_name.contains("connected") && !icon_name.contains("connecting") {
+        "Connected"
+    } else if icon_name.contains("connecting") {
+        "Connecting"
+    } else {
+        "Disconnected"
+    }
+}
+
 pub fn update_tray_icon(app: &AppHandle, tray_icon_state: &TrayIconState, connection_state: &str) {
     let tray_icon_name = determine_tray_icon(connection_state);
     if update_icon_name_if_changed(&tray_icon_state.current_icon, tray_icon_name) {
