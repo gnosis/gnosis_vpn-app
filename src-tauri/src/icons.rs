@@ -97,6 +97,7 @@ pub fn determine_tray_icon(connection_state: &str, theme: Option<Theme>) -> &'st
     }
 }
 
+#[cfg_attr(target_os = "macos", allow(dead_code))]
 pub fn extract_connection_state_from_icon(icon_name: &str) -> &'static str {
     if icon_name.contains("connected") && !icon_name.contains("connecting") {
         "Connected"

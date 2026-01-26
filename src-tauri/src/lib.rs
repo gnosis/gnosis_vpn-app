@@ -26,10 +26,11 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, SystemTime};
 use std::{path::PathBuf, sync::Mutex};
 
+#[cfg_attr(target_os = "macos", allow(dead_code, unused_imports))]
+use icons::extract_connection_state_from_icon;
 use icons::{
-    AppIconState, TrayIconState, determine_app_icon, determine_tray_icon,
-    extract_connection_state_from_icon, start_app_icon_heartbeat, update_icon_name_if_changed,
-    update_tray_icon,
+    AppIconState, TrayIconState, determine_app_icon, determine_tray_icon, start_app_icon_heartbeat,
+    update_icon_name_if_changed, update_tray_icon,
 };
 
 const LOG_FILE_PATH: &str = "/var/log/gnosisvpn/gnosisvpn.log";
