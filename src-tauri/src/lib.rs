@@ -330,10 +330,8 @@ async fn status(
             }
 
             // Update tray icon on all platforms
-            #[cfg(not(target_os = "macos"))]
             let theme = app.get_webview_window("main").and_then(|w| w.theme().ok());
-            #[cfg(target_os = "macos")]
-            let theme = None;
+            eprintln!("Theme: {:?}", theme);
             update_tray_icon(&app, tray_icon_state.inner(), derived, theme);
 
             let icon_name = determine_app_icon(derived, &status_resp.run_mode);
@@ -558,6 +556,26 @@ async fn compress_logs(_app: AppHandle, dest_path: String) -> Result<(), String>
     Ok(())
 }
 
+#[tauri::command]
+fn theme_changed(
+    app: AppHandle,
+    tray_icon_state: State<'_, TrayIconState>,
+    theme: String,
+) -> Result<(), String> {
+    let theme = match theme.as_str() {
+        "dark" => Some(tauri::Theme::Dark),
+        "light" => Some(tauri::Theme::Light),
+        _ => None,
+    };
+    let connection_state = tray_icon_state
+        .current_icon
+        .lock()
+        .map(|icon| extract_connection_state_from_icon(&icon))
+        .unwrap_or("Disconnected");
+    update_tray_icon(&app, tray_icon_state.inner(), connection_state, theme);
+    Ok(())
+}
+
 fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error> {
     let status_item =
         MenuItem::with_id(app, "status", "Status: Disconnected", false, None::<&str>)?;
@@ -765,12 +783,9 @@ pub fn run() {
             let _ = Platform::setup_system_tray();
 
             // Intercept window close to hide to tray instead of exiting
-            // Also listen for OS theme changes and update tray icon (non-macOS only)
             if let Some(window) = app.get_webview_window("main") {
                 #[cfg(target_os = "macos")]
                 let app_handle = app.handle().clone();
-                #[cfg(not(target_os = "macos"))]
-                let app_handle_for_theme = app.handle().clone();
                 let window_clone = window.clone();
                 window.on_window_event(move |event| match event {
                     tauri::WindowEvent::CloseRequested { api, .. } => {
@@ -781,22 +796,6 @@ pub fn run() {
                             let _ = app_handle
                                 .set_activation_policy(tauri::ActivationPolicy::Accessory);
                         }
-                    }
-                    #[cfg(not(target_os = "macos"))]
-                    tauri::WindowEvent::ThemeChanged(theme) => {
-                        let tray_icon_state = app_handle_for_theme.state::<TrayIconState>();
-                        let connection_state = tray_icon_state
-                            .current_icon
-                            .lock()
-                            .map(|icon| extract_connection_state_from_icon(&icon))
-                            .unwrap_or("Disconnected");
-                        let theme_option = Some(*theme);
-                        update_tray_icon(
-                            &app_handle_for_theme,
-                            tray_icon_state.inner(),
-                            connection_state,
-                            theme_option,
-                        );
                     }
                     _ => {}
                 });
@@ -843,7 +842,8 @@ pub fn run() {
             refresh_node,
             funding_tool,
             compress_logs,
-            set_app_icon
+            set_app_icon,
+            theme_changed
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
