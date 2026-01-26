@@ -14,7 +14,7 @@ const DEFAULT_SETTINGS: SettingsState = {
   preferredLocation: null,
   connectOnStartup: false,
   startMinimized: false,
-  darkMode: false,
+  darkMode: true,
 };
 
 type SettingsActions = {
