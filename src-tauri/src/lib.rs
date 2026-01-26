@@ -331,7 +331,6 @@ async fn status(
 
             // Update tray icon on all platforms
             let theme = app.get_webview_window("main").and_then(|w| w.theme().ok());
-            eprintln!("Theme: {:?}", theme);
             update_tray_icon(&app, tray_icon_state.inner(), derived, theme);
 
             let icon_name = determine_app_icon(derived, &status_resp.run_mode);
