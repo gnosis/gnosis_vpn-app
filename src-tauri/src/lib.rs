@@ -592,17 +592,16 @@ fn toggle_main_window_visibility(app: &AppHandle, triggered_by_tray: bool) {
             }
             // Only try to position by the tray when triggered by a tray icon click
             if triggered_by_tray {
-                // Move first while hidden so the initial paint appears in the correct spot
-                let _ = window.move_window(Position::TrayBottomLeft);
+                // Move first while hidden so the initial paint appears in the correct spot.
+                position_main_window_by_tray(&window);
             }
             let _ = window.show();
             let _ = window.set_focus();
             if triggered_by_tray {
-                // Re-apply shortly after to ensure it snaps tightly to the tray on multi-monitor
                 let handle = window.clone();
                 tauri::async_runtime::spawn(async move {
                     std::thread::sleep(Duration::from_millis(10));
-                    let _ = handle.move_window(Position::TrayBottomLeft);
+                    position_main_window_by_tray(&handle);
                 });
             }
         } else {
@@ -612,6 +611,30 @@ fn toggle_main_window_visibility(app: &AppHandle, triggered_by_tray: bool) {
                 let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
             }
         }
+    }
+}
+
+fn position_main_window_by_tray(window: &tauri::WebviewWindow) {
+    let _ = window.move_window(Position::TrayBottomLeft);
+
+    let Ok(Some(monitor)) = window.current_monitor() else {
+        return;
+    };
+    let Ok(pos) = window.outer_position() else {
+        return;
+    };
+    let Ok(size) = window.outer_size() else {
+        return;
+    };
+
+    let monitor_pos = monitor.position();
+    let monitor_size = monitor.size();
+
+    let max_x = monitor_pos.x + monitor_size.width as i32;
+    let win_right = pos.x + size.width as i32;
+
+    if win_right > max_x {
+        let _ = window.move_window(Position::TopRight);
     }
 }
 
