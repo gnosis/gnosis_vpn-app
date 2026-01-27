@@ -23,8 +23,9 @@ export default function Synchronization() {
             : "animate-spin-tick"
         }`}
       />
-      {/* <div>{progressPct()}%</div> */}
-      <div class="text-sm text-gray-500">This can take up to 10 minutes</div>
+      <div class="text-sm text-text-secondary">
+        This can take up to 10 minutes
+      </div>
       <div class="grow"></div>
       <StatusIndicator size="sm" />
     </div>

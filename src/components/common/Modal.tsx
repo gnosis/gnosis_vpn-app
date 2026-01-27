@@ -20,7 +20,7 @@ export function Modal(props: ModalProps) {
     <Show when={props.open}>
       <Portal>
         <div
-          class="fixed inset-0 z-40 bg-black/50 backdrop-blur-[1px]"
+          class="fixed inset-0 z-40 bg-bg-overlay backdrop-blur-[1px]"
           onClick={() => props.onClose()}
           aria-hidden="true"
         />
@@ -33,7 +33,7 @@ export function Modal(props: ModalProps) {
             role="dialog"
             aria-modal="true"
             class={`w-full max-w-md rounded-lg shadow-xl ring-1 ring-black/10 ${
-              props.warn ? "bg-[#FFCDCD]" : "bg-[#E2F5FF]"
+              props.warn ? "bg-[#FFCDCD]" : "bg-bg-surface"
             }`}
           >
             <div class="px-5 py-4">{props.children}</div>

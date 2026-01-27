@@ -25,7 +25,7 @@ export default function NodeStatus(props: {
 
   return (
     <span
-      class={`text-xs text-gray-500 font-light ${
+      class={`text-xs text-text-secondary font-light ${
         props.warning ? "text-red-500" : ""
       }`}
     >

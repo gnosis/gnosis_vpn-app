@@ -177,16 +177,22 @@ export function Dropdown<T>(props: DropdownProps<T>) {
         ref={root}
         class={`relative text-left ${
           props.size === "sm"
-            ? "bg-black white pr-0 pl-4 py-2 rounded-full min-w-48"
+            ? "bg-accent text-accent-text hover:bg-accent-hover pr-0 pl-4 py-2 rounded-full min-w-48 hover:cursor-pointer"
             : "w-full"
         } flex flex-row gap-2 items-center ${props.class ?? ""}`}
       >
         <div class="flex flex-col grow">
           <Show when={props.label}>
-            <div class="mb-1 text-xs text-gray-500">{props.label}</div>
+            <div class="mb-1 text-xs text-text-secondary">{props.label}</div>
           </Show>
 
-          <span class={`${props.size === "sm" ? "text-white" : "font-bold "}`}>
+          <span
+            class={`${
+              props.size === "sm"
+                ? "text-accent-text"
+                : "font-bold text-text-primary"
+            }`}
+          >
             {props.value
               ? props.renderValue
                 ? props.renderValue(props.value)
@@ -201,9 +207,9 @@ export function Dropdown<T>(props: DropdownProps<T>) {
           aria-haspopup="listbox"
           aria-expanded={open()}
           class={`inline-flex items-center justify-center rounded-2xl px-4 py-2
-               bg-black text-white shadow disabled:opacity-50 hover:cursor-pointer outline-none
+               bg-accent text-accent-text hover:bg-accent-hover disabled:opacity-50 hover:cursor-pointer outline-none
                transition-transform duration-150 ease-out select-none ${
-            props.size === "sm" ? "h-6 w-10" : "h-10 w-16"
+            props.size === "sm" ? "bg-transparent h-6 w-10" : "h-10 w-16"
           }`}
           classList={{ "btn-press": pressed() }}
           onPointerDown={() => playPressAnimation()}
@@ -239,7 +245,7 @@ export function Dropdown<T>(props: DropdownProps<T>) {
               ? `opt-${activeIdx()}`
               : undefined}
             onKeyDown={onListKey}
-            class={`fixed z-50 max-h-64 overflow-auto rounded-xl bg-white shadow-lg ring-1 ring-black/10 p-1 outline-none
+            class={`fixed z-50 max-h-64 overflow-auto rounded-xl bg-bg-surface shadow-lg ring-1 ring-black/10 p-1 outline-none
                      transition-all duration-200 ease-out origin-top
                      ${
               open()
@@ -269,9 +275,9 @@ export function Dropdown<T>(props: DropdownProps<T>) {
                     class={`cursor-pointer rounded-xl px-3 py-2 text-sm
                              ${
                       isActive() && !isDisabled()
-                        ? "bg-black text-white"
+                        ? "bg-accent text-accent-text"
                         : !isDisabled()
-                        ? "hover:bg-gray-100"
+                        ? "hover:bg-bg-surface/50"
                         : "opacity-50 cursor-not-allowed"
                     }
                              ${
