@@ -36,7 +36,7 @@ export default function Manually() {
           </div>
           <div class="flex flex-col">
             <div class="font-bold">1. Transfer wxHOPR (Gnosis Chain)</div>
-            <div class="text-sm text-gray-500">1 GB is X USDC.</div>
+            <div class="text-sm text-text-secondary">1 GB is X USDC.</div>
           </div>
         </label>
 
@@ -50,14 +50,14 @@ export default function Manually() {
           </div>
           <div class="flex flex-col">
             <div class="font-bold">2. Transfer xDAI (Gnosis Chain)</div>
-            <div class="text-sm text-gray-500">
+            <div class="text-sm text-text-secondary">
               1 xDAI is enough for one year switching exit nodes.
             </div>
           </div>
         </label>
 
         <FundingAddress address={nodeAddress()} />
-        <div class="text-sm text-gray-500">
+        <div class="text-sm text-text-secondary">
           After the tx has been made, it can take up to two minutes, until your
           App can connect. In the case it will auto-forward to the next step.
         </div>

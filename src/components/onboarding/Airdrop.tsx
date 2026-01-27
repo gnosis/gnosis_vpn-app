@@ -215,7 +215,7 @@ export default function Airdrop(
       <h1 class="w-full text-2xl font-bold text-center my-6 flex flex-row">
         <button
           type="button"
-          class="text-sm text-gray-500 hover:cursor-pointer"
+          class="text-sm text-text-secondary hover:cursor-pointer"
           onClick={() => setStep("start")}
         >
           <img src={backIcon} alt="Back" class="h-4 w-4 mr-4" />

@@ -7,7 +7,7 @@ export default function WarningIcon() {
       height={12}
       width={12}
       alt="Warning"
-      class="inline mb-0.5 mr-1"
+      class="inline mb-0.5 mr-1 dark-mode-icon"
     />
   );
 }

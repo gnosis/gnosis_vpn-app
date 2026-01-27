@@ -39,17 +39,19 @@ export default function QrCode(props: QrCodeProps) {
     <Show when={props.open}>
       <Portal>
         <div
-          class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          class="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay"
           onClick={props.onClose}
         >
           <div
-            class="rounded-xl bg-white p-4 shadow-xl w-xs"
+            class="rounded-xl bg-bg-surface p-4 shadow-xl w-xs"
             onClick={(e) => e.stopPropagation()}
           >
             <div class="flex items-center justify-between mb-2">
-              <div class="text-sm text-slate-600 font-mono">{props.title}</div>
+              <div class="text-sm text-text-secondary font-mono">
+                {props.title}
+              </div>
               <button
-                class="rounded-md px-2 py-1 text-sm hover:bg-slate-100"
+                class="rounded-md px-2 py-1 text-sm hover:bg-bg-surface"
                 onClick={props.onClose}
                 aria-label="Close"
                 type="button"

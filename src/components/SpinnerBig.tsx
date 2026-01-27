@@ -9,7 +9,7 @@ type Props = {
 
 export default function SpinnerBig(props: Props): JSX.Element {
   const size = props.size ?? 112;
-  const color = props.color ?? "#111";
+  const color = props.color ?? "currentColor";
   const speed = props.speed ?? 1.7;
 
   const bars = Array.from({ length: 12 });
@@ -19,7 +19,7 @@ export default function SpinnerBig(props: Props): JSX.Element {
       width={size}
       height={size}
       viewBox="0 0 100 100"
-      class={props.class}
+      class={`text-text-primary ${props.class ?? ""}`}
       role="img"
       aria-label="Loading"
     >

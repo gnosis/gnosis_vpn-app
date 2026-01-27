@@ -29,13 +29,13 @@ export function SecondaryScreen(
       class="h-full w-full z-20"
       on:keydown={handleKeyDown}
     >
-      <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-        <h1 class="text-gray-600 capitalize text-lg">
+      <div class="flex items-center justify-between px-4 py-3 border-b border-border">
+        <h1 class="text-text-secondary capitalize text-lg">
           {title ?? appState.currentScreen}
         </h1>
         <button
           type="button"
-          class="rounded-md p-1 hover:bg-gray-100"
+          class="rounded-md p-1 hover:bg-bg-surface"
           aria-label="Close"
           onClick={() => appActions.setScreen("main")}
         >

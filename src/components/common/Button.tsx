@@ -16,11 +16,11 @@ const baseClasses =
 
 const variantClasses: Record<NonNullable<ButtonProps["variant"]>, string> = {
   primary:
-    "border border-transparent bg-black text-white hover:bg-black focus:outline-none",
+    "border border-transparent bg-accent text-accent-text hover:bg-accent-hover focus:outline-none",
   secondary:
-    "border border-transparent bg-gray-800 text-white hover:bg-gray-700 focus:outline-none",
+    "border border-transparent bg-btn-secondary-bg text-btn-secondary-text hover:bg-btn-secondary-hover focus:outline-none",
   outline:
-    "border border-gray-300 text-gray-900 hover:bg-gray-100 focus:outline-none",
+    "border border-border bg-transparent text-text-primary hover:bg-bg-surface focus:outline-none",
 };
 
 const sizeClasses: Record<NonNullable<ButtonProps["size"]>, string> = {

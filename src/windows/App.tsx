@@ -71,7 +71,7 @@ function App() {
   });
 
   return (
-    <div class="h-screen bg-gray-100 dark:bg-gray-100">
+    <div class="h-screen bg-bg-primary">
       <Dynamic component={screens[appState.currentScreen]} />
     </div>
   );

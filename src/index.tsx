@@ -7,12 +7,12 @@ import SettingsWindow from "./windows/SettingsWindow.tsx";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { invoke } from "@tauri-apps/api/core";
+import { createEffect } from "solid-js";
 
 (() => {
-  const [,] = useSettingsStore();
+  const [settings, settingsActions] = useSettingsStore();
   const [,] = useAppStore();
 
-  const label = getCurrentWindow().label;
   const darkMedia = globalThis.matchMedia("(prefers-color-scheme: dark)");
   const emitThemeChanged = (isDark: boolean) => {
     void invoke("theme_changed", { theme: isDark ? "dark" : "light" });
@@ -28,8 +28,26 @@ import { invoke } from "@tauri-apps/api/core";
     darkMedia.onchange = handleThemeChange;
   }
 
-  render(
-    () => (label === "settings" ? <SettingsWindow /> : <App />),
-    document.getElementById("root") as HTMLElement,
-  );
+  void settingsActions.load().then(() => {
+    const label = getCurrentWindow().label;
+
+    if (settings.darkMode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+
+    createEffect(() => {
+      if (settings.darkMode) {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
+    });
+
+    render(
+      () => (label === "settings" ? <SettingsWindow /> : <App />),
+      document.getElementById("root") as HTMLElement,
+    );
+  });
 })();
