@@ -68,8 +68,7 @@
             ];
 
             programs.nixfmt = {
-              enable = pkgs.lib.meta.availableOn pkgs.stdenv.buildPlatform pkgs.nixfmt-rfc-style.compiler;
-              package = pkgs.nixfmt-rfc-style;
+              enable = pkgs.lib.meta.availableOn pkgs.stdenv.buildPlatform pkgs.nixfmt.compiler;
             };
 
             # Deno is used for formatting and linting
@@ -137,6 +136,7 @@
               pkgs.nodejs
               pkgs.deno
               pkgs.openssl
+              pkgs.rust-analyzer
             ]
             ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
               # Linux-specific packages

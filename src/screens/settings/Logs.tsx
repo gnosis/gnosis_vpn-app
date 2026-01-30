@@ -1,15 +1,14 @@
 import { For, Show } from "solid-js";
-import { useLogsStore } from "@src/stores/logsStore";
+import { useLogsStore } from "../../stores/logsStore.ts";
+import ExportLogs from "../../components/ExportLogs.tsx";
 
 export default function Logs() {
   const [logsState] = useLogsStore();
 
-  console.log("logsState", logsState.logs);
-
   return (
-    <div class="w-full p-2">
-      <Show when={logsState.logs.length > 0} fallback={<div>No logs</div>}>
-        <div class="w-full overflow-auto rounded border border-gray-200 bg-gray-50 p-2 text-xs font-mono">
+    <div class="w-full p-2 flex flex-col flex-1 min-h-0 bg-bg-primary">
+      <div class="w-full flex-1 min-h-0 overflow-y-auto rounded border border-border bg-bg-surface p-2 text-xs font-mono">
+        <Show when={logsState.logs.length > 0} fallback={<div>No logs</div>}>
           <For each={logsState.logs}>
             {(entry) => (
               <div class="whitespace-pre-wrap">
@@ -20,8 +19,9 @@ export default function Logs() {
               </div>
             )}
           </For>
-        </div>
-      </Show>
+        </Show>
+      </div>
+      <ExportLogs />
     </div>
   );
 }

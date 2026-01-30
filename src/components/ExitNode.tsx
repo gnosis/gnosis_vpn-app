@@ -1,24 +1,24 @@
-import { useAppStore } from "@src/stores/appStore";
-import { Dropdown } from "@src/components/common/Dropdown";
+import { useAppStore } from "../stores/appStore.ts";
+import { Dropdown } from "./common/Dropdown.tsx";
 import {
   formatDestination,
   selectTargetAddress,
-} from "@src/utils/destinations";
+} from "../utils/destinations.ts";
 import type {
   Destination,
   DestinationState,
   Health,
-} from "@src/services/vpnService";
-import { shortAddress } from "@src/utils/shortAddress";
+} from "../services/vpnService.ts";
+import { shortAddress } from "../utils/shortAddress.ts";
 import { createMemo } from "solid-js";
-import { useSettingsStore } from "@src/stores/settingsStore";
-import NodeStatus from "@src/components/NodeStatus";
+import { useSettingsStore } from "../stores/settingsStore.ts";
+import NodeStatus from "./NodeStatus.tsx";
 
 export default function ExitNode() {
   const [appState, appActions] = useAppStore();
   const [settings] = useSettingsStore();
-  type DefaultOption = { type: "default" };
-  type ExitOption = Destination | DefaultOption;
+  type RandomOption = { type: "random" };
+  type ExitOption = Destination | RandomOption;
 
   const stateByAddress = createMemo(() => {
     const map = new Map<string, DestinationState>();
@@ -28,7 +28,7 @@ export default function ExitNode() {
     return map;
   });
 
-  const defaultDestination = createMemo(() => {
+  const randomDestination = createMemo(() => {
     const available = appState.availableDestinations;
     if (available.length === 0) return null;
 
@@ -44,11 +44,11 @@ export default function ExitNode() {
   });
 
   return (
-    <div class="w-full flex flex-row bg-white rounded-2xl p-4">
+    <div class="w-full flex flex-row bg-bg-surface rounded-2xl p-4">
       <Dropdown<ExitOption>
         label="Exit Node"
         options={[
-          { type: "default" } as DefaultOption,
+          { type: "random" } as RandomOption,
           ...appState.availableDestinations,
         ]}
         renderOption={(opt: ExitOption) => {
@@ -68,7 +68,7 @@ export default function ExitNode() {
           }
           return (
             <div class="flex flex-col">
-              <span>Default</span>
+              <span>Random</span>
             </div>
           );
         }}
@@ -76,8 +76,8 @@ export default function ExitNode() {
           ? (appState.availableDestinations.find((d) =>
             d.address === appState.selectedAddress
           ) ??
-            ({ type: "default" } as DefaultOption))
-          : ({ type: "default" } as DefaultOption)) as ExitOption}
+            ({ type: "random" } as RandomOption))
+          : ({ type: "random" } as RandomOption)) as ExitOption}
         onChange={(opt: ExitOption) => {
           const current = appState.selectedAddress;
           if ("address" in opt) {
@@ -96,7 +96,7 @@ export default function ExitNode() {
             const name = formatDestination(opt) || shortAddress(opt.address);
             return name;
           }
-          return "Default";
+          return "Random";
         }}
         isOptionDisabled={(opt: ExitOption) => {
           if ("address" in opt) {
@@ -121,11 +121,11 @@ export default function ExitNode() {
               </span>
             );
           }
-          const defaultDest = defaultDestination();
-          if (defaultDest) {
-            const destName = formatDestination(defaultDest) ||
-              shortAddress(defaultDest.address);
-            const ds = stateByAddress().get(defaultDest.address);
+          const randomDest = randomDestination();
+          if (randomDest) {
+            const destName = formatDestination(randomDest) ||
+              shortAddress(randomDest.address);
+            const ds = stateByAddress().get(randomDest.address);
             const cs = ds?.connection_state;
             const health: Health | undefined = ds?.health?.health as
               | Health
@@ -133,8 +133,8 @@ export default function ExitNode() {
             return (
               <span class="flex flex-col">
                 <span>
-                  <span class="font-bold">Default</span>{" "}
-                  <span class="text-sm text-gray-500 font-light">
+                  <span class="font-bold">Random</span>
+                  <span class="text-sm text-text-secondary font-light ml-2">
                     {destName}
                   </span>
                 </span>
@@ -144,11 +144,11 @@ export default function ExitNode() {
           }
           return (
             <span class="flex flex-col">
-              <span class="font-bold">Default</span>
+              <span class="font-bold">Random</span>
             </span>
           );
         }}
-        placeholder="Default"
+        placeholder="Random"
         disabled={appState.isLoading ||
           appState.vpnStatus === "ServiceUnavailable"}
       />

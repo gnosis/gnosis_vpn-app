@@ -1,10 +1,17 @@
-use gnosis_vpn_lib::{balance, command, connection, info, socket};
+#[cfg(target_os = "macos")]
+#[macro_use]
+extern crate objc;
+
+use gnosis_vpn_lib::socket::root as root_socket;
+use gnosis_vpn_lib::{balance, command, connection, info};
 use tauri::State;
 use tauri::{
     AppHandle, Emitter, Manager,
     menu::{Menu, MenuBuilder, MenuItem},
     tray::{TrayIconBuilder, TrayIconEvent},
 };
+use zstd::stream::Encoder;
+mod icons;
 mod platform;
 use platform::{Platform, PlatformInterface};
 use serde::Serialize;
@@ -12,8 +19,21 @@ use tauri_plugin_positioner::{Position, WindowExt};
 use tauri_plugin_store::StoreExt;
 
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::{self, BufReader};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, SystemTime};
 use std::{path::PathBuf, sync::Mutex};
+
+#[cfg_attr(target_os = "macos", allow(dead_code, unused_imports))]
+use icons::extract_connection_state_from_icon;
+use icons::{
+    AppIconState, TrayIconState, determine_app_icon, determine_tray_icon, start_app_icon_heartbeat,
+    update_icon_name_if_changed, update_tray_icon,
+};
+
+const LOG_FILE_PATH: &str = "/var/log/gnosisvpn/gnosisvpn.log";
 
 // State to hold a reference to the tray "status" menu item so we can update it
 struct TrayStatusItem(Mutex<MenuItem<tauri::Wry>>);
@@ -125,7 +145,6 @@ pub struct Info {
     pub node_address: String,
     pub node_peer_id: String,
     pub safe_address: String,
-    pub network: String,
 }
 
 // Conversions from library types to sanitized types
@@ -196,7 +215,7 @@ impl From<command::ConnectionState> for ConnectionState {
 impl From<command::RunMode> for RunMode {
     fn from(rm: command::RunMode) -> Self {
         match rm {
-            command::RunMode::Init | command::RunMode::ValueingTicket => RunMode::Warmup,
+            command::RunMode::Init => RunMode::Warmup,
             command::RunMode::PreparingSafe {
                 node_address,
                 node_xdai,
@@ -259,7 +278,6 @@ impl From<info::Info> for Info {
             node_address: i.node_address.to_string(),
             node_peer_id: i.node_peer_id,
             safe_address: i.safe_address.to_string(),
-            network: i.network,
         }
     }
 }
@@ -277,12 +295,16 @@ impl From<command::BalanceResponse> for BalanceResponse {
 }
 
 #[tauri::command]
-async fn status(status_item: State<'_, TrayStatusItem>) -> Result<StatusResponse, String> {
-    let p = PathBuf::from(socket::DEFAULT_PATH);
-    let resp = socket::process_cmd(&p, &command::Command::Status).await;
+async fn status(
+    app: AppHandle,
+    status_item: State<'_, TrayStatusItem>,
+    tray_icon_state: State<'_, TrayIconState>,
+    app_icon_state: State<'_, Arc<AppIconState>>,
+) -> Result<StatusResponse, String> {
+    let p = PathBuf::from(root_socket::DEFAULT_PATH);
+    let resp = root_socket::process_cmd(&p, &command::Command::Status).await;
     match resp {
         Ok(command::Response::Status(status_resp)) => {
-            // Derive simplified label from destinations
             let mut derived: &str = "Disconnected";
             for ds in &status_resp.destinations {
                 match ds.connection_state {
@@ -303,11 +325,29 @@ async fn status(status_item: State<'_, TrayStatusItem>) -> Result<StatusResponse
                     command::ConnectionState::None => {}
                 }
             }
-            // Update tray menu label
             if let Ok(guard) = status_item.0.lock() {
                 let _ = guard.set_text(format!("Status: {}", derived));
             }
-            // Convert for frontend
+
+            // Update tray icon on all platforms
+            let theme = app.get_webview_window("main").and_then(|w| w.theme().ok());
+            update_tray_icon(&app, tray_icon_state.inner(), derived, theme);
+
+            let icon_name = determine_app_icon(derived, &status_resp.run_mode);
+            let should_animate = derived == "Connecting" || derived == "Disconnecting";
+
+            app_icon_state
+                .is_animating
+                .store(should_animate, Ordering::Relaxed);
+
+            if !should_animate
+                && update_icon_name_if_changed(&app_icon_state.current_icon, &icon_name)
+            {
+                if let Err(e) = set_app_icon(app, icon_name).await {
+                    eprintln!("Failed to update app icon: {}", e);
+                }
+            }
+
             Ok(status_resp.into())
         }
         Ok(_) => {
@@ -327,12 +367,12 @@ async fn status(status_item: State<'_, TrayStatusItem>) -> Result<StatusResponse
 
 #[tauri::command]
 async fn connect(address: String) -> Result<ConnectResponse, String> {
-    let p = PathBuf::from(socket::DEFAULT_PATH);
+    let p = PathBuf::from(root_socket::DEFAULT_PATH);
     let conv_address = address
         .parse::<connection::destination::Address>()
         .map_err(|e| e.to_string())?;
     let cmd = command::Command::Connect(conv_address);
-    let resp = socket::process_cmd(&p, &cmd)
+    let resp = root_socket::process_cmd(&p, &cmd)
         .await
         .map_err(|e| e.to_string())?;
     match resp {
@@ -343,9 +383,9 @@ async fn connect(address: String) -> Result<ConnectResponse, String> {
 
 #[tauri::command]
 async fn disconnect() -> Result<DisconnectResponse, String> {
-    let p = PathBuf::from(socket::DEFAULT_PATH);
+    let p = PathBuf::from(root_socket::DEFAULT_PATH);
     let cmd = command::Command::Disconnect;
-    let resp = socket::process_cmd(&p, &cmd)
+    let resp = root_socket::process_cmd(&p, &cmd)
         .await
         .map_err(|e| e.to_string())?;
     match resp {
@@ -356,9 +396,9 @@ async fn disconnect() -> Result<DisconnectResponse, String> {
 
 #[tauri::command]
 async fn balance() -> Result<Option<BalanceResponse>, String> {
-    let p = PathBuf::from(socket::DEFAULT_PATH);
+    let p = PathBuf::from(root_socket::DEFAULT_PATH);
     let cmd = command::Command::Balance;
-    let resp = socket::process_cmd(&p, &cmd)
+    let resp = root_socket::process_cmd(&p, &cmd)
         .await
         .map_err(|e| e.to_string())?;
     match resp {
@@ -369,9 +409,9 @@ async fn balance() -> Result<Option<BalanceResponse>, String> {
 
 #[tauri::command]
 async fn refresh_node() -> Result<(), String> {
-    let p = PathBuf::from(socket::DEFAULT_PATH);
+    let p = PathBuf::from(root_socket::DEFAULT_PATH);
     let cmd = command::Command::RefreshNode;
-    let resp = socket::process_cmd(&p, &cmd)
+    let resp = root_socket::process_cmd(&p, &cmd)
         .await
         .map_err(|e| e.to_string())?;
     match resp {
@@ -382,15 +422,157 @@ async fn refresh_node() -> Result<(), String> {
 
 #[tauri::command]
 async fn funding_tool(secret: String) -> Result<(), String> {
-    let p = PathBuf::from(socket::DEFAULT_PATH);
+    let p = PathBuf::from(root_socket::DEFAULT_PATH);
     let cmd = command::Command::FundingTool(secret);
-    let resp = socket::process_cmd(&p, &cmd)
+    let resp = root_socket::process_cmd(&p, &cmd)
         .await
         .map_err(|e| e.to_string())?;
     match resp {
         command::Response::Empty => Ok(()),
         _ => Err("Unexpected response type".to_string()),
     }
+}
+
+#[cfg(target_os = "macos")]
+#[allow(unexpected_cfgs)]
+#[tauri::command]
+async fn set_app_icon(app: AppHandle, icon_name: String) -> Result<(), String> {
+    use dispatch::Queue;
+    use std::fs;
+    use std::sync::mpsc;
+
+    let icon_path = app
+        .path()
+        .resource_dir()
+        .map_err(|e| format!("Failed to get resource dir: {}", e))?
+        .join("icons")
+        .join("app-icons")
+        .join(&icon_name);
+
+    let icon_data = fs::read(&icon_path)
+        .map_err(|e| format!("Failed to read icon file {}: {}", icon_path.display(), e))?;
+
+    let (tx, rx) = mpsc::channel();
+
+    Queue::main().exec_async(move || unsafe {
+        use cocoa::{
+            appkit::NSImage,
+            base::{id, nil},
+            foundation::NSData,
+        };
+
+        let result = (|| {
+            let app: id = msg_send![class!(NSApplication), sharedApplication];
+            if app == nil {
+                return Err("Failed to get NSApplication".to_string());
+            }
+
+            let data = NSData::dataWithBytes_length_(
+                nil,
+                icon_data.as_ptr() as *const std::os::raw::c_void,
+                icon_data.len() as u64,
+            );
+
+            if data == nil {
+                return Err("Failed to create NSData".to_string());
+            }
+
+            let app_icon = NSImage::initWithData_(NSImage::alloc(nil), data);
+            if app_icon == nil {
+                return Err("Failed to create NSImage from data".to_string());
+            }
+
+            let _: () = msg_send![app, setApplicationIconImage: app_icon];
+
+            Ok(())
+        })();
+
+        let _ = tx.send(result);
+    });
+
+    // Wait for the result from the main thread
+    rx.recv()
+        .map_err(|e| format!("Failed to receive result from main thread: {}", e))?
+}
+
+#[cfg(not(target_os = "macos"))]
+#[tauri::command]
+async fn set_app_icon(app: AppHandle, icon_name: String) -> Result<(), String> {
+    use std::fs;
+    use tauri::image::Image;
+
+    let icon_path = app
+        .path()
+        .resource_dir()
+        .map_err(|e| format!("Failed to get resource dir: {}", e))?
+        .join("icons")
+        .join("app-icons")
+        .join(&icon_name);
+
+    let icon_data = fs::read(&icon_path)
+        .map_err(|e| format!("Failed to read icon file {}: {}", icon_path.display(), e))?;
+
+    let image = Image::from_bytes(&icon_data)
+        .map_err(|e| format!("Failed to create image from icon data: {}", e))?;
+
+    // Set icon on all windows (main and settings)
+    let mut errors = Vec::new();
+
+    if let Some(window) = app.get_webview_window("main") {
+        if let Err(e) = window.set_icon(image.clone()) {
+            errors.push(format!("Failed to set main window icon: {}", e));
+        }
+    }
+
+    if let Some(window) = app.get_webview_window("settings") {
+        if let Err(e) = window.set_icon(image) {
+            errors.push(format!("Failed to set settings window icon: {}", e));
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors.join("; "))
+    }
+}
+
+#[tauri::command]
+async fn compress_logs(_app: AppHandle, dest_path: String) -> Result<(), String> {
+    let input_file =
+        File::open(LOG_FILE_PATH).map_err(|e| format!("Failed to open log file: {}", e))?;
+    let output_file =
+        File::create(dest_path).map_err(|e| format!("Failed to create output file: {}", e))?;
+
+    // compression level 5 - default is 3 (see zstd docs for details)
+    let mut encoder = Encoder::new(&output_file, 5)
+        .map_err(|e| format!("Failed to create zstd encoder: {}", e))?;
+    io::copy(&mut BufReader::new(input_file), &mut encoder)
+        .map_err(|e| format!("Failed to compress log file: {}", e))?;
+    encoder
+        .finish()
+        .map_err(|e| format!("Failed to finalize compression: {}", e))?;
+    Ok(())
+}
+
+#[tauri::command]
+fn theme_changed(
+    app: AppHandle,
+    tray_icon_state: State<'_, TrayIconState>,
+    theme: String,
+) -> Result<(), String> {
+    let theme = match theme.as_str() {
+        "dark" => Some(tauri::Theme::Dark),
+        "light" => Some(tauri::Theme::Light),
+        _ => None,
+    };
+    let connection_state = tray_icon_state
+        .current_icon
+        .lock()
+        .map(|icon| extract_connection_state_from_icon(&icon))
+        .unwrap_or("Disconnected");
+    update_tray_icon(&app, tray_icon_state.inner(), connection_state, theme);
+    Ok(())
 }
 
 fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error> {
@@ -427,17 +609,16 @@ fn toggle_main_window_visibility(app: &AppHandle, triggered_by_tray: bool) {
             }
             // Only try to position by the tray when triggered by a tray icon click
             if triggered_by_tray {
-                // Move first while hidden so the initial paint appears in the correct spot
-                let _ = window.move_window(Position::TrayBottomLeft);
+                // Move first while hidden so the initial paint appears in the correct spot.
+                position_main_window_by_tray(&window);
             }
             let _ = window.show();
             let _ = window.set_focus();
             if triggered_by_tray {
-                // Re-apply shortly after to ensure it snaps tightly to the tray on multi-monitor
                 let handle = window.clone();
                 tauri::async_runtime::spawn(async move {
                     std::thread::sleep(Duration::from_millis(10));
-                    let _ = handle.move_window(Position::TrayBottomLeft);
+                    position_main_window_by_tray(&handle);
                 });
             }
         } else {
@@ -447,6 +628,30 @@ fn toggle_main_window_visibility(app: &AppHandle, triggered_by_tray: bool) {
                 let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
             }
         }
+    }
+}
+
+fn position_main_window_by_tray(window: &tauri::WebviewWindow) {
+    let _ = window.move_window(Position::TrayBottomLeft);
+
+    let Ok(Some(monitor)) = window.current_monitor() else {
+        return;
+    };
+    let Ok(pos) = window.outer_position() else {
+        return;
+    };
+    let Ok(size) = window.outer_size() else {
+        return;
+    };
+
+    let monitor_pos = monitor.position();
+    let monitor_size = monitor.size();
+
+    let max_x = monitor_pos.x + monitor_size.width as i32;
+    let win_right = pos.x + size.width as i32;
+
+    if win_right > max_x {
+        let _ = window.move_window(Position::TopRight);
     }
 }
 
@@ -493,6 +698,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_positioner::init())
         .setup(|app| {
             // Load settings from the shared store (settings.json) before any UI decisions
@@ -515,7 +721,12 @@ pub fn run() {
             // Create tray menu
             let menu = create_tray_menu(app.handle())?;
 
-            let icon_name: &str = "tray-icon.png";
+            // Start with disconnected tray icon
+            #[cfg(not(target_os = "macos"))]
+            let theme = app.get_webview_window("main").and_then(|w| w.theme().ok());
+            #[cfg(target_os = "macos")]
+            let theme = None;
+            let icon_name: &str = determine_tray_icon("Disconnected", theme);
 
             let tray_icon_path: PathBuf = app
                 .path()
@@ -532,7 +743,7 @@ pub fn run() {
                 .menu(&menu)
                 .icon(icon)
                 .icon_as_template(true);
-            let _tray = builder
+            let tray = builder
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "quit" => {
                         app.exit(0);
@@ -553,6 +764,20 @@ pub fn run() {
                 .show_menu_on_left_click(false)
                 .build(app)?;
 
+            app.manage(TrayIconState {
+                tray: Mutex::new(tray),
+                current_icon: Mutex::new(icon_name.to_string()),
+            });
+
+            let app_icon_state = Arc::new(AppIconState {
+                animation_toggle: AtomicBool::new(false),
+                is_animating: AtomicBool::new(false),
+                current_icon: Mutex::new(icons::APP_ICON_DISCONNECTED.to_string()),
+            });
+            app.manage(app_icon_state.clone());
+
+            start_app_icon_heartbeat(app.handle().clone(), app_icon_state);
+
             // Setup platform-specific functionality
             let _ = Platform::setup_system_tray();
 
@@ -561,8 +786,8 @@ pub fn run() {
                 #[cfg(target_os = "macos")]
                 let app_handle = app.handle().clone();
                 let window_clone = window.clone();
-                window.on_window_event(move |event| {
-                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                window.on_window_event(move |event| match event {
+                    tauri::WindowEvent::CloseRequested { api, .. } => {
                         api.prevent_close();
                         let _ = window_clone.hide();
                         #[cfg(target_os = "macos")]
@@ -571,6 +796,7 @@ pub fn run() {
                                 .set_activation_policy(tauri::ActivationPolicy::Accessory);
                         }
                     }
+                    _ => {}
                 });
             }
 
@@ -613,7 +839,10 @@ pub fn run() {
             disconnect,
             balance,
             refresh_node,
-            funding_tool
+            funding_tool,
+            compress_logs,
+            set_app_icon,
+            theme_changed
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

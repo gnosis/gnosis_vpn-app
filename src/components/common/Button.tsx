@@ -1,5 +1,5 @@
 import { createSignal, type JSX, mergeProps, Show, splitProps } from "solid-js";
-import Spinner from "@src/components/common/Spinner";
+import Spinner from "./Spinner.tsx";
 
 export interface ButtonProps {
   variant?: "primary" | "secondary" | "outline";
@@ -16,17 +16,23 @@ const baseClasses =
 
 const variantClasses: Record<NonNullable<ButtonProps["variant"]>, string> = {
   primary:
-    "border border-transparent bg-black text-white hover:bg-black focus:outline-none",
+    "border border-transparent bg-accent text-accent-text hover:bg-accent-hover focus:outline-none",
   secondary:
-    "border border-transparent bg-gray-800 text-white hover:bg-gray-700 focus:outline-none",
+    "border border-transparent bg-btn-secondary-bg text-btn-secondary-text hover:bg-btn-secondary-hover focus:outline-none",
   outline:
-    "border border-gray-300 text-gray-900 hover:bg-gray-100 focus:outline-none",
+    "border border-border bg-transparent text-text-primary hover:bg-bg-surface focus:outline-none",
 };
 
 const sizeClasses: Record<NonNullable<ButtonProps["size"]>, string> = {
-  sm: "h-8 px-3 text-sm",
+  sm: "h-8 px-3 text-sm rounded-md",
   md: "h-10 px-4 text-sm rounded-lg",
   lg: "h-14 px-6 text-base rounded-2xl",
+};
+
+const leadingOffsetClasses: Record<NonNullable<ButtonProps["size"]>, string> = {
+  sm: "-ml-4 h-5 w-5 flex items-center justify-center",
+  md: "-ml-6 h-5 w-5 flex items-center justify-center",
+  lg: "-ml-8 h-6 w-6 flex items-center justify-center",
 };
 
 export default function Button(allProps: ButtonProps): JSX.Element {
@@ -83,12 +89,12 @@ export default function Button(allProps: ButtonProps): JSX.Element {
       onPointerDown={() => playPressAnimation()}
       onClick={() => local.onClick?.()}
     >
-      <div class={`${local.size === "lg" ? "-ml-8 w-6 h-6" : "-ml-6 w-4 h-4"}`}>
+      <div class={leadingOffsetClasses[local.size!]}>
         <Show when={local.loading}>
           <Spinner />
         </Show>
       </div>
-      {local.children}
+      <div>{local.children}</div>
     </button>
   );
 }

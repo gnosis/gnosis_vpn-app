@@ -2,8 +2,8 @@ import {
   type DestinationState,
   formatHealth,
   type Health,
-} from "@src/services/vpnService";
-import { getConnectionLabel } from "@src/utils/status";
+} from "../services/vpnService.ts";
+import { getConnectionLabel } from "../utils/status.ts";
 
 export default function NodeStatus(props: {
   connectionState?: DestinationState["connection_state"];
@@ -25,7 +25,7 @@ export default function NodeStatus(props: {
 
   return (
     <span
-      class={`text-xs text-gray-500 font-light ${
+      class={`text-xs text-text-secondary font-light ${
         props.warning ? "text-red-500" : ""
       }`}
     >

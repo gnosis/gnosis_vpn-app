@@ -1,7 +1,7 @@
 import syncIcon from "@assets/icons/sync.svg";
 import { useAppStore } from "@src/stores/appStore.ts";
-import StatusIndicator from "@src/components/StatusIndicator";
-import { useLogsStore } from "@src/stores/logsStore";
+import StatusIndicator from "../../components/StatusIndicator.tsx";
+import { useLogsStore } from "../../stores/logsStore.ts";
 
 export default function Synchronization() {
   const [state] = useAppStore();
@@ -23,8 +23,9 @@ export default function Synchronization() {
             : "animate-spin-tick"
         }`}
       />
-      {/* <div>{progressPct()}%</div> */}
-      <div class="text-sm text-gray-500">This can take up to 10 minutes</div>
+      <div class="text-sm text-text-secondary">
+        This can take up to 10 minutes
+      </div>
       <div class="grow"></div>
       <StatusIndicator size="sm" />
     </div>

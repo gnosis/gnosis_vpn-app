@@ -1,8 +1,8 @@
 import { createSignal, onCleanup, onMount } from "solid-js";
 import { emit, listen } from "@tauri-apps/api/event";
-import Settings from "@src/screens/settings/Settings";
-import Usage from "@src/screens/settings/Usage";
-import Logs from "@src/screens/settings/Logs";
+import Settings from "../screens/settings/Settings.tsx";
+import Usage from "../screens/settings/Usage.tsx";
+import Logs from "../screens/settings/Logs.tsx";
 import Tabs from "@src/components/common/Tabs.tsx";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
@@ -45,7 +45,7 @@ export default function SettingsWindow() {
   });
 
   return (
-    <div class="system-window w-full h-screen flex flex-col items-center">
+    <div class="system-window w-full h-screen flex flex-col items-center bg-bg-primary">
       <Tabs
         tabs={[
           { id: "settings", label: "Settings" },

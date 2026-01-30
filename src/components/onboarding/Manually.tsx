@@ -1,64 +1,29 @@
-import { createMemo, createSignal, Show } from "solid-js";
-import { useAppStore } from "@src/stores/appStore";
-import Button from "@src/components/common/Button";
-import Checkbox from "@src/components/common/Checkbox";
-import Help from "@src/components/Help";
-import { useLogsStore } from "@src/stores/logsStore";
+import { createMemo, Show } from "solid-js";
+import { useAppStore } from "../../stores/appStore.ts";
+import Checkbox from "../common/Checkbox.tsx";
 import checkIcon from "@assets/icons/checked-box-filled.svg";
 import {
   getPreparingSafeNodeAddress,
   isWxHOPRTransferred,
   isXDAITransferred,
 } from "@src/utils/status.ts";
-import backIcon from "@assets/icons/arrow-left.svg";
-import FundingAddress from "@src/components/FundingAddress";
+import FundingAddress from "../FundingAddress.tsx";
+import Spinner from "../common/Spinner.tsx";
 
-export default function Manually(
-  { setStep }: { setStep: (step: string) => void },
-) {
-  const [appState, appActions] = useAppStore();
-  const [, logActions] = useLogsStore();
+export default function Manually() {
+  const [appState] = useAppStore();
   const wxhoprTransferred = () => isWxHOPRTransferred(appState);
   const xdaiTransferred = () => isXDAITransferred(appState);
-  const [ready, setReady] = createSignal(false);
-  const [loading, setLoading] = createSignal(false);
-
-  const getButtonLabel = () => {
-    if (loading()) return "Checking...";
-    if (wxhoprTransferred() && xdaiTransferred() && ready()) return "Proceed";
-    return "Confirm";
-  };
+  const ready = () => wxhoprTransferred() && xdaiTransferred();
 
   const nodeAddress = createMemo(() => {
     return getPreparingSafeNodeAddress(appState);
   });
 
-  const handleClick = () => {
-    if (!ready()) {
-      try {
-        setLoading(true);
-        setReady(true);
-      } catch (error) {
-        logActions.append(`Error checking if node is funded: ${String(error)}`);
-      } finally {
-        setLoading(false);
-      }
-    } else {
-      appActions.setScreen("synchronization");
-    }
-  };
-
   return (
     <div class="h-full w-full flex flex-col items-stretch p-6 gap-4">
       <h1 class="w-full text-2xl font-bold text-center my-6 flex flex-row">
-        <button
-          type="button"
-          class="text-sm text-gray-500 hover:cursor-pointer"
-          onClick={() => setStep("airdrop")}
-        >
-          <img src={backIcon} alt="Back" class="h-4 w-4 mr-4" />
-        </button>
-        Before we connect
+        Before we connect...
       </h1>
       <div class="flex flex-col gap-4 grow">
         <label class="flex flex-row w-full hover:cursor-pointer">
@@ -71,7 +36,7 @@ export default function Manually(
           </div>
           <div class="flex flex-col">
             <div class="font-bold">1. Transfer wxHOPR (Gnosis Chain)</div>
-            <div class="text-sm text-gray-500">1 GB is X USDC.</div>
+            <div class="text-sm text-text-secondary">1 GB is X USDC.</div>
           </div>
         </label>
 
@@ -85,39 +50,43 @@ export default function Manually(
           </div>
           <div class="flex flex-col">
             <div class="font-bold">2. Transfer xDAI (Gnosis Chain)</div>
-            <div class="text-sm text-gray-500">
-              1xDAI is enough for one year switching exit nodes.
+            <div class="text-sm text-text-secondary">
+              1 xDAI is enough for one year switching exit nodes.
             </div>
           </div>
         </label>
 
         <FundingAddress address={nodeAddress()} />
-        <div class="text-sm text-gray-500">
+        <div class="text-sm text-text-secondary">
           After the tx has been made, it can take up to two minutes, until your
-          App can connect.
+          App can connect. In the case it will auto-forward to the next step.
         </div>
 
-        <Show when={ready()}>
+        <Show when={!wxhoprTransferred() || !xdaiTransferred()}>
           <div class="flex flex-row w-full h-full items-center fade-in-up">
             <div class="flex flex-row">
-              <img src={checkIcon} alt="Check" class="h-5 w-5 mr-4 mt-1" />
-              <div class="text-sm">
-                All necessary funds have been received successfully. You can
-                proceed.
+              <Spinner />
+              <div class="text-sm ml-2">
+                {!xdaiTransferred() && !wxhoprTransferred()
+                  ? "Checking..."
+                  : xdaiTransferred()
+                  ? "xDAI received, checking for wxHOPR..."
+                  : "wxHOPR received, checking for xDAI..."}
               </div>
             </div>
           </div>
         </Show>
-      </div>
 
-      <Help />
-      <Button
-        onClick={handleClick}
-        disabled={!wxhoprTransferred() || !xdaiTransferred()}
-        loading={loading()}
-      >
-        {getButtonLabel()}
-      </Button>
+        <Show when={ready()}>
+          <div class="flex flex-row w-full items-center gap-4 fade-in-up">
+            <img src={checkIcon} alt="Check" class="h-5 w-5 mt-1" />
+            <div class="text-sm">
+              All necessary funds have been received successfully. You will be
+              auto-forwarded to the next step in a few seconds.
+            </div>
+          </div>
+        </Show>
+      </div>
     </div>
   );
 }

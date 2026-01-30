@@ -1,8 +1,8 @@
 import { createStore, type Store } from "solid-js/store";
 import { type StatusResponse } from "@src/services/vpnService.ts";
 import { formatDestination } from "@src/utils/destinations.ts";
-import { getEthAddress } from "@src/utils/address";
-import { shortAddress } from "@src/utils/shortAddress";
+import { getEthAddress } from "../utils/address.ts";
+import { shortAddress } from "../utils/shortAddress.ts";
 import { emit, listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
