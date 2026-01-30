@@ -49,5 +49,7 @@ import { createEffect } from "solid-js";
       () => (label === "settings" ? <SettingsWindow /> : <App />),
       document.getElementById("root") as HTMLElement,
     );
+  }).catch((e) => {
+    console.error("Failed to load settings:", e);
   });
 })();
