@@ -48,6 +48,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          token: ${{ secrets.BOT_TOKEN }}
       - name: Setup GCP
         id: gcp
         uses: hoprnet/hopr-workflows/actions/setup-gcp@master
@@ -150,3 +152,10 @@ jobs:
           token: ${{ secrets.GNOSIS_GITHUB_WORKFLOW_TOKEN }}
           repository: gnosis/gnosis_vpn
           event-type: new_snapshot_release
+          client-payload: |-
+            {
+              "public_release": "false",
+              "client_version": "latest",
+              "app_version": "${{ steps.bump.outputs.current_version }}",
+              "sign": "true",
+            }
