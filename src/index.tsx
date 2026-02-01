@@ -34,11 +34,9 @@ function screenFromLabel(label: string) {
           invoke("theme_changed", { theme });
 
           unlisten = await curWindow.onThemeChanged(({ payload: theme }) => {
-            console.log("onThemeChanged", theme);
             invoke("theme_changed", { theme });
           });
         };
-
         initTheme();
 
         onCleanup(() => {
