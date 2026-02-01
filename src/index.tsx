@@ -26,19 +26,25 @@ function screenFromLabel(label: string) {
 
   render(
     () => {
-      onMount(async () => {
-        const theme = await curWindow.theme();
-        invoke("theme_changed", { theme });
+      onMount(() => {
+        let unlisten: (() => void) | undefined;
 
-        const unlistenCb = await curWindow.onThemeChanged(
-          ({ payload: theme }) => {
-            console.log("theme", theme);
+        const initTheme = async () => {
+          const theme = await curWindow.theme();
+          invoke("theme_changed", { theme });
+
+          unlisten = await curWindow.onThemeChanged(({ payload: theme }) => {
+            console.log("onThemeChanged", theme);
             invoke("theme_changed", { theme });
-          },
-        );
+          });
+        };
+
+        initTheme();
 
         onCleanup(() => {
-          unlistenCb();
+          if (unlisten) {
+            unlisten();
+          }
         });
       });
 
