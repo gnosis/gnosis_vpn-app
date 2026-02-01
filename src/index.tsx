@@ -17,13 +17,13 @@ function screenFromLabel(label: string) {
 }
 
 (() => {
+  const curWindow = getCurrentWindow();
   const root = document.getElementById("root") as HTMLElement;
+
   const [_settings, settingsActions] = useSettingsStore();
   const [,] = useAppStore();
   const [loadSettings] = createResource(settingsActions.load);
-  const curWindow = getCurrentWindow();
 
-  // cannot use Suspense here because screen has a hard requirements on settings being loaded
   render(
     () => {
       onMount(async () => {
@@ -42,6 +42,7 @@ function screenFromLabel(label: string) {
         });
       });
 
+      // cannot use Suspense here because screen has a hard requirements on settings being loaded
       return (
         <Show
           when={loadSettings.state === "ready"}
