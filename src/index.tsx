@@ -16,6 +16,15 @@ function screenFromLabel(label: string) {
   return <App />;
 }
 
+function applyTheme(theme: string) {
+  if (theme === "dark") {
+    document.documentElement.classList.add("dark");
+  } else {
+    document.documentElement.classList.remove("dark");
+  }
+  invoke("theme_changed", { theme });
+}
+
 (() => {
   const curWindow = getCurrentWindow();
   const root = document.getElementById("root") as HTMLElement;
@@ -30,12 +39,17 @@ function screenFromLabel(label: string) {
         let unlisten: (() => void) | undefined;
 
         const initTheme = async () => {
-          const theme = await curWindow.theme();
-          invoke("theme_changed", { theme });
+          // check if this works on macOS
+          console.log("theme", await curWindow.theme());
+          // determine system theme via match media as Tauri does not provide a way to get system theme
+          const mediaQuery = matchMedia("(prefers-color-scheme: dark)");
+          const theme = mediaQuery.matches ? "dark" : "light";
 
           unlisten = await curWindow.onThemeChanged(({ payload: theme }) => {
-            invoke("theme_changed", { theme });
+            console.log("Theme changed to:", theme);
+            applyTheme(theme);
           });
+          applyTheme(theme);
         };
         initTheme();
 
