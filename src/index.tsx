@@ -30,8 +30,6 @@ function handleThemeChange(event: MediaQueryListEvent) {
 }
 
 (() => {
-  const curWindow = getCurrentWindow();
-
   // initial theme and theme change listener
   const darkMedia = globalThis.matchMedia("(prefers-color-scheme: dark)");
   if (typeof darkMedia.addEventListener === "function") {
@@ -41,22 +39,24 @@ function handleThemeChange(event: MediaQueryListEvent) {
   }
   applyTheme(darkMedia.matches);
 
+  // initialize rendering
   const root = document.getElementById("root") as HTMLElement;
+  const [_settings, settingsActions] = useSettingsStore();
+  const [,] = useAppStore();
+  const [loadSettings] = createResource(settingsActions.load);
+  const curWindow = getCurrentWindow();
 
-  // createEffect(() => {
-  // applyTheme(settings.darkMode);
-  // });
-
-  render(() => {
-    const [_settings, settingsActions] = useSettingsStore();
-    const [,] = useAppStore();
-    const [loadSettings] = createResource(settingsActions.load);
-
-    // cannot use Suspense here because screen has a hard requirements on settings being loaded
-    return (
-      <Show when={loadSettings()} fallback={<div>Loading...</div>}>
+  // cannot use Suspense here because screen has a hard requirements on settings being loaded
+  render(
+    () => (
+      <Show
+        when={loadSettings.state === "ready"}
+        // TODO needs better fallback or splash screen
+        fallback={<div>Loading...</div>}
+      >
         {screenFromLabel(curWindow.label)}
       </Show>
-    );
-  }, root);
+    ),
+    root,
+  );
 })();
