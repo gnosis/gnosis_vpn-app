@@ -301,14 +301,10 @@
   background-color: var(--color-bg-primary);
 }
 
-:root.dark .system-window {
-  background-color: var(--color-bg-primary);
-}
-
 :root.dark .tab-icon {
   filter: brightness(0) invert(1);
 }
 
-:root.dark .dark-mode-icon {
+:root.dark .icon-invert-in-dark {
   filter: brightness(0) invert(1);
 }
