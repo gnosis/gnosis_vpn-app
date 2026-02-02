@@ -1,53 +1,76 @@
 /* @refresh reload */
 import "@src/index.css";
-import { render } from "solid-js/web";
+import { render, Show } from "solid-js/web";
 import App from "./windows/App.tsx";
-import { useSettingsStore } from "@src/stores/settingsStore.ts";
+import { useSettingsStore } from "./stores/settingsStore.ts";
 import SettingsWindow from "./windows/SettingsWindow.tsx";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { useAppStore } from "@src/stores/appStore.ts";
+import { useAppStore } from "./stores/appStore.ts";
 import { invoke } from "@tauri-apps/api/core";
-import { createEffect } from "solid-js";
+import { createResource, onCleanup, onMount } from "solid-js";
+
+function screenFromLabel(label: string) {
+  if (label === "settings") {
+    return <SettingsWindow />;
+  }
+  return <App />;
+}
+
+function applyTheme(theme: string) {
+  if (theme === "dark") {
+    document.documentElement.classList.add("dark");
+  } else {
+    document.documentElement.classList.remove("dark");
+  }
+  invoke("theme_changed", { theme });
+}
 
 (() => {
-  const [settings, settingsActions] = useSettingsStore();
+  const curWindow = getCurrentWindow();
+  const root = document.getElementById("root") as HTMLElement;
+
+  const [_settings, settingsActions] = useSettingsStore();
   const [,] = useAppStore();
+  const [loadSettings] = createResource(settingsActions.load);
 
-  const darkMedia = globalThis.matchMedia("(prefers-color-scheme: dark)");
-  const emitThemeChanged = (isDark: boolean) => {
-    void invoke("theme_changed", { theme: isDark ? "dark" : "light" });
-  };
-  const handleThemeChange = (event: MediaQueryListEvent) => {
-    emitThemeChanged(event.matches);
-  };
+  render(
+    () => {
+      onMount(() => {
+        let unlisten: (() => void) | undefined;
 
-  emitThemeChanged(darkMedia.matches);
-  if (typeof darkMedia.addEventListener === "function") {
-    darkMedia.addEventListener("change", handleThemeChange);
-  } else {
-    darkMedia.onchange = handleThemeChange;
-  }
+        const initTheme = async () => {
+          // check if this works on macOS
+          console.log("theme", await curWindow.theme());
+          // determine system theme via match media as Tauri does not provide a way to get system theme
+          const mediaQuery = matchMedia("(prefers-color-scheme: dark)");
+          const theme = mediaQuery.matches ? "dark" : "light";
 
-  void settingsActions.load().then(() => {
-    const label = getCurrentWindow().label;
+          unlisten = await curWindow.onThemeChanged(({ payload: theme }) => {
+            console.log("Theme changed to:", theme);
+            applyTheme(theme);
+          });
+          applyTheme(theme);
+        };
+        initTheme();
 
-    if (settings.darkMode) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
+        onCleanup(() => {
+          if (unlisten) {
+            unlisten();
+          }
+        });
+      });
 
-    createEffect(() => {
-      if (settings.darkMode) {
-        document.documentElement.classList.add("dark");
-      } else {
-        document.documentElement.classList.remove("dark");
-      }
-    });
-
-    render(
-      () => (label === "settings" ? <SettingsWindow /> : <App />),
-      document.getElementById("root") as HTMLElement,
-    );
-  });
+      // cannot use Suspense here because screen has a hard requirements on settings being loaded
+      return (
+        <Show
+          when={loadSettings.state === "ready"}
+          // TODO needs better fallback or splash screen
+          fallback={<div>Loading...</div>}
+        >
+          {screenFromLabel(curWindow.label)}
+        </Show>
+      );
+    },
+    root,
+  );
 })();
