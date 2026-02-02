@@ -86,7 +86,13 @@ pub fn determine_app_icon(connection_state: &str, run_mode: &command::RunMode) -
 }
 
 pub fn determine_tray_icon(connection_state: &str, theme: Option<Theme>) -> &'static str {
-    let use_black_icons = !cfg!(target_os = "macos") && matches!(theme, Some(Theme::Light));
+    // Dark/light tray icons only on non-macOS; macOS uses template icons and ignores theme
+    let effective_theme = if cfg!(target_os = "macos") {
+        None
+    } else {
+        theme
+    };
+    let use_black_icons = matches!(effective_theme, Some(Theme::Light));
 
     match (connection_state, use_black_icons) {
         ("Connected", true) => TRAY_ICON_CONNECTED_BLACK,

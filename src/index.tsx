@@ -33,44 +33,42 @@ function applyTheme(theme: string) {
   const [,] = useAppStore();
   const [loadSettings] = createResource(settingsActions.load);
 
-  render(
-    () => {
-      onMount(() => {
-        let unlisten: (() => void) | undefined;
+  render(() => {
+    onMount(() => {
+      let unlisten: (() => void) | undefined;
 
-        const initTheme = async () => {
-          // check if this works on macOS
-          console.log("theme", await curWindow.theme());
-          // determine system theme via match media as Tauri does not provide a way to get system theme
+      const initTheme = async () => {
+        // App windows dark/light: use backend initial theme (all OS), then follow OS changes
+        const initial = await invoke<string | null>("get_initial_theme");
+        if (initial) {
+          applyTheme(initial);
+        } else {
           const mediaQuery = matchMedia("(prefers-color-scheme: dark)");
-          const theme = mediaQuery.matches ? "dark" : "light";
+          applyTheme(mediaQuery.matches ? "dark" : "light");
+        }
 
-          unlisten = await curWindow.onThemeChanged(({ payload: theme }) => {
-            console.log("Theme changed to:", theme);
-            applyTheme(theme);
-          });
+        unlisten = await curWindow.onThemeChanged(({ payload: theme }) => {
           applyTheme(theme);
-        };
-        initTheme();
-
-        onCleanup(() => {
-          if (unlisten) {
-            unlisten();
-          }
         });
-      });
+      };
+      initTheme();
 
-      // cannot use Suspense here because screen has a hard requirements on settings being loaded
-      return (
-        <Show
-          when={loadSettings.state === "ready"}
-          // TODO needs better fallback or splash screen
-          fallback={<div>Loading...</div>}
-        >
-          {screenFromLabel(curWindow.label)}
-        </Show>
-      );
-    },
-    root,
-  );
+      onCleanup(() => {
+        if (unlisten) {
+          unlisten();
+        }
+      });
+    });
+
+    // cannot use Suspense here because screen has a hard requirements on settings being loaded
+    return (
+      <Show
+        when={loadSettings.state === "ready"}
+        // TODO needs better fallback or splash screen
+        fallback={<div>Loading...</div>}
+      >
+        {screenFromLabel(curWindow.label)}
+      </Show>
+    );
+  }, root);
 })();

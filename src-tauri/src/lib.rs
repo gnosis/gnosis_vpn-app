@@ -33,6 +33,68 @@ use icons::{
     update_icon_name_if_changed, update_tray_icon,
 };
 
+/// On Linux, try gsettings (GNOME) so the tray uses the correct icon on first render. Tries color-scheme first, then gtk-theme.
+#[cfg(target_os = "linux")]
+fn linux_theme_from_gsettings() -> Option<tauri::Theme> {
+    // 1) GNOME 42+: org.gnome.desktop.interface color-scheme → 'prefer-dark' / 'prefer-light'
+    let out = std::process::Command::new("gsettings")
+        .args(["get", "org.gnome.desktop.interface", "color-scheme"])
+        .output()
+        .ok()?;
+    if out.status.success() {
+        let s = std::str::from_utf8(out.stdout.as_slice()).ok()?.trim();
+        if s.contains("prefer-dark") {
+            return Some(tauri::Theme::Dark);
+        }
+        if s.contains("prefer-light") {
+            return Some(tauri::Theme::Light);
+        }
+    }
+
+    // 2) Fallback: gtk-theme (e.g. 'Adwaita-dark' vs 'Adwaita') on older GNOME or when color-scheme is unset
+    let out = std::process::Command::new("gsettings")
+        .args(["get", "org.gnome.desktop.interface", "gtk-theme"])
+        .output()
+        .ok()?;
+    if out.status.success() {
+        let s = std::str::from_utf8(out.stdout.as_slice())
+            .ok()?
+            .to_lowercase();
+        if s.contains("-dark") || s.contains("dark") {
+            return Some(tauri::Theme::Dark);
+        }
+        return Some(tauri::Theme::Light);
+    }
+
+    None
+}
+
+#[cfg(not(target_os = "linux"))]
+#[allow(dead_code)]
+fn linux_theme_from_gsettings() -> Option<tauri::Theme> {
+    None
+}
+
+/// OS theme at startup: used for app windows (all OS) and tray icons (non-macOS only).
+fn system_theme() -> Option<tauri::Theme> {
+    #[cfg(target_os = "linux")]
+    {
+        // Prefer gsettings on Linux so tray icon is correct on first render (dark_light often returns Default at startup).
+        if let Some(t) = linux_theme_from_gsettings() {
+            return Some(t);
+        }
+    }
+
+    match dark_light::detect() {
+        dark_light::Mode::Dark => Some(tauri::Theme::Dark),
+        dark_light::Mode::Light => Some(tauri::Theme::Light),
+        dark_light::Mode::Default => None,
+    }
+}
+
+// Initial theme computed at startup so the frontend can apply dark/light to app windows on all OS.
+struct InitialTheme(Option<tauri::Theme>);
+
 const LOG_FILE_PATH: &str = "/var/log/gnosisvpn/gnosisvpn.log";
 
 // State to hold a reference to the tray "status" menu item so we can update it
@@ -329,8 +391,8 @@ async fn status(
                 let _ = guard.set_text(format!("Status: {}", derived));
             }
 
-            // Update tray icon on all platforms
-            let theme = app.get_webview_window("main").and_then(|w| w.theme().ok());
+            // Update tray icon (theme from OS; determine_tray_icon ignores it on macOS)
+            let theme = system_theme();
             update_tray_icon(&app, tray_icon_state.inner(), derived, theme);
 
             let icon_name = determine_app_icon(derived, &status_resp.run_mode);
@@ -556,6 +618,15 @@ async fn compress_logs(_app: AppHandle, dest_path: String) -> Result<(), String>
 }
 
 #[tauri::command]
+fn get_initial_theme(state: State<InitialTheme>) -> Option<String> {
+    state.0.as_ref().map(|t| match t {
+        tauri::Theme::Dark => "dark".to_string(),
+        tauri::Theme::Light => "light".to_string(),
+        _ => "light".to_string(),
+    })
+}
+
+#[tauri::command]
 fn theme_changed(
     app: AppHandle,
     tray_icon_state: State<'_, TrayIconState>,
@@ -718,14 +789,14 @@ pub fn run() {
             // Make settings available as managed state
             app.manage(Mutex::new(loaded.clone()));
 
+            // First step: OS theme for app windows (all OS) and tray icons (non-macOS only)
+            let theme = system_theme();
+            eprintln!("System theme: {:?}", theme);
+            app.manage(InitialTheme(theme));
+
             // Create tray menu
             let menu = create_tray_menu(app.handle())?;
 
-            // Start with disconnected tray icon
-            #[cfg(not(target_os = "macos"))]
-            let theme = app.get_webview_window("main").and_then(|w| w.theme().ok());
-            #[cfg(target_os = "macos")]
-            let theme = None;
             let icon_name: &str = determine_tray_icon("Disconnected", theme);
 
             let tray_icon_path: PathBuf = app
@@ -842,6 +913,7 @@ pub fn run() {
             funding_tool,
             compress_logs,
             set_app_icon,
+            get_initial_theme,
             theme_changed
         ])
         .run(tauri::generate_context!())
