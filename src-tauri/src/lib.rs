@@ -20,7 +20,11 @@ use tauri_plugin_store::StoreExt;
 
 use std::collections::HashMap;
 use std::fs::File;
+#[cfg(target_os = "linux")]
+use std::io::BufRead;
 use std::io::{self, BufReader};
+#[cfg(target_os = "linux")]
+use std::process::{Command, Stdio};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, SystemTime};
@@ -74,6 +78,58 @@ fn linux_theme_from_gsettings() -> Option<tauri::Theme> {
 fn linux_theme_from_gsettings() -> Option<tauri::Theme> {
     None
 }
+
+/// On Linux, Tauri's onThemeChanged is not emitted when the OS theme changes. Spawn threads that
+/// monitor gsettings and emit "os-theme-changed" so the frontend and tray icon update.
+#[cfg(target_os = "linux")]
+fn spawn_linux_theme_monitor(app: AppHandle) {
+    fn run_monitor(
+        app: AppHandle,
+        key: &'static str,
+        to_theme: impl Fn(&str) -> Option<&'static str> + Send + 'static,
+    ) {
+        std::thread::spawn(move || {
+            let child = match Command::new("gsettings")
+                .args(["monitor", "org.gnome.desktop.interface", key])
+                .stdout(Stdio::piped())
+                .stderr(Stdio::null())
+                .spawn()
+            {
+                Ok(c) => c,
+                Err(_) => return,
+            };
+            let reader = io::BufReader::new(child.stdout.expect("stdout piped"));
+            for line in reader.lines().filter_map(Result::ok) {
+                if let Some(theme) = to_theme(&line) {
+                    let _ = app.emit("os-theme-changed", theme);
+                }
+            }
+        });
+    }
+    run_monitor(app.clone(), "color-scheme", |line| {
+        if line.contains("prefer-dark") {
+            Some("dark")
+        } else if line.contains("prefer-light") {
+            Some("light")
+        } else {
+            None
+        }
+    });
+    run_monitor(app, "gtk-theme", |line| {
+        let lower = line.to_lowercase();
+        if lower.contains("-dark") || lower.contains("dark") {
+            Some("dark")
+        } else if !line.is_empty() {
+            Some("light")
+        } else {
+            None
+        }
+    });
+}
+
+#[cfg(not(target_os = "linux"))]
+#[allow(dead_code)]
+fn spawn_linux_theme_monitor(_app: AppHandle) {}
 
 /// OS theme at startup: used for app windows (all OS) and tray icons (non-macOS only).
 fn system_theme() -> Option<tauri::Theme> {
@@ -848,6 +904,9 @@ pub fn run() {
             app.manage(app_icon_state.clone());
 
             start_app_icon_heartbeat(app.handle().clone(), app_icon_state);
+
+            #[cfg(target_os = "linux")]
+            spawn_linux_theme_monitor(app.handle().clone());
 
             // Setup platform-specific functionality
             let _ = Platform::setup_system_tray();

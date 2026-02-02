@@ -7,6 +7,7 @@ import SettingsWindow from "./windows/SettingsWindow.tsx";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useAppStore } from "./stores/appStore.ts";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { createResource, onCleanup, onMount } from "solid-js";
 
 function screenFromLabel(label: string) {
@@ -47,9 +48,23 @@ function applyTheme(theme: string) {
           applyTheme(mediaQuery.matches ? "dark" : "light");
         }
 
-        unlisten = await curWindow.onThemeChanged(({ payload: theme }) => {
-          applyTheme(theme);
-        });
+        // macOS: Tauri emits theme changes; Linux: backend emits "os-theme-changed" via gsettings monitor
+        const unlistenTauri = await curWindow.onThemeChanged(
+          ({ payload: theme }) => {
+            applyTheme(theme);
+          },
+        );
+        const unlistenLinux = await listen<string>(
+          "os-theme-changed",
+          ({ payload: theme }) => {
+            applyTheme(theme);
+          },
+        );
+
+        unlisten = () => {
+          unlistenTauri();
+          unlistenLinux();
+        };
       };
       initTheme();
 
