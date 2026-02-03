@@ -13,40 +13,41 @@ use std::process::{Command, Stdio};
 
 use crate::icons::{TrayIconState, update_tray_icon};
 
+/// Run a command and return its stdout as a string. Returns `None` on failure.
+#[cfg(target_os = "linux")]
+fn run_stdout(mut cmd: Command) -> Option<String> {
+    let out = cmd.output().ok()?;
+    if out.status.success() {
+        String::from_utf8(out.stdout)
+            .ok()
+            .map(|s| s.trim().to_string())
+    } else {
+        None
+    }
+}
+
 /// On Linux, try gsettings (GNOME) so the tray uses the correct icon on first render. Tries color-scheme first, then gtk-theme.
 #[cfg(target_os = "linux")]
 fn linux_theme_from_gsettings() -> Option<tauri::Theme> {
     // 1) GNOME 42+: org.gnome.desktop.interface color-scheme → 'prefer-dark' / 'prefer-light'
-    let out = std::process::Command::new("gsettings")
-        .args(["get", "org.gnome.desktop.interface", "color-scheme"])
-        .output()
-        .ok()?;
-    if out.status.success() {
-        let s = std::str::from_utf8(out.stdout.as_slice()).ok()?.trim();
-        if s.contains("prefer-dark") {
-            return Some(tauri::Theme::Dark);
-        }
-        if s.contains("prefer-light") {
-            return Some(tauri::Theme::Light);
-        }
+    let mut cmd = Command::new("gsettings");
+    cmd.args(["get", "org.gnome.desktop.interface", "color-scheme"]);
+    let out = run_stdout(cmd)?;
+    if out.contains("prefer-dark") {
+        return Some(tauri::Theme::Dark);
     }
-
-    // 2) Fallback: gtk-theme (e.g. 'Adwaita-dark' vs 'Adwaita') on older GNOME or when color-scheme is unset
-    let out = std::process::Command::new("gsettings")
-        .args(["get", "org.gnome.desktop.interface", "gtk-theme"])
-        .output()
-        .ok()?;
-    if out.status.success() {
-        let s = std::str::from_utf8(out.stdout.as_slice())
-            .ok()?
-            .to_lowercase();
-        if s.contains("-dark") || s.contains("dark") {
-            return Some(tauri::Theme::Dark);
-        }
+    if out.contains("prefer-light") {
         return Some(tauri::Theme::Light);
     }
 
-    None
+    // 2) Fallback: gtk-theme (e.g. 'Adwaita-dark' vs 'Adwaita') on older GNOME or when color-scheme is unset
+    let mut cmd = Command::new("gsettings");
+    cmd.args(["get", "org.gnome.desktop.interface", "gtk-theme"]);
+    let out = run_stdout(cmd)?.to_lowercase();
+    if out.contains("-dark") || out.contains("dark") {
+        return Some(tauri::Theme::Dark);
+    }
+    Some(tauri::Theme::Light)
 }
 
 /// On Linux, Tauri's onThemeChanged is not emitted when the OS theme changes. Spawn threads that
