@@ -1,14 +1,12 @@
 /* @refresh reload */
 import "@src/index.css";
-import { render, Show } from "solid-js/web";
+import { render } from "solid-js/web";
 import App from "./windows/App.tsx";
-import { useSettingsStore } from "./stores/settingsStore.ts";
 import SettingsWindow from "./windows/SettingsWindow.tsx";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { useAppStore } from "./stores/appStore.ts";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { createResource, onCleanup, onMount } from "solid-js";
+import { onCleanup, onMount } from "solid-js";
 
 function screenFromLabel(label: string) {
   if (label === "settings") {
@@ -29,10 +27,8 @@ function applyTheme(theme: string) {
 (() => {
   const curWindow = getCurrentWindow();
   const root = document.getElementById("root") as HTMLElement;
-
-  const [_settings, settingsActions] = useSettingsStore();
-  const [,] = useAppStore();
-  const [loadSettings] = createResource(settingsActions.load);
+  // Clear static loading content so Solid mounts as the only child (render() appends otherwise)
+  root.innerHTML = "";
 
   render(() => {
     onMount(() => {
@@ -75,15 +71,6 @@ function applyTheme(theme: string) {
       });
     });
 
-    // cannot use Suspense here because screen has a hard requirements on settings being loaded
-    return (
-      <Show
-        when={loadSettings.state === "ready"}
-        // TODO needs better fallback or splash screen
-        fallback={<div>Loading...</div>}
-      >
-        {screenFromLabel(curWindow.label)}
-      </Show>
-    );
+    return <>{screenFromLabel(curWindow.label)}</>;
   }, root);
 })();

@@ -16,14 +16,16 @@
         "width": 360,
         "height": 640,
         "resizable": false,
-        "visible": false
+        "visible": false,
+        "backgroundColor": "#111827"
       },
       {
         "label": "settings",
         "title": "Gnosis VPN settings",
         "width": 640,
         "height": 480,
-        "visible": false
+        "visible": false,
+        "backgroundColor": "#111827"
       }
     ],
     "security": {
