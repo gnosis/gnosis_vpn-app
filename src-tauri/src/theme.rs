@@ -11,7 +11,7 @@ use std::io::BufRead;
 #[cfg(target_os = "linux")]
 use std::process::{Command, Stdio};
 
-use crate::icons::{TrayIconState, extract_connection_state_from_icon, update_tray_icon};
+use crate::icons::{TrayIconState, update_tray_icon};
 
 /// On Linux, try gsettings (GNOME) so the tray uses the correct icon on first render. Tries color-scheme first, then gtk-theme.
 #[cfg(target_os = "linux")]
@@ -147,11 +147,7 @@ pub fn theme_changed(
         "light" => Some(tauri::Theme::Light),
         _ => None,
     };
-    let connection_state = tray_icon_state
-        .current_icon
-        .lock()
-        .map(|icon| extract_connection_state_from_icon(&icon))
-        .unwrap_or("Disconnected");
+    let connection_state = "Disconnected";
     update_tray_icon(&app, tray_icon_state.inner(), connection_state, theme);
     Ok(())
 }

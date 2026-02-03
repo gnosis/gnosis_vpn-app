@@ -309,23 +309,25 @@ async fn status(
     match resp {
         Ok(command::Response::Status(status_resp)) => {
             let mut derived: &str = "Disconnected";
-            for ds in &status_resp.destinations {
-                match ds.connection_state {
-                    command::ConnectionState::Connected(_) => {
-                        derived = "Connected";
-                        break;
-                    }
-                    command::ConnectionState::Connecting(_, _) => {
-                        if derived != "Connected" {
-                            derived = "Connecting";
+            if matches!(status_resp.run_mode, command::RunMode::Running { .. }) {
+                for ds in &status_resp.destinations {
+                    match ds.connection_state {
+                        command::ConnectionState::Connected(_) => {
+                            derived = "Connected";
+                            break;
                         }
-                    }
-                    command::ConnectionState::Disconnecting(_, _) => {
-                        if derived != "Connected" {
-                            derived = "Disconnecting";
+                        command::ConnectionState::Connecting(_, _) => {
+                            if derived != "Connected" {
+                                derived = "Connecting";
+                            }
                         }
+                        command::ConnectionState::Disconnecting(_, _) => {
+                            if derived != "Connected" {
+                                derived = "Disconnecting";
+                            }
+                        }
+                        command::ConnectionState::None => {}
                     }
-                    command::ConnectionState::None => {}
                 }
             }
             if let Ok(guard) = status_item.0.lock() {
