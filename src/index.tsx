@@ -36,13 +36,8 @@ function applyTheme(theme: string) {
 
       const initTheme = async () => {
         // App windows dark/light: use backend initial theme (all OS), then follow OS changes
-        const initial = await invoke<string | null>("get_initial_theme");
-        if (initial) {
-          applyTheme(initial);
-        } else {
-          const mediaQuery = matchMedia("(prefers-color-scheme: dark)");
-          applyTheme(mediaQuery.matches ? "dark" : "light");
-        }
+        const initial = await invoke<string>("get_initial_theme");
+        applyTheme(initial);
 
         // macOS: Tauri emits theme changes; Linux: backend emits "os-theme-changed" via gsettings monitor
         const unlistenTauri = await curWindow.onThemeChanged(

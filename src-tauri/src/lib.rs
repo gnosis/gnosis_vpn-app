@@ -16,13 +16,6 @@ mod platform;
 mod theme;
 use platform::{Platform, PlatformInterface};
 use serde::Serialize;
-use tauri_plugin_positioner::{Position, WindowExt};
-use tauri_plugin_store::StoreExt;
-#[cfg_attr(target_os = "macos", allow(unused_imports))]
-use theme::{
-    InitialTheme, get_initial_theme, spawn_linux_theme_monitor, system_theme, theme_changed,
-};
-
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, BufReader};
@@ -30,6 +23,12 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, SystemTime};
 use std::{path::PathBuf, sync::Mutex};
+use tauri_plugin_positioner::{Position, WindowExt};
+use tauri_plugin_store::StoreExt;
+#[cfg(target_os = "linux")]
+use theme::spawn_linux_theme_monitor;
+#[cfg_attr(target_os = "macos", allow(unused_imports))]
+use theme::{InitialTheme, get_initial_theme, system_theme, theme_changed};
 
 use icons::{
     AppIconState, TrayIconState, determine_app_icon, determine_tray_icon, start_app_icon_heartbeat,
@@ -717,7 +716,7 @@ pub fn run() {
 
             // First step: OS theme for app windows (all OS) and tray icons (non-macOS only)
             let theme = system_theme();
-            app.manage(InitialTheme(theme));
+            app.manage(InitialTheme(theme.unwrap_or(tauri::Theme::Dark)));
 
             // Create tray menu
             let menu = create_tray_menu(app.handle())?;

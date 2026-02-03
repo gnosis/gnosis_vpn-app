@@ -49,12 +49,6 @@ fn linux_theme_from_gsettings() -> Option<tauri::Theme> {
     None
 }
 
-#[cfg(not(target_os = "linux"))]
-#[allow(dead_code)]
-fn linux_theme_from_gsettings() -> Option<tauri::Theme> {
-    None
-}
-
 /// On Linux, Tauri's onThemeChanged is not emitted when the OS theme changes. Spawn threads that
 /// monitor gsettings and emit "os-theme-changed" so the frontend and tray icon update.
 #[cfg(target_os = "linux")]
@@ -103,10 +97,6 @@ pub fn spawn_linux_theme_monitor(app: AppHandle) {
     });
 }
 
-#[cfg(not(target_os = "linux"))]
-#[allow(dead_code)]
-pub fn spawn_linux_theme_monitor(_app: AppHandle) {}
-
 /// OS theme at startup: used for app windows (all OS) and tray icons (non-macOS only).
 pub fn system_theme() -> Option<tauri::Theme> {
     #[cfg(target_os = "linux")]
@@ -125,15 +115,15 @@ pub fn system_theme() -> Option<tauri::Theme> {
 }
 
 /// Initial theme computed at startup so the frontend can apply dark/light to app windows on all OS.
-pub struct InitialTheme(pub Option<tauri::Theme>);
+/// Resolved to light or dark (defaults to dark when OS reports no preference).
+pub struct InitialTheme(pub tauri::Theme);
 
 #[tauri::command]
-pub fn get_initial_theme(state: State<InitialTheme>) -> Option<String> {
-    state.0.as_ref().map(|t| match t {
-        tauri::Theme::Dark => "dark".to_string(),
+pub fn get_initial_theme(state: State<InitialTheme>) -> String {
+    match state.0 {
         tauri::Theme::Light => "light".to_string(),
-        _ => "light".to_string(),
-    })
+        _ => "dark".to_string(),
+    }
 }
 
 #[tauri::command]
@@ -147,7 +137,20 @@ pub fn theme_changed(
         "light" => Some(tauri::Theme::Light),
         _ => None,
     };
-    let connection_state = "Disconnected";
+    let connection_state = tray_icon_state
+        .current_icon
+        .lock()
+        .map(|icon| {
+            if icon.contains("connected") && !icon.contains("connecting") {
+                "Connected"
+            } else if icon.contains("connecting") {
+                // This covers "Connecting" and "Disconnecting" states, which use the same icon.
+                "Connecting"
+            } else {
+                "Disconnected"
+            }
+        })
+        .unwrap_or("Disconnected");
     update_tray_icon(&app, tray_icon_state.inner(), connection_state, theme);
     Ok(())
 }
