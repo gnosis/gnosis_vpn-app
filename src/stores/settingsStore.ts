@@ -7,14 +7,12 @@ export interface SettingsState {
   preferredLocation: string | null;
   connectOnStartup: boolean;
   startMinimized: boolean;
-  darkMode: boolean;
 }
 
 const DEFAULT_SETTINGS: SettingsState = {
   preferredLocation: null,
   connectOnStartup: false,
   startMinimized: false,
-  darkMode: true,
 };
 
 type SettingsActions = {
@@ -22,7 +20,6 @@ type SettingsActions = {
   setPreferredLocation: (address: string | null) => Promise<void>;
   setConnectOnStartup: (enabled: boolean) => Promise<void>;
   setStartMinimized: (enabled: boolean) => Promise<void>;
-  setDarkMode: (enabled: boolean) => Promise<void>;
   save: () => Promise<void>;
 };
 
@@ -42,7 +39,6 @@ async function saveAllToDisk(state: SettingsState): Promise<void> {
   await store.set("preferredLocation", state.preferredLocation);
   await store.set("connectOnStartup", state.connectOnStartup);
   await store.set("startMinimized", state.startMinimized);
-  await store.set("darkMode", state.darkMode);
   await store.save();
 }
 
@@ -54,15 +50,13 @@ export function createSettingsStore(): SettingsStoreTuple {
       const store = await getTauriStore();
       const loaded: SettingsState = { ...DEFAULT_SETTINGS };
 
-      const [preferredLocation, connectOnStartup, startMinimized, darkMode] =
+      const [preferredLocation, connectOnStartup, startMinimized] =
         (await Promise.all([
           store.get("preferredLocation"),
           store.get("connectOnStartup"),
           store.get("startMinimized"),
-          store.get("darkMode"),
         ])) as [
           SettingsState["preferredLocation"] | undefined,
-          boolean | undefined,
           boolean | undefined,
           boolean | undefined,
         ];
@@ -84,15 +78,11 @@ export function createSettingsStore(): SettingsStoreTuple {
       if (startMinimized !== undefined) {
         loaded.startMinimized = startMinimized;
       }
-      if (darkMode !== undefined) {
-        loaded.darkMode = darkMode;
-      }
 
       setState({ ...loaded });
 
       const missingAny = preferredLocation === undefined ||
-        connectOnStartup === undefined || startMinimized === undefined ||
-        darkMode === undefined;
+        connectOnStartup === undefined || startMinimized === undefined;
       if (missingAny) {
         await saveAllToDisk(loaded);
       }
@@ -130,14 +120,6 @@ export function createSettingsStore(): SettingsStoreTuple {
       void emit("settings:update", { startMinimized: enabled });
     },
 
-    setDarkMode: async (enabled: boolean) => {
-      setState("darkMode", enabled);
-      const store = await getTauriStore();
-      await store.set("darkMode", enabled);
-      await store.save();
-      void emit("settings:update", { darkMode: enabled });
-    },
-
     save: async () => {
       await saveAllToDisk(state);
     },
@@ -152,9 +134,6 @@ export function createSettingsStore(): SettingsStoreTuple {
     }
     if (payload.startMinimized !== undefined) {
       setState("startMinimized", payload.startMinimized);
-    }
-    if (payload.darkMode !== undefined) {
-      setState("darkMode", payload.darkMode);
     }
   });
 

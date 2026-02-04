@@ -57,12 +57,6 @@ export default function Settings() {
         onChange={(e) =>
           void settingsActions.setStartMinimized(e.currentTarget.checked)}
       />
-      <Toggle
-        label="Dark mode"
-        checked={settings.darkMode}
-        onChange={(e) =>
-          void settingsActions.setDarkMode(e.currentTarget.checked)}
-      />
     </div>
   );
 }

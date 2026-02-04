@@ -13,11 +13,9 @@ use tauri::{
 use zstd::stream::Encoder;
 mod icons;
 mod platform;
+mod theme;
 use platform::{Platform, PlatformInterface};
 use serde::Serialize;
-use tauri_plugin_positioner::{Position, WindowExt};
-use tauri_plugin_store::StoreExt;
-
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, BufReader};
@@ -25,9 +23,13 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, SystemTime};
 use std::{path::PathBuf, sync::Mutex};
+use tauri_plugin_positioner::{Position, WindowExt};
+use tauri_plugin_store::StoreExt;
+#[cfg(target_os = "linux")]
+use theme::spawn_linux_theme_monitor;
+#[cfg_attr(target_os = "macos", allow(unused_imports))]
+use theme::{InitialTheme, get_initial_theme, system_theme, theme_changed};
 
-#[cfg_attr(target_os = "macos", allow(dead_code, unused_imports))]
-use icons::extract_connection_state_from_icon;
 use icons::{
     AppIconState, TrayIconState, determine_app_icon, determine_tray_icon, start_app_icon_heartbeat,
     update_icon_name_if_changed, update_tray_icon,
@@ -306,31 +308,33 @@ async fn status(
     match resp {
         Ok(command::Response::Status(status_resp)) => {
             let mut derived: &str = "Disconnected";
-            for ds in &status_resp.destinations {
-                match ds.connection_state {
-                    command::ConnectionState::Connected(_) => {
-                        derived = "Connected";
-                        break;
-                    }
-                    command::ConnectionState::Connecting(_, _) => {
-                        if derived != "Connected" {
-                            derived = "Connecting";
+            if matches!(status_resp.run_mode, command::RunMode::Running { .. }) {
+                for ds in &status_resp.destinations {
+                    match ds.connection_state {
+                        command::ConnectionState::Connected(_) => {
+                            derived = "Connected";
+                            break;
                         }
-                    }
-                    command::ConnectionState::Disconnecting(_, _) => {
-                        if derived != "Connected" {
-                            derived = "Disconnecting";
+                        command::ConnectionState::Connecting(_, _) => {
+                            if derived != "Connected" {
+                                derived = "Connecting";
+                            }
                         }
+                        command::ConnectionState::Disconnecting(_, _) => {
+                            if derived != "Connected" {
+                                derived = "Disconnecting";
+                            }
+                        }
+                        command::ConnectionState::None => {}
                     }
-                    command::ConnectionState::None => {}
                 }
             }
             if let Ok(guard) = status_item.0.lock() {
                 let _ = guard.set_text(format!("Status: {}", derived));
             }
 
-            // Update tray icon on all platforms
-            let theme = app.get_webview_window("main").and_then(|w| w.theme().ok());
+            // Update tray icon (theme from OS; determine_tray_icon ignores it on macOS)
+            let theme = system_theme();
             update_tray_icon(&app, tray_icon_state.inner(), derived, theme);
 
             let icon_name = determine_app_icon(derived, &status_resp.run_mode);
@@ -354,12 +358,24 @@ async fn status(
             if let Ok(guard) = status_item.0.lock() {
                 let _ = guard.set_text("Status: Not available");
             }
+            update_tray_icon(
+                &app,
+                tray_icon_state.inner(),
+                "Disconnected",
+                system_theme(),
+            );
             Err("Unexpected response type".to_string())
         }
         Err(e) => {
             if let Ok(guard) = status_item.0.lock() {
                 let _ = guard.set_text("Status: Not available");
             }
+            update_tray_icon(
+                &app,
+                tray_icon_state.inner(),
+                "Disconnected",
+                system_theme(),
+            );
             Err(e.to_string())
         }
     }
@@ -555,26 +571,6 @@ async fn compress_logs(_app: AppHandle, dest_path: String) -> Result<(), String>
     Ok(())
 }
 
-#[tauri::command]
-fn theme_changed(
-    app: AppHandle,
-    tray_icon_state: State<'_, TrayIconState>,
-    theme: String,
-) -> Result<(), String> {
-    let theme = match theme.as_str() {
-        "dark" => Some(tauri::Theme::Dark),
-        "light" => Some(tauri::Theme::Light),
-        _ => None,
-    };
-    let connection_state = tray_icon_state
-        .current_icon
-        .lock()
-        .map(|icon| extract_connection_state_from_icon(&icon))
-        .unwrap_or("Disconnected");
-    update_tray_icon(&app, tray_icon_state.inner(), connection_state, theme);
-    Ok(())
-}
-
 fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error> {
     let status_item =
         MenuItem::with_id(app, "status", "Status: Disconnected", false, None::<&str>)?;
@@ -718,14 +714,13 @@ pub fn run() {
             // Make settings available as managed state
             app.manage(Mutex::new(loaded.clone()));
 
+            // First step: OS theme for app windows (all OS) and tray icons (non-macOS only)
+            let theme = system_theme();
+            app.manage(InitialTheme(theme.unwrap_or(tauri::Theme::Dark)));
+
             // Create tray menu
             let menu = create_tray_menu(app.handle())?;
 
-            // Start with disconnected tray icon
-            #[cfg(not(target_os = "macos"))]
-            let theme = app.get_webview_window("main").and_then(|w| w.theme().ok());
-            #[cfg(target_os = "macos")]
-            let theme = None;
             let icon_name: &str = determine_tray_icon("Disconnected", theme);
 
             let tray_icon_path: PathBuf = app
@@ -777,6 +772,9 @@ pub fn run() {
             app.manage(app_icon_state.clone());
 
             start_app_icon_heartbeat(app.handle().clone(), app_icon_state);
+
+            #[cfg(target_os = "linux")]
+            spawn_linux_theme_monitor(app.handle().clone());
 
             // Setup platform-specific functionality
             let _ = Platform::setup_system_tray();
@@ -842,6 +840,7 @@ pub fn run() {
             funding_tool,
             compress_logs,
             set_app_icon,
+            get_initial_theme,
             theme_changed
         ])
         .run(tauri::generate_context!())

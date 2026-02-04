@@ -86,26 +86,36 @@ pub fn determine_app_icon(connection_state: &str, run_mode: &command::RunMode) -
 }
 
 pub fn determine_tray_icon(connection_state: &str, theme: Option<Theme>) -> &'static str {
-    let use_black_icons = !cfg!(target_os = "macos") && matches!(theme, Some(Theme::Light));
-
-    match (connection_state, use_black_icons) {
-        ("Connected", true) => TRAY_ICON_CONNECTED_BLACK,
-        ("Connected", false) => TRAY_ICON_CONNECTED,
-        ("Connecting" | "Disconnecting", true) => TRAY_ICON_CONNECTING_BLACK,
-        ("Connecting" | "Disconnecting", false) => TRAY_ICON_CONNECTING,
-        (_, true) => TRAY_ICON_DISCONNECTED_BLACK,
-        (_, false) => TRAY_ICON_DISCONNECTED,
-    }
-}
-
-#[cfg_attr(target_os = "macos", allow(dead_code))]
-pub fn extract_connection_state_from_icon(icon_name: &str) -> &'static str {
-    if icon_name.contains("connected") && !icon_name.contains("connecting") {
-        "Connected"
-    } else if icon_name.contains("connecting") {
-        "Connecting"
+    // Dark/light tray icons only on non-macOS; macOS uses template icons and ignores theme
+    let effective_theme = if cfg!(target_os = "macos") {
+        None
     } else {
-        "Disconnected"
+        theme
+    };
+    let use_black_icons = matches!(effective_theme, Some(Theme::Light));
+
+    match connection_state {
+        "Connected" => {
+            if use_black_icons {
+                TRAY_ICON_CONNECTED_BLACK
+            } else {
+                TRAY_ICON_CONNECTED
+            }
+        }
+        "Connecting" | "Disconnecting" => {
+            if use_black_icons {
+                TRAY_ICON_CONNECTING_BLACK
+            } else {
+                TRAY_ICON_CONNECTING
+            }
+        }
+        _ => {
+            if use_black_icons {
+                TRAY_ICON_DISCONNECTED_BLACK
+            } else {
+                TRAY_ICON_DISCONNECTED
+            }
+        }
     }
 }
 
