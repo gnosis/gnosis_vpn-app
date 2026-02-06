@@ -1,7 +1,8 @@
 import { createMemo, Show } from "solid-js";
 import { useAppStore } from "../../stores/appStore.ts";
-import Checkbox from "../common/Checkbox.tsx";
-import checkIcon from "@assets/icons/checked-box-filled.svg";
+import checkIcon from "@assets/icons/checked-box.svg";
+import icon1 from "@assets/icons/1.svg";
+import icon2 from "@assets/icons/2.svg";
 import {
   getPreparingSafeNodeAddress,
   isWxHOPRTransferred,
@@ -26,30 +27,26 @@ export default function Manually() {
         Before we connect...
       </h1>
       <div class="flex flex-col gap-4 grow">
-        <label class="flex flex-row w-full hover:cursor-pointer">
-          <div class="pr-4 pt-1">
-            <Checkbox
-              checked={wxhoprTransferred()}
-              onChange={() => {}}
-              disabled
-            />
-          </div>
+        <label class="flex flex-row w-full">
+          <img
+            src={wxhoprTransferred() ? checkIcon : icon1}
+            alt={wxhoprTransferred() ? "Checked" : "1"}
+            class="h-5 w-5 mr-4 mt-1 icon-invert-in-dark"
+          />
           <div class="flex flex-col">
-            <div class="font-bold">1. Transfer wxHOPR (Gnosis Chain)</div>
+            <div class="font-bold">Transfer wxHOPR (Gnosis Chain)</div>
             <div class="text-sm text-text-secondary">1 GB is X USDC.</div>
           </div>
         </label>
 
-        <label class="flex flex-row w-full hover:cursor-pointer">
-          <div class="pr-4 pt-1">
-            <Checkbox
-              checked={xdaiTransferred()}
-              onChange={() => {}}
-              disabled
-            />
-          </div>
+        <label class="flex flex-row w-full">
+          <img
+            src={xdaiTransferred() ? checkIcon : icon2}
+            alt={xdaiTransferred() ? "Checked" : "2"}
+            class="h-5 w-5 mr-4 mt-1 icon-invert-in-dark"
+          />
           <div class="flex flex-col">
-            <div class="font-bold">2. Transfer xDAI (Gnosis Chain)</div>
+            <div class="font-bold">Transfer xDAI (Gnosis Chain)</div>
             <div class="text-sm text-text-secondary">
               1 xDAI is enough for one year switching exit nodes.
             </div>
