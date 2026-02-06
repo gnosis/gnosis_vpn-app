@@ -10,7 +10,7 @@ export type StatusResponse = {
 
 export type ConnectResponse =
   | { Connecting: Destination }
-  | { WaitingToConnect: [Destination, DestinationHealth | undefined] }
+  | { WaitingToConnect: [Destination, DestinationHealth | null] }
   | { UnableToConnect: [Destination, DestinationHealth] }
   | "DestinationNotFound";
 
@@ -33,7 +33,7 @@ export type RoutingOptions = { Hops: number } | { IntermediatePath: string[] };
 export type DestinationState = {
   destination: Destination;
   connection_state: ConnectionState;
-  health: DestinationHealth | undefined;
+  health: DestinationHealth | null;
 };
 
 export type Destination = {
@@ -145,7 +145,7 @@ export type Info = {
 };
 
 export type DestinationHealth = {
-  last_error: string | undefined;
+  last_error: string | null;
   health: Health;
   need: Need;
 };
