@@ -2,37 +2,37 @@
 #[macro_use]
 extern crate objc;
 
+use gnosis_vpn_lib::command::{self, HoprInitStatus, HoprStatus};
 use gnosis_vpn_lib::socket::root as root_socket;
 use gnosis_vpn_lib::{balance, connection, info};
-use gnosis_vpn_lib::command::{self, HoprInitStatus, HoprStatus};
+use serde::Serialize;
 use tauri::State;
 use tauri::{
     AppHandle, Emitter, Manager,
     menu::{Menu, MenuBuilder, MenuItem},
     tray::{TrayIconBuilder, TrayIconEvent},
 };
-use zstd::stream::Encoder;
-use serde::Serialize;
 use tauri_plugin_positioner::{Position, WindowExt};
 use tauri_plugin_store::StoreExt;
+use zstd::stream::Encoder;
 
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, BufReader};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::{Duration};
+use std::time::Duration;
 use std::{path::PathBuf, sync::Mutex};
 
 mod icons;
 mod platform;
 mod theme;
 
+use platform::{Platform, PlatformInterface};
 #[cfg(target_os = "linux")]
 use theme::spawn_linux_theme_monitor;
 #[cfg_attr(target_os = "macos", allow(unused_imports))]
 use theme::{InitialTheme, get_initial_theme, system_theme, theme_changed};
-use platform::{Platform, PlatformInterface};
 
 use icons::{
     AppIconState, TrayIconState, determine_app_icon, determine_tray_icon, start_app_icon_heartbeat,
@@ -64,7 +64,7 @@ pub enum ConnectResponse {
     Connecting(Destination),
     WaitingToConnect(Destination, Option<DestinationHealth>),
     UnableToConnect(Destination, DestinationHealth),
-    DestinationNotFound
+    DestinationNotFound,
 }
 
 #[derive(Debug, Serialize)]
@@ -147,7 +147,7 @@ pub struct Destination {
     pub routing: RoutingOptions,
 }
 
-#[derive(Debug, Serialize )]
+#[derive(Debug, Serialize)]
 pub struct DestinationHealth {
     pub last_error: Option<String>,
     pub health: connection::destination_health::Health,
@@ -224,7 +224,9 @@ impl From<command::DestinationState> for DestinationState {
 impl From<command::RunMode> for RunMode {
     fn from(rm: command::RunMode) -> Self {
         match rm {
-            command::RunMode::Init => RunMode::Warmup { status: WarmupStatus::Initializing },
+            command::RunMode::Init => RunMode::Warmup {
+                status: WarmupStatus::Initializing,
+            },
             command::RunMode::PreparingSafe {
                 node_address,
                 node_xdai,
@@ -237,29 +239,70 @@ impl From<command::RunMode> for RunMode {
                 funding_tool,
             },
 
-            command::RunMode::Warmup { hopr_init_status, hopr_status } => match (hopr_init_status, hopr_status) {
-                (None, None) => RunMode::Warmup { status: WarmupStatus::Initializing },
+            command::RunMode::Warmup {
+                hopr_init_status,
+                hopr_status,
+            } => match (hopr_init_status, hopr_status) {
+                (None, None) => RunMode::Warmup {
+                    status: WarmupStatus::Initializing,
+                },
                 (_, Some(hopr_status)) => match hopr_status {
-                    HoprStatus::Uninitialized => RunMode::Warmup { status: WarmupStatus::Uninitialized },
-                    HoprStatus::WaitingForFunds => RunMode::Warmup { status: WarmupStatus::WaitingForFunds },
-                    HoprStatus::CheckingBalance => RunMode::Warmup { status: WarmupStatus::CheckingBalance },
-                    HoprStatus::ValidatingNetworkConfig => RunMode::Warmup { status: WarmupStatus::ValidatingNetworkConfig },
-                    HoprStatus::SubscribingToAnnouncements => RunMode::Warmup { status: WarmupStatus::SubscribingToAnnouncements },
-                    HoprStatus::RegisteringSafe => RunMode::Warmup { status: WarmupStatus::RegisteringSafe },
-                    HoprStatus::AnnouncingNode => RunMode::Warmup { status: WarmupStatus::AnnouncingNode },
-                    HoprStatus::AwaitingKeyBinding => RunMode::Warmup { status: WarmupStatus::AwaitingKeyBinding },
-                    HoprStatus::InitializingServices => RunMode::Warmup { status: WarmupStatus::InitializingServices },
-                    HoprStatus::Running => RunMode::Warmup { status: WarmupStatus::Running },
-                    HoprStatus::Terminated => RunMode::Warmup { status: WarmupStatus::Terminated },
+                    HoprStatus::Uninitialized => RunMode::Warmup {
+                        status: WarmupStatus::Uninitialized,
+                    },
+                    HoprStatus::WaitingForFunds => RunMode::Warmup {
+                        status: WarmupStatus::WaitingForFunds,
+                    },
+                    HoprStatus::CheckingBalance => RunMode::Warmup {
+                        status: WarmupStatus::CheckingBalance,
+                    },
+                    HoprStatus::ValidatingNetworkConfig => RunMode::Warmup {
+                        status: WarmupStatus::ValidatingNetworkConfig,
+                    },
+                    HoprStatus::SubscribingToAnnouncements => RunMode::Warmup {
+                        status: WarmupStatus::SubscribingToAnnouncements,
+                    },
+                    HoprStatus::RegisteringSafe => RunMode::Warmup {
+                        status: WarmupStatus::RegisteringSafe,
+                    },
+                    HoprStatus::AnnouncingNode => RunMode::Warmup {
+                        status: WarmupStatus::AnnouncingNode,
+                    },
+                    HoprStatus::AwaitingKeyBinding => RunMode::Warmup {
+                        status: WarmupStatus::AwaitingKeyBinding,
+                    },
+                    HoprStatus::InitializingServices => RunMode::Warmup {
+                        status: WarmupStatus::InitializingServices,
+                    },
+                    HoprStatus::Running => RunMode::Warmup {
+                        status: WarmupStatus::Running,
+                    },
+                    HoprStatus::Terminated => RunMode::Warmup {
+                        status: WarmupStatus::Terminated,
+                    },
                 },
                 (Some(hopr_init_status), _) => match hopr_init_status {
-                    HoprInitStatus::ValidatingConfig => RunMode::Warmup { status: WarmupStatus::ValidatingConfig },
-                    HoprInitStatus::IdentifyingNode => RunMode::Warmup { status: WarmupStatus::IdentifyingNode },
-                    HoprInitStatus::InitializingDatabase => RunMode::Warmup { status: WarmupStatus::InitializingDatabase },
-                    HoprInitStatus::ConnectingBlockchain => RunMode::Warmup { status: WarmupStatus::ConnectingBlockchain },
-                    HoprInitStatus::CreatingNode => RunMode::Warmup { status: WarmupStatus::CreatingNode },
-                    HoprInitStatus::StartingNode => RunMode::Warmup { status: WarmupStatus::StartingNode },
-                    HoprInitStatus::Ready => RunMode::Warmup { status: WarmupStatus::Ready },
+                    HoprInitStatus::ValidatingConfig => RunMode::Warmup {
+                        status: WarmupStatus::ValidatingConfig,
+                    },
+                    HoprInitStatus::IdentifyingNode => RunMode::Warmup {
+                        status: WarmupStatus::IdentifyingNode,
+                    },
+                    HoprInitStatus::InitializingDatabase => RunMode::Warmup {
+                        status: WarmupStatus::InitializingDatabase,
+                    },
+                    HoprInitStatus::ConnectingBlockchain => RunMode::Warmup {
+                        status: WarmupStatus::ConnectingBlockchain,
+                    },
+                    HoprInitStatus::CreatingNode => RunMode::Warmup {
+                        status: WarmupStatus::CreatingNode,
+                    },
+                    HoprInitStatus::StartingNode => RunMode::Warmup {
+                        status: WarmupStatus::StartingNode,
+                    },
+                    HoprInitStatus::Ready => RunMode::Warmup {
+                        status: WarmupStatus::Ready,
+                    },
                 },
             },
 
