@@ -63,9 +63,9 @@ export default function FundingAddress(
     <>
       <div class="flex flex-row justify-between items-center">
         <div class="text-sm">
-          <div class="font-bold">Funding Address</div>
+          <div class="font-bold">Funding address</div>
           <button
-            class="font-mono text-xs"
+            class="font-mono text-lg"
             onClick={() => copy()}
             title="Copy address"
             type="button"
@@ -117,7 +117,7 @@ export default function FundingAddress(
         open={showQR()}
         onClose={() => setShowQR(false)}
         value={address}
-        title={`${props.title ?? "Funding Address"} ${shortAddress(address)}`}
+        title={`${props.title ?? "Funding address"}`}
         size={256}
       />
     </>

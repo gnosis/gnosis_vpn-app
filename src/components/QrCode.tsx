@@ -2,6 +2,7 @@ import { createEffect, createSignal, Show } from "solid-js";
 import { Portal } from "solid-js/web";
 import QRCode from "qrcode";
 import { useLogsStore } from "../stores/logsStore.ts";
+import { shortAddress } from "../utils/shortAddress.ts";
 
 type QrCodeProps = {
   open: boolean;
@@ -46,9 +47,12 @@ export default function QrCode(props: QrCodeProps) {
             class="rounded-xl bg-bg-surface p-4 shadow-xl w-xs"
             onClick={(e) => e.stopPropagation()}
           >
-            <div class="flex items-center justify-between mb-2">
-              <div class="text-sm text-text-secondary font-mono">
-                {props.title}
+            <div class="flex items-start justify-between mb-2">
+              <div class="flex flex-col">
+                <div class="text-sm text-text-secondary">{props.title}</div>
+                <div class="text-lg text-text-secondary font-mono">
+                  {shortAddress(props.value)}
+                </div>
               </div>
               <button
                 class="rounded-md px-2 py-1 text-sm hover:bg-bg-surface"
