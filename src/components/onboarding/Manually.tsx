@@ -3,31 +3,37 @@ import { useAppStore } from "../../stores/appStore.ts";
 import checkIcon from "@assets/icons/checked-box.svg";
 import icon1 from "@assets/icons/1.svg";
 import icon2 from "@assets/icons/2.svg";
+import loadingIcon from "@assets/icons/loading.svg";
 import {
   getPreparingSafeNodeAddress,
   isWxHOPRTransferred,
   isXDAITransferred,
 } from "@src/utils/status.ts";
 import FundingAddress from "../FundingAddress.tsx";
-import Spinner from "../common/Spinner.tsx";
+import StatusIndicator from "../StatusIndicator.tsx";
 
 export default function Manually() {
   const [appState] = useAppStore();
   const wxhoprTransferred = () => isWxHOPRTransferred(appState);
   const xdaiTransferred = () => isXDAITransferred(appState);
   const ready = () => wxhoprTransferred() && xdaiTransferred();
+  const isServiceAvailable = () => appState.vpnStatus !== "ServiceUnavailable";
 
   const nodeAddress = createMemo(() => {
     return getPreparingSafeNodeAddress(appState);
   });
 
   return (
-    <div class="h-full w-full flex flex-col items-stretch p-6 gap-4">
+    <div class="h-full w-full flex flex-col items-stretch p-6 pb-0 gap-4">
       <h1 class="w-full text-2xl font-bold text-center my-6 flex flex-row">
         Before we connect...
       </h1>
-      <div class="flex flex-col gap-4 grow">
-        <label class="flex flex-row w-full">
+      <div
+        class={`flex flex-col gap-4 grow ${
+          !isServiceAvailable() ? "opacity-50 pointer-events-none" : ""
+        }`}
+      >
+        <div class="flex flex-row w-full">
           <img
             src={wxhoprTransferred() ? checkIcon : icon1}
             alt={wxhoprTransferred() ? "Checked" : "1"}
@@ -37,9 +43,9 @@ export default function Manually() {
             <div class="font-bold">Transfer wxHOPR (Gnosis Chain)</div>
             <div class="text-sm text-text-secondary">1 GB is X USDC.</div>
           </div>
-        </label>
+        </div>
 
-        <label class="flex flex-row w-full">
+        <div class="flex flex-row w-full">
           <img
             src={xdaiTransferred() ? checkIcon : icon2}
             alt={xdaiTransferred() ? "Checked" : "2"}
@@ -51,39 +57,53 @@ export default function Manually() {
               1 xDAI is enough for one year switching exit nodes.
             </div>
           </div>
-        </label>
+        </div>
 
         <FundingAddress address={nodeAddress()} />
         <div class="text-sm text-text-secondary">
           After the tx has been made, it can take up to two minutes, until your
           App can connect. In the case it will auto-forward to the next step.
         </div>
+      </div>
 
+      <Show
+        when={isServiceAvailable()}
+        fallback={
+          <div class="flex flex-row w-full justify-center fade-in-up">
+            <StatusIndicator size="sm" />
+          </div>
+        }
+      >
         <Show when={!wxhoprTransferred() || !xdaiTransferred()}>
-          <div class="flex flex-row w-full h-full items-center fade-in-up">
-            <div class="flex flex-row">
-              <Spinner />
-              <div class="text-sm ml-2">
-                {!xdaiTransferred() && !wxhoprTransferred()
-                  ? "Checking..."
-                  : xdaiTransferred()
-                  ? "xDAI received, checking for wxHOPR..."
-                  : "wxHOPR received, checking for xDAI..."}
-              </div>
+          <div class="flex flex-row w-full items-center gap-4 fade-in-up h-15 shrink-0">
+            <div class="h-5 w-5 icon-invert-in-dark">
+              <img src={loadingIcon} alt="Loading" class="h-5 w-5" />
+            </div>
+            <div class="flex flex-col text-sm">
+              {!xdaiTransferred() && !wxhoprTransferred()
+                ? "Checking..."
+                : xdaiTransferred()
+                ? "xDAI received, checking for wxHOPR..."
+                : "wxHOPR received, checking for xDAI..."}
             </div>
           </div>
         </Show>
 
         <Show when={ready()}>
-          <div class="flex flex-row w-full items-center gap-4 fade-in-up">
-            <img src={checkIcon} alt="Check" class="h-5 w-5 mt-1" />
+          <div class="flex flex-row w-full items-center gap-4 fade-in-up h-15">
+            <img
+              src={checkIcon}
+              alt="Check"
+              class="h-5 w-5 icon-invert-in-dark"
+            />
             <div class="text-sm">
-              All necessary funds have been received successfully. You will be
-              auto-forwarded to the next step in a few seconds.
+              All necessary funds have been received.
+              <br />
+              You will be auto-forwarded to the next step in a few seconds.
             </div>
           </div>
         </Show>
-      </div>
+      </Show>
     </div>
   );
 }
