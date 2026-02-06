@@ -17,7 +17,7 @@ export default function Synchronization() {
       <img
         src={syncIcon}
         alt="Synchronization"
-        class={`w-1/3 mb-8 ${
+        class={`w-1/3 mb-8 dark:invert ${
           state.vpnStatus === "ServiceUnavailable"
             ? "animate-pulse"
             : "animate-spin-tick"
