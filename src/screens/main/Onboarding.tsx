@@ -29,7 +29,7 @@ export default function Onboarding() {
   });
 
   return (
-    <div class="h-screen bg-bg-primary flex flex-col items-center justify-between pb-6">
+    <div class="h-screen bg-bg-primary flex flex-col items-center justify-between pb-6 select-none">
       <Dynamic component={steps[step()]} setStep={setStep} />
     </div>
   );

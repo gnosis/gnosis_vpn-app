@@ -24,7 +24,7 @@ export default function Manually() {
   });
 
   return (
-    <div class="h-full w-full flex flex-col items-stretch p-6 pb-0 gap-4">
+    <div class="h-full w-full flex flex-col items-stretch p-6 pb-0 gap-4 select-none">
       <h1 class="w-full text-2xl font-bold text-center my-6 flex flex-row">
         Before we connect...
       </h1>
@@ -62,7 +62,9 @@ export default function Manually() {
         <FundingAddress address={nodeAddress()} />
         <div class="text-sm text-text-secondary">
           After the tx has been made, it can take up to two minutes, until your
-          App can connect. In the case it will auto-forward to the next step.
+          App can connect.
+          <br />
+          In the case it will auto-forward to the next step.
         </div>
       </div>
 

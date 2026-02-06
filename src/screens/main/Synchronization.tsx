@@ -10,7 +10,7 @@ export default function Synchronization() {
   console.log("logsState", logsState.logs);
 
   return (
-    <div class="h-full w-full flex flex-col items-center p-6 pb-0">
+    <div class="h-full w-full flex flex-col items-center p-6 pb-0 select-none">
       <h1 class="w-full text-2xl font-bold text-center my-6">
         Initial Synchronization
       </h1>

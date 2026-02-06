@@ -7,7 +7,7 @@ export default function Start(
   const [appState] = useAppStore();
 
   return (
-    <div class="h-full w-full flex flex-col items-center justify-between p-6 pb-0">
+    <div class="h-full w-full flex flex-col items-center justify-between p-6 pb-0 select-none">
       <svg
         width="321"
         height="49"
