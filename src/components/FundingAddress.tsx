@@ -77,7 +77,7 @@ export default function FundingAddress(
         <div class="flex gap-1 items-center h-[20px]">
           <button
             onClick={openExplorer}
-            class="inline-flex items-center gap-1 p-1 hover:cursor-pointer"
+            class="inline-flex items-center gap-1 p-1 hover:cursor-pointer dark:invert"
             title="Open on Gnosisscan"
             type="button"
           >
@@ -90,7 +90,7 @@ export default function FundingAddress(
           </button>
 
           <button
-            class="inline-flex items-center gap-1 p-1 hover:cursor-pointer"
+            class="inline-flex items-center gap-1 p-1 hover:cursor-pointer dark:invert"
             onClick={() => copy()}
             title={copied() ? "Copied" : "Copy address"}
             type="button"
@@ -104,7 +104,7 @@ export default function FundingAddress(
           </button>
 
           <button
-            class="inline-flex items-center gap-1 p-1 hover:cursor-pointer"
+            class="inline-flex items-center gap-1 p-1 hover:cursor-pointer dark:invert"
             onClick={openQR}
             title="Show QR"
             type="button"

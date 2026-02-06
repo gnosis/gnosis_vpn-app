@@ -163,7 +163,7 @@ export default function Usage() {
                 <img
                   src={refreshIcon}
                   alt="Refresh"
-                  class="h-8 w-8 icon-invert-in-dark"
+                  class="h-8 w-8 dark:invert"
                 />
               </button>
             </div>

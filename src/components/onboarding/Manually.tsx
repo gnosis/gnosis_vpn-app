@@ -37,7 +37,7 @@ export default function Manually() {
           <img
             src={wxhoprTransferred() ? checkIcon : icon1}
             alt={wxhoprTransferred() ? "Checked" : "1"}
-            class="h-5 w-5 mr-4 mt-1 icon-invert-in-dark"
+            class="h-5 w-5 mr-4 mt-1 dark:invert"
           />
           <div class="flex flex-col">
             <div class="font-bold">Transfer wxHOPR (Gnosis Chain)</div>
@@ -49,7 +49,7 @@ export default function Manually() {
           <img
             src={xdaiTransferred() ? checkIcon : icon2}
             alt={xdaiTransferred() ? "Checked" : "2"}
-            class="h-5 w-5 mr-4 mt-1 icon-invert-in-dark"
+            class="h-5 w-5 mr-4 mt-1 dark:invert"
           />
           <div class="flex flex-col">
             <div class="font-bold">Transfer xDAI (Gnosis Chain)</div>
@@ -76,7 +76,7 @@ export default function Manually() {
       >
         <Show when={!wxhoprTransferred() || !xdaiTransferred()}>
           <div class="flex flex-row w-full items-center gap-4 fade-in-up h-15 shrink-0">
-            <div class="h-5 w-5 icon-invert-in-dark">
+            <div class="h-5 w-5 dark:invert">
               <img src={loadingIcon} alt="Loading" class="h-5 w-5" />
             </div>
             <div class="flex flex-col text-sm">
@@ -91,11 +91,7 @@ export default function Manually() {
 
         <Show when={ready()}>
           <div class="flex flex-row w-full items-center gap-4 fade-in-up h-15">
-            <img
-              src={checkIcon}
-              alt="Check"
-              class="h-5 w-5 icon-invert-in-dark"
-            />
+            <img src={checkIcon} alt="Check" class="h-5 w-5 dark:invert" />
             <div class="text-sm">
               All necessary funds have been received.
               <br />
