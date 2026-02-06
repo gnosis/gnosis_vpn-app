@@ -10,9 +10,9 @@ export type StatusResponse = {
 
 export type ConnectResponse =
   | { Connecting: Destination }
-  | { WaitingToConnect: [Destination, DestinationHealth | null] }
+  | { WaitingToConnect: [Destination, DestinationHealth | undefined] }
   | { UnableToConnect: [Destination, DestinationHealth] }
-  | "AddressNotFound";
+  | "DestinationNotFound";
 
 export type DisconnectResponse =
   | { Disconnecting: Destination }
@@ -33,7 +33,7 @@ export type RoutingOptions = { Hops: number } | { IntermediatePath: string[] };
 export type DestinationState = {
   destination: Destination;
   connection_state: ConnectionState;
-  health: DestinationHealth;
+  health: DestinationHealth | undefined;
 };
 
 export type Destination = {
@@ -44,12 +44,33 @@ export type Destination = {
 
 export type ConnectionState =
   | "None"
-  // Connecting tuple (since: timestamp, phase/status: string) - see gnosis_vpn-lib/src/core/conn.rs
-  | { Connecting: [number, string] }
+  // Connecting tuple (since: timestamp, phase/status: UpPhase) - see gnosis_vpn-lib/src/core/conn.rs
+  | { Connecting: [number, UpPhase] }
   // Connected since timestamp (SystemTime serializes as timestamp number)
   | { Connected: [number] }
-  // Disconecting tuple (since: timestamp, phase/status: string) - see gnosis_vpn-lib/src/core/disconn.rs
-  | { Disconnecting: [number, string] };
+  // Disconecting tuple (since: timestamp, phase/status: DownPhase) - see gnosis_vpn-lib/src/core/disconn.rs
+  | { Disconnecting: [number, DownPhase] };
+
+export type UpPhase =
+  | "Init"
+  | "GeneratingWg"
+  | "OpeningBridge"
+  | "RegisterWg"
+  | "ClosingBridge"
+  | "OpeningPing"
+  | "EstablishDynamicWgTunnel"
+  | "FallbackGatherPeerIps"
+  | "FallbackToStaticWgTunnel"
+  | "VerifyPing"
+  | "AdjustToMain"
+  | "ConnectionEstablished";
+
+export type DownPhase =
+  | "Disconnecting"
+  | "DisconnectingWg"
+  | "OpeningBridge"
+  | "UnregisterWg"
+  | "ClosingBridge";
 
 export type PreparingSafe = {
   node_address: string;
@@ -62,13 +83,37 @@ export type Running = {
   funding: FundingState;
 };
 
+export type WarmupStatus =
+  // hopr construction not yet started
+  | "Initializing"
+  // Hopr init states
+  | "ValidatingConfig"
+  | "IdentifyingNode"
+  | "InitializingDatabase"
+  | "ConnectingBlockchain"
+  | "CreatingNode"
+  | "StartingNode"
+  | "Ready"
+  // Hopr running states
+  | "Uninitialized"
+  | "WaitingForFunds"
+  | "CheckingBalance"
+  | "ValidatingNetworkConfig"
+  | "SubscribingToAnnouncements"
+  | "RegisteringSafe"
+  | "AnnouncingNode"
+  | "AwaitingKeyBinding"
+  | "InitializingServices"
+  | "Running"
+  | "Terminated";
+
 export type FundingTool =
   | "NotStarted"
   | "InProgress"
   | "CompletedSuccess"
   | {
-    CompletedError: string;
-  };
+      CompletedError: string;
+    };
 
 export type FundingIssue =
   | "Unfunded" // cannot work at all - initial state
@@ -87,7 +132,7 @@ export type RunMode =
   /// Initial start, after creating safe this state will not be reached again
   | { PreparingSafe: PreparingSafe }
   /// Subsequent service start up in this state and after preparing safe
-  | "Warmup"
+  | { Warmup: WarmupStatus }
   /// Normal operation where connections can be made
   | { Running: Running }
   /// Service shutting down
@@ -100,7 +145,7 @@ export type Info = {
 };
 
 export type DestinationHealth = {
-  last_error: string | null;
+  last_error: string | undefined;
   health: Health;
   need: Need;
 };
@@ -288,7 +333,7 @@ export class VPNService {
 
     // Sort by address for consistent selection
     const sorted = [...destinations].sort((a, b) =>
-      a.destination.address.localeCompare(b.destination.address)
+      a.destination.address.localeCompare(b.destination.address),
     );
     return sorted[0].destination.address;
   }
