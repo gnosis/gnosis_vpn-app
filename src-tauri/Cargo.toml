@@ -18,7 +18,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2.5.3", features = [] }
 
 [dependencies]
-gnosis_vpn-lib = { git = "https://github.com/gnosis/gnosis_vpn-client.git", rev = "21093f4dc389226dab3b79636c4e4136ef4f37dd" }
+gnosis_vpn-lib = { git = "https://github.com/gnosis/gnosis_vpn-client.git", rev = "c2666f8d7497ecffbc51206b3d9454fbe3edd138" }
 liblzma = { version = "0.4.5", default-features = false, features = ["static"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
