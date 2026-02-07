@@ -4,7 +4,7 @@ extern crate objc;
 
 use gnosis_vpn_lib::command::{self, HoprInitStatus, HoprStatus};
 use gnosis_vpn_lib::socket::root as root_socket;
-use gnosis_vpn_lib::{destination_health, connectivity_health, balance, connection, info};
+use gnosis_vpn_lib::{gvpn_client, destination_health, connectivity_health, balance, connection, info};
 
 use serde::Serialize;
 use tauri::State;
@@ -19,6 +19,7 @@ use zstd::stream::Encoder;
 
 use std::collections::HashMap;
 use std::fs::File;
+use std::time::SystemTime;
 use std::io::{self, BufReader};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -173,6 +174,25 @@ pub struct Info {
     pub safe_address: String,
 }
 
+#[derive(Debug, Serialize)]
+pub enum DestinationHealth {
+    Init,
+    Running {
+        since: SystemTime,
+    },
+    Failure {
+        checked_at: SystemTime,
+        error: String,
+        previous_failures: u32,
+    },
+    Success {
+        checked_at: SystemTime,
+        health: gvpn_client::Health,
+        total_time: f32,
+        round_trip_time: f32,
+    },
+}
+
 // Conversions from library types to sanitized types
 
 impl From<connection::destination::RoutingOptions> for RoutingOptions {
@@ -210,6 +230,35 @@ impl From<connectivity_health::ConnectivityHealth> for ConnectivityHealth {
                 connectivity_health::Need::Nothing => Need::Nothing,
                 // TODO refactor out
                 connectivity_health::Need::DestinationMissing => Need::Nothing,
+            },
+        }
+    }
+}
+
+impl From<destination_health::DestinationHealth> for DestinationHealth {
+    fn from(h: destination_health::DestinationHealth) -> Self {
+        match h {
+            destination_health::DestinationHealth::Init => DestinationHealth::Init,
+            destination_health::DestinationHealth::Running { since } => { DestinationHealth::Running { since } }
+            destination_health::DestinationHealth::Failure {
+                checked_at,
+                error,
+                previous_failures,
+            } => DestinationHealth::Failure {
+                checked_at,
+                error,
+                previous_failures,
+            },
+            destination_health::DestinationHealth::Success {
+                checked_at,
+                health,
+                total_time,
+                round_trip_time,
+            } => DestinationHealth::Success {
+                checked_at,
+                health,
+                total_time: total_time.as_secs_f32(),
+                round_trip_time: round_trip_time.as_secs_f32(),
             },
         }
     }
