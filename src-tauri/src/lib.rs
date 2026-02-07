@@ -4,7 +4,8 @@ extern crate objc;
 
 use gnosis_vpn_lib::command::{self, HoprInitStatus, HoprStatus};
 use gnosis_vpn_lib::socket::root as root_socket;
-use gnosis_vpn_lib::{balance, connection, info};
+use gnosis_vpn_lib::{destination_health, connectivity_health, balance, connection, info};
+
 use serde::Serialize;
 use tauri::State;
 use tauri::{
@@ -62,8 +63,8 @@ pub struct StatusResponse {
 #[derive(Debug, Serialize)]
 pub enum ConnectResponse {
     Connecting(Destination),
-    WaitingToConnect(Destination, Option<DestinationHealth>),
-    UnableToConnect(Destination, DestinationHealth),
+    WaitingToConnect(Destination, ConnectivityHealth),
+    UnableToConnect(Destination, ConnectivityHealth),
     DestinationNotFound,
 }
 
@@ -131,7 +132,8 @@ pub enum WarmupStatus {
 pub struct DestinationState {
     pub destination: Destination,
     pub connection_state: command::ConnectionState,
-    pub health: Option<DestinationHealth>,
+    pub connectivity: ConnectivityHealth,
+    pub exit_health: destination_health::DestinationHealth,
 }
 
 #[derive(Debug, Serialize)]
@@ -148,9 +150,9 @@ pub struct Destination {
 }
 
 #[derive(Debug, Serialize)]
-pub struct DestinationHealth {
+pub struct ConnectivityHealth {
     pub last_error: Option<String>,
-    pub health: connection::destination_health::Health,
+    pub health: connectivity_health::Health,
     pub need: Need,
 }
 
@@ -196,16 +198,18 @@ impl From<connection::destination::Destination> for Destination {
     }
 }
 
-impl From<connection::destination_health::DestinationHealth> for DestinationHealth {
-    fn from(d: connection::destination_health::DestinationHealth) -> Self {
-        DestinationHealth {
-            last_error: d.last_error.clone(),
-            health: d.health.clone(),
-            need: match d.need {
-                connection::destination_health::Need::Channel(c) => Need::Channel(c.to_string()),
-                connection::destination_health::Need::AnyChannel => Need::AnyChannel,
-                connection::destination_health::Need::Peering(p) => Need::Peering(p.to_string()),
-                connection::destination_health::Need::Nothing => Need::Nothing,
+impl From<connectivity_health::ConnectivityHealth> for ConnectivityHealth {
+    fn from(h: connectivity_health::ConnectivityHealth) -> Self {
+        ConnectivityHealth {
+            last_error: h.last_error.clone(),
+            health: h.health.clone(),
+            need: match h.need {
+                connectivity_health::Need::Channel(c) => Need::Channel(c.to_string()),
+                connectivity_health::Need::AnyChannel => Need::AnyChannel,
+                connectivity_health::Need::Peering(p) => Need::Peering(p.to_string()),
+                connectivity_health::Need::Nothing => Need::Nothing,
+                // TODO refactor out
+                connectivity_health::Need::DestinationMissing => Need::Nothing,
             },
         }
     }
@@ -216,7 +220,8 @@ impl From<command::DestinationState> for DestinationState {
         DestinationState {
             destination: ds.destination.into(),
             connection_state: ds.connection_state,
-            health: ds.health.map(|h| h.into()),
+            connectivity: ds.connectivity.into(),
+            exit_health: ds.exit_health,
         }
     }
 }
@@ -328,11 +333,11 @@ impl From<command::ConnectResponse> for ConnectResponse {
     fn from(cr: command::ConnectResponse) -> Self {
         match cr {
             command::ConnectResponse::Connecting(dest) => ConnectResponse::Connecting(dest.into()),
-            command::ConnectResponse::WaitingToConnect(dest, health) => {
-                ConnectResponse::WaitingToConnect(dest.into(), health.map(|h| h.into()))
+            command::ConnectResponse::WaitingToConnect(dest, connectivity) => {
+                ConnectResponse::WaitingToConnect(dest.into(), connectivity.into())
             }
-            command::ConnectResponse::UnableToConnect(dest, health) => {
-                ConnectResponse::UnableToConnect(dest.into(), health.into())
+            command::ConnectResponse::UnableToConnect(dest, connectivity) => {
+                ConnectResponse::UnableToConnect(dest.into(), connectivity.into())
             }
             command::ConnectResponse::DestinationNotFound => ConnectResponse::DestinationNotFound,
         }
