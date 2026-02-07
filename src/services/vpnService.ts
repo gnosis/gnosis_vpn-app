@@ -10,8 +10,8 @@ export type StatusResponse = {
 
 export type ConnectResponse =
   | { Connecting: Destination }
-  | { WaitingToConnect: [Destination, DestinationHealth | null] }
-  | { UnableToConnect: [Destination, DestinationHealth] }
+  | { WaitingToConnect: [Destination, Connectivity] }
+  | { UnableToConnect: [Destination, Connectivity] }
   | "DestinationNotFound";
 
 export type DisconnectResponse =
@@ -33,7 +33,8 @@ export type RoutingOptions = { Hops: number } | { IntermediatePath: string[] };
 export type DestinationState = {
   destination: Destination;
   connection_state: ConnectionState;
-  health: DestinationHealth | null;
+  connectivity: Connectivity;
+  exit_health: DestinationHealth;
 };
 
 export type Destination = {
@@ -112,8 +113,8 @@ export type FundingTool =
   | "InProgress"
   | "CompletedSuccess"
   | {
-    CompletedError: string;
-  };
+      CompletedError: string;
+    };
 
 export type FundingIssue =
   | "Unfunded" // cannot work at all - initial state
@@ -144,7 +145,7 @@ export type Info = {
   safe_address: string;
 };
 
-export type DestinationHealth = {
+export type Connectivity = {
   last_error: string | null;
   health: Health;
   need: Need;
@@ -174,6 +175,68 @@ export type Need =
   | "AnyChannel"
   | { Peering: string }
   | "Nothing";
+
+/// exit node health check - periodically updated
+export type DestinationHealth =
+  // waiting for check
+  | "Init"
+  // check underway
+  | { Running: DHRunning }
+  // check failed
+  | { Failure: DHFailure }
+  // received health metrics
+  | { Success: DHSuccess };
+
+export type DHRunning = {
+  // running since timestamp
+  since: number;
+};
+
+export type DHFailure = {
+  // failures check started at timestamp
+  checked_at: number;
+  // error message
+  error: string;
+  // count of previous failures
+  previous_failures: number;
+};
+
+export type DHSuccess = {
+  // success check started at timestamp
+  checked_at: number;
+  // reported by exit node
+  health: ExitHealth;
+  // total time to create session and query for health in seconds
+  total_time: number;
+  // health query after session was established in seconds
+  round_trip_time: number;
+};
+
+// Statistics reported by exit node
+export type ExitHealth = {
+  // client capacity statistics
+  slots: Slots;
+  // cpu statistics
+  load_avg: LoadAvg;
+};
+
+export type Slots = {
+  // free client slots
+  available: number;
+  // number of connected clients
+  connected: number;
+};
+
+export type LoadAvg = {
+  // processing queue usage last minute
+  one: number;
+  // processing queue usage last 5 minutes
+  five: number;
+  // processing queue usage last 15 minutes
+  fifteen: number;
+  // processor count
+  nproc: number;
+};
 
 export function formatHealth(health: Health): string {
   switch (health) {
@@ -333,7 +396,7 @@ export class VPNService {
 
     // Sort by address for consistent selection
     const sorted = [...destinations].sort((a, b) =>
-      a.destination.address.localeCompare(b.destination.address)
+      a.destination.address.localeCompare(b.destination.address),
     );
     return sorted[0].destination.address;
   }
