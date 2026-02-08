@@ -5,6 +5,7 @@
 The Gnosis VPN application supports the following platforms and architectures:
 
 ### macOS
+
 - **universal-darwin** - Universal binary (Intel + Apple Silicon)
 - **aarch64-darwin** - Apple Silicon (M1/M2/M3)
 - **x86_64-darwin** - Intel-based Macs
