@@ -1,6 +1,6 @@
 import { MainScreen } from "../screens/main/MainScreen.tsx";
 import { Dynamic } from "solid-js/web";
-import { useAppStore } from "@src/stores/appStore.ts";
+import { AppScreen, useAppStore } from "@src/stores/appStore.ts";
 import { onCleanup, onMount } from "solid-js";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import Onboarding from "../screens/main/Onboarding.tsx";
@@ -60,7 +60,12 @@ function App() {
       unlistenNavigate = await listen<NavigatePayload>(
         "navigate",
         ({ payload }) =>
-          handleNavigate(payload, (s) => appActions.setScreen(s)),
+          handleNavigate(payload, (s) => {
+              const screen = s as AppScreen;
+              if (screen) {
+                  appActions.setScreen(screen);
+              }
+          })
       );
     })();
   });

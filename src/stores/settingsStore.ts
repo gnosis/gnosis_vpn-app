@@ -16,7 +16,7 @@ const DEFAULT_SETTINGS: SettingsState = {
 
 type SettingsActions = {
   load: () => Promise<void>;
-  setPreferredLocation: (address: string | null) => Promise<void>;
+  setPreferredLocation: (id: string | null) => Promise<void>;
   setConnectOnStartup: (enabled: boolean) => Promise<void>;
   setStartMinimized: (enabled: boolean) => Promise<void>;
   save: () => Promise<void>;
@@ -60,16 +60,8 @@ export function createSettingsStore(): SettingsStoreTuple {
           boolean | undefined,
         ];
 
-      if (preferredLocation !== undefined) {
-        if (typeof preferredLocation === "string") {
-          try {
-            loaded.preferredLocation = getEthAddress(preferredLocation);
-          } catch {
-            loaded.preferredLocation = preferredLocation;
-          }
-        } else {
-          loaded.preferredLocation = preferredLocation;
-        }
+      if (preferredLocation) {
+        loaded.preferredLocation = preferredLocation;
       }
       if (connectOnStartup !== undefined) {
         loaded.connectOnStartup = connectOnStartup;
@@ -89,20 +81,15 @@ export function createSettingsStore(): SettingsStoreTuple {
       }
     },
 
-    setPreferredLocation: async (address: string | null) => {
-      let normalized: string | null = address;
-      if (address) {
-        try {
-          normalized = getEthAddress(address);
-        } catch {
-          normalized = address;
-        }
+    setPreferredLocation: async (id: string | null) => {
+      if (!id) {
+        return;
       }
-      setState("preferredLocation", normalized);
+      setState("preferredLocation", id);
       const store = await getTauriStore();
-      await store.set("preferredLocation", normalized);
+      await store.set("preferredLocation", id);
       await store.save();
-      void emit("settings:update", { preferredLocation: normalized });
+      void emit("settings:update", { preferredLocation: id });
     },
 
     setConnectOnStartup: async (enabled: boolean) => {

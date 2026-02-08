@@ -12,7 +12,7 @@ import {
   formatDestination,
   formatDestinationById,
   getPreferredAvailabilityChangeMessage,
-  selectTargetAddress,
+  selectTargetId,
 } from "@src/utils/destinations.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import { getConnectionLabel, getConnectionPhase } from "@src/utils/status.ts";
@@ -44,7 +44,7 @@ export interface AppState {
 
 type AppActions = {
   setScreen: (screen: AppScreen) => void;
-  chooseDestination: (address: string | null) => void;
+  chooseDestination: (id: string | null) => void;
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
   refreshStatus: () => Promise<void>;
@@ -305,7 +305,7 @@ export function createAppStore(): AppStoreTuple {
     connect: async () => {
       setState("isLoading", true);
       const requestedId = state.selectedId ?? undefined;
-      const { id: targetId, reason: selectionReason } = selectTargetAddress(
+      const { id: targetId, reason: selectionReason } = selectTargetId(
         requestedId,
         settings.preferredLocation,
         state.availableDestinations,

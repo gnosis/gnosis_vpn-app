@@ -15,28 +15,20 @@ export const canonicalizePath = (routing: RoutingOptions): string => {
   return `IntermediatePath:${(routing.IntermediatePath || []).join(",")}`;
 };
 
-export const destinationSignature = (dest: Destination): string => {
-  return [
-    dest.address,
-    canonicalizeMeta(dest.meta),
-    canonicalizePath(dest.routing),
-  ].join("|");
-};
-
 export const areDestinationsEqualUnordered = (
   a: Destination[],
   b: Destination[],
 ): boolean => {
   if (a.length !== b.length) return false;
   if (a.length === 0) return true;
-  const setA = new Set(a.map(destinationSignature));
+  const setA = new Set(a.map((d) => d.id));
   if (setA.size !== a.length) {
     const countsA = new Map<string, number>();
-    for (const sig of a.map(destinationSignature)) {
+    for (const sig of a.map((d) => d.id)) {
       countsA.set(sig, (countsA.get(sig) || 0) + 1);
     }
     const countsB = new Map<string, number>();
-    for (const sig of b.map(destinationSignature)) {
+    for (const sig of b.map((d) => d.id)) {
       countsB.set(sig, (countsB.get(sig) || 0) + 1);
     }
     if (countsA.size !== countsB.size) return false;
@@ -45,7 +37,7 @@ export const areDestinationsEqualUnordered = (
     }
     return true;
   }
-  const setB = new Set(b.map(destinationSignature));
+  const setB = new Set(b.map((d) => d.id));
   if (setB.size !== b.length) return false;
   for (const sig of setA) {
     if (!setB.has(sig)) return false;
