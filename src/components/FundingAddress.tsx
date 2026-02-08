@@ -7,7 +7,6 @@ import linkIcon from "@assets/icons/link.svg";
 import copyIcon from "@assets/icons/copy.svg";
 import qrIcon from "@assets/icons/qr.png";
 import checkIcon from "@assets/icons/checked-box.svg";
-import { getEthAddress } from "../utils/address.ts";
 import * as opener from "@tauri-apps/plugin-opener";
 
 export default function FundingAddress(
@@ -17,13 +16,7 @@ export default function FundingAddress(
   const isMissing = raw.length === 0 || raw.toLowerCase() === "unknown";
 
   let safeAddress: string | undefined;
-  if (!isMissing) {
-    try {
-      safeAddress = getEthAddress(raw);
-    } catch {
-      safeAddress = undefined;
-    }
-  }
+  if (!isMissing) { safeAddress = raw; }
 
   if (!safeAddress) {
     return <div class="text-sm text-red-500">No funding address found</div>;

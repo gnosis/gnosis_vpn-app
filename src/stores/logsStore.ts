@@ -1,7 +1,6 @@
 import { createStore, type Store } from "solid-js/store";
 import { type StatusResponse } from "@src/services/vpnService.ts";
 import { formatDestination } from "@src/utils/destinations.ts";
-import { getEthAddress } from "../utils/address.ts";
 import { shortAddress } from "../utils/shortAddress.ts";
 import { emit, listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -24,9 +23,10 @@ export function createLogsStore(): LogsStoreTuple {
   const [state, setState] = createStore<LogsState>({ logs: [] });
   const isMainWindow = getCurrentWindow().label === "main";
 
-  function buildStatusLog(
-    args: { response?: StatusResponse; error?: string },
-  ): string | undefined {
+  function buildStatusLog(args: {
+    response?: StatusResponse;
+    error?: string;
+  }): string | undefined {
     const lastMessage = state.logs.length
       ? state.logs[state.logs.length - 1].message
       : undefined;
@@ -63,37 +63,37 @@ export function createLogsStore(): LogsStoreTuple {
       if (connectedDest) {
         const destination = connectedDest.destination;
         const where = formatDestination(destination);
-        content = `Connected: ${where} - ${
-          shortAddress(getEthAddress(destination.address))
-        }`;
+        content = `Connected: ${where} - ${shortAddress(destination.address)}`;
       } else if (connectingDest) {
         const destination = connectingDest.destination;
         const where = formatDestination(destination);
-        const phase = typeof connectingDest.connection_state === "object" &&
-            "Connecting" in connectingDest.connection_state
-          ? (connectingDest.connection_state as {
-            Connecting: [number, string];
-          }).Connecting[1]
-          : undefined;
+        const phase =
+          typeof connectingDest.connection_state === "object" &&
+          "Connecting" in connectingDest.connection_state
+            ? (
+                connectingDest.connection_state as {
+                  Connecting: [number, string];
+                }
+              ).Connecting[1]
+            : undefined;
         const phaseSuffix = phase ? ` - ${phase}` : "";
-        content = `Connecting: ${where} - ${
-          shortAddress(getEthAddress(destination.address))
-        }${phaseSuffix}`;
+        content = `Connecting: ${where} - ${shortAddress(destination.address)}${phaseSuffix}`;
       } else if (disconnectingDest) {
         const destination = disconnectingDest.destination;
         const where = formatDestination(destination);
-        const phase = typeof disconnectingDest.connection_state === "object" &&
-            "Disconnecting" in disconnectingDest.connection_state
-          ? (
-            disconnectingDest.connection_state as {
-              Disconnecting: [number, string];
-            }
-          ).Disconnecting[1]
-          : undefined;
+        const phase =
+          typeof disconnectingDest.connection_state === "object" &&
+          "Disconnecting" in disconnectingDest.connection_state
+            ? (
+                disconnectingDest.connection_state as {
+                  Disconnecting: [number, string];
+                }
+              ).Disconnecting[1]
+            : undefined;
         const phaseSuffix = phase ? ` - ${phase}` : "";
-        content = `Disconnecting: ${where} - ${
-          shortAddress(getEthAddress(destination.address))
-        }${phaseSuffix}`;
+        content = `Disconnecting: ${where} - ${shortAddress(
+          destination.address,
+        )}${phaseSuffix}`;
       } else if (typeof rm === "object" && "Running" in rm) {
         // Running but no active connection
         const lastWasDisconnected = Boolean(
@@ -103,14 +103,13 @@ export function createLogsStore(): LogsStoreTuple {
           const lines = args.response.destinations.map((ds) => {
             const d = ds.destination;
             const where = formatDestination(d);
-            return `- ${where} - ${shortAddress(getEthAddress(d.address))}`;
+            return `- ${where} - ${shortAddress(d.address)}`;
           });
           content = `Disconnected. Available:\n${lines.join("\n")}`;
         }
       } else if (typeof rm === "object" && "PreparingSafe" in rm) {
-        const addr =
-          (rm as { PreparingSafe: { node_address: unknown } }).PreparingSafe
-            .node_address;
+        const addr = (rm as { PreparingSafe: { node_address: unknown } })
+          .PreparingSafe.node_address;
         let isUnknown = false;
         if (typeof addr === "string") {
           const s = addr.trim().toLowerCase();
@@ -121,10 +120,10 @@ export function createLogsStore(): LogsStoreTuple {
         if (isUnknown) {
           content = "Waiting for node address";
         }
-      } else if (rm === "Warmup") {
-        content = "Warmup";
       } else if (rm === "Shutdown") {
         content = "Shutdown";
+      } else if ("Warmup" in rm) {
+        content = `Warmup ${rm.Warmup}`;
       } else {
         const destinations = args.response.destinations.length;
         content = `status: Unknown, destinations: ${destinations}`;
@@ -161,9 +160,8 @@ export function createLogsStore(): LogsStoreTuple {
     const last = state.logs.length
       ? state.logs[state.logs.length - 1]
       : undefined;
-    if (
-      last && last.date === payload.date && last.message === payload.message
-    ) return;
+    if (last && last.date === payload.date && last.message === payload.message)
+      return;
     setState("logs", (existing) => [...existing, payload]);
   });
 
