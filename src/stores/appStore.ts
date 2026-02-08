@@ -56,8 +56,8 @@ type AppActions = {
 type AppStoreTuple = readonly [Store<AppState>, AppActions];
 
 const OFFLINE_TIMEOUT = 5000; // ms
-const FAST_TIMEOUT = 333; // ms
-const DEFAULT_TIMEOUT = 2333; // ms
+const FAST_TIMEOUT = 555; // ms
+const DEFAULT_TIMEOUT = 2111; // ms
 
 export function createAppStore(): AppStoreTuple {
   const [state, setState] = createStore<AppState>({
@@ -366,10 +366,13 @@ export function createAppStore(): AppStoreTuple {
     },
 
     startStatusPolling: () => {
-      globalThis.clearTimeout(pollingId);
+      // cancel any waiting
+      clearTimeout(pollingId);
       const tick = async () => {
         const timeout = await syncStatus();
-        pollingId = globalThis.setTimeout(() => void tick(), timeout);
+        // cancel any onoing that got triggered too fast in a row
+        clearTimeout(pollingId);
+        pollingId = setTimeout(tick, timeout);
       };
       tick();
     },

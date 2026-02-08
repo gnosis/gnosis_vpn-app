@@ -47,7 +47,7 @@ function App() {
   onMount(() => {
     void (async () => {
       appActions.startStatusPolling();
-      await Promise.all([settingsActions.load(), appActions.refreshStatus()]);
+      await settingsActions.load();
 
       if (
         settings.connectOnStartup &&
