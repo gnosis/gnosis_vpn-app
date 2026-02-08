@@ -147,6 +147,7 @@ pub enum RoutingOptions {
 
 #[derive(Debug, Serialize)]
 pub struct Destination {
+    pub id: String,
     pub meta: HashMap<String, String>,
     pub address: String,
     pub routing: RoutingOptions,
@@ -213,6 +214,7 @@ impl From<connection::destination::RoutingOptions> for RoutingOptions {
 impl From<connection::destination::Destination> for Destination {
     fn from(d: connection::destination::Destination) -> Self {
         Destination {
+            id: d.id.clone(),
             meta: d.meta.clone(),
             address: d.address.to_string(),
             routing: d.routing.into(),
