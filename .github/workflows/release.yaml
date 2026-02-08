@@ -65,37 +65,29 @@ jobs:
         run: |
           release_version=$(grep -E '^version\s*=' src-tauri/Cargo.toml | awk -F\" '{print $2}')
           echo "release_version=${release_version}" | tee -a $GITHUB_OUTPUT
-      - name: Create release and publish binaries
+      - name: Create GitHub release
         run: |
-          darwin_architectures=("universal-darwin" "aarch64-darwin" "x86_64-darwin")
-          linux_architectures=("x86_64-linux" "aarch64-linux")
-          mkdir -p binaries
           echo "Generating release notes"
           gh release create v${{ steps.environment.outputs.release_version }} --generate-notes
-          echo "Preparing binaries for upload"
-
-          # Upload macOS binaries
-          for architecture in "${darwin_architectures[@]}"; do
-              echo "Downloading from GCP binary for ${architecture}"
-              gcloud artifacts files download --project=gnosisvpn-production --location=europe-west3 --repository=rust-binaries gnosis_vpn-app:${{ steps.environment.outputs.release_version }}:gnosis_vpn-app-${architecture}.dmg --destination=./binaries --local-filename=gnosis_vpn-app-${architecture}.dmg
-              echo "Uploading binary for ${architecture}"
-              gh release upload v${{ steps.environment.outputs.release_version }} "$PWD/binaries/gnosis_vpn-app-${architecture}.dmg" --clobber
-              echo "Downloading checksum for ${architecture}"
-              gcloud artifacts files download --project=gnosisvpn-production --location=europe-west3 --repository=rust-binaries gnosis_vpn-app:${{ steps.environment.outputs.release_version }}:gnosis_vpn-app-${architecture}.dmg.sha256 --destination=./binaries --local-filename=gnosis_vpn-app-${architecture}.dmg.sha256
-              echo "Uploading checksum for ${architecture}"
-              gh release upload v${{ steps.environment.outputs.release_version }} "$PWD/binaries/gnosis_vpn-app-${architecture}.dmg.sha256" --clobber
-          done
-
-          # Upload Linux binaries
-          for architecture in "${linux_architectures[@]}"; do
-              echo "Downloading from GCP binary for ${architecture}"
-              gcloud artifacts files download --project=gnosisvpn-production --location=europe-west3 --repository=rust-binaries gnosis_vpn-app:${{ steps.environment.outputs.release_version }}:gnosis_vpn-app-${architecture}.deb --destination=./binaries --local-filename=gnosis_vpn-app-${architecture}.deb
-              echo "Uploading binary for ${architecture}"
-              gh release upload v${{ steps.environment.outputs.release_version }} "$PWD/binaries/gnosis_vpn-app-${architecture}.deb" --clobber
-              echo "Downloading checksum for ${architecture}"
-              gcloud artifacts files download --project=gnosisvpn-production --location=europe-west3 --repository=rust-binaries gnosis_vpn-app:${{ steps.environment.outputs.release_version }}:gnosis_vpn-app-${architecture}.deb.sha256 --destination=./binaries --local-filename=gnosis_vpn-app-${architecture}.deb.sha256
-              echo "Uploading checksum for ${architecture}"
-              gh release upload v${{ steps.environment.outputs.release_version }} "$PWD/binaries/gnosis_vpn-app-${architecture}.deb.sha256" --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Download macOS binaries from Artifact Registry
+        uses: hoprnet/hopr-workflows/actions/download-artifact-registry@master
+        with:
+          destination: ./binaries
+          project: gnosisvpn-production
+          region: europe-west3
+          repository: rust-binaries
+          package: gnosis_vpn-app
+          version: ${{ steps.environment.outputs.release_version }}
+      - name: Upload binaries to GitHub release
+        run: |
+          echo "Uploading binaries to release v${{ steps.environment.outputs.release_version }}"
+          for file in binaries/*; do
+            if [ -f "$file" ]; then
+              echo "Uploading $file"
+              gh release upload v${{ steps.environment.outputs.release_version }} "$file" --clobber
+            fi
           done
           echo "Release v${{ steps.environment.outputs.release_version }} created and binaries uploaded"
         env:
