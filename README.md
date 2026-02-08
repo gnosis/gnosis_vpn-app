@@ -10,6 +10,7 @@ The Gnosis VPN application supports the following platforms and architectures:
 - **x86_64-darwin** - Intel-based Macs
 
 ### Linux
+
 - **x86_64-linux** - 64-bit Intel/AMD Linux
 - **aarch64-linux** - 64-bit ARM Linux (e.g., Raspberry Pi 4/5, AWS Graviton)
 
@@ -88,15 +89,18 @@ the CI.
 
 ### Continuous Integration
 
-The CI will check formatting and linting, and build binaries for all supported architectures.
+The CI will check formatting and linting, and build binaries for all supported
+architectures.
 
 #### Supported Build Architectures
 
 The CI builds binaries for the following platforms:
+
 - **macOS**: universal-darwin, aarch64-darwin, x86_64-darwin
 - **Linux**: x86_64-linux, aarch64-linux
 
 Linux builds are performed on GitHub-hosted runners:
+
 - `ubuntu-22.04` for x86_64-linux
 - `ubuntu-22.04-arm` for aarch64-linux
 
