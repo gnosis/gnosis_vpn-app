@@ -132,7 +132,6 @@ export function createAppStore(): AppStoreTuple {
     }
 
     // successfully decoded status response
-    console.log("status", response);
     const screen = screenFromRunMode(response.run_mode);
     setState("currentScreen", screen);
 

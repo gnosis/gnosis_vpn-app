@@ -6,7 +6,6 @@ import {
 } from "../utils/destinations.ts";
 import type {
   Destination,
-  DestinationState,
   Health,
 } from "../services/vpnService.ts";
 import { shortAddress } from "../utils/shortAddress.ts";
@@ -14,19 +13,12 @@ import { createMemo } from "solid-js";
 import { useSettingsStore } from "../stores/settingsStore.ts";
 import NodeStatus from "./NodeStatus.tsx";
 
+type RandomOption = { type: "random" };
+type ExitOption = Destination | RandomOption;
+
 export default function ExitNode() {
   const [appState, appActions] = useAppStore();
   const [settings] = useSettingsStore();
-  type RandomOption = { type: "random" };
-  type ExitOption = Destination | RandomOption;
-
-  const stateById = createMemo(() => {
-    const map = new Map<string, DestinationState>();
-    for (const ds of Object.values(appState.destinations) as DestinationState[]) {
-      map.set(ds.destination.id, ds);
-    }
-    return map;
-  });
 
   const randomDestination = createMemo(() => {
     const available = appState.availableDestinations;
@@ -54,7 +46,7 @@ export default function ExitNode() {
         renderOption={(opt: ExitOption) => {
           if ("id" in opt) {
             const name = formatDestination(opt) || shortAddress(opt.address);
-            const ds = stateById().get(opt.id);
+            const ds = appState.destinations[opt.id];
             const cs = ds?.connection_state;
             const health: Health | undefined = ds?.connectivity?.health as
               | Health
@@ -100,7 +92,7 @@ export default function ExitNode() {
         }}
         isOptionDisabled={(opt: ExitOption) => {
           if ("id" in opt) {
-            const ds = stateById().get(opt.id);
+            const ds = appState.destinations[opt.id];
             const health = ds?.connectivity?.health;
             return health !== "ReadyToConnect";
           }
@@ -109,7 +101,7 @@ export default function ExitNode() {
         renderValue={(opt: ExitOption) => {
           if ("id" in opt) {
             const name = formatDestination(opt) || shortAddress(opt.address);
-            const ds = stateById().get(opt.id);
+            const ds = appState.destinations[opt.id];
             const cs = ds?.connection_state;
             const health: Health | undefined = ds?.connectivity?.health as
               | Health
@@ -125,7 +117,7 @@ export default function ExitNode() {
           if (randomDest) {
             const destName = formatDestination(randomDest) ||
               shortAddress(randomDest.address);
-            const ds = stateById().get(randomDest.id);
+            const ds = appState.destinations[randomDest.id];
             const cs = ds?.connection_state;
             const health: Health | undefined = ds?.connectivity?.health as
               | Health
