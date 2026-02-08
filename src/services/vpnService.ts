@@ -88,30 +88,29 @@ export type Warmup = {
   status: WarmupStatus;
 };
 
-export enum WarmupStatus {
+export type WarmupStatus =
   // hopr construction not yet started
-  Initializing = "Initializing edge client",
+  | "Initializing"
   // Hopr init states
-  ValidatingConfig = "Validating edge client configuration",
-  IdentifyingNode = "Identifying ourselves",
-  InitializingDatabase = "Initializing local storage",
-  ConnectingBlockchain = "Querying ledger",
-  CreatingNode = "Creating edge client runtime",
-  StartingNode = "Starting edge client runtime",
-  Ready = "Edge client runtime ready for action",
+  | "ValidatingConfig"
+  | "IdentifyingNode"
+  | "InitializingDatabase"
+  | "ConnectingBlockchain"
+  | "CreatingNode"
+  | "StartingNode"
+  | "Ready"
   // Hopr running states
-  Uninitialized = "Orienting ourselves",
-  WaitingForFunds = "Waiting to get funded",
-  CheckingBalance = "Checking funding state",
-  ValidatingNetworkConfig = "Validating network configuration",
-  SubscribingToAnnouncements = "Subscribing to ledger updates",
-  RegisteringSafe = "Registering safe identity",
-  AnnouncingNode = "Announcing ourselves",
-  AwaitingKeyBinding = "Waiting for ledger verification",
-  InitializingServices = "Initializing service layers",
-  Running = "Running",
-  Terminated = "Terminated",
-}
+  | "Uninitialized"
+  | "WaitingForFunds"
+  | "CheckingBalance"
+  | "ValidatingNetworkConfig"
+  | "SubscribingToAnnouncements"
+  | "RegisteringSafe"
+  | "AnnouncingNode"
+  | "AwaitingKeyBinding"
+  | "InitializingServices"
+  | "Running"
+  | "Terminated";
 
 export type FundingTool =
   | "NotStarted"
@@ -138,7 +137,7 @@ export type RunMode =
   /// Initial start, after creating safe this state will not be reached again
   | { PreparingSafe: PreparingSafe }
   /// Subsequent service start up in this state and after preparing safe
-  | { Warmup: WarmupStatus }
+  | { Warmup: Warmup }
   /// Normal operation where connections can be made
   | { Running: Running }
   /// Service shutting down
@@ -263,6 +262,51 @@ export function formatHealth(health: Health): string {
       return "Connection impossible";
     default:
       return String(health);
+  }
+}
+
+export function formatWarmupStatus(status: WarmupStatus): string {
+  switch (status) {
+    case "Initializing":
+      return "Initializing edge client";
+    // Hopr init states
+    case "ValidatingConfig":
+      return "Validating edge client configuration";
+    case "IdentifyingNode":
+      return "Identifying ourselves";
+    case "InitializingDatabase":
+      return "Initializing local storage";
+    case "ConnectingBlockchain":
+      return "Querying ledger";
+    case "CreatingNode":
+      return "Creating edge client runtime";
+    case "StartingNode":
+      return "Starting edge client runtime";
+    case "Ready":
+      return "Edge client runtime ready for action";
+    // Hopr running states
+    case "Uninitialized":
+      return "Orienting ourselves";
+    case "WaitingForFunds":
+      return "Waiting to get funded";
+    case "CheckingBalance":
+      return "Checking funding state";
+    case "ValidatingNetworkConfig":
+      return "Validating network configuration";
+    case "SubscribingToAnnouncements":
+      return "Subscribing to ledger updates";
+    case "RegisteringSafe":
+      return "Registering safe identity";
+    case "AnnouncingNode":
+      return "Announcing ourselves";
+    case "AwaitingKeyBinding":
+      return "Waiting for ledger verification";
+    case "InitializingServices":
+      return "Initializing service layers";
+    case "Running":
+      return "Running";
+    case "Terminated":
+      return "Terminated";
   }
 }
 

@@ -1,7 +1,7 @@
 import syncIcon from "@assets/icons/sync.svg";
 import { useAppStore } from "@src/stores/appStore.ts";
 import StatusIndicator from "../../components/StatusIndicator.tsx";
-import { RunMode } from "../../services/vpnService.ts";
+import { formatWarmupStatus, RunMode } from "../../services/vpnService.ts";
 
 export default function Synchronization() {
   const [state] = useAppStore();
@@ -29,10 +29,10 @@ export default function Synchronization() {
   );
 }
 
-function extractWarmup(runMode: RunMode | null) {
+function extractWarmup(runMode: RunMode | null): string {
     console.log("runMode", runMode);
     if (runMode && typeof runMode === "object" && "Warmup" in runMode) {
-        return runMode.Warmup.status;
+        return formatWarmupStatus(runMode.Warmup.status);
     }
     return "Waiting for service";
 }
