@@ -15,11 +15,11 @@ jobs:
       matrix:
         binary:
           - architecture: universal-darwin
-            runner: macos-15
+            runner: macos-15-xlarge
           - architecture: aarch64-darwin
             runner: macos-15
           - architecture: x86_64-darwin
-            runner: macos-15
+            runner: macos-15-intel
           - architecture: x86_64-linux
             runner: ubuntu-22.04
           - architecture: aarch64-linux
