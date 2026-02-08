@@ -73,7 +73,7 @@ jobs:
           echo "Generating release notes"
           gh release create v${{ steps.environment.outputs.release_version }} --generate-notes
           echo "Preparing binaries for upload"
-          
+
           # Upload macOS binaries
           for architecture in "${darwin_architectures[@]}"; do
               echo "Downloading from GCP binary for ${architecture}"
@@ -85,7 +85,7 @@ jobs:
               echo "Uploading checksum for ${architecture}"
               gh release upload v${{ steps.environment.outputs.release_version }} "$PWD/binaries/gnosis_vpn-app-${architecture}.dmg.sha256" --clobber
           done
-          
+
           # Upload Linux binaries
           for architecture in "${linux_architectures[@]}"; do
               echo "Downloading from GCP binary for ${architecture}"
