@@ -61,11 +61,11 @@ function App() {
         "navigate",
         ({ payload }) =>
           handleNavigate(payload, (s) => {
-              const screen = s as AppScreen;
-              if (screen) {
-                  appActions.setScreen(screen);
-              }
-          })
+            const screen = s as AppScreen;
+            if (screen) {
+              appActions.setScreen(screen);
+            }
+          }),
       );
     })();
   });

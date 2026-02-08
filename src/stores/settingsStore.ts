@@ -72,8 +72,7 @@ export function createSettingsStore(): SettingsStoreTuple {
 
       setState({ ...loaded });
 
-      const missingAny =
-        preferredLocation === undefined ||
+      const missingAny = preferredLocation === undefined ||
         connectOnStartup === undefined ||
         startMinimized === undefined;
       if (missingAny) {

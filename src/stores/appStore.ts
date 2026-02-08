@@ -139,8 +139,8 @@ export function createAppStore(): AppStoreTuple {
     setState("currentScreen", screen);
 
     const prevDestStates = state.destinations;
-    const [nextDestStates, availableDestinations] =
-      response.destinations.reduce(
+    const [nextDestStates, availableDestinations] = response.destinations
+      .reduce(
         ([states, dests], ds) => {
           states[ds.destination.id] = ds;
           dests.push(ds.destination);
@@ -166,8 +166,9 @@ export function createAppStore(): AppStoreTuple {
       ) {
         const where = formatDestination(next.destination);
         const short = shortAddress(next.destination.address);
-        const display =
-          where && where.length > 0 ? `${where} - ${short}` : short;
+        const display = where && where.length > 0
+          ? `${where} - ${short}`
+          : short;
         const phaseSuffix = nextPhase ? ` - ${nextPhase}` : "";
         log(`${nextLabel}: ${display}${phaseSuffix}`);
       }
@@ -222,8 +223,9 @@ export function createAppStore(): AppStoreTuple {
         prevLabel !== nextLabel &&
         nextLabel !== "None" &&
         nextLabel !== "Unknown"
-      )
+      ) {
         return true;
+      }
       if (nextLabel === "Connecting") {
         const prevPhase = getConnectionPhase(prevState);
         const nextPhase = getConnectionPhase(nextState);
@@ -295,8 +297,9 @@ export function createAppStore(): AppStoreTuple {
             await VPNService.connect(selected.id);
             actions.startStatusPolling();
           } catch (error) {
-            const message =
-              error instanceof Error ? error.message : String(error);
+            const message = error instanceof Error
+              ? error.message
+              : String(error);
             log(message);
             setState("error", message);
           } finally {

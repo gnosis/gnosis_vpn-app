@@ -117,8 +117,8 @@ export type FundingTool =
   | "InProgress"
   | "CompletedSuccess"
   | {
-      CompletedError: string;
-    };
+    CompletedError: string;
+  };
 
 export type FundingIssue =
   | "Unfunded" // cannot work at all - initial state
@@ -445,7 +445,7 @@ export class VPNService {
 
     // Sort by id for consistent selection
     const sorted = [...destinations].sort((a, b) =>
-      a.destination.id.localeCompare(b.destination.id),
+      a.destination.id.localeCompare(b.destination.id)
     );
     return sorted[0].destination.id;
   }

@@ -21,7 +21,7 @@ export default function Synchronization() {
         }`}
       />
       <div class="text-sm text-text-secondary">
-      {extractWarmup(state.runMode)}
+        {extractWarmup(state.runMode)}
       </div>
       <div class="grow"></div>
       <StatusIndicator size="sm" />
@@ -30,9 +30,9 @@ export default function Synchronization() {
 }
 
 function extractWarmup(runMode: RunMode | null): string {
-    console.log("runMode", runMode);
-    if (runMode && typeof runMode === "object" && "Warmup" in runMode) {
-        return formatWarmupStatus(runMode.Warmup.status);
-    }
-    return "Waiting for service";
+  console.log("runMode", runMode);
+  if (runMode && typeof runMode === "object" && "Warmup" in runMode) {
+    return formatWarmupStatus(runMode.Warmup.status);
+  }
+  return "Waiting for service";
 }

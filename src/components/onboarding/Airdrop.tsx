@@ -6,8 +6,8 @@ import checkIcon from "@assets/icons/checked-box-filled.svg";
 import { useAppStore } from "../../stores/appStore.ts";
 import backIcon from "@assets/icons/arrow-left.svg";
 import Spinner from "../common/Spinner.tsx";
-import { getPreparingSafeNodeAddress, } from "../../utils/status.ts";
-import { isPreparingSafeRunMode, } from "../../services/vpnService.ts";
+import { getPreparingSafeNodeAddress } from "../../utils/status.ts";
+import { isPreparingSafeRunMode } from "../../services/vpnService.ts";
 
 import {
   equalFundingTool,
@@ -197,7 +197,9 @@ export default function Airdrop(
       return;
     }
 
-    if (nodeAddress() === undefined && isPreparingSafeRunMode(appState.runMode)) {
+    if (
+      nodeAddress() === undefined && isPreparingSafeRunMode(appState.runMode)
+    ) {
       setError("Waiting for node address");
       setLoading(false);
       setClaimed(false);

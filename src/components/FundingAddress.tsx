@@ -16,7 +16,7 @@ export default function FundingAddress(
   const isMissing = raw.length === 0 || raw.toLowerCase() === "unknown";
 
   let safeAddress: string | undefined;
-  if (!isMissing) { safeAddress = raw; }
+  if (!isMissing) safeAddress = raw;
 
   if (!safeAddress) {
     return <div class="text-sm text-red-500">No funding address found</div>;

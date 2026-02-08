@@ -38,8 +38,7 @@ export default function Settings() {
                 ),
               }
               : null}
-            onChange={(e) =>
-              void settingsActions.setPreferredLocation(e.id)}
+            onChange={(e) => void settingsActions.setPreferredLocation(e.id)}
             size="sm"
             itemToString={(e) => e.label}
           />

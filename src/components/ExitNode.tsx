@@ -1,13 +1,7 @@
 import { useAppStore } from "../stores/appStore.ts";
 import { Dropdown } from "./common/Dropdown.tsx";
-import {
-  formatDestination,
-  selectTargetId,
-} from "../utils/destinations.ts";
-import type {
-  Destination,
-  Health,
-} from "../services/vpnService.ts";
+import { formatDestination, selectTargetId } from "../utils/destinations.ts";
+import type { Destination, Health } from "../services/vpnService.ts";
 import { shortAddress } from "../utils/shortAddress.ts";
 import { createMemo } from "solid-js";
 import { useSettingsStore } from "../stores/settingsStore.ts";
