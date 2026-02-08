@@ -84,29 +84,30 @@ export type Running = {
   funding: FundingState;
 };
 
-export type WarmupStatus =
+export enum WarmupStatus {
   // hopr construction not yet started
-  | "Initializing"
+  Initializing = "Initializing edge client",
   // Hopr init states
-  | "ValidatingConfig"
-  | "IdentifyingNode"
-  | "InitializingDatabase"
-  | "ConnectingBlockchain"
-  | "CreatingNode"
-  | "StartingNode"
-  | "Ready"
+  ValidatingConfig = "Validating edge client configuration",
+  IdentifyingNode = "Identifying ourselves",
+  InitializingDatabase = "Initializing local storage",
+  ConnectingBlockchain = "Querying ledger",
+  CreatingNode = "Creating edge client runtime",
+  StartingNode = "Starting edge client runtime",
+  Ready = "Edge client runtime ready for action",
   // Hopr running states
-  | "Uninitialized"
-  | "WaitingForFunds"
-  | "CheckingBalance"
-  | "ValidatingNetworkConfig"
-  | "SubscribingToAnnouncements"
-  | "RegisteringSafe"
-  | "AnnouncingNode"
-  | "AwaitingKeyBinding"
-  | "InitializingServices"
-  | "Running"
-  | "Terminated";
+  Uninitialized = "Orienting ourselves",
+  WaitingForFunds = "Waiting to get funded",
+  CheckingBalance = "Checking funding state",
+  ValidatingNetworkConfig = "Validating network configuration",
+  SubscribingToAnnouncements = "Subscribing to ledger updates",
+  RegisteringSafe = "Registering safe identity",
+  AnnouncingNode = "Announcing ourselves",
+  AwaitingKeyBinding = "Waiting for ledger verification",
+  InitializingServices = "Initializing service layers",
+  Running = "Running",
+  Terminated = "Terminated",
+}
 
 export type FundingTool =
   | "NotStarted"
