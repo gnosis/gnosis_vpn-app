@@ -30,8 +30,9 @@ export default function Synchronization() {
 }
 
 function extractWarmup(runMode: RunMode | null) {
+    console.log("runMode", runMode);
     if (runMode && typeof runMode === "object" && "Warmup" in runMode) {
-        return runMode.Warmup;
+        return runMode.Warmup.status;
     }
     return "Waiting for service";
 }

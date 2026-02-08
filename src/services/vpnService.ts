@@ -84,6 +84,10 @@ export type Running = {
   funding: FundingState;
 };
 
+export type Warmup = {
+  status: WarmupStatus;
+};
+
 export enum WarmupStatus {
   // hopr construction not yet started
   Initializing = "Initializing edge client",
