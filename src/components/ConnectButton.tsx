@@ -15,26 +15,26 @@ export default function ConnectButton() {
   );
   const label = createMemo(() => (isActive() ? "Stop" : "Connect"));
 
-  const targetAddress = createMemo(() => {
-    if (appState.selectedAddress) return appState.selectedAddress;
+  const targetId = createMemo(() => {
+    if (appState.selectedId) return appState.selectedId;
     if (appState.destination?.address) return appState.destination.address;
-    const { address } = selectTargetAddress(
+    const { id } = selectTargetAddress(
       undefined,
       settings.preferredLocation,
       appState.availableDestinations,
     );
-    if (address) return address;
+    if (id) return id;
     return appState.destinations[0]?.destination.address;
   });
 
   const targetDestinationState = createMemo(() =>
-    appState.destinations.find((ds) =>
-      ds.destination.address === (targetAddress() ?? "")
+    Object.values(appState.destinations).find((ds) =>
+      ds.destination.address === (targetId() ?? "")
     )
   );
 
   const targetHealth = createMemo(() =>
-    targetDestinationState()?.health?.health
+    targetDestinationState()?.connectivity?.health
   );
   const isTargetReady = createMemo(() => isReadyToConnect(targetHealth()));
 

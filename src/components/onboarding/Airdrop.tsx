@@ -8,7 +8,7 @@ import backIcon from "@assets/icons/arrow-left.svg";
 import Spinner from "../common/Spinner.tsx";
 import {
   getPreparingSafeNodeAddress,
-  isPreparingSafe,
+  isPreparingSafeRunMode,
 } from "../../utils/status.ts";
 
 import {

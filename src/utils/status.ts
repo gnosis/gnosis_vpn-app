@@ -131,8 +131,7 @@ export function getPreparingSafeNodeAddress(
   state: AppState,
 ): string | undefined {
   if (isPreparingSafeRunMode(state.runMode)) {
-    const address = state.runMode.PreparingSafe.node_address;
-    return address && address !== "unknown" ? address : undefined;
+    return state.runMode.PreparingSafe.node_address;
   }
   return undefined;
 }

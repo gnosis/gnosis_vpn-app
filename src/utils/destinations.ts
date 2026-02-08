@@ -68,7 +68,7 @@ export function getPreferredAvailabilityChangeMessage(
     : `Preferred location ${preferredId} currently unavailable.`;
 }
 
-export function selectTargetAddress(
+export function selectTargetId(
   id: string | undefined,
   preferredId: string | null,
   available: Destination[],
