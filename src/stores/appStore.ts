@@ -48,12 +48,16 @@ type AppActions = {
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
   refreshStatus: () => Promise<void>;
-  startStatusPolling: (intervalMs?: number) => void;
+  startStatusPolling: () => void;
   stopStatusPolling: () => void;
   claimAirdrop: (secret: string) => Promise<void>;
 };
 
 type AppStoreTuple = readonly [Store<AppState>, AppActions];
+
+const OFFLINE_TIMEOUT = 5000; // ms
+const FAST_TIMEOUT = 333; // ms
+const DEFAULT_TIMEOUT = 2333; // ms
 
 export function createAppStore(): AppStoreTuple {
   const [state, setState] = createStore<AppState>({
@@ -67,8 +71,7 @@ export function createAppStore(): AppStoreTuple {
     vpnStatus: "ServiceUnavailable",
   });
 
-  let pollingId: ReturnType<typeof globalThis.setInterval> | undefined;
-  let pollInFlight = false;
+  let pollingId: ReturnType<typeof globalThis.setTimeout> | undefined;
 
   const [settings] = useSettingsStore();
   let lastPreferredLocation: string | null = settings.preferredLocation;
@@ -106,7 +109,7 @@ export function createAppStore(): AppStoreTuple {
     }
   };
 
-  const getStatus = async () => {
+  const syncStatus = async () => {
     let response;
     try {
       response = await VPNService.getStatus();
@@ -128,7 +131,7 @@ export function createAppStore(): AppStoreTuple {
         );
         setState("vpnStatus", vpnStatus);
       }
-      return;
+      return OFFLINE_TIMEOUT;
     }
 
     // successfully decoded status response
@@ -257,6 +260,8 @@ export function createAppStore(): AppStoreTuple {
     if (preferredChanged) {
       applyDestinationSelection();
     }
+
+    return timeoutFromState(response.run_mode, response.destinations);
   };
 
   const actions = {
@@ -285,10 +290,10 @@ export function createAppStore(): AppStoreTuple {
           const short = shortAddress(selected.address);
           const pretty = `${name} - ${short}`;
           log(`Connecting to selected exit node: ${pretty}`);
+          setState("isLoading", true);
           try {
-            setState("isLoading", true);
             await VPNService.connect(selected.id);
-            await getStatus();
+            actions.startStatusPolling();
           } catch (error) {
             const message =
               error instanceof Error ? error.message : String(error);
@@ -328,7 +333,7 @@ export function createAppStore(): AppStoreTuple {
         if (targetId) {
           await VPNService.connect(targetId);
         }
-        await getStatus();
+        actions.startStatusPolling();
         applyDestinationSelection();
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -343,7 +348,7 @@ export function createAppStore(): AppStoreTuple {
       setState("isLoading", true);
       try {
         await VPNService.disconnect();
-        await getStatus();
+        actions.startStatusPolling();
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         log(message);
@@ -353,43 +358,30 @@ export function createAppStore(): AppStoreTuple {
       }
     },
 
-    refreshStatus: async () => {
+    refreshStatus: (): Promise<void> => {
       setState("isLoading", true);
-      await getStatus();
+      actions.startStatusPolling();
       setState("isLoading", false);
+      return Promise.resolve();
     },
 
-    startStatusPolling: (intervalMs: number = 2000) => {
-      if (pollingId !== undefined) return;
+    startStatusPolling: () => {
+      globalThis.clearTimeout(pollingId);
       const tick = async () => {
-        if (pollInFlight) return;
-        pollInFlight = true;
-        try {
-          await getStatus();
-        } catch (e) {
-          // swallow to keep interval alive
-          console.error("status polling tick failed", e);
-        } finally {
-          pollInFlight = false;
-        }
+        const timeout = await syncStatus();
+        pollingId = globalThis.setTimeout(() => void tick(), timeout);
       };
-
-      // immediate tick, then interval
-      void tick();
-      pollingId = globalThis.setInterval(() => void tick(), intervalMs);
+      tick();
     },
 
     stopStatusPolling: () => {
-      if (pollingId !== undefined) {
-        globalThis.clearInterval(pollingId);
-        pollingId = undefined;
-      }
+      globalThis.clearTimeout(pollingId);
     },
 
     claimAirdrop: async (secret: string) => {
       try {
         await VPNService.fundingTool(secret);
-        await getStatus();
+        actions.startStatusPolling();
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         log(message);
@@ -405,6 +397,19 @@ const appStore = createAppStore();
 
 export function useAppStore(): AppStoreTuple {
   return appStore;
+}
+
+function timeoutFromState(
+  runMode: RunMode | undefined,
+  destinations: DestinationState[],
+): number {
+  if (runMode && typeof runMode === "object" && "Warmup" in runMode) {
+    return FAST_TIMEOUT;
+  }
+  if (isConnecting(Object.values(destinations))) {
+    return FAST_TIMEOUT;
+  }
+  return DEFAULT_TIMEOUT;
 }
 
 function screenFromRunMode(mode: RunMode): AppScreen {

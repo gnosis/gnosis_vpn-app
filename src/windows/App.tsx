@@ -46,7 +46,7 @@ function App() {
 
   onMount(() => {
     void (async () => {
-      appActions.startStatusPolling(2000);
+      appActions.startStatusPolling();
       await Promise.all([settingsActions.load(), appActions.refreshStatus()]);
 
       if (

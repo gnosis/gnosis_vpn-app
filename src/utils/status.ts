@@ -100,7 +100,7 @@ export function getVpnStatus(
   if (!runMode) return "ServiceUnavailable";
   if ("Shutdown" === runMode) return "ServiceUnavailable";
   if ("PreparingSafe" in runMode) return "PreparingSafe";
-  if ("Warmup" in runMode) return runMode.Warmup;
+  if ("Warmup" in runMode) return runMode.Warmup.status;
   if ("Running" in runMode) {
     if (isConnected(destinations)) return "Connected";
     if (isConnecting(destinations)) return "Connecting";
