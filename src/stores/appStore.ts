@@ -27,7 +27,11 @@ import {
 import { getEthAddress } from "@src/utils/address.ts";
 import { shortAddress } from "../utils/shortAddress.ts";
 
-export type AppScreen = "main" | "onboarding" | "synchronization";
+export enum AppScreen {
+  Main = "main",
+  Onboarding = "onboarding",
+  Synchronization = "synchronization",
+}
 
 export interface AppState {
   currentScreen: AppScreen;
@@ -63,7 +67,7 @@ type AppStoreTuple = readonly [Store<AppState>, AppActions];
 
 export function createAppStore(): AppStoreTuple {
   const [state, setState] = createStore<AppState>({
-    currentScreen: "main",
+    currentScreen: AppScreen.Main,
     availableDestinations: [],
     destinations: [],
     isLoading: false,

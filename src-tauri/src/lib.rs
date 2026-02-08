@@ -4,7 +4,9 @@ extern crate objc;
 
 use gnosis_vpn_lib::command::{self, HoprInitStatus, HoprStatus};
 use gnosis_vpn_lib::socket::root as root_socket;
-use gnosis_vpn_lib::{gvpn_client, destination_health, connectivity_health, balance, connection, info};
+use gnosis_vpn_lib::{
+    balance, connection, connectivity_health, destination_health, gvpn_client, info,
+};
 
 use serde::Serialize;
 use tauri::State;
@@ -19,11 +21,11 @@ use zstd::stream::Encoder;
 
 use std::collections::HashMap;
 use std::fs::File;
-use std::time::SystemTime;
 use std::io::{self, BufReader};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
+use std::time::SystemTime;
 use std::{path::PathBuf, sync::Mutex};
 
 mod icons;
@@ -239,7 +241,9 @@ impl From<destination_health::DestinationHealth> for DestinationHealth {
     fn from(h: destination_health::DestinationHealth) -> Self {
         match h {
             destination_health::DestinationHealth::Init => DestinationHealth::Init,
-            destination_health::DestinationHealth::Running { since } => { DestinationHealth::Running { since } }
+            destination_health::DestinationHealth::Running { since } => {
+                DestinationHealth::Running { since }
+            }
             destination_health::DestinationHealth::Failure {
                 checked_at,
                 error,
