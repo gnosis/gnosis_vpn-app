@@ -22,6 +22,8 @@ jobs:
             runner: macos-15
           - architecture: x86_64-linux
             runner: ubuntu-22.04
+          - architecture: aarch64-linux
+            runner: ubuntu-22.04-arm
     name: Binary ${{ matrix.binary.architecture }}
     uses: ./.github/workflows/build-binaries.yaml
     with:
