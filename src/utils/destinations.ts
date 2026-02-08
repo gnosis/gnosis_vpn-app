@@ -56,55 +56,56 @@ export const areDestinationsEqualUnordered = (
 export function getPreferredAvailabilityChangeMessage(
   previous: Destination[],
   next: Destination[],
-  preferredAddress: string | null,
+  preferredId: string | null,
 ): string | null {
   if (previous.length === 0) return null;
-  if (!preferredAddress) return null;
-  const previouslyHadPreferred = previous.some((d) =>
-    d.address === preferredAddress
-  );
-  const nowHasPreferred = next.some((d) => d.address === preferredAddress);
+  if (!preferredId) return null;
+  const previouslyHadPreferred = previous.some((d) => d.id === preferredId);
+  const nowHasPreferred = next.some((d) => d.id === preferredId);
   if (previouslyHadPreferred === nowHasPreferred) return null;
   return nowHasPreferred
-    ? `Preferred location ${preferredAddress} is available again.`
-    : `Preferred location ${preferredAddress} currently unavailable.`;
+    ? `Preferred location ${preferredId} is available again.`
+    : `Preferred location ${preferredId} currently unavailable.`;
 }
 
 export function selectTargetAddress(
-  addressArg: string | undefined,
-  preferredAddress: string | null,
+  id: string | undefined,
+  preferredId: string | null,
   available: Destination[],
-): { address: string | undefined; reason: string } {
-  if (addressArg) return { address: addressArg, reason: "address parameter" };
-  if (preferredAddress) {
-    const hasPreferred = available.some((d) => d.address === preferredAddress);
+): { id: string | undefined; reason: string } {
+  if (id) return { id, reason: "id parameter set" };
+  if (preferredId) {
+    const hasPreferred = available.some((d) => d.id === preferredId);
     if (hasPreferred) {
-      return { address: preferredAddress, reason: "preferred location" };
+      return { id: preferredId, reason: "preferred location" };
     }
     return {
-      address: available[0]?.address,
+      id: available[0]?.id,
       reason: "fallback: preferred not present",
     };
   }
   return {
-    address: available[0]?.address,
+    id: available[0]?.id,
     reason: "fallback: no preferred set",
   };
 }
 
 export function formatDestination(destination: Destination): string {
   const meta = destination.meta || {};
-  const parts = [meta.city, meta.state, meta.location].map((v) =>
-    (v ?? "").trim()
-  ).filter((v) => v.length > 0);
-  return parts.join(" ");
+  const parts = [meta.city, meta.state, meta.location]
+    .map((v) => (v ?? "").trim())
+    .filter((v) => v.length > 0);
+  const id = destination.id;
+  if (parts.length > 0) {
+    return `${id} ${parts.join(" ")}`;
+  }
+  return id;
 }
 
-export function formatDestinationByAddress(
-  address: string | null | undefined,
+export function formatDestinationById(
+  id: string,
   available: Destination[],
 ): string {
-  if (!address) return "Not set";
-  const dest = available.find((d) => d.address === address);
-  return dest ? formatDestination(dest) : `${address} (unavailable)`;
+  const dest = available.find((d) => d.id === id);
+  return dest ? formatDestination(dest) : `${id} (unavailable)`;
 }

@@ -1,6 +1,5 @@
 import { createStore, type Store as SolidStore } from "solid-js/store";
 import { Store as TauriStore } from "@tauri-apps/plugin-store";
-import { getEthAddress } from "../utils/address.ts";
 import { emit, listen } from "@tauri-apps/api/event";
 
 export interface SettingsState {
@@ -81,8 +80,10 @@ export function createSettingsStore(): SettingsStoreTuple {
 
       setState({ ...loaded });
 
-      const missingAny = preferredLocation === undefined ||
-        connectOnStartup === undefined || startMinimized === undefined;
+      const missingAny =
+        preferredLocation === undefined ||
+        connectOnStartup === undefined ||
+        startMinimized === undefined;
       if (missingAny) {
         await saveAllToDisk(loaded);
       }
