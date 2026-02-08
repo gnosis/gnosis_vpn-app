@@ -48,7 +48,7 @@ export function isConnectedTo(
 ): boolean {
   const destinations = getDestinationsWithConnection(state);
   const destState = destinations.find(
-    (ds) => ds.destination.address === destination.address,
+    (ds) => ds.destination.id === destination.id,
   );
   if (destState) {
     return (
@@ -65,7 +65,7 @@ export function isConnectingTo(
 ): boolean {
   const destinations = getDestinationsWithConnection(state);
   const destState = destinations.find(
-    (ds) => ds.destination.address === destination.address,
+    (ds) => ds.destination.id === destination.id,
   );
   if (destState) {
     return (
@@ -82,7 +82,7 @@ export function isDisconnectingFrom(
 ): boolean {
   const destinations = getDestinationsWithConnection(state);
   const destState = destinations.find(
-    (ds) => ds.destination.address === destination.address,
+    (ds) => ds.destination.id === destination.id,
   );
   if (destState) {
     return (

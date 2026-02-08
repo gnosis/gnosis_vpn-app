@@ -314,9 +314,9 @@ export class VPNService {
     }
   }
 
-  static async connect(address: string): Promise<ConnectResponse> {
+  static async connect(id: string): Promise<ConnectResponse> {
     try {
-      return (await invoke("connect", { address })) as ConnectResponse;
+      return (await invoke("connect", { id })) as ConnectResponse;
     } catch (error) {
       console.error("Failed to connect to VPN:", error);
       throw new Error(`Connect Error: ${error}`);
@@ -394,10 +394,10 @@ export class VPNService {
   ): string | null {
     if (destinations.length === 0) return null;
 
-    // Sort by address for consistent selection
+    // Sort by id for consistent selection
     const sorted = [...destinations].sort((a, b) =>
-      a.destination.address.localeCompare(b.destination.address),
+      a.destination.id.localeCompare(b.destination.id),
     );
-    return sorted[0].destination.address;
+    return sorted[0].destination.id;
   }
 }
