@@ -25,13 +25,15 @@ jobs:
       matrix:
         binary:
           - architecture: universal-darwin
-            runner: macos-15
+            runner: macos-15-xlarge
           - architecture: aarch64-darwin
             runner: macos-15
           - architecture: x86_64-darwin
-            runner: macos-15
+            runner: macos-15-intel
           - architecture: x86_64-linux
             runner: ubuntu-22.04
+          - architecture: aarch64-linux
+            runner: ubuntu-22.04-arm
     name: Binary ${{ matrix.binary.architecture }}
     uses: ./.github/workflows/build-binaries.yaml
     with:
@@ -63,22 +65,29 @@ jobs:
         run: |
           release_version=$(grep -E '^version\s*=' src-tauri/Cargo.toml | awk -F\" '{print $2}')
           echo "release_version=${release_version}" | tee -a $GITHUB_OUTPUT
-      - name: Create release and publish binaries
+      - name: Create GitHub release
         run: |
-          architectures=("universal-darwin" "aarch64-darwin" "x86_64-darwin" )
-          mkdir -p binaries
           echo "Generating release notes"
           gh release create v${{ steps.environment.outputs.release_version }} --generate-notes
-          echo "Preparing binaries for upload"
-          for architecture in "${architectures[@]}"; do
-              echo "Downloading from GCP binary for ${architecture}"
-              gcloud artifacts files download --project=gnosisvpn-production --location=europe-west3 --repository=rust-binaries gnosis_vpn-app:${{ steps.environment.outputs.release_version }}:gnosis_vpn-app-${architecture}.dmg --destination=./binaries --local-filename=gnosis_vpn-app-${architecture}.dmg
-              echo "Uploading binary for ${architecture}"
-              gh release upload v${{ steps.environment.outputs.release_version }} "$PWD/binaries/gnosis_vpn-app-${architecture}.dmg" --clobber
-              echo "Downloading checksum for ${architecture}"
-              gcloud artifacts files download --project=gnosisvpn-production --location=europe-west3 --repository=rust-binaries gnosis_vpn-app:${{ steps.environment.outputs.release_version }}:gnosis_vpn-app-${architecture}.dmg.sha256 --destination=./binaries --local-filename=gnosis_vpn-app-${architecture}.dmg.sha256
-              echo "Uploading checksum for ${architecture}"
-              gh release upload v${{ steps.environment.outputs.release_version }} "$PWD/binaries/gnosis_vpn-app-${architecture}.dmg.sha256" --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Download macOS binaries from Artifact Registry
+        uses: hoprnet/hopr-workflows/actions/download-artifact-registry@master
+        with:
+          destination: ./binaries
+          project: gnosisvpn-production
+          region: europe-west3
+          repository: rust-binaries
+          package: gnosis_vpn-app
+          version: ${{ steps.environment.outputs.release_version }}
+      - name: Upload binaries to GitHub release
+        run: |
+          echo "Uploading binaries to release v${{ steps.environment.outputs.release_version }}"
+          for file in binaries/*; do
+            if [ -f "$file" ]; then
+              echo "Uploading $file"
+              gh release upload v${{ steps.environment.outputs.release_version }} "$file" --clobber
+            fi
           done
           echo "Release v${{ steps.environment.outputs.release_version }} created and binaries uploaded"
         env:

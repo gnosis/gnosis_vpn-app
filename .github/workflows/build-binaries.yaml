@@ -26,13 +26,17 @@ on:
           - x86_64-darwin
           - universal-darwin
           - x86_64-linux
+          - aarch64-linux
         required: true
         description: "Architecture to build for"
       runner:
         type: choice
         options:
           - macos-15
+          - macos-15-xlarge
+          - macos-15-intel
           - ubuntu-22.04
+          - ubuntu-22.04-arm
         required: true
         description: "Runner to use"
 jobs:
@@ -60,6 +64,9 @@ jobs:
             architecture_apple_darwin="${architecture/-darwin/}-apple-darwin"
             rust_toolchain_target="${architecture_apple_darwin/universal-/x86_64-}"
             tauri_args="--target ${architecture_apple_darwin}"
+          elif [[ "$architecture" == "aarch64-linux" ]]; then
+            rust_toolchain_target="aarch64-unknown-linux-gnu"
+            tauri_args="--bundles deb"
           else
             rust_toolchain_target="x86_64-unknown-linux-gnu"
             tauri_args="--bundles deb"

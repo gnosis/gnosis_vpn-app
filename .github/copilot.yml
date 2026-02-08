@@ -1,0 +1,48 @@
+version: 1
+
+instructions: copilot-instructions.md
+
+rules:
+  - type: file_pattern
+    pattern: "**/*.tsx"
+    instructions: |
+      This is a Solid.js component file. Ensure:
+      - Uses JSX syntax compatible with Solid.js
+      - Properly types all props with interfaces
+      - Uses reactive primitives (signals, effects, etc.)
+      - Follows Tailwind CSS for styling
+
+  - type: file_pattern
+    pattern: "**/*.ts"
+    exclude: ["**/*.test.ts", "**/*.spec.ts"]
+    instructions: |
+      This is a TypeScript utility or configuration file. Ensure:
+      - All functions have explicit return types
+      - Proper error handling and validation
+      - JSDoc comments for exported functions
+
+  - type: file_pattern
+    pattern: "src-tauri/**"
+    instructions: |
+      This is Rust backend code (Tauri). Ensure:
+      - Proper error handling with Result types
+      - Security: validate all input from frontend
+      - Use idiomatic Rust patterns
+
+  - type: file_pattern
+    pattern: "**/*.test.ts"
+    instructions: |
+      This is a test file. Ensure:
+      - Tests are clear and focus on behavior
+      - Proper test setup and cleanup
+      - Mock external dependencies
+
+projects:
+  - name: gnosis-vpn-ui
+    description: "Gnosis VPN Desktop Application UI"
+    techs:
+      - typescript
+      - solid-js
+      - tailwindcss
+      - tauri
+      - vite
