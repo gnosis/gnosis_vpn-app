@@ -159,8 +159,8 @@ export type Health =
   | "NotPeered"
   // final - not allowed to connect to this destination
   | "NotAllowed"
-  // final - destination address is invalid - should be impossible due to config deserialization
-  | "InvalidAddress"
+  // final - destination id is invalid - should be impossible due to config deserialization
+  | "InvalidId"
   // final - destination path is invalid - should be impossible due to config deserialization
   | "InvalidPath";
 
@@ -252,7 +252,7 @@ export function formatHealth(health: Health): string {
       return "Waiting on peer discovery";
     case "NotAllowed":
       return "Connection not allowed";
-    case "InvalidAddress":
+    case "InvalidId":
       return "Connection impossible";
     case "InvalidPath":
       return "Connection impossible";

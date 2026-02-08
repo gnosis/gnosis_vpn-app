@@ -490,7 +490,7 @@ async fn status(
 
             Ok(status_resp.into())
         }
-        Ok(_) => {
+        resp => {
             if let Ok(guard) = status_item.0.lock() {
                 let _ = guard.set_text("Status: Not available");
             }
@@ -500,19 +500,8 @@ async fn status(
                 "Disconnected",
                 system_theme(),
             );
+            eprintln!("Unexpected response: {:?}", resp);
             Err("Unexpected response type".to_string())
-        }
-        Err(e) => {
-            if let Ok(guard) = status_item.0.lock() {
-                let _ = guard.set_text("Status: Not available");
-            }
-            update_tray_icon(
-                &app,
-                tray_icon_state.inner(),
-                "Disconnected",
-                system_theme(),
-            );
-            Err(e.to_string())
         }
     }
 }
