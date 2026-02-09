@@ -20,32 +20,32 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # build-binaries:
-  #   strategy:
-  #     matrix:
-  #       binary:
-  #         - architecture: universal-darwin
-  #           runner: macos-15-xlarge
-  #         - architecture: aarch64-darwin
-  #           runner: macos-15
-  #         - architecture: x86_64-darwin
-  #           runner: macos-15-intel
-  #         - architecture: x86_64-linux
-  #           runner: ubuntu-22.04
-  #         - architecture: aarch64-linux
-  #           runner: ubuntu-22.04-arm
-  #   name: Binary ${{ matrix.binary.architecture }}
-  #   uses: ./.github/workflows/build-binaries.yaml
-  #   with:
-  #     branch: main
-  #     architecture: ${{ matrix.binary.architecture }}
-  #     runner: ${{ matrix.binary.runner }}
-  #     version_type: "release"
-  #   secrets: inherit
+  build-binaries:
+    strategy:
+      matrix:
+        binary:
+          - architecture: universal-darwin
+            runner: macos-15-xlarge
+          - architecture: aarch64-darwin
+            runner: macos-15
+          - architecture: x86_64-darwin
+            runner: macos-15-intel
+          - architecture: x86_64-linux
+            runner: ubuntu-22.04
+          - architecture: aarch64-linux
+            runner: ubuntu-22.04-arm
+    name: Binary ${{ matrix.binary.architecture }}
+    uses: ./.github/workflows/build-binaries.yaml
+    with:
+      branch: main
+      architecture: ${{ matrix.binary.architecture }}
+      runner: ${{ matrix.binary.runner }}
+      version_type: "release"
+    secrets: inherit
   release:
     name: Close release
-    # needs:
-    #   - build-binaries
+    needs:
+      - build-binaries
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
@@ -66,7 +66,7 @@ jobs:
           release_version=$(grep -E '^version\s*=' src-tauri/Cargo.toml | awk -F\" '{print $2}')
           echo "release_version=${release_version}" | tee -a $GITHUB_OUTPUT
       - name: Download macOS binaries from Artifact Registry
-        uses: hoprnet/hopr-workflows/actions/download-artifact-registry@ausias/debug
+        uses: hoprnet/hopr-workflows/actions/download-artifact-registry@download-artifact-registry-v1
         with:
           destination: ./binaries
           project: gnosisvpn-production
@@ -76,16 +76,22 @@ jobs:
           version: ${{ steps.environment.outputs.release_version }}
       - name: Create GitHub release
         run: |
+          TAG="v${{ steps.environment.outputs.release_version }}"
+          echo "Checking if release ${TAG} already exists"
+          if gh release view "${TAG}" > /dev/null 2>&1; then
+            echo "Release ${TAG} already exists, deleting it"
+            gh release delete "${TAG}" --yes --cleanup-tag
+          fi
           echo "Generating release notes"
-          gh release create v${{ steps.environment.outputs.release_version }} --generate-notes
-          echo "Uploading binaries to release v${{ steps.environment.outputs.release_version }}"
+          gh release create "${TAG}" --generate-notes
+          echo "Uploading binaries to release ${TAG}"
           for file in binaries/*; do
             if [ -f "$file" ]; then
               echo "Uploading $file"
-              gh release upload v${{ steps.environment.outputs.release_version }} "$file" --clobber
+              gh release upload "${TAG}" "$file" --clobber
             fi
           done
-          echo "Release v${{ steps.environment.outputs.release_version }} created and binaries uploaded"
+          echo "Release ${TAG} created and binaries uploaded"
         env:
           GH_TOKEN: ${{ github.token }}
       - name: Bump Version
