@@ -20,32 +20,32 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build-binaries:
-    strategy:
-      matrix:
-        binary:
-          - architecture: universal-darwin
-            runner: macos-15-xlarge
-          - architecture: aarch64-darwin
-            runner: macos-15
-          - architecture: x86_64-darwin
-            runner: macos-15-intel
-          - architecture: x86_64-linux
-            runner: ubuntu-22.04
-          - architecture: aarch64-linux
-            runner: ubuntu-22.04-arm
-    name: Binary ${{ matrix.binary.architecture }}
-    uses: ./.github/workflows/build-binaries.yaml
-    with:
-      branch: main
-      architecture: ${{ matrix.binary.architecture }}
-      runner: ${{ matrix.binary.runner }}
-      version_type: "release"
-    secrets: inherit
+  # build-binaries:
+  #   strategy:
+  #     matrix:
+  #       binary:
+  #         - architecture: universal-darwin
+  #           runner: macos-15-xlarge
+  #         - architecture: aarch64-darwin
+  #           runner: macos-15
+  #         - architecture: x86_64-darwin
+  #           runner: macos-15-intel
+  #         - architecture: x86_64-linux
+  #           runner: ubuntu-22.04
+  #         - architecture: aarch64-linux
+  #           runner: ubuntu-22.04-arm
+  #   name: Binary ${{ matrix.binary.architecture }}
+  #   uses: ./.github/workflows/build-binaries.yaml
+  #   with:
+  #     branch: main
+  #     architecture: ${{ matrix.binary.architecture }}
+  #     runner: ${{ matrix.binary.runner }}
+  #     version_type: "release"
+  #   secrets: inherit
   release:
     name: Close release
-    needs:
-      - build-binaries
+    # needs:
+    #   - build-binaries
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
@@ -65,14 +65,8 @@ jobs:
         run: |
           release_version=$(grep -E '^version\s*=' src-tauri/Cargo.toml | awk -F\" '{print $2}')
           echo "release_version=${release_version}" | tee -a $GITHUB_OUTPUT
-      - name: Create GitHub release
-        run: |
-          echo "Generating release notes"
-          gh release create v${{ steps.environment.outputs.release_version }} --generate-notes
-        env:
-          GH_TOKEN: ${{ github.token }}
       - name: Download macOS binaries from Artifact Registry
-        uses: hoprnet/hopr-workflows/actions/download-artifact-registry@download-artifact-registry-v1
+        uses: hoprnet/hopr-workflows/actions/download-artifact-registry@ausias/debug
         with:
           destination: ./binaries
           project: gnosisvpn-production
@@ -80,8 +74,10 @@ jobs:
           repository: rust-binaries
           package: gnosis_vpn-app
           version: ${{ steps.environment.outputs.release_version }}
-      - name: Upload binaries to GitHub release
+      - name: Create GitHub release
         run: |
+          echo "Generating release notes"
+          gh release create v${{ steps.environment.outputs.release_version }} --generate-notes
           echo "Uploading binaries to release v${{ steps.environment.outputs.release_version }}"
           for file in binaries/*; do
             if [ -f "$file" ]; then
