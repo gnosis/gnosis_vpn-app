@@ -54,10 +54,10 @@ jobs:
           token: ${{ secrets.BOT_TOKEN }}
       - name: Setup GCP
         id: gcp
-        uses: hoprnet/hopr-workflows/actions/setup-gcp@master
+        uses: hoprnet/hopr-workflows/actions/setup-gcp@setup-gcp-v1
         with:
-          google-credentials: ${{ secrets.GCP_SA_GITHUB_ACTIONS }}
-          install-sdk: "true"
+          google_credentials: ${{ secrets.GCP_SA_GITHUB_ACTIONS }}
+          install_sdk: "true"
       - name: Install Nix
         uses: cachix/install-nix-action@4e002c8ec80594ecd40e759629461e26c8abed15 # v31
       - name: Setup environment variables
@@ -72,7 +72,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
       - name: Download macOS binaries from Artifact Registry
-        uses: hoprnet/hopr-workflows/actions/download-artifact-registry@master
+        uses: hoprnet/hopr-workflows/actions/download-artifact-registry@download-artifact-registry-v1
         with:
           destination: ./binaries
           project: gnosisvpn-production
