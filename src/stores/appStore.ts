@@ -115,10 +115,9 @@ export function createAppStore(): AppStoreTuple {
 
       // Transient errors (e.g. empty socket response, response interleaving) - keep current state, retry normally
       const isTransient = message.includes("serializing") ||
-        message.includes("EOF") ||
-        message.includes("interleaving");
-      if (isTransient && state.runMode) {
-        return DEFAULT_TIMEOUT;
+        message.includes("EOF") || message.includes("interleaving");
+      if (isTransient) {
+        return state.runMode ? DEFAULT_TIMEOUT : OFFLINE_TIMEOUT;
       }
 
       log(message);
