@@ -1,6 +1,6 @@
 {
   "name": "gnosis-vpn-ui-app",
-  "version": "0.9.1",
+  "version": "0.9.2",
   "description": "UI component for Gnosis VPN",
   "type": "module",
   "scripts": {
