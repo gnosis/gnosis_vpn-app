@@ -502,17 +502,10 @@ async fn status(
             );
             Err(e.to_string())
         }
+        // Balance response arrived here due to socket interleaving - not an error, just retry
+        Ok(command::Response::Balance(_)) => Err("response interleaving".to_string()),
         Ok(unexpected) => {
-            if let Ok(guard) = status_item.0.lock() {
-                let _ = guard.set_text("Status: Not available");
-            }
-            update_tray_icon(
-                &app,
-                tray_icon_state.inner(),
-                "Disconnected",
-                system_theme(),
-            );
-            eprintln!("Unexpected response: {:?}", unexpected);
+            eprintln!("Unexpected status response: {:?}", unexpected);
             Err("Unexpected response type".to_string())
         }
     }
@@ -553,7 +546,12 @@ async fn balance() -> Result<Option<BalanceResponse>, String> {
         .map_err(|e| e.to_string())?;
     match resp {
         command::Response::Balance(resp) => Ok(resp.map(|b| b.into())),
-        _ => Err("Unexpected response type".to_string()),
+        // Status response arrived here due to socket interleaving - not an error, just retry
+        command::Response::Status(_) => Err("response interleaving".to_string()),
+        unexpected => {
+            eprintln!("Unexpected balance response: {:?}", unexpected);
+            Err("Unexpected response type".to_string())
+        }
     }
 }
 

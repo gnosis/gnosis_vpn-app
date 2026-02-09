@@ -115,13 +115,23 @@ export function createAppStore(): AppStoreTuple {
       response = await VPNService.getStatus();
       console.log("response", response);
     } catch (error) {
-      log(error instanceof Error ? error.message : String(error));
+      const message = error instanceof Error ? error.message : String(error);
       console.error("error", error);
+
+      // Transient errors (e.g. empty socket response, response interleaving) - keep current state, retry normally
+      const isTransient = message.includes("serializing") ||
+        message.includes("EOF") ||
+        message.includes("interleaving");
+      if (isTransient && state.runMode) {
+        return DEFAULT_TIMEOUT;
+      }
+
+      log(message);
       setState("isLoading", false);
       setState("runMode", null);
       setState("availableDestinations", []);
       setState("destinations", {});
-      setState("error", error instanceof Error ? error.message : String(error));
+      setState("error", message);
       setState("vpnStatus", "ServiceUnavailable");
       if (state.destination !== null) {
         setState("destination", null);
