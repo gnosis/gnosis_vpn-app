@@ -7,14 +7,14 @@ export default function Synchronization() {
   const [state] = useAppStore();
 
   return (
-    <div class="h-full w-full flex flex-col items-center p-6 pb-0">
+    <div class="h-full w-full flex flex-col items-center p-6 pb-0 select-none">
       <h1 class="w-full text-2xl font-bold text-center my-6">
         Initial Synchronization
       </h1>
       <img
         src={syncIcon}
         alt="Synchronization"
-        class={`w-1/3 mb-8 ${
+        class={`w-1/3 mb-8 dark:invert ${
           state.vpnStatus === "ServiceUnavailable"
             ? "animate-pulse"
             : "animate-spin-tick"

@@ -56,9 +56,9 @@ export default function FundingAddress(
     <>
       <div class="flex flex-row justify-between items-center">
         <div class="text-sm">
-          <div class="font-bold">Funding Address</div>
+          <div class="font-bold">Funding address</div>
           <button
-            class="font-mono text-xs"
+            class="font-mono text-lg"
             onClick={() => copy()}
             title="Copy address"
             type="button"
@@ -70,7 +70,7 @@ export default function FundingAddress(
         <div class="flex gap-1 items-center h-[20px]">
           <button
             onClick={openExplorer}
-            class="inline-flex items-center gap-1 p-1 hover:cursor-pointer"
+            class="inline-flex items-center gap-1 p-1 hover:cursor-pointer dark:invert"
             title="Open on Gnosisscan"
             type="button"
           >
@@ -83,7 +83,7 @@ export default function FundingAddress(
           </button>
 
           <button
-            class="inline-flex items-center gap-1 p-1 hover:cursor-pointer"
+            class="inline-flex items-center gap-1 p-1 hover:cursor-pointer dark:invert"
             onClick={() => copy()}
             title={copied() ? "Copied" : "Copy address"}
             type="button"
@@ -97,7 +97,7 @@ export default function FundingAddress(
           </button>
 
           <button
-            class="inline-flex items-center gap-1 p-1 hover:cursor-pointer"
+            class="inline-flex items-center gap-1 p-1 hover:cursor-pointer dark:invert"
             onClick={openQR}
             title="Show QR"
             type="button"
@@ -110,7 +110,7 @@ export default function FundingAddress(
         open={showQR()}
         onClose={() => setShowQR(false)}
         value={address}
-        title={`${props.title ?? "Funding Address"} ${shortAddress(address)}`}
+        title={`${props.title ?? "Funding address"}`}
         size={256}
       />
     </>

@@ -101,7 +101,7 @@ export default function Usage() {
 
   return (
     <>
-      <div class="px-4 py-2 flex flex-col w-full h-full items-center gap-4 justify-between">
+      <div class="px-4 py-2 flex flex-col w-full h-full items-center gap-4 justify-between select-none">
         <div class="w-full h-5">
           <Show when={!isBalanceLoading() && balance() === null}>
             <div class="text-sm text-center text-red-500">Not available</div>
@@ -163,7 +163,7 @@ export default function Usage() {
                 <img
                   src={refreshIcon}
                   alt="Refresh"
-                  class="h-8 w-8 icon-invert-in-dark"
+                  class="h-8 w-8 dark:invert"
                 />
               </button>
             </div>

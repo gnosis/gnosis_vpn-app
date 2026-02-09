@@ -36,7 +36,7 @@ export function MainScreen() {
   });
 
   return (
-    <div class="flex w-full flex-col h-full py-6 px-4">
+    <div class="flex w-full flex-col h-full py-6 px-4 select-none">
       <div class="flex flex-row justify-between z-60">
         <StatusIndicator />
         <Navigation />
