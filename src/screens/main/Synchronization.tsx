@@ -24,7 +24,7 @@ export default function Synchronization() {
         {extractWarmup(state.runMode)}
       </div>
       <div class="grow"></div>
-      <StatusIndicator size="sm" />
+      <StatusIndicator size="sm" whenOfflineOnly />
     </div>
   );
 }
