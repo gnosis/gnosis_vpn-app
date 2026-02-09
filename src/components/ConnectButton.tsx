@@ -1,4 +1,4 @@
-import { createMemo, Show } from "solid-js";
+import { createMemo } from "solid-js";
 import Button from "./common/Button.tsx";
 import { useAppStore } from "../stores/appStore.ts";
 import { useSettingsStore } from "../stores/settingsStore.ts";
@@ -51,23 +51,7 @@ export default function ConnectButton() {
   };
 
   return (
-    <div class="relative z-20 w-full">
-      <Show when={appState.vpnStatus === "Connected" && appState.destination}>
-        {(_dest) => {
-          const dest = _dest();
-          const meta = dest.meta ?? {};
-          const loc = [meta.city, meta.state, meta.location]
-            .map((v) => (v ?? "").trim())
-            .filter((v) => v.length > 0)
-            .join(", ");
-          return (
-            <div class="mb-2 text-center text-xs text-text-secondary">
-              Connected to {dest.id}
-              {loc ? ` (${loc})` : ""}
-            </div>
-          );
-        }}
-      </Show>
+    <div class="relative z-20 w-full bg-bg-primary rounded-2xl">
       <Button
         size="lg"
         onClick={() => void handleClick()}
