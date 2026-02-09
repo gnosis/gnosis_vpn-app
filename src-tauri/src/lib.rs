@@ -2,29 +2,37 @@
 #[macro_use]
 extern crate objc;
 
+use gnosis_vpn_lib::command::{self, HoprInitStatus, HoprStatus};
 use gnosis_vpn_lib::socket::root as root_socket;
-use gnosis_vpn_lib::{balance, command, connection, info};
+use gnosis_vpn_lib::{
+    balance, connection, connectivity_health, destination_health, gvpn_client, info,
+};
+
+use serde::Serialize;
 use tauri::State;
 use tauri::{
     AppHandle, Emitter, Manager,
     menu::{Menu, MenuBuilder, MenuItem},
     tray::{TrayIconBuilder, TrayIconEvent},
 };
+use tauri_plugin_positioner::{Position, WindowExt};
+use tauri_plugin_store::StoreExt;
 use zstd::stream::Encoder;
-mod icons;
-mod platform;
-mod theme;
-use platform::{Platform, PlatformInterface};
-use serde::Serialize;
+
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, BufReader};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::{Duration, SystemTime};
+use std::time::Duration;
+use std::time::SystemTime;
 use std::{path::PathBuf, sync::Mutex};
-use tauri_plugin_positioner::{Position, WindowExt};
-use tauri_plugin_store::StoreExt;
+
+mod icons;
+mod platform;
+mod theme;
+
+use platform::{Platform, PlatformInterface};
 #[cfg(target_os = "linux")]
 use theme::spawn_linux_theme_monitor;
 #[cfg_attr(target_os = "macos", allow(unused_imports))]
@@ -49,27 +57,27 @@ struct AppSettings {
 
 // Sanitized library responses
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub struct StatusResponse {
     pub run_mode: RunMode,
     pub destinations: Vec<DestinationState>,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub enum ConnectResponse {
     Connecting(Destination),
-    WaitingToConnect(Destination, Option<DestinationHealth>),
-    UnableToConnect(Destination, DestinationHealth),
-    AddressNotFound,
+    WaitingToConnect(Destination, ConnectivityHealth),
+    UnableToConnect(Destination, ConnectivityHealth),
+    DestinationNotFound,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub enum DisconnectResponse {
     Disconnecting(Destination),
     NotConnected,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub struct BalanceResponse {
     pub node: String,
     pub safe: String,
@@ -80,7 +88,7 @@ pub struct BalanceResponse {
 
 // Sanitized library structs
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub enum RunMode {
     /// Initial start, after creating safe this state will not be reached again
     PreparingSafe {
@@ -90,51 +98,71 @@ pub enum RunMode {
         funding_tool: balance::FundingTool,
     },
     /// Subsequent service start up in this state and after preparing safe
-    Warmup,
+    Warmup { status: WarmupStatus },
     /// Normal operation where connections can be made
     Running { funding: command::FundingState },
     /// Shutdown service
     Shutdown,
 }
 
-#[derive(Serialize)]
-pub struct DestinationState {
-    pub destination: Destination,
-    pub connection_state: ConnectionState,
-    pub health: Option<DestinationHealth>,
+#[derive(Debug, Serialize)]
+pub enum WarmupStatus {
+    // hopr construction not yet started
+    Initializing,
+    // Hopr init states
+    ValidatingConfig,
+    IdentifyingNode,
+    InitializingDatabase,
+    ConnectingBlockchain,
+    CreatingNode,
+    StartingNode,
+    Ready,
+    // Hopr running states
+    Uninitialized,
+    WaitingForFunds,
+    CheckingBalance,
+    ValidatingNetworkConfig,
+    SubscribingToAnnouncements,
+    RegisteringSafe,
+    AnnouncingNode,
+    AwaitingKeyBinding,
+    InitializingServices,
+    Running,
+    Terminated,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
+pub struct DestinationState {
+    pub destination: Destination,
+    pub connection_state: command::ConnectionState,
+    pub connectivity: ConnectivityHealth,
+    pub exit_health: destination_health::DestinationHealth,
+}
+
+#[derive(Debug, Serialize)]
 pub enum RoutingOptions {
     Hops(usize),
     IntermediatePath(Vec<String>),
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub struct Destination {
+    pub id: String,
     pub meta: HashMap<String, String>,
     pub address: String,
     pub routing: RoutingOptions,
 }
 
-#[derive(Serialize)]
-pub enum ConnectionState {
-    None,
-    Connecting(SystemTime, String),
-    Connected(SystemTime),
-    Disconnecting(SystemTime, String),
-}
-
-#[derive(Serialize)]
-pub struct DestinationHealth {
+#[derive(Debug, Serialize)]
+pub struct ConnectivityHealth {
     pub last_error: Option<String>,
-    pub health: connection::destination_health::Health,
-    need: Need,
+    pub health: connectivity_health::Health,
+    pub need: Need,
 }
 
 /// Requirements to be able to connect to this destination
 /// This is statically derived at construction time from a destination's routing options.
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub enum Need {
     Channel(String),
     AnyChannel,
@@ -142,11 +170,30 @@ pub enum Need {
     Nothing,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub struct Info {
     pub node_address: String,
     pub node_peer_id: String,
     pub safe_address: String,
+}
+
+#[derive(Debug, Serialize)]
+pub enum DestinationHealth {
+    Init,
+    Running {
+        since: SystemTime,
+    },
+    Failure {
+        checked_at: SystemTime,
+        error: String,
+        previous_failures: u32,
+    },
+    Success {
+        checked_at: SystemTime,
+        health: gvpn_client::Health,
+        total_time: f32,
+        round_trip_time: f32,
+    },
 }
 
 // Conversions from library types to sanitized types
@@ -167,6 +214,7 @@ impl From<connection::destination::RoutingOptions> for RoutingOptions {
 impl From<connection::destination::Destination> for Destination {
     fn from(d: connection::destination::Destination) -> Self {
         Destination {
+            id: d.id.clone(),
             meta: d.meta.clone(),
             address: d.address.to_string(),
             routing: d.routing.into(),
@@ -174,16 +222,49 @@ impl From<connection::destination::Destination> for Destination {
     }
 }
 
-impl From<connection::destination_health::DestinationHealth> for DestinationHealth {
-    fn from(d: connection::destination_health::DestinationHealth) -> Self {
-        DestinationHealth {
-            last_error: d.last_error.clone(),
-            health: d.health.clone(),
-            need: match d.need {
-                connection::destination_health::Need::Channel(c) => Need::Channel(c.to_string()),
-                connection::destination_health::Need::AnyChannel => Need::AnyChannel,
-                connection::destination_health::Need::Peering(p) => Need::Peering(p.to_string()),
-                connection::destination_health::Need::Nothing => Need::Nothing,
+impl From<connectivity_health::ConnectivityHealth> for ConnectivityHealth {
+    fn from(h: connectivity_health::ConnectivityHealth) -> Self {
+        ConnectivityHealth {
+            last_error: h.last_error.clone(),
+            health: h.health.clone(),
+            need: match h.need {
+                connectivity_health::Need::Channel(c) => Need::Channel(c.to_string()),
+                connectivity_health::Need::AnyChannel => Need::AnyChannel,
+                connectivity_health::Need::Peering(p) => Need::Peering(p.to_string()),
+                connectivity_health::Need::Nothing => Need::Nothing,
+                // TODO refactor out
+                connectivity_health::Need::DestinationMissing => Need::Nothing,
+            },
+        }
+    }
+}
+
+impl From<destination_health::DestinationHealth> for DestinationHealth {
+    fn from(h: destination_health::DestinationHealth) -> Self {
+        match h {
+            destination_health::DestinationHealth::Init => DestinationHealth::Init,
+            destination_health::DestinationHealth::Running { since } => {
+                DestinationHealth::Running { since }
+            }
+            destination_health::DestinationHealth::Failure {
+                checked_at,
+                error,
+                previous_failures,
+            } => DestinationHealth::Failure {
+                checked_at,
+                error,
+                previous_failures,
+            },
+            destination_health::DestinationHealth::Success {
+                checked_at,
+                health,
+                total_time,
+                round_trip_time,
+            } => DestinationHealth::Success {
+                checked_at,
+                health,
+                total_time: total_time.as_secs_f32(),
+                round_trip_time: round_trip_time.as_secs_f32(),
             },
         }
     }
@@ -193,23 +274,9 @@ impl From<command::DestinationState> for DestinationState {
     fn from(ds: command::DestinationState) -> Self {
         DestinationState {
             destination: ds.destination.into(),
-            connection_state: ds.connection_state.into(),
-            health: ds.health.map(|h| h.into()),
-        }
-    }
-}
-
-impl From<command::ConnectionState> for ConnectionState {
-    fn from(cs: command::ConnectionState) -> Self {
-        match cs {
-            command::ConnectionState::None => ConnectionState::None,
-            command::ConnectionState::Connecting(since, phase) => {
-                ConnectionState::Connecting(since, phase.to_string())
-            }
-            command::ConnectionState::Connected(since) => ConnectionState::Connected(since),
-            command::ConnectionState::Disconnecting(since, phase) => {
-                ConnectionState::Disconnecting(since, phase.to_string())
-            }
+            connection_state: ds.connection_state,
+            connectivity: ds.connectivity.into(),
+            exit_health: ds.exit_health,
         }
     }
 }
@@ -217,7 +284,9 @@ impl From<command::ConnectionState> for ConnectionState {
 impl From<command::RunMode> for RunMode {
     fn from(rm: command::RunMode) -> Self {
         match rm {
-            command::RunMode::Init => RunMode::Warmup,
+            command::RunMode::Init => RunMode::Warmup {
+                status: WarmupStatus::Initializing,
+            },
             command::RunMode::PreparingSafe {
                 node_address,
                 node_xdai,
@@ -229,7 +298,74 @@ impl From<command::RunMode> for RunMode {
                 node_wxhopr: node_wxhopr.amount().to_string(),
                 funding_tool,
             },
-            command::RunMode::Warmup { hopr_status: _ } => RunMode::Warmup,
+
+            command::RunMode::Warmup {
+                hopr_init_status,
+                hopr_status,
+            } => match (hopr_init_status, hopr_status) {
+                (None, None) => RunMode::Warmup {
+                    status: WarmupStatus::Initializing,
+                },
+                (_, Some(hopr_status)) => match hopr_status {
+                    HoprStatus::Uninitialized => RunMode::Warmup {
+                        status: WarmupStatus::Uninitialized,
+                    },
+                    HoprStatus::WaitingForFunds => RunMode::Warmup {
+                        status: WarmupStatus::WaitingForFunds,
+                    },
+                    HoprStatus::CheckingBalance => RunMode::Warmup {
+                        status: WarmupStatus::CheckingBalance,
+                    },
+                    HoprStatus::ValidatingNetworkConfig => RunMode::Warmup {
+                        status: WarmupStatus::ValidatingNetworkConfig,
+                    },
+                    HoprStatus::SubscribingToAnnouncements => RunMode::Warmup {
+                        status: WarmupStatus::SubscribingToAnnouncements,
+                    },
+                    HoprStatus::RegisteringSafe => RunMode::Warmup {
+                        status: WarmupStatus::RegisteringSafe,
+                    },
+                    HoprStatus::AnnouncingNode => RunMode::Warmup {
+                        status: WarmupStatus::AnnouncingNode,
+                    },
+                    HoprStatus::AwaitingKeyBinding => RunMode::Warmup {
+                        status: WarmupStatus::AwaitingKeyBinding,
+                    },
+                    HoprStatus::InitializingServices => RunMode::Warmup {
+                        status: WarmupStatus::InitializingServices,
+                    },
+                    HoprStatus::Running => RunMode::Warmup {
+                        status: WarmupStatus::Running,
+                    },
+                    HoprStatus::Terminated => RunMode::Warmup {
+                        status: WarmupStatus::Terminated,
+                    },
+                },
+                (Some(hopr_init_status), _) => match hopr_init_status {
+                    HoprInitStatus::ValidatingConfig => RunMode::Warmup {
+                        status: WarmupStatus::ValidatingConfig,
+                    },
+                    HoprInitStatus::IdentifyingNode => RunMode::Warmup {
+                        status: WarmupStatus::IdentifyingNode,
+                    },
+                    HoprInitStatus::InitializingDatabase => RunMode::Warmup {
+                        status: WarmupStatus::InitializingDatabase,
+                    },
+                    HoprInitStatus::ConnectingBlockchain => RunMode::Warmup {
+                        status: WarmupStatus::ConnectingBlockchain,
+                    },
+                    HoprInitStatus::CreatingNode => RunMode::Warmup {
+                        status: WarmupStatus::CreatingNode,
+                    },
+                    HoprInitStatus::StartingNode => RunMode::Warmup {
+                        status: WarmupStatus::StartingNode,
+                    },
+                    HoprInitStatus::Ready => RunMode::Warmup {
+                        status: WarmupStatus::Ready,
+                    },
+                },
+            },
+
             command::RunMode::Running {
                 funding,
                 hopr_status: _,
@@ -252,13 +388,13 @@ impl From<command::ConnectResponse> for ConnectResponse {
     fn from(cr: command::ConnectResponse) -> Self {
         match cr {
             command::ConnectResponse::Connecting(dest) => ConnectResponse::Connecting(dest.into()),
-            command::ConnectResponse::WaitingToConnect(dest, health) => {
-                ConnectResponse::WaitingToConnect(dest.into(), health.map(|h| h.into()))
+            command::ConnectResponse::WaitingToConnect(dest, connectivity) => {
+                ConnectResponse::WaitingToConnect(dest.into(), connectivity.into())
             }
-            command::ConnectResponse::UnableToConnect(dest, health) => {
-                ConnectResponse::UnableToConnect(dest.into(), health.into())
+            command::ConnectResponse::UnableToConnect(dest, connectivity) => {
+                ConnectResponse::UnableToConnect(dest.into(), connectivity.into())
             }
-            command::ConnectResponse::AddressNotFound => ConnectResponse::AddressNotFound,
+            command::ConnectResponse::DestinationNotFound => ConnectResponse::DestinationNotFound,
         }
     }
 }
@@ -354,7 +490,7 @@ async fn status(
 
             Ok(status_resp.into())
         }
-        Ok(_) => {
+        resp => {
             if let Ok(guard) = status_item.0.lock() {
                 let _ = guard.set_text("Status: Not available");
             }
@@ -364,30 +500,16 @@ async fn status(
                 "Disconnected",
                 system_theme(),
             );
+            eprintln!("Unexpected response: {:?}", resp);
             Err("Unexpected response type".to_string())
-        }
-        Err(e) => {
-            if let Ok(guard) = status_item.0.lock() {
-                let _ = guard.set_text("Status: Not available");
-            }
-            update_tray_icon(
-                &app,
-                tray_icon_state.inner(),
-                "Disconnected",
-                system_theme(),
-            );
-            Err(e.to_string())
         }
     }
 }
 
 #[tauri::command]
-async fn connect(address: String) -> Result<ConnectResponse, String> {
+async fn connect(id: String) -> Result<ConnectResponse, String> {
     let p = PathBuf::from(root_socket::DEFAULT_PATH);
-    let conv_address = address
-        .parse::<connection::destination::Address>()
-        .map_err(|e| e.to_string())?;
-    let cmd = command::Command::Connect(conv_address);
+    let cmd = command::Command::Connect(id);
     let resp = root_socket::process_cmd(&p, &cmd)
         .await
         .map_err(|e| e.to_string())?;
@@ -784,8 +906,8 @@ pub fn run() {
                 #[cfg(target_os = "macos")]
                 let app_handle = app.handle().clone();
                 let window_clone = window.clone();
-                window.on_window_event(move |event| match event {
-                    tauri::WindowEvent::CloseRequested { api, .. } => {
+                window.on_window_event(move |event| {
+                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                         api.prevent_close();
                         let _ = window_clone.hide();
                         #[cfg(target_os = "macos")]
@@ -794,7 +916,6 @@ pub fn run() {
                                 .set_activation_policy(tauri::ActivationPolicy::Accessory);
                         }
                     }
-                    _ => {}
                 });
             }
 

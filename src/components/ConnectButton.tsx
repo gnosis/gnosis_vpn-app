@@ -2,7 +2,7 @@ import { createMemo, Show } from "solid-js";
 import Button from "./common/Button.tsx";
 import { useAppStore } from "../stores/appStore.ts";
 import { useSettingsStore } from "../stores/settingsStore.ts";
-import { selectTargetAddress } from "../utils/destinations.ts";
+import { selectTargetId } from "../utils/destinations.ts";
 import NodeStatus from "./NodeStatus.tsx";
 import { isReadyToConnect } from "../services/vpnService.ts";
 
@@ -15,26 +15,26 @@ export default function ConnectButton() {
   );
   const label = createMemo(() => (isActive() ? "Stop" : "Connect"));
 
-  const targetAddress = createMemo(() => {
-    if (appState.selectedAddress) return appState.selectedAddress;
-    if (appState.destination?.address) return appState.destination.address;
-    const { address } = selectTargetAddress(
+  const targetId = createMemo(() => {
+    if (appState.selectedId) return appState.selectedId;
+    if (appState.destination?.id) return appState.destination.id;
+    const { id } = selectTargetId(
       undefined,
       settings.preferredLocation,
       appState.availableDestinations,
     );
-    if (address) return address;
-    return appState.destinations[0]?.destination.address;
+    if (id) return id;
+    return appState.destinations[0]?.destination.id;
   });
 
   const targetDestinationState = createMemo(() =>
-    appState.destinations.find((ds) =>
-      ds.destination.address === (targetAddress() ?? "")
+    Object.values(appState.destinations).find((ds) =>
+      ds.destination.id === (targetId() ?? "")
     )
   );
 
   const targetHealth = createMemo(() =>
-    targetDestinationState()?.health?.health
+    targetDestinationState()?.connectivity?.health
   );
   const isTargetReady = createMemo(() => isReadyToConnect(targetHealth()));
 

@@ -1,4 +1,3 @@
-// import { toBytes20 } from "@src/utils/address";
 import { invoke } from "@tauri-apps/api/core";
 
 // Library responses
@@ -10,9 +9,9 @@ export type StatusResponse = {
 
 export type ConnectResponse =
   | { Connecting: Destination }
-  | { WaitingToConnect: [Destination, DestinationHealth | null] }
-  | { UnableToConnect: [Destination, DestinationHealth] }
-  | "AddressNotFound";
+  | { WaitingToConnect: [Destination, Connectivity] }
+  | { UnableToConnect: [Destination, Connectivity] }
+  | "DestinationNotFound";
 
 export type DisconnectResponse =
   | { Disconnecting: Destination }
@@ -33,10 +32,12 @@ export type RoutingOptions = { Hops: number } | { IntermediatePath: string[] };
 export type DestinationState = {
   destination: Destination;
   connection_state: ConnectionState;
-  health: DestinationHealth;
+  connectivity: Connectivity;
+  exit_health: DestinationHealth;
 };
 
 export type Destination = {
+  id: string;
   meta: Record<string, string>;
   address: string;
   routing: RoutingOptions;
@@ -44,12 +45,33 @@ export type Destination = {
 
 export type ConnectionState =
   | "None"
-  // Connecting tuple (since: timestamp, phase/status: string) - see gnosis_vpn-lib/src/core/conn.rs
-  | { Connecting: [number, string] }
+  // Connecting tuple (since: timestamp, phase/status: UpPhase) - see gnosis_vpn-lib/src/core/conn.rs
+  | { Connecting: [number, UpPhase] }
   // Connected since timestamp (SystemTime serializes as timestamp number)
   | { Connected: [number] }
-  // Disconecting tuple (since: timestamp, phase/status: string) - see gnosis_vpn-lib/src/core/disconn.rs
-  | { Disconnecting: [number, string] };
+  // Disconecting tuple (since: timestamp, phase/status: DownPhase) - see gnosis_vpn-lib/src/core/disconn.rs
+  | { Disconnecting: [number, DownPhase] };
+
+export type UpPhase =
+  | "Init"
+  | "GeneratingWg"
+  | "OpeningBridge"
+  | "RegisterWg"
+  | "ClosingBridge"
+  | "OpeningPing"
+  | "EstablishDynamicWgTunnel"
+  | "FallbackGatherPeerIps"
+  | "FallbackToStaticWgTunnel"
+  | "VerifyPing"
+  | "AdjustToMain"
+  | "ConnectionEstablished";
+
+export type DownPhase =
+  | "Disconnecting"
+  | "DisconnectingWg"
+  | "OpeningBridge"
+  | "UnregisterWg"
+  | "ClosingBridge";
 
 export type PreparingSafe = {
   node_address: string;
@@ -61,6 +83,34 @@ export type PreparingSafe = {
 export type Running = {
   funding: FundingState;
 };
+
+export type Warmup = {
+  status: WarmupStatus;
+};
+
+export type WarmupStatus =
+  // hopr construction not yet started
+  | "Initializing"
+  // Hopr init states
+  | "ValidatingConfig"
+  | "IdentifyingNode"
+  | "InitializingDatabase"
+  | "ConnectingBlockchain"
+  | "CreatingNode"
+  | "StartingNode"
+  | "Ready"
+  // Hopr running states
+  | "Uninitialized"
+  | "WaitingForFunds"
+  | "CheckingBalance"
+  | "ValidatingNetworkConfig"
+  | "SubscribingToAnnouncements"
+  | "RegisteringSafe"
+  | "AnnouncingNode"
+  | "AwaitingKeyBinding"
+  | "InitializingServices"
+  | "Running"
+  | "Terminated";
 
 export type FundingTool =
   | "NotStarted"
@@ -87,7 +137,7 @@ export type RunMode =
   /// Initial start, after creating safe this state will not be reached again
   | { PreparingSafe: PreparingSafe }
   /// Subsequent service start up in this state and after preparing safe
-  | "Warmup"
+  | { Warmup: Warmup }
   /// Normal operation where connections can be made
   | { Running: Running }
   /// Service shutting down
@@ -99,7 +149,7 @@ export type Info = {
   safe_address: string;
 };
 
-export type DestinationHealth = {
+export type Connectivity = {
   last_error: string | null;
   health: Health;
   need: Need;
@@ -113,8 +163,8 @@ export type Health =
   | "NotPeered"
   // final - not allowed to connect to this destination
   | "NotAllowed"
-  // final - destination address is invalid - should be impossible due to config deserialization
-  | "InvalidAddress"
+  // final - destination id is invalid - should be impossible due to config deserialization
+  | "InvalidId"
   // final - destination path is invalid - should be impossible due to config deserialization
   | "InvalidPath";
 
@@ -130,6 +180,68 @@ export type Need =
   | { Peering: string }
   | "Nothing";
 
+/// exit node health check - periodically updated
+export type DestinationHealth =
+  // waiting for check
+  | "Init"
+  // check underway
+  | { Running: DHRunning }
+  // check failed
+  | { Failure: DHFailure }
+  // received health metrics
+  | { Success: DHSuccess };
+
+export type DHRunning = {
+  // running since timestamp
+  since: number;
+};
+
+export type DHFailure = {
+  // failures check started at timestamp
+  checked_at: number;
+  // error message
+  error: string;
+  // count of previous failures
+  previous_failures: number;
+};
+
+export type DHSuccess = {
+  // success check started at timestamp
+  checked_at: number;
+  // reported by exit node
+  health: ExitHealth;
+  // total time to create session and query for health in seconds
+  total_time: number;
+  // health query after session was established in seconds
+  round_trip_time: number;
+};
+
+// Statistics reported by exit node
+export type ExitHealth = {
+  // client capacity statistics
+  slots: Slots;
+  // cpu statistics
+  load_avg: LoadAvg;
+};
+
+export type Slots = {
+  // free client slots
+  available: number;
+  // number of connected clients
+  connected: number;
+};
+
+export type LoadAvg = {
+  // processing queue usage last minute
+  one: number;
+  // processing queue usage last 5 minutes
+  five: number;
+  // processing queue usage last 15 minutes
+  fifteen: number;
+  // processor count
+  nproc: number;
+};
+
 export function formatHealth(health: Health): string {
   switch (health) {
     case "ReadyToConnect":
@@ -144,12 +256,57 @@ export function formatHealth(health: Health): string {
       return "Waiting on peer discovery";
     case "NotAllowed":
       return "Connection not allowed";
-    case "InvalidAddress":
+    case "InvalidId":
       return "Connection impossible";
     case "InvalidPath":
       return "Connection impossible";
     default:
       return String(health);
+  }
+}
+
+export function formatWarmupStatus(status: WarmupStatus): string {
+  switch (status) {
+    case "Initializing":
+      return "Initializing edge client";
+    // Hopr init states
+    case "ValidatingConfig":
+      return "Validating edge client configuration";
+    case "IdentifyingNode":
+      return "Identifying ourselves";
+    case "InitializingDatabase":
+      return "Initializing local storage";
+    case "ConnectingBlockchain":
+      return "Querying ledger";
+    case "CreatingNode":
+      return "Creating edge client runtime";
+    case "StartingNode":
+      return "Starting edge client runtime";
+    case "Ready":
+      return "Edge client runtime ready for action";
+    // Hopr running states
+    case "Uninitialized":
+      return "Orienting ourselves";
+    case "WaitingForFunds":
+      return "Waiting to get funded";
+    case "CheckingBalance":
+      return "Checking funding state";
+    case "ValidatingNetworkConfig":
+      return "Validating network configuration";
+    case "SubscribingToAnnouncements":
+      return "Subscribing to ledger updates";
+    case "RegisteringSafe":
+      return "Registering safe identity";
+    case "AnnouncingNode":
+      return "Announcing ourselves";
+    case "AwaitingKeyBinding":
+      return "Waiting for ledger verification";
+    case "InitializingServices":
+      return "Initializing service layers";
+    case "Running":
+      return "Running";
+    case "Terminated":
+      return "Terminated";
   }
 }
 
@@ -206,9 +363,9 @@ export class VPNService {
     }
   }
 
-  static async connect(address: string): Promise<ConnectResponse> {
+  static async connect(id: string): Promise<ConnectResponse> {
     try {
-      return (await invoke("connect", { address })) as ConnectResponse;
+      return (await invoke("connect", { id })) as ConnectResponse;
     } catch (error) {
       console.error("Failed to connect to VPN:", error);
       throw new Error(`Connect Error: ${error}`);
@@ -286,10 +443,10 @@ export class VPNService {
   ): string | null {
     if (destinations.length === 0) return null;
 
-    // Sort by address for consistent selection
+    // Sort by id for consistent selection
     const sorted = [...destinations].sort((a, b) =>
-      a.destination.address.localeCompare(b.destination.address)
+      a.destination.id.localeCompare(b.destination.id)
     );
-    return sorted[0].destination.address;
+    return sorted[0].destination.id;
   }
 }

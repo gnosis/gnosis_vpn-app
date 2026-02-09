@@ -15,28 +15,20 @@ export const canonicalizePath = (routing: RoutingOptions): string => {
   return `IntermediatePath:${(routing.IntermediatePath || []).join(",")}`;
 };
 
-export const destinationSignature = (dest: Destination): string => {
-  return [
-    dest.address,
-    canonicalizeMeta(dest.meta),
-    canonicalizePath(dest.routing),
-  ].join("|");
-};
-
 export const areDestinationsEqualUnordered = (
   a: Destination[],
   b: Destination[],
 ): boolean => {
   if (a.length !== b.length) return false;
   if (a.length === 0) return true;
-  const setA = new Set(a.map(destinationSignature));
+  const setA = new Set(a.map((d) => d.id));
   if (setA.size !== a.length) {
     const countsA = new Map<string, number>();
-    for (const sig of a.map(destinationSignature)) {
+    for (const sig of a.map((d) => d.id)) {
       countsA.set(sig, (countsA.get(sig) || 0) + 1);
     }
     const countsB = new Map<string, number>();
-    for (const sig of b.map(destinationSignature)) {
+    for (const sig of b.map((d) => d.id)) {
       countsB.set(sig, (countsB.get(sig) || 0) + 1);
     }
     if (countsA.size !== countsB.size) return false;
@@ -45,7 +37,7 @@ export const areDestinationsEqualUnordered = (
     }
     return true;
   }
-  const setB = new Set(b.map(destinationSignature));
+  const setB = new Set(b.map((d) => d.id));
   if (setB.size !== b.length) return false;
   for (const sig of setA) {
     if (!setB.has(sig)) return false;
@@ -56,55 +48,56 @@ export const areDestinationsEqualUnordered = (
 export function getPreferredAvailabilityChangeMessage(
   previous: Destination[],
   next: Destination[],
-  preferredAddress: string | null,
+  preferredId: string | null,
 ): string | null {
   if (previous.length === 0) return null;
-  if (!preferredAddress) return null;
-  const previouslyHadPreferred = previous.some((d) =>
-    d.address === preferredAddress
-  );
-  const nowHasPreferred = next.some((d) => d.address === preferredAddress);
+  if (!preferredId) return null;
+  const previouslyHadPreferred = previous.some((d) => d.id === preferredId);
+  const nowHasPreferred = next.some((d) => d.id === preferredId);
   if (previouslyHadPreferred === nowHasPreferred) return null;
   return nowHasPreferred
-    ? `Preferred location ${preferredAddress} is available again.`
-    : `Preferred location ${preferredAddress} currently unavailable.`;
+    ? `Preferred location ${preferredId} is available again.`
+    : `Preferred location ${preferredId} currently unavailable.`;
 }
 
-export function selectTargetAddress(
-  addressArg: string | undefined,
-  preferredAddress: string | null,
+export function selectTargetId(
+  id: string | undefined,
+  preferredId: string | null,
   available: Destination[],
-): { address: string | undefined; reason: string } {
-  if (addressArg) return { address: addressArg, reason: "address parameter" };
-  if (preferredAddress) {
-    const hasPreferred = available.some((d) => d.address === preferredAddress);
+): { id: string | undefined; reason: string } {
+  if (id) return { id, reason: "id parameter set" };
+  if (preferredId) {
+    const hasPreferred = available.some((d) => d.id === preferredId);
     if (hasPreferred) {
-      return { address: preferredAddress, reason: "preferred location" };
+      return { id: preferredId, reason: "preferred location" };
     }
     return {
-      address: available[0]?.address,
+      id: available[0]?.id,
       reason: "fallback: preferred not present",
     };
   }
   return {
-    address: available[0]?.address,
+    id: available[0]?.id,
     reason: "fallback: no preferred set",
   };
 }
 
 export function formatDestination(destination: Destination): string {
   const meta = destination.meta || {};
-  const parts = [meta.city, meta.state, meta.location].map((v) =>
-    (v ?? "").trim()
-  ).filter((v) => v.length > 0);
-  return parts.join(" ");
+  const parts = [meta.city, meta.state, meta.location]
+    .map((v) => (v ?? "").trim())
+    .filter((v) => v.length > 0);
+  const id = destination.id;
+  if (parts.length > 0) {
+    return `${id} ${parts.join(" ")}`;
+  }
+  return id;
 }
 
-export function formatDestinationByAddress(
-  address: string | null | undefined,
+export function formatDestinationById(
+  id: string,
   available: Destination[],
 ): string {
-  if (!address) return "Not set";
-  const dest = available.find((d) => d.address === address);
-  return dest ? formatDestination(dest) : `${address} (unavailable)`;
+  const dest = available.find((d) => d.id === id);
+  return dest ? formatDestination(dest) : `${id} (unavailable)`;
 }

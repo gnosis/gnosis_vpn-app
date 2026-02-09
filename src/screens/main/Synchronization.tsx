@@ -1,13 +1,10 @@
 import syncIcon from "@assets/icons/sync.svg";
 import { useAppStore } from "@src/stores/appStore.ts";
 import StatusIndicator from "../../components/StatusIndicator.tsx";
-import { useLogsStore } from "../../stores/logsStore.ts";
+import { formatWarmupStatus, RunMode } from "../../services/vpnService.ts";
 
 export default function Synchronization() {
   const [state] = useAppStore();
-
-  const [logsState] = useLogsStore();
-  console.log("logsState", logsState.logs);
 
   return (
     <div class="h-full w-full flex flex-col items-center p-6 pb-0">
@@ -24,10 +21,18 @@ export default function Synchronization() {
         }`}
       />
       <div class="text-sm text-text-secondary">
-        This can take up to 10 minutes
+        {extractWarmup(state.runMode)}
       </div>
       <div class="grow"></div>
       <StatusIndicator size="sm" />
     </div>
   );
+}
+
+function extractWarmup(runMode: RunMode | null): string {
+  console.log("runMode", runMode);
+  if (runMode && typeof runMode === "object" && "Warmup" in runMode) {
+    return formatWarmupStatus(runMode.Warmup.status);
+  }
+  return "Waiting for service";
 }

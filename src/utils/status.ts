@@ -1,49 +1,41 @@
 import {
   type Destination,
   type DestinationState,
-  PreparingSafe,
+  isPreparingSafeRunMode,
   RunMode,
 } from "@src/services/vpnService.ts";
 import type { AppState } from "@src/stores/appStore.ts";
 
 function getDestinationsWithConnection(state: AppState): DestinationState[] {
-  return state.destinations || [];
+  return Object.values(state.destinations) || [];
 }
 
-export function isConnected(state: AppState): boolean {
-  const destinations = getDestinationsWithConnection(state);
-  return destinations.some((ds) =>
-    typeof ds.connection_state === "object" &&
-    "Connected" in ds.connection_state
+export function isConnected(destinations: DestinationState[]): boolean {
+  return destinations.some(
+    (ds) =>
+      typeof ds.connection_state === "object" &&
+      "Connected" in ds.connection_state,
   );
 }
 
-export function isConnecting(state: AppState): boolean {
-  const destinations = getDestinationsWithConnection(state);
-  return destinations.some((ds) =>
-    typeof ds.connection_state === "object" &&
-    "Connecting" in ds.connection_state
+export function isConnecting(destinations: DestinationState[]): boolean {
+  return destinations.some(
+    (ds) =>
+      typeof ds.connection_state === "object" &&
+      "Connecting" in ds.connection_state,
   );
 }
 
-export function isDisconnecting(state: AppState): boolean {
-  const destinations = getDestinationsWithConnection(state);
-  return destinations.some((ds) =>
-    typeof ds.connection_state === "object" &&
-    "Disconnecting" in ds.connection_state
+export function isDisconnecting(destinations: DestinationState[]): boolean {
+  return destinations.some(
+    (ds) =>
+      typeof ds.connection_state === "object" &&
+      "Disconnecting" in ds.connection_state,
   );
 }
 
-export function isDisconnected(state: AppState): boolean {
-  const runMode: RunMode | null | undefined = state?.runMode;
-  if (!runMode) return true;
-
-  if (typeof runMode === "object" && "Running" in runMode) {
-    const destinations = getDestinationsWithConnection(state);
-    return destinations.every((ds) => ds.connection_state === "None");
-  }
-
-  return false;
+export function isDisconnected(destinations: DestinationState[]): boolean {
+  return destinations.every((ds) => ds.connection_state === "None");
 }
 
 export function isServiceUnavailable(state: AppState): boolean {
@@ -55,12 +47,14 @@ export function isConnectedTo(
   destination: Destination,
 ): boolean {
   const destinations = getDestinationsWithConnection(state);
-  const destState = destinations.find((ds) =>
-    ds.destination.address === destination.address
+  const destState = destinations.find(
+    (ds) => ds.destination.id === destination.id,
   );
   if (destState) {
-    return typeof destState.connection_state === "object" &&
-      "Connected" in destState.connection_state;
+    return (
+      typeof destState.connection_state === "object" &&
+      "Connected" in destState.connection_state
+    );
   }
   return false;
 }
@@ -70,12 +64,14 @@ export function isConnectingTo(
   destination: Destination,
 ): boolean {
   const destinations = getDestinationsWithConnection(state);
-  const destState = destinations.find((ds) =>
-    ds.destination.address === destination.address
+  const destState = destinations.find(
+    (ds) => ds.destination.id === destination.id,
   );
   if (destState) {
-    return typeof destState.connection_state === "object" &&
-      "Connecting" in destState.connection_state;
+    return (
+      typeof destState.connection_state === "object" &&
+      "Connecting" in destState.connection_state
+    );
   }
   return false;
 }
@@ -85,63 +81,57 @@ export function isDisconnectingFrom(
   destination: Destination,
 ): boolean {
   const destinations = getDestinationsWithConnection(state);
-  const destState = destinations.find((ds) =>
-    ds.destination.address === destination.address
+  const destState = destinations.find(
+    (ds) => ds.destination.id === destination.id,
   );
   if (destState) {
-    return typeof destState.connection_state === "object" &&
-      "Disconnecting" in destState.connection_state;
+    return (
+      typeof destState.connection_state === "object" &&
+      "Disconnecting" in destState.connection_state
+    );
   }
   return false;
 }
 
-export function isPreparingSafe(
-  state: AppState,
-): state is AppState & { runMode: { PreparingSafe: PreparingSafe } } {
-  const runMode: RunMode | null | undefined = state?.runMode;
-  return !!runMode && typeof runMode === "object" && "PreparingSafe" in runMode;
-}
-
-export function isWarmup(
-  state: AppState,
-): state is AppState & { runMode: "Warmup" } {
-  const runMode: RunMode | null | undefined = state?.runMode;
-  return runMode === "Warmup";
-}
-
-export function getVpnStatus(state: AppState): AppState["vpnStatus"] {
-  if (!state || !state.runMode) return "ServiceUnavailable";
-
-  if (isPreparingSafe(state)) return "PreparingSafe";
-  if (isWarmup(state)) return "Warmup";
-  if (state.runMode === "Shutdown") return "ServiceUnavailable";
-
-  if (typeof state.runMode === "object" && "Running" in state.runMode) {
-    if (isConnected(state)) return "Connected";
-    if (isConnecting(state)) return "Connecting";
-    if (isDisconnecting(state)) return "Disconnecting";
-    if (isDisconnected(state)) return "Disconnected";
+export function getVpnStatus(
+  runMode: RunMode,
+  destinations: DestinationState[],
+): AppState["vpnStatus"] {
+  if (!runMode) return "ServiceUnavailable";
+  if ("Shutdown" === runMode) return "ServiceUnavailable";
+  if ("PreparingSafe" in runMode) return "PreparingSafe";
+  if ("Warmup" in runMode) return runMode.Warmup.status;
+  if ("Running" in runMode) {
+    if (isConnected(destinations)) return "Connected";
+    if (isConnecting(destinations)) return "Connecting";
+    if (isDisconnecting(destinations)) return "Disconnecting";
+    if (isDisconnected(destinations)) return "Disconnected";
   }
 
   return "ServiceUnavailable";
 }
 
 export function isXDAITransferred(state: AppState): boolean {
-  return !!state && isPreparingSafe(state) &&
-    parseFloat(state.runMode.PreparingSafe.node_xdai) >= 0.01;
+  return (
+    !!state &&
+    isPreparingSafeRunMode(state.runMode) &&
+    parseFloat(state.runMode.PreparingSafe.node_xdai) >= 0.01
+  );
 }
 
 export function isWxHOPRTransferred(state: AppState): boolean {
-  return !!state && isPreparingSafe(state) &&
-    parseFloat(state.runMode.PreparingSafe.node_wxhopr) >= 0.01;
+  return (
+    !!state &&
+    isPreparingSafeRunMode(state.runMode) &&
+    parseFloat(state.runMode.PreparingSafe.node_wxhopr) >= 0.01
+  );
 }
 
 export function getPreparingSafeNodeAddress(
   state: AppState,
 ): string | undefined {
-  if (isPreparingSafe(state)) {
-    const address = state.runMode.PreparingSafe.node_address;
-    return address && address !== "unknown" ? address : undefined;
+  if (isPreparingSafeRunMode(state.runMode)) {
+    return state.runMode.PreparingSafe.node_address;
   }
   return undefined;
 }

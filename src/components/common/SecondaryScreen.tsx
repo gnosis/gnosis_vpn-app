@@ -1,5 +1,5 @@
 import { children, JSX, onMount } from "solid-js";
-import { useAppStore } from "../../stores/appStore.ts";
+import { AppScreen, useAppStore } from "../../stores/appStore.ts";
 
 export function SecondaryScreen(
   { children: innerComponent, title }: {
@@ -13,7 +13,7 @@ export function SecondaryScreen(
 
   function handleKeyDown(event: KeyboardEvent) {
     if (event.key === "Escape") {
-      appActions.setScreen("main");
+      appActions.setScreen(AppScreen.Main);
     }
   }
 
@@ -37,7 +37,7 @@ export function SecondaryScreen(
           type="button"
           class="rounded-md p-1 hover:bg-bg-surface"
           aria-label="Close"
-          onClick={() => appActions.setScreen("main")}
+          onClick={() => appActions.setScreen(AppScreen.Main)}
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"

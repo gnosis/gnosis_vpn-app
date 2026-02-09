@@ -4,7 +4,7 @@ import { useAppStore } from "@src/stores/appStore.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import {
   formatDestination,
-  formatDestinationByAddress,
+  formatDestinationById,
 } from "@src/utils/destinations.ts";
 import { Show } from "solid-js";
 
@@ -25,21 +25,20 @@ export default function Settings() {
           <Dropdown
             options={appState.availableDestinations.map((e) => {
               return {
-                address: e.address,
+                id: e.id,
                 label: formatDestination(e),
               };
             })}
             value={settings.preferredLocation
               ? {
-                address: settings.preferredLocation,
-                label: formatDestinationByAddress(
+                id: settings.preferredLocation,
+                label: formatDestinationById(
                   settings.preferredLocation,
                   appState.availableDestinations,
                 ),
               }
               : null}
-            onChange={(e) =>
-              void settingsActions.setPreferredLocation(e.address)}
+            onChange={(e) => void settingsActions.setPreferredLocation(e.id)}
             size="sm"
             itemToString={(e) => e.label}
           />
