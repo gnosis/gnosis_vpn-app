@@ -65,12 +65,6 @@ jobs:
         run: |
           release_version=$(grep -E '^version\s*=' src-tauri/Cargo.toml | awk -F\" '{print $2}')
           echo "release_version=${release_version}" | tee -a $GITHUB_OUTPUT
-      - name: Create GitHub release
-        run: |
-          echo "Generating release notes"
-          gh release create v${{ steps.environment.outputs.release_version }} --generate-notes
-        env:
-          GH_TOKEN: ${{ github.token }}
       - name: Download macOS binaries from Artifact Registry
         uses: hoprnet/hopr-workflows/actions/download-artifact-registry@download-artifact-registry-v1
         with:
@@ -80,16 +74,24 @@ jobs:
           repository: rust-binaries
           package: gnosis_vpn-app
           version: ${{ steps.environment.outputs.release_version }}
-      - name: Upload binaries to GitHub release
+      - name: Create GitHub release
         run: |
-          echo "Uploading binaries to release v${{ steps.environment.outputs.release_version }}"
+          TAG="v${{ steps.environment.outputs.release_version }}"
+          echo "Checking if release ${TAG} already exists"
+          if gh release view "${TAG}" > /dev/null 2>&1; then
+            echo "Release ${TAG} already exists, deleting it"
+            gh release delete "${TAG}" --yes --cleanup-tag
+          fi
+          echo "Generating release notes"
+          gh release create "${TAG}" --generate-notes
+          echo "Uploading binaries to release ${TAG}"
           for file in binaries/*; do
             if [ -f "$file" ]; then
               echo "Uploading $file"
-              gh release upload v${{ steps.environment.outputs.release_version }} "$file" --clobber
+              gh release upload "${TAG}" "$file" --clobber
             fi
           done
-          echo "Release v${{ steps.environment.outputs.release_version }} created and binaries uploaded"
+          echo "Release ${TAG} created and binaries uploaded"
         env:
           GH_TOKEN: ${{ github.token }}
       - name: Bump Version
