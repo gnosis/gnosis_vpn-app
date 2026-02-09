@@ -191,14 +191,20 @@ export type DestinationHealth =
   // received health metrics
   | { Success: DHSuccess };
 
+/** Rust SystemTime serialized by serde as {secs_since_epoch, nanos_since_epoch}. */
+export type SerializedTime = {
+  secs_since_epoch: number;
+  nanos_since_epoch: number;
+};
+
 export type DHRunning = {
   // running since timestamp
-  since: number;
+  since: SerializedTime;
 };
 
 export type DHFailure = {
   // failures check started at timestamp
-  checked_at: number;
+  checked_at: SerializedTime;
   // error message
   error: string;
   // count of previous failures
@@ -207,7 +213,7 @@ export type DHFailure = {
 
 export type DHSuccess = {
   // success check started at timestamp
-  checked_at: number;
+  checked_at: SerializedTime;
   // reported by exit node
   health: ExitHealth;
   // total time to create session and query for health in seconds
@@ -247,13 +253,13 @@ export function formatHealth(health: Health): string {
     case "ReadyToConnect":
       return "Ready to connect";
     case "MissingPeeredFundedChannel":
-      return "Waiting on peer discovery";
+      return "Missing peered funded channel";
     case "MissingPeeredChannel":
-      return "Waiting on peer discovery";
+      return "Missing peered channel";
     case "MissingFundedChannel":
       return "Checking channel funds";
     case "NotPeered":
-      return "Waiting on peer discovery";
+      return "Not peered";
     case "NotAllowed":
       return "Connection not allowed";
     case "InvalidId":

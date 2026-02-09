@@ -16,12 +16,7 @@ import {
 } from "@src/utils/destinations.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import { getConnectionLabel, getConnectionPhase } from "@src/utils/status.ts";
-import {
-  getVpnStatus,
-  isConnected,
-  isConnecting,
-  isDisconnecting,
-} from "@src/utils/status.ts";
+import { getVpnStatus, isConnecting } from "@src/utils/status.ts";
 import { shortAddress } from "../utils/shortAddress.ts";
 
 export enum AppScreen {
@@ -274,42 +269,8 @@ export function createAppStore(): AppStoreTuple {
     setScreen: (screen: AppScreen) => setState("currentScreen", screen),
 
     chooseDestination: (id: string | null) => {
-      const previousId = state.selectedId;
       setState("selectedId", id ?? null);
       applyDestinationSelection();
-
-      const destinationStates = Object.values(state.destinations);
-      if (
-        id &&
-        id !== previousId &&
-        (isConnected(destinationStates) || isConnecting(destinationStates) ||
-          isDisconnecting(destinationStates))
-      ) {
-        void (async () => {
-          const selected = state.availableDestinations.find((d) => d.id === id);
-          if (!selected) {
-            return;
-          }
-
-          const name = formatDestination(selected);
-          const short = shortAddress(selected.address);
-          const pretty = `${name} - ${short}`;
-          log(`Connecting to selected exit node: ${pretty}`);
-          setState("isLoading", true);
-          try {
-            await VPNService.connect(selected.id);
-            actions.startStatusPolling();
-          } catch (error) {
-            const message = error instanceof Error
-              ? error.message
-              : String(error);
-            log(message);
-            setState("error", message);
-          } finally {
-            setState("isLoading", false);
-          }
-        })();
-      }
     },
 
     connect: async () => {

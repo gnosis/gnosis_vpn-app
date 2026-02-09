@@ -3,7 +3,6 @@ import Button from "./common/Button.tsx";
 import { useAppStore } from "../stores/appStore.ts";
 import { useSettingsStore } from "../stores/settingsStore.ts";
 import { selectTargetId } from "../utils/destinations.ts";
-import NodeStatus from "./NodeStatus.tsx";
 import { isReadyToConnect } from "../services/vpnService.ts";
 
 export default function ConnectButton() {
@@ -53,16 +52,21 @@ export default function ConnectButton() {
 
   return (
     <div class="relative z-20 w-full">
-      <Show
-        when={!isActive() && targetHealth() !== undefined && !isTargetReady()}
-      >
-        <div class="mt-2 text-center">
-          <NodeStatus
-            connectionState={targetDestinationState()?.connection_state}
-            health={targetHealth()}
-            warning
-          />
-        </div>
+      <Show when={appState.vpnStatus === "Connected" && appState.destination}>
+        {(_dest) => {
+          const dest = _dest();
+          const meta = dest.meta ?? {};
+          const loc = [meta.city, meta.state, meta.location]
+            .map((v) => (v ?? "").trim())
+            .filter((v) => v.length > 0)
+            .join(", ");
+          return (
+            <div class="mb-2 text-center text-xs text-text-secondary">
+              Connected to {dest.id}
+              {loc ? ` (${loc})` : ""}
+            </div>
+          );
+        }}
       </Show>
       <Button
         size="lg"
