@@ -41,7 +41,7 @@ export default function Manually() {
           />
           <div class="flex flex-col">
             <div class="font-bold">Transfer wxHOPR (Gnosis Chain)</div>
-            <div class="text-sm text-text-secondary">1 GB is X USDC.</div>
+            <div class="text-sm text-text-secondary">1GB is 110 wxHOPR</div>
           </div>
         </div>
 
@@ -83,10 +83,10 @@ export default function Manually() {
             </div>
             <div class="flex flex-col text-sm">
               {!xdaiTransferred() && !wxhoprTransferred()
-                ? "Checking..."
+                ? "Waiting for incoming funds…"
                 : xdaiTransferred()
-                ? "xDAI received, checking for wxHOPR..."
-                : "wxHOPR received, checking for xDAI..."}
+                ? "xDAI arrived, waiting for wxHOPR"
+                : "wxHOPR arrived, waiting for xDAI"}
             </div>
           </div>
         </Show>
@@ -95,9 +95,8 @@ export default function Manually() {
           <div class="flex flex-row w-full items-center gap-4 fade-in-up h-15">
             <img src={checkIcon} alt="Check" class="h-5 w-5 dark:invert" />
             <div class="text-sm">
-              All necessary funds have been received.
-              <br />
-              You will be auto-forwarded to the next step in a few seconds.
+              All necessary funds have been transferred. You'll be forwarded in
+              a moment.
             </div>
           </div>
         </Show>
