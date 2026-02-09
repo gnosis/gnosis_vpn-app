@@ -72,7 +72,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
       - name: Download macOS binaries from Artifact Registry
-        uses: hoprnet/hopr-workflows/actions/download-artifact-registry@master
+        uses: hoprnet/hopr-workflows/actions/download-artifact-registry@main
         with:
           destination: ./binaries
           project: gnosisvpn-production
