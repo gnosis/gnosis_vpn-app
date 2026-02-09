@@ -113,6 +113,7 @@ export function createAppStore(): AppStoreTuple {
     let response;
     try {
       response = await VPNService.getStatus();
+      console.log("response", response);
     } catch (error) {
       log(error instanceof Error ? error.message : String(error));
       console.error("error", error);
@@ -121,15 +122,9 @@ export function createAppStore(): AppStoreTuple {
       setState("availableDestinations", []);
       setState("destinations", {});
       setState("error", error instanceof Error ? error.message : String(error));
+      setState("vpnStatus", "ServiceUnavailable");
       if (state.destination !== null) {
         setState("destination", null);
-      }
-      if (state.runMode) {
-        const vpnStatus = getVpnStatus(
-          state.runMode,
-          Object.values(state.destinations),
-        );
-        setState("vpnStatus", vpnStatus);
       }
       return OFFLINE_TIMEOUT;
     }
@@ -209,8 +204,8 @@ export function createAppStore(): AppStoreTuple {
     }
 
     const hasConnChange = Object.values(state.destinations).some((prev) => {
-      const found_next = Object.entries(nextDestStates).find(
-        ([id, _]) => id === prev.destination.id,
+      const found_next = Object.entries(nextDestStates).find(([id, _]) =>
+        id === prev.destination.id
       );
       if (!found_next) return false;
       const [_, next] = found_next;
@@ -220,8 +215,7 @@ export function createAppStore(): AppStoreTuple {
       const prevLabel = getConnectionLabel(prevState);
       const nextLabel = getConnectionLabel(nextState);
       if (
-        prevLabel !== nextLabel &&
-        nextLabel !== "None" &&
+        prevLabel !== nextLabel && nextLabel !== "None" &&
         nextLabel !== "Unknown"
       ) {
         return true;
@@ -278,8 +272,7 @@ export function createAppStore(): AppStoreTuple {
       if (
         id &&
         id !== previousId &&
-        (isConnected(destinationStates) ||
-          isConnecting(destinationStates) ||
+        (isConnected(destinationStates) || isConnecting(destinationStates) ||
           isDisconnecting(destinationStates))
       ) {
         void (async () => {
@@ -320,8 +313,8 @@ export function createAppStore(): AppStoreTuple {
 
       const reasonForLog = requestedId ? "selected exit node" : selectionReason;
       if (targetId && reasonForLog !== "selected exit node") {
-        const selected = state.availableDestinations.find(
-          (d) => d.id === targetId,
+        const selected = state.availableDestinations.find((d) =>
+          d.id === targetId
         );
         if (!selected) {
           return;
