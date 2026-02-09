@@ -1,0 +1,170 @@
+name: Test close release
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: "Next version type"
+        required: true
+        type: choice
+        default: "patch"
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  build-binaries:
+    strategy:
+      matrix:
+        binary:
+          - architecture: universal-darwin
+            runner: macos-15-xlarge
+          - architecture: aarch64-darwin
+            runner: macos-15
+          - architecture: x86_64-darwin
+            runner: macos-15-intel
+          - architecture: x86_64-linux
+            runner: ubuntu-22.04
+          - architecture: aarch64-linux
+            runner: ubuntu-22.04-arm
+    name: Binary ${{ matrix.binary.architecture }}
+    uses: ./.github/workflows/build-binaries.yaml
+    with:
+      branch: main
+      architecture: ${{ matrix.binary.architecture }}
+      runner: ${{ matrix.binary.runner }}
+      version_type: "release"
+    secrets: inherit
+  release:
+    name: Test close release
+    needs:
+      - build-binaries
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          token: ${{ secrets.BOT_TOKEN }}
+      - name: Setup GCP
+        id: gcp
+        uses: hoprnet/hopr-workflows/actions/setup-gcp@master
+        with:
+          google-credentials: ${{ secrets.GCP_SA_GITHUB_ACTIONS }}
+          install-sdk: "true"
+      - name: Install Nix
+        uses: cachix/install-nix-action@4e002c8ec80594ecd40e759629461e26c8abed15 # v31
+      - name: Setup environment variables
+        id: environment
+        run: |
+          release_version=$(grep -E '^version\s*=' src-tauri/Cargo.toml | awk -F\" '{print $2}')
+          echo "release_version=${release_version}" | tee -a $GITHUB_OUTPUT
+      # - name: Create GitHub release
+      #   run: |
+      #     echo "Generating release notes"
+      #     gh release create v${{ steps.environment.outputs.release_version }} --generate-notes
+      #   env:
+      #     GH_TOKEN: ${{ github.token }}
+      - name: Download macOS binaries from Artifact Registry
+        uses: hoprnet/hopr-workflows/actions/download-artifact-registry@main
+        with:
+          destination: ./binaries
+          project: gnosisvpn-production
+          region: europe-west3
+          repository: rust-binaries
+          package: gnosis_vpn-app
+          version: ${{ steps.environment.outputs.release_version }}
+      # - name: Upload binaries to GitHub release
+      #   run: |
+      #     echo "Uploading binaries to release v${{ steps.environment.outputs.release_version }}"
+      #     for file in binaries/*; do
+      #       if [ -f "$file" ]; then
+      #         echo "Uploading $file"
+      #         gh release upload v${{ steps.environment.outputs.release_version }} "$file" --clobber
+      #       fi
+      #     done
+      #     echo "Release v${{ steps.environment.outputs.release_version }} created and binaries uploaded"
+      #   env:
+      #     GH_TOKEN: ${{ github.token }}
+      # - name: Bump Version
+      #   id: bump
+      #   shell: bash
+      #   run: |
+      #     current_version=$(grep -E '^version\s*=' src-tauri/Cargo.toml | awk -F\" '{print $2}')
+      #     echo "current_version=$current_version" | tee -a $GITHUB_OUTPUT
+      #     # Extract parts without IFS or read
+      #     IFS='.' read -r major_version minor_version patch_version <<< "${current_version}"
+      #     echo "Current version $major_version $minor_version $patch_version"
+
+      #     # Bump the appropriate part
+      #     echo "Bumping ${{ inputs.release_type }} version"
+      #     case "${{ inputs.release_type }}" in
+      #         major)
+      #             major_version=$((major_version+1))
+      #             minor_version=0
+      #             patch_version=0
+      #             ;;
+      #         minor)
+      #             minor_version=$((minor_version+1))
+      #             patch_version=0
+      #             ;;
+      #         patch)
+      #             patch_version=$((patch_version+1))
+      #             ;;
+      #         *)
+      #             echo "Invalid release type"
+      #             exit 1
+      #             ;;
+      #     esac
+      #     echo "New version: ${major_version}.${minor_version}.${patch_version}"
+
+      #     bump_version="${major_version}.${minor_version}.${patch_version}"
+      #     echo "Updating version from $current_version to $bump_version"
+
+      #     # Update the version in src-tauri/Cargo.toml
+      #     # capture group 1: version = "
+      #     # capture group 2: the version number
+      #     # capture group 3: "
+      #     sed -i.bak -E "s/(^version = \")([0-9]+\.[0-9]+\.[0-9]+)(\")/\1${bump_version}\3/" src-tauri/Cargo.toml
+      #     rm src-tauri/Cargo.toml.bak
+      #     # TODO: Requires fixing
+      #     # nix run .#generate-lockfile
+      #     jq --arg v "$bump_version" '.version = $v' package.json > package-tmp.json && mv package-tmp.json package.json
+      #     echo "bump_version=${bump_version}" | tee -a $GITHUB_OUTPUT
+      # - uses: EndBug/add-and-commit@a94899bca583c204427a224a7af87c02f9b325d5 # v9
+      #   with:
+      #     add: '["src-tauri/Cargo.*", "package.json"]'
+      #     new_branch: main
+      #     message: "Bump to version ${{ steps.bump.outputs.bump_version }}"
+      #     pathspec_error_handling: exitImmediately
+      # - name: Notify release
+      #   uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5 # v1.0.2
+      #   with:
+      #     api-key: ${{ secrets.ZULIP_API_KEY }}
+      #     email: ${{ secrets.ZULIP_EMAIL }}
+      #     organization-url: "https://hopr.zulipchat.com"
+      #     type: "stream"
+      #     to: "GnosisVPN"
+      #     topic: "Releases"
+      #     content: |
+      #       I'm thrilled to inform the new `gnosis_vpn-app` version `v${{ steps.bump.outputs.current_version }}` has been released.
+      #       [Release Notes](${{ github.server_url }}/${{ github.repository }}/releases/tag/v${{ steps.bump.outputs.current_version }})
+      # - name: Trigger installer snapshot
+      #   uses: peter-evans/repository-dispatch@ff45666b9427631e3450c54a1bcbee4d9ff4d7c0 # v3.0.0
+      #   with:
+      #     token: ${{ secrets.GNOSIS_GITHUB_WORKFLOW_TOKEN }}
+      #     repository: gnosis/gnosis_vpn
+      #     event-type: new_snapshot_release
+      #     client-payload: |-
+      #       {
+      #         "public_release": "false",
+      #         "client_version": "latest",
+      #         "app_version": "${{ steps.bump.outputs.current_version }}",
+      #         "sign": "true",
+      #       }
