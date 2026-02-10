@@ -16,12 +16,7 @@ import {
 } from "@src/utils/destinations.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import { getConnectionLabel, getConnectionPhase } from "@src/utils/status.ts";
-import {
-  getVpnStatus,
-  isConnected,
-  isConnecting,
-  isDisconnecting,
-} from "@src/utils/status.ts";
+import { getVpnStatus, isConnecting } from "@src/utils/status.ts";
 import { shortAddress } from "../utils/shortAddress.ts";
 
 export enum AppScreen {
@@ -113,28 +108,24 @@ export function createAppStore(): AppStoreTuple {
     let response;
     try {
       response = await VPNService.getStatus();
+      console.log("response", response);
     } catch (error) {
-      log(error instanceof Error ? error.message : String(error));
+      const message = error instanceof Error ? error.message : String(error);
       console.error("error", error);
+
+      log(message);
       setState("isLoading", false);
       setState("runMode", null);
       setState("availableDestinations", []);
       setState("destinations", {});
-      setState("error", error instanceof Error ? error.message : String(error));
+      setState("error", message);
+      setState("vpnStatus", "ServiceUnavailable");
       if (state.destination !== null) {
         setState("destination", null);
-      }
-      if (state.runMode) {
-        const vpnStatus = getVpnStatus(
-          state.runMode,
-          Object.values(state.destinations),
-        );
-        setState("vpnStatus", vpnStatus);
       }
       return OFFLINE_TIMEOUT;
     }
 
-    // successfully decoded status response
     const screen = screenFromRunMode(response.run_mode);
     setState("currentScreen", screen);
 
@@ -209,8 +200,8 @@ export function createAppStore(): AppStoreTuple {
     }
 
     const hasConnChange = Object.values(state.destinations).some((prev) => {
-      const found_next = Object.entries(nextDestStates).find(
-        ([id, _]) => id === prev.destination.id,
+      const found_next = Object.entries(nextDestStates).find(([id, _]) =>
+        id === prev.destination.id
       );
       if (!found_next) return false;
       const [_, next] = found_next;
@@ -220,8 +211,7 @@ export function createAppStore(): AppStoreTuple {
       const prevLabel = getConnectionLabel(prevState);
       const nextLabel = getConnectionLabel(nextState);
       if (
-        prevLabel !== nextLabel &&
-        nextLabel !== "None" &&
+        prevLabel !== nextLabel && nextLabel !== "None" &&
         nextLabel !== "Unknown"
       ) {
         return true;
@@ -270,43 +260,8 @@ export function createAppStore(): AppStoreTuple {
     setScreen: (screen: AppScreen) => setState("currentScreen", screen),
 
     chooseDestination: (id: string | null) => {
-      const previousId = state.selectedId;
       setState("selectedId", id ?? null);
       applyDestinationSelection();
-
-      const destinationStates = Object.values(state.destinations);
-      if (
-        id &&
-        id !== previousId &&
-        (isConnected(destinationStates) ||
-          isConnecting(destinationStates) ||
-          isDisconnecting(destinationStates))
-      ) {
-        void (async () => {
-          const selected = state.availableDestinations.find((d) => d.id === id);
-          if (!selected) {
-            return;
-          }
-
-          const name = formatDestination(selected);
-          const short = shortAddress(selected.address);
-          const pretty = `${name} - ${short}`;
-          log(`Connecting to selected exit node: ${pretty}`);
-          setState("isLoading", true);
-          try {
-            await VPNService.connect(selected.id);
-            actions.startStatusPolling();
-          } catch (error) {
-            const message = error instanceof Error
-              ? error.message
-              : String(error);
-            log(message);
-            setState("error", message);
-          } finally {
-            setState("isLoading", false);
-          }
-        })();
-      }
     },
 
     connect: async () => {
@@ -320,8 +275,8 @@ export function createAppStore(): AppStoreTuple {
 
       const reasonForLog = requestedId ? "selected exit node" : selectionReason;
       if (targetId && reasonForLog !== "selected exit node") {
-        const selected = state.availableDestinations.find(
-          (d) => d.id === targetId,
+        const selected = state.availableDestinations.find((d) =>
+          d.id === targetId
         );
         if (!selected) {
           return;

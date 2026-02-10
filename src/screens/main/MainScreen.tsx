@@ -1,14 +1,38 @@
-import { createEffect, createSignal, onCleanup, onMount } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  onCleanup,
+  onMount,
+  Show,
+} from "solid-js";
 import { useAppStore } from "../../stores/appStore.ts";
+import { useSettingsStore } from "../../stores/settingsStore.ts";
 import { StatusIndicator } from "../../components/StatusIndicator.tsx";
 import Navigation from "../../components/Navigation.tsx";
 import ExitNode from "../../components/ExitNode.tsx";
 import ConnectButton from "../../components/ConnectButton.tsx";
 import StatusHero from "../../components/StatusHero.tsx";
 import StatusLine from "../../components/StatusLine.tsx";
+import ExitHealthDetail from "../../components/ExitHealthDetail.tsx";
+import { selectTargetId } from "../../utils/destinations.ts";
 
 export function MainScreen() {
   const [appState] = useAppStore();
+  const [settings] = useSettingsStore();
+
+  const activeDestinationState = createMemo(() => {
+    // Resolve the effective destination id (selected or random-fallback)
+    const effectiveId = appState.selectedId ??
+      appState.destination?.id ??
+      selectTargetId(
+        undefined,
+        settings.preferredLocation,
+        appState.availableDestinations,
+      ).id;
+    if (!effectiveId) return undefined;
+    return appState.destinations[effectiveId];
+  });
 
   let mainRef!: HTMLDivElement;
   let exitAnchorRef!: HTMLDivElement;
@@ -36,7 +60,7 @@ export function MainScreen() {
   });
 
   return (
-    <div class="flex w-full flex-col h-full py-6 px-4">
+    <div class="flex w-full flex-col h-full py-6 px-4 select-none">
       <div class="flex flex-row justify-between z-60">
         <StatusIndicator />
         <Navigation />
@@ -50,6 +74,13 @@ export function MainScreen() {
         <div ref={exitAnchorRef} class="w-full flex justify-center z-10">
           <ExitNode />
         </div>
+        <Show when={activeDestinationState()}>
+          {(ds) => (
+            <div class="w-full z-10 mt-2">
+              <ExitHealthDetail destinationState={ds()} />
+            </div>
+          )}
+        </Show>
         <StatusLine heightPx={connectorHeight()} />
         <div class="grow z-10"></div>
         <ConnectButton />

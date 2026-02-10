@@ -3,7 +3,6 @@ import Start from "../../components/onboarding/Start.tsx";
 import { Dynamic } from "solid-js/web";
 import Manually from "../../components/onboarding/Manually.tsx";
 import { listen } from "@tauri-apps/api/event";
-import StatusIndicator from "../../components/StatusIndicator.tsx";
 
 const steps = {
   start: Start,
@@ -30,9 +29,8 @@ export default function Onboarding() {
   });
 
   return (
-    <div class="h-screen bg-bg-primary flex flex-col items-center justify-between">
+    <div class="h-screen bg-bg-primary flex flex-col items-center justify-between pb-6 select-none">
       <Dynamic component={steps[step()]} setStep={setStep} />
-      <StatusIndicator size="sm" />
     </div>
   );
 }

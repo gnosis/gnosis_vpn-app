@@ -1,9 +1,8 @@
-import { createMemo, Show } from "solid-js";
+import { createMemo } from "solid-js";
 import Button from "./common/Button.tsx";
 import { useAppStore } from "../stores/appStore.ts";
 import { useSettingsStore } from "../stores/settingsStore.ts";
 import { selectTargetId } from "../utils/destinations.ts";
-import NodeStatus from "./NodeStatus.tsx";
 import { isReadyToConnect } from "../services/vpnService.ts";
 
 export default function ConnectButton() {
@@ -52,18 +51,7 @@ export default function ConnectButton() {
   };
 
   return (
-    <div class="relative z-20 w-full">
-      <Show
-        when={!isActive() && targetHealth() !== undefined && !isTargetReady()}
-      >
-        <div class="mt-2 text-center">
-          <NodeStatus
-            connectionState={targetDestinationState()?.connection_state}
-            health={targetHealth()}
-            warning
-          />
-        </div>
-      </Show>
+    <div class="relative z-20 w-full bg-bg-primary rounded-2xl">
       <Button
         size="lg"
         onClick={() => void handleClick()}

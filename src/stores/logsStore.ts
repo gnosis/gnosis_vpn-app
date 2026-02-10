@@ -1,5 +1,8 @@
 import { createStore, type Store } from "solid-js/store";
-import { type StatusResponse } from "@src/services/vpnService.ts";
+import {
+  formatWarmupStatus,
+  type StatusResponse,
+} from "@src/services/vpnService.ts";
 import { formatDestination } from "@src/utils/destinations.ts";
 import { shortAddress } from "../utils/shortAddress.ts";
 import { emit, listen } from "@tauri-apps/api/event";
@@ -23,10 +26,9 @@ export function createLogsStore(): LogsStoreTuple {
   const [state, setState] = createStore<LogsState>({ logs: [] });
   const isMainWindow = getCurrentWindow().label === "main";
 
-  function buildStatusLog(args: {
-    response?: StatusResponse;
-    error?: string;
-  }): string | undefined {
+  function buildStatusLog(
+    args: { response?: StatusResponse; error?: string },
+  ): string | undefined {
     const lastMessage = state.logs.length
       ? state.logs[state.logs.length - 1].message
       : undefined;
@@ -92,9 +94,7 @@ export function createLogsStore(): LogsStoreTuple {
           : undefined;
         const phaseSuffix = phase ? ` - ${phase}` : "";
         content = `Disconnecting: ${where} - ${
-          shortAddress(
-            destination.address,
-          )
+          shortAddress(destination.address)
         }${phaseSuffix}`;
       } else if (typeof rm === "object" && "Running" in rm) {
         // Running but no active connection
@@ -110,8 +110,9 @@ export function createLogsStore(): LogsStoreTuple {
           content = `Disconnected. Available:\n${lines.join("\n")}`;
         }
       } else if (typeof rm === "object" && "PreparingSafe" in rm) {
-        const addr = (rm as { PreparingSafe: { node_address: unknown } })
-          .PreparingSafe.node_address;
+        const addr =
+          (rm as { PreparingSafe: { node_address: unknown } }).PreparingSafe
+            .node_address;
         let isUnknown = false;
         if (typeof addr === "string") {
           const s = addr.trim().toLowerCase();
@@ -125,7 +126,7 @@ export function createLogsStore(): LogsStoreTuple {
       } else if (rm === "Shutdown") {
         content = "Shutdown";
       } else if ("Warmup" in rm) {
-        content = `Warmup ${rm.Warmup}`;
+        content = `Warmup: ${formatWarmupStatus(rm.Warmup.status)}`;
       } else {
         const destinations = args.response.destinations.length;
         content = `status: Unknown, destinations: ${destinations}`;

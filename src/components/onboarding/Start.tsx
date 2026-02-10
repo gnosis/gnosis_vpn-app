@@ -6,8 +6,11 @@ export default function Start(
 ) {
   const [appState] = useAppStore();
 
+  const isServiceUnavailable = () =>
+    appState.vpnStatus === "ServiceUnavailable";
+
   return (
-    <div class="h-full w-full flex flex-col items-center justify-between p-6 pb-0">
+    <div class="h-full w-full flex flex-col items-center p-6 pb-0 select-none">
       <svg
         width="321"
         height="49"
@@ -30,12 +33,13 @@ export default function Start(
           fill="currentColor"
         />
       </svg>
-      <div class="text-4xl font-bold">(MVP)</div>
+      <div class="text-4xl font-bold mt-40">(MVP)</div>
+      <div class="grow" />
       <div class="w-full flex flex-col gap-2">
         <Button
           size="lg"
           onClick={() => setStep("manually")}
-          disabled={appState.vpnStatus === "ServiceUnavailable"}
+          disabled={isServiceUnavailable()}
         >
           Get Started
         </Button>

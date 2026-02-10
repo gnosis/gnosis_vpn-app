@@ -1,11 +1,18 @@
 import { useAppStore } from "../stores/appStore.ts";
 import { Dropdown } from "./common/Dropdown.tsx";
-import { formatDestination, selectTargetId } from "../utils/destinations.ts";
-import type { Destination, Health } from "../services/vpnService.ts";
+import { selectTargetId } from "../utils/destinations.ts";
+import type { Destination, DestinationHealth } from "../services/vpnService.ts";
 import { shortAddress } from "../utils/shortAddress.ts";
 import { createMemo } from "solid-js";
 import { useSettingsStore } from "../stores/settingsStore.ts";
-import NodeStatus from "./NodeStatus.tsx";
+import ExitHealthBadge from "./ExitHealthBadge.tsx";
+import {
+  formatLatency,
+  getHealthScore,
+  getHopCount,
+} from "../utils/exitHealth.ts";
+import HopsIcon from "./HopsIcon.tsx";
+import { getConnectionLabel } from "../utils/status.ts";
 
 type RandomOption = { type: "random" };
 type ExitOption = Destination | RandomOption;
@@ -29,33 +36,63 @@ export default function ExitNode() {
     return df;
   });
 
+  const sortedDestinations = createMemo(() => {
+    const dests = [...appState.availableDestinations];
+    dests.sort((a, b) => {
+      const dsA = appState.destinations[a.id];
+      const dsB = appState.destinations[b.id];
+      if (!dsA && !dsB) return 0;
+      if (!dsA) return 1;
+      if (!dsB) return -1;
+      return getHealthScore(dsB) - getHealthScore(dsA);
+    });
+    return dests;
+  });
+
   return (
     <div class="w-full flex flex-row bg-bg-surface rounded-2xl p-4">
       <Dropdown<ExitOption>
         label="Exit Node"
-        options={[
-          { type: "random" } as RandomOption,
-          ...appState.availableDestinations,
-        ]}
+        options={[{ type: "random" } as RandomOption, ...sortedDestinations()]}
         renderOption={(opt: ExitOption) => {
           if ("id" in opt) {
-            const name = formatDestination(opt) || shortAddress(opt.address);
             const ds = appState.destinations[opt.id];
-            const cs = ds?.connection_state;
-            const health: Health | undefined = ds?.connectivity?.health as
-              | Health
-              | undefined;
+            const exitHealth: DestinationHealth | undefined = ds?.exit_health;
+            const latency = exitHealth ? formatLatency(exitHealth) : null;
+            const hops = getHopCount(opt.routing);
+            const connected = ds
+              ? getConnectionLabel(ds.connection_state) === "Connected"
+              : false;
             return (
-              <div class="flex flex-col">
-                <span>{name}</span>
-                <NodeStatus connectionState={cs} health={health} />
-              </div>
+              <span class="flex items-center justify-between gap-2">
+                <span class="flex items-center gap-1.5 min-w-0">
+                  <span class="w-4 shrink-0 flex items-center justify-center">
+                    {exitHealth && (
+                      <ExitHealthBadge
+                        exitHealth={exitHealth}
+                        compact
+                        connected={connected}
+                      />
+                    )}
+                  </span>
+                  <span class="break-all">{opt.id}</span>
+                </span>
+                <span class="shrink-0 text-xs text-text-secondary flex items-center gap-2">
+                  {latency && (
+                    <span class="tabular-nums" title="Latency">
+                      {latency}
+                    </span>
+                  )}
+                  <HopsIcon count={hops} />
+                </span>
+              </span>
             );
           }
           return (
-            <div class="flex flex-col">
-              <span>Random</span>
-            </div>
+            <span class="flex items-center gap-1.5">
+              <span class="w-4 shrink-0" />
+              Random
+            </span>
           );
         }}
         value={(appState.selectedId
@@ -79,60 +116,55 @@ export default function ExitNode() {
         }}
         itemToString={(opt: ExitOption) => {
           if ("id" in opt) {
-            const name = formatDestination(opt) || shortAddress(opt.address);
-            return name;
+            return shortAddress(opt.id);
           }
           return "Random";
         }}
-        isOptionDisabled={(opt: ExitOption) => {
-          if ("id" in opt) {
-            const ds = appState.destinations[opt.id];
-            const health = ds?.connectivity?.health;
-            return health !== "ReadyToConnect";
-          }
-          return false;
-        }}
+        isOptionDisabled={() => false}
         renderValue={(opt: ExitOption) => {
           if ("id" in opt) {
-            const name = formatDestination(opt) || shortAddress(opt.address);
             const ds = appState.destinations[opt.id];
-            const cs = ds?.connection_state;
-            const health: Health | undefined = ds?.connectivity?.health as
-              | Health
-              | undefined;
+            const exitHealth: DestinationHealth | undefined = ds?.exit_health;
+            const connected = ds
+              ? getConnectionLabel(ds.connection_state) === "Connected"
+              : false;
             return (
-              <span class="flex flex-col">
-                <span>{name}</span>
-                <NodeStatus connectionState={cs} health={health} />
+              <span class="flex items-center gap-1.5">
+                {exitHealth && (
+                  <ExitHealthBadge
+                    exitHealth={exitHealth}
+                    compact
+                    connected={connected}
+                  />
+                )}
+                <span class="break-all">{opt.id}</span>
               </span>
             );
           }
           const randomDest = randomDestination();
           if (randomDest) {
-            const destName = formatDestination(randomDest) ||
-              shortAddress(randomDest.address);
             const ds = appState.destinations[randomDest.id];
-            const cs = ds?.connection_state;
-            const health: Health | undefined = ds?.connectivity?.health as
-              | Health
-              | undefined;
+            const exitHealth: DestinationHealth | undefined = ds?.exit_health;
+            const connected = ds
+              ? getConnectionLabel(ds.connection_state) === "Connected"
+              : false;
             return (
               <span class="flex flex-col">
-                <span>
-                  <span class="font-bold">Random</span>
-                  <span class="text-sm text-text-secondary font-light ml-2">
-                    {destName}
-                  </span>
+                <span class="font-bold">Random</span>
+                <span class="flex items-center gap-1.5 text-xs text-text-secondary font-light break-all">
+                  {exitHealth && (
+                    <ExitHealthBadge
+                      exitHealth={exitHealth}
+                      compact
+                      connected={connected}
+                    />
+                  )}
+                  {randomDest.id}
                 </span>
-                <NodeStatus connectionState={cs} health={health} />
               </span>
             );
           }
-          return (
-            <span class="flex flex-col">
-              <span class="font-bold">Random</span>
-            </span>
-          );
+          return <span class="font-bold">Random</span>;
         }}
         placeholder="Random"
         disabled={appState.isLoading ||

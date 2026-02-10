@@ -490,7 +490,7 @@ async fn status(
 
             Ok(status_resp.into())
         }
-        resp => {
+        Err(e) => {
             if let Ok(guard) = status_item.0.lock() {
                 let _ = guard.set_text("Status: Not available");
             }
@@ -500,7 +500,10 @@ async fn status(
                 "Disconnected",
                 system_theme(),
             );
-            eprintln!("Unexpected response: {:?}", resp);
+            Err(e.to_string())
+        }
+        Ok(unexpected) => {
+            eprintln!("Unexpected status response: {:?}", unexpected);
             Err("Unexpected response type".to_string())
         }
     }
@@ -541,7 +544,10 @@ async fn balance() -> Result<Option<BalanceResponse>, String> {
         .map_err(|e| e.to_string())?;
     match resp {
         command::Response::Balance(resp) => Ok(resp.map(|b| b.into())),
-        _ => Err("Unexpected response type".to_string()),
+        unexpected => {
+            eprintln!("Unexpected balance response: {:?}", unexpected);
+            Err("Unexpected response type".to_string())
+        }
     }
 }
 

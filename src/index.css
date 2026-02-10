@@ -37,6 +37,7 @@
   /* Background colors */
   --color-bg-primary: #f6f6f6;
   --color-bg-surface: #ffffff;
+  --color-bg-surface-alt: #f0f0f0;
   --color-bg-overlay: rgba(0, 0, 0, 0.5);
 
   /* Text colors */
@@ -67,6 +68,7 @@
   /* Background colors */
   --color-bg-primary: #111827;
   --color-bg-surface: #1f2937;
+  --color-bg-surface-alt: #1a2233;
   --color-bg-overlay: rgba(0, 0, 0, 0.7);
 
   /* Text colors */
@@ -118,6 +120,7 @@
 
   --color-bg-primary: var(--color-bg-primary);
   --color-bg-surface: var(--color-bg-surface);
+  --color-bg-surface-alt: var(--color-bg-surface-alt);
   --color-bg-overlay: var(--color-bg-overlay);
 
   --color-text-primary: var(--color-text-primary);
@@ -289,7 +292,7 @@
 @keyframes fade-in-up {
   from {
     opacity: 0;
-    transform: translateY(4px);
+    transform: translateY(12px);
   }
   to {
     opacity: 1;
@@ -302,9 +305,5 @@
 }
 
 :root.dark .tab-icon {
-  filter: brightness(0) invert(1);
-}
-
-:root.dark .icon-invert-in-dark {
   filter: brightness(0) invert(1);
 }
