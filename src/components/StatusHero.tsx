@@ -12,7 +12,7 @@ export function StatusHero() {
     appState.vpnStatus === "Disconnecting";
 
   return (
-    <div class="w-full h-[30%] flex flex-col items-center justify-center gap-3">
+    <div class="w-full h-1/3 flex flex-col items-center justify-center gap-3">
       <div class="h-24 flex items-center justify-center">
         <Show when={isBusy()}>
           <SpinnerBig />
