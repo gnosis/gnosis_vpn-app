@@ -1,12 +1,17 @@
-import { createEffect, createSignal, type JSX, on, Show } from "solid-js";
+import { type JSX, Show } from "solid-js";
 import type {
   DestinationHealth,
   DestinationState,
   Health,
   RoutingOptions,
 } from "@src/services/vpnService.ts";
-import { formatHealth } from "@src/services/vpnService.ts";
+import {
+  formatHealth,
+  isReadyToConnect,
+  VPNService,
+} from "@src/services/vpnService.ts";
 import { getConnectionLabel } from "@src/utils/status.ts";
+import { useAppStore } from "@src/stores/appStore.ts";
 import {
   formatExitHealthStatus,
   formatLastChecked,
@@ -20,6 +25,7 @@ import {
   type HealthColor,
 } from "@src/utils/exitHealth.ts";
 import HopsIcon from "./HopsIcon.tsx";
+import Button from "./common/Button.tsx";
 
 const statusColorClass: Record<HealthColor, string> = {
   green: "text-vpn-light-green",
@@ -90,6 +96,8 @@ export default function ExitHealthDetail(
   const lastChecked = () => formatLastChecked(exitHealth());
   const route = () => formatRouting(routing());
 
+  const [appState, appActions] = useAppStore();
+
   const isConnected = () =>
     getConnectionLabel(props.destinationState.connection_state) === "Connected";
   const healthLabel =
@@ -108,19 +116,22 @@ export default function ExitHealthDetail(
   };
 
   const destId = () => props.destinationState.destination.id;
-  const [hidden, setHidden] = createSignal(false);
-  let timer: ReturnType<typeof setTimeout> | undefined;
 
-  createEffect(
-    on(destId, (_id, prevId) => {
-      if (prevId !== undefined && _id !== prevId) {
-        if (timer !== undefined) clearTimeout(timer);
-        setHidden(true);
-        // Hold invisible for 50ms so the browser paints it, then fade in
-        timer = setTimeout(() => setHidden(false), 50);
-      }
-    }),
-  );
+  const canSwitch = () =>
+    appState.vpnStatus === "Connected" &&
+    !isConnected() &&
+    isReadyToConnect(connectivityHealth());
+
+  const handleSwitch = async () => {
+    const nodeId = props.destinationState.destination.id;
+    appActions.chooseDestination(nodeId);
+    try {
+      await VPNService.connect(nodeId);
+      appActions.startStatusPolling();
+    } catch (error) {
+      console.error("Failed to switch node:", error);
+    }
+  };
 
   const healthColorClass = () => {
     if (isConnected()) return "text-vpn-light-green";
@@ -132,44 +143,53 @@ export default function ExitHealthDetail(
   };
 
   return (
-    <Show when={hasContent()}>
-      <div
-        class={`w-full bg-bg-surface-alt rounded-2xl px-4 py-2.5 text-xs transition-all duration-300 ease-out ${
-          hidden() ? "opacity-0 translate-y-3" : "opacity-100 translate-y-0"
-        }`}
-      >
-        <div class="flex flex-wrap items-center gap-1.5 mb-1">
-          <Tag value={location()} />
-          <Show when={route()}>
-            <Tag>
-              <HopsIcon count={getHopCount(routing())} hideCount />
-              <span class="ml-1">{route()}</span>
-            </Tag>
-          </Show>
-        </div>
+    <Show when={hasContent() ? destId() : false} keyed>
+      {(_id: string) => (
+        <div class="w-full bg-bg-surface-alt rounded-2xl px-4 py-2.5 text-xs fade-in-up">
+          <div class="flex flex-wrap items-center gap-1.5 mb-1">
+            <Tag value={location()} />
+            <Show when={route()}>
+              <Tag>
+                <HopsIcon count={getHopCount(routing())} hideCount />
+                <span class="ml-1">{route()}</span>
+              </Tag>
+            </Show>
+          </div>
 
-        <div class="flex flex-wrap items-center gap-1.5 mb-1.5">
-          <Tag
-            value={status()}
-            class={`${statusColorClass[color()]} bg-bg-primary`}
-          />
-          <Show when={healthLabel()}>
+          <div class="flex flex-wrap items-center gap-1.5 mb-1.5">
             <Tag
-              value={healthLabel()}
-              class={`${
-                healthColorClass() ?? "text-text-primary"
-              } bg-bg-primary`}
+              value={status()}
+              class={`${statusColorClass[color()]} bg-bg-primary`}
             />
+            <Show when={healthLabel()}>
+              <Tag
+                value={healthLabel()}
+                class={`${
+                  healthColorClass() ?? "text-text-primary"
+                } bg-bg-primary`}
+              />
+            </Show>
+          </div>
+
+          <div class="grid grid-cols-[3fr_2fr] gap-x-4 gap-y-2 pl-2 text-text-secondary">
+            <Stat label="Latency" value={latencyLabel()} />
+            <Stat label="Capacity" value={slots()} />
+            <Stat label="Load" value={loadAvg()} />
+            <Stat label="Checked" value={lastChecked()} />
+          </div>
+
+          <Show when={canSwitch()}>
+            <Button
+              size="sm"
+              variant="outline"
+              class="mt-2"
+              onClick={() => void handleSwitch()}
+            >
+              Switch to this node
+            </Button>
           </Show>
         </div>
-
-        <div class="grid grid-cols-[3fr_2fr] gap-x-4 gap-y-2 pl-2 text-text-secondary">
-          <Stat label="Latency" value={latencyLabel()} />
-          <Stat label="Capacity" value={slots()} />
-          <Stat label="Load" value={loadAvg()} />
-          <Stat label="Checked" value={lastChecked()} />
-        </div>
-      </div>
+      )}
     </Show>
   );
 }
