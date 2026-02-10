@@ -154,15 +154,13 @@ export default function ExitNode() {
             const ds = appState.destinations[randomDest.id];
             const exitHealth: DestinationHealth | undefined = ds?.exit_health;
             return (
-              <span class="flex items-center gap-1.5">
-                {exitHealth && (
-                  <ExitHealthBadge exitHealth={exitHealth} compact />
-                )}
-                <span>
-                  <span class="font-bold">Random</span>
-                  <span class="text-sm text-text-secondary font-light ml-2 break-all">
-                    {randomDest.id}
-                  </span>
+              <span class="flex flex-col">
+                <span class="font-bold">Random</span>
+                <span class="flex items-center gap-1.5 text-xs text-text-secondary font-light break-all">
+                  {exitHealth && (
+                    <ExitHealthBadge exitHealth={exitHealth} compact />
+                  )}
+                  {randomDest.id}
                 </span>
               </span>
             );
