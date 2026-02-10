@@ -60,12 +60,6 @@ export default function Manually() {
         </div>
 
         <FundingAddress address={nodeAddress()} />
-        <div class="text-sm text-text-secondary">
-          After the tx has been made, it can take up to two minutes, until your
-          App can connect.
-          <br />
-          In the case it will auto-forward to the next step.
-        </div>
       </div>
 
       <Show
