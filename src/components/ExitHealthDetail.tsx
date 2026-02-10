@@ -120,7 +120,11 @@ export default function ExitHealthDetail(
         <DetailRow
           label="Health"
           value={healthLabel()}
-          valueClass={color() === "red" ? "text-vpn-red" : undefined}
+          valueClass={color() === "red"
+            ? "text-vpn-red"
+            : color() === "green"
+            ? "text-vpn-light-green"
+            : undefined}
         />
         <DetailRow label="Checked" value={lastChecked()} />
       </div>
