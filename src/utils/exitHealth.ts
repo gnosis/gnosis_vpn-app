@@ -2,7 +2,7 @@ import type {
   DestinationHealth,
   DestinationState,
   RoutingOptions,
-  SerializedTime,
+  SerializedSinceTime,
 } from "@src/services/vpnService.ts";
 
 /** Visual health color for a destination. */
@@ -26,18 +26,22 @@ export function getExitHealthColor(dh: DestinationHealth): HealthColor {
   return "gray";
 }
 
+/** Format nanoseconds as e.g. "42ms". Returns null for null/NaN. */
+function nanosToMs(nanos: number | null | undefined): string | null {
+  if (nanos == null || Number.isNaN(nanos)) return null;
+  return `${Math.round(nanos / 1_000_000)}ms`;
+}
+
 /** Format round-trip time as e.g. "42ms". Returns null when unavailable. */
 export function formatLatency(dh: DestinationHealth): string | null {
   if (typeof dh === "string" || !("Success" in dh)) return null;
-  const ms = Math.round(dh.Success.round_trip_time * 1000);
-  return `${ms}ms`;
+  return nanosToMs(dh.Success.round_trip_time.nanos);
 }
 
 /** Format total session + query time as e.g. "180ms". Returns null when unavailable. */
 export function formatTotalTime(dh: DestinationHealth): string | null {
   if (typeof dh === "string" || !("Success" in dh)) return null;
-  const ms = Math.round(dh.Success.total_time * 1000);
-  return `${ms}ms`;
+  return nanosToMs(dh.Success.total_time.nanos);
 }
 
 /** Format slots as e.g. "3/10". Returns null when unavailable. */
@@ -74,7 +78,7 @@ export function formatLoadAvg(dh: DestinationHealth): string | null {
 export function formatLastChecked(dh: DestinationHealth): string | null {
   if (typeof dh === "string") return null;
 
-  let checkedAt: SerializedTime | undefined;
+  let checkedAt: SerializedSinceTime | undefined;
   if ("Success" in dh) checkedAt = dh.Success.checked_at;
   else if ("Failure" in dh) checkedAt = dh.Failure.checked_at;
 
@@ -141,8 +145,8 @@ export function getHealthScore(ds: DestinationState): number {
     // Reward available slots
     score += Math.min(health.slots.available, 20) * 10;
     // Reward low latency (invert: lower RTT → higher score)
-    if (round_trip_time > 0) {
-      score += Math.max(0, 500 - Math.round(round_trip_time * 1000));
+    if (round_trip_time.nanos > 0) {
+      score += Math.max(0, 500 - Math.round(round_trip_time.nanos * 1000));
     }
     // Penalize high load
     const { one, nproc } = health.load_avg;

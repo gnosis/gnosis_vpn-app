@@ -192,19 +192,24 @@ export type DestinationHealth =
   | { Success: DHSuccess };
 
 /** Rust SystemTime serialized by serde as {secs_since_epoch, nanos_since_epoch}. */
-export type SerializedTime = {
+export type SerializedSinceTime = {
   secs_since_epoch: number;
   nanos_since_epoch: number;
 };
 
+export type SerializedTime = {
+  nanos: number;
+  secs: number;
+};
+
 export type DHRunning = {
   // running since timestamp
-  since: SerializedTime;
+  since: SerializedSinceTime;
 };
 
 export type DHFailure = {
   // failures check started at timestamp
-  checked_at: SerializedTime;
+  checked_at: SerializedSinceTime;
   // error message
   error: string;
   // count of previous failures
@@ -213,13 +218,13 @@ export type DHFailure = {
 
 export type DHSuccess = {
   // success check started at timestamp
-  checked_at: SerializedTime;
+  checked_at: SerializedSinceTime;
   // reported by exit node
   health: ExitHealth;
   // total time to create session and query for health in seconds
-  total_time: number;
+  total_time: SerializedTime;
   // health query after session was established in seconds
-  round_trip_time: number;
+  round_trip_time: SerializedTime;
 };
 
 // Statistics reported by exit node
