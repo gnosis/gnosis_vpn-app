@@ -19,7 +19,7 @@ export default function SpinnerBig(props: Props): JSX.Element {
       width={size}
       height={size}
       viewBox="0 0 100 100"
-      class={`text-text-primary ${props.class ?? ""} dark:invert`}
+      class={`text-text-primary ${props.class ?? ""}`}
       role="img"
       aria-label="Loading"
     >
