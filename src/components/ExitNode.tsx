@@ -6,10 +6,45 @@ import { shortAddress } from "../utils/shortAddress.ts";
 import { createMemo } from "solid-js";
 import { useSettingsStore } from "../stores/settingsStore.ts";
 import ExitHealthBadge from "./ExitHealthBadge.tsx";
-import { getHealthScore } from "../utils/exitHealth.ts";
+import {
+  formatLatency,
+  getHealthScore,
+  getHopCount,
+} from "../utils/exitHealth.ts";
 
 type RandomOption = { type: "random" };
 type ExitOption = Destination | RandomOption;
+
+/** Small inline route icon: dots connected by a line. */
+function HopsIcon(props: { count: number }) {
+  return (
+    <span
+      class="inline-flex items-center gap-0.5"
+      title={`${props.count} hop${props.count !== 1 ? "s" : ""}`}
+    >
+      <svg
+        width="16"
+        height="12"
+        viewBox="0 0 16 12"
+        class="shrink-0"
+        aria-hidden="true"
+      >
+        <circle cx="2" cy="6" r="2" fill="currentColor" />
+        <line
+          x1="4"
+          y1="6"
+          x2="12"
+          y2="6"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-dasharray="2 2"
+        />
+        <circle cx="14" cy="6" r="2" fill="currentColor" />
+      </svg>
+      <span class="text-[10px] tabular-nums">{props.count}</span>
+    </span>
+  );
+}
 
 export default function ExitNode() {
   const [appState, appActions] = useAppStore();
@@ -47,28 +82,29 @@ export default function ExitNode() {
     <div class="w-full flex flex-row bg-bg-surface rounded-2xl p-4">
       <Dropdown<ExitOption>
         label="Exit Node"
-        options={[
-          { type: "random" } as RandomOption,
-          ...sortedDestinations(),
-        ]}
+        options={[{ type: "random" } as RandomOption, ...sortedDestinations()]}
         renderOption={(opt: ExitOption) => {
           if ("id" in opt) {
-            const name = shortAddress(opt.id);
             const ds = appState.destinations[opt.id];
             const exitHealth: DestinationHealth | undefined = ds?.exit_health;
+            const latency = exitHealth ? formatLatency(exitHealth) : null;
+            const hops = getHopCount(opt.routing);
             return (
               <span class="flex items-center justify-between gap-2">
                 <span class="flex items-center gap-1.5 min-w-0">
                   {exitHealth && (
                     <ExitHealthBadge exitHealth={exitHealth} compact />
                   )}
-                  <span class="truncate">{name}</span>
+                  <span class="break-all">{opt.id}</span>
                 </span>
-                {exitHealth && (
-                  <span class="shrink-0">
-                    <ExitHealthBadge exitHealth={exitHealth} hideDot />
-                  </span>
-                )}
+                <span class="shrink-0 text-xs text-text-secondary flex items-center gap-2">
+                  {latency && (
+                    <span class="tabular-nums" title="Latency">
+                      {latency}
+                    </span>
+                  )}
+                  <HopsIcon count={hops} />
+                </span>
               </span>
             );
           }
@@ -102,7 +138,6 @@ export default function ExitNode() {
         isOptionDisabled={() => false}
         renderValue={(opt: ExitOption) => {
           if ("id" in opt) {
-            const name = shortAddress(opt.id);
             const ds = appState.destinations[opt.id];
             const exitHealth: DestinationHealth | undefined = ds?.exit_health;
             return (
@@ -110,13 +145,12 @@ export default function ExitNode() {
                 {exitHealth && (
                   <ExitHealthBadge exitHealth={exitHealth} compact />
                 )}
-                <span>{name}</span>
+                <span class="break-all">{opt.id}</span>
               </span>
             );
           }
           const randomDest = randomDestination();
           if (randomDest) {
-            const destName = shortAddress(randomDest.id);
             const ds = appState.destinations[randomDest.id];
             const exitHealth: DestinationHealth | undefined = ds?.exit_health;
             return (
@@ -126,8 +160,8 @@ export default function ExitNode() {
                 )}
                 <span>
                   <span class="font-bold">Random</span>
-                  <span class="text-sm text-text-secondary font-light ml-2">
-                    {destName}
+                  <span class="text-sm text-text-secondary font-light ml-2 break-all">
+                    {randomDest.id}
                   </span>
                 </span>
               </span>

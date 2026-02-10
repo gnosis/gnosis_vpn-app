@@ -108,13 +108,16 @@ export function formatExitHealthStatus(dh: DestinationHealth): string {
   return "Unknown";
 }
 
+/** Get the raw hop count from routing options. */
+export function getHopCount(routing: RoutingOptions): number {
+  if ("Hops" in routing) return routing.Hops;
+  return routing.IntermediatePath.length;
+}
+
 /** Format routing as e.g. "1 hop" */
 export function formatRouting(routing: RoutingOptions): string {
-  if ("Hops" in routing) {
-    return routing.Hops === 1 ? "1 hop" : `${routing.Hops} hops`;
-  }
-  const len = routing.IntermediatePath.length;
-  return len === 1 ? "1 hop" : `${len} hops`;
+  const n = getHopCount(routing);
+  return n === 1 ? "1 hop" : `${n} hops`;
 }
 
 /** Compute a numeric quality score for sorting (higher = better). */
@@ -144,9 +147,10 @@ export function getHealthScore(ds: DestinationState): number {
     const { round_trip_time, health } = exit_health.Success;
     // Reward available slots
     score += Math.min(health.slots.available, 20) * 10;
-    // Reward low latency (invert: lower RTT → higher score)
+    // Reward low latency (invert: lower RTT → higher score, heavy weight)
     if (round_trip_time.nanos > 0) {
-      score += Math.max(0, 500 - Math.round(round_trip_time.nanos * 1000));
+      const ms = round_trip_time.nanos / 1_000_000;
+      score += Math.max(0, 2000 - Math.round(ms * 4));
     }
     // Penalize high load
     const { one, nproc } = health.load_avg;
