@@ -113,13 +113,6 @@ export function createAppStore(): AppStoreTuple {
       const message = error instanceof Error ? error.message : String(error);
       console.error("error", error);
 
-      // Transient errors (e.g. empty socket response, response interleaving) - keep current state, retry normally
-      const isTransient = message.includes("serializing") ||
-        message.includes("EOF") || message.includes("interleaving");
-      if (isTransient) {
-        return state.runMode ? DEFAULT_TIMEOUT : OFFLINE_TIMEOUT;
-      }
-
       log(message);
       setState("isLoading", false);
       setState("runMode", null);
@@ -133,7 +126,6 @@ export function createAppStore(): AppStoreTuple {
       return OFFLINE_TIMEOUT;
     }
 
-    // successfully decoded status response
     const screen = screenFromRunMode(response.run_mode);
     setState("currentScreen", screen);
 

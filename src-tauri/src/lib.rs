@@ -502,8 +502,6 @@ async fn status(
             );
             Err(e.to_string())
         }
-        // Balance response arrived here due to socket interleaving - not an error, just retry
-        Ok(command::Response::Balance(_)) => Err("response interleaving".to_string()),
         Ok(unexpected) => {
             eprintln!("Unexpected status response: {:?}", unexpected);
             Err("Unexpected response type".to_string())
@@ -546,8 +544,6 @@ async fn balance() -> Result<Option<BalanceResponse>, String> {
         .map_err(|e| e.to_string())?;
     match resp {
         command::Response::Balance(resp) => Ok(resp.map(|b| b.into())),
-        // Status response arrived here due to socket interleaving - not an error, just retry
-        command::Response::Status(_) => Err("response interleaving".to_string()),
         unexpected => {
             eprintln!("Unexpected balance response: {:?}", unexpected);
             Err("Unexpected response type".to_string())
