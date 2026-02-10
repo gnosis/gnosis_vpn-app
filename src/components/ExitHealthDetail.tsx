@@ -103,7 +103,7 @@ export default function ExitHealthDetail(
   return (
     <Show when={hasContent()}>
       <div
-        class={`w-full bg-bg-surface dark:bg-[#1a2233] rounded-2xl px-4 py-3 text-xs flex flex-col gap-1.5 transition-all duration-300 ease-out ${
+        class={`w-full dark:bg-bg-surface-alt rounded-2xl px-4 py-3 text-xs flex flex-col gap-1.5 transition-all duration-300 ease-out ${
           hidden() ? "opacity-0 translate-y-3" : "opacity-100 translate-y-0"
         }`}
       >
