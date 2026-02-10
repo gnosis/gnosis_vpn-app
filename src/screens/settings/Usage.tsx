@@ -180,7 +180,7 @@ export default function Usage() {
             <div class="text-xl font-bold">Transfer xDAI to EOA address</div>
             <FundingAddress
               address={balance()?.info.node_address}
-              full
+              // full
               title="Transfer xDAI"
             />
           </div>
@@ -190,7 +190,7 @@ export default function Usage() {
             </div>
             <FundingAddress
               address={balance()?.info.safe_address}
-              full
+              // full
               title="Transfer wxHOPR"
             />
           </div>
