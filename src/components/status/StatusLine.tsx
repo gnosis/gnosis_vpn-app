@@ -21,25 +21,25 @@ export default function StatusLine(
     <>
       <Show when={appState.vpnStatus === "Connecting"}>
         <div
-          class={`vpn-connector-line -bottom-6 connecting`}
+          class={`vpn-connector-line bottom-6 connecting`}
           style={{ height: `${props.heightPx}px`, "pointer-events": "none" }}
         />
       </Show>
       <Show when={appState.vpnStatus === "Connected"}>
         <div
-          class={`vpn-connector-line -bottom-6 connected`}
+          class={`vpn-connector-line bottom-6 connected`}
           style={{ height: `${props.heightPx}px`, "pointer-events": "none" }}
         />
       </Show>
       <Show when={appState.vpnStatus === "Disconnecting"}>
         <div
-          class={`vpn-connector-line -bottom-6 disconnecting-static`}
+          class={`vpn-connector-line bottom-6 disconnecting-static`}
           style={{ height: `${props.heightPx}px`, "pointer-events": "none" }}
         />
       </Show>
       <Show when={appState.vpnStatus === "Disconnected" && wasDisconnecting()}>
         <div
-          class={`vpn-connector-line -bottom-6 disconnected-shrinking`}
+          class={`vpn-connector-line bottom-6 disconnected-shrinking`}
           style={{ height: `${props.heightPx}px`, "pointer-events": "none" }}
         />
       </Show>
