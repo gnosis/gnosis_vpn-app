@@ -1,5 +1,5 @@
 import { Show } from "solid-js";
-import { useAppStore } from "../stores/appStore.ts";
+import { useAppStore } from "../../stores/appStore.ts";
 
 export function StatusIndicator(
   { size, whenOfflineOnly = false }: {

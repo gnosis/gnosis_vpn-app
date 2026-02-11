@@ -1,7 +1,7 @@
 import { createSignal } from "solid-js";
-import { useLogsStore } from "../stores/logsStore.ts";
-import { explorerUrl } from "../utils/explorerUrl.ts";
-import { shortAddress } from "../utils/shortAddress.ts";
+import { useLogsStore } from "../../stores/logsStore.ts";
+import { explorerUrl } from "../../utils/explorerUrl.ts";
+import { shortAddress } from "../../utils/shortAddress.ts";
 import QrCode from "./QrCode.tsx";
 import linkIcon from "@assets/icons/link.svg";
 import copyIcon from "@assets/icons/copy.svg";

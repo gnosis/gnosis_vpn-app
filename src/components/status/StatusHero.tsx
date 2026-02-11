@@ -1,5 +1,5 @@
 import { Show } from "solid-js";
-import { useAppStore } from "../stores/appStore.ts";
+import { useAppStore } from "../../stores/appStore.ts";
 import SpinnerBig from "./SpinnerBig.tsx";
 import connectedImg from "@assets/img/connected.svg";
 import disconnectedImg from "@assets/img/disconnected.svg";

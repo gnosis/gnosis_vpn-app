@@ -4,6 +4,7 @@ import {
   createSignal,
   For,
   type JSX,
+  on,
   onCleanup,
   onMount,
   Show,
@@ -46,6 +47,8 @@ export function Dropdown<T>(props: DropdownProps<T>) {
       pressTimeout = globalThis.setTimeout(() => setPressed(false), 160);
     });
   };
+
+  let closeTimeout: ReturnType<typeof globalThis.setTimeout> | undefined;
 
   let root!: HTMLDivElement;
   let btn!: HTMLButtonElement;
@@ -105,25 +108,27 @@ export function Dropdown<T>(props: DropdownProps<T>) {
   });
   onCleanup(() => {
     document.removeEventListener("mousedown", onDocClick);
+    if (closeTimeout) globalThis.clearTimeout(closeTimeout);
   });
 
-  createEffect(() => {
-    let closeTimeout: ReturnType<typeof globalThis.setTimeout> | undefined;
-    if (open()) {
-      if (closeTimeout !== undefined) globalThis.clearTimeout(closeTimeout);
-      setMounted(true);
-      const idx = selectedIdx();
-      if (idx >= 0 && !isDisabledIndex(idx)) {
-        setActiveIdx(idx);
-      } else {
-        setActiveIdx(firstEnabledIndex());
+  createEffect(
+    on(open, (isOpen) => {
+      if (isOpen) {
+        if (closeTimeout) globalThis.clearTimeout(closeTimeout);
+        setMounted(true);
+        const idx = selectedIdx();
+        if (idx >= 0 && !isDisabledIndex(idx)) {
+          setActiveIdx(idx);
+        } else {
+          setActiveIdx(firstEnabledIndex());
+        }
+        updatePosition();
+        queueMicrotask(() => list?.focus());
+      } else if (mounted()) {
+        closeTimeout = globalThis.setTimeout(() => setMounted(false), 150);
       }
-      updatePosition();
-      queueMicrotask(() => list?.focus());
-    } else if (mounted()) {
-      closeTimeout = globalThis.setTimeout(() => setMounted(false), 150);
-    }
-  });
+    }),
+  );
 
   const onReposition = () => updatePosition();
   createEffect(() => {
@@ -260,15 +265,14 @@ export function Dropdown<T>(props: DropdownProps<T>) {
           >
             <For each={props.options}>
               {(opt, i) => {
-                const idx = i();
-                const isActive = () => activeIdx() === idx;
-                const isSelected = () => selectedIdx() === idx;
+                const isActive = () => activeIdx() === i();
+                const isSelected = () => selectedIdx() === i();
                 const isDisabled = () => (props.isOptionDisabled
                   ? !!props.isOptionDisabled(opt)
                   : false);
                 return (
                   <li
-                    id={`opt-${idx}`}
+                    id={`opt-${i()}`}
                     role="option"
                     aria-selected={isSelected()}
                     aria-disabled={isDisabled()}
@@ -283,9 +287,9 @@ export function Dropdown<T>(props: DropdownProps<T>) {
                              ${
                       isSelected() && !isActive() ? "font-semibold" : ""
                     }`}
-                    onMouseEnter={() => !isDisabled() && setActiveIdx(idx)}
+                    onMouseEnter={() => !isDisabled() && setActiveIdx(i())}
                     onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => !isDisabled() && selectByIndex(idx)}
+                    onClick={() => !isDisabled() && selectByIndex(i())}
                   >
                     {props.renderOption
                       ? props.renderOption(opt)

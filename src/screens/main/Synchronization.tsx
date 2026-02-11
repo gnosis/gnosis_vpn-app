@@ -1,6 +1,6 @@
 import syncIcon from "@assets/icons/sync.svg";
 import { useAppStore } from "@src/stores/appStore.ts";
-import StatusIndicator from "../../components/StatusIndicator.tsx";
+import StatusIndicator from "../../components/status/StatusIndicator.tsx";
 import { formatWarmupStatus, RunMode } from "../../services/vpnService.ts";
 
 export default function Synchronization() {

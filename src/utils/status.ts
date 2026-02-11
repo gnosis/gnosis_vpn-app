@@ -11,26 +11,23 @@ function getDestinationsWithConnection(state: AppState): DestinationState[] {
 }
 
 export function isConnected(destinations: DestinationState[]): boolean {
-  return destinations.some(
-    (ds) =>
-      typeof ds.connection_state === "object" &&
-      "Connected" in ds.connection_state,
+  return destinations.some((ds) =>
+    typeof ds.connection_state === "object" &&
+    "Connected" in ds.connection_state
   );
 }
 
 export function isConnecting(destinations: DestinationState[]): boolean {
-  return destinations.some(
-    (ds) =>
-      typeof ds.connection_state === "object" &&
-      "Connecting" in ds.connection_state,
+  return destinations.some((ds) =>
+    typeof ds.connection_state === "object" &&
+    "Connecting" in ds.connection_state
   );
 }
 
 export function isDisconnecting(destinations: DestinationState[]): boolean {
-  return destinations.some(
-    (ds) =>
-      typeof ds.connection_state === "object" &&
-      "Disconnecting" in ds.connection_state,
+  return destinations.some((ds) =>
+    typeof ds.connection_state === "object" &&
+    "Disconnecting" in ds.connection_state
   );
 }
 
@@ -47,14 +44,12 @@ export function isConnectedTo(
   destination: Destination,
 ): boolean {
   const destinations = getDestinationsWithConnection(state);
-  const destState = destinations.find(
-    (ds) => ds.destination.id === destination.id,
+  const destState = destinations.find((ds) =>
+    ds.destination.id === destination.id
   );
   if (destState) {
-    return (
-      typeof destState.connection_state === "object" &&
-      "Connected" in destState.connection_state
-    );
+    return typeof destState.connection_state === "object" &&
+      "Connected" in destState.connection_state;
   }
   return false;
 }
@@ -64,14 +59,12 @@ export function isConnectingTo(
   destination: Destination,
 ): boolean {
   const destinations = getDestinationsWithConnection(state);
-  const destState = destinations.find(
-    (ds) => ds.destination.id === destination.id,
+  const destState = destinations.find((ds) =>
+    ds.destination.id === destination.id
   );
   if (destState) {
-    return (
-      typeof destState.connection_state === "object" &&
-      "Connecting" in destState.connection_state
-    );
+    return typeof destState.connection_state === "object" &&
+      "Connecting" in destState.connection_state;
   }
   return false;
 }
@@ -81,14 +74,12 @@ export function isDisconnectingFrom(
   destination: Destination,
 ): boolean {
   const destinations = getDestinationsWithConnection(state);
-  const destState = destinations.find(
-    (ds) => ds.destination.id === destination.id,
+  const destState = destinations.find((ds) =>
+    ds.destination.id === destination.id
   );
   if (destState) {
-    return (
-      typeof destState.connection_state === "object" &&
-      "Disconnecting" in destState.connection_state
-    );
+    return typeof destState.connection_state === "object" &&
+      "Disconnecting" in destState.connection_state;
   }
   return false;
 }
@@ -112,17 +103,13 @@ export function getVpnStatus(
 }
 
 export function isXDAITransferred(state: AppState): boolean {
-  return (
-    !!state &&
-    isPreparingSafeRunMode(state.runMode) &&
-    parseFloat(state.runMode.PreparingSafe.node_xdai) >= 0.01
-  );
+  return !!state && isPreparingSafeRunMode(state.runMode) &&
+    parseFloat(state.runMode.PreparingSafe.node_xdai) >= 0.01;
 }
 
 export function isWxHOPRTransferred(state: AppState): boolean {
   return (
-    !!state &&
-    isPreparingSafeRunMode(state.runMode) &&
+    !!state && isPreparingSafeRunMode(state.runMode) &&
     parseFloat(state.runMode.PreparingSafe.node_wxhopr) >= 0.01
   );
 }
@@ -161,4 +148,43 @@ export function getConnectionPhase(
     return cs.Disconnecting[1];
   }
   return undefined;
+}
+
+export function formatConnectionPhase(phase: string): string {
+  switch (phase) {
+    // UpPhase
+    case "Init":
+      return "Initializing";
+    case "GeneratingWg":
+      return "Generating WireGuard keys";
+    case "OpeningBridge":
+      return "Opening bridge";
+    case "RegisterWg":
+      return "Registering WireGuard";
+    case "ClosingBridge":
+      return "Closing bridge";
+    case "OpeningPing":
+      return "Opening ping";
+    case "EstablishDynamicWgTunnel":
+      return "Establishing tunnel";
+    case "FallbackGatherPeerIps":
+      return "Gathering peer IPs";
+    case "FallbackToStaticWgTunnel":
+      return "Fallback to static tunnel";
+    case "VerifyPing":
+      return "Verifying ping";
+    case "AdjustToMain":
+      return "Adjusting connection";
+    case "ConnectionEstablished":
+      return "Connection established";
+    // DownPhase
+    case "Disconnecting":
+      return "Disconnecting";
+    case "DisconnectingWg":
+      return "Disconnecting WireGuard";
+    case "UnregisterWg":
+      return "Unregistering WireGuard";
+    default:
+      return phase;
+  }
 }

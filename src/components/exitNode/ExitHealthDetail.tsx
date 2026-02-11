@@ -25,7 +25,7 @@ import {
   type HealthColor,
 } from "@src/utils/exitHealth.ts";
 import HopsIcon from "./HopsIcon.tsx";
-import Button from "./common/Button.tsx";
+import Button from "../common/Button.tsx";
 
 const statusColorClass: Record<HealthColor, string> = {
   green: "text-vpn-light-green",
@@ -118,8 +118,7 @@ export default function ExitHealthDetail(
   const destId = () => props.destinationState.destination.id;
 
   const canSwitch = () =>
-    appState.vpnStatus === "Connected" &&
-    !isConnected() &&
+    appState.vpnStatus === "Connected" && !isConnected() &&
     isReadyToConnect(connectivityHealth());
 
   const handleSwitch = async () => {

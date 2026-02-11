@@ -1,21 +1,25 @@
-import { useAppStore } from "../stores/appStore.ts";
-import { Dropdown } from "./common/Dropdown.tsx";
-import { selectTargetId } from "../utils/destinations.ts";
-import type { Destination, DestinationHealth } from "../services/vpnService.ts";
-import { shortAddress } from "../utils/shortAddress.ts";
+import { useAppStore } from "../../stores/appStore.ts";
+import { Dropdown } from "../common/Dropdown.tsx";
+import { selectTargetId } from "../../utils/destinations.ts";
+import type {
+  Destination,
+  DestinationHealth,
+} from "../../services/vpnService.ts";
+import { shortAddress } from "../../utils/shortAddress.ts";
 import { createMemo } from "solid-js";
-import { useSettingsStore } from "../stores/settingsStore.ts";
+import { useSettingsStore } from "../../stores/settingsStore.ts";
 import ExitHealthBadge from "./ExitHealthBadge.tsx";
 import {
   formatLatency,
   getHealthScore,
   getHopCount,
-} from "../utils/exitHealth.ts";
+} from "../../utils/exitHealth.ts";
 import HopsIcon from "./HopsIcon.tsx";
-import { getConnectionLabel } from "../utils/status.ts";
+import { getConnectionLabel } from "../../utils/status.ts";
 
 type RandomOption = { type: "random" };
 type ExitOption = Destination | RandomOption;
+const RANDOM_OPTION: RandomOption = { type: "random" };
 
 export default function ExitNode() {
   const [appState, appActions] = useAppStore();
@@ -53,7 +57,7 @@ export default function ExitNode() {
     <div class="w-full flex flex-row bg-bg-surface rounded-2xl p-4">
       <Dropdown<ExitOption>
         label="Exit Node"
-        options={[{ type: "random" } as RandomOption, ...sortedDestinations()]}
+        options={[RANDOM_OPTION, ...sortedDestinations()]}
         renderOption={(opt: ExitOption) => {
           if ("id" in opt) {
             const ds = appState.destinations[opt.id];
@@ -98,9 +102,8 @@ export default function ExitNode() {
         value={(appState.selectedId
           ? (appState.availableDestinations.find((d) =>
             d.id === appState.selectedId
-          ) ??
-            ({ type: "random" } as RandomOption))
-          : ({ type: "random" } as RandomOption)) as ExitOption}
+          ) ?? RANDOM_OPTION)
+          : RANDOM_OPTION) as ExitOption}
         onChange={(opt: ExitOption) => {
           const current = appState.selectedId;
           if ("id" in opt) {

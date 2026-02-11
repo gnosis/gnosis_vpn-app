@@ -9,8 +9,8 @@ import {
   isWxHOPRTransferred,
   isXDAITransferred,
 } from "@src/utils/status.ts";
-import FundingAddress from "../FundingAddress.tsx";
-import StatusIndicator from "../StatusIndicator.tsx";
+import FundingAddress from "../address/FundingAddress.tsx";
+import StatusIndicator from "../status/StatusIndicator.tsx";
 
 export default function Manually() {
   const [appState] = useAppStore();
