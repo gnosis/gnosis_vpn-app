@@ -2926,8 +2926,8 @@ dependencies = [
 
 [[package]]
 name = "edgli"
-version = "1.0.7"
-source = "git+https://github.com/hoprnet/edge-client.git?rev=8eef3a873d9f52d1cd2422da33cf599f9736cfb0#8eef3a873d9f52d1cd2422da33cf599f9736cfb0"
+version = "2.0.0"
+source = "git+https://github.com/hoprnet/edge-client.git?rev=621c2e274a2156327e9f5621c6552c58759a7345#621c2e274a2156327e9f5621c6552c58759a7345"
 dependencies = [
  "anyhow",
  "async-signal",
@@ -3873,7 +3873,7 @@ dependencies = [
 
 [[package]]
 name = "gnosis_vpn-app"
-version = "0.10.2"
+version = "0.11.0"
 dependencies = [
  "cocoa",
  "dark-light",
@@ -3894,8 +3894,8 @@ dependencies = [
 
 [[package]]
 name = "gnosis_vpn-lib"
-version = "0.67.2"
-source = "git+https://github.com/gnosis/gnosis_vpn-client.git?rev=3b8f6ccc47a199a413a7680cdf2c0298162f9e23#3b8f6ccc47a199a413a7680cdf2c0298162f9e23"
+version = "0.70.1"
+source = "git+https://github.com/gnosis/gnosis_vpn-client.git?rev=ac16e6aa9e2c319092dd1cf31c2fc5bae31698e7#ac16e6aa9e2c319092dd1cf31c2fc5bae31698e7"
 dependencies = [
  "anyhow",
  "backon",
@@ -3920,6 +3920,7 @@ dependencies = [
  "tokio-util",
  "toml 0.9.11+spec-1.1.0",
  "tracing",
+ "tracing-subscriber",
  "url",
  "uzers",
 ]
