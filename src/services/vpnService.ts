@@ -38,7 +38,7 @@ export type DestinationState = {
 
 export type Destination = {
   id: string;
-  meta: Record<string, string>;
+  meta: { location: string } & Record<string, string>;
   address: string;
   routing: RoutingOptions;
 };

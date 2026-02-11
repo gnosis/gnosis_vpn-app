@@ -16,6 +16,7 @@ import StatusHero from "../../components/status/StatusHero.tsx";
 import StatusLine from "../../components/status/StatusLine.tsx";
 import ExitHealthDetail from "../../components/exitNode/ExitHealthDetail.tsx";
 import { selectTargetId } from "../../utils/destinations.ts";
+import ConnectionStatus from "../../components/status/ConnectionStatus.tsx";
 
 export function MainScreen() {
   const [appState] = useAppStore();
@@ -84,6 +85,7 @@ export function MainScreen() {
         <StatusLine heightPx={connectorHeight()} />
         <div class="grow z-10"></div>
         <ConnectButton />
+        <ConnectionStatus />
       </main>
     </div>
   );
