@@ -46,11 +46,11 @@ export type Destination = {
 export type ConnectionState =
   | "None"
   // Connecting tuple (since: timestamp, phase/status: UpPhase) - see gnosis_vpn-lib/src/core/conn.rs
-  | { Connecting: [number, UpPhase] }
+  | { Connecting: [SerializedSinceTime, UpPhase] }
   // Connected since timestamp (SystemTime serializes as timestamp number)
-  | { Connected: [number] }
+  | { Connected: [SerializedSinceTime] }
   // Disconecting tuple (since: timestamp, phase/status: DownPhase) - see gnosis_vpn-lib/src/core/disconn.rs
-  | { Disconnecting: [number, DownPhase] };
+  | { Disconnecting: [SerializedSinceTime, DownPhase] };
 
 export type UpPhase =
   | "Init"
@@ -117,8 +117,8 @@ export type FundingTool =
   | "InProgress"
   | "CompletedSuccess"
   | {
-    CompletedError: string;
-  };
+      CompletedError: string;
+    };
 
 export type FundingIssue =
   | "Unfunded" // cannot work at all - initial state
@@ -456,7 +456,7 @@ export class VPNService {
 
     // Sort by id for consistent selection
     const sorted = [...destinations].sort((a, b) =>
-      a.destination.id.localeCompare(b.destination.id)
+      a.destination.id.localeCompare(b.destination.id),
     );
     return sorted[0].destination.id;
   }

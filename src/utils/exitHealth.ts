@@ -3,6 +3,7 @@ import type {
   DestinationState,
   RoutingOptions,
   SerializedSinceTime,
+  SerializedTime,
 } from "@src/services/vpnService.ts";
 
 /** Visual health color for a destination. */
@@ -27,21 +28,21 @@ export function getExitHealthColor(dh: DestinationHealth): HealthColor {
 }
 
 /** Format nanoseconds as e.g. "42ms". Returns null for null/NaN. */
-function nanosToMs(nanos: number | null | undefined): string | null {
-  if (nanos == null || Number.isNaN(nanos)) return null;
-  return `${Math.round(nanos / 1_000_000)}ms`;
+function toMs(serTime: SerializedTime): string {
+  const amount = serTime.secs * 1000 + serTime.nanos / 1_000_000;
+  return `${amount.toFixed(0)}ms`;
 }
 
 /** Format round-trip time as e.g. "42ms". Returns null when unavailable. */
 export function formatLatency(dh: DestinationHealth): string | null {
   if (typeof dh === "string" || !("Success" in dh)) return null;
-  return nanosToMs(dh.Success.round_trip_time.nanos);
+  return toMs(dh.Success.round_trip_time);
 }
 
 /** Format total session + query time as e.g. "180ms". Returns null when unavailable. */
 export function formatTotalTime(dh: DestinationHealth): string | null {
   if (typeof dh === "string" || !("Success" in dh)) return null;
-  return nanosToMs(dh.Success.total_time.nanos);
+  return toMs(dh.Success.total_time);
 }
 
 /** Format slots as e.g. "3/10". Returns null when unavailable. */
