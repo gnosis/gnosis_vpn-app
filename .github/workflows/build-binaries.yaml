@@ -166,7 +166,7 @@ jobs:
       - name: Build tauri mac artifact
         if: ${{ endsWith(steps.vars.outputs.architecture, '-darwin') }}
         id: build-tauri-mac
-        uses: tauri-apps/tauri-action@action-v0.5.23
+        uses: tauri-apps/tauri-action@73fb865345c54760d875b94642314f8c0c894afa # v0.6.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE_DEVELOPER_P12_BASE64 }}
@@ -179,7 +179,7 @@ jobs:
       - name: Build tauri linux artifact
         if: ${{ endsWith(steps.vars.outputs.architecture, '-linux') }}
         id: build-tauri-linux
-        uses: tauri-apps/tauri-action@action-v0.5.23
+        uses: tauri-apps/tauri-action@73fb865345c54760d875b94642314f8c0c894afa # v0.6.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:

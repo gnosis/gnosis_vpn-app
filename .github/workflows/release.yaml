@@ -135,7 +135,7 @@ jobs:
           # capture group 3: "
           sed -i.bak -E "s/(^version = \")([0-9]+\.[0-9]+\.[0-9]+)(\")/\1${bump_version}\3/" src-tauri/Cargo.toml
           rm src-tauri/Cargo.toml.bak
-          nix develop --command cargo generate-lockfile
+          nix develop --command cargo metadata --format-version 1 --manifest-path src-tauri/Cargo.toml > /dev/null
           jq --arg v "$bump_version" '.version = $v' package.json > package-tmp.json && mv package-tmp.json package.json
           echo "bump_version=${bump_version}" | tee -a $GITHUB_OUTPUT
       - uses: EndBug/add-and-commit@a94899bca583c204427a224a7af87c02f9b325d5 # v9
