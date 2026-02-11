@@ -1,18 +1,21 @@
-import { useAppStore } from "../stores/appStore.ts";
-import { Dropdown } from "./common/Dropdown.tsx";
-import { selectTargetId } from "../utils/destinations.ts";
-import type { Destination, DestinationHealth } from "../services/vpnService.ts";
-import { shortAddress } from "../utils/shortAddress.ts";
+import { useAppStore } from "../../stores/appStore.ts";
+import { Dropdown } from "../common/Dropdown.tsx";
+import { selectTargetId } from "../../utils/destinations.ts";
+import type {
+  Destination,
+  DestinationHealth,
+} from "../../services/vpnService.ts";
+import { shortAddress } from "../../utils/shortAddress.ts";
 import { createMemo } from "solid-js";
-import { useSettingsStore } from "../stores/settingsStore.ts";
+import { useSettingsStore } from "../../stores/settingsStore.ts";
 import ExitHealthBadge from "./ExitHealthBadge.tsx";
 import {
   formatLatency,
   getHealthScore,
   getHopCount,
-} from "../utils/exitHealth.ts";
+} from "../../utils/exitHealth.ts";
 import HopsIcon from "./HopsIcon.tsx";
-import { getConnectionLabel } from "../utils/status.ts";
+import { getConnectionLabel } from "../../utils/status.ts";
 
 type RandomOption = { type: "random" };
 type ExitOption = Destination | RandomOption;

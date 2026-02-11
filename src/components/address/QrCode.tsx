@@ -1,8 +1,8 @@
 import { createEffect, createSignal, Show } from "solid-js";
 import { Portal } from "solid-js/web";
 import QRCode from "qrcode";
-import { useLogsStore } from "../stores/logsStore.ts";
-import { shortAddress } from "../utils/shortAddress.ts";
+import { useLogsStore } from "../../stores/logsStore.ts";
+import { shortAddress } from "../../utils/shortAddress.ts";
 
 type QrCodeProps = {
   open: boolean;

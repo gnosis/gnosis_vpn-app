@@ -8,13 +8,13 @@ import {
 } from "solid-js";
 import { useAppStore } from "../../stores/appStore.ts";
 import { useSettingsStore } from "../../stores/settingsStore.ts";
-import { StatusIndicator } from "../../components/StatusIndicator.tsx";
+import { StatusIndicator } from "../../components/status/StatusIndicator.tsx";
 import Navigation from "../../components/Navigation.tsx";
-import ExitNode from "../../components/ExitNode.tsx";
+import ExitNode from "../../components/exitNode/ExitNode.tsx";
 import ConnectButton from "../../components/ConnectButton.tsx";
-import StatusHero from "../../components/StatusHero.tsx";
-import StatusLine from "../../components/StatusLine.tsx";
-import ExitHealthDetail from "../../components/ExitHealthDetail.tsx";
+import StatusHero from "../../components/status/StatusHero.tsx";
+import StatusLine from "../../components/status/StatusLine.tsx";
+import ExitHealthDetail from "../../components/exitNode/ExitHealthDetail.tsx";
 import { selectTargetId } from "../../utils/destinations.ts";
 
 export function MainScreen() {

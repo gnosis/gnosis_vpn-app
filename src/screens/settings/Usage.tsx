@@ -12,7 +12,7 @@ import { useLogsStore } from "../../stores/logsStore.ts";
 import refreshIcon from "../../assets/icons/refresh.svg";
 import { Modal } from "../../components/common/Modal.tsx";
 import Button from "../../components/common/Button.tsx";
-import FundingAddress from "../../components/FundingAddress.tsx";
+import FundingAddress from "../../components/address/FundingAddress.tsx";
 
 const BALANCE_REFRESH_INTERVAL_MS = 1000;
 
