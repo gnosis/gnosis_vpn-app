@@ -82,8 +82,9 @@ export function formatLastChecked(dh: DestinationHealth): string | null {
   let checkedAt: SerializedSinceTime | undefined;
   if ("Success" in dh) checkedAt = dh.Success.checked_at;
   else if ("Failure" in dh) checkedAt = dh.Failure.checked_at;
+  else if ("Running" in dh) checkedAt = dh.Running.since;
 
-  if (!checkedAt || typeof checkedAt.secs_since_epoch !== "number") return null;
+  if (!checkedAt) return null;
 
   const nowSec = Date.now() / 1000;
   const diffSec = Math.max(0, Math.round(nowSec - checkedAt.secs_since_epoch));
