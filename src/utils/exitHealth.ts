@@ -27,7 +27,7 @@ export function getExitHealthColor(dh: DestinationHealth): HealthColor {
   return "gray";
 }
 
-/** Format nanoseconds as e.g. "42ms". Returns null for null/NaN. */
+/** Format SerializedTime as e.g. "42ms". */
 function toMs(serTime: SerializedTime): string {
   const amount = serTime.secs * 1000 + serTime.nanos / 1_000_000;
   return `${amount.toFixed(0)}ms`;
