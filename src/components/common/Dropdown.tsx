@@ -48,6 +48,8 @@ export function Dropdown<T>(props: DropdownProps<T>) {
     });
   };
 
+  let closeTimeout: ReturnType<typeof globalThis.setTimeout> | undefined;
+
   let root!: HTMLDivElement;
   let btn!: HTMLButtonElement;
   let list!: HTMLUListElement;
@@ -106,11 +108,13 @@ export function Dropdown<T>(props: DropdownProps<T>) {
   });
   onCleanup(() => {
     document.removeEventListener("mousedown", onDocClick);
+    if (closeTimeout) globalThis.clearTimeout(closeTimeout);
   });
 
   createEffect(
     on(open, (isOpen) => {
       if (isOpen) {
+        if (closeTimeout) globalThis.clearTimeout(closeTimeout);
         setMounted(true);
         const idx = selectedIdx();
         if (idx >= 0 && !isDisabledIndex(idx)) {
@@ -121,7 +125,7 @@ export function Dropdown<T>(props: DropdownProps<T>) {
         updatePosition();
         queueMicrotask(() => list?.focus());
       } else if (mounted()) {
-        globalThis.setTimeout(() => setMounted(false), 150);
+        closeTimeout = globalThis.setTimeout(() => setMounted(false), 150);
       }
     }),
   );
