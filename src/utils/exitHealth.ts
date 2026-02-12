@@ -3,6 +3,7 @@ import type {
   DestinationState,
   RoutingOptions,
   SerializedSinceTime,
+  SerializedTime,
 } from "@src/services/vpnService.ts";
 
 /** Visual health color for a destination. */
@@ -26,22 +27,26 @@ export function getExitHealthColor(dh: DestinationHealth): HealthColor {
   return "gray";
 }
 
-/** Format nanoseconds as e.g. "42ms". Returns null for null/NaN. */
-function nanosToMs(nanos: number | null | undefined): string | null {
-  if (nanos == null || Number.isNaN(nanos)) return null;
-  return `${Math.round(nanos / 1_000_000)}ms`;
+/** Format SerializedTime as e.g. 42. */
+function toMs(serTime: SerializedTime): number {
+  return serTime.secs * 1000 + serTime.nanos / 1_000_000;
+}
+
+function formatMs(serTime: SerializedTime): string {
+  const amount = toMs(serTime);
+  return `${amount.toFixed(0)}ms`;
 }
 
 /** Format round-trip time as e.g. "42ms". Returns null when unavailable. */
 export function formatLatency(dh: DestinationHealth): string | null {
   if (typeof dh === "string" || !("Success" in dh)) return null;
-  return nanosToMs(dh.Success.round_trip_time.nanos);
+  return formatMs(dh.Success.round_trip_time);
 }
 
 /** Format total session + query time as e.g. "180ms". Returns null when unavailable. */
 export function formatTotalTime(dh: DestinationHealth): string | null {
   if (typeof dh === "string" || !("Success" in dh)) return null;
-  return nanosToMs(dh.Success.total_time.nanos);
+  return formatMs(dh.Success.total_time);
 }
 
 /** Format slots as e.g. "3/10". Returns null when unavailable. */
@@ -81,8 +86,9 @@ export function formatLastChecked(dh: DestinationHealth): string | null {
   let checkedAt: SerializedSinceTime | undefined;
   if ("Success" in dh) checkedAt = dh.Success.checked_at;
   else if ("Failure" in dh) checkedAt = dh.Failure.checked_at;
+  else if ("Running" in dh) checkedAt = dh.Running.since;
 
-  if (!checkedAt || typeof checkedAt.secs_since_epoch !== "number") return null;
+  if (!checkedAt) return null;
 
   const nowSec = Date.now() / 1000;
   const diffSec = Math.max(0, Math.round(nowSec - checkedAt.secs_since_epoch));
@@ -148,10 +154,8 @@ export function getHealthScore(ds: DestinationState): number {
     // Reward available slots
     score += Math.min(health.slots.available, 20) * 10;
     // Reward low latency (invert: lower RTT → higher score, heavy weight)
-    if (round_trip_time.nanos > 0) {
-      const ms = round_trip_time.nanos / 1_000_000;
-      score += Math.max(0, 2000 - Math.round(ms * 4));
-    }
+    const ms = toMs(round_trip_time);
+    score += Math.max(0, 2000 - Math.round(ms * 4));
     // Penalize high load
     const { one, nproc } = health.load_avg;
     if (nproc > 0) {

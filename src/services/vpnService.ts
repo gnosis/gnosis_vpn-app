@@ -46,11 +46,11 @@ export type Destination = {
 export type ConnectionState =
   | "None"
   // Connecting tuple (since: timestamp, phase/status: UpPhase) - see gnosis_vpn-lib/src/core/conn.rs
-  | { Connecting: [number, UpPhase] }
+  | { Connecting: [SerializedSinceTime, UpPhase] }
   // Connected since timestamp (SystemTime serializes as timestamp number)
-  | { Connected: [number] }
+  | { Connected: [SerializedSinceTime] }
   // Disconecting tuple (since: timestamp, phase/status: DownPhase) - see gnosis_vpn-lib/src/core/disconn.rs
-  | { Disconnecting: [number, DownPhase] };
+  | { Disconnecting: [SerializedSinceTime, DownPhase] };
 
 export type UpPhase =
   | "Init"
