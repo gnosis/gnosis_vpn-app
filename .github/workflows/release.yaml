@@ -168,6 +168,5 @@ jobs:
             {
               "public_release": "false",
               "client_version": "latest",
-              "app_version": "${{ steps.bump.outputs.current_version }}",
-              "sign": "true",
+              "app_version": "${{ steps.bump.outputs.current_version }}"
             }
