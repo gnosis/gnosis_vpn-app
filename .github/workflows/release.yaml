@@ -159,7 +159,7 @@ jobs:
             I'm thrilled to inform the new `gnosis_vpn-app` version `v${{ steps.bump.outputs.current_version }}` has been released.
             [Release Notes](${{ github.server_url }}/${{ github.repository }}/releases/tag/v${{ steps.bump.outputs.current_version }})
       - name: Trigger installer snapshot
-        uses: peter-evans/repository-dispatch@ff45666b9427631e3450c54a1bcbee4d9ff4d7c0 # v3.0.0
+        uses: peter-evans/repository-dispatch@28959ce8df70de7be546dd1250a005dd32156697 # v4.0.1
         with:
           token: ${{ secrets.GNOSIS_GITHUB_WORKFLOW_TOKEN }}
           repository: gnosis/gnosis_vpn
