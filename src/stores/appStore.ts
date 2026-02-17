@@ -399,7 +399,7 @@ export function formatWarmup(runMode: RunMode | null): string {
     return runMode;
   }
   if ("DeployingSafe" in runMode) {
-    return `Safe deployment ongoing, this will take a while...`;
+    return `Safe deployment ongoing`;
   }
   if ("Warmup" in runMode) {
     return formatWarmupStatus(runMode.Warmup.status);
