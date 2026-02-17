@@ -55,7 +55,7 @@ export default function FundingAddress(
     <>
       <div class="flex flex-row justify-between items-center">
         <div class="text-sm">
-          <div class="font-bold">Funding address</div>
+          <div class="font-bold">Gnosis VPN address</div>
           <button
             class="font-mono text-lg"
             onClick={() => copy()}
