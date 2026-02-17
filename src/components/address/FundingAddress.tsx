@@ -19,7 +19,7 @@ export default function FundingAddress(
     return <div class="text-sm text-red-500">No funding address found</div>;
   }
 
-  let safeAddress: string = raw;
+  const safeAddress: string = raw;
 
   const [showQR, setShowQR] = createSignal(false);
   const [copied, setCopied] = createSignal(false);
