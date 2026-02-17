@@ -201,7 +201,9 @@
 }
 
 .vpn-connector-line.connecting {
-  animation: vpn-grow 1.2s ease-out forwards, vpn-fade 3s ease-in-out infinite;
+  animation:
+    vpn-grow 1.2s ease-out forwards,
+    vpn-fade 3s ease-in-out infinite;
 }
 .vpn-connector-line.connecting::before {
   opacity: 1;
