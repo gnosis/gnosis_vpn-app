@@ -1,12 +1,16 @@
 import { MainScreen } from "../screens/main/MainScreen.tsx";
 import { Dynamic } from "solid-js/web";
-import { AppScreen, AppState, useAppStore } from "@src/stores/appStore.ts";
+import {
+  AppScreen,
+  AppState,
+  formatWarmup,
+  useAppStore,
+} from "@src/stores/appStore.ts";
 import { onCleanup, onMount } from "solid-js";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import Onboarding from "../screens/main/Onboarding.tsx";
 import Synchronization from "../screens/main/Synchronization.tsx";
 import { emit, listen } from "@tauri-apps/api/event";
-import { formatWarmupStatus } from "@src/services/vpnService.ts";
 
 const validScreens = ["main", "onboarding", "synchronization"] as const;
 type ValidScreen = (typeof validScreens)[number];
@@ -42,7 +46,7 @@ function mapStoreToScreenProps(screen: ValidScreen, state: AppState) {
   switch (screen) {
     case "synchronization":
       return {
-        warmupStatus: formatWarmupStatus(state.runMode),
+        warmupStatus: formatWarmup(state.runMode),
       };
     case "main":
     case "onboarding":

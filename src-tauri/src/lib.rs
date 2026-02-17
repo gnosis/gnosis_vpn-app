@@ -90,13 +90,18 @@ pub struct BalanceResponse {
 
 #[derive(Debug, Serialize)]
 pub enum RunMode {
-    /// Initial start, after creating safe this state will not be reached again
+    /// Initial start, checking funds to run safe creation or find existing safe
+    /// can jump to Warmup or DeployingSafe
     PreparingSafe {
         node_address: String,
         node_xdai: String,
         node_wxhopr: String,
         funding_tool: balance::FundingTool,
+        // came back from safe deployment with an error
+        safe_creation_error: Option<String>,
     },
+    /// Safe deployment ongoing, enough funds, no existing safe
+    DeployingSafe { node_address: String },
     /// Subsequent service start up in this state and after preparing safe
     Warmup { status: WarmupStatus },
     /// Normal operation where connections can be made
@@ -292,13 +297,18 @@ impl From<command::RunMode> for RunMode {
                 node_xdai,
                 node_wxhopr,
                 funding_tool,
+                safe_creation_error,
             } => RunMode::PreparingSafe {
                 node_address: node_address.to_string(),
                 node_xdai: node_xdai.amount().to_string(),
                 node_wxhopr: node_wxhopr.amount().to_string(),
                 funding_tool,
+                safe_creation_error,
             },
 
+            command::RunMode::DeployingSafe { node_address } => RunMode::DeployingSafe {
+                node_address: node_address.to_string(),
+            },
             command::RunMode::Warmup {
                 hopr_init_status,
                 hopr_status,

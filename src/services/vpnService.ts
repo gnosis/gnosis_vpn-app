@@ -78,6 +78,11 @@ export type PreparingSafe = {
   node_xdai: string;
   node_wxhopr: string;
   funding_tool: FundingTool;
+  safe_creation_error: string | null;
+};
+
+export type DeployingSafe = {
+  node_address: string;
 };
 
 export type Running = {
@@ -134,8 +139,11 @@ export type FundingState =
   | "WellFunded";
 
 export type RunMode =
-  /// Initial start, after creating safe this state will not be reached again
+  /// Initial start, checking funds to run safe creation or find existing safe
+  /// can jump to Warmup or DeployingSafe
   | { PreparingSafe: PreparingSafe }
+  /// Safe deployment ongoing, enough funds, no existing safe
+  | { DeployingSafe: DeployingSafe }
   /// Subsequent service start up in this state and after preparing safe
   | { Warmup: Warmup }
   /// Normal operation where connections can be made
