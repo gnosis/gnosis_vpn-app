@@ -1,11 +1,12 @@
 import { MainScreen } from "../screens/main/MainScreen.tsx";
 import { Dynamic } from "solid-js/web";
-import { AppScreen, useAppStore } from "@src/stores/appStore.ts";
+import { AppScreen, AppState, useAppStore } from "@src/stores/appStore.ts";
 import { onCleanup, onMount } from "solid-js";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import Onboarding from "../screens/main/Onboarding.tsx";
 import Synchronization from "../screens/main/Synchronization.tsx";
 import { emit, listen } from "@tauri-apps/api/event";
+import { formatWarmupStatus } from "@src/services/vpnService.ts";
 
 const validScreens = ["main", "onboarding", "synchronization"] as const;
 type ValidScreen = (typeof validScreens)[number];
@@ -30,6 +31,23 @@ function handleNavigate(
   if (screen === "onboarding") {
     const step = typeof payload === "string" ? undefined : payload.step;
     if (step) void emit("onboarding:set-step", step);
+  }
+}
+
+/**
+ * Maps global store state to specific screen props.
+ * This acts as the translation layer between the store and the UI components.
+ */
+function mapStoreToScreenProps(screen: ValidScreen, state: AppState) {
+  switch (screen) {
+    case "synchronization":
+      return {
+        warmupStatus: formatWarmupStatus(state.runMode),
+      };
+    case "main":
+    case "onboarding":
+    default:
+      return {};
   }
 }
 
@@ -77,7 +95,13 @@ function App() {
 
   return (
     <div class="h-screen bg-bg-primary">
-      <Dynamic component={screens[appState.currentScreen]} />
+      <Dynamic
+        component={screens[appState.currentScreen]}
+        {...mapStoreToScreenProps(
+          appState.currentScreen as ValidScreen,
+          appState,
+        )}
+      />
     </div>
   );
 }

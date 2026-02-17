@@ -49,7 +49,6 @@ export default function Synchronization(props: SynchronizationProps) {
 
   return (
     <div class="h-full w-full flex flex-col items-center p-6 select-none bg-background text-text-primary">
-
       {/* Trivia Section */}
       <div class="grow flex flex-col items-center justify-center w-full max-w-lg text-center px-4">
         <h3 class="text-xs uppercase tracking-widest text-text-secondary mb-4 opacity-70">
