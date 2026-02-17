@@ -16,7 +16,7 @@ export default function FundingAddress(
   const isMissing = raw.length === 0 || raw.toLowerCase() === "unknown";
 
   if (isMissing) {
-    return <div class="text-sm text-red-500">No funding address found</div>;
+    return <div class="text-sm text-red-500">No Gnosis VPN address found</div>;
   }
 
   const safeAddress: string = raw;
