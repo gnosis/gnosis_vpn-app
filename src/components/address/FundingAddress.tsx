@@ -15,12 +15,11 @@ export default function FundingAddress(
   const raw = (props.address ?? "").trim();
   const isMissing = raw.length === 0 || raw.toLowerCase() === "unknown";
 
-  let safeAddress: string | undefined;
-  if (!isMissing) safeAddress = raw;
-
-  if (!safeAddress) {
-    return <div class="text-sm text-red-500">No funding address found</div>;
+  if (isMissing) {
+    return <div class="text-sm text-red-500">No Gnosis VPN address found</div>;
   }
+
+  const safeAddress: string = raw;
 
   const [showQR, setShowQR] = createSignal(false);
   const [copied, setCopied] = createSignal(false);
@@ -56,7 +55,7 @@ export default function FundingAddress(
     <>
       <div class="flex flex-row justify-between items-center">
         <div class="text-sm">
-          <div class="font-bold">Funding address</div>
+          <div class="font-bold">Gnosis VPN address</div>
           <button
             class="font-mono text-lg"
             onClick={() => copy()}
@@ -110,7 +109,7 @@ export default function FundingAddress(
         open={showQR()}
         onClose={() => setShowQR(false)}
         value={address}
-        title={`${props.title ?? "Funding address"}`}
+        title={props.title ?? "Gnosis VPN address"}
         size={256}
       />
     </>
