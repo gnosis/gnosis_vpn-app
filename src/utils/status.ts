@@ -177,7 +177,7 @@ export function formatConnectionPhase(phase: string): string {
     case "ClosingBridge":
       return "Closing bridge session";
     case "OpeningPing":
-      return "Opening ping";
+      return "Opening ping session";
     case "EstablishDynamicWgTunnel":
       return "Establishing WireGuard tunnel";
     case "FallbackGatherPeerIps":
