@@ -15,12 +15,11 @@ export default function FundingAddress(
   const raw = (props.address ?? "").trim();
   const isMissing = raw.length === 0 || raw.toLowerCase() === "unknown";
 
-  let safeAddress: string | undefined;
-  if (!isMissing) safeAddress = raw;
-
-  if (!safeAddress) {
+  if (isMissing) {
     return <div class="text-sm text-red-500">No funding address found</div>;
   }
+
+  let safeAddress: string = raw;
 
   const [showQR, setShowQR] = createSignal(false);
   const [copied, setCopied] = createSignal(false);
@@ -110,7 +109,7 @@ export default function FundingAddress(
         open={showQR()}
         onClose={() => setShowQR(false)}
         value={address}
-        title={`${props.title ?? "Funding address"}`}
+        title={`${props.title ?? "Gnosis VPN address"}`}
         size={256}
       />
     </>
