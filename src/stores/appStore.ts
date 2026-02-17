@@ -2,6 +2,7 @@ import { createStore, reconcile, type Store } from "solid-js/store";
 import {
   type Destination,
   type DestinationState,
+  formatWarmupStatus,
   type RunMode,
   type StatusResponse,
   VPNService,
@@ -200,8 +201,8 @@ export function createAppStore(): AppStoreTuple {
     }
 
     const hasConnChange = Object.values(state.destinations).some((prev) => {
-      const found_next = Object.entries(nextDestStates).find(([id, _]) =>
-        id === prev.destination.id
+      const found_next = Object.entries(nextDestStates).find(
+        ([id, _]) => id === prev.destination.id,
       );
       if (!found_next) return false;
       const [_, next] = found_next;
@@ -211,7 +212,8 @@ export function createAppStore(): AppStoreTuple {
       const prevLabel = getConnectionLabel(prevState);
       const nextLabel = getConnectionLabel(nextState);
       if (
-        prevLabel !== nextLabel && nextLabel !== "None" &&
+        prevLabel !== nextLabel &&
+        nextLabel !== "None" &&
         nextLabel !== "Unknown"
       ) {
         return true;
@@ -275,8 +277,8 @@ export function createAppStore(): AppStoreTuple {
 
       const reasonForLog = requestedId ? "selected exit node" : selectionReason;
       if (targetId && reasonForLog !== "selected exit node") {
-        const selected = state.availableDestinations.find((d) =>
-          d.id === targetId
+        const selected = state.availableDestinations.find(
+          (d) => d.id === targetId,
         );
         if (!selected) {
           return;
@@ -380,8 +382,27 @@ function screenFromRunMode(mode: RunMode): AppScreen {
   if ("PreparingSafe" in mode) {
     return AppScreen.Onboarding;
   }
+  if ("DeployingSafe" in mode) {
+    return AppScreen.Synchronization;
+  }
   if ("Warmup" in mode) {
     return AppScreen.Synchronization;
   }
   return AppScreen.Main;
+}
+
+export function formatWarmup(runMode: RunMode | null): string {
+  if (!runMode) {
+    return "Service unavailable";
+  }
+  if (typeof runMode === "string") {
+    return runMode;
+  }
+  if ("DeployingSafe" in runMode) {
+    return `Safe deployment ongoing`;
+  }
+  if ("Warmup" in runMode) {
+    return formatWarmupStatus(runMode.Warmup.status);
+  }
+  return "Moving on";
 }

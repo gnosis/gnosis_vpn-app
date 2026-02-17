@@ -7,11 +7,6 @@ import {
   getConnectionPhase,
 } from "../../utils/status.ts";
 
-type StatusMessage = {
-  text: string;
-  phase?: string;
-};
-
 /**
  * Derives a single-line connection status message from all destinations.
  *
@@ -22,7 +17,7 @@ type StatusMessage = {
  */
 function deriveStatus(
   destinations: Record<string, DestinationState>,
-): StatusMessage | undefined {
+): string | undefined {
   let connectingDs: DestinationState | undefined;
   let connectedDs: DestinationState | undefined;
   let disconnectingDs: DestinationState | undefined;
@@ -37,26 +32,24 @@ function deriveStatus(
   if (connectingDs) {
     const location = connectingDs.destination.meta.location;
     const rawPhase = getConnectionPhase(connectingDs.connection_state);
-    const phase = rawPhase ? formatConnectionPhase(rawPhase) : undefined;
-    return {
-      text: `Connecting to ${location}`,
-      phase,
-    };
+    if (rawPhase) {
+      return formatConnectionPhase(rawPhase);
+    }
+    return `Connecting to ${location}`;
   }
 
   if (connectedDs) {
     const location = connectedDs.destination.meta.location;
-    return { text: `Connected to ${location}` };
+    return `Connected to ${location}`;
   }
 
   if (disconnectingDs && !connectingDs) {
     const location = disconnectingDs.destination.meta.location;
     const rawPhase = getConnectionPhase(disconnectingDs.connection_state);
-    const phase = rawPhase ? formatConnectionPhase(rawPhase) : undefined;
-    return {
-      text: `Disconnecting from ${location}`,
-      phase,
-    };
+    if (rawPhase) {
+      return formatConnectionPhase(rawPhase);
+    }
+    return `Disconnecting from ${location}`;
   }
 
   return undefined;
@@ -74,8 +67,7 @@ export default function ConnectionStatus() {
     <Show when={status()}>
       {(s) => (
         <p class="w-full text-center text-xs text-text-secondary animate-fade-in select-none fixed bottom-1 text-ellipsis truncate px-2">
-          {s().text}
-          <Show when={s().phase}>{(phase) => <span>: {phase()}</span>}</Show>
+          {s()}
         </p>
       )}
     </Show>

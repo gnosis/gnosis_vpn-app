@@ -1,4 +1,4 @@
-# Gnosis VPN client applications
+# Gnosis VPN client application
 
 ## Supported Platforms
 

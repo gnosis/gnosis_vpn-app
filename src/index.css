@@ -142,32 +142,20 @@
   --color-toggle-thumb: var(--color-toggle-thumb);
 }
 
-/* Tick-spin: rotate to 180°, pause, then to 360°, pause */
 @theme {
-  --animate-spin-tick: spin-tick 1.8s linear infinite;
-  @keyframes spin-tick {
-    0% {
-      transform: rotate(5deg);
-    }
-    5% {
-      transform: rotate(5deg);
-    }
+  /* smooth continuous spining animation */
+  --animate-spin-smooth: spin-smooth 2.5s linear infinite;
 
-    45% {
-      transform: rotate(185deg);
+  @keyframes spin-smooth {
+    from {
+      transform: rotate(0deg);
     }
-    55% {
-      transform: rotate(185deg);
-    }
-
-    95% {
-      transform: rotate(365deg);
-    }
-    100% {
-      transform: rotate(365deg);
+    to {
+      transform: rotate(360deg);
     }
   }
 }
+
 /* Animated connector line from Connect button to ExitNode */
 .vpn-connector-line {
   position: absolute;
