@@ -2,6 +2,7 @@ import { createStore, reconcile, type Store } from "solid-js/store";
 import {
   type Destination,
   type DestinationState,
+  formatWarmupStatus,
   type RunMode,
   type StatusResponse,
   VPNService,
@@ -379,20 +380,29 @@ function screenFromRunMode(mode: RunMode): AppScreen {
     return AppScreen.Main;
   }
   if ("PreparingSafe" in mode) {
-    const { node_xdai, node_wxhopr } = mode.PreparingSafe;
-
-    const xDai = Number(node_xdai);
-    const wxHopr = Number(node_wxhopr);
-
-    // These means we already moved to safe creation mode
-    if (xDai > 0 && wxHopr > 0) {
-      return AppScreen.Synchronization;
-    }
-
     return AppScreen.Onboarding;
+  }
+  if ("DeployingSafe" in mode) {
+    return AppScreen.Synchronization;
   }
   if ("Warmup" in mode) {
     return AppScreen.Synchronization;
   }
   return AppScreen.Main;
+}
+
+export function formatWarmup(runMode: RunMode | null): string {
+  if (!runMode) {
+    return "Service unavailable";
+  }
+  if (typeof runMode === "string") {
+    return runMode;
+  }
+  if ("DeployingSafe" in runMode) {
+    return `Safe deployment ongoing, this will take a while...`;
+  }
+  if ("Warmup" in runMode) {
+    return formatWarmupStatus(runMode.Warmup.status);
+  }
+  return "Moving on";
 }
