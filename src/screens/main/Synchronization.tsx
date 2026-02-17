@@ -68,7 +68,7 @@ export default function Synchronization(props: SynchronizationProps) {
         <img
           src={syncIcon}
           alt="Synchronization Spinner"
-          class="w-16 h-16 dark:invert animate-spin-tick opacity-80"
+          class="w-16 h-16 dark:invert animate-spin-smooth opacity-80"
         />
       </div>
 
