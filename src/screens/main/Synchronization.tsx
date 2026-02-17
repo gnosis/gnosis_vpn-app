@@ -1,7 +1,9 @@
 import { createSignal, onCleanup, onMount } from "solid-js";
-import { useAppStore } from "@src/stores/appStore.ts";
-import { formatWarmupStatus, RunMode } from "../../services/vpnService.ts";
 import syncIcon from "@assets/icons/sync.svg";
+
+export interface SynchronizationProps {
+  warmupStatus: string;
+}
 
 const trivia = [
   "Gnosis VPN routes your traffic through the HOPR mixnet.",
@@ -26,8 +28,7 @@ const trivia = [
   "Strong privacy requires both encryption and metadata protection.",
 ];
 
-export default function Synchronization() {
-  const [state] = useAppStore();
+export default function Synchronization(props: SynchronizationProps) {
   const [index, setIndex] = createSignal(0);
   const [isVisible, setIsVisible] = createSignal(true);
 
@@ -48,6 +49,8 @@ export default function Synchronization() {
 
   return (
     <div class="h-full w-full flex flex-col items-center p-6 select-none bg-background text-text-primary">
+
+      {/* Trivia Section */}
       <div class="grow flex flex-col items-center justify-center w-full max-w-lg text-center px-4">
         <h3 class="text-xs uppercase tracking-widest text-text-secondary mb-4 opacity-70">
           Did you know?
@@ -61,6 +64,7 @@ export default function Synchronization() {
         </p>
       </div>
 
+      {/* Spinner Section */}
       <div class="flex flex-col items-center justify-center py-8">
         <img
           src={syncIcon}
@@ -69,18 +73,12 @@ export default function Synchronization() {
         />
       </div>
 
+      {/* Status Section */}
       <div class="w-full flex justify-center pb-2">
         <span class="text-xs font-mono text-text-secondary opacity-30 truncate max-w-[80%] text-center">
-          {extractWarmup(state.runMode)}
+          {props.warmupStatus}
         </span>
       </div>
     </div>
   );
-}
-
-function extractWarmup(runMode: RunMode | null): string {
-  if (runMode && typeof runMode === "object" && "Warmup" in runMode) {
-    return formatWarmupStatus(runMode.Warmup.status);
-  }
-  return "Waiting for service";
 }
