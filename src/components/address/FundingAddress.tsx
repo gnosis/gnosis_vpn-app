@@ -109,7 +109,7 @@ export default function FundingAddress(
         open={showQR()}
         onClose={() => setShowQR(false)}
         value={address}
-        title={`${props.title ?? "Gnosis VPN address"}`}
+        title={props.title ?? "Gnosis VPN address"}
         size={256}
       />
     </>
