@@ -33,7 +33,7 @@ export default function Start(
           fill="currentColor"
         />
       </svg>
-      <div class="text-4xl font-bold mt-40">(MVP)</div>
+      <div class="text-4xl font-bold mt-40">Atlantis</div>
       <div class="grow" />
       <div class="w-full flex flex-col gap-2">
         <Button
