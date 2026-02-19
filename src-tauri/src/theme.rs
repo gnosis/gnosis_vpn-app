@@ -11,7 +11,7 @@ use std::io::BufRead;
 #[cfg(target_os = "linux")]
 use std::process::{Command, Stdio};
 
-use crate::icons::{TrayIconState, update_tray_icon};
+use crate::icons::{update_tray_icon, TrayIconState};
 
 /// Run a command and return its stdout as a string. Returns `None` on failure.
 #[cfg(target_os = "linux")]
@@ -71,7 +71,14 @@ pub fn spawn_linux_theme_monitor(app: AppHandle) {
             };
             let Some(stdout) = child.stdout else { return };
             let reader = io::BufReader::new(stdout);
-            for line in reader.lines().filter_map(Result::ok) {
+            for line_result in reader.lines() {
+                let line = match line_result {
+                    Ok(l) => l,
+                    Err(e) => {
+                        eprintln!("Error reading stream: {}", e);
+                        break;
+                    }
+                };
                 if let Some(theme) = to_theme(&line) {
                     let _ = app.emit("os-theme-changed", theme);
                 }
