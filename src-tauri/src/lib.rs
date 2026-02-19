@@ -432,10 +432,19 @@ impl From<info::Info> for Info {
 
 impl From<command::BalanceResponse> for BalanceResponse {
     fn from(br: command::BalanceResponse) -> Self {
+        let channels_out = br
+            .channels_out
+            .iter()
+            .filter_map(|chout| match chout.balance {
+                command::ChannelBalance::Completed(b) => Some(b),
+                _ => None,
+            })
+            .sum::<balance::Balance<balance::WxHOPR>>()
+            .to_string();
         BalanceResponse {
             node: br.node.amount().to_string(),
             safe: br.safe.amount().to_string(),
-            channels_out: br.channels_out.amount().to_string(),
+            channels_out,
             info: br.info.into(),
             issues: br.issues,
         }
