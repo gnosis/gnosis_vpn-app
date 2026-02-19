@@ -71,7 +71,14 @@ pub fn spawn_linux_theme_monitor(app: AppHandle) {
             };
             let Some(stdout) = child.stdout else { return };
             let reader = io::BufReader::new(stdout);
-            for line in reader.lines().filter_map(Result::ok) {
+            for line_result in reader.lines() {
+                let line = match line_result {
+                    Ok(l) => l,
+                    Err(e) => {
+                        eprintln!("Error reading stream: {}", e);
+                        break;
+                    }
+                };
                 if let Some(theme) = to_theme(&line) {
                     let _ = app.emit("os-theme-changed", theme);
                 }
