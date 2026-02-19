@@ -11,7 +11,7 @@ use std::io::BufRead;
 #[cfg(target_os = "linux")]
 use std::process::{Command, Stdio};
 
-use crate::icons::{update_tray_icon, TrayIconState};
+use crate::icons::{TrayIconState, update_tray_icon};
 
 /// Run a command and return its stdout as a string. Returns `None` on failure.
 #[cfg(target_os = "linux")]
