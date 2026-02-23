@@ -11,26 +11,23 @@ function getDestinationsWithConnection(state: AppState): DestinationState[] {
 }
 
 export function isConnected(destinations: DestinationState[]): boolean {
-  return destinations.some(
-    (ds) =>
-      typeof ds.connection_state === "object" &&
-      "Connected" in ds.connection_state,
+  return destinations.some((ds) =>
+    typeof ds.connection_state === "object" &&
+    "Connected" in ds.connection_state
   );
 }
 
 export function isConnecting(destinations: DestinationState[]): boolean {
-  return destinations.some(
-    (ds) =>
-      typeof ds.connection_state === "object" &&
-      "Connecting" in ds.connection_state,
+  return destinations.some((ds) =>
+    typeof ds.connection_state === "object" &&
+    "Connecting" in ds.connection_state
   );
 }
 
 export function isDisconnecting(destinations: DestinationState[]): boolean {
-  return destinations.some(
-    (ds) =>
-      typeof ds.connection_state === "object" &&
-      "Disconnecting" in ds.connection_state,
+  return destinations.some((ds) =>
+    typeof ds.connection_state === "object" &&
+    "Disconnecting" in ds.connection_state
   );
 }
 
@@ -47,14 +44,12 @@ export function isConnectedTo(
   destination: Destination,
 ): boolean {
   const destinations = getDestinationsWithConnection(state);
-  const destState = destinations.find(
-    (ds) => ds.destination.id === destination.id,
+  const destState = destinations.find((ds) =>
+    ds.destination.id === destination.id
   );
   if (destState) {
-    return (
-      typeof destState.connection_state === "object" &&
-      "Connected" in destState.connection_state
-    );
+    return typeof destState.connection_state === "object" &&
+      "Connected" in destState.connection_state;
   }
   return false;
 }
@@ -64,14 +59,12 @@ export function isConnectingTo(
   destination: Destination,
 ): boolean {
   const destinations = getDestinationsWithConnection(state);
-  const destState = destinations.find(
-    (ds) => ds.destination.id === destination.id,
+  const destState = destinations.find((ds) =>
+    ds.destination.id === destination.id
   );
   if (destState) {
-    return (
-      typeof destState.connection_state === "object" &&
-      "Connecting" in destState.connection_state
-    );
+    return typeof destState.connection_state === "object" &&
+      "Connecting" in destState.connection_state;
   }
   return false;
 }
@@ -81,14 +74,12 @@ export function isDisconnectingFrom(
   destination: Destination,
 ): boolean {
   const destinations = getDestinationsWithConnection(state);
-  const destState = destinations.find(
-    (ds) => ds.destination.id === destination.id,
+  const destState = destinations.find((ds) =>
+    ds.destination.id === destination.id
   );
   if (destState) {
-    return (
-      typeof destState.connection_state === "object" &&
-      "Disconnecting" in destState.connection_state
-    );
+    return typeof destState.connection_state === "object" &&
+      "Disconnecting" in destState.connection_state;
   }
   return false;
 }
@@ -100,6 +91,7 @@ export function getVpnStatus(
   if (!runMode) return "ServiceUnavailable";
   if ("Shutdown" === runMode) return "ServiceUnavailable";
   if ("PreparingSafe" in runMode) return "PreparingSafe";
+  if ("DeployingSafe" in runMode) return "DeployingSafe";
   if ("Warmup" in runMode) return runMode.Warmup.status;
   if ("Running" in runMode) {
     if (isConnected(destinations)) return "Connected";
@@ -112,17 +104,13 @@ export function getVpnStatus(
 }
 
 export function isXDAITransferred(state: AppState): boolean {
-  return (
-    !!state &&
-    isPreparingSafeRunMode(state.runMode) &&
-    parseFloat(state.runMode.PreparingSafe.node_xdai) >= 0.01
-  );
+  return !!state && isPreparingSafeRunMode(state.runMode) &&
+    parseFloat(state.runMode.PreparingSafe.node_xdai) >= 0.01;
 }
 
 export function isWxHOPRTransferred(state: AppState): boolean {
   return (
-    !!state &&
-    isPreparingSafeRunMode(state.runMode) &&
+    !!state && isPreparingSafeRunMode(state.runMode) &&
     parseFloat(state.runMode.PreparingSafe.node_wxhopr) >= 0.01
   );
 }
