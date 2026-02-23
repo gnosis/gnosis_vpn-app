@@ -79,8 +79,8 @@ export function formatLoadAvg(dh: DestinationHealth): string | null {
   return `${fmt(one)} / ${fmt(five)} / ${fmt(fifteen)} (${nproc} cores)`;
 }
 
-/** Format "last checked" as a human-readable relative time, e.g. "2 min ago". */
-export function formatLastChecked(dh: DestinationHealth): string | null {
+/** Extract the checked-at epoch seconds from a DestinationHealth, if available. */
+export function getLastCheckedEpoch(dh: DestinationHealth): number | null {
   if (typeof dh === "string") return null;
 
   let checkedAt: SerializedSinceTime | undefined;
@@ -88,17 +88,25 @@ export function formatLastChecked(dh: DestinationHealth): string | null {
   else if ("Failure" in dh) checkedAt = dh.Failure.checked_at;
   else if ("Running" in dh) checkedAt = dh.Running.since;
 
-  if (!checkedAt) return null;
+  return checkedAt?.secs_since_epoch ?? null;
+}
 
-  const nowSec = Date.now() / 1000;
-  const diffSec = Math.max(0, Math.round(nowSec - checkedAt.secs_since_epoch));
-
+/** Format a seconds-ago diff as a human-readable relative time, e.g. "17s ago". */
+export function formatSecondsAgo(diffSec: number): string {
   if (diffSec < 5) return "just now";
   if (diffSec < 60) return `${diffSec}s ago`;
   const minutes = Math.floor(diffSec / 60);
   if (minutes < 60) return `${minutes} min ago`;
   const hours = Math.floor(minutes / 60);
   return `${hours}h ago`;
+}
+
+/** Format "last checked" as a human-readable relative time, e.g. "2 min ago". */
+export function formatLastChecked(dh: DestinationHealth): string | null {
+  const epoch = getLastCheckedEpoch(dh);
+  if (epoch === null) return null;
+  const diffSec = Math.max(0, Math.round(Date.now() / 1000 - epoch));
+  return formatSecondsAgo(diffSec);
 }
 
 /** Simple status label for the exit health state. */

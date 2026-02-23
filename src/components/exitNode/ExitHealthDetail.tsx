@@ -1,4 +1,4 @@
-import { type JSX, Show } from "solid-js";
+import { createSignal, type JSX, onCleanup, Show } from "solid-js";
 import type {
   DestinationHealth,
   DestinationState,
@@ -15,14 +15,15 @@ import { useAppStore } from "@src/stores/appStore.ts";
 import { destinationLabel } from "@src/utils/destinations.ts";
 import {
   formatExitHealthStatus,
-  formatLastChecked,
   formatLatency,
   formatLoadAvg,
   formatRouting,
+  formatSecondsAgo,
   formatSlots,
   formatTotalTime,
   getExitHealthColor,
   getHopCount,
+  getLastCheckedEpoch,
   type HealthColor,
 } from "@src/utils/exitHealth.ts";
 import HopsIcon from "./HopsIcon.tsx";
@@ -86,8 +87,18 @@ export default function ExitHealthDetail(
   const totalTime = () => formatTotalTime(exitHealth());
   const slots = () => formatSlots(exitHealth());
   const loadAvg = () => formatLoadAvg(exitHealth());
-  const lastChecked = () => formatLastChecked(exitHealth());
   const route = () => formatRouting(routing());
+
+  const [nowSec, setNowSec] = createSignal(Date.now() / 1000);
+  const tick = setInterval(() => setNowSec(Date.now() / 1000), 1000);
+  onCleanup(() => clearInterval(tick));
+
+  const lastChecked = (): string | null => {
+    const epoch = getLastCheckedEpoch(exitHealth());
+    if (epoch === null) return null;
+    const diff = Math.max(0, Math.round(nowSec() - epoch));
+    return formatSecondsAgo(diff);
+  };
 
   const [appState, appActions] = useAppStore();
 
