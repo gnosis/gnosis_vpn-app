@@ -6,6 +6,7 @@ import {
   getConnectionLabel,
   getConnectionPhase,
 } from "../../utils/status.ts";
+import { destinationLabel } from "../../utils/destinations.ts";
 
 /**
  * Derives a single-line connection status message from all destinations.
@@ -30,26 +31,26 @@ function deriveStatus(
   }
 
   if (connectingDs) {
-    const location = connectingDs.destination.meta.location;
+    const label = destinationLabel(connectingDs.destination);
     const rawPhase = getConnectionPhase(connectingDs.connection_state);
     if (rawPhase) {
       return formatConnectionPhase(rawPhase);
     }
-    return `Connecting to ${location}`;
+    return `Connecting to ${label}`;
   }
 
   if (connectedDs) {
-    const location = connectedDs.destination.meta.location;
-    return `Connected to ${location}`;
+    const label = destinationLabel(connectedDs.destination);
+    return `Connected to ${label}`;
   }
 
   if (disconnectingDs && !connectingDs) {
-    const location = disconnectingDs.destination.meta.location;
+    const label = destinationLabel(disconnectingDs.destination);
     const rawPhase = getConnectionPhase(disconnectingDs.connection_state);
     if (rawPhase) {
       return formatConnectionPhase(rawPhase);
     }
-    return `Disconnecting from ${location}`;
+    return `Disconnecting from ${label}`;
   }
 
   return undefined;

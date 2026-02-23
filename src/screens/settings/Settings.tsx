@@ -3,8 +3,8 @@ import Toggle from "@src/components/common/Toggle.tsx";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import {
-  formatDestination,
-  formatDestinationById,
+  destinationLabel,
+  destinationLabelById,
 } from "@src/utils/destinations.ts";
 import { Show } from "solid-js";
 
@@ -26,13 +26,13 @@ export default function Settings() {
             options={appState.availableDestinations.map((e) => {
               return {
                 id: e.id,
-                label: formatDestination(e),
+                label: destinationLabel(e),
               };
             })}
             value={settings.preferredLocation
               ? {
                 id: settings.preferredLocation,
-                label: formatDestinationById(
+                label: destinationLabelById(
                   settings.preferredLocation,
                   appState.availableDestinations,
                 ),

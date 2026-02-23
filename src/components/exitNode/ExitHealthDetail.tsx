@@ -12,6 +12,7 @@ import {
 } from "@src/services/vpnService.ts";
 import { getConnectionLabel } from "@src/utils/status.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
+import { destinationLabel } from "@src/utils/destinations.ts";
 import {
   formatExitHealthStatus,
   formatLastChecked,
@@ -79,14 +80,6 @@ export default function ExitHealthDetail(
   const connectivityHealth = (): Health =>
     props.destinationState.connectivity.health;
 
-  const location = (): string | null => {
-    const meta = props.destinationState.destination.meta ?? {};
-    const parts = [meta.city, meta.state, meta.location].map((v) =>
-      (v ?? "").trim()
-    ).filter((v) => v.length > 0);
-    return parts.length > 0 ? parts.join(", ") : null;
-  };
-
   const color = () => getExitHealthColor(exitHealth());
   const status = () => formatExitHealthStatus(exitHealth());
   const latency = () => formatLatency(exitHealth());
@@ -146,7 +139,7 @@ export default function ExitHealthDetail(
       {(_id: string) => (
         <div class="w-full bg-bg-surface-alt rounded-2xl px-4 py-2.5 text-xs fade-in-up">
           <div class="flex flex-wrap items-center gap-1.5 mb-1">
-            <Tag value={location()} />
+            <Tag value={destinationLabel(props.destinationState.destination)} />
             <Show when={route() && getHopCount(routing()) !== 1}>
               <Tag>
                 <HopsIcon count={getHopCount(routing())} hideCount />
