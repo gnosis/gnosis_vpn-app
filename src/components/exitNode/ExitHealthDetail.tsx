@@ -147,7 +147,7 @@ export default function ExitHealthDetail(
         <div class="w-full bg-bg-surface-alt rounded-2xl px-4 py-2.5 text-xs fade-in-up">
           <div class="flex flex-wrap items-center gap-1.5 mb-1">
             <Tag value={location()} />
-            <Show when={route()}>
+            <Show when={route() && getHopCount(routing()) !== 1}>
               <Tag>
                 <HopsIcon count={getHopCount(routing())} hideCount />
                 <span class="ml-1">{route()}</span>

@@ -6,7 +6,7 @@ import type {
   DestinationHealth,
 } from "../../services/vpnService.ts";
 import { shortAddress } from "../../utils/shortAddress.ts";
-import { createMemo } from "solid-js";
+import { createMemo, Show } from "solid-js";
 import { useSettingsStore } from "../../stores/settingsStore.ts";
 import ExitHealthBadge from "./ExitHealthBadge.tsx";
 import {
@@ -87,7 +87,9 @@ export default function ExitNode() {
                       {latency}
                     </span>
                   )}
-                  <HopsIcon count={hops} />
+                  <Show when={hops !== 1}>
+                    <HopsIcon count={hops} />
+                  </Show>
                 </span>
               </span>
             );
