@@ -1,7 +1,9 @@
 import {
   type Destination,
   type DestinationState,
+  isDeployingSafeRunMode,
   isPreparingSafeRunMode,
+  isWarmupRunMode,
   RunMode,
 } from "@src/services/vpnService.ts";
 import type { AppState } from "@src/stores/appStore.ts";
@@ -90,9 +92,9 @@ export function getVpnStatus(
 ): AppState["vpnStatus"] {
   if (!runMode) return "ServiceUnavailable";
   if ("Shutdown" === runMode) return "ServiceUnavailable";
-  if ("PreparingSafe" in runMode) return "PreparingSafe";
-  if ("DeployingSafe" in runMode) return "DeployingSafe";
-  if ("Warmup" in runMode) return runMode.Warmup.status;
+  if (isPreparingSafeRunMode(runMode)) return "PreparingSafe";
+  if (isDeployingSafeRunMode(runMode)) return "DeployingSafe";
+  if (isWarmupRunMode(runMode)) return runMode.Warmup.status;
   if ("Running" in runMode) {
     if (isConnected(destinations)) return "Connected";
     if (isConnecting(destinations)) return "Connecting";

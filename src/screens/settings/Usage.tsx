@@ -2,6 +2,7 @@ import { createSignal, Match, Switch } from "solid-js";
 import {
   type BalanceResponse,
   isRunningRunMode,
+  isWarmupRunMode,
   VPNService,
 } from "../../services/vpnService.ts";
 import { onCleanup, onMount } from "solid-js";
@@ -120,7 +121,7 @@ export default function Usage() {
             Preparing application
           </div>
         </Match>
-        <Match when={appState.vpnStatus === "Warmup"}>
+        <Match when={isWarmupRunMode(appState.runMode)}>
           <div class="px-4 py-2 rounded-lg text-sm font-medium bg-amber-100 text-amber-800">
             Syncing in progress
           </div>

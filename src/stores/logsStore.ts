@@ -1,6 +1,8 @@
 import { createStore, type Store } from "solid-js/store";
 import {
   formatWarmupStatus,
+  isPreparingSafeRunMode,
+  isWarmupRunMode,
   SerializedSinceTime,
   type StatusResponse,
 } from "@src/services/vpnService.ts";
@@ -110,7 +112,7 @@ export function createLogsStore(): LogsStoreTuple {
           });
           content = `Disconnected. Available:\n${lines.join("\n")}`;
         }
-      } else if (typeof rm === "object" && "PreparingSafe" in rm) {
+      } else if (isPreparingSafeRunMode(rm)) {
         const addr =
           (rm as { PreparingSafe: { node_address: unknown } }).PreparingSafe
             .node_address;
@@ -126,7 +128,7 @@ export function createLogsStore(): LogsStoreTuple {
         }
       } else if (rm === "Shutdown") {
         content = "Shutdown";
-      } else if ("Warmup" in rm) {
+      } else if (isWarmupRunMode(rm)) {
         content = `Warmup: ${formatWarmupStatus(rm.Warmup.status)}`;
       } else {
         const destinations = args.response.destinations.length;

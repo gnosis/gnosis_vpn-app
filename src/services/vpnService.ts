@@ -349,6 +349,18 @@ export function isPreparingSafeRunMode(
   return !!rm && typeof rm === "object" && "PreparingSafe" in rm;
 }
 
+export function isDeployingSafeRunMode(
+  rm: RunMode | null | undefined,
+): rm is { DeployingSafe: DeployingSafe } {
+  return !!rm && typeof rm === "object" && "DeployingSafe" in rm;
+}
+
+export function isWarmupRunMode(
+  rm: RunMode | null | undefined,
+): rm is { Warmup: Warmup } {
+  return !!rm && typeof rm === "object" && "Warmup" in rm;
+}
+
 export function isRunningRunMode(
   rm: RunMode | null | undefined,
 ): rm is { Running: Running } {

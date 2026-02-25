@@ -3,6 +3,9 @@ import {
   type Destination,
   type DestinationState,
   formatWarmupStatus,
+  isDeployingSafeRunMode,
+  isPreparingSafeRunMode,
+  isWarmupRunMode,
   type RunMode,
   type StatusResponse,
   VPNService,
@@ -364,7 +367,7 @@ function timeoutFromState(
   runMode: RunMode | undefined,
   destinations: DestinationState[],
 ): number {
-  if (runMode && typeof runMode === "object" && "Warmup" in runMode) {
+  if (isWarmupRunMode(runMode)) {
     return FAST_TIMEOUT;
   }
   if (isConnecting(Object.values(destinations))) {
@@ -377,13 +380,13 @@ function screenFromRunMode(mode: RunMode): AppScreen {
   if (mode === "Shutdown") {
     return AppScreen.Main;
   }
-  if ("PreparingSafe" in mode) {
+  if (isPreparingSafeRunMode(mode)) {
     return AppScreen.Onboarding;
   }
-  if ("DeployingSafe" in mode) {
+  if (isDeployingSafeRunMode(mode)) {
     return AppScreen.Synchronization;
   }
-  if ("Warmup" in mode) {
+  if (isWarmupRunMode(mode)) {
     return AppScreen.Synchronization;
   }
   return AppScreen.Main;
@@ -396,10 +399,10 @@ export function formatWarmup(runMode: RunMode | null): string {
   if (typeof runMode === "string") {
     return runMode;
   }
-  if ("DeployingSafe" in runMode) {
+  if (isDeployingSafeRunMode(runMode)) {
     return `Safe deployment ongoing`;
   }
-  if ("Warmup" in runMode) {
+  if (isWarmupRunMode(runMode)) {
     return formatWarmupStatus(runMode.Warmup.status);
   }
   return "Moving on";
