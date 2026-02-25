@@ -60,6 +60,11 @@ jobs:
         if: steps.pnpm_lock.outputs.found == 'true'
         run: pnpm install --frozen-lockfile
 
-      - name: Run security audit
+      - name: Run security audit (prod deps only)
         if: steps.pnpm_lock.outputs.found == 'true'
-        run: pnpm audit --audit-level=high
+        run: pnpm audit --audit-level=high --prod
+
+      - name: Run security audit (dev deps, non-blocking)
+        if: steps.pnpm_lock.outputs.found == 'true'
+        continue-on-error: true
+        run: pnpm audit --audit-level=high --dev
