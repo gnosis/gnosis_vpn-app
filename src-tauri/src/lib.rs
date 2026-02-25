@@ -43,6 +43,9 @@ use icons::{
     update_icon_name_if_changed, update_tray_icon,
 };
 
+#[cfg(target_os = "macos")]
+const LOG_FILE_PATH: &str = "/Library/Logs/GnosisVPN/gnosisvpn.log";
+#[cfg(not(target_os = "macos"))]
 const LOG_FILE_PATH: &str = "/var/log/gnosisvpn/gnosisvpn.log";
 
 // State to hold a reference to the tray "status" menu item so we can update it
