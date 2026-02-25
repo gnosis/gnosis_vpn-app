@@ -1,12 +1,11 @@
 import { useAppStore } from "../../stores/appStore.ts";
 import { Dropdown } from "../common/Dropdown.tsx";
-import { selectTargetId } from "../../utils/destinations.ts";
+import { destinationLabel, selectTargetId } from "../../utils/destinations.ts";
 import type {
   Destination,
   DestinationHealth,
 } from "../../services/vpnService.ts";
-import { shortAddress } from "../../utils/shortAddress.ts";
-import { createMemo } from "solid-js";
+import { createMemo, Show } from "solid-js";
 import { useSettingsStore } from "../../stores/settingsStore.ts";
 import ExitHealthBadge from "./ExitHealthBadge.tsx";
 import {
@@ -79,7 +78,7 @@ export default function ExitNode() {
                       />
                     )}
                   </span>
-                  <span class="break-all">{opt.id}</span>
+                  <span class="break-all">{destinationLabel(opt)}</span>
                 </span>
                 <span class="shrink-0 text-xs text-text-secondary flex items-center gap-2">
                   {latency && (
@@ -87,7 +86,9 @@ export default function ExitNode() {
                       {latency}
                     </span>
                   )}
-                  <HopsIcon count={hops} />
+                  <Show when={hops !== 1}>
+                    <HopsIcon count={hops} />
+                  </Show>
                 </span>
               </span>
             );
@@ -119,7 +120,7 @@ export default function ExitNode() {
         }}
         itemToString={(opt: ExitOption) => {
           if ("id" in opt) {
-            return shortAddress(opt.id);
+            return destinationLabel(opt);
           }
           return "Random";
         }}
@@ -140,7 +141,7 @@ export default function ExitNode() {
                     connected={connected}
                   />
                 )}
-                <span class="break-all">{opt.id}</span>
+                <span class="break-all">{destinationLabel(opt)}</span>
               </span>
             );
           }
@@ -162,7 +163,7 @@ export default function ExitNode() {
                       connected={connected}
                     />
                   )}
-                  {randomDest.id}
+                  {destinationLabel(randomDest)}
                 </span>
               </span>
             );

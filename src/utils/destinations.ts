@@ -82,22 +82,15 @@ export function selectTargetId(
   };
 }
 
-export function formatDestination(destination: Destination): string {
-  const meta = destination.meta || {};
-  const parts = [meta.city, meta.state, meta.location]
-    .map((v) => (v ?? "").trim())
-    .filter((v) => v.length > 0);
-  const id = destination.id;
-  if (parts.length > 0) {
-    return `${id} ${parts.join(" ")}`;
-  }
-  return id;
+export function destinationLabel(d: Destination): string {
+  const loc = d.meta?.location;
+  return loc ? `${d.id} - ${loc}` : d.id;
 }
 
-export function formatDestinationById(
+export function destinationLabelById(
   id: string,
   available: Destination[],
 ): string {
   const dest = available.find((d) => d.id === id);
-  return dest ? formatDestination(dest) : `${id} (unavailable)`;
+  return dest ? destinationLabel(dest) : `${id} (unavailable)`;
 }

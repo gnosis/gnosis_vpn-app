@@ -3,6 +3,9 @@ import {
   type Destination,
   type DestinationState,
   formatWarmupStatus,
+  isDeployingSafeRunMode,
+  isPreparingSafeRunMode,
+  isWarmupRunMode,
   type RunMode,
   type StatusResponse,
   VPNService,
@@ -10,8 +13,8 @@ import {
 import { useLogsStore } from "@src/stores/logsStore.ts";
 import {
   areDestinationsEqualUnordered,
-  formatDestination,
-  formatDestinationById,
+  destinationLabel,
+  destinationLabelById,
   getPreferredAvailabilityChangeMessage,
   selectTargetId,
 } from "@src/utils/destinations.ts";
@@ -156,11 +159,9 @@ export function createAppStore(): AppStoreTuple {
         (labelChanged && nextLabel !== "Unknown" && nextLabel !== "None") ||
         phaseChanged
       ) {
-        const where = formatDestination(next.destination);
+        const label = destinationLabel(next.destination);
         const short = shortAddress(next.destination.address);
-        const display = where && where.length > 0
-          ? `${where} - ${short}`
-          : short;
+        const display = label ? `${label} - ${short}` : short;
         const phaseSuffix = nextPhase ? ` - ${nextPhase}` : "";
         log(`${nextLabel}: ${display}${phaseSuffix}`);
       }
@@ -186,7 +187,7 @@ export function createAppStore(): AppStoreTuple {
         : false;
       if (settings.preferredLocation) {
         if (nowHasPreferred) {
-          const pretty = formatDestinationById(
+          const pretty = destinationLabelById(
             settings.preferredLocation,
             availableDestinations,
           );
@@ -283,7 +284,7 @@ export function createAppStore(): AppStoreTuple {
         if (!selected) {
           return;
         }
-        const name = formatDestination(selected);
+        const name = destinationLabel(selected);
         const short = shortAddress(selected.address);
         const pretty = `${name} - ${short}`;
         log(`Connecting to ${reasonForLog}: ${pretty}`);
@@ -366,7 +367,7 @@ function timeoutFromState(
   runMode: RunMode | undefined,
   destinations: DestinationState[],
 ): number {
-  if (runMode && typeof runMode === "object" && "Warmup" in runMode) {
+  if (isWarmupRunMode(runMode)) {
     return FAST_TIMEOUT;
   }
   if (isConnecting(Object.values(destinations))) {
@@ -379,13 +380,13 @@ function screenFromRunMode(mode: RunMode): AppScreen {
   if (mode === "Shutdown") {
     return AppScreen.Main;
   }
-  if ("PreparingSafe" in mode) {
+  if (isPreparingSafeRunMode(mode)) {
     return AppScreen.Onboarding;
   }
-  if ("DeployingSafe" in mode) {
+  if (isDeployingSafeRunMode(mode)) {
     return AppScreen.Synchronization;
   }
-  if ("Warmup" in mode) {
+  if (isWarmupRunMode(mode)) {
     return AppScreen.Synchronization;
   }
   return AppScreen.Main;
@@ -398,10 +399,10 @@ export function formatWarmup(runMode: RunMode | null): string {
   if (typeof runMode === "string") {
     return runMode;
   }
-  if ("DeployingSafe" in runMode) {
+  if (isDeployingSafeRunMode(runMode)) {
     return `Safe deployment ongoing`;
   }
-  if ("Warmup" in runMode) {
+  if (isWarmupRunMode(runMode)) {
     return formatWarmupStatus(runMode.Warmup.status);
   }
   return "Moving on";

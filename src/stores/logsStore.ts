@@ -1,9 +1,12 @@
 import { createStore, type Store } from "solid-js/store";
 import {
   formatWarmupStatus,
+  isPreparingSafeRunMode,
+  isWarmupRunMode,
+  SerializedSinceTime,
   type StatusResponse,
 } from "@src/services/vpnService.ts";
-import { formatDestination } from "@src/utils/destinations.ts";
+import { destinationLabel } from "@src/utils/destinations.ts";
 import { shortAddress } from "../utils/shortAddress.ts";
 import { emit, listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -64,16 +67,16 @@ export function createLogsStore(): LogsStoreTuple {
 
       if (connectedDest) {
         const destination = connectedDest.destination;
-        const where = formatDestination(destination);
+        const where = destinationLabel(destination);
         content = `Connected: ${where} - ${shortAddress(destination.address)}`;
       } else if (connectingDest) {
         const destination = connectingDest.destination;
-        const where = formatDestination(destination);
+        const where = destinationLabel(destination);
         const phase = typeof connectingDest.connection_state === "object" &&
             "Connecting" in connectingDest.connection_state
           ? (
             connectingDest.connection_state as {
-              Connecting: [number, string];
+              Connecting: [SerializedSinceTime, string];
             }
           ).Connecting[1]
           : undefined;
@@ -83,12 +86,12 @@ export function createLogsStore(): LogsStoreTuple {
         }${phaseSuffix}`;
       } else if (disconnectingDest) {
         const destination = disconnectingDest.destination;
-        const where = formatDestination(destination);
+        const where = destinationLabel(destination);
         const phase = typeof disconnectingDest.connection_state === "object" &&
             "Disconnecting" in disconnectingDest.connection_state
           ? (
             disconnectingDest.connection_state as {
-              Disconnecting: [number, string];
+              Disconnecting: [SerializedSinceTime, string];
             }
           ).Disconnecting[1]
           : undefined;
@@ -104,12 +107,12 @@ export function createLogsStore(): LogsStoreTuple {
         if (!lastWasDisconnected) {
           const lines = args.response.destinations.map((ds) => {
             const d = ds.destination;
-            const where = formatDestination(d);
+            const where = destinationLabel(d);
             return `- ${where} - ${shortAddress(d.address)}`;
           });
           content = `Disconnected. Available:\n${lines.join("\n")}`;
         }
-      } else if (typeof rm === "object" && "PreparingSafe" in rm) {
+      } else if (isPreparingSafeRunMode(rm)) {
         const addr =
           (rm as { PreparingSafe: { node_address: unknown } }).PreparingSafe
             .node_address;
@@ -125,7 +128,7 @@ export function createLogsStore(): LogsStoreTuple {
         }
       } else if (rm === "Shutdown") {
         content = "Shutdown";
-      } else if ("Warmup" in rm) {
+      } else if (isWarmupRunMode(rm)) {
         content = `Warmup: ${formatWarmupStatus(rm.Warmup.status)}`;
       } else {
         const destinations = args.response.destinations.length;

@@ -1,4 +1,4 @@
-import { type JSX, Show } from "solid-js";
+import { createSignal, type JSX, onCleanup, Show } from "solid-js";
 import type {
   DestinationHealth,
   DestinationState,
@@ -12,16 +12,18 @@ import {
 } from "@src/services/vpnService.ts";
 import { getConnectionLabel } from "@src/utils/status.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
+import { destinationLabel } from "@src/utils/destinations.ts";
 import {
   formatExitHealthStatus,
-  formatLastChecked,
   formatLatency,
   formatLoadAvg,
   formatRouting,
+  formatSecondsAgo,
   formatSlots,
   formatTotalTime,
   getExitHealthColor,
   getHopCount,
+  getLastCheckedEpoch,
   type HealthColor,
 } from "@src/utils/exitHealth.ts";
 import HopsIcon from "./HopsIcon.tsx";
@@ -79,22 +81,24 @@ export default function ExitHealthDetail(
   const connectivityHealth = (): Health =>
     props.destinationState.connectivity.health;
 
-  const location = (): string | null => {
-    const meta = props.destinationState.destination.meta ?? {};
-    const parts = [meta.city, meta.state, meta.location].map((v) =>
-      (v ?? "").trim()
-    ).filter((v) => v.length > 0);
-    return parts.length > 0 ? parts.join(", ") : null;
-  };
-
   const color = () => getExitHealthColor(exitHealth());
   const status = () => formatExitHealthStatus(exitHealth());
   const latency = () => formatLatency(exitHealth());
   const totalTime = () => formatTotalTime(exitHealth());
   const slots = () => formatSlots(exitHealth());
   const loadAvg = () => formatLoadAvg(exitHealth());
-  const lastChecked = () => formatLastChecked(exitHealth());
   const route = () => formatRouting(routing());
+
+  const [nowSec, setNowSec] = createSignal(Date.now() / 1000);
+  const tick = setInterval(() => setNowSec(Date.now() / 1000), 1000);
+  onCleanup(() => clearInterval(tick));
+
+  const lastChecked = (): string | null => {
+    const epoch = getLastCheckedEpoch(exitHealth());
+    if (epoch === null) return null;
+    const diff = Math.max(0, Math.round(nowSec() - epoch));
+    return formatSecondsAgo(diff);
+  };
 
   const [appState, appActions] = useAppStore();
 
@@ -146,8 +150,8 @@ export default function ExitHealthDetail(
       {(_id: string) => (
         <div class="w-full bg-bg-surface-alt rounded-2xl px-4 py-2.5 text-xs fade-in-up">
           <div class="flex flex-wrap items-center gap-1.5 mb-1">
-            <Tag value={location()} />
-            <Show when={route()}>
+            <Tag value={destinationLabel(props.destinationState.destination)} />
+            <Show when={route() && getHopCount(routing()) !== 1}>
               <Tag>
                 <HopsIcon count={getHopCount(routing())} hideCount />
                 <span class="ml-1">{route()}</span>
