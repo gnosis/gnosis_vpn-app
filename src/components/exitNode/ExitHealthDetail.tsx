@@ -28,6 +28,7 @@ import {
 } from "@src/utils/exitHealth.ts";
 import HopsIcon from "./HopsIcon.tsx";
 import Button from "../common/Button.tsx";
+import Stat from "./Stat.tsx";
 
 const statusColorClass: Record<HealthColor, string> = {
   green: "text-vpn-light-green",
@@ -35,21 +36,6 @@ const statusColorClass: Record<HealthColor, string> = {
   red: "text-vpn-red",
   gray: "text-text-muted",
 };
-
-function Stat(
-  props: { label: string; value: string | null; valueClass?: string },
-) {
-  return (
-    <Show when={props.value}>
-      <div class="flex flex-col">
-        <span class="text-text-muted">{props.label}</span>
-        <span class={props.valueClass ?? "text-text-primary"}>
-          {props.value}
-        </span>
-      </div>
-    </Show>
-  );
-}
 
 function Tag(
   props: { value?: string | null; class?: string; children?: JSX.Element },
@@ -175,7 +161,23 @@ export default function ExitHealthDetail(
           </div>
 
           <div class="grid grid-cols-[3fr_2fr] gap-x-4 gap-y-2 pl-2 text-text-secondary">
-            <Stat label="Latency" value={latencyLabel()} />
+            <Stat
+              label="Latency"
+              value={latencyLabel()}
+              tooltip={
+                <div class="space-y-1">
+                  <p class="text-white font-bold">Expected ~200ms</p>
+                  <div class="flex items-center gap-1.5">
+                    <span class="text-vpn-light-green">&#9660;</span>
+                    <span>Lower is better</span>
+                  </div>
+                  <div class="flex items-center gap-1.5">
+                    <span class="text-vpn-red">&#9650;</span>
+                    <span>Higher is worse</span>
+                  </div>
+                </div>
+              }
+            />
             <Stat label="Capacity" value={slots()} />
             <Stat label="Load" value={loadAvg()} />
             <Stat label="Checked" value={lastChecked()} />

@@ -277,6 +277,21 @@
   animation: fade-in-up 240ms ease-out both;
 }
 
+.tooltip-bubble {
+  animation: tooltip-pop 160ms ease-out both;
+}
+
+@keyframes tooltip-pop {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+}
+
 @keyframes fade-in-up {
   from {
     opacity: 0;
