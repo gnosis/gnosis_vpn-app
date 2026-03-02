@@ -1,5 +1,4 @@
 import { createSignal, type JSX, mergeProps, splitProps } from "solid-js";
-// import Spinner from "./Spinner.tsx";
 
 export interface ButtonProps {
   variant?: "primary" | "secondary" | "outline";
@@ -29,12 +28,6 @@ const sizeClasses: Record<NonNullable<ButtonProps["size"]>, string> = {
   md: "h-10 px-4 text-sm rounded-lg",
   lg: "h-14 px-6 text-base rounded-2xl",
 };
-
-// const leadingOffsetClasses: Record<NonNullable<ButtonProps["size"]>, string> = {
-//   sm: "-ml-4 h-5 w-5 flex items-center justify-center",
-//   md: "-ml-6 h-5 w-5 flex items-center justify-center",
-//   lg: "-ml-8 h-6 w-6 flex items-center justify-center",
-// };
 
 export default function Button(allProps: ButtonProps): JSX.Element {
   const [pressed, setPressed] = createSignal(false);
@@ -93,13 +86,6 @@ export default function Button(allProps: ButtonProps): JSX.Element {
       onPointerDown={() => playPressAnimation()}
       onClick={() => local.onClick?.()}
     >
-      {
-        /* <div class={leadingOffsetClasses[local.size!]}>
-        <Show when={local.loading}>
-          <Spinner />
-        </Show>
-      </div> */
-      }
       <div>{local.children}</div>
     </button>
   );

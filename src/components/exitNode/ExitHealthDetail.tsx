@@ -190,7 +190,7 @@ export default function ExitHealthDetail(
                 size="sm"
                 variant="outline"
                 fullWidth={false}
-                class="bg-vpn-light-green text-white"
+                class="bg-vpn-light-green text-white rounded-2xl h-10 w-16"
                 onClick={() => void handleSwitch()}
               >
                 Switch
