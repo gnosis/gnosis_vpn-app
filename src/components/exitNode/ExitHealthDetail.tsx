@@ -182,14 +182,17 @@ export default function ExitHealthDetail(
           </div>
 
           <Show when={canSwitch()}>
-            <Button
-              size="sm"
-              variant="outline"
-              class="mt-2"
-              onClick={() => void handleSwitch()}
-            >
-              Switch to this node
-            </Button>
+            <div class="flex justify-center mt-2">
+              <Button
+                size="sm"
+                variant="outline"
+                fullWidth={false}
+                class="bg-vpn-light-green text-white"
+                onClick={() => void handleSwitch()}
+              >
+                Switch
+              </Button>
+            </div>
           </Show>
         </div>
       )}
