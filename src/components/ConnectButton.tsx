@@ -12,7 +12,7 @@ export default function ConnectButton() {
   const isActive = createMemo(() =>
     appState.vpnStatus === "Connected" || appState.vpnStatus === "Connecting"
   );
-  const label = createMemo(() => (isActive() ? "Stop" : "Connect"));
+  const label = createMemo(() => (isActive() ? "Disconnect" : "Connect"));
 
   const targetId = createMemo(() => {
     if (appState.selectedId) return appState.selectedId;

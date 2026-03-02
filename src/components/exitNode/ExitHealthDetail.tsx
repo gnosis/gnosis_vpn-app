@@ -102,8 +102,9 @@ export default function ExitHealthDetail(
 
   const [appState, appActions] = useAppStore();
 
-  const isConnected = () =>
-    getConnectionLabel(props.destinationState.connection_state) === "Connected";
+  const connectionLabel = () =>
+    getConnectionLabel(props.destinationState.connection_state);
+  const isConnected = () => connectionLabel() === "Connected";
   const healthLabel =
     () => (isConnected() ? "Connected" : formatHealth(connectivityHealth()));
 
@@ -121,8 +122,13 @@ export default function ExitHealthDetail(
 
   const destId = () => props.destinationState.destination.id;
 
+  const isConnecting = () => connectionLabel() === "Connecting";
+
   const canSwitch = () =>
-    appState.vpnStatus === "Connected" && !isConnected() &&
+    (appState.vpnStatus === "Connected" ||
+      appState.vpnStatus === "Connecting") &&
+    !isConnected() &&
+    !isConnecting() &&
     isReadyToConnect(connectivityHealth());
 
   const handleSwitch = async () => {
@@ -149,28 +155,46 @@ export default function ExitHealthDetail(
     <Show when={hasContent() ? destId() : false} keyed>
       {(_id: string) => (
         <div class="w-full bg-bg-surface-alt rounded-2xl px-4 py-2.5 text-xs fade-in-up">
-          <div class="flex flex-wrap items-center gap-1.5 mb-1">
-            <Tag value={destinationLabel(props.destinationState.destination)} />
-            <Show when={route() && getHopCount(routing()) !== 1}>
-              <Tag>
-                <HopsIcon count={getHopCount(routing())} hideCount />
-                <span class="ml-1">{route()}</span>
-              </Tag>
-            </Show>
-          </div>
+          <div class="flex justify-between">
+            <div>
+              <div class="flex flex-wrap items-center gap-1.5 mb-1">
+                <Tag
+                  value={destinationLabel(props.destinationState.destination)}
+                />
+                <Show when={route() && getHopCount(routing()) !== 1}>
+                  <Tag>
+                    <HopsIcon count={getHopCount(routing())} hideCount />
+                    <span class="ml-1">{route()}</span>
+                  </Tag>
+                </Show>
+              </div>
 
-          <div class="flex flex-wrap items-center gap-1.5 mb-1.5">
-            <Tag
-              value={status()}
-              class={`${statusColorClass[color()]} bg-bg-primary`}
-            />
-            <Show when={healthLabel()}>
-              <Tag
-                value={healthLabel()}
-                class={`${
-                  healthColorClass() ?? "text-text-primary"
-                } bg-bg-primary`}
-              />
+              <div class="flex flex-wrap items-center gap-1.5 mb-1.5">
+                <Tag
+                  value={status()}
+                  class={`${statusColorClass[color()]} bg-bg-primary`}
+                />
+                <Show when={healthLabel()}>
+                  <Tag
+                    value={healthLabel()}
+                    class={`${
+                      healthColorClass() ?? "text-text-primary"
+                    } bg-bg-primary`}
+                  />
+                </Show>
+              </div>
+            </div>
+
+            <Show when={canSwitch()}>
+              <Button
+                size="sm"
+                variant="outline"
+                fullWidth={false}
+                class="bg-vpn-light-green text-white rounded-2xl h-10 w-16"
+                onClick={() => void handleSwitch()}
+              >
+                Switch
+              </Button>
             </Show>
           </div>
 
@@ -180,17 +204,6 @@ export default function ExitHealthDetail(
             <Stat label="Load" value={loadAvg()} />
             <Stat label="Checked" value={lastChecked()} />
           </div>
-
-          <Show when={canSwitch()}>
-            <Button
-              size="sm"
-              variant="outline"
-              class="mt-2"
-              onClick={() => void handleSwitch()}
-            >
-              Switch to this node
-            </Button>
-          </Show>
         </div>
       )}
     </Show>
