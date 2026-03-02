@@ -1,9 +1,10 @@
-import { createSignal, type JSX, mergeProps, Show, splitProps } from "solid-js";
-import Spinner from "./Spinner.tsx";
+import { createSignal, type JSX, mergeProps, splitProps } from "solid-js";
+// import Spinner from "./Spinner.tsx";
 
 export interface ButtonProps {
   variant?: "primary" | "secondary" | "outline";
   size?: "sm" | "md" | "lg";
+  fullWidth?: boolean;
   disabled?: boolean;
   class?: string;
   loading?: boolean;
@@ -12,15 +13,15 @@ export interface ButtonProps {
 }
 
 const baseClasses =
-  "font-bold w-full inline-flex items-center justify-center focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed gap-2 hover:cursor-pointer transition-transform duration-150 ease-out select-none";
+  "font-bold inline-flex items-center justify-center focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed gap-2 hover:cursor-pointer transition-transform duration-150 ease-out select-none hover:bg-darken";
 
 const variantClasses: Record<NonNullable<ButtonProps["variant"]>, string> = {
   primary:
-    "border border-transparent bg-accent text-accent-text hover:bg-accent-hover focus:outline-none",
+    "border border-transparent bg-accent text-accent-text focus:outline-none",
   secondary:
-    "border border-transparent bg-btn-secondary-bg text-btn-secondary-text hover:bg-btn-secondary-hover focus:outline-none",
+    "border border-transparent bg-btn-secondary-bg text-btn-secondary-text focus:outline-none",
   outline:
-    "border border-border bg-transparent text-text-primary hover:bg-bg-surface focus:outline-none",
+    "border border-border bg-transparent text-text-primary focus:outline-none",
 };
 
 const sizeClasses: Record<NonNullable<ButtonProps["size"]>, string> = {
@@ -29,11 +30,11 @@ const sizeClasses: Record<NonNullable<ButtonProps["size"]>, string> = {
   lg: "h-14 px-6 text-base rounded-2xl",
 };
 
-const leadingOffsetClasses: Record<NonNullable<ButtonProps["size"]>, string> = {
-  sm: "-ml-4 h-5 w-5 flex items-center justify-center",
-  md: "-ml-6 h-5 w-5 flex items-center justify-center",
-  lg: "-ml-8 h-6 w-6 flex items-center justify-center",
-};
+// const leadingOffsetClasses: Record<NonNullable<ButtonProps["size"]>, string> = {
+//   sm: "-ml-4 h-5 w-5 flex items-center justify-center",
+//   md: "-ml-6 h-5 w-5 flex items-center justify-center",
+//   lg: "-ml-8 h-6 w-6 flex items-center justify-center",
+// };
 
 export default function Button(allProps: ButtonProps): JSX.Element {
   const [pressed, setPressed] = createSignal(false);
@@ -54,6 +55,7 @@ export default function Button(allProps: ButtonProps): JSX.Element {
     {
       variant: "primary",
       size: "md",
+      fullWidth: true,
       disabled: false,
     } as const,
     allProps,
@@ -61,6 +63,7 @@ export default function Button(allProps: ButtonProps): JSX.Element {
   const [local, others] = splitProps(props, [
     "variant",
     "size",
+    "fullWidth",
     "class",
     "children",
     "disabled",
@@ -71,6 +74,7 @@ export default function Button(allProps: ButtonProps): JSX.Element {
   const computedClass = () =>
     [
       baseClasses,
+      local.fullWidth ? "w-full" : undefined,
       variantClasses[local.variant!],
       sizeClasses[local.size!],
       pressed() ? "btn-press" : undefined,
@@ -89,11 +93,13 @@ export default function Button(allProps: ButtonProps): JSX.Element {
       onPointerDown={() => playPressAnimation()}
       onClick={() => local.onClick?.()}
     >
-      <div class={leadingOffsetClasses[local.size!]}>
+      {
+        /* <div class={leadingOffsetClasses[local.size!]}>
         <Show when={local.loading}>
           <Spinner />
         </Show>
-      </div>
+      </div> */
+      }
       <div>{local.children}</div>
     </button>
   );

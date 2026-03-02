@@ -94,6 +94,9 @@
   --color-toggle-checked: var(--color-accent);
   --color-toggle-thumb: #d1d5db;
 }
+@utility bg-darken {
+  background-image: linear-gradient(rgb(0 0 0 / 0.12), rgb(0 0 0 / 0.12));
+}
 
 /* Button press animation */
 .btn-press {
