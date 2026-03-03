@@ -1,4 +1,4 @@
-import { createSignal, type JSX, Show, onCleanup } from "solid-js";
+import { createSignal, type JSX, onCleanup, Show } from "solid-js";
 
 export default function Tooltip(
   props: {
