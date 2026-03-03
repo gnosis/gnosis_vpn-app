@@ -1,4 +1,4 @@
-import { createSignal, type JSX, Show } from "solid-js";
+import { createSignal, type JSX, Show, onCleanup } from "solid-js";
 
 export default function Tooltip(
   props: {
@@ -9,6 +9,7 @@ export default function Tooltip(
 ) {
   const [visible, setVisible] = createSignal(false);
   let timeout: ReturnType<typeof setTimeout> | undefined;
+  onCleanup(() => clearTimeout(timeout));
 
   const show = () => {
     clearTimeout(timeout);

@@ -13,11 +13,13 @@ export default function Stat(props: {
         <span class="text-text-muted inline-flex items-center gap-1">
           {props.label}
           <Show when={props.tooltip}>
-            <Tooltip content={props.tooltip!}>
-              <span class="text-text-muted hover:text-text-primary cursor-help transition-colors">
-                &#9432;
-              </span>
-            </Tooltip>
+            {tooltip => (
+              <Tooltip content={tooltip}>
+                <span class="text-text-muted hover:text-text-primary cursor-help transition-colors">
+                  &#9432;
+                </span>
+              </Tooltip>
+            )}
           </Show>
         </span>
         <span class={props.valueClass ?? "text-text-primary"}>
