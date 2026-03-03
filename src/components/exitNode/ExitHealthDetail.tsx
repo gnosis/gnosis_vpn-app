@@ -88,8 +88,9 @@ export default function ExitHealthDetail(
 
   const [appState, appActions] = useAppStore();
 
-  const isConnected = () =>
-    getConnectionLabel(props.destinationState.connection_state) === "Connected";
+  const connectionLabel = () =>
+    getConnectionLabel(props.destinationState.connection_state);
+  const isConnected = () => connectionLabel() === "Connected";
   const healthLabel =
     () => (isConnected() ? "Connected" : formatHealth(connectivityHealth()));
 
@@ -107,8 +108,13 @@ export default function ExitHealthDetail(
 
   const destId = () => props.destinationState.destination.id;
 
+  const isConnecting = () => connectionLabel() === "Connecting";
+
   const canSwitch = () =>
-    appState.vpnStatus === "Connected" && !isConnected() &&
+    (appState.vpnStatus === "Connected" ||
+      appState.vpnStatus === "Connecting") &&
+    !isConnected() &&
+    !isConnecting() &&
     isReadyToConnect(connectivityHealth());
 
   const handleSwitch = async () => {
@@ -135,64 +141,78 @@ export default function ExitHealthDetail(
     <Show when={hasContent() ? destId() : false} keyed>
       {(_id: string) => (
         <div class="w-full bg-bg-surface-alt rounded-2xl px-4 py-2.5 text-xs fade-in-up">
-          <div class="flex flex-wrap items-center gap-1.5 mb-1">
-            <Tag value={destinationLabel(props.destinationState.destination)} />
-            <Show when={route() && getHopCount(routing()) !== 1}>
-              <Tag>
-                <HopsIcon count={getHopCount(routing())} hideCount />
-                <span class="ml-1">{route()}</span>
-              </Tag>
-            </Show>
-          </div>
+          <div class="flex justify-between">
+            <div>
+              <div class="flex flex-wrap items-center gap-1.5 mb-1">
+                <Tag
+                  value={destinationLabel(props.destinationState.destination)}
+                />
+                <Show when={route() && getHopCount(routing()) !== 1}>
+                  <Tag>
+                    <HopsIcon count={getHopCount(routing())} hideCount />
+                    <span class="ml-1">{route()}</span>
+                  </Tag>
+                </Show>
+              </div>
 
-          <div class="flex flex-wrap items-center gap-1.5 mb-1.5">
-            <Tag
-              value={status()}
-              class={`${statusColorClass[color()]} bg-bg-primary`}
-            />
-            <Show when={healthLabel()}>
-              <Tag
-                value={healthLabel()}
-                class={`${
-                  healthColorClass() ?? "text-text-primary"
-                } bg-bg-primary`}
+              <div class="flex flex-wrap items-center gap-1.5 mb-1.5">
+                <Tag
+                  value={status()}
+                  class={`${statusColorClass[color()]} bg-bg-primary`}
+                />
+                <Show when={healthLabel()}>
+                  <Tag
+                    value={healthLabel()}
+                    class={`${
+                      healthColorClass() ?? "text-text-primary"
+                    } bg-bg-primary`}
+                  />
+                </Show>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-[3fr_2fr] gap-x-4 gap-y-2 pl-2 text-text-secondary">
+              <Stat
+                label="Latency"
+                value={latencyLabel()}
+                tooltip={
+                  <div class="space-y-1">
+                    <p class="text-white font-bold">Expected ~200ms</p>
+                    <div class="flex items-center gap-1.5">
+                      <span class="text-vpn-light-green">&#9660;</span>
+                      <span>Lower is better</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                      <span class="text-vpn-red">&#9650;</span>
+                      <span>Higher is worse</span>
+                    </div>
+                  </div>
+                }
               />
+              <Stat label="Capacity" value={slots()} />
+              <Stat label="Load" value={loadAvg()} />
+              <Stat label="Checked" value={lastChecked()} />
+            </div>
+
+            <Show when={canSwitch()}>
+              <Button
+                size="sm"
+                variant="outline"
+                fullWidth={false}
+                class="bg-vpn-light-green text-white rounded-2xl h-10 w-16"
+                onClick={() => void handleSwitch()}
+              >
+                Switch
+              </Button>
             </Show>
           </div>
 
           <div class="grid grid-cols-[3fr_2fr] gap-x-4 gap-y-2 pl-2 text-text-secondary">
-            <Stat
-              label="Latency"
-              value={latencyLabel()}
-              tooltip={
-                <div class="space-y-1">
-                  <p class="text-white font-bold">Expected ~200ms</p>
-                  <div class="flex items-center gap-1.5">
-                    <span class="text-vpn-light-green">&#9660;</span>
-                    <span>Lower is better</span>
-                  </div>
-                  <div class="flex items-center gap-1.5">
-                    <span class="text-vpn-red">&#9650;</span>
-                    <span>Higher is worse</span>
-                  </div>
-                </div>
-              }
-            />
+            <Stat label="Latency" value={latencyLabel()} />
             <Stat label="Capacity" value={slots()} />
             <Stat label="Load" value={loadAvg()} />
             <Stat label="Checked" value={lastChecked()} />
           </div>
-
-          <Show when={canSwitch()}>
-            <Button
-              size="sm"
-              variant="outline"
-              class="mt-2"
-              onClick={() => void handleSwitch()}
-            >
-              Switch to this node
-            </Button>
-          </Show>
         </div>
       )}
     </Show>
