@@ -7,7 +7,7 @@ use tauri::{AppHandle, Manager, Theme, tray::TrayIcon};
 
 use tokio::time::sleep;
 
-use crate::set_app_icon;
+use crate::commands::set_app_icon;
 use gnosis_vpn_lib::{balance, command};
 
 // App icon constants
