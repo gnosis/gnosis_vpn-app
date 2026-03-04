@@ -12,7 +12,8 @@ use std::sync::atomic::Ordering;
 use tokio::task::spawn_blocking;
 
 use crate::icons::{
-    AppIconState, TrayIconState, determine_app_icon, update_icon_name_if_changed, update_tray_icon,
+    self, AppIconState, TrayIconState, determine_app_icon, update_icon_name_if_changed,
+    update_tray_icon,
 };
 use crate::theme::system_theme;
 use crate::tray::TrayStatusItem;
@@ -22,6 +23,23 @@ use crate::types::{BalanceResponse, ConnectResponse, DisconnectResponse, StatusR
 const LOG_FILE_PATH: &str = "/Library/Logs/GnosisVPN/gnosisvpn.log";
 #[cfg(target_os = "linux")]
 const LOG_FILE_PATH: &str = "/var/log/gnosisvpn/gnosisvpn.log";
+
+const ALLOWED_APP_ICONS: &[&str] = &[
+    icons::APP_ICON_CONNECTED,
+    icons::APP_ICON_CONNECTED_LOW_FUNDS,
+    icons::APP_ICON_CONNECTING_1,
+    icons::APP_ICON_CONNECTING_2,
+    icons::APP_ICON_DISCONNECTED,
+    icons::APP_ICON_DISCONNECTED_LOW_FUNDS,
+];
+
+fn validate_icon_name(icon_name: &str) -> Result<(), String> {
+    if ALLOWED_APP_ICONS.contains(&icon_name) {
+        Ok(())
+    } else {
+        Err(format!("Invalid icon name: {icon_name}"))
+    }
+}
 
 #[tauri::command]
 pub async fn status(
@@ -178,6 +196,8 @@ pub async fn set_app_icon(app: AppHandle, icon_name: String) -> Result<(), Strin
     use std::fs;
     use std::sync::mpsc;
 
+    validate_icon_name(&icon_name)?;
+
     let icon_path = app
         .path()
         .resource_dir()
@@ -240,6 +260,8 @@ pub async fn set_app_icon(app: AppHandle, icon_name: String) -> Result<(), Strin
 pub async fn set_app_icon(app: AppHandle, icon_name: String) -> Result<(), String> {
     use std::fs;
     use tauri::image::Image;
+
+    validate_icon_name(&icon_name)?;
 
     let icon_path = app
         .path()
