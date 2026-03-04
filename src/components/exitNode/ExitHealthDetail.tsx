@@ -171,29 +171,6 @@ export default function ExitHealthDetail(
               </div>
             </div>
 
-            <div class="grid grid-cols-[3fr_2fr] gap-x-4 gap-y-2 pl-2 text-text-secondary">
-              <Stat
-                label="Latency"
-                value={latencyLabel()}
-                tooltip={
-                  <div class="space-y-1">
-                    <p class="text-white font-bold">Expected ~200ms</p>
-                    <div class="flex items-center gap-1.5">
-                      <span class="text-vpn-light-green">&#9660;</span>
-                      <span>Lower is better</span>
-                    </div>
-                    <div class="flex items-center gap-1.5">
-                      <span class="text-vpn-red">&#9650;</span>
-                      <span>Higher is worse</span>
-                    </div>
-                  </div>
-                }
-              />
-              <Stat label="Capacity" value={slots()} />
-              <Stat label="Load" value={loadAvg()} />
-              <Stat label="Checked" value={lastChecked()} />
-            </div>
-
             <Show when={canSwitch()}>
               <Button
                 size="sm"
@@ -208,7 +185,23 @@ export default function ExitHealthDetail(
           </div>
 
           <div class="grid grid-cols-[3fr_2fr] gap-x-4 gap-y-2 pl-2 text-text-secondary">
-            <Stat label="Latency" value={latencyLabel()} />
+            <Stat
+              label="Latency"
+              value={latencyLabel()}
+              tooltip={
+                <div class="space-y-1">
+                  <p class="text-white font-bold">Expected ~200ms</p>
+                  <div class="flex items-center gap-1.5">
+                    <span class="text-vpn-light-green">&#9660;</span>
+                    <span>Lower is better</span>
+                  </div>
+                  <div class="flex items-center gap-1.5">
+                    <span class="text-vpn-red">&#9650;</span>
+                    <span>Higher is worse</span>
+                  </div>
+                </div>
+              }
+            />
             <Stat label="Capacity" value={slots()} />
             <Stat label="Load" value={loadAvg()} />
             <Stat label="Checked" value={lastChecked()} />
