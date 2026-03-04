@@ -195,14 +195,10 @@ pub fn run() {
         .expect("error while building tauri application")
         .run(|app_handle, event| {
             if let tauri::RunEvent::Exit = event {
-                if let Some(handle) = app_handle
-                    .state::<HeartbeatHandle>()
-                    .0
-                    .lock()
-                    .ok()
-                    .and_then(|mut h| h.take())
-                {
-                    handle.abort();
+                if let Ok(mut guard) = app_handle.state::<HeartbeatHandle>().0.lock() {
+                    if let Some(handle) = guard.take() {
+                        handle.abort();
+                    }
                 }
             }
         });
