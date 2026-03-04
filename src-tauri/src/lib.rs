@@ -27,6 +27,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use std::time::SystemTime;
 use std::{path::PathBuf, sync::Mutex};
+use tokio::task::spawn_blocking;
+use tokio::time::sleep;
 
 mod icons;
 mod platform;
@@ -42,6 +44,8 @@ use icons::{
     AppIconState, TrayIconState, determine_app_icon, determine_tray_icon, start_app_icon_heartbeat,
     update_icon_name_if_changed, update_tray_icon,
 };
+
+struct HeartbeatHandle(Mutex<Option<tauri::async_runtime::JoinHandle<()>>>);
 
 #[cfg(target_os = "macos")]
 const LOG_FILE_PATH: &str = "/Library/Logs/GnosisVPN/gnosisvpn.log";
@@ -615,50 +619,53 @@ async fn set_app_icon(app: AppHandle, icon_name: String) -> Result<(), String> {
         .join("app-icons")
         .join(&icon_name);
 
-    let icon_data = fs::read(&icon_path)
-        .map_err(|e| format!("Failed to read icon file {}: {}", icon_path.display(), e))?;
+    spawn_blocking(move || {
+        let icon_data = fs::read(&icon_path)
+            .map_err(|e| format!("Failed to read icon file {}: {}", icon_path.display(), e))?;
 
-    let (tx, rx) = mpsc::channel();
+        let (tx, rx) = mpsc::channel();
 
-    Queue::main().exec_async(move || unsafe {
-        use cocoa::{
-            appkit::NSImage,
-            base::{id, nil},
-            foundation::NSData,
-        };
+        Queue::main().exec_async(move || unsafe {
+            use cocoa::{
+                appkit::NSImage,
+                base::{id, nil},
+                foundation::NSData,
+            };
 
-        let result = (|| {
-            let app: id = msg_send![class!(NSApplication), sharedApplication];
-            if app == nil {
-                return Err("Failed to get NSApplication".to_string());
-            }
+            let result = (|| {
+                let app: id = msg_send![class!(NSApplication), sharedApplication];
+                if app == nil {
+                    return Err("Failed to get NSApplication".to_string());
+                }
 
-            let data = NSData::dataWithBytes_length_(
-                nil,
-                icon_data.as_ptr() as *const std::os::raw::c_void,
-                icon_data.len() as u64,
-            );
+                let data = NSData::dataWithBytes_length_(
+                    nil,
+                    icon_data.as_ptr() as *const std::os::raw::c_void,
+                    icon_data.len() as u64,
+                );
 
-            if data == nil {
-                return Err("Failed to create NSData".to_string());
-            }
+                if data == nil {
+                    return Err("Failed to create NSData".to_string());
+                }
 
-            let app_icon = NSImage::initWithData_(NSImage::alloc(nil), data);
-            if app_icon == nil {
-                return Err("Failed to create NSImage from data".to_string());
-            }
+                let app_icon = NSImage::initWithData_(NSImage::alloc(nil), data);
+                if app_icon == nil {
+                    return Err("Failed to create NSImage from data".to_string());
+                }
 
-            let _: () = msg_send![app, setApplicationIconImage: app_icon];
+                let _: () = msg_send![app, setApplicationIconImage: app_icon];
 
-            Ok(())
-        })();
+                Ok(())
+            })();
 
-        let _ = tx.send(result);
-    });
+            let _ = tx.send(result);
+        });
 
-    // Wait for the result from the main thread
-    rx.recv()
-        .map_err(|e| format!("Failed to receive result from main thread: {}", e))?
+        rx.recv()
+            .map_err(|e| format!("Failed to receive result from main thread: {}", e))?
+    })
+    .await
+    .map_err(|e| format!("set_app_icon: blocking task panicked: {e}"))?
 }
 
 #[cfg(not(target_os = "macos"))]
@@ -675,24 +682,27 @@ async fn set_app_icon(app: AppHandle, icon_name: String) -> Result<(), String> {
         .join("app-icons")
         .join(&icon_name);
 
-    let icon_data = fs::read(&icon_path)
-        .map_err(|e| format!("Failed to read icon file {}: {}", icon_path.display(), e))?;
+    let icon_data = spawn_blocking(move || {
+        fs::read(&icon_path)
+            .map_err(|e| format!("Failed to read icon file {}: {}", icon_path.display(), e))
+    })
+    .await
+    .map_err(|e| format!("set_app_icon: blocking task panicked: {e}"))??;
 
     let image = Image::from_bytes(&icon_data)
-        .map_err(|e| format!("Failed to create image from icon data: {}", e))?;
+        .map_err(|e| format!("Failed to create image from icon data: {e}"))?;
 
-    // Set icon on all windows (main and settings)
     let mut errors = Vec::new();
 
     if let Some(window) = app.get_webview_window("main") {
         if let Err(e) = window.set_icon(image.clone()) {
-            errors.push(format!("Failed to set main window icon: {}", e));
+            errors.push(format!("Failed to set main window icon: {e}"));
         }
     }
 
     if let Some(window) = app.get_webview_window("settings") {
         if let Err(e) = window.set_icon(image) {
-            errors.push(format!("Failed to set settings window icon: {}", e));
+            errors.push(format!("Failed to set settings window icon: {e}"));
         }
     }
 
@@ -704,21 +714,24 @@ async fn set_app_icon(app: AppHandle, icon_name: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-async fn compress_logs(_app: AppHandle, dest_path: String) -> Result<(), String> {
-    let input_file =
-        File::open(LOG_FILE_PATH).map_err(|e| format!("Failed to open log file: {}", e))?;
-    let output_file =
-        File::create(dest_path).map_err(|e| format!("Failed to create output file: {}", e))?;
+async fn compress_logs(dest_path: String) -> Result<(), String> {
+    spawn_blocking(move || {
+        let input_file =
+            File::open(LOG_FILE_PATH).map_err(|e| format!("Failed to open log file: {}", e))?;
+        let output_file =
+            File::create(dest_path).map_err(|e| format!("Failed to create output file: {}", e))?;
 
-    // compression level 5 - default is 3 (see zstd docs for details)
-    let mut encoder = Encoder::new(&output_file, 5)
-        .map_err(|e| format!("Failed to create zstd encoder: {}", e))?;
-    io::copy(&mut BufReader::new(input_file), &mut encoder)
-        .map_err(|e| format!("Failed to compress log file: {}", e))?;
-    encoder
-        .finish()
-        .map_err(|e| format!("Failed to finalize compression: {}", e))?;
-    Ok(())
+        let mut encoder = Encoder::new(&output_file, 5)
+            .map_err(|e| format!("Failed to create zstd encoder: {}", e))?;
+        io::copy(&mut BufReader::new(input_file), &mut encoder)
+            .map_err(|e| format!("Failed to compress log file: {}", e))?;
+        encoder
+            .finish()
+            .map_err(|e| format!("Failed to finalize compression: {}", e))?;
+        Ok(())
+    })
+    .await
+    .map_err(|e| format!("compress_logs: blocking task panicked: {e}"))?
 }
 
 fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error> {
@@ -763,7 +776,7 @@ fn toggle_main_window_visibility(app: &AppHandle, triggered_by_tray: bool) {
             if triggered_by_tray {
                 let handle = window.clone();
                 tauri::async_runtime::spawn(async move {
-                    std::thread::sleep(Duration::from_millis(10));
+                    sleep(Duration::from_millis(10)).await;
                     position_main_window_by_tray(&handle);
                 });
             }
@@ -833,7 +846,7 @@ fn show_settings(app: &AppHandle, target: &str) {
         let handle = window.clone();
         let target_owned = target.to_string();
         tauri::async_runtime::spawn(async move {
-            std::thread::sleep(Duration::from_millis(120));
+            sleep(Duration::from_millis(120)).await;
             let _ = handle.emit("navigate", target_owned);
         });
     }
@@ -921,7 +934,8 @@ pub fn run() {
             });
             app.manage(app_icon_state.clone());
 
-            start_app_icon_heartbeat(app.handle().clone(), app_icon_state);
+            let heartbeat_handle = start_app_icon_heartbeat(app.handle().clone(), app_icon_state);
+            app.manage(HeartbeatHandle(Mutex::new(Some(heartbeat_handle))));
 
             #[cfg(target_os = "linux")]
             spawn_linux_theme_monitor(app.handle().clone());
@@ -992,6 +1006,19 @@ pub fn run() {
             get_initial_theme,
             theme_changed
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app_handle, event| {
+            if let tauri::RunEvent::Exit = event {
+                if let Some(handle) = app_handle
+                    .state::<HeartbeatHandle>()
+                    .0
+                    .lock()
+                    .ok()
+                    .and_then(|mut h| h.take())
+                {
+                    handle.abort();
+                }
+            }
+        });
 }
