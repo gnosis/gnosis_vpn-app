@@ -277,13 +277,48 @@ pub async fn set_app_icon(app: AppHandle, icon_name: String) -> Result<(), Strin
     }
 }
 
+/// Validate that `dest_path` is a safe location to write compressed logs.
+/// Rejects paths without a `.zst` extension and paths whose parent directory
+/// doesn't exist or resolves (via symlinks) into sensitive system directories.
+fn validate_log_dest(dest_path: &str) -> Result<PathBuf, String> {
+    let path = PathBuf::from(dest_path);
+
+    if path.extension().and_then(|e| e.to_str()) != Some("zst") {
+        return Err("Destination must have a .zst extension".to_string());
+    }
+
+    let parent = path
+        .parent()
+        .ok_or_else(|| "Destination path has no parent directory".to_string())?;
+
+    let canonical_parent = parent
+        .canonicalize()
+        .map_err(|e| format!("Cannot resolve destination directory: {e}"))?;
+
+    #[cfg(target_os = "macos")]
+    const BLOCKED: &[&str] = &["/System", "/Library/Launch", "/usr", "/sbin", "/bin"];
+    #[cfg(target_os = "linux")]
+    const BLOCKED: &[&str] = &["/usr", "/sbin", "/bin", "/boot", "/etc", "/lib"];
+
+    let canon_str = canonical_parent.to_string_lossy();
+    for prefix in BLOCKED {
+        if canon_str.starts_with(prefix) {
+            return Err(format!("Writing to {prefix} is not allowed"));
+        }
+    }
+
+    Ok(canonical_parent.join(path.file_name().unwrap()))
+}
+
 #[tauri::command]
 pub async fn compress_logs(dest_path: String) -> Result<(), String> {
+    let safe_path = validate_log_dest(&dest_path)?;
+
     spawn_blocking(move || {
         let input_file =
             File::open(LOG_FILE_PATH).map_err(|e| format!("Failed to open log file: {}", e))?;
         let output_file =
-            File::create(dest_path).map_err(|e| format!("Failed to create output file: {}", e))?;
+            File::create(&safe_path).map_err(|e| format!("Failed to create output file: {}", e))?;
 
         let mut encoder = Encoder::new(&output_file, 5)
             .map_err(|e| format!("Failed to create zstd encoder: {}", e))?;
