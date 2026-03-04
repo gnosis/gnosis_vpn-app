@@ -34,25 +34,28 @@ pub async fn status(
     let resp = root_socket::process_cmd(&p, &command::Command::Status).await;
     match resp {
         Ok(command::Response::Status(status_resp)) => {
-            let mut derived: &str = "Disconnected";
+            let mut derived = "Disconnected";
             if matches!(status_resp.run_mode, command::RunMode::Running { .. }) {
+                let mut connecting = false;
+                let mut disconnecting = false;
+
                 for ds in &status_resp.destinations {
                     match ds.connection_state {
                         command::ConnectionState::Connected(_) => {
                             derived = "Connected";
                             break;
                         }
-                        command::ConnectionState::Connecting(_, _) => {
-                            if derived != "Connected" {
-                                derived = "Connecting";
-                            }
-                        }
-                        command::ConnectionState::Disconnecting(_, _) => {
-                            if derived != "Connected" {
-                                derived = "Disconnecting";
-                            }
-                        }
+                        command::ConnectionState::Connecting(_, _) => connecting = true,
+                        command::ConnectionState::Disconnecting(_, _) => disconnecting = true,
                         command::ConnectionState::None => {}
+                    }
+                }
+
+                if derived == "Disconnected" {
+                    if connecting {
+                        derived = "Connecting";
+                    } else if disconnecting {
+                        derived = "Disconnecting";
                     }
                 }
             }
