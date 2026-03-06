@@ -5,7 +5,9 @@ use std::time::Duration;
 
 use tauri::{AppHandle, Manager, Theme, tray::TrayIcon};
 
-use crate::set_app_icon;
+use tokio::time::sleep;
+
+use crate::commands::set_app_icon;
 use gnosis_vpn_lib::{balance, command};
 
 // App icon constants
@@ -145,8 +147,11 @@ pub fn update_tray_icon(
     }
 }
 
-pub fn start_app_icon_heartbeat(app: AppHandle, app_icon_state: Arc<AppIconState>) {
-    std::thread::spawn(move || {
+pub fn start_app_icon_heartbeat(
+    app: AppHandle,
+    app_icon_state: Arc<AppIconState>,
+) -> tauri::async_runtime::JoinHandle<()> {
+    tauri::async_runtime::spawn(async move {
         loop {
             if app_icon_state.is_animating.load(Ordering::Relaxed) {
                 let current = app_icon_state
@@ -162,18 +167,14 @@ pub fn start_app_icon_heartbeat(app: AppHandle, app_icon_state: Arc<AppIconState
                     *current_icon = icon_name.to_string();
                 }
 
-                let app_clone = app.clone();
-                let icon_name_clone = icon_name.to_string();
-                tauri::async_runtime::spawn(async move {
-                    if let Err(e) = set_app_icon(app_clone, icon_name_clone).await {
-                        eprintln!("Failed to update dock icon in heartbeat: {}", e);
-                    }
-                });
+                if let Err(e) = set_app_icon(app.clone(), icon_name.to_string()).await {
+                    eprintln!("Failed to update dock icon in heartbeat: {}", e);
+                }
 
-                std::thread::sleep(sleep_duration);
+                sleep(sleep_duration).await;
             } else {
-                std::thread::sleep(Duration::from_millis(500));
+                sleep(Duration::from_millis(500)).await;
             }
         }
-    });
+    })
 }
