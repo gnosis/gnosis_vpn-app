@@ -26,6 +26,11 @@ pub const TRAY_ICON_CONNECTING_BLACK: &str = "tray-icons/tray-icon-connecting-bl
 pub const TRAY_ICON_DISCONNECTED: &str = "tray-icons/tray-icon-disconnected.png";
 pub const TRAY_ICON_DISCONNECTED_BLACK: &str = "tray-icons/tray-icon-disconnected-black.png";
 
+// Linux tray icon constants (theme-independent)
+pub const TRAY_ICON_LINUX_CONNECTED: &str = "tray-icons/linux/connected.png";
+pub const TRAY_ICON_LINUX_CONNECTING: &str = "tray-icons/linux/connecting.png";
+pub const TRAY_ICON_LINUX_DISCONNECTED: &str = "tray-icons/linux/disconnected.png";
+
 // State to hold a reference to the tray icon so we can update it
 pub struct TrayIconState {
     pub tray: Mutex<TrayIcon<tauri::Wry>>,
@@ -88,6 +93,14 @@ pub fn determine_app_icon(connection_state: &str, run_mode: &command::RunMode) -
 }
 
 pub fn determine_tray_icon(connection_state: &str, theme: Option<Theme>) -> &'static str {
+    if cfg!(target_os = "linux") {
+        return match connection_state {
+            "Connected" => TRAY_ICON_LINUX_CONNECTED,
+            "Connecting" | "Disconnecting" => TRAY_ICON_LINUX_CONNECTING,
+            _ => TRAY_ICON_LINUX_DISCONNECTED,
+        };
+    }
+
     // Dark/light tray icons only on non-macOS; macOS uses template icons and ignores theme
     let effective_theme = if cfg!(target_os = "macos") {
         None
