@@ -26,7 +26,7 @@ pub const TRAY_ICON_CONNECTING_BLACK: &str = "tray-icons/tray-icon-connecting-bl
 pub const TRAY_ICON_DISCONNECTED: &str = "tray-icons/tray-icon-disconnected.png";
 pub const TRAY_ICON_DISCONNECTED_BLACK: &str = "tray-icons/tray-icon-disconnected-black.png";
 
-// Linux tray icon constants (SVGs, theme-independent)
+// Linux tray icon constants (theme-independent)
 pub const TRAY_ICON_LINUX_CONNECTED: &str = "tray-icons/linux/connected.png";
 pub const TRAY_ICON_LINUX_CONNECTING: &str = "tray-icons/linux/connecting.png";
 pub const TRAY_ICON_LINUX_DISCONNECTED: &str = "tray-icons/linux/disconnected.png";
