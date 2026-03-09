@@ -1,6 +1,6 @@
-import FundingAddress from "./address/FundingAddress";
-import Button from "./common/Button";
-import { Modal } from "./common/Modal";
+import FundingAddress from "./address/FundingAddress.tsx";
+import Button from "./common/Button.tsx";
+import { Modal } from "./common/Modal.tsx";
 
 export default function AddFundsModal(props: {
   open: boolean;
