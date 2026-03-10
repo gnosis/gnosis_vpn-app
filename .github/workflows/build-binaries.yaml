@@ -37,6 +37,8 @@ on:
           - macos-15-intel
           - ubuntu-22.04
           - ubuntu-22.04-arm
+          - depot-ubuntu-22.04-4
+          - depot-ubuntu-22.04-arm-4
         required: true
         description: "Runner to use"
 jobs:
