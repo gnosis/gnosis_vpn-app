@@ -11,6 +11,7 @@ import fundsOutIcon from "../assets/icons/funds-out.svg";
 import fundsEmptyIcon from "../assets/icons/funds-empty.svg";
 import { createSignal, onCleanup } from "solid-js";
 import { useAppStore } from "../stores/appStore.ts";
+import Tooltip from "./common/Tooltip.tsx";
 
 function Navigation() {
   const [appState] = useAppStore();
@@ -83,11 +84,13 @@ function Navigation() {
           ref={(el) => (containerRef = el)}
           class="fixed top-6 right-4 z-60 flex items-center gap-2 justify-center"
         >
-          <IconButton
-            icon={settingsIcon}
-            alt="Settings"
-            onClick={() => openSettingsWindow("settings")}
-          />
+          <Tooltip content="Settings" position="bottom">
+            <IconButton
+              icon={settingsIcon}
+              alt="Settings"
+              onClick={() => openSettingsWindow("settings")}
+            />
+          </Tooltip>
           <IconButton
             ref={(el) => (buttonRef = el)}
             icon={getFundsIcon()}
@@ -96,11 +99,13 @@ function Navigation() {
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
           />
-          <IconButton
-            icon={logsIcon}
-            alt="Logs"
-            onClick={() => openSettingsWindow("logs")}
-          />
+          <Tooltip content="Logs" position="bottom">
+            <IconButton
+              icon={logsIcon}
+              alt="Logs"
+              onClick={() => openSettingsWindow("logs")}
+            />
+          </Tooltip>
         </div>
       </Portal>
 
