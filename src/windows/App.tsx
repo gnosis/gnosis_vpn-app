@@ -65,6 +65,7 @@ function App() {
   const [appState, appActions] = useAppStore();
   const [settings, settingsActions] = useSettingsStore();
   let unlistenNavigate: (() => void) | undefined;
+  let disposed = false;
 
   onMount(() => {
     void (async () => {
@@ -79,7 +80,7 @@ function App() {
         await appActions.connect();
       }
 
-      unlistenNavigate = await listen<NavigatePayload>(
+      const unlisten = await listen<NavigatePayload>(
         "navigate",
         ({ payload }) =>
           handleNavigate(payload, (s) => {
@@ -89,11 +90,14 @@ function App() {
             }
           }),
       );
+      if (disposed) unlisten();
+      else unlistenNavigate = unlisten;
     })();
   });
 
   onCleanup(() => {
-    if (unlistenNavigate) unlistenNavigate();
+    disposed = true;
+    unlistenNavigate?.();
     appActions.stopStatusPolling();
   });
 

@@ -9,7 +9,7 @@ import fundsFullIcon from "../assets/icons/funds-full.svg";
 import fundsLowIcon from "../assets/icons/funds-low.svg";
 import fundsOutIcon from "../assets/icons/funds-out.svg";
 import fundsEmptyIcon from "../assets/icons/funds-empty.svg";
-import { createSignal } from "solid-js";
+import { createSignal, onCleanup } from "solid-js";
 import { useAppStore } from "../stores/appStore.ts";
 
 function Navigation() {
@@ -68,8 +68,13 @@ function Navigation() {
 
   const handleMouseLeave = () => {
     if (hoverTimeout) clearTimeout(hoverTimeout);
+    hoverTimeout = undefined;
     setShowPopup(false);
   };
+
+  onCleanup(() => {
+    if (hoverTimeout) clearTimeout(hoverTimeout);
+  });
 
   return (
     <>

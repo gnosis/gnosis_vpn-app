@@ -71,6 +71,7 @@ export function createAppStore(): AppStoreTuple {
   });
 
   let pollingId: ReturnType<typeof globalThis.setTimeout> | undefined;
+  let pollingActive = false;
 
   const [settings] = useSettingsStore();
   let lastPreferredLocation: string | null = settings.preferredLocation;
@@ -327,11 +328,12 @@ export function createAppStore(): AppStoreTuple {
     },
 
     startStatusPolling: () => {
-      // cancel any waiting
+      pollingActive = true;
       clearTimeout(pollingId);
       const tick = async () => {
+        if (!pollingActive) return;
         const timeout = await syncStatus();
-        // cancel any onoing that got triggered too fast in a row
+        if (!pollingActive) return;
         clearTimeout(pollingId);
         pollingId = setTimeout(tick, timeout);
       };
@@ -339,7 +341,9 @@ export function createAppStore(): AppStoreTuple {
     },
 
     stopStatusPolling: () => {
+      pollingActive = false;
       globalThis.clearTimeout(pollingId);
+      pollingId = undefined;
     },
 
     claimAirdrop: async (secret: string) => {

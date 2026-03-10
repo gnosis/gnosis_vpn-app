@@ -22,7 +22,11 @@ type SettingsActions = {
   save: () => Promise<void>;
 };
 
-type SettingsStoreTuple = readonly [SolidStore<SettingsState>, SettingsActions];
+type SettingsStoreTuple = readonly [
+  SolidStore<SettingsState>,
+  SettingsActions,
+  () => void,
+];
 
 let tauriStore: TauriStore | undefined;
 
@@ -112,7 +116,8 @@ export function createSettingsStore(): SettingsStoreTuple {
     },
   } as const;
 
-  void listen<Partial<SettingsState>>("settings:update", ({ payload }) => {
+  let unlistenSettings: (() => void) | undefined;
+  listen<Partial<SettingsState>>("settings:update", ({ payload }) => {
     if (payload.preferredLocation !== undefined) {
       setState("preferredLocation", payload.preferredLocation);
     }
@@ -122,9 +127,16 @@ export function createSettingsStore(): SettingsStoreTuple {
     if (payload.startMinimized !== undefined) {
       setState("startMinimized", payload.startMinimized);
     }
-  });
+  }).then((u) => {
+    unlistenSettings = u;
+  })
+    .catch((e) => console.error("settings:update listener failed", e));
 
-  return [state, actions] as const;
+  const dispose = () => {
+    unlistenSettings?.();
+  };
+
+  return [state, actions, dispose] as const;
 }
 
 const settingsStore = createSettingsStore();

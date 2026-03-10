@@ -1,4 +1,4 @@
-import { createSignal, onCleanup, onMount, Show } from "solid-js";
+import { createEffect, createSignal, onCleanup, Show } from "solid-js";
 import { Portal } from "solid-js/web";
 import { type BalanceResponse, VPNService } from "@src/services/vpnService.ts";
 import { fromWeiToFixed } from "@src/utils/units.ts";
@@ -53,12 +53,12 @@ export default function BalancePopup(props: Props) {
     }
   };
 
-  onMount(() => {
+  createEffect(() => {
+    if (!props.show) return;
     void loadBalance();
     const interval = setInterval(() => {
       void loadBalance();
     }, BALANCE_REFRESH_INTERVAL_MS);
-
     onCleanup(() => clearInterval(interval));
   });
 

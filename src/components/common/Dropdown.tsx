@@ -109,6 +109,7 @@ export function Dropdown<T>(props: DropdownProps<T>) {
   onCleanup(() => {
     document.removeEventListener("mousedown", onDocClick);
     if (closeTimeout) globalThis.clearTimeout(closeTimeout);
+    if (pressTimeout !== undefined) globalThis.clearTimeout(pressTimeout);
   });
 
   createEffect(

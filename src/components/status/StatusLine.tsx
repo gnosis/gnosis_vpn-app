@@ -1,4 +1,10 @@
-import { createEffect, createSignal, type JSX, Show } from "solid-js";
+import {
+  createEffect,
+  createSignal,
+  type JSX,
+  onCleanup,
+  Show,
+} from "solid-js";
 import { useAppStore } from "../../stores/appStore.ts";
 
 export default function StatusLine(
@@ -6,13 +12,24 @@ export default function StatusLine(
 ): JSX.Element | null {
   const [appState] = useAppStore();
   const [wasDisconnecting, setWasDisconnecting] = createSignal(false);
+  let disconnectTimeout: ReturnType<typeof setTimeout> | undefined;
+
+  onCleanup(() => {
+    if (disconnectTimeout !== undefined) clearTimeout(disconnectTimeout);
+  });
 
   createEffect(() => {
     if (appState.vpnStatus === "Disconnecting") {
       setWasDisconnecting(true);
     } else if (appState.vpnStatus === "Disconnected" && wasDisconnecting()) {
-      setTimeout(() => setWasDisconnecting(false), 1000);
+      if (disconnectTimeout !== undefined) clearTimeout(disconnectTimeout);
+      disconnectTimeout = setTimeout(() => {
+        setWasDisconnecting(false);
+        disconnectTimeout = undefined;
+      }, 1000);
     } else if (appState.vpnStatus !== "Disconnected") {
+      if (disconnectTimeout !== undefined) clearTimeout(disconnectTimeout);
+      disconnectTimeout = undefined;
       setWasDisconnecting(false);
     }
   });
