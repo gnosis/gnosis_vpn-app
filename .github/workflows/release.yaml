@@ -29,7 +29,7 @@ jobs:
           - architecture: aarch64-darwin
             runner: depot-macos-15 # Depot macOS 15, Apple Silicon (M2), 8 CPUs, 24 GB RAM
           - architecture: x86_64-darwin
-            runner: depot-macos-15 # Depot macOS 15, Apple Silicon (M2), 8 CPUs, 24 GB RAM
+            runner: depot-macos-15 # Depot macOS runners are Apple Silicon; x86_64 is built via cross-compilation target
           - architecture: x86_64-linux
             runner: depot-ubuntu-22.04-4 # Depot Ubuntu 22.04, 4 CPUs, 16 GB RAM
           - architecture: aarch64-linux
