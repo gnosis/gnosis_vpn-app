@@ -15,11 +15,11 @@ jobs:
       matrix:
         binary:
           - architecture: universal-darwin
-            runner: macos-15-xlarge
+            runner: depot-macos-15 # Depot macOS 15, Apple Silicon (M2), 8 CPUs, 24 GB RAM
           - architecture: aarch64-darwin
-            runner: macos-15
+            runner: depot-macos-15 # Depot macOS 15, Apple Silicon (M2), 8 CPUs, 24 GB RAM
           - architecture: x86_64-darwin
-            runner: macos-15-intel
+            runner: depot-macos-15 # Depot macOS 15, Apple Silicon (M2), 8 CPUs, 24 GB RAM
           - architecture: x86_64-linux
             runner: depot-ubuntu-22.04-4 # Depot Ubuntu 22.04, 4 CPUs, 16 GB RAM
           - architecture: aarch64-linux
