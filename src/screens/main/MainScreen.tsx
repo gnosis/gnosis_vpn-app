@@ -57,7 +57,8 @@ export function MainScreen() {
 
   createEffect(() => {
     void appState.vpnStatus;
-    requestAnimationFrame(() => computeConnectorHeight());
+    const rafId = requestAnimationFrame(() => computeConnectorHeight());
+    onCleanup(() => cancelAnimationFrame(rafId));
   });
 
   return (

@@ -1,4 +1,10 @@
-import { createSignal, type JSX, mergeProps, splitProps } from "solid-js";
+import {
+  createSignal,
+  type JSX,
+  mergeProps,
+  onCleanup,
+  splitProps,
+} from "solid-js";
 
 export interface ButtonProps {
   variant?: "primary" | "secondary" | "outline";
@@ -33,10 +39,12 @@ export default function Button(allProps: ButtonProps): JSX.Element {
   const [pressed, setPressed] = createSignal(false);
   let pressTimeout: ReturnType<typeof globalThis.setTimeout> | undefined;
 
+  onCleanup(() => {
+    globalThis.clearTimeout(pressTimeout);
+  });
+
   const playPressAnimation = () => {
-    if (pressTimeout !== undefined) {
-      globalThis.clearTimeout(pressTimeout);
-    }
+    globalThis.clearTimeout(pressTimeout);
     setPressed(false);
     requestAnimationFrame(() => {
       setPressed(true);

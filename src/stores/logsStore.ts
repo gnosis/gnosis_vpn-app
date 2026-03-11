@@ -21,7 +21,7 @@ type LogsActions = {
   clear: () => void;
 };
 
-type LogsStoreTuple = readonly [Store<LogsState>, LogsActions];
+type LogsStoreTuple = readonly [Store<LogsState>, LogsActions, () => void];
 
 export type LogEntry = { date: string; message: string };
 
@@ -160,9 +160,9 @@ export function createLogsStore(): LogsStoreTuple {
     clear: () => setState("logs", []),
   };
 
-  // Cross-window synchronization
-  void listen<LogEntry>("logs:append", ({ payload }) => {
-    // Ignore if duplicate of last (idempotent)
+  const unlisteners: (() => void)[] = [];
+
+  listen<LogEntry>("logs:append", ({ payload }) => {
     const last = state.logs.length
       ? state.logs[state.logs.length - 1]
       : undefined;
@@ -172,21 +172,27 @@ export function createLogsStore(): LogsStoreTuple {
       return;
     }
     setState("logs", (existing) => [...existing, payload]);
-  });
+  }).then((u) => unlisteners.push(u))
+    .catch((e) => console.error("logs:append listener failed", e));
 
   if (isMainWindow) {
-    // Respond to snapshot requests from other windows
-    void listen("logs:request-snapshot", () => {
+    listen("logs:request-snapshot", () => {
       void emit("logs:snapshot", state.logs);
-    });
+    }).then((u) => unlisteners.push(u))
+      .catch((e) => console.error("logs:request-snapshot listener failed", e));
   }
 
-  // Accept snapshot to hydrate fresh windows
-  void listen<LogEntry[]>("logs:snapshot", ({ payload }) => {
+  listen<LogEntry[]>("logs:snapshot", ({ payload }) => {
     setState("logs", Array.isArray(payload) ? payload : []);
-  });
+  }).then((u) => unlisteners.push(u))
+    .catch((e) => console.error("logs:snapshot listener failed", e));
 
-  return [state, actions] as const;
+  const dispose = () => {
+    for (const unlisten of unlisteners) unlisten();
+    unlisteners.length = 0;
+  };
+
+  return [state, actions, dispose] as const;
 }
 
 const logsStore = createLogsStore();

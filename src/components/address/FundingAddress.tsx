@@ -1,4 +1,4 @@
-import { createSignal } from "solid-js";
+import { createSignal, onCleanup } from "solid-js";
 import { useLogsStore } from "../../stores/logsStore.ts";
 import { explorerUrl } from "../../utils/explorerUrl.ts";
 import { shortAddress } from "../../utils/shortAddress.ts";
@@ -24,6 +24,11 @@ export default function FundingAddress(
 
   const [showQR, setShowQR] = createSignal(false);
   const [copied, setCopied] = createSignal(false);
+  let copyTimeout: ReturnType<typeof setTimeout> | undefined;
+
+  onCleanup(() => {
+    clearTimeout(copyTimeout);
+  });
 
   const [, logActions] = useLogsStore();
   const log = (message: string) => logActions.append(message);
@@ -36,7 +41,11 @@ export default function FundingAddress(
     try {
       await navigator.clipboard.writeText(addr ?? "");
       setCopied(true);
-      globalThis.setTimeout(() => setCopied(false), 1500);
+      clearTimeout(copyTimeout);
+      copyTimeout = globalThis.setTimeout(() => {
+        setCopied(false);
+        copyTimeout = undefined;
+      }, 1500);
     } catch (error) {
       log(`Error copying address: ${String(error)}`);
     }

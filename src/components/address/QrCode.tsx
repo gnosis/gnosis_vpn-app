@@ -1,4 +1,4 @@
-import { createEffect, createSignal, Show } from "solid-js";
+import { createEffect, createSignal, onCleanup, Show } from "solid-js";
 import { Portal } from "solid-js/web";
 import QRCode from "qrcode";
 import { useLogsStore } from "../../stores/logsStore.ts";
@@ -18,22 +18,27 @@ export default function QrCode(props: QrCodeProps) {
   const [, logActions] = useLogsStore();
   const log = (message: string) => logActions.append(message);
 
-  createEffect(async () => {
-    if (!props.open) return;
-    if (!props.value) {
+  createEffect(() => {
+    if (!props.open || !props.value) {
       setQrDataUrl(undefined);
       return;
     }
-    try {
-      const url = await QRCode.toDataURL(props.value, {
-        margin: 1,
-        width: props.size ?? 256,
+    let cancelled = false;
+    onCleanup(() => {
+      cancelled = true;
+    });
+    const value = props.value;
+    const size = props.size ?? 256;
+    QRCode.toDataURL(value, { margin: 1, width: size })
+      .then((url) => {
+        if (!cancelled) setQrDataUrl(url);
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          log(`Error generating QR code: ${String(error)}`);
+          setQrDataUrl(undefined);
+        }
       });
-      setQrDataUrl(url);
-    } catch (error) {
-      log(`Error generating QR code: ${String(error)}`);
-      setQrDataUrl(undefined);
-    }
   });
 
   return (

@@ -36,15 +36,20 @@ export default function Synchronization(props: SynchronizationProps) {
   const FADE_DURATION = 500;
 
   onMount(() => {
+    let fadeTimeout: ReturnType<typeof setTimeout> | undefined;
     const timer = setInterval(() => {
       setIsVisible(false);
-      setTimeout(() => {
+      fadeTimeout = setTimeout(() => {
         setIndex((prev) => (prev + 1) % trivia.length);
         setIsVisible(true);
+        fadeTimeout = undefined;
       }, FADE_DURATION);
     }, CYCLE_DURATION);
 
-    onCleanup(() => clearInterval(timer));
+    onCleanup(() => {
+      clearInterval(timer);
+      clearTimeout(fadeTimeout);
+    });
   });
 
   return (

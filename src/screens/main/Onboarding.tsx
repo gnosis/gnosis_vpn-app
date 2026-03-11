@@ -12,20 +12,23 @@ const steps = {
 export default function Onboarding() {
   const [step, setStep] = createSignal<"start" | "manually">("start");
   let unlistenSetStep: (() => void) | undefined;
+  let disposed = false;
 
   onMount(() => {
-    void (async () => {
-      unlistenSetStep = await listen<"start" | "manually">(
-        "onboarding:set-step",
-        ({ payload }) => {
-          setStep(payload);
-        },
-      );
-    })();
+    listen<"start" | "manually">(
+      "onboarding:set-step",
+      ({ payload }) => {
+        if (!disposed) setStep(payload);
+      },
+    ).then((unlisten) => {
+      if (disposed) unlisten();
+      else unlistenSetStep = unlisten;
+    });
   });
 
   onCleanup(() => {
-    if (unlistenSetStep) unlistenSetStep();
+    disposed = true;
+    unlistenSetStep?.();
   });
 
   return (

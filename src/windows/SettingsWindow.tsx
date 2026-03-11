@@ -12,35 +12,37 @@ type GlobalTab = "settings" | "usage" | "logs";
 
 export default function SettingsWindow() {
   const [tab, setTab] = createSignal<GlobalTab>("settings");
-  let unlisten: (() => void) | undefined;
+  let unlistenNavigate: (() => void) | undefined;
   const [, settingsActions] = useSettingsStore();
   const [, appActions] = useAppStore();
   let startedPollingHere = false;
+  let disposed = false;
 
   onMount(() => {
     void (async () => {
-      unlisten = await listen<string>("navigate", (event) => {
+      const unlisten = await listen<string>("navigate", (event) => {
         const next = event.payload;
         if (next === "settings" || next === "usage" || next === "logs") {
           setTab(next);
         }
       });
+      if (disposed) unlisten();
+      else unlistenNavigate = unlisten;
 
       const mainWin = await WebviewWindow.getByLabel("main");
       const isMainVisible = mainWin ? await mainWin.isVisible() : false;
       if (!isMainVisible) {
         appActions.startStatusPolling();
         startedPollingHere = true;
-        await Promise.all([settingsActions.load(), appActions.refreshStatus()]);
-      } else {
-        await Promise.all([settingsActions.load(), appActions.refreshStatus()]);
       }
+      await Promise.all([settingsActions.load(), appActions.refreshStatus()]);
       void emit("logs:request-snapshot");
     })();
   });
 
   onCleanup(() => {
-    if (unlisten) unlisten();
+    disposed = true;
+    unlistenNavigate?.();
     if (startedPollingHere) appActions.stopStatusPolling();
   });
 

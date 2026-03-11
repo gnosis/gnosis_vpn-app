@@ -20,7 +20,7 @@ import Button from "../../components/common/Button.tsx";
 import { useAppStore } from "../../stores/appStore.ts";
 import AddFundsModal from "@src/components/AddFundsModal.tsx";
 
-const BALANCE_REFRESH_INTERVAL_MS = 1000;
+const BALANCE_REFRESH_INTERVAL_MS = 5_000;
 
 function balancesEqual(
   a: BalanceResponse | null,
@@ -94,21 +94,15 @@ export default function Usage() {
   let intervalId: ReturnType<typeof setInterval> | undefined;
 
   onMount(() => {
-    try {
-      setIsBalanceLoading(true);
+    setIsBalanceLoading(true);
+    void loadBalance().finally(() => setIsBalanceLoading(false));
+    intervalId = setInterval(() => {
       void loadBalance();
-      intervalId = setInterval(() => {
-        void loadBalance();
-      }, BALANCE_REFRESH_INTERVAL_MS);
-    } finally {
-      setIsBalanceLoading(false);
-    }
+    }, BALANCE_REFRESH_INTERVAL_MS);
   });
 
   onCleanup(() => {
-    if (intervalId) {
-      clearInterval(intervalId);
-    }
+    clearInterval(intervalId);
   });
 
   return (
