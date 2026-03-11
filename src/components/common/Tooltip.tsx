@@ -35,7 +35,7 @@ export default function Tooltip(
       <Show when={visible()}>
         <div
           class={`tooltip-bubble absolute left-1/2 z-50 w-max max-w-52
-            rounded-lg bg-black/80 backdrop-blur-sm px-3 py-2 shadow-lg
+            rounded-lg bg-neutral-800 px-3 py-2 shadow-lg
             text-xs leading-relaxed text-gray-100
             ${pos() === "top" ? "bottom-full mb-2" : "top-full mt-2"}
           `}
@@ -44,7 +44,7 @@ export default function Tooltip(
           {props.content}
           <span
             class={`absolute left-1/2 -translate-x-1/2 size-2 rotate-45
-              bg-black/80
+              bg-neutral-800
               ${pos() === "top" ? "top-full -mt-1" : "bottom-full -mb-1"}
             `}
           />

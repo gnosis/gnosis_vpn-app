@@ -8,6 +8,7 @@ import copyIcon from "@assets/icons/copy.svg";
 import qrIcon from "@assets/icons/qr.png";
 import checkIcon from "@assets/icons/checked-box.svg";
 import * as opener from "@tauri-apps/plugin-opener";
+import Tooltip from "../common/Tooltip.tsx";
 
 export default function FundingAddress(
   props: { address: string | undefined; full?: boolean; title?: string },
@@ -56,53 +57,54 @@ export default function FundingAddress(
       <div class="flex flex-row justify-between items-center">
         <div class="text-sm">
           <div class="font-bold">Gnosis VPN address</div>
-          <button
-            class="font-mono text-lg"
-            onClick={() => copy()}
-            title="Copy address"
-            type="button"
-          >
+          <div class="font-mono text-lg">
             {props.full ? address : shortAddress(address)}
-          </button>
+          </div>
         </div>
 
         <div class="flex gap-1 items-center h-[20px]">
-          <button
-            onClick={openExplorer}
-            class="inline-flex items-center gap-1 p-1 hover:cursor-pointer dark:invert"
-            title="Open on Gnosisscan"
-            type="button"
-          >
-            <img
-              src={linkIcon}
-              height={20}
-              width={20}
-              alt="Open on Gnosisscan"
-            />
-          </button>
+          <Tooltip content="Open on Gnosisscan" position="top">
+            <button
+              onClick={openExplorer}
+              class="inline-flex items-center gap-1 p-1 hover:cursor-pointer dark:invert"
+              type="button"
+            >
+              <img
+                src={linkIcon}
+                height={20}
+                width={20}
+                alt="Open on Gnosisscan"
+              />
+            </button>
+          </Tooltip>
 
-          <button
-            class="inline-flex items-center gap-1 p-1 hover:cursor-pointer dark:invert"
-            onClick={() => copy()}
-            title={copied() ? "Copied" : "Copy address"}
-            type="button"
+          <Tooltip
+            content={copied() ? "Copied" : "Copy address"}
+            position="top"
           >
-            <img
-              src={copied() ? checkIcon : copyIcon}
-              height={20}
-              width={20}
-              alt={copied() ? "Copied" : "Copy address"}
-            />
-          </button>
+            <button
+              class="inline-flex items-center gap-1 p-1 hover:cursor-pointer dark:invert"
+              onClick={() => copy()}
+              type="button"
+            >
+              <img
+                src={copied() ? checkIcon : copyIcon}
+                height={20}
+                width={20}
+                alt={copied() ? "Copied" : "Copy address"}
+              />
+            </button>
+          </Tooltip>
 
-          <button
-            class="inline-flex items-center gap-1 p-1 hover:cursor-pointer dark:invert"
-            onClick={openQR}
-            title="Show QR"
-            type="button"
-          >
-            <img src={qrIcon} height={20} width={20} alt="Show QR" />
-          </button>
+          <Tooltip content="Show QR" position="top">
+            <button
+              class="inline-flex items-center gap-1 p-1 hover:cursor-pointer dark:invert"
+              onClick={openQR}
+              type="button"
+            >
+              <img src={qrIcon} height={20} width={20} alt="Show QR" />
+            </button>
+          </Tooltip>
         </div>
       </div>
       <QrCode

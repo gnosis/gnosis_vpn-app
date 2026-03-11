@@ -1,6 +1,7 @@
 import { createSignal, Match, Switch } from "solid-js";
 import {
   type BalanceResponse,
+  isPreparingSafeRunMode,
   isRunningRunMode,
   isWarmupRunMode,
   VPNService,
@@ -15,10 +16,9 @@ import {
 import WarningIcon from "../../components/common/WarningIcon.tsx";
 import { useLogsStore } from "../../stores/logsStore.ts";
 import refreshIcon from "../../assets/icons/refresh.svg";
-import { Modal } from "../../components/common/Modal.tsx";
 import Button from "../../components/common/Button.tsx";
-import FundingAddress from "../../components/address/FundingAddress.tsx";
 import { useAppStore } from "../../stores/appStore.ts";
+import AddFundsModal from "@src/components/AddFundsModal.tsx";
 
 const BALANCE_REFRESH_INTERVAL_MS = 1000;
 
@@ -48,6 +48,12 @@ export default function Usage() {
   const [isAddFundsOpen, setIsAddFundsOpen] = createSignal(false);
   const [, logActions] = useLogsStore();
   const [appState] = useAppStore();
+
+  const preparingSafe =
+    () => (isPreparingSafeRunMode(appState.runMode)
+      ? appState.runMode.PreparingSafe
+      : null);
+
   async function loadBalance() {
     try {
       const result = await VPNService.balance();
@@ -113,12 +119,9 @@ export default function Usage() {
             Service unavailable
           </div>
         </Match>
-        <Match
-          when={appState.vpnStatus === "PreparingSafe" ||
-            appState.vpnStatus === "DeployingSafe"}
-        >
+        <Match when={appState.vpnStatus === "DeployingSafe"}>
           <div class="px-4 py-2 rounded-lg text-sm font-medium bg-amber-100 text-amber-800">
-            Preparing application
+            Preparing service
           </div>
         </Match>
         <Match when={isWarmupRunMode(appState.runMode)}>
@@ -126,7 +129,7 @@ export default function Usage() {
             Syncing in progress
           </div>
         </Match>
-        <Match when={isRunningRunMode(appState.runMode)}>
+        <Match when={isRunningRunMode(appState.runMode) || preparingSafe()}>
           <Show when={fundingStatus()?.description}>
             <div
               class={`px-4 py-2 rounded-lg text-sm font-medium ${
@@ -143,23 +146,30 @@ export default function Usage() {
               </div>
             </div>
           </Show>
+          <Show when={preparingSafe()}>
+            <div class="px-4 py-2 rounded-lg text-sm font-medium bg-amber-100 text-amber-800">
+              Waiting for incoming funds
+            </div>
+          </Show>
 
           <div class="flex flex-col gap-2 py-4 my-4 w-64">
             <FundsInfo
               name="Safe"
               subtitle="For traffic"
-              balance={balance()?.safe}
+              balance={preparingSafe()?.node_wxhopr ?? balance()?.safe}
               ticker="wxHOPR"
-              address={balance()?.info.safe_address}
+              address={preparingSafe()?.node_address ??
+                balance()?.info.safe_address}
               status={fundingStatus()?.safeStatus}
               isLoading={isBalanceLoading()}
             />
             <FundsInfo
               name="EOA"
               subtitle="For channels"
-              balance={balance()?.node}
+              balance={preparingSafe()?.node_xdai ?? balance()?.node}
               ticker="xDAI"
-              address={balance()?.info.node_address}
+              address={preparingSafe()?.node_address ??
+                balance()?.info.node_address}
               status={fundingStatus()?.nodeStatus}
               isLoading={isBalanceLoading()}
             />
@@ -191,35 +201,14 @@ export default function Usage() {
 
           <div class="grow"></div>
 
-          <Modal
+          <AddFundsModal
             open={isAddFundsOpen()}
             onClose={() => setIsAddFundsOpen(false)}
-          >
-            <div class="flex flex-col gap-8">
-              <div class="text-base font-semibold">Add funds</div>
-              <div class="flex flex-col gap-4 my-2">
-                <div class="text-xl font-bold">Transfer xDAI</div>
-                <FundingAddress
-                  address={balance()?.info.node_address}
-                  // full
-                  title="Transfer xDAI"
-                />
-              </div>
-              <div class="flex flex-col gap-4 my-2">
-                <div class="text-xl font-bold">Transfer wxHOPR</div>
-                <FundingAddress
-                  address={balance()?.info.safe_address}
-                  // full
-                  title="Transfer wxHOPR"
-                />
-              </div>
-              <div class="flex flex-row justify-end gap-2">
-                <Button size="md" onClick={() => setIsAddFundsOpen(false)}>
-                  Close
-                </Button>
-              </div>
-            </div>
-          </Modal>
+            nodeAddress={preparingSafe()?.node_address ??
+              balance()?.info.node_address ?? ""}
+            safeAddress={preparingSafe()?.node_address ??
+              balance()?.info.safe_address ?? ""}
+          />
         </Match>
       </Switch>
     </div>

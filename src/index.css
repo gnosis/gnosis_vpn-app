@@ -306,6 +306,22 @@
   }
 }
 
+@keyframes check-pop {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.6);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.check-pop {
+  animation: check-pop 400ms ease-out forwards;
+}
+
 .system-window {
   background-color: var(--color-bg-primary);
 }
