@@ -1,5 +1,6 @@
 import { createSignal, Match, Switch } from "solid-js";
 import { save } from "@tauri-apps/plugin-dialog";
+import { downloadDir, join } from "@tauri-apps/api/path";
 import { VPNService } from "../services/vpnService.ts";
 import Button from "./common/Button.tsx";
 
@@ -29,8 +30,10 @@ export default function ExportLogs() {
         ).padStart(2, "0")
       }`;
       const defaultName = `gnosis_vpn-${ts}.log.zst`;
+      const downloadsPath = await downloadDir();
+      const defaultPath = await join(downloadsPath, defaultName);
       const dest = await save({
-        defaultPath: defaultName,
+        defaultPath,
         filters: [{ name: "Zstandard archive", extensions: ["zst"] }],
       });
       if (!dest) {
