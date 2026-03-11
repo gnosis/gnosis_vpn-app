@@ -56,7 +56,7 @@ function Navigation() {
   };
 
   const handleMouseEnter = () => {
-    if (hoverTimeout) clearTimeout(hoverTimeout);
+    clearTimeout(hoverTimeout);
     hoverTimeout = setTimeout(() => {
       if (buttonRef && containerRef) {
         setButtonRect(buttonRef.getBoundingClientRect());
@@ -67,13 +67,13 @@ function Navigation() {
   };
 
   const handleMouseLeave = () => {
-    if (hoverTimeout) clearTimeout(hoverTimeout);
+    clearTimeout(hoverTimeout);
     hoverTimeout = undefined;
     setShowPopup(false);
   };
 
   onCleanup(() => {
-    if (hoverTimeout) clearTimeout(hoverTimeout);
+    clearTimeout(hoverTimeout);
   });
 
   return (

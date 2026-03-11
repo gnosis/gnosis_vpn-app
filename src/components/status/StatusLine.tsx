@@ -15,20 +15,20 @@ export default function StatusLine(
   let disconnectTimeout: ReturnType<typeof setTimeout> | undefined;
 
   onCleanup(() => {
-    if (disconnectTimeout !== undefined) clearTimeout(disconnectTimeout);
+    clearTimeout(disconnectTimeout);
   });
 
   createEffect(() => {
     if (appState.vpnStatus === "Disconnecting") {
       setWasDisconnecting(true);
     } else if (appState.vpnStatus === "Disconnected" && wasDisconnecting()) {
-      if (disconnectTimeout !== undefined) clearTimeout(disconnectTimeout);
+      clearTimeout(disconnectTimeout);
       disconnectTimeout = setTimeout(() => {
         setWasDisconnecting(false);
         disconnectTimeout = undefined;
       }, 1000);
     } else if (appState.vpnStatus !== "Disconnected") {
-      if (disconnectTimeout !== undefined) clearTimeout(disconnectTimeout);
+      clearTimeout(disconnectTimeout);
       disconnectTimeout = undefined;
       setWasDisconnecting(false);
     }

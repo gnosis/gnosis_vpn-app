@@ -40,13 +40,11 @@ export default function Button(allProps: ButtonProps): JSX.Element {
   let pressTimeout: ReturnType<typeof globalThis.setTimeout> | undefined;
 
   onCleanup(() => {
-    if (pressTimeout !== undefined) globalThis.clearTimeout(pressTimeout);
+    globalThis.clearTimeout(pressTimeout);
   });
 
   const playPressAnimation = () => {
-    if (pressTimeout !== undefined) {
-      globalThis.clearTimeout(pressTimeout);
-    }
+    globalThis.clearTimeout(pressTimeout);
     setPressed(false);
     requestAnimationFrame(() => {
       setPressed(true);

@@ -102,9 +102,7 @@ export default function Usage() {
   });
 
   onCleanup(() => {
-    if (intervalId) {
-      clearInterval(intervalId);
-    }
+    clearInterval(intervalId);
   });
 
   return (

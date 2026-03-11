@@ -11,11 +11,11 @@ export default function IconButton(props: {
   const [pressed, setPressed] = createSignal(false);
   let pressTimeout: ReturnType<typeof globalThis.setTimeout> | undefined;
   onCleanup(() => {
-    if (pressTimeout !== undefined) globalThis.clearTimeout(pressTimeout);
+    globalThis.clearTimeout(pressTimeout);
   });
 
   const playPressAnimation = () => {
-    if (pressTimeout !== undefined) globalThis.clearTimeout(pressTimeout);
+    globalThis.clearTimeout(pressTimeout);
     setPressed(false);
     requestAnimationFrame(() => {
       setPressed(true);

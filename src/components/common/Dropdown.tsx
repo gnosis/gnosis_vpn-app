@@ -38,9 +38,7 @@ export function Dropdown<T>(props: DropdownProps<T>) {
   const [pressed, setPressed] = createSignal(false);
   let pressTimeout: ReturnType<typeof globalThis.setTimeout> | undefined;
   const playPressAnimation = () => {
-    if (pressTimeout !== undefined) {
-      globalThis.clearTimeout(pressTimeout);
-    }
+    globalThis.clearTimeout(pressTimeout);
     setPressed(false);
     requestAnimationFrame(() => {
       setPressed(true);
@@ -108,14 +106,14 @@ export function Dropdown<T>(props: DropdownProps<T>) {
   });
   onCleanup(() => {
     document.removeEventListener("mousedown", onDocClick);
-    if (closeTimeout) globalThis.clearTimeout(closeTimeout);
-    if (pressTimeout !== undefined) globalThis.clearTimeout(pressTimeout);
+    globalThis.clearTimeout(closeTimeout);
+    globalThis.clearTimeout(pressTimeout);
   });
 
   createEffect(
     on(open, (isOpen) => {
       if (isOpen) {
-        if (closeTimeout) globalThis.clearTimeout(closeTimeout);
+        globalThis.clearTimeout(closeTimeout);
         setMounted(true);
         const idx = selectedIdx();
         if (idx >= 0 && !isDisabledIndex(idx)) {

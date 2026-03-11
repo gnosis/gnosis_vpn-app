@@ -27,7 +27,7 @@ export default function FundingAddress(
   let copyTimeout: ReturnType<typeof setTimeout> | undefined;
 
   onCleanup(() => {
-    if (copyTimeout !== undefined) clearTimeout(copyTimeout);
+    clearTimeout(copyTimeout);
   });
 
   const [, logActions] = useLogsStore();
@@ -41,7 +41,7 @@ export default function FundingAddress(
     try {
       await navigator.clipboard.writeText(addr ?? "");
       setCopied(true);
-      if (copyTimeout !== undefined) clearTimeout(copyTimeout);
+      clearTimeout(copyTimeout);
       copyTimeout = globalThis.setTimeout(() => {
         setCopied(false);
         copyTimeout = undefined;

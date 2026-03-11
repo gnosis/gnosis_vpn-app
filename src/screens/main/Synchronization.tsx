@@ -48,7 +48,7 @@ export default function Synchronization(props: SynchronizationProps) {
 
     onCleanup(() => {
       clearInterval(timer);
-      if (fadeTimeout !== undefined) clearTimeout(fadeTimeout);
+      clearTimeout(fadeTimeout);
     });
   });
 
