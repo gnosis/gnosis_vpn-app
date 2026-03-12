@@ -41,6 +41,21 @@ fn validate_icon_name(icon_name: &str) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub async fn info() -> Result<command::InfoResponse, String> {
+    let p = PathBuf::from(root_socket::DEFAULT_PATH);
+    let cmd = command::Command::Info;
+
+    let resp = root_socket::process_cmd(&p, &cmd)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    match resp {
+        command::Response::Info(info) => Ok(info),
+        _ => Err("Unexpected response type".to_string()),
+    }
+}
+
+#[tauri::command]
 pub async fn status(
     app: AppHandle,
     status_item: State<'_, TrayStatusItem>,

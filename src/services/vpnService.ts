@@ -25,6 +25,11 @@ export type BalanceResponse = {
   issues: FundingIssue[];
 };
 
+export type ServiceInfo = {
+  version: string;
+  log_file: string | null;
+};
+
 // Library types
 
 export type RoutingOptions = { Hops: number } | { IntermediatePath: string[] };
@@ -385,6 +390,15 @@ export function equalFundingTool(
 }
 
 export class VPNService {
+  static async info(): Promise<ServiceInfo> {
+    try {
+      return (await invoke("info")) as ServiceInfo;
+    } catch (error) {
+      console.error("Failed to get VPN info:", error);
+      throw new Error(`Info Error: ${error}`);
+    }
+  }
+
   static async getStatus(): Promise<StatusResponse> {
     try {
       return (await invoke("status")) as StatusResponse;

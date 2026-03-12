@@ -19,7 +19,9 @@ mod theme;
 pub mod tray;
 pub mod types;
 
-use commands::{balance, compress_logs, connect, disconnect, refresh_node, set_app_icon, status};
+use commands::{
+    balance, compress_logs, connect, disconnect, info, refresh_node, set_app_icon, status,
+};
 use icons::{AppIconState, TrayIconState, determine_tray_icon, start_app_icon_heartbeat};
 use platform::{Platform, PlatformInterface};
 #[cfg(target_os = "linux")]
@@ -178,6 +180,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            info,
             status,
             connect,
             disconnect,

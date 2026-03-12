@@ -1,4 +1,5 @@
 import { createStore, reconcile, type Store } from "solid-js/store";
+
 import {
   type Destination,
   type DestinationState,
@@ -7,6 +8,7 @@ import {
   isPreparingSafeRunMode,
   isWarmupRunMode,
   type RunMode,
+  type ServiceInfo,
   type StatusResponse,
   VPNService,
 } from "@src/services/vpnService.ts";
@@ -24,6 +26,7 @@ import { getVpnStatus, isConnecting } from "@src/utils/status.ts";
 import { shortAddress } from "../utils/shortAddress.ts";
 
 export enum AppScreen {
+  Initialization = "initialization",
   Main = "main",
   Onboarding = "onboarding",
   Synchronization = "synchronization",
@@ -31,6 +34,7 @@ export enum AppScreen {
 
 export interface AppState {
   currentScreen: AppScreen;
+  serviceInfo: ServiceInfo | null;
   availableDestinations: Destination[];
   destinations: Record<string, DestinationState>;
   isLoading: boolean;
@@ -59,7 +63,8 @@ const DEFAULT_TIMEOUT = 2111; // ms
 
 export function createAppStore(): AppStoreTuple {
   const [state, setState] = createStore<AppState>({
-    currentScreen: AppScreen.Main,
+    currentScreen: AppScreen.Initialization,
+    serviceInfo: null,
     availableDestinations: [],
     destinations: {},
     isLoading: false,
@@ -260,6 +265,27 @@ export function createAppStore(): AppStoreTuple {
   };
 
   const actions = {
+    initializeApp: async () => {
+      setState("isLoading", true);
+      try {
+        const info = await VPNService.info();
+        setState("serviceInfo", info);
+
+        // TODO: Perform compatibility/version checks here (Step 3 later)
+        console.log("Service Info received:", info);
+
+        // Proceed to normal status polling if compatible
+        actions.startStatusPolling();
+      } catch (error) {
+        // TODO: Handle Service offline / not reachable (Step 2 later)
+        const message = error instanceof Error ? error.message : String(error);
+        log("Failed to connect to service: " + message);
+        setState("error", message);
+      } finally {
+        setState("isLoading", false);
+      }
+    },
+
     setScreen: (screen: AppScreen) => setState("currentScreen", screen),
 
     chooseDestination: (id: string | null) => {
