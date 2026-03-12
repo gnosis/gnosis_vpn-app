@@ -3,14 +3,14 @@
 extern crate objc;
 
 use serde::Serialize;
-use tauri::Manager;
 use tauri::tray::TrayIconBuilder;
+use tauri::Manager;
 use tauri_plugin_store::StoreExt;
 
 use std::path::PathBuf;
+use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use std::sync::Mutex;
-use std::sync::atomic::AtomicBool;
 
 mod commands;
 mod icons;
@@ -22,12 +22,12 @@ pub mod types;
 use commands::{
     balance, compress_logs, connect, disconnect, funding_tool, refresh_node, set_app_icon, status,
 };
-use icons::{AppIconState, TrayIconState, determine_tray_icon, start_app_icon_heartbeat};
+use icons::{determine_tray_icon, start_app_icon_heartbeat, AppIconState, TrayIconState};
 use platform::{Platform, PlatformInterface};
 #[cfg(target_os = "linux")]
 use theme::spawn_linux_theme_monitor;
 #[cfg_attr(target_os = "macos", allow(unused_imports))]
-use theme::{InitialTheme, get_initial_theme, system_theme, theme_changed};
+use theme::{get_initial_theme, system_theme, InitialTheme};
 use tray::{create_tray_menu, handle_tray_event, show_settings, toggle_main_window_visibility};
 
 struct HeartbeatHandle(Mutex<Option<tauri::async_runtime::JoinHandle<()>>>);
@@ -66,12 +66,12 @@ pub fn run() {
 
             // First step: OS theme for app windows (all OS) and tray icons (non-macOS only)
             let theme = system_theme();
-            app.manage(InitialTheme(theme.unwrap_or(tauri::Theme::Dark)));
+            app.manage(InitialTheme(theme));
 
             // Create tray menu
             let menu = create_tray_menu(app.handle())?;
 
-            let icon_name: &str = determine_tray_icon("Disconnected", theme);
+            let icon_name: &str = determine_tray_icon("Disconnected");
 
             let tray_icon_path: PathBuf = app
                 .path()
@@ -189,7 +189,6 @@ pub fn run() {
             compress_logs,
             set_app_icon,
             get_initial_theme,
-            theme_changed
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

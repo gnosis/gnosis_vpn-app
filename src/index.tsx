@@ -21,7 +21,6 @@ function applyTheme(theme: string) {
   } else {
     document.documentElement.classList.remove("dark");
   }
-  invoke("theme_changed", { theme });
 }
 
 (() => {

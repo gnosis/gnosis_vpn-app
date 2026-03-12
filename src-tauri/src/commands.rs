@@ -15,7 +15,6 @@ use crate::icons::{
     self, AppIconState, TrayIconState, determine_app_icon, update_icon_name_if_changed,
     update_tray_icon,
 };
-use crate::theme::system_theme;
 use crate::tray::TrayStatusItem;
 use crate::types::{BalanceResponse, ConnectResponse, DisconnectResponse, StatusResponse};
 
@@ -81,8 +80,7 @@ pub async fn status(
                 let _ = guard.set_text(format!("Status: {}", derived));
             }
 
-            let theme = system_theme();
-            update_tray_icon(&app, tray_icon_state.inner(), derived, theme);
+            update_tray_icon(&app, tray_icon_state.inner(), derived);
 
             let icon_name = determine_app_icon(derived, &status_resp.run_mode);
             let should_animate = derived == "Connecting" || derived == "Disconnecting";
@@ -109,7 +107,6 @@ pub async fn status(
                 &app,
                 tray_icon_state.inner(),
                 "Disconnected",
-                system_theme(),
             );
             Err(e.to_string())
         }
