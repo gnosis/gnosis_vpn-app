@@ -166,7 +166,7 @@ jobs:
           event-type: new_snapshot_release
           client-payload: |-
             {
-              "public_release": "false",
+              "draft_release": "false",
               "client_version": "latest",
               "app_version": "${{ steps.bump.outputs.current_version }}"
             }
