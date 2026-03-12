@@ -103,11 +103,7 @@ pub async fn status(
             if let Ok(guard) = status_item.0.lock() {
                 let _ = guard.set_text("Status: Not available");
             }
-            update_tray_icon(
-                &app,
-                tray_icon_state.inner(),
-                "Disconnected",
-            );
+            update_tray_icon(&app, tray_icon_state.inner(), "Disconnected");
             Err(e.to_string())
         }
         Ok(unexpected) => {

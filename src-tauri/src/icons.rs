@@ -108,11 +108,7 @@ pub fn determine_tray_icon(connection_state: &str) -> &'static str {
     }
 }
 
-pub fn update_tray_icon(
-    app: &AppHandle,
-    tray_icon_state: &TrayIconState,
-    connection_state: &str,
-) {
+pub fn update_tray_icon(app: &AppHandle, tray_icon_state: &TrayIconState, connection_state: &str) {
     let tray_icon_name = determine_tray_icon(connection_state);
     if update_icon_name_if_changed(&tray_icon_state.current_icon, tray_icon_name) {
         if let Ok(tray_icon_path) = Manager::path(app)
@@ -123,10 +119,7 @@ pub fn update_tray_icon(
                 if let Ok(guard) = tray_icon_state.tray.lock() {
                     let _ = guard.set_icon(Some(tray_image));
 
-                    #[cfg(target_os = "macos")]
-                    {
-                        let _ = guard.set_icon_as_template(true);
-                    }
+                    let _ = guard.set_icon_as_template(true);
                 }
             }
         }

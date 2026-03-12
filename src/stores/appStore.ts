@@ -134,8 +134,8 @@ export function createAppStore(): AppStoreTuple {
     setState("currentScreen", screen);
 
     const prevDestStates = state.destinations;
-    const [nextDestStates, availableDestinations] =
-      response.destinations.reduce(
+    const [nextDestStates, availableDestinations] = response.destinations
+      .reduce(
         ([states, dests], ds) => {
           states[ds.destination.id] = ds;
           dests.push(ds.destination);
