@@ -45,17 +45,6 @@ dependencies = [
 
 [[package]]
 name = "ahash"
-version = "0.7.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "891477e0c6a8957309ee5c45a6368af3ae14bb510732d2684ffa19af310920f9"
-dependencies = [
- "getrandom 0.2.17",
- "once_cell",
- "version_check",
-]
-
-[[package]]
-name = "ahash"
 version = "0.8.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5a15f179cd60c4584b8a8c596927aadc462e27f2ca70c04e0071964a73ba7a75"
@@ -1058,6 +1047,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "ashpd"
+version = "0.10.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "de3d60bee1a1d38c2077030f4788e1b4e31058d2e79a8cfc8f2b440bd44db290"
+dependencies = [
+ "async-fs",
+ "async-net",
+ "enumflags2",
+ "futures-channel",
+ "futures-util",
+ "rand 0.8.5",
+ "serde",
+ "serde_repr",
+ "url",
+ "zbus",
+]
+
+[[package]]
 name = "asn1-rs"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1169,6 +1176,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-global-executor"
+version = "2.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "05b1b633a2115cd122d73b955eadd9916c18c8f510ec9cd1686404c60ad1c29c"
+dependencies = [
+ "async-channel 2.5.0",
+ "async-executor",
+ "async-io",
+ "async-lock",
+ "blocking",
+ "futures-lite",
+ "once_cell",
+]
+
+[[package]]
 name = "async-io"
 version = "2.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1195,6 +1217,17 @@ dependencies = [
  "event-listener 5.4.1",
  "event-listener-strategy",
  "pin-project-lite",
+]
+
+[[package]]
+name = "async-net"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b948000fad4873c1c9339d60f2623323a0cfd3816e5181033c6a5cb68b2accf7"
+dependencies = [
+ "async-io",
+ "blocking",
+ "futures-lite",
 ]
 
 [[package]]
@@ -1242,6 +1275,32 @@ dependencies = [
  "signal-hook-registry",
  "slab",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "async-std"
+version = "1.13.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2c8e079a4ab67ae52b7403632e4618815d6db36d2a010cfe41b02c1b1578f93b"
+dependencies = [
+ "async-channel 1.9.0",
+ "async-global-executor",
+ "async-io",
+ "async-lock",
+ "crossbeam-utils",
+ "futures-channel",
+ "futures-core",
+ "futures-io",
+ "futures-lite",
+ "gloo-timers 0.3.0",
+ "kv-log-macro",
+ "log",
+ "memchr",
+ "once_cell",
+ "pin-project-lite",
+ "pin-utils",
+ "slab",
+ "wasm-bindgen-futures",
 ]
 
 [[package]]
@@ -1583,11 +1642,20 @@ dependencies = [
 
 [[package]]
 name = "block2"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2c132eebf10f5cad5289222520a4a058514204aed6d791f1cf4fe8088b82d15f"
+dependencies = [
+ "objc2 0.5.2",
+]
+
+[[package]]
+name = "block2"
 version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cdeb9d870516001442e364c5220d3574d2da8dc765554b4a617230d33fa58ef5"
 dependencies = [
- "objc2",
+ "objc2 0.6.4",
 ]
 
 [[package]]
@@ -2009,15 +2077,15 @@ dependencies = [
 
 [[package]]
 name = "cocoa"
-version = "0.25.0"
+version = "0.26.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f6140449f97a6e97f9511815c5632d84c8aacf8ac271ad77c559218161a1373c"
+checksum = "ad36507aeb7e16159dfe68db81ccc27571c3ccd4b76fb2fb72fc59e7a4b1b64c"
 dependencies = [
- "bitflags 1.3.2",
+ "bitflags 2.11.0",
  "block",
  "cocoa-foundation",
- "core-foundation 0.9.4",
- "core-graphics 0.23.2",
+ "core-foundation 0.10.1",
+ "core-graphics",
  "foreign-types 0.5.0",
  "libc",
  "objc",
@@ -2025,15 +2093,14 @@ dependencies = [
 
 [[package]]
 name = "cocoa-foundation"
-version = "0.1.2"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c6234cbb2e4c785b456c0644748b1ac416dd045799740356f8363dfe00c93f7"
+checksum = "81411967c50ee9a1fc11365f8c585f863a22a9697c89239c452292c40ba79b0d"
 dependencies = [
- "bitflags 1.3.2",
+ "bitflags 2.11.0",
  "block",
- "core-foundation 0.9.4",
- "core-graphics-types 0.1.3",
- "libc",
+ "core-foundation 0.10.1",
+ "core-graphics-types",
  "objc",
 ]
 
@@ -2185,38 +2252,14 @@ checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 
 [[package]]
 name = "core-graphics"
-version = "0.23.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c07782be35f9e1140080c6b96f0d44b739e2278479f64e02fdab4e32dfd8b081"
-dependencies = [
- "bitflags 1.3.2",
- "core-foundation 0.9.4",
- "core-graphics-types 0.1.3",
- "foreign-types 0.5.0",
- "libc",
-]
-
-[[package]]
-name = "core-graphics"
 version = "0.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fa95a34622365fa5bbf40b20b75dba8dfa8c94c734aea8ac9a5ca38af14316f1"
 dependencies = [
  "bitflags 2.11.0",
  "core-foundation 0.10.1",
- "core-graphics-types 0.2.0",
+ "core-graphics-types",
  "foreign-types 0.5.0",
- "libc",
-]
-
-[[package]]
-name = "core-graphics-types"
-version = "0.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "45390e6114f68f718cc7a830514a96f903cccd70d02a8f6d9f643ac4ba45afaf"
-dependencies = [
- "bitflags 1.3.2",
- "core-foundation 0.9.4",
  "libc",
 ]
 
@@ -2492,18 +2535,16 @@ dependencies = [
 
 [[package]]
 name = "dark-light"
-version = "1.1.1"
+version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2a76fa97167fa740dcdbfe18e8895601e1bc36525f09b044e00916e717c03a3c"
+checksum = "18e1a09f280e29a8b00bc7e81eca5ac87dca0575639c9422a5fa25a07bb884b8"
 dependencies = [
- "dconf_rs",
- "detect-desktop-environment",
- "dirs 4.0.0",
- "objc",
- "rust-ini",
+ "ashpd",
+ "async-std",
+ "objc2 0.5.2",
+ "objc2-foundation 0.2.2",
  "web-sys",
- "winreg 0.10.1",
- "zbus 4.4.0",
+ "winreg 0.52.0",
 ]
 
 [[package]]
@@ -2618,12 +2659,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dconf_rs"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7046468a81e6a002061c01e6a7c83139daf91b11c30e66795b13217c2d885c8b"
-
-[[package]]
 name = "der"
 version = "0.7.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2706,12 +2741,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "detect-desktop-environment"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "21d8ad60dd5b13a4ee6bd8fa2d5d88965c597c67bce32b5fc49c94f55cb50810"
-
-[[package]]
 name = "digest"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2734,31 +2763,11 @@ dependencies = [
 
 [[package]]
 name = "dirs"
-version = "4.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca3aa72a6f96ea37bbc5aa912f6788242832f75369bdfdadcb0e38423f100059"
-dependencies = [
- "dirs-sys 0.3.7",
-]
-
-[[package]]
-name = "dirs"
 version = "6.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3e8aa94d75141228480295a7d0e7feb620b1a5ad9f12bc40be62411e38cce4e"
 dependencies = [
- "dirs-sys 0.5.0",
-]
-
-[[package]]
-name = "dirs-sys"
-version = "0.3.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1b1d1d91c932ef41c0f2663aa8b0ca0342d444d842c06914aa0a7e352d0bada6"
-dependencies = [
- "libc",
- "redox_users 0.4.6",
- "winapi",
+ "dirs-sys",
 ]
 
 [[package]]
@@ -2769,7 +2778,7 @@ checksum = "e01a3366d27ee9890022452ee61b2b63a67e6f13f58900b651ff5665f0bb1fab"
 dependencies = [
  "libc",
  "option-ext",
- "redox_users 0.5.2",
+ "redox_users",
  "windows-sys 0.61.2",
 ]
 
@@ -2786,9 +2795,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1e0e367e4e7da84520dedcac1901e4da967309406d1e51017ae1abfb97adbd38"
 dependencies = [
  "bitflags 2.11.0",
- "block2",
+ "block2 0.6.2",
  "libc",
- "objc2",
+ "objc2 0.6.4",
 ]
 
 [[package]]
@@ -2824,12 +2833,6 @@ dependencies = [
  "quote",
  "syn 2.0.117",
 ]
-
-[[package]]
-name = "dlv-list"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0688c2a7f92e427f44895cd63841bff7b29f8d7a1648b9e7e07a4a365b2e1257"
 
 [[package]]
 name = "dotenvy"
@@ -2918,7 +2921,7 @@ dependencies = [
 [[package]]
 name = "edgli"
 version = "2.3.0"
-source = "git+https://github.com/hoprnet/edge-client.git?rev=26e4afe679a98de02b34c0343f2fe308303a77d9#26e4afe679a98de02b34c0343f2fe308303a77d9"
+source = "git+https://github.com/hoprnet/edge-client.git?rev=e28ac48a6fdfe9f7e867123abed00fc9a9f14a3a#e28ac48a6fdfe9f7e867123abed00fc9a9f14a3a"
 dependencies = [
  "anyhow",
  "async-signal",
@@ -3897,8 +3900,8 @@ dependencies = [
 
 [[package]]
 name = "gnosis_vpn-lib"
-version = "0.75.0"
-source = "git+https://github.com/gnosis/gnosis_vpn-client.git?rev=db1f82608568840b3345f2416679851bc7fe4111#db1f82608568840b3345f2416679851bc7fe4111"
+version = "0.80.0"
+source = "git+https://github.com/gnosis/gnosis_vpn-client.git?rev=9fa0c14df8614a4e021dabd1944da90b5eb62fc2#9fa0c14df8614a4e021dabd1944da90b5eb62fc2"
 dependencies = [
  "anyhow",
  "backon",
@@ -4065,9 +4068,6 @@ name = "hashbrown"
 version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a9ee70c43aaf417c914396645a0fa852624801b24ebb7ae78fe8272889ac888"
-dependencies = [
- "ahash 0.7.8",
-]
 
 [[package]]
 name = "hashbrown"
@@ -4225,7 +4225,7 @@ dependencies = [
 [[package]]
 name = "hopr-api"
 version = "0.10.1"
-source = "git+https://github.com/hoprnet/hoprnet?rev=cacfb94fc40b71f36891cdb56c9e708efb3ec1bc#cacfb94fc40b71f36891cdb56c9e708efb3ec1bc"
+source = "git+https://github.com/hoprnet/hoprnet?rev=2612c9442cca0638b6ed6e6427b2b5c487cf1432#2612c9442cca0638b6ed6e6427b2b5c487cf1432"
 dependencies = [
  "async-trait",
  "auto_impl",
@@ -4246,7 +4246,7 @@ dependencies = [
 [[package]]
 name = "hopr-async-runtime"
 version = "0.4.1"
-source = "git+https://github.com/hoprnet/hoprnet?rev=cacfb94fc40b71f36891cdb56c9e708efb3ec1bc#cacfb94fc40b71f36891cdb56c9e708efb3ec1bc"
+source = "git+https://github.com/hoprnet/hoprnet?rev=2612c9442cca0638b6ed6e6427b2b5c487cf1432#2612c9442cca0638b6ed6e6427b2b5c487cf1432"
 dependencies = [
  "auto_impl",
  "futures",
@@ -4274,9 +4274,9 @@ dependencies = [
 [[package]]
 name = "hopr-chain-connector"
 version = "0.15.0"
-source = "git+https://github.com/hoprnet/hoprnet?rev=cacfb94fc40b71f36891cdb56c9e708efb3ec1bc#cacfb94fc40b71f36891cdb56c9e708efb3ec1bc"
+source = "git+https://github.com/hoprnet/hoprnet?rev=2612c9442cca0638b6ed6e6427b2b5c487cf1432#2612c9442cca0638b6ed6e6427b2b5c487cf1432"
 dependencies = [
- "ahash 0.8.12",
+ "ahash",
  "anyhow",
  "async-broadcast",
  "async-trait",
@@ -4306,8 +4306,8 @@ dependencies = [
 
 [[package]]
 name = "hopr-chain-types"
-version = "0.14.2"
-source = "git+https://github.com/hoprnet/hoprnet?rev=cacfb94fc40b71f36891cdb56c9e708efb3ec1bc#cacfb94fc40b71f36891cdb56c9e708efb3ec1bc"
+version = "0.14.1"
+source = "git+https://github.com/hoprnet/hoprnet?rev=2612c9442cca0638b6ed6e6427b2b5c487cf1432#2612c9442cca0638b6ed6e6427b2b5c487cf1432"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4327,7 +4327,7 @@ dependencies = [
 [[package]]
 name = "hopr-crypto-keypair"
 version = "0.5.1"
-source = "git+https://github.com/hoprnet/hoprnet?rev=cacfb94fc40b71f36891cdb56c9e708efb3ec1bc#cacfb94fc40b71f36891cdb56c9e708efb3ec1bc"
+source = "git+https://github.com/hoprnet/hoprnet?rev=2612c9442cca0638b6ed6e6427b2b5c487cf1432#2612c9442cca0638b6ed6e6427b2b5c487cf1432"
 dependencies = [
  "hex",
  "hopr-crypto-random",
@@ -4346,7 +4346,7 @@ dependencies = [
 [[package]]
 name = "hopr-crypto-packet"
 version = "1.2.0"
-source = "git+https://github.com/hoprnet/hoprnet?rev=cacfb94fc40b71f36891cdb56c9e708efb3ec1bc#cacfb94fc40b71f36891cdb56c9e708efb3ec1bc"
+source = "git+https://github.com/hoprnet/hoprnet?rev=2612c9442cca0638b6ed6e6427b2b5c487cf1432#2612c9442cca0638b6ed6e6427b2b5c487cf1432"
 dependencies = [
  "flagset",
  "hex",
@@ -4366,7 +4366,7 @@ dependencies = [
 [[package]]
 name = "hopr-crypto-random"
 version = "0.4.1"
-source = "git+https://github.com/hoprnet/hoprnet?rev=cacfb94fc40b71f36891cdb56c9e708efb3ec1bc#cacfb94fc40b71f36891cdb56c9e708efb3ec1bc"
+source = "git+https://github.com/hoprnet/hoprnet?rev=2612c9442cca0638b6ed6e6427b2b5c487cf1432#2612c9442cca0638b6ed6e6427b2b5c487cf1432"
 dependencies = [
  "generic-array 1.3.5",
  "rand 0.10.0",
@@ -4375,7 +4375,7 @@ dependencies = [
 [[package]]
 name = "hopr-crypto-sphinx"
 version = "0.11.2"
-source = "git+https://github.com/hoprnet/hoprnet?rev=cacfb94fc40b71f36891cdb56c9e708efb3ec1bc#cacfb94fc40b71f36891cdb56c9e708efb3ec1bc"
+source = "git+https://github.com/hoprnet/hoprnet?rev=2612c9442cca0638b6ed6e6427b2b5c487cf1432#2612c9442cca0638b6ed6e6427b2b5c487cf1432"
 dependencies = [
  "bimap",
  "curve25519-dalek",
@@ -4395,7 +4395,7 @@ dependencies = [
 [[package]]
 name = "hopr-crypto-types"
 version = "0.9.2"
-source = "git+https://github.com/hoprnet/hoprnet?rev=cacfb94fc40b71f36891cdb56c9e708efb3ec1bc#cacfb94fc40b71f36891cdb56c9e708efb3ec1bc"
+source = "git+https://github.com/hoprnet/hoprnet?rev=2612c9442cca0638b6ed6e6427b2b5c487cf1432#2612c9442cca0638b6ed6e6427b2b5c487cf1432"
 dependencies = [
  "aes",
  "blake3",
@@ -4427,7 +4427,7 @@ dependencies = [
 [[package]]
 name = "hopr-ct-telemetry"
 version = "0.1.0"
-source = "git+https://github.com/hoprnet/hoprnet?rev=cacfb94fc40b71f36891cdb56c9e708efb3ec1bc#cacfb94fc40b71f36891cdb56c9e708efb3ec1bc"
+source = "git+https://github.com/hoprnet/hoprnet?rev=2612c9442cca0638b6ed6e6427b2b5c487cf1432#2612c9442cca0638b6ed6e6427b2b5c487cf1432"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -4449,7 +4449,7 @@ dependencies = [
 [[package]]
 name = "hopr-db-entity"
 version = "0.6.2"
-source = "git+https://github.com/hoprnet/hoprnet?rev=cacfb94fc40b71f36891cdb56c9e708efb3ec1bc#cacfb94fc40b71f36891cdb56c9e708efb3ec1bc"
+source = "git+https://github.com/hoprnet/hoprnet?rev=2612c9442cca0638b6ed6e6427b2b5c487cf1432#2612c9442cca0638b6ed6e6427b2b5c487cf1432"
 dependencies = [
  "anyhow",
  "clap",
@@ -4468,7 +4468,7 @@ dependencies = [
 [[package]]
 name = "hopr-db-migration"
 version = "0.5.1"
-source = "git+https://github.com/hoprnet/hoprnet?rev=cacfb94fc40b71f36891cdb56c9e708efb3ec1bc#cacfb94fc40b71f36891cdb56c9e708efb3ec1bc"
+source = "git+https://github.com/hoprnet/hoprnet?rev=2612c9442cca0638b6ed6e6427b2b5c487cf1432#2612c9442cca0638b6ed6e6427b2b5c487cf1432"
 dependencies = [
  "sea-orm-migration",
  "tokio",
@@ -4477,7 +4477,7 @@ dependencies = [
 [[package]]
 name = "hopr-db-node"
 version = "0.5.1"
-source = "git+https://github.com/hoprnet/hoprnet?rev=cacfb94fc40b71f36891cdb56c9e708efb3ec1bc#cacfb94fc40b71f36891cdb56c9e708efb3ec1bc"
+source = "git+https://github.com/hoprnet/hoprnet?rev=2612c9442cca0638b6ed6e6427b2b5c487cf1432#2612c9442cca0638b6ed6e6427b2b5c487cf1432"
 dependencies = [
  "anyhow",
  "async-lock",
@@ -4507,7 +4507,7 @@ dependencies = [
 [[package]]
 name = "hopr-internal-types"
 version = "0.17.1"
-source = "git+https://github.com/hoprnet/hoprnet?rev=cacfb94fc40b71f36891cdb56c9e708efb3ec1bc#cacfb94fc40b71f36891cdb56c9e708efb3ec1bc"
+source = "git+https://github.com/hoprnet/hoprnet?rev=2612c9442cca0638b6ed6e6427b2b5c487cf1432#2612c9442cca0638b6ed6e6427b2b5c487cf1432"
 dependencies = [
  "aquamarine",
  "async-trait",
@@ -4529,7 +4529,7 @@ dependencies = [
 [[package]]
 name = "hopr-lib"
 version = "4.0.0-rc.3"
-source = "git+https://github.com/hoprnet/hoprnet?rev=cacfb94fc40b71f36891cdb56c9e708efb3ec1bc#cacfb94fc40b71f36891cdb56c9e708efb3ec1bc"
+source = "git+https://github.com/hoprnet/hoprnet?rev=2612c9442cca0638b6ed6e6427b2b5c487cf1432#2612c9442cca0638b6ed6e6427b2b5c487cf1432"
 dependencies = [
  "anyhow",
  "async-broadcast",
@@ -4570,7 +4570,7 @@ dependencies = [
 [[package]]
 name = "hopr-metrics"
 version = "1.3.1"
-source = "git+https://github.com/hoprnet/hoprnet?rev=cacfb94fc40b71f36891cdb56c9e708efb3ec1bc#cacfb94fc40b71f36891cdb56c9e708efb3ec1bc"
+source = "git+https://github.com/hoprnet/hoprnet?rev=2612c9442cca0638b6ed6e6427b2b5c487cf1432#2612c9442cca0638b6ed6e6427b2b5c487cf1432"
 dependencies = [
  "prometheus",
 ]
@@ -4578,7 +4578,7 @@ dependencies = [
 [[package]]
 name = "hopr-network-types"
 version = "1.1.3"
-source = "git+https://github.com/hoprnet/hoprnet?rev=cacfb94fc40b71f36891cdb56c9e708efb3ec1bc#cacfb94fc40b71f36891cdb56c9e708efb3ec1bc"
+source = "git+https://github.com/hoprnet/hoprnet?rev=2612c9442cca0638b6ed6e6427b2b5c487cf1432#2612c9442cca0638b6ed6e6427b2b5c487cf1432"
 dependencies = [
  "arrayvec",
  "cfg-if",
@@ -4610,7 +4610,7 @@ dependencies = [
 [[package]]
 name = "hopr-parallelize"
 version = "0.2.2"
-source = "git+https://github.com/hoprnet/hoprnet?rev=cacfb94fc40b71f36891cdb56c9e708efb3ec1bc#cacfb94fc40b71f36891cdb56c9e708efb3ec1bc"
+source = "git+https://github.com/hoprnet/hoprnet?rev=2612c9442cca0638b6ed6e6427b2b5c487cf1432#2612c9442cca0638b6ed6e6427b2b5c487cf1432"
 dependencies = [
  "futures",
  "hopr-metrics",
@@ -4624,7 +4624,7 @@ dependencies = [
 [[package]]
 name = "hopr-platform"
 version = "0.3.1"
-source = "git+https://github.com/hoprnet/hoprnet?rev=cacfb94fc40b71f36891cdb56c9e708efb3ec1bc#cacfb94fc40b71f36891cdb56c9e708efb3ec1bc"
+source = "git+https://github.com/hoprnet/hoprnet?rev=2612c9442cca0638b6ed6e6427b2b5c487cf1432#2612c9442cca0638b6ed6e6427b2b5c487cf1432"
 dependencies = [
  "thiserror 2.0.18",
 ]
@@ -4632,7 +4632,7 @@ dependencies = [
 [[package]]
 name = "hopr-primitive-types"
 version = "0.10.1"
-source = "git+https://github.com/hoprnet/hoprnet?rev=cacfb94fc40b71f36891cdb56c9e708efb3ec1bc#cacfb94fc40b71f36891cdb56c9e708efb3ec1bc"
+source = "git+https://github.com/hoprnet/hoprnet?rev=2612c9442cca0638b6ed6e6427b2b5c487cf1432#2612c9442cca0638b6ed6e6427b2b5c487cf1432"
 dependencies = [
  "bigdecimal",
  "chrono",
@@ -4650,7 +4650,7 @@ dependencies = [
 [[package]]
 name = "hopr-protocol-app"
 version = "1.0.0"
-source = "git+https://github.com/hoprnet/hoprnet?rev=cacfb94fc40b71f36891cdb56c9e708efb3ec1bc#cacfb94fc40b71f36891cdb56c9e708efb3ec1bc"
+source = "git+https://github.com/hoprnet/hoprnet?rev=2612c9442cca0638b6ed6e6427b2b5c487cf1432#2612c9442cca0638b6ed6e6427b2b5c487cf1432"
 dependencies = [
  "hopr-crypto-packet",
  "hopr-primitive-types",
@@ -4663,7 +4663,7 @@ dependencies = [
 [[package]]
 name = "hopr-protocol-hopr"
 version = "4.3.0"
-source = "git+https://github.com/hoprnet/hoprnet?rev=cacfb94fc40b71f36891cdb56c9e708efb3ec1bc#cacfb94fc40b71f36891cdb56c9e708efb3ec1bc"
+source = "git+https://github.com/hoprnet/hoprnet?rev=2612c9442cca0638b6ed6e6427b2b5c487cf1432#2612c9442cca0638b6ed6e6427b2b5c487cf1432"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4700,7 +4700,7 @@ dependencies = [
 [[package]]
 name = "hopr-protocol-session"
 version = "1.1.0"
-source = "git+https://github.com/hoprnet/hoprnet?rev=cacfb94fc40b71f36891cdb56c9e708efb3ec1bc#cacfb94fc40b71f36891cdb56c9e708efb3ec1bc"
+source = "git+https://github.com/hoprnet/hoprnet?rev=2612c9442cca0638b6ed6e6427b2b5c487cf1432#2612c9442cca0638b6ed6e6427b2b5c487cf1432"
 dependencies = [
  "aquamarine",
  "asynchronous-codec",
@@ -4732,7 +4732,7 @@ dependencies = [
 [[package]]
 name = "hopr-protocol-start"
 version = "1.1.0"
-source = "git+https://github.com/hoprnet/hoprnet?rev=cacfb94fc40b71f36891cdb56c9e708efb3ec1bc#cacfb94fc40b71f36891cdb56c9e708efb3ec1bc"
+source = "git+https://github.com/hoprnet/hoprnet?rev=2612c9442cca0638b6ed6e6427b2b5c487cf1432#2612c9442cca0638b6ed6e6427b2b5c487cf1432"
 dependencies = [
  "aquamarine",
  "flagset",
@@ -4747,12 +4747,12 @@ dependencies = [
 [[package]]
 name = "hopr-statistics"
 version = "0.1.0"
-source = "git+https://github.com/hoprnet/hoprnet?rev=cacfb94fc40b71f36891cdb56c9e708efb3ec1bc#cacfb94fc40b71f36891cdb56c9e708efb3ec1bc"
+source = "git+https://github.com/hoprnet/hoprnet?rev=2612c9442cca0638b6ed6e6427b2b5c487cf1432#2612c9442cca0638b6ed6e6427b2b5c487cf1432"
 
 [[package]]
 name = "hopr-strategy"
 version = "0.17.1"
-source = "git+https://github.com/hoprnet/hoprnet?rev=cacfb94fc40b71f36891cdb56c9e708efb3ec1bc#cacfb94fc40b71f36891cdb56c9e708efb3ec1bc"
+source = "git+https://github.com/hoprnet/hoprnet?rev=2612c9442cca0638b6ed6e6427b2b5c487cf1432#2612c9442cca0638b6ed6e6427b2b5c487cf1432"
 dependencies = [
  "async-trait",
  "dashmap",
@@ -4775,7 +4775,7 @@ dependencies = [
 [[package]]
 name = "hopr-transport"
 version = "0.17.2"
-source = "git+https://github.com/hoprnet/hoprnet?rev=cacfb94fc40b71f36891cdb56c9e708efb3ec1bc#cacfb94fc40b71f36891cdb56c9e708efb3ec1bc"
+source = "git+https://github.com/hoprnet/hoprnet?rev=2612c9442cca0638b6ed6e6427b2b5c487cf1432#2612c9442cca0638b6ed6e6427b2b5c487cf1432"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4815,7 +4815,7 @@ dependencies = [
 [[package]]
 name = "hopr-transport-identity"
 version = "0.1.1"
-source = "git+https://github.com/hoprnet/hoprnet?rev=cacfb94fc40b71f36891cdb56c9e708efb3ec1bc#cacfb94fc40b71f36891cdb56c9e708efb3ec1bc"
+source = "git+https://github.com/hoprnet/hoprnet?rev=2612c9442cca0638b6ed6e6427b2b5c487cf1432#2612c9442cca0638b6ed6e6427b2b5c487cf1432"
 dependencies = [
  "libp2p-identity",
  "multiaddr",
@@ -4825,7 +4825,7 @@ dependencies = [
 [[package]]
 name = "hopr-transport-mixer"
 version = "0.1.1"
-source = "git+https://github.com/hoprnet/hoprnet?rev=cacfb94fc40b71f36891cdb56c9e708efb3ec1bc#cacfb94fc40b71f36891cdb56c9e708efb3ec1bc"
+source = "git+https://github.com/hoprnet/hoprnet?rev=2612c9442cca0638b6ed6e6427b2b5c487cf1432#2612c9442cca0638b6ed6e6427b2b5c487cf1432"
 dependencies = [
  "futures",
  "futures-timer",
@@ -4840,7 +4840,7 @@ dependencies = [
 [[package]]
 name = "hopr-transport-network"
 version = "0.9.1"
-source = "git+https://github.com/hoprnet/hoprnet?rev=cacfb94fc40b71f36891cdb56c9e708efb3ec1bc#cacfb94fc40b71f36891cdb56c9e708efb3ec1bc"
+source = "git+https://github.com/hoprnet/hoprnet?rev=2612c9442cca0638b6ed6e6427b2b5c487cf1432#2612c9442cca0638b6ed6e6427b2b5c487cf1432"
 dependencies = [
  "dashmap",
  "hopr-api",
@@ -4856,7 +4856,7 @@ dependencies = [
 [[package]]
 name = "hopr-transport-p2p"
 version = "0.8.2"
-source = "git+https://github.com/hoprnet/hoprnet?rev=cacfb94fc40b71f36891cdb56c9e708efb3ec1bc#cacfb94fc40b71f36891cdb56c9e708efb3ec1bc"
+source = "git+https://github.com/hoprnet/hoprnet?rev=2612c9442cca0638b6ed6e6427b2b5c487cf1432#2612c9442cca0638b6ed6e6427b2b5c487cf1432"
 dependencies = [
  "async-trait",
  "backon",
@@ -4877,7 +4877,7 @@ dependencies = [
 [[package]]
 name = "hopr-transport-probe"
 version = "0.3.2"
-source = "git+https://github.com/hoprnet/hoprnet?rev=cacfb94fc40b71f36891cdb56c9e708efb3ec1bc#cacfb94fc40b71f36891cdb56c9e708efb3ec1bc"
+source = "git+https://github.com/hoprnet/hoprnet?rev=2612c9442cca0638b6ed6e6427b2b5c487cf1432#2612c9442cca0638b6ed6e6427b2b5c487cf1432"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4908,9 +4908,9 @@ dependencies = [
 [[package]]
 name = "hopr-transport-protocol"
 version = "1.2.1"
-source = "git+https://github.com/hoprnet/hoprnet?rev=cacfb94fc40b71f36891cdb56c9e708efb3ec1bc#cacfb94fc40b71f36891cdb56c9e708efb3ec1bc"
+source = "git+https://github.com/hoprnet/hoprnet?rev=2612c9442cca0638b6ed6e6427b2b5c487cf1432#2612c9442cca0638b6ed6e6427b2b5c487cf1432"
 dependencies = [
- "ahash 0.8.12",
+ "ahash",
  "anyhow",
  "async-trait",
  "futures",
@@ -4944,7 +4944,7 @@ dependencies = [
 [[package]]
 name = "hopr-transport-session"
 version = "0.18.1"
-source = "git+https://github.com/hoprnet/hoprnet?rev=cacfb94fc40b71f36891cdb56c9e708efb3ec1bc#cacfb94fc40b71f36891cdb56c9e708efb3ec1bc"
+source = "git+https://github.com/hoprnet/hoprnet?rev=2612c9442cca0638b6ed6e6427b2b5c487cf1432#2612c9442cca0638b6ed6e6427b2b5c487cf1432"
 dependencies = [
  "anyhow",
  "arrayvec",
@@ -4980,7 +4980,7 @@ dependencies = [
 [[package]]
 name = "hopr-utils-session"
 version = "1.1.0"
-source = "git+https://github.com/hoprnet/hoprnet?rev=cacfb94fc40b71f36891cdb56c9e708efb3ec1bc#cacfb94fc40b71f36891cdb56c9e708efb3ec1bc"
+source = "git+https://github.com/hoprnet/hoprnet?rev=2612c9442cca0638b6ed6e6427b2b5c487cf1432#2612c9442cca0638b6ed6e6427b2b5c487cf1432"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -5797,6 +5797,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "kv-log-macro"
+version = "1.0.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0de8b303297635ad57c9f5059fd9cee7a47f8e8daa09df0fcd07dd39fb22977f"
+dependencies = [
+ "log",
+]
+
+[[package]]
 name = "lalrpop-util"
 version = "0.22.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6315,6 +6324,9 @@ name = "log"
 version = "0.4.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5e5032e24019045c762d3c0f28f5b6b8bbf38563a65908389bf7978758920897"
+dependencies = [
+ "value-bag",
+]
 
 [[package]]
 name = "logos"
@@ -6560,10 +6572,10 @@ dependencies = [
  "dpi",
  "gtk",
  "keyboard-types",
- "objc2",
+ "objc2 0.6.4",
  "objc2-app-kit",
  "objc2-core-foundation",
- "objc2-foundation",
+ "objc2-foundation 0.3.2",
  "once_cell",
  "png 0.17.16",
  "serde",
@@ -6729,19 +6741,6 @@ checksum = "650eef8c711430f1a879fdd01d4745a7deea475becfb90269c06775983bbf086"
 
 [[package]]
 name = "nix"
-version = "0.29.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "71e2746dc3a24dd78b3cfcb7be93368c6de9963d30f43a6a73998a9cf4b17b46"
-dependencies = [
- "bitflags 2.11.0",
- "cfg-if",
- "cfg_aliases",
- "libc",
- "memoffset",
-]
-
-[[package]]
-name = "nix"
 version = "0.30.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "74523f3a35e05aba87a1d978330aef40f67b0304ac79c1c00b294c9830543db6"
@@ -6901,6 +6900,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "objc-sys"
+version = "0.3.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cdb91bdd390c7ce1a8607f35f3ca7151b65afc0ff5ff3b34fa350f7d7c7e4310"
+
+[[package]]
+name = "objc2"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "46a785d4eeff09c14c487497c162e92766fbb3e4059a71840cecc03d9a50b804"
+dependencies = [
+ "objc-sys",
+ "objc2-encode",
+]
+
+[[package]]
 name = "objc2"
 version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6917,9 +6932,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d49e936b501e5c5bf01fda3a9452ff86dc3ea98ad5f283e1455153142d97518c"
 dependencies = [
  "bitflags 2.11.0",
- "block2",
+ "block2 0.6.2",
  "libc",
- "objc2",
+ "objc2 0.6.4",
  "objc2-cloud-kit",
  "objc2-core-data",
  "objc2-core-foundation",
@@ -6927,7 +6942,7 @@ dependencies = [
  "objc2-core-image",
  "objc2-core-text",
  "objc2-core-video",
- "objc2-foundation",
+ "objc2-foundation 0.3.2",
  "objc2-quartz-core",
 ]
 
@@ -6938,8 +6953,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "73ad74d880bb43877038da939b7427bba67e9dd42004a18b809ba7d87cee241c"
 dependencies = [
  "bitflags 2.11.0",
- "objc2",
- "objc2-foundation",
+ "objc2 0.6.4",
+ "objc2-foundation 0.3.2",
 ]
 
 [[package]]
@@ -6949,8 +6964,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b402a653efbb5e82ce4df10683b6b28027616a2715e90009947d50b8dd298fa"
 dependencies = [
  "bitflags 2.11.0",
- "objc2",
- "objc2-foundation",
+ "objc2 0.6.4",
+ "objc2-foundation 0.3.2",
 ]
 
 [[package]]
@@ -6961,7 +6976,7 @@ checksum = "2a180dd8642fa45cdb7dd721cd4c11b1cadd4929ce112ebd8b9f5803cc79d536"
 dependencies = [
  "bitflags 2.11.0",
  "dispatch2",
- "objc2",
+ "objc2 0.6.4",
 ]
 
 [[package]]
@@ -6972,7 +6987,7 @@ checksum = "e022c9d066895efa1345f8e33e584b9f958da2fd4cd116792e15e07e4720a807"
 dependencies = [
  "bitflags 2.11.0",
  "dispatch2",
- "objc2",
+ "objc2 0.6.4",
  "objc2-core-foundation",
  "objc2-io-surface",
 ]
@@ -6983,8 +6998,8 @@ version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e5d563b38d2b97209f8e861173de434bd0214cf020e3423a52624cd1d989f006"
 dependencies = [
- "objc2",
- "objc2-foundation",
+ "objc2 0.6.4",
+ "objc2-foundation 0.3.2",
 ]
 
 [[package]]
@@ -6994,7 +7009,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0cde0dfb48d25d2b4862161a4d5fcc0e3c24367869ad306b0c9ec0073bfed92d"
 dependencies = [
  "bitflags 2.11.0",
- "objc2",
+ "objc2 0.6.4",
  "objc2-core-foundation",
  "objc2-core-graphics",
 ]
@@ -7006,7 +7021,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d425caf1df73233f29fd8a5c3e5edbc30d2d4307870f802d18f00d83dc5141a6"
 dependencies = [
  "bitflags 2.11.0",
- "objc2",
+ "objc2 0.6.4",
  "objc2-core-foundation",
  "objc2-core-graphics",
  "objc2-io-surface",
@@ -7029,14 +7044,26 @@ dependencies = [
 
 [[package]]
 name = "objc2-foundation"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0ee638a5da3799329310ad4cfa62fbf045d5f56e3ef5ba4149e7452dcf89d5a8"
+dependencies = [
+ "bitflags 2.11.0",
+ "block2 0.5.1",
+ "libc",
+ "objc2 0.5.2",
+]
+
+[[package]]
+name = "objc2-foundation"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3e0adef53c21f888deb4fa59fc59f7eb17404926ee8a6f59f5df0fd7f9f3272"
 dependencies = [
  "bitflags 2.11.0",
- "block2",
+ "block2 0.6.2",
  "libc",
- "objc2",
+ "objc2 0.6.4",
  "objc2-core-foundation",
 ]
 
@@ -7047,7 +7074,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "180788110936d59bab6bd83b6060ffdfffb3b922ba1396b312ae795e1de9d81d"
 dependencies = [
  "bitflags 2.11.0",
- "objc2",
+ "objc2 0.6.4",
  "objc2-core-foundation",
 ]
 
@@ -7057,7 +7084,7 @@ version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2a1e6550c4caed348956ce3370c9ffeca70bb1dbed4fa96112e7c6170e074586"
 dependencies = [
- "objc2",
+ "objc2 0.6.4",
  "objc2-core-foundation",
 ]
 
@@ -7068,9 +7095,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "96c1358452b371bf9f104e21ec536d37a650eb10f7ee379fff67d2e08d537f1f"
 dependencies = [
  "bitflags 2.11.0",
- "objc2",
+ "objc2 0.6.4",
  "objc2-core-foundation",
- "objc2-foundation",
+ "objc2-foundation 0.3.2",
 ]
 
 [[package]]
@@ -7080,7 +7107,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "709fe137109bd1e8b5a99390f77a7d8b2961dafc1a1c5db8f2e60329ad6d895a"
 dependencies = [
  "bitflags 2.11.0",
- "objc2",
+ "objc2 0.6.4",
  "objc2-core-foundation",
 ]
 
@@ -7091,9 +7118,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d87d638e33c06f577498cbcc50491496a3ed4246998a7fbba7ccb98b1e7eab22"
 dependencies = [
  "bitflags 2.11.0",
- "objc2",
+ "objc2 0.6.4",
  "objc2-core-foundation",
- "objc2-foundation",
+ "objc2-foundation 0.3.2",
 ]
 
 [[package]]
@@ -7103,11 +7130,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b2e5aaab980c433cf470df9d7af96a7b46a9d892d521a2cbbb2f8a4c16751e7f"
 dependencies = [
  "bitflags 2.11.0",
- "block2",
- "objc2",
+ "block2 0.6.2",
+ "objc2 0.6.4",
  "objc2-app-kit",
  "objc2-core-foundation",
- "objc2-foundation",
+ "objc2-foundation 0.3.2",
  "objc2-javascript-core",
  "objc2-security",
 ]
@@ -7218,16 +7245,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7bb71e1b3fa6ca1c61f383464aaf2bb0e2f8e772a1f01d486832464de363b951"
 dependencies = [
  "num-traits",
-]
-
-[[package]]
-name = "ordered-multimap"
-version = "0.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ccd746e37177e1711c20dd619a1620f34f5c8b569c53590a72dedd5344d8924a"
-dependencies = [
- "dlv-list",
- "hashbrown 0.12.3",
 ]
 
 [[package]]
@@ -8349,17 +8366,6 @@ dependencies = [
 
 [[package]]
 name = "redox_users"
-version = "0.4.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba009ff324d1fc1b900bd1fdb31564febe58a8ccc8a6fdbb93b543d33b13ca43"
-dependencies = [
- "getrandom 0.2.17",
- "libredox",
- "thiserror 1.0.69",
-]
-
-[[package]]
-name = "redox_users"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a4e608c6638b9c18977b00b475ac1f28d14e84b27d8d42f70e0bf1e3dec127ac"
@@ -8530,17 +8536,17 @@ version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a15ad77d9e70a92437d8f74c35d99b4e4691128df018833e99f90bcd36152672"
 dependencies = [
- "block2",
+ "block2 0.6.2",
  "dispatch2",
  "glib-sys",
  "gobject-sys",
  "gtk-sys",
  "js-sys",
  "log",
- "objc2",
+ "objc2 0.6.4",
  "objc2-app-kit",
  "objc2-core-foundation",
- "objc2-foundation",
+ "objc2-foundation 0.3.2",
  "raw-window-handle",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -8611,7 +8617,7 @@ dependencies = [
  "netlink-packet-route",
  "netlink-proto",
  "netlink-sys",
- "nix 0.30.1",
+ "nix",
  "thiserror 1.0.69",
  "tokio",
 ]
@@ -8649,16 +8655,6 @@ name = "ruint-macro"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
-
-[[package]]
-name = "rust-ini"
-version = "0.18.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f6d5f2436026b4f6e79dc829837d467cc7e9a55ee40e750d716713540715a2df"
-dependencies = [
- "cfg-if",
- "ordered-multimap",
-]
 
 [[package]]
 name = "rust-stream-ext-concurrent"
@@ -9694,10 +9690,10 @@ dependencies = [
  "bytemuck",
  "js-sys",
  "ndk",
- "objc2",
+ "objc2 0.6.4",
  "objc2-core-foundation",
  "objc2-core-graphics",
- "objc2-foundation",
+ "objc2-foundation 0.3.2",
  "objc2-quartz-core",
  "raw-window-handle",
  "redox_syscall 0.5.18",
@@ -10171,9 +10167,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f3a753bdc39c07b192151523a3f77cd0394aa75413802c883a0f6f6a0e5ee2e7"
 dependencies = [
  "bitflags 2.11.0",
- "block2",
+ "block2 0.6.2",
  "core-foundation 0.10.1",
- "core-graphics 0.24.0",
+ "core-graphics",
  "crossbeam-channel",
  "dispatch",
  "dlopen2",
@@ -10188,9 +10184,9 @@ dependencies = [
  "ndk",
  "ndk-context",
  "ndk-sys",
- "objc2",
+ "objc2 0.6.4",
  "objc2-app-kit",
- "objc2-foundation",
+ "objc2-foundation 0.3.2",
  "once_cell",
  "parking_lot",
  "raw-window-handle",
@@ -10236,7 +10232,7 @@ dependencies = [
  "anyhow",
  "bytes",
  "cookie",
- "dirs 6.0.0",
+ "dirs",
  "dunce",
  "embed_plist",
  "getrandom 0.3.4",
@@ -10250,9 +10246,9 @@ dependencies = [
  "log",
  "mime",
  "muda",
- "objc2",
+ "objc2 0.6.4",
  "objc2-app-kit",
- "objc2-foundation",
+ "objc2-foundation 0.3.2",
  "objc2-ui-kit",
  "objc2-web-kit",
  "percent-encoding",
@@ -10287,7 +10283,7 @@ checksum = "ca7bd893329425df750813e95bd2b643d5369d929438da96d5bbb7cc2c918f74"
 dependencies = [
  "anyhow",
  "cargo_toml",
- "dirs 6.0.0",
+ "dirs",
  "glob",
  "heck 0.5.0",
  "json-patch",
@@ -10408,7 +10404,7 @@ dependencies = [
  "dunce",
  "glob",
  "objc2-app-kit",
- "objc2-foundation",
+ "objc2-foundation 0.3.2",
  "open",
  "schemars 0.8.22",
  "serde",
@@ -10418,7 +10414,7 @@ dependencies = [
  "thiserror 2.0.18",
  "url",
  "windows 0.61.3",
- "zbus 5.14.0",
+ "zbus",
 ]
 
 [[package]]
@@ -10463,7 +10459,7 @@ dependencies = [
  "gtk",
  "http 1.4.0",
  "jni",
- "objc2",
+ "objc2 0.6.4",
  "objc2-ui-kit",
  "objc2-web-kit",
  "raw-window-handle",
@@ -10487,9 +10483,9 @@ dependencies = [
  "http 1.4.0",
  "jni",
  "log",
- "objc2",
+ "objc2 0.6.4",
  "objc2-app-kit",
- "objc2-foundation",
+ "objc2-foundation 0.3.2",
  "once_cell",
  "percent-encoding",
  "raw-window-handle",
@@ -11039,14 +11035,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a5e85aa143ceb072062fc4d6356c1b520a51d636e7bc8e77ec94be3608e5e80c"
 dependencies = [
  "crossbeam-channel",
- "dirs 6.0.0",
+ "dirs",
  "libappindicator",
  "muda",
- "objc2",
+ "objc2 0.6.4",
  "objc2-app-kit",
  "objc2-core-foundation",
  "objc2-core-graphics",
- "objc2-foundation",
+ "objc2-foundation 0.3.2",
  "once_cell",
  "png 0.17.16",
  "serde",
@@ -11333,6 +11329,12 @@ name = "valuable"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ba73ea9cf16a25df0c8caa16c51acb937d5712a8429db78a3ee29d5dcacd3a65"
+
+[[package]]
+name = "value-bag"
+version = "1.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7ba6f5989077681266825251a52748b8c1d8a4ad098cc37e440103d0ea717fc0"
 
 [[package]]
 name = "vcpkg"
@@ -11718,10 +11720,10 @@ version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d9bec5a31f3f9362f2258fd0e9c9dd61a9ca432e7306cc78c444258f0dce9a9c"
 dependencies = [
- "objc2",
+ "objc2 0.6.4",
  "objc2-app-kit",
  "objc2-core-foundation",
- "objc2-foundation",
+ "objc2-foundation 0.3.2",
  "raw-window-handle",
  "windows-sys 0.59.0",
  "windows-version",
@@ -12263,18 +12265,19 @@ dependencies = [
 
 [[package]]
 name = "winreg"
-version = "0.10.1"
+version = "0.50.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "80d0f4e272c85def139476380b12f9ac60926689dd2e01d4923222f40580869d"
+checksum = "524e57b2c537c0f9b1e69f1965311ec12182b4122e45035b1508cd24d2adadb1"
 dependencies = [
- "winapi",
+ "cfg-if",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
 name = "winreg"
-version = "0.50.0"
+version = "0.52.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "524e57b2c537c0f9b1e69f1965311ec12182b4122e45035b1508cd24d2adadb1"
+checksum = "a277a57398d4bfa075df44f501a17cfdf8542d224f0d36095a2adc7aee4ef0a5"
 dependencies = [
  "cfg-if",
  "windows-sys 0.48.0",
@@ -12391,10 +12394,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bb26159b420aa77684589a744ae9a9461a95395b848764ad12290a14d960a11a"
 dependencies = [
  "base64 0.22.1",
- "block2",
+ "block2 0.6.2",
  "cookie",
  "crossbeam-channel",
- "dirs 6.0.0",
+ "dirs",
  "dpi",
  "dunce",
  "gdkx11",
@@ -12406,10 +12409,10 @@ dependencies = [
  "kuchikiki",
  "libc",
  "ndk",
- "objc2",
+ "objc2 0.6.4",
  "objc2-app-kit",
  "objc2-core-foundation",
- "objc2-foundation",
+ "objc2-foundation 0.3.2",
  "objc2-ui-kit",
  "objc2-web-kit",
  "once_cell",
@@ -12486,16 +12489,6 @@ dependencies = [
  "rusticata-macros",
  "thiserror 2.0.18",
  "time",
-]
-
-[[package]]
-name = "xdg-home"
-version = "1.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec1cdab258fb55c0da61328dc52c8764709b249011b2cad0454c72f0bf10a1f6"
-dependencies = [
- "libc",
- "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -12584,44 +12577,6 @@ dependencies = [
 
 [[package]]
 name = "zbus"
-version = "4.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb97012beadd29e654708a0fdb4c84bc046f537aecfde2c3ee0a9e4b4d48c725"
-dependencies = [
- "async-broadcast",
- "async-executor",
- "async-fs",
- "async-io",
- "async-lock",
- "async-process",
- "async-recursion",
- "async-task",
- "async-trait",
- "blocking",
- "enumflags2",
- "event-listener 5.4.1",
- "futures-core",
- "futures-sink",
- "futures-util",
- "hex",
- "nix 0.29.0",
- "ordered-stream",
- "rand 0.8.5",
- "serde",
- "serde_repr",
- "sha1",
- "static_assertions",
- "tracing",
- "uds_windows",
- "windows-sys 0.52.0",
- "xdg-home",
- "zbus_macros 4.4.0",
- "zbus_names 3.0.0",
- "zvariant 4.2.0",
-]
-
-[[package]]
-name = "zbus"
 version = "5.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ca82f95dbd3943a40a53cfded6c2d0a2ca26192011846a1810c4256ef92c60bc"
@@ -12650,22 +12605,9 @@ dependencies = [
  "uuid",
  "windows-sys 0.61.2",
  "winnow 0.7.14",
- "zbus_macros 5.14.0",
- "zbus_names 4.3.1",
- "zvariant 5.10.0",
-]
-
-[[package]]
-name = "zbus_macros"
-version = "4.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "267db9407081e90bbfa46d841d3cbc60f59c0351838c4bc65199ecd79ab1983e"
-dependencies = [
- "proc-macro-crate 3.4.0",
- "proc-macro2",
- "quote",
- "syn 2.0.117",
- "zvariant_utils 2.1.0",
+ "zbus_macros",
+ "zbus_names",
+ "zvariant",
 ]
 
 [[package]]
@@ -12678,20 +12620,9 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.117",
- "zbus_names 4.3.1",
- "zvariant 5.10.0",
- "zvariant_utils 3.3.0",
-]
-
-[[package]]
-name = "zbus_names"
-version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4b9b1fef7d021261cc16cba64c351d291b715febe0fa10dc3a443ac5a5022e6c"
-dependencies = [
- "serde",
- "static_assertions",
- "zvariant 4.2.0",
+ "zbus_names",
+ "zvariant",
+ "zvariant_utils",
 ]
 
 [[package]]
@@ -12702,7 +12633,7 @@ checksum = "ffd8af6d5b78619bab301ff3c560a5bd22426150253db278f164d6cf3b72c50f"
 dependencies = [
  "serde",
  "winnow 0.7.14",
- "zvariant 5.10.0",
+ "zvariant",
 ]
 
 [[package]]
@@ -12835,19 +12766,6 @@ dependencies = [
 
 [[package]]
 name = "zvariant"
-version = "4.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2084290ab9a1c471c38fc524945837734fbf124487e105daec2bb57fd48c81fe"
-dependencies = [
- "endi",
- "enumflags2",
- "serde",
- "static_assertions",
- "zvariant_derive 4.2.0",
-]
-
-[[package]]
-name = "zvariant"
 version = "5.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5708299b21903bbe348e94729f22c49c55d04720a004aa350f1f9c122fd2540b"
@@ -12855,22 +12773,10 @@ dependencies = [
  "endi",
  "enumflags2",
  "serde",
+ "url",
  "winnow 0.7.14",
- "zvariant_derive 5.10.0",
- "zvariant_utils 3.3.0",
-]
-
-[[package]]
-name = "zvariant_derive"
-version = "4.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73e2ba546bda683a90652bac4a279bc146adad1386f25379cf73200d2002c449"
-dependencies = [
- "proc-macro-crate 3.4.0",
- "proc-macro2",
- "quote",
- "syn 2.0.117",
- "zvariant_utils 2.1.0",
+ "zvariant_derive",
+ "zvariant_utils",
 ]
 
 [[package]]
@@ -12883,18 +12789,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.117",
- "zvariant_utils 3.3.0",
-]
-
-[[package]]
-name = "zvariant_utils"
-version = "2.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c51bcff7cc3dbb5055396bcf774748c3dab426b4b8659046963523cee4808340"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.117",
+ "zvariant_utils",
 ]
 
 [[package]]
