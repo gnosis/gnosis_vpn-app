@@ -122,8 +122,8 @@ export type FundingTool =
   | "InProgress"
   | "CompletedSuccess"
   | {
-    CompletedError: string;
-  };
+      CompletedError: string;
+    };
 
 export type FundingIssue =
   | "Unfunded" // cannot work at all - initial state
@@ -460,15 +460,6 @@ export class VPNService {
     }
   }
 
-  static async fundingTool(secret: string): Promise<void> {
-    try {
-      return await invoke("funding_tool", { secret });
-    } catch (error) {
-      console.error("Failed to request funding tool execution", error);
-      throw new Error(`Funding Tool Error: ${error}`);
-    }
-  }
-
   static getBestDestination(
     destinations: StatusResponse["destinations"],
   ): string | null {
@@ -476,7 +467,7 @@ export class VPNService {
 
     // Sort by id for consistent selection
     const sorted = [...destinations].sort((a, b) =>
-      a.destination.id.localeCompare(b.destination.id)
+      a.destination.id.localeCompare(b.destination.id),
     );
     return sorted[0].destination.id;
   }

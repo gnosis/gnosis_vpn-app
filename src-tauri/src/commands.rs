@@ -167,20 +167,7 @@ pub async fn refresh_node() -> Result<(), String> {
         .await
         .map_err(|e| e.to_string())?;
     match resp {
-        command::Response::Empty => Ok(()),
-        _ => Err("Unexpected response type".to_string()),
-    }
-}
-
-#[tauri::command]
-pub async fn funding_tool(secret: String) -> Result<(), String> {
-    let p = PathBuf::from(root_socket::DEFAULT_PATH);
-    let cmd = command::Command::FundingTool(secret);
-    let resp = root_socket::process_cmd(&p, &cmd)
-        .await
-        .map_err(|e| e.to_string())?;
-    match resp {
-        command::Response::Empty => Ok(()),
+        command::Response::RefreshNodeTriggered => Ok(()),
         _ => Err("Unexpected response type".to_string()),
     }
 }

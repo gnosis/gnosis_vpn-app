@@ -19,9 +19,7 @@ mod theme;
 pub mod tray;
 pub mod types;
 
-use commands::{
-    balance, compress_logs, connect, disconnect, funding_tool, refresh_node, set_app_icon, status,
-};
+use commands::{balance, compress_logs, connect, disconnect, refresh_node, set_app_icon, status};
 use icons::{determine_tray_icon, start_app_icon_heartbeat, AppIconState, TrayIconState};
 use platform::{Platform, PlatformInterface};
 #[cfg(target_os = "linux")]
@@ -185,7 +183,6 @@ pub fn run() {
             disconnect,
             balance,
             refresh_node,
-            funding_tool,
             compress_logs,
             set_app_icon,
             get_initial_theme,

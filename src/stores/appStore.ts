@@ -49,7 +49,6 @@ type AppActions = {
   refreshStatus: () => Promise<void>;
   startStatusPolling: () => void;
   stopStatusPolling: () => void;
-  claimAirdrop: (secret: string) => Promise<void>;
 };
 
 type AppStoreTuple = readonly [Store<AppState>, AppActions];
@@ -135,8 +134,8 @@ export function createAppStore(): AppStoreTuple {
     setState("currentScreen", screen);
 
     const prevDestStates = state.destinations;
-    const [nextDestStates, availableDestinations] = response.destinations
-      .reduce(
+    const [nextDestStates, availableDestinations] =
+      response.destinations.reduce(
         ([states, dests], ds) => {
           states[ds.destination.id] = ds;
           dests.push(ds.destination);
@@ -344,17 +343,6 @@ export function createAppStore(): AppStoreTuple {
       pollingActive = false;
       globalThis.clearTimeout(pollingId);
       pollingId = undefined;
-    },
-
-    claimAirdrop: async (secret: string) => {
-      try {
-        await VPNService.fundingTool(secret);
-        actions.startStatusPolling();
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        log(message);
-        setState("error", message);
-      }
     },
   } as const;
 
