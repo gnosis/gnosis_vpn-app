@@ -1,5 +1,5 @@
 import { ServiceInfo } from "../../services/vpnService.ts";
-import { Spinner } from "../../components/common/Spinner.tsx";
+import Spinner from "../../components/common/Spinner.tsx";
 
 interface InitializationProps {
   info: ServiceInfo | null;
