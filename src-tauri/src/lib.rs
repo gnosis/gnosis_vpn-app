@@ -3,14 +3,14 @@
 extern crate objc;
 
 use serde::Serialize;
-use tauri::tray::TrayIconBuilder;
 use tauri::Manager;
+use tauri::tray::TrayIconBuilder;
 use tauri_plugin_store::StoreExt;
 
 use std::path::PathBuf;
-use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::sync::atomic::AtomicBool;
 
 mod commands;
 mod icons;
@@ -23,12 +23,12 @@ use commands::{
     balance, compress_logs, connect, disconnect, info, refresh_node, set_app_icon, start_client,
     status, stop_client,
 };
-use icons::{determine_tray_icon, start_app_icon_heartbeat, AppIconState, TrayIconState};
+use icons::{AppIconState, TrayIconState, determine_tray_icon, start_app_icon_heartbeat};
 use platform::{Platform, PlatformInterface};
 #[cfg(target_os = "linux")]
 use theme::spawn_linux_theme_monitor;
 #[cfg_attr(target_os = "macos", allow(unused_imports))]
-use theme::{get_initial_theme, system_theme, InitialTheme};
+use theme::{InitialTheme, get_initial_theme, system_theme};
 use tray::{create_tray_menu, handle_tray_event, show_settings, toggle_main_window_visibility};
 
 struct HeartbeatHandle(Mutex<Option<tauri::async_runtime::JoinHandle<()>>>);

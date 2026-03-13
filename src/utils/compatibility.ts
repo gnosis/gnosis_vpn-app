@@ -11,6 +11,6 @@ export const isServiceVersionCompatible = (serviceVersion: string): boolean => {
   const normalizedVersion = serviceVersion.trim();
 
   return COMPATIBLE_VERSIONS.some((compatVersion) =>
-    normalizedVersion.startsWith(compatVersion),
+    normalizedVersion.startsWith(compatVersion)
   );
 };

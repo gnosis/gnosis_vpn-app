@@ -25,9 +25,7 @@ export default function Logs() {
           </For>
         </Show>
       </div>
-      {log_file && (
-          <ExportLogs logs={log_file} />
-      )}
+      {log_file && <ExportLogs logs={log_file} />}
     </div>
   );
 }
