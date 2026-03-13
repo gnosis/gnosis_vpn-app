@@ -6,7 +6,6 @@ import Logs from "../screens/settings/Logs.tsx";
 import Tabs from "@src/components/common/Tabs.tsx";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
-import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
 type GlobalTab = "settings" | "usage" | "logs";
 
@@ -15,7 +14,6 @@ export default function SettingsWindow() {
   let unlistenNavigate: (() => void) | undefined;
   const [, settingsActions] = useSettingsStore();
   const [, appActions] = useAppStore();
-  let startedPollingHere = false;
   let disposed = false;
 
   onMount(() => {
@@ -29,13 +27,9 @@ export default function SettingsWindow() {
       if (disposed) unlisten();
       else unlistenNavigate = unlisten;
 
-      const mainWin = await WebviewWindow.getByLabel("main");
-      const isMainVisible = mainWin ? await mainWin.isVisible() : false;
-      if (!isMainVisible) {
-        await appActions.initializeApp();
-        startedPollingHere = true;
-      }
-      await settingsActions.load();
+      // NOTE: tauri apps use separate JS contexts between windows,
+      // so this one needs to populate it's own app state
+      await Promise.all([appActions.initializeApp(), settingsActions.load()]);
       void emit("logs:request-snapshot");
     })();
   });
@@ -43,7 +37,7 @@ export default function SettingsWindow() {
   onCleanup(() => {
     disposed = true;
     unlistenNavigate?.();
-    if (startedPollingHere) appActions.stopStatusPolling();
+    appActions.stopStatusPolling();
   });
 
   return (
