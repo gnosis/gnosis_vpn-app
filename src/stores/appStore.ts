@@ -21,7 +21,10 @@ import {
   selectTargetId,
 } from "@src/utils/destinations.ts";
 
-import compat from "@src/utils/compatibility.ts";
+import {
+  COMPATIBLE_VERSIONS,
+  isServiceVersionCompatible,
+} from "@src/utils/compatibility.ts";
 
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import { getConnectionLabel, getConnectionPhase } from "@src/utils/status.ts";
@@ -273,10 +276,18 @@ export function createAppStore(): AppStoreTuple {
       try {
         const info = await VPNService.info();
         setState("serviceInfo", info);
-        if (compat.isServiceVersionCompatible(info.version)) {
-        actions.startStatusPolling();
+        if (isServiceVersionCompatible(info.version)) {
+          await VPNService.startClient("10sec");
+          actions.startStatusPolling();
         } else {
-
+          log(
+            "Incompatible service version: " +
+              info.version +
+              "can only work with versions: " +
+              COMPATIBLE_VERSIONS.join(", "),
+          );
+          setState("error", "Incompatible service version: " + info.version);
+        }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         log("Failed to connect to service: " + message);
