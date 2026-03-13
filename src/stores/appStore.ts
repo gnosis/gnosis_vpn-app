@@ -143,8 +143,8 @@ export function createAppStore(): AppStoreTuple {
     setState("currentScreen", screen);
 
     const prevDestStates = state.destinations;
-    const [nextDestStates, availableDestinations] = response.destinations
-      .reduce(
+    const [nextDestStates, availableDestinations] =
+      response.destinations.reduce(
         ([states, dests], ds) => {
           states[ds.destination.id] = ds;
           dests.push(ds.destination);
@@ -309,6 +309,7 @@ export function createAppStore(): AppStoreTuple {
         const message = error instanceof Error ? error.message : String(error);
         log("Failed to connect to service: " + message);
         setState("error", message);
+        setTimeout(() => actions.initializeApp(), OFFLINE_TIMEOUT);
       } finally {
         setState("isLoading", false);
       }
