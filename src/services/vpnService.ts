@@ -167,14 +167,6 @@ export const DisconnectResponseSchema = z.union([
 ]);
 export type DisconnectResponse = z.infer<typeof DisconnectResponseSchema>;
 
-export const FundingToolSchema = z.union([
-  z.literal("NotStarted"),
-  z.literal("InProgress"),
-  z.literal("CompletedSuccess"),
-  z.object({ CompletedError: z.string() }),
-]);
-export type FundingTool = z.infer<typeof FundingToolSchema>;
-
 export const FundingIssueSchema = z.enum([
   "Unfunded",
   "ChannelsOutOfFunds",
@@ -196,8 +188,8 @@ export const PreparingSafeSchema = z.object({
   node_address: z.string(),
   node_xdai: z.string(),
   node_wxhopr: z.string(),
-  funding_tool: FundingToolSchema,
-  safe_creation_error: z.string().nullable(),
+  funding_tool: z.string().nullable(),
+  error: z.string().nullable(),
 });
 export type PreparingSafe = z.infer<typeof PreparingSafeSchema>;
 
@@ -236,6 +228,7 @@ export type Warmup = z.infer<typeof WarmupSchema>;
 
 export const RunningSchema = z.object({
   funding: FundingStateSchema,
+  hopr_status: WarmupStatusSchema.nullable(),
 });
 export type Running = z.infer<typeof RunningSchema>;
 
