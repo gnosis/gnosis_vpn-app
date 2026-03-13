@@ -118,7 +118,7 @@ pub fn update_tray_icon(app: &AppHandle, tray_icon_state: &TrayIconState, connec
             if let Ok(tray_image) = tauri::image::Image::from_path(&tray_icon_path) {
                 if let Ok(guard) = tray_icon_state.tray.lock() {
                     let _ = guard.set_icon(Some(tray_image));
-
+                    // this function only affects macOS and is a noop on other platforms
                     let _ = guard.set_icon_as_template(true);
                 }
             }
