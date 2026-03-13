@@ -61,11 +61,7 @@ pub async fn start_client(keep_alive: Duration) -> Result<(), String> {
         .map_err(|e| e.to_string())?;
 
     match resp {
-        command::Response::StartClient(resp) => {
-            println!("Start client response: {:?}", resp);
-            Ok(())
-        }
-
+        command::Response::StartClient(_resp) => Ok(()),
         _ => Err("Unexpected response type".to_string()),
     }
 }
@@ -364,10 +360,7 @@ pub async fn stop_client() -> Result<(), String> {
         .await
         .map_err(|e| e.to_string())?;
     match resp {
-        command::Response::StopClient(resp) => {
-            println!("Stop client response: {:?}", resp);
-            Ok(())
-        }
+        command::Response::StopClient(_resp) => Ok(()),
         _ => Err("Unexpected response type".to_string()),
     }
 }
