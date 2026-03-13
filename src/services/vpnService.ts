@@ -45,7 +45,7 @@ export type DownPhase = z.infer<typeof DownPhaseSchema>;
 export const ConnectionStateSchema = z.union([
   z.literal("None"),
   z.object({ Connecting: z.tuple([SerializedSinceTimeSchema, UpPhaseSchema]) }),
-  z.object({ Connected: z.tuple([SerializedSinceTimeSchema]) }),
+  z.object({ Connected: SerializedSinceTimeSchema }),
   z.object({
     Disconnecting: z.tuple([SerializedSinceTimeSchema, DownPhaseSchema]),
   }),

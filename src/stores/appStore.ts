@@ -122,7 +122,6 @@ export function createAppStore(): AppStoreTuple {
     let response;
     try {
       response = await VPNService.getStatus();
-      console.log("response", response);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error("error", error);
