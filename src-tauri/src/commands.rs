@@ -316,7 +316,12 @@ pub async fn set_app_icon(app: AppHandle, icon_name: String) -> Result<(), Strin
 #[tauri::command]
 pub async fn compress_logs(log_path: String, dest_path: String) -> Result<(), String> {
     let log_file = PathBuf::from(log_path).canonicalize().map_err(|e| format!("Cannot resolve log file path: {e}"))?;
-    let dest_file_raw = PathBuf::from(dest_path).canonicalize().map_err(|e| format!("Cannot resolve destination path: {e}"))?;
+
+let dest_path_buf = PathBuf::from(dest_path);
+     let dest_parent = dest_path_buf .parent() .ok_or_else(|| "Destination path must include a parent directory".to_string())?;
+     let dest_dir = dest_parent .canonicalize() .map_err(|e| format!("Cannot resolve destination directory: {e}"))?;
+     let dest_file_name = dest_path_buf .file_name().ok_or_else(|| "Destination path must include a file name".to_string())?;
+     let dest_file_raw = dest_dir.join(dest_file_name);
     let dest_file = if dest_file_raw.extension().and_then(|e| e.to_str()) == Some("zst") {
         dest_file_raw.clone()
     } else {
