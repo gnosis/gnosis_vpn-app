@@ -431,73 +431,93 @@ export class VPNService {
   }
 
   static async info(): Promise<ServiceInfo> {
+    let rawRes;
     try {
-      const res = await invoke("info");
-      return ServiceInfoSchema.parse(res);
+      rawRes = await invoke("info");
+      return ServiceInfoSchema.parse(rawRes);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        console.error("Failed to parse VPN service info:", error.issues);
+        console.error(`Issues with ServiceInfoSchema`, rawRes);
+        for (const i of error.issues) {
+          console.error("Type error:", i);
+        }
       } else {
-        console.error("Failed to get VPN info:", error);
+        console.error(`Info error:`, error);
       }
-      throw new Error(`Info Error: ${error}`);
+      throw new Error(`Info error: ${error}`);
     }
   }
 
   static async getStatus(): Promise<StatusResponse> {
+    let rawRes;
     try {
-      const res = await invoke("status");
-      return StatusResponseSchema.parse(res);
+      rawRes = await invoke("status");
+      return StatusResponseSchema.parse(rawRes);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        console.error("Failed to parse VPN status response:", error.issues);
+        console.error(`Issues with StatusResponseSchema`, rawRes);
+        for (const i of error.issues) {
+          console.error("Type error:", i);
+        }
       } else {
-        console.error("Failed to get VPN status:", error);
+        console.error("Status error:", error);
       }
-      throw new Error(`Status Error: ${error}`);
+      throw new Error(`Status error: ${error}`);
     }
   }
 
   static async connect(id: string): Promise<ConnectResponse> {
+    let rawRes;
     try {
-      const res = await invoke("connect", { id });
-      return ConnectResponseSchema.parse(res);
+      rawRes = await invoke("connect", { id });
+      return ConnectResponseSchema.parse(rawRes);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        console.error("Failed to parse VPN connect response:", error.issues);
+        console.error("Issues with ConnectResponseSchema", rawRes);
+        for (const i of error.issues) {
+          console.error("Type error:", i);
+        }
       } else {
-        console.error("Failed to connect to VPN:", error);
+        console.error("Connect error:", error);
       }
-      throw new Error(`Connect Error: ${error}`);
+      throw new Error(`Connect error: ${error}`);
     }
   }
 
   static async disconnect(): Promise<DisconnectResponse> {
+    let rawRes;
     try {
-      const res = await invoke("disconnect");
-      return DisconnectResponseSchema.parse(res);
+      rawRes = await invoke("disconnect");
+      return DisconnectResponseSchema.parse(rawRes);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        console.error("Failed to parse VPN disconnect response:", error.issues);
+        console.error("Issues with DisconnectResponseSchema", rawRes);
+        for (const i of error.issues) {
+          console.error("Type error:", i);
+        }
       } else {
-        console.error("Failed to disconnect from VPN:", error);
+        console.error("Disconnect error:", error);
       }
-      throw new Error(`Disconnect Error: ${error}`);
+      throw new Error(`Disconnect error: ${error}`);
     }
   }
 
   static async balance(): Promise<BalanceResponse | null> {
+    let rawRes;
     try {
-      const res = await invoke("balance");
-      if (res === null) return null;
-      return BalanceResponseSchema.parse(res);
+      const rawRes = await invoke("balance");
+      if (!rawRes) return null;
+      return BalanceResponseSchema.parse(rawRes);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        console.error("Failed to parse VPN balance response:", error.issues);
+        console.error("Issues with BalanceResponseSchema", rawRes);
+        for (const i of error.issues) {
+          console.error("Type error:", i);
+        }
       } else {
-        console.error("Failed to get VPN balance:", error);
+        console.error("Balance error:", error);
       }
-      throw new Error(`Balance Error: ${error}`);
+      throw new Error(`Balance error: ${error}`);
     }
   }
 
