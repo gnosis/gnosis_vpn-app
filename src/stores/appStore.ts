@@ -378,7 +378,7 @@ export function createAppStore(): AppStoreTuple {
 
     stopStatusPolling: () => {
       pollingActive = false;
-      globalThis.clearTimeout(pollingId);
+      clearTimeout(pollingId);
       pollingId = undefined;
     },
   } as const;
