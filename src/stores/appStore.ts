@@ -268,6 +268,19 @@ export function createAppStore(): AppStoreTuple {
     return timeoutFromState(response.run_mode, response.destinations);
   };
 
+  const startStatusPolling = () => {
+    pollingActive = true;
+    clearTimeout(pollingId);
+    const tick = async () => {
+      if (!pollingActive) return;
+      const timeout = await syncStatus();
+      if (!pollingActive) return;
+      clearTimeout(pollingId);
+      pollingId = setTimeout(tick, timeout);
+    };
+    tick();
+  };
+
   const actions = {
     initializeApp: async () => {
       setState("isLoading", true);
@@ -276,7 +289,7 @@ export function createAppStore(): AppStoreTuple {
         setState("serviceInfo", info);
         if (isServiceVersionCompatible(info.version)) {
           await VPNService.startClient(10);
-          actions.startStatusPolling();
+          startStatusPolling();
         } else {
           log(
             "Incompatible service version: " +
@@ -350,19 +363,6 @@ export function createAppStore(): AppStoreTuple {
       } finally {
         setState("isLoading", false);
       }
-    },
-
-    startStatusPolling: () => {
-      pollingActive = true;
-      clearTimeout(pollingId);
-      const tick = async () => {
-        if (!pollingActive) return;
-        const timeout = await syncStatus();
-        if (!pollingActive) return;
-        clearTimeout(pollingId);
-        pollingId = setTimeout(tick, timeout);
-      };
-      tick();
     },
 
     stopStatusPolling: () => {
