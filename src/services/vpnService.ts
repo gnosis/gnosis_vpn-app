@@ -414,15 +414,6 @@ export class VPNService {
     }
   }
 
-  static async stopClient(): Promise<void> {
-    try {
-      await invoke("stop_client");
-    } catch (error) {
-      console.error("Failed to stop VPN client:", error);
-      throw new Error(`Stop Client Error: ${error}`);
-    }
-  }
-
   static async info(): Promise<ServiceInfo> {
     let rawRes;
     try {
@@ -498,7 +489,7 @@ export class VPNService {
   static async balance(): Promise<BalanceResponse | null> {
     let rawRes;
     try {
-      const rawRes = await invoke("balance");
+      rawRes = await invoke("balance");
       if (!rawRes) return null;
       return BalanceResponseSchema.parse(rawRes);
     } catch (error) {

@@ -40,7 +40,7 @@ export enum AppScreen {
 
 export interface AppState {
   currentScreen: AppScreen;
-  serviceInfo: ServiceInfo | undefined;
+  serviceInfo: ServiceInfo | null;
   availableDestinations: Destination[];
   destinations: Record<string, DestinationState>;
   isLoading: boolean;
