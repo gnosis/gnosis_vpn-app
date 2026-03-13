@@ -32,11 +32,12 @@ on:
       runner:
         type: choice
         options:
-          - macos-15
-          - macos-15-xlarge
-          - macos-15-intel
+          - depot-macos-15
+          - depot-macos-14
           - ubuntu-22.04
           - ubuntu-22.04-arm
+          - depot-ubuntu-22.04-4
+          - depot-ubuntu-22.04-arm-4
         required: true
         description: "Runner to use"
 jobs:

@@ -15,15 +15,15 @@ jobs:
       matrix:
         binary:
           - architecture: universal-darwin
-            runner: macos-15-xlarge
+            runner: depot-macos-15 # Depot macOS 15, Apple Silicon (M2), 8 CPUs, 24 GB RAM
           - architecture: aarch64-darwin
-            runner: macos-15
+            runner: depot-macos-15 # Depot macOS 15, Apple Silicon (M2), 8 CPUs, 24 GB RAM
           - architecture: x86_64-darwin
-            runner: macos-15-intel
+            runner: depot-macos-15 # Depot macOS runners are Apple Silicon; x86_64 is built via cross-compilation target
           - architecture: x86_64-linux
-            runner: ubuntu-22.04
+            runner: depot-ubuntu-22.04-4 # Depot Ubuntu 22.04, 4 CPUs, 16 GB RAM
           - architecture: aarch64-linux
-            runner: ubuntu-22.04-arm
+            runner: depot-ubuntu-22.04-arm-4 # Depot Ubuntu 22.04 ARM, 4 CPUs, 16 GB RAM
     name: Binary ${{ matrix.binary.architecture }}
     uses: ./.github/workflows/build-binaries.yaml
     with:

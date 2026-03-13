@@ -21,7 +21,7 @@ You need a working instance of
 [Gnosis VPN client service](https://github.com/gnosis/gnosis_vpn-client) running
 on your system on the default socket.
 
-### Linux
+### Development on Linux
 
 In order to start development, run a local dev server via:
 
@@ -30,7 +30,7 @@ nix develop --command deno install
 nix develop --command deno task tauri dev
 ```
 
-### macOS
+### Development on macOS
 
 - Install [Prerequisites](https://v2.tauri.app/start/prerequisites/)
 - `deno install`
