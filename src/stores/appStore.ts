@@ -297,7 +297,13 @@ export function createAppStore(): AppStoreTuple {
               " can only work with versions: " +
               COMPATIBLE_VERSIONS.join(", "),
           );
-          setState("error", "Incompatible service version: " + info.version);
+          setState(
+            "error",
+            "Incompatible service version: " +
+              info.version +
+              ". Supported versions: " +
+              COMPATIBLE_VERSIONS.join(", "),
+          );
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);

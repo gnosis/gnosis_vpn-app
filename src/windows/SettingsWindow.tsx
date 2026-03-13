@@ -28,7 +28,7 @@ export default function SettingsWindow() {
       else unlistenNavigate = unlisten;
 
       // NOTE: tauri apps use separate JS contexts between windows,
-      // so this one needs to populate it's own app state
+      // so this one needs to populate its own app state
       await Promise.all([appActions.initializeApp(), settingsActions.load()]);
       void emit("logs:request-snapshot");
     })();
