@@ -66,8 +66,8 @@ const OFFLINE_TIMEOUT = 5000; // ms
 const FAST_TIMEOUT = 555; // ms
 const DEFAULT_TIMEOUT = 2111; // ms
 
-export function createAppStore(): AppStoreTuple {
-  const [state, setState] = createStore<AppState>({
+function initialState(): AppState {
+  return {
     currentScreen: AppScreen.Initialization,
     serviceInfo: null,
     availableDestinations: [],
@@ -77,7 +77,11 @@ export function createAppStore(): AppStoreTuple {
     selectedId: null,
     runMode: null,
     vpnStatus: "ServiceUnavailable",
-  });
+  };
+}
+
+export function createAppStore(): AppStoreTuple {
+  const [state, setState] = createStore<AppState>(initialState());
 
   let pollingId: ReturnType<typeof globalThis.setTimeout> | undefined;
   let pollingActive = false;
@@ -118,25 +122,18 @@ export function createAppStore(): AppStoreTuple {
     }
   };
 
-  const syncStatus = async () => {
+  const syncStatus = async (): Promise<number | null> => {
     let response;
     try {
       response = await VPNService.getStatus();
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
       console.error("error", error);
-
+      const message = error instanceof Error ? error.message : String(error);
       log(message);
-      setState("isLoading", false);
-      setState("runMode", null);
-      setState("availableDestinations", []);
-      setState("destinations", {});
-      setState("error", message);
-      setState("vpnStatus", "ServiceUnavailable");
-      if (state.destination !== null) {
-        setState("destination", null);
-      }
-      return OFFLINE_TIMEOUT;
+      return null;
+    }
+    if (!response) {
+      return null;
     }
 
     const screen = screenFromRunMode(response.run_mode);
@@ -268,12 +265,16 @@ export function createAppStore(): AppStoreTuple {
     return timeoutFromState(response.run_mode, response.destinations);
   };
 
-  const startStatusPolling = () => {
+  const startStatusPolling = (resetCb: () => void) => {
     pollingActive = true;
     clearTimeout(pollingId);
     const tick = async () => {
       if (!pollingActive) return;
       const timeout = await syncStatus();
+      if (!timeout) {
+        resetCb();
+        return;
+      }
       if (!pollingActive) return;
       clearTimeout(pollingId);
       pollingId = setTimeout(tick, timeout);
@@ -289,7 +290,13 @@ export function createAppStore(): AppStoreTuple {
         setState("serviceInfo", info);
         if (isServiceVersionCompatible(info.version)) {
           await VPNService.startClient(10);
-          startStatusPolling();
+          startStatusPolling(() => {
+            setState(reconcile({ ...initialState() }));
+            setTimeout(() => {
+              actions.stopStatusPolling();
+              actions.initializeApp();
+            }, 0);
+          });
         } else {
           log(
             "Incompatible service version: " +
