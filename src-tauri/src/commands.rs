@@ -76,7 +76,7 @@ pub async fn status(
     status_item: State<'_, TrayStatusItem>,
     tray_icon_state: State<'_, TrayIconState>,
     app_icon_state: State<'_, Arc<AppIconState>>,
-) -> Result<StatusResponse, String> {
+) -> Result<Option<StatusResponse>, String> {
     let p = PathBuf::from(root_socket::DEFAULT_PATH);
     let resp = root_socket::process_cmd(&p, &command::Command::Status).await;
     match resp {
@@ -127,7 +127,10 @@ pub async fn status(
                 }
             }
 
-            Ok(status_resp.into())
+            Ok(Some(status_resp.into()))
+        }
+        Ok(command::Response::WorkerOffline) => {
+            Ok(None)
         }
         Err(e) => {
             if let Ok(guard) = status_item.0.lock() {

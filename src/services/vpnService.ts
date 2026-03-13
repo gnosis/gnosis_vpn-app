@@ -432,10 +432,11 @@ export class VPNService {
     }
   }
 
-  static async getStatus(): Promise<StatusResponse> {
+  static async getStatus(): Promise<StatusResponse | null> {
     let rawRes;
     try {
       rawRes = await invoke("status");
+      if (!rawRes) return null;
       return StatusResponseSchema.parse(rawRes);
     } catch (error) {
       if (error instanceof z.ZodError) {
