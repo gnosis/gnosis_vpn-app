@@ -127,8 +127,8 @@ export type FundingTool =
   | "InProgress"
   | "CompletedSuccess"
   | {
-    CompletedError: string;
-  };
+      CompletedError: string;
+    };
 
 export type FundingIssue =
   | "Unfunded" // cannot work at all - initial state
@@ -390,6 +390,24 @@ export function equalFundingTool(
 }
 
 export class VPNService {
+  static async startClient(keepalive: number): Promise<void> {
+    try {
+      await invoke("start_client", { keepalive });
+    } catch (error) {
+      console.error("Failed to start VPN client:", error);
+      throw new Error(`Start Client Error: ${error}`);
+    }
+  }
+
+  static async stopClient(): Promise<void> {
+    try {
+      await invoke("stop_client");
+    } catch (error) {
+      console.error("Failed to stop VPN client:", error);
+      throw new Error(`Stop Client Error: ${error}`);
+    }
+  }
+
   static async info(): Promise<ServiceInfo> {
     try {
       return (await invoke("info")) as ServiceInfo;
@@ -481,7 +499,7 @@ export class VPNService {
 
     // Sort by id for consistent selection
     const sorted = [...destinations].sort((a, b) =>
-      a.destination.id.localeCompare(b.destination.id)
+      a.destination.id.localeCompare(b.destination.id),
     );
     return sorted[0].destination.id;
   }

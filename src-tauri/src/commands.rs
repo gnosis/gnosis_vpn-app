@@ -56,6 +56,26 @@ pub async fn info() -> Result<command::InfoResponse, String> {
 }
 
 #[tauri::command]
+pub async fn start_client() -> Result<(), String> {
+    let p = PathBuf::from(root_socket::DEFAULT_PATH);
+    let cmd = command::Command::StartClient;
+
+    let resp = root_socket::process_cmd(&p, &cmd)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    match resp {
+        command::Response::StartClient(resp) => {
+            println!("Start client response: {:?}", resp);
+            Ok(())
+        },
+
+        _ => Err("Unexpected response type".to_string()),
+    }
+}
+
+
+#[tauri::command]
 pub async fn status(
     app: AppHandle,
     status_item: State<'_, TrayStatusItem>,
@@ -351,4 +371,19 @@ pub async fn compress_logs(dest_path: String) -> Result<(), String> {
     })
     .await
     .map_err(|e| format!("compress_logs: blocking task panicked: {e}"))?
+}
+
+pub async fn stop_client() -> Result<(), String> {
+    let p = PathBuf::from(root_socket::DEFAULT_PATH);
+    let cmd = command::Command::StopClient;
+    let resp = root_socket::process_cmd(&p, &cmd)
+        .await
+        .map_err(|e| e.to_string())?;
+    match resp {
+        command::Response::StopClient(resp) => {
+            println!("Stop client response: {:?}", resp);
+            Ok(())
+        },
+        _ => Err("Unexpected response type".to_string()),
+    }
 }

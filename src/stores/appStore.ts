@@ -20,6 +20,9 @@ import {
   getPreferredAvailabilityChangeMessage,
   selectTargetId,
 } from "@src/utils/destinations.ts";
+
+import compat from "@src/utils/compatibility.ts";
+
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import { getConnectionLabel, getConnectionPhase } from "@src/utils/status.ts";
 import { getVpnStatus, isConnecting } from "@src/utils/status.ts";
@@ -139,8 +142,8 @@ export function createAppStore(): AppStoreTuple {
     setState("currentScreen", screen);
 
     const prevDestStates = state.destinations;
-    const [nextDestStates, availableDestinations] = response.destinations
-      .reduce(
+    const [nextDestStates, availableDestinations] =
+      response.destinations.reduce(
         ([states, dests], ds) => {
           states[ds.destination.id] = ds;
           dests.push(ds.destination);
@@ -270,14 +273,11 @@ export function createAppStore(): AppStoreTuple {
       try {
         const info = await VPNService.info();
         setState("serviceInfo", info);
-
-        // TODO: Perform compatibility/version checks here (Step 3 later)
-        console.log("Service Info received:", info);
-
-        // Proceed to normal status polling if compatible
+        if (compat.isServiceVersionCompatible(info.version)) {
         actions.startStatusPolling();
+        } else {
+
       } catch (error) {
-        // TODO: Handle Service offline / not reachable (Step 2 later)
         const message = error instanceof Error ? error.message : String(error);
         log("Failed to connect to service: " + message);
         setState("error", message);
