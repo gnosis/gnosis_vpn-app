@@ -294,7 +294,7 @@ export function createAppStore(): AppStoreTuple {
           log(
             "Incompatible service version: " +
               info.version +
-              "can only work with versions: " +
+              " can only work with versions: " +
               COMPATIBLE_VERSIONS.join(", "),
           );
           setState("error", "Incompatible service version: " + info.version);
