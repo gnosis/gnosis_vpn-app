@@ -8,6 +8,7 @@ use std::fs::File;
 use std::io::{self, BufReader};
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 use std::sync::atomic::Ordering;
 use tokio::task::spawn_blocking;
 
@@ -56,9 +57,9 @@ pub async fn info() -> Result<command::InfoResponse, String> {
 }
 
 #[tauri::command]
-pub async fn start_client() -> Result<(), String> {
+pub async fn start_client(keep_alive: Duration) -> Result<(), String> {
     let p = PathBuf::from(root_socket::DEFAULT_PATH);
-    let cmd = command::Command::StartClient;
+    let cmd = command::Command::StartClient(keep_alive);
 
     let resp = root_socket::process_cmd(&p, &cmd)
         .await

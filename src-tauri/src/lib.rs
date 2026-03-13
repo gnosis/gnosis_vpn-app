@@ -21,7 +21,7 @@ pub mod types;
 
 use commands::{
     balance, compress_logs, connect, disconnect, info, refresh_node, set_app_icon, start_client,
-    status,
+    status, stop_client,
 };
 use icons::{determine_tray_icon, start_app_icon_heartbeat, AppIconState, TrayIconState};
 use platform::{Platform, PlatformInterface};
@@ -200,6 +200,11 @@ pub fn run() {
                     if let Some(handle) = guard.take() {
                         handle.abort();
                     }
+                }
+
+                // inform the client about the shutdown
+                if let Err(reason) = tauri::async_runtime::block_on(async { stop_client().await }) {
+                    eprintln!("Error stopping client on exit: {reason}");
                 }
             }
         });
