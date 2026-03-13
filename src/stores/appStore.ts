@@ -276,7 +276,7 @@ export function createAppStore(): AppStoreTuple {
         const info = await VPNService.info();
         setState("serviceInfo", info);
         if (isServiceVersionCompatible(info.version)) {
-          await VPNService.startClient("10sec");
+          await VPNService.startClient(10);
           actions.startStatusPolling();
         } else {
           log(

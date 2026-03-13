@@ -390,8 +390,12 @@ export function equalFundingTool(
 }
 
 export class VPNService {
-  static async startClient(keepAlive: string): Promise<void> {
+  static async startClient(keepAliveSecs: number): Promise<void> {
     try {
+      const keepAlive = {
+        secs: keepAliveSecs,
+        nanos: 0,
+      };
       await invoke("start_client", { keepAlive });
     } catch (error) {
       console.error("Failed to start VPN client:", error);
