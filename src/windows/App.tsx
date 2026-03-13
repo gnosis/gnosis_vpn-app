@@ -10,9 +10,15 @@ import { onCleanup, onMount } from "solid-js";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import Onboarding from "../screens/main/Onboarding.tsx";
 import Synchronization from "../screens/main/Synchronization.tsx";
+import Initialization from "../screens/main/Initialization.tsx";
 import { emit, listen } from "@tauri-apps/api/event";
 
-const validScreens = ["main", "onboarding", "synchronization"] as const;
+const validScreens = [
+  "main",
+  "onboarding",
+  "synchronization",
+  "initialization",
+] as const;
 type ValidScreen = (typeof validScreens)[number];
 type OnboardingStep = "start" | "airdrop" | "manually";
 type NavigatePayload =
@@ -44,6 +50,11 @@ function handleNavigate(
  */
 function mapStoreToScreenProps(screen: ValidScreen, state: AppState) {
   switch (screen) {
+    case "initialization":
+      return {
+        info: state.serviceInfo,
+        error: state.error,
+      };
     case "synchronization":
       return {
         warmupStatus: formatWarmup(state.runMode),
@@ -56,6 +67,7 @@ function mapStoreToScreenProps(screen: ValidScreen, state: AppState) {
 }
 
 const screens = {
+  initialization: Initialization,
   main: MainScreen,
   onboarding: Onboarding,
   synchronization: Synchronization,
@@ -69,8 +81,8 @@ function App() {
 
   onMount(() => {
     void (async () => {
-      appActions.startStatusPolling();
       await settingsActions.load();
+      await appActions.initializeApp();
 
       if (
         settings.connectOnStartup &&

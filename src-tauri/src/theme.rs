@@ -11,8 +11,6 @@ use std::io::BufRead;
 #[cfg(target_os = "linux")]
 use std::process::{Command, Stdio};
 
-use crate::icons::{TrayIconState, update_tray_icon};
-
 /// Run a command and return its stdout as a string. Returns `None` on failure.
 #[cfg(target_os = "linux")]
 fn run_stdout(mut cmd: Command) -> Option<String> {
@@ -107,19 +105,26 @@ pub fn spawn_linux_theme_monitor(app: AppHandle) {
 }
 
 /// OS theme at startup: used for app windows (all OS) and tray icons (non-macOS only).
-pub fn system_theme() -> Option<tauri::Theme> {
+/// Defaults to dark theme.
+pub fn system_theme() -> tauri::Theme {
     #[cfg(target_os = "linux")]
     {
         // Prefer gsettings on Linux so tray icon is correct on first render (dark_light often returns Default at startup).
         if let Some(t) = linux_theme_from_gsettings() {
-            return Some(t);
+            return t;
         }
     }
 
-    match dark_light::detect() {
-        dark_light::Mode::Dark => Some(tauri::Theme::Dark),
-        dark_light::Mode::Light => Some(tauri::Theme::Light),
-        dark_light::Mode::Default => None,
+    let mode = dark_light::detect()
+        .map_err(|e| {
+            eprintln!("Failed to detect OS theme: {e}");
+        })
+        .unwrap_or(dark_light::Mode::Unspecified);
+
+    match mode {
+        dark_light::Mode::Dark => tauri::Theme::Dark,
+        dark_light::Mode::Light => tauri::Theme::Light,
+        dark_light::Mode::Unspecified => tauri::Theme::Dark,
     }
 }
 
@@ -133,33 +138,4 @@ pub fn get_initial_theme(state: State<InitialTheme>) -> String {
         tauri::Theme::Light => "light".to_string(),
         _ => "dark".to_string(),
     }
-}
-
-#[tauri::command]
-pub fn theme_changed(
-    app: AppHandle,
-    tray_icon_state: State<'_, TrayIconState>,
-    theme: String,
-) -> Result<(), String> {
-    let theme = match theme.as_str() {
-        "dark" => Some(tauri::Theme::Dark),
-        "light" => Some(tauri::Theme::Light),
-        _ => None,
-    };
-    let connection_state = tray_icon_state
-        .current_icon
-        .lock()
-        .map(|icon| {
-            if icon.contains("connected") && !icon.contains("connecting") {
-                "Connected"
-            } else if icon.contains("connecting") {
-                // This covers "Connecting" and "Disconnecting" states, which use the same icon.
-                "Connecting"
-            } else {
-                "Disconnected"
-            }
-        })
-        .unwrap_or("Disconnected");
-    update_tray_icon(&app, tray_icon_state.inner(), connection_state, theme);
-    Ok(())
 }

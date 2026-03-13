@@ -1,9 +1,13 @@
 import { For, Show } from "solid-js";
 import { useLogsStore } from "../../stores/logsStore.ts";
 import ExportLogs from "../../components/ExportLogs.tsx";
+import { useAppStore } from "../../stores/appStore.ts";
 
 export default function Logs() {
   const [logsState] = useLogsStore();
+  const [appStore] = useAppStore();
+
+  const logFile = appStore.serviceInfo?.log_file;
 
   return (
     <div class="w-full p-2 flex flex-col flex-1 min-h-0 bg-bg-primary select-none">
@@ -21,7 +25,7 @@ export default function Logs() {
           </For>
         </Show>
       </div>
-      <ExportLogs />
+      {logFile && <ExportLogs logs={logFile} />}
     </div>
   );
 }

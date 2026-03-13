@@ -49,22 +49,25 @@ pub enum RunMode {
         node_address: String,
         node_xdai: String,
         node_wxhopr: String,
-        funding_tool: balance::FundingTool,
+        funding_tool: Option<String>,
         // came back from safe deployment with an error
-        safe_creation_error: Option<String>,
+        error: Option<String>,
     },
     /// Safe deployment ongoing, enough funds, no existing safe
     DeployingSafe { node_address: String },
     /// Subsequent service start up in this state and after preparing safe
-    Warmup { status: WarmupStatus },
+    Warmup { status: CombinedHoprStatus },
     /// Normal operation where connections can be made
-    Running { funding: command::FundingState },
+    Running {
+        funding: command::FundingState,
+        hopr_status: Option<CombinedHoprStatus>,
+    },
     /// Shutdown service
     Shutdown,
 }
 
 #[derive(Debug, Serialize)]
-pub enum WarmupStatus {
+pub enum CombinedHoprStatus {
     // hopr construction not yet started
     Initializing,
     // Hopr init states
@@ -239,24 +242,58 @@ impl From<command::DestinationState> for DestinationState {
     }
 }
 
+impl From<HoprStatus> for CombinedHoprStatus {
+    fn from(status: HoprStatus) -> Self {
+        match status {
+            HoprStatus::Uninitialized => CombinedHoprStatus::Uninitialized,
+            HoprStatus::WaitingForFunds => CombinedHoprStatus::WaitingForFunds,
+            HoprStatus::CheckingBalance => CombinedHoprStatus::CheckingBalance,
+            HoprStatus::ValidatingNetworkConfig => CombinedHoprStatus::ValidatingNetworkConfig,
+            HoprStatus::SubscribingToAnnouncements => {
+                CombinedHoprStatus::SubscribingToAnnouncements
+            }
+            HoprStatus::RegisteringSafe => CombinedHoprStatus::RegisteringSafe,
+            HoprStatus::AnnouncingNode => CombinedHoprStatus::AnnouncingNode,
+            HoprStatus::AwaitingKeyBinding => CombinedHoprStatus::AwaitingKeyBinding,
+            HoprStatus::InitializingServices => CombinedHoprStatus::InitializingServices,
+            HoprStatus::Running => CombinedHoprStatus::Running,
+            HoprStatus::Terminated => CombinedHoprStatus::Terminated,
+        }
+    }
+}
+
+impl From<HoprInitStatus> for CombinedHoprStatus {
+    fn from(status: HoprInitStatus) -> Self {
+        match status {
+            HoprInitStatus::ValidatingConfig => CombinedHoprStatus::ValidatingConfig,
+            HoprInitStatus::IdentifyingNode => CombinedHoprStatus::IdentifyingNode,
+            HoprInitStatus::InitializingDatabase => CombinedHoprStatus::InitializingDatabase,
+            HoprInitStatus::ConnectingBlockchain => CombinedHoprStatus::ConnectingBlockchain,
+            HoprInitStatus::CreatingNode => CombinedHoprStatus::CreatingNode,
+            HoprInitStatus::StartingNode => CombinedHoprStatus::StartingNode,
+            HoprInitStatus::Ready => CombinedHoprStatus::Ready,
+        }
+    }
+}
+
 impl From<command::RunMode> for RunMode {
     fn from(rm: command::RunMode) -> Self {
         match rm {
             command::RunMode::Init => RunMode::Warmup {
-                status: WarmupStatus::Initializing,
+                status: CombinedHoprStatus::Initializing,
             },
             command::RunMode::PreparingSafe {
                 node_address,
                 node_xdai,
                 node_wxhopr,
                 funding_tool,
-                safe_creation_error,
+                error,
             } => RunMode::PreparingSafe {
                 node_address: node_address.to_string(),
                 node_xdai: node_xdai.amount().to_string(),
                 node_wxhopr: node_wxhopr.amount().to_string(),
                 funding_tool,
-                safe_creation_error,
+                error,
             },
 
             command::RunMode::DeployingSafe { node_address } => RunMode::DeployingSafe {
@@ -267,72 +304,22 @@ impl From<command::RunMode> for RunMode {
                 hopr_status,
             } => match (hopr_init_status, hopr_status) {
                 (None, None) => RunMode::Warmup {
-                    status: WarmupStatus::Initializing,
+                    status: CombinedHoprStatus::Initializing,
                 },
-                (_, Some(hopr_status)) => match hopr_status {
-                    HoprStatus::Uninitialized => RunMode::Warmup {
-                        status: WarmupStatus::Uninitialized,
-                    },
-                    HoprStatus::WaitingForFunds => RunMode::Warmup {
-                        status: WarmupStatus::WaitingForFunds,
-                    },
-                    HoprStatus::CheckingBalance => RunMode::Warmup {
-                        status: WarmupStatus::CheckingBalance,
-                    },
-                    HoprStatus::ValidatingNetworkConfig => RunMode::Warmup {
-                        status: WarmupStatus::ValidatingNetworkConfig,
-                    },
-                    HoprStatus::SubscribingToAnnouncements => RunMode::Warmup {
-                        status: WarmupStatus::SubscribingToAnnouncements,
-                    },
-                    HoprStatus::RegisteringSafe => RunMode::Warmup {
-                        status: WarmupStatus::RegisteringSafe,
-                    },
-                    HoprStatus::AnnouncingNode => RunMode::Warmup {
-                        status: WarmupStatus::AnnouncingNode,
-                    },
-                    HoprStatus::AwaitingKeyBinding => RunMode::Warmup {
-                        status: WarmupStatus::AwaitingKeyBinding,
-                    },
-                    HoprStatus::InitializingServices => RunMode::Warmup {
-                        status: WarmupStatus::InitializingServices,
-                    },
-                    HoprStatus::Running => RunMode::Warmup {
-                        status: WarmupStatus::Running,
-                    },
-                    HoprStatus::Terminated => RunMode::Warmup {
-                        status: WarmupStatus::Terminated,
-                    },
+                (_, Some(hopr_status)) => RunMode::Warmup {
+                    status: hopr_status.into(),
                 },
-                (Some(hopr_init_status), _) => match hopr_init_status {
-                    HoprInitStatus::ValidatingConfig => RunMode::Warmup {
-                        status: WarmupStatus::ValidatingConfig,
-                    },
-                    HoprInitStatus::IdentifyingNode => RunMode::Warmup {
-                        status: WarmupStatus::IdentifyingNode,
-                    },
-                    HoprInitStatus::InitializingDatabase => RunMode::Warmup {
-                        status: WarmupStatus::InitializingDatabase,
-                    },
-                    HoprInitStatus::ConnectingBlockchain => RunMode::Warmup {
-                        status: WarmupStatus::ConnectingBlockchain,
-                    },
-                    HoprInitStatus::CreatingNode => RunMode::Warmup {
-                        status: WarmupStatus::CreatingNode,
-                    },
-                    HoprInitStatus::StartingNode => RunMode::Warmup {
-                        status: WarmupStatus::StartingNode,
-                    },
-                    HoprInitStatus::Ready => RunMode::Warmup {
-                        status: WarmupStatus::Ready,
-                    },
+                (Some(hopr_init_status), _) => RunMode::Warmup {
+                    status: hopr_init_status.into(),
                 },
             },
-
             command::RunMode::Running {
                 funding,
-                hopr_status: _,
-            } => RunMode::Running { funding },
+                hopr_status,
+            } => RunMode::Running {
+                funding,
+                hopr_status: hopr_status.map(|s| s.into()),
+            },
             command::RunMode::Shutdown => RunMode::Shutdown,
         }
     }

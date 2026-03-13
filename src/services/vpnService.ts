@@ -1,265 +1,281 @@
 import { invoke } from "@tauri-apps/api/core";
+import { z } from "zod";
 
-// Library responses
+// ==========================================
+// Zod Schemas & Inferred Types
+// ==========================================
 
-export type StatusResponse = {
-  run_mode: RunMode;
-  destinations: DestinationState[];
-};
+export const SerializedSinceTimeSchema = z.object({
+  secs_since_epoch: z.number(),
+  nanos_since_epoch: z.number(),
+});
+export type SerializedSinceTime = z.infer<typeof SerializedSinceTimeSchema>;
 
-export type ConnectResponse =
-  | { Connecting: Destination }
-  | { WaitingToConnect: [Destination, Connectivity] }
-  | { UnableToConnect: [Destination, Connectivity] }
-  | "DestinationNotFound";
+export const SerializedTimeSchema = z.object({
+  nanos: z.number(),
+  secs: z.number(),
+});
+export type SerializedTime = z.infer<typeof SerializedTimeSchema>;
 
-export type DisconnectResponse =
-  | { Disconnecting: Destination }
-  | "NotConnected";
+export const UpPhaseSchema = z.enum([
+  "Init",
+  "GeneratingWg",
+  "OpeningBridge",
+  "RegisterWg",
+  "ClosingBridge",
+  "OpeningPing",
+  "EstablishDynamicWgTunnel",
+  "FallbackGatherPeerIps",
+  "FallbackToStaticWgTunnel",
+  "VerifyPing",
+  "AdjustToMain",
+  "ConnectionEstablished",
+]);
+export type UpPhase = z.infer<typeof UpPhaseSchema>;
 
-export type BalanceResponse = {
-  node: string;
-  safe: string;
-  channels_out: string;
-  info: Info;
-  issues: FundingIssue[];
-};
+export const DownPhaseSchema = z.enum([
+  "Disconnecting",
+  "DisconnectingWg",
+  "OpeningBridge",
+  "UnregisterWg",
+  "ClosingBridge",
+]);
+export type DownPhase = z.infer<typeof DownPhaseSchema>;
 
-// Library types
+export const ConnectionStateSchema = z.union([
+  z.literal("None"),
+  z.object({ Connecting: z.tuple([SerializedSinceTimeSchema, UpPhaseSchema]) }),
+  z.object({ Connected: SerializedSinceTimeSchema }),
+  z.object({
+    Disconnecting: z.tuple([SerializedSinceTimeSchema, DownPhaseSchema]),
+  }),
+]);
+export type ConnectionState = z.infer<typeof ConnectionStateSchema>;
 
-export type RoutingOptions = { Hops: number } | { IntermediatePath: string[] };
+export const RoutingOptionsSchema = z.union([
+  z.object({ Hops: z.number() }),
+  z.object({ IntermediatePath: z.array(z.string()) }),
+]);
+export type RoutingOptions = z.infer<typeof RoutingOptionsSchema>;
 
-export type DestinationState = {
-  destination: Destination;
-  connection_state: ConnectionState;
-  connectivity: Connectivity;
-  exit_health: DestinationHealth;
-};
+export const DestinationSchema = z.object({
+  id: z.string(),
+  meta: z.object({ location: z.string() }).catchall(z.string()),
+  address: z.string(),
+  routing: RoutingOptionsSchema,
+});
+export type Destination = z.infer<typeof DestinationSchema>;
 
-export type Destination = {
-  id: string;
-  meta: { location: string } & Record<string, string>;
-  address: string;
-  routing: RoutingOptions;
-};
+export const HealthSchema = z.enum([
+  "ReadyToConnect",
+  "MissingPeeredFundedChannel",
+  "MissingPeeredChannel",
+  "MissingFundedChannel",
+  "NotPeered",
+  "NotAllowed",
+  "InvalidId",
+  "InvalidPath",
+]);
+export type Health = z.infer<typeof HealthSchema>;
 
-export type ConnectionState =
-  | "None"
-  // Connecting tuple (since: timestamp, phase/status: UpPhase) - see gnosis_vpn-lib/src/core/conn.rs
-  | { Connecting: [SerializedSinceTime, UpPhase] }
-  // Connected since timestamp (SystemTime serializes as timestamp number)
-  | { Connected: [SerializedSinceTime] }
-  // Disconecting tuple (since: timestamp, phase/status: DownPhase) - see gnosis_vpn-lib/src/core/disconn.rs
-  | { Disconnecting: [SerializedSinceTime, DownPhase] };
+export const NeedSchema = z.union([
+  z.object({ Channel: z.string() }),
+  z.literal("AnyChannel"),
+  z.object({ Peering: z.string() }),
+  z.literal("Nothing"),
+]);
+export type Need = z.infer<typeof NeedSchema>;
 
-export type UpPhase =
-  | "Init"
-  | "GeneratingWg"
-  | "OpeningBridge"
-  | "RegisterWg"
-  | "ClosingBridge"
-  | "OpeningPing"
-  | "EstablishDynamicWgTunnel"
-  | "FallbackGatherPeerIps"
-  | "FallbackToStaticWgTunnel"
-  | "VerifyPing"
-  | "AdjustToMain"
-  | "ConnectionEstablished";
+export const ConnectivitySchema = z.object({
+  last_error: z.string().nullable(),
+  health: HealthSchema,
+  need: NeedSchema,
+});
+export type Connectivity = z.infer<typeof ConnectivitySchema>;
 
-export type DownPhase =
-  | "Disconnecting"
-  | "DisconnectingWg"
-  | "OpeningBridge"
-  | "UnregisterWg"
-  | "ClosingBridge";
+export const SlotsSchema = z.object({
+  available: z.number(),
+  connected: z.number(),
+});
+export type Slots = z.infer<typeof SlotsSchema>;
 
-export type PreparingSafe = {
-  node_address: string;
-  node_xdai: string;
-  node_wxhopr: string;
-  funding_tool: FundingTool;
-  safe_creation_error: string | null;
-};
+export const LoadAvgSchema = z.object({
+  one: z.number(),
+  five: z.number(),
+  fifteen: z.number(),
+  nproc: z.number(),
+});
+export type LoadAvg = z.infer<typeof LoadAvgSchema>;
 
-export type DeployingSafe = {
-  node_address: string;
-};
+export const ExitHealthSchema = z.object({
+  slots: SlotsSchema,
+  load_avg: LoadAvgSchema,
+});
+export type ExitHealth = z.infer<typeof ExitHealthSchema>;
 
-export type Running = {
-  funding: FundingState;
-};
+export const DHRunningSchema = z.object({
+  since: SerializedSinceTimeSchema,
+});
+export type DHRunning = z.infer<typeof DHRunningSchema>;
 
-export type Warmup = {
-  status: WarmupStatus;
-};
+export const DHFailureSchema = z.object({
+  checked_at: SerializedSinceTimeSchema,
+  error: z.string(),
+  previous_failures: z.number(),
+});
+export type DHFailure = z.infer<typeof DHFailureSchema>;
 
-export type WarmupStatus =
-  // hopr construction not yet started
-  | "Initializing"
-  // Hopr init states
-  | "ValidatingConfig"
-  | "IdentifyingNode"
-  | "InitializingDatabase"
-  | "ConnectingBlockchain"
-  | "CreatingNode"
-  | "StartingNode"
-  | "Ready"
-  // Hopr running states
-  | "Uninitialized"
-  | "WaitingForFunds"
-  | "CheckingBalance"
-  | "ValidatingNetworkConfig"
-  | "SubscribingToAnnouncements"
-  | "RegisteringSafe"
-  | "AnnouncingNode"
-  | "AwaitingKeyBinding"
-  | "InitializingServices"
-  | "Running"
-  | "Terminated";
+export const DHSuccessSchema = z.object({
+  checked_at: SerializedSinceTimeSchema,
+  health: ExitHealthSchema,
+  total_time: SerializedTimeSchema,
+  round_trip_time: SerializedTimeSchema,
+});
+export type DHSuccess = z.infer<typeof DHSuccessSchema>;
 
-export type FundingTool =
-  | "NotStarted"
-  | "InProgress"
-  | "CompletedSuccess"
-  | {
-    CompletedError: string;
-  };
+export const DestinationHealthSchema = z.union([
+  z.literal("Init"),
+  z.object({ Running: DHRunningSchema }),
+  z.object({ Failure: DHFailureSchema }),
+  z.object({ Success: DHSuccessSchema }),
+]);
+export type DestinationHealth = z.infer<typeof DestinationHealthSchema>;
 
-export type FundingIssue =
-  | "Unfunded" // cannot work at all - initial state
-  | "ChannelsOutOfFunds" // does not work - no traffic possible
-  | "SafeOutOfFunds" // keeps working - cannot top up channels
-  | "SafeLowOnFunds" // warning before SafeOutOfFunds
-  | "NodeUnderfunded" // keeps working until channels are drained - cannot open new or top up existing channels
-  | "NodeLowOnFunds"; // warning before NodeUnderfunded
+export const DestinationStateSchema = z.object({
+  destination: DestinationSchema,
+  connection_state: ConnectionStateSchema,
+  connectivity: ConnectivitySchema,
+  exit_health: DestinationHealthSchema,
+});
+export type DestinationState = z.infer<typeof DestinationStateSchema>;
 
-export type FundingState =
-  | "Querying"
-  | { TopIssue: FundingIssue }
-  | "WellFunded";
+export const ConnectResponseSchema = z.union([
+  z.object({ Connecting: DestinationSchema }),
+  z.object({
+    WaitingToConnect: z.tuple([DestinationSchema, ConnectivitySchema]),
+  }),
+  z.object({
+    UnableToConnect: z.tuple([DestinationSchema, ConnectivitySchema]),
+  }),
+  z.literal("DestinationNotFound"),
+]);
+export type ConnectResponse = z.infer<typeof ConnectResponseSchema>;
 
-export type RunMode =
-  /// Initial start, checking funds to run safe creation or find existing safe
-  /// can jump to Warmup or DeployingSafe
-  | { PreparingSafe: PreparingSafe }
-  /// Safe deployment ongoing, enough funds, no existing safe
-  | { DeployingSafe: DeployingSafe }
-  /// Subsequent service start up in this state and after preparing safe
-  | { Warmup: Warmup }
-  /// Normal operation where connections can be made
-  | { Running: Running }
-  /// Service shutting down
-  | "Shutdown";
+export const DisconnectResponseSchema = z.union([
+  z.object({ Disconnecting: DestinationSchema }),
+  z.literal("NotConnected"),
+]);
+export type DisconnectResponse = z.infer<typeof DisconnectResponseSchema>;
 
-export type Info = {
-  node_address: string;
-  node_peer_id: string;
-  safe_address: string;
-};
+export const FundingIssueSchema = z.enum([
+  "Unfunded",
+  "ChannelsOutOfFunds",
+  "SafeOutOfFunds",
+  "SafeLowOnFunds",
+  "NodeUnderfunded",
+  "NodeLowOnFunds",
+]);
+export type FundingIssue = z.infer<typeof FundingIssueSchema>;
 
-export type Connectivity = {
-  last_error: string | null;
-  health: Health;
-  need: Need;
-};
+export const FundingStateSchema = z.union([
+  z.literal("Querying"),
+  z.object({ TopIssue: FundingIssueSchema }),
+  z.literal("WellFunded"),
+]);
+export type FundingState = z.infer<typeof FundingStateSchema>;
 
-export type Health =
-  | "ReadyToConnect"
-  | "MissingPeeredFundedChannel"
-  | "MissingPeeredChannel"
-  | "MissingFundedChannel"
-  | "NotPeered"
-  // final - not allowed to connect to this destination
-  | "NotAllowed"
-  // final - destination id is invalid - should be impossible due to config deserialization
-  | "InvalidId"
-  // final - destination path is invalid - should be impossible due to config deserialization
-  | "InvalidPath";
+export const PreparingSafeSchema = z.object({
+  node_address: z.string(),
+  node_xdai: z.string(),
+  node_wxhopr: z.string(),
+  funding_tool: z.string().nullable(),
+  error: z.string().nullable(),
+});
+export type PreparingSafe = z.infer<typeof PreparingSafeSchema>;
+
+export const DeployingSafeSchema = z.object({
+  node_address: z.string(),
+});
+export type DeployingSafe = z.infer<typeof DeployingSafeSchema>;
+
+export const WarmupStatusSchema = z.enum([
+  "Initializing",
+  "ValidatingConfig",
+  "IdentifyingNode",
+  "InitializingDatabase",
+  "ConnectingBlockchain",
+  "CreatingNode",
+  "StartingNode",
+  "Ready",
+  "Uninitialized",
+  "WaitingForFunds",
+  "CheckingBalance",
+  "ValidatingNetworkConfig",
+  "SubscribingToAnnouncements",
+  "RegisteringSafe",
+  "AnnouncingNode",
+  "AwaitingKeyBinding",
+  "InitializingServices",
+  "Running",
+  "Terminated",
+]);
+export type WarmupStatus = z.infer<typeof WarmupStatusSchema>;
+
+export const WarmupSchema = z.object({
+  status: WarmupStatusSchema,
+});
+export type Warmup = z.infer<typeof WarmupSchema>;
+
+export const RunningSchema = z.object({
+  funding: FundingStateSchema,
+  hopr_status: WarmupStatusSchema.nullable(),
+});
+export type Running = z.infer<typeof RunningSchema>;
+
+export const RunModeSchema = z.union([
+  z.object({ PreparingSafe: PreparingSafeSchema }),
+  z.object({ DeployingSafe: DeployingSafeSchema }),
+  z.object({ Warmup: WarmupSchema }),
+  z.object({ Running: RunningSchema }),
+  z.literal("Shutdown"),
+]);
+export type RunMode = z.infer<typeof RunModeSchema>;
+
+export const InfoSchema = z.object({
+  node_address: z.string(),
+  node_peer_id: z.string(),
+  safe_address: z.string(),
+});
+export type Info = z.infer<typeof InfoSchema>;
+
+export const StatusResponseSchema = z.object({
+  run_mode: RunModeSchema,
+  destinations: z.array(DestinationStateSchema),
+});
+export type StatusResponse = z.infer<typeof StatusResponseSchema>;
+
+export const BalanceResponseSchema = z.object({
+  node: z.string(),
+  safe: z.string(),
+  channels_out: z.string(),
+  info: InfoSchema,
+  issues: z.array(FundingIssueSchema),
+});
+export type BalanceResponse = z.infer<typeof BalanceResponseSchema>;
+
+export const ServiceInfoSchema = z.object({
+  version: z.string(),
+  log_file: z.string().nullable(),
+});
+export type ServiceInfo = z.infer<typeof ServiceInfoSchema>;
+
+// ==========================================
+// Helper Functions
+// ==========================================
 
 export function isReadyToConnect(health: Health | undefined): boolean {
   return health === "ReadyToConnect";
 }
-
-/// Requirements to be able to connect to this destination
-/// This is statically derived at construction time from a destination's routing options.
-export type Need =
-  | { Channel: string }
-  | "AnyChannel"
-  | { Peering: string }
-  | "Nothing";
-
-/// exit node health check - periodically updated
-export type DestinationHealth =
-  // waiting for check
-  | "Init"
-  // check underway
-  | { Running: DHRunning }
-  // check failed
-  | { Failure: DHFailure }
-  // received health metrics
-  | { Success: DHSuccess };
-
-/** Rust SystemTime serialized by serde as {secs_since_epoch, nanos_since_epoch}. */
-export type SerializedSinceTime = {
-  secs_since_epoch: number;
-  nanos_since_epoch: number;
-};
-
-export type SerializedTime = {
-  nanos: number;
-  secs: number;
-};
-
-export type DHRunning = {
-  // running since timestamp
-  since: SerializedSinceTime;
-};
-
-export type DHFailure = {
-  // failures check started at timestamp
-  checked_at: SerializedSinceTime;
-  // error message
-  error: string;
-  // count of previous failures
-  previous_failures: number;
-};
-
-export type DHSuccess = {
-  // success check started at timestamp
-  checked_at: SerializedSinceTime;
-  // reported by exit node
-  health: ExitHealth;
-  // total time to create session and query for health in seconds
-  total_time: SerializedTime;
-  // health query after session was established in seconds
-  round_trip_time: SerializedTime;
-};
-
-// Statistics reported by exit node
-export type ExitHealth = {
-  // client capacity statistics
-  slots: Slots;
-  // cpu statistics
-  load_avg: LoadAvg;
-};
-
-export type Slots = {
-  // free client slots
-  available: number;
-  // number of connected clients
-  connected: number;
-};
-
-export type LoadAvg = {
-  // processing queue usage last minute
-  one: number;
-  // processing queue usage last 5 minutes
-  five: number;
-  // processing queue usage last 15 minutes
-  fifteen: number;
-  // processor count
-  nproc: number;
-};
 
 export function formatHealth(health: Health): string {
   switch (health) {
@@ -276,7 +292,6 @@ export function formatHealth(health: Health): string {
     case "NotAllowed":
       return "Connection not allowed";
     case "InvalidId":
-      return "Connection impossible";
     case "InvalidPath":
       return "Connection impossible";
     default:
@@ -288,7 +303,6 @@ export function formatWarmupStatus(status: WarmupStatus): string {
   switch (status) {
     case "Initializing":
       return "Initializing edge client";
-    // Hopr init states
     case "ValidatingConfig":
       return "Validating edge client configuration";
     case "IdentifyingNode":
@@ -303,7 +317,6 @@ export function formatWarmupStatus(status: WarmupStatus): string {
       return "Starting edge client runtime";
     case "Ready":
       return "Edge client runtime ready for action";
-    // Hopr running states
     case "Uninitialized":
       return "Orienting ourselves";
     case "WaitingForFunds":
@@ -329,20 +342,6 @@ export function formatWarmupStatus(status: WarmupStatus): string {
   }
 }
 
-export function formatFundingTool(ft: FundingTool): string {
-  switch (ft) {
-    case "NotStarted":
-      return "Not started";
-    case "InProgress":
-      return "In progress";
-    case "CompletedSuccess":
-      return "Completed successfully";
-    default:
-      return `Failed: ${ft.CompletedError}`;
-  }
-}
-
-// Type guards for RunMode variants to avoid repetitive typeof/in checks
 export function isPreparingSafeRunMode(
   rm: RunMode | null | undefined,
 ): rm is { PreparingSafe: PreparingSafe } {
@@ -367,76 +366,113 @@ export function isRunningRunMode(
   return !!rm && typeof rm === "object" && "Running" in rm;
 }
 
-export function isFundingError(
-  ft: FundingTool | undefined,
-): ft is { CompletedError: string } {
-  return !!ft && typeof ft === "object" && "CompletedError" in ft;
-}
-
-export function equalFundingTool(
-  a: FundingTool | undefined,
-  b: FundingTool | undefined,
-): boolean {
-  if (typeof a !== typeof b) return false;
-  if (isFundingError(a) && isFundingError(b)) {
-    return a.CompletedError === b.CompletedError;
-  }
-  return a === b;
-}
+// ==========================================
+// API Client Service
+// ==========================================
 
 export class VPNService {
-  static async getStatus(): Promise<StatusResponse> {
+  static async startClient(keepAliveSecs: number): Promise<void> {
     try {
-      return (await invoke("status")) as StatusResponse;
+      const keepAlive = {
+        secs: keepAliveSecs,
+        nanos: 0,
+      };
+      await invoke("start_client", { keepAlive });
     } catch (error) {
-      console.error("Failed to get VPN status:", error);
-      throw new Error(`Status Error: ${error}`);
+      console.error("Failed to start VPN client:", error);
+      throw new Error(`Start Client Error: ${error}`);
+    }
+  }
+
+  static async info(): Promise<ServiceInfo> {
+    let rawRes;
+    try {
+      rawRes = await invoke("info");
+      return ServiceInfoSchema.parse(rawRes);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        console.error(`Issues with ServiceInfoSchema`, rawRes);
+        for (const i of error.issues) {
+          console.error("Type error:", i);
+        }
+      } else {
+        console.error(`Info error:`, error);
+      }
+      throw new Error(`Info error: ${error}`);
+    }
+  }
+
+  static async getStatus(): Promise<StatusResponse | null> {
+    let rawRes;
+    try {
+      rawRes = await invoke("status");
+      if (!rawRes) return null;
+      return StatusResponseSchema.parse(rawRes);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        console.error(`Issues with StatusResponseSchema`, rawRes);
+        for (const i of error.issues) {
+          console.error("Type error:", i);
+        }
+      } else {
+        console.error("Status error:", error);
+      }
+      throw new Error(`Status error: ${error}`);
     }
   }
 
   static async connect(id: string): Promise<ConnectResponse> {
+    let rawRes;
     try {
-      return (await invoke("connect", { id })) as ConnectResponse;
+      rawRes = await invoke("connect", { id });
+      return ConnectResponseSchema.parse(rawRes);
     } catch (error) {
-      console.error("Failed to connect to VPN:", error);
-      throw new Error(`Connect Error: ${error}`);
+      if (error instanceof z.ZodError) {
+        console.error("Issues with ConnectResponseSchema", rawRes);
+        for (const i of error.issues) {
+          console.error("Type error:", i);
+        }
+      } else {
+        console.error("Connect error:", error);
+      }
+      throw new Error(`Connect error: ${error}`);
     }
   }
 
   static async disconnect(): Promise<DisconnectResponse> {
+    let rawRes;
     try {
-      return (await invoke("disconnect")) as DisconnectResponse;
+      rawRes = await invoke("disconnect");
+      return DisconnectResponseSchema.parse(rawRes);
     } catch (error) {
-      console.error("Failed to disconnect from VPN:", error);
-      throw new Error(`Disconnect Error: ${error}`);
+      if (error instanceof z.ZodError) {
+        console.error("Issues with DisconnectResponseSchema", rawRes);
+        for (const i of error.issues) {
+          console.error("Type error:", i);
+        }
+      } else {
+        console.error("Disconnect error:", error);
+      }
+      throw new Error(`Disconnect error: ${error}`);
     }
   }
 
-  /**
-   * Request latest balance from VPN node.
-   *
-   * Returns `null` when:
-   * - Balance information has not been queried yet by the service
-   * - Service is in Warmup or PreparingSafe state (balance not available)
-   * - Balance data is being fetched asynchronously (updates every ~60 seconds)
-   *
-   * To manually trigger a balance update, call `refreshNode()` first, then wait a moment
-   * before calling `balance()` again.
-   *
-   * @returns BalanceResponse with node, safe, and channel balances, or null if not available
-   */
   static async balance(): Promise<BalanceResponse | null> {
+    let rawRes;
     try {
-      const result = (await invoke("balance")) as BalanceResponse | null;
-      if (result === null) {
-        console.log(
-          "Balance not available yet - may need to call refreshNode() or wait for service to be ready",
-        );
-      }
-      return result;
+      rawRes = await invoke("balance");
+      if (!rawRes) return null;
+      return BalanceResponseSchema.parse(rawRes);
     } catch (error) {
-      console.error("Failed to query VPN balance", error);
-      throw new Error(`Balance Error: ${error}`);
+      if (error instanceof z.ZodError) {
+        console.error("Issues with BalanceResponseSchema", rawRes);
+        for (const i of error.issues) {
+          console.error("Type error:", i);
+        }
+      } else {
+        console.error("Balance error:", error);
+      }
+      throw new Error(`Balance error: ${error}`);
     }
   }
 
@@ -449,23 +485,12 @@ export class VPNService {
     }
   }
 
-  static async compressLogs(destPath: string): Promise<void> {
+  static async compressLogs(logPath: string, destPath: string): Promise<void> {
     try {
-      // Tauri v2 command parameter mapping defaults to camelCase,
-      // so we pass `destPath` here to match the backend param `dest_path`.
-      return await invoke("compress_logs", { destPath });
+      await invoke("compress_logs", { logPath, destPath });
     } catch (error) {
       console.error("Failed to compress logs", error);
       throw new Error(`Compress Logs Error: ${error}`);
-    }
-  }
-
-  static async fundingTool(secret: string): Promise<void> {
-    try {
-      return await invoke("funding_tool", { secret });
-    } catch (error) {
-      console.error("Failed to request funding tool execution", error);
-      throw new Error(`Funding Tool Error: ${error}`);
     }
   }
 

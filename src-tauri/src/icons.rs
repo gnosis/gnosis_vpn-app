@@ -3,7 +3,7 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
-use tauri::{AppHandle, Manager, Theme, tray::TrayIcon};
+use tauri::{AppHandle, Manager, tray::TrayIcon};
 
 use tokio::time::sleep;
 
@@ -20,11 +20,11 @@ pub const APP_ICON_DISCONNECTED_LOW_FUNDS: &str = "app-icon-disconnected-low-fun
 
 // Tray icon constants
 pub const TRAY_ICON_CONNECTED: &str = "tray-icons/tray-icon-connected.png";
-pub const TRAY_ICON_CONNECTED_BLACK: &str = "tray-icons/tray-icon-connected-black.png";
+pub const _TRAY_ICON_CONNECTED_BLACK: &str = "tray-icons/tray-icon-connected-black.png";
 pub const TRAY_ICON_CONNECTING: &str = "tray-icons/tray-icon-connecting.png";
-pub const TRAY_ICON_CONNECTING_BLACK: &str = "tray-icons/tray-icon-connecting-black.png";
+pub const _TRAY_ICON_CONNECTING_BLACK: &str = "tray-icons/tray-icon-connecting-black.png";
 pub const TRAY_ICON_DISCONNECTED: &str = "tray-icons/tray-icon-disconnected.png";
-pub const TRAY_ICON_DISCONNECTED_BLACK: &str = "tray-icons/tray-icon-disconnected-black.png";
+pub const _TRAY_ICON_DISCONNECTED_BLACK: &str = "tray-icons/tray-icon-disconnected-black.png";
 
 // Linux tray icon constants (theme-independent)
 pub const TRAY_ICON_LINUX_CONNECTED: &str = "tray-icons/linux/connected.png";
@@ -92,55 +92,24 @@ pub fn determine_app_icon(connection_state: &str, run_mode: &command::RunMode) -
     }
 }
 
-pub fn determine_tray_icon(connection_state: &str, theme: Option<Theme>) -> &'static str {
+pub fn determine_tray_icon(connection_state: &str) -> &'static str {
     if cfg!(target_os = "linux") {
-        return match connection_state {
+        match connection_state {
             "Connected" => TRAY_ICON_LINUX_CONNECTED,
             "Connecting" | "Disconnecting" => TRAY_ICON_LINUX_CONNECTING,
             _ => TRAY_ICON_LINUX_DISCONNECTED,
-        };
-    }
-
-    // Dark/light tray icons only on non-macOS; macOS uses template icons and ignores theme
-    let effective_theme = if cfg!(target_os = "macos") {
-        None
+        }
     } else {
-        theme
-    };
-    let use_black_icons = matches!(effective_theme, Some(Theme::Light));
-
-    match connection_state {
-        "Connected" => {
-            if use_black_icons {
-                TRAY_ICON_CONNECTED_BLACK
-            } else {
-                TRAY_ICON_CONNECTED
-            }
-        }
-        "Connecting" | "Disconnecting" => {
-            if use_black_icons {
-                TRAY_ICON_CONNECTING_BLACK
-            } else {
-                TRAY_ICON_CONNECTING
-            }
-        }
-        _ => {
-            if use_black_icons {
-                TRAY_ICON_DISCONNECTED_BLACK
-            } else {
-                TRAY_ICON_DISCONNECTED
-            }
+        match connection_state {
+            "Connected" => TRAY_ICON_CONNECTED,
+            "Connecting" | "Disconnecting" => TRAY_ICON_CONNECTING,
+            _ => TRAY_ICON_DISCONNECTED,
         }
     }
 }
 
-pub fn update_tray_icon(
-    app: &AppHandle,
-    tray_icon_state: &TrayIconState,
-    connection_state: &str,
-    theme: Option<Theme>,
-) {
-    let tray_icon_name = determine_tray_icon(connection_state, theme);
+pub fn update_tray_icon(app: &AppHandle, tray_icon_state: &TrayIconState, connection_state: &str) {
+    let tray_icon_name = determine_tray_icon(connection_state);
     if update_icon_name_if_changed(&tray_icon_state.current_icon, tray_icon_name) {
         if let Ok(tray_icon_path) = Manager::path(app)
             .resource_dir()
@@ -149,11 +118,8 @@ pub fn update_tray_icon(
             if let Ok(tray_image) = tauri::image::Image::from_path(&tray_icon_path) {
                 if let Ok(guard) = tray_icon_state.tray.lock() {
                     let _ = guard.set_icon(Some(tray_image));
-
-                    #[cfg(target_os = "macos")]
-                    {
-                        let _ = guard.set_icon_as_template(true);
-                    }
+                    // this function only affects macOS and is a noop on other platforms
+                    let _ = guard.set_icon_as_template(true);
                 }
             }
         }

@@ -122,7 +122,6 @@ export default function ExitHealthDetail(
     appActions.chooseDestination(nodeId);
     try {
       await VPNService.connect(nodeId);
-      appActions.startStatusPolling();
     } catch (error) {
       console.error("Failed to switch node:", error);
     }

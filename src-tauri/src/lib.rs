@@ -20,14 +20,15 @@ pub mod tray;
 pub mod types;
 
 use commands::{
-    balance, compress_logs, connect, disconnect, funding_tool, refresh_node, set_app_icon, status,
+    balance, compress_logs, connect, disconnect, info, refresh_node, set_app_icon, start_client,
+    status, stop_client,
 };
 use icons::{AppIconState, TrayIconState, determine_tray_icon, start_app_icon_heartbeat};
 use platform::{Platform, PlatformInterface};
 #[cfg(target_os = "linux")]
 use theme::spawn_linux_theme_monitor;
 #[cfg_attr(target_os = "macos", allow(unused_imports))]
-use theme::{InitialTheme, get_initial_theme, system_theme, theme_changed};
+use theme::{InitialTheme, get_initial_theme, system_theme};
 use tray::{create_tray_menu, handle_tray_event, show_settings, toggle_main_window_visibility};
 
 struct HeartbeatHandle(Mutex<Option<tauri::async_runtime::JoinHandle<()>>>);
@@ -66,12 +67,12 @@ pub fn run() {
 
             // First step: OS theme for app windows (all OS) and tray icons (non-macOS only)
             let theme = system_theme();
-            app.manage(InitialTheme(theme.unwrap_or(tauri::Theme::Dark)));
+            app.manage(InitialTheme(theme));
 
             // Create tray menu
             let menu = create_tray_menu(app.handle())?;
 
-            let icon_name: &str = determine_tray_icon("Disconnected", theme);
+            let icon_name: &str = determine_tray_icon("Disconnected");
 
             let tray_icon_path: PathBuf = app
                 .path()
@@ -180,16 +181,16 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            info,
+            start_client,
             status,
             connect,
             disconnect,
             balance,
             refresh_node,
-            funding_tool,
             compress_logs,
             set_app_icon,
             get_initial_theme,
-            theme_changed
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
@@ -199,6 +200,11 @@ pub fn run() {
                     if let Some(handle) = guard.take() {
                         handle.abort();
                     }
+                }
+
+                // inform the client about the shutdown
+                if let Err(reason) = tauri::async_runtime::block_on(async { stop_client().await }) {
+                    eprintln!("Error stopping client on exit: {reason}");
                 }
             }
         });
