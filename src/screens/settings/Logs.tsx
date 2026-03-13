@@ -7,7 +7,7 @@ export default function Logs() {
   const [logsState] = useLogsStore();
   const [appStore] = useAppStore();
 
-  const logFile: string | undefined | null = appStore.serviceInfo?.logFile;
+  const logFile = appStore.serviceInfo?.log_file;
 
   return (
     <div class="w-full p-2 flex flex-col flex-1 min-h-0 bg-bg-primary select-none">
