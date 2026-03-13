@@ -40,7 +40,7 @@ export enum AppScreen {
 
 export interface AppState {
   currentScreen: AppScreen;
-  serviceInfo: ServiceInfo | null;
+  serviceInfo: ServiceInfo | undefined;
   availableDestinations: Destination[];
   destinations: Record<string, DestinationState>;
   isLoading: boolean;
@@ -69,7 +69,7 @@ const DEFAULT_TIMEOUT = 2111; // ms
 export function createAppStore(): AppStoreTuple {
   const [state, setState] = createStore<AppState>({
     currentScreen: AppScreen.Initialization,
-    serviceInfo: null,
+    serviceInfo: undefined,
     availableDestinations: [],
     destinations: {},
     isLoading: false,

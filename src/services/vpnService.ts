@@ -27,7 +27,7 @@ export type BalanceResponse = {
 
 export type ServiceInfo = {
   version: string;
-  log_file: string | null;
+  log_file: string | undefined;
 };
 
 // Library types
@@ -485,11 +485,9 @@ export class VPNService {
     }
   }
 
-  static async compressLogs(destPath: string): Promise<void> {
+  static async compressLogs(logPath: string, destPath: string): Promise<void> {
     try {
-      // Tauri v2 command parameter mapping defaults to camelCase,
-      // so we pass `destPath` here to match the backend param `dest_path`.
-      return await invoke("compress_logs", { destPath });
+      return await invoke("compress_logs", { logPath, destPath });
     } catch (error) {
       console.error("Failed to compress logs", error);
       throw new Error(`Compress Logs Error: ${error}`);
