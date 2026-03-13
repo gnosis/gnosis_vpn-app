@@ -125,9 +125,7 @@ pub async fn status(
 
             Ok(Some(status_resp.into()))
         }
-        Ok(command::Response::WorkerOffline) => {
-            Ok(None)
-        }
+        Ok(command::Response::WorkerOffline) => Ok(None),
         Err(e) => {
             if let Ok(guard) = status_item.0.lock() {
                 let _ = guard.set_text("Status: Not available");
