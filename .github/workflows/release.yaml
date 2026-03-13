@@ -11,6 +11,11 @@ on:
           - patch
           - minor
           - major
+      trigger_snapshot:
+        description: "Trigger installer snapshot in gnosis_vpn"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -159,6 +164,7 @@ jobs:
             I'm thrilled to inform the new `gnosis_vpn-app` version `v${{ steps.bump.outputs.current_version }}` has been released.
             [Release Notes](${{ github.server_url }}/${{ github.repository }}/releases/tag/v${{ steps.bump.outputs.current_version }})
       - name: Trigger installer snapshot
+        if: ${{ inputs.trigger_snapshot }}
         uses: peter-evans/repository-dispatch@ff45666b9427631e3450c54a1bcbee4d9ff4d7c0 # v3.0.0
         with:
           token: ${{ secrets.GNOSIS_GITHUB_WORKFLOW_TOKEN }}
