@@ -489,6 +489,7 @@ export class VPNService {
   static async balance(): Promise<BalanceResponse | null> {
     try {
       const res = await invoke("balance");
+      if (res === null) return null;
       return BalanceResponseSchema.parse(res);
     } catch (error) {
       if (error instanceof z.ZodError) {
