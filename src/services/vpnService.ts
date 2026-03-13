@@ -342,19 +342,6 @@ export function formatWarmupStatus(status: WarmupStatus): string {
   }
 }
 
-export function formatFundingTool(ft: FundingTool): string {
-  switch (ft) {
-    case "NotStarted":
-      return "Not started";
-    case "InProgress":
-      return "In progress";
-    case "CompletedSuccess":
-      return "Completed successfully";
-    default:
-      return `Failed: ${ft.CompletedError}`;
-  }
-}
-
 export function isPreparingSafeRunMode(
   rm: RunMode | null | undefined,
 ): rm is { PreparingSafe: PreparingSafe } {
@@ -377,23 +364,6 @@ export function isRunningRunMode(
   rm: RunMode | null | undefined,
 ): rm is { Running: Running } {
   return !!rm && typeof rm === "object" && "Running" in rm;
-}
-
-export function isFundingError(
-  ft: FundingTool | undefined,
-): ft is { CompletedError: string } {
-  return !!ft && typeof ft === "object" && "CompletedError" in ft;
-}
-
-export function equalFundingTool(
-  a: FundingTool | undefined,
-  b: FundingTool | undefined,
-): boolean {
-  if (typeof a !== typeof b) return false;
-  if (isFundingError(a) && isFundingError(b)) {
-    return a.CompletedError === b.CompletedError;
-  }
-  return a === b;
 }
 
 // ==========================================
