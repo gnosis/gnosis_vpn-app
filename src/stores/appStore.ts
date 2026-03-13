@@ -52,12 +52,11 @@ export interface AppState {
 }
 
 type AppActions = {
+  initializeApp: () => Promise<void>;
   setScreen: (screen: AppScreen) => void;
   chooseDestination: (id: string | null) => void;
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
-  refreshStatus: () => Promise<void>;
-  startStatusPolling: () => void;
   stopStatusPolling: () => void;
 };
 
@@ -331,7 +330,6 @@ export function createAppStore(): AppStoreTuple {
         if (targetId) {
           await VPNService.connect(targetId);
         }
-        actions.startStatusPolling();
         applyDestinationSelection();
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -346,7 +344,6 @@ export function createAppStore(): AppStoreTuple {
       setState("isLoading", true);
       try {
         await VPNService.disconnect();
-        actions.startStatusPolling();
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         log(message);
@@ -354,13 +351,6 @@ export function createAppStore(): AppStoreTuple {
       } finally {
         setState("isLoading", false);
       }
-    },
-
-    refreshStatus: (): Promise<void> => {
-      setState("isLoading", true);
-      actions.startStatusPolling();
-      setState("isLoading", false);
-      return Promise.resolve();
     },
 
     startStatusPolling: () => {

@@ -32,10 +32,10 @@ export default function SettingsWindow() {
       const mainWin = await WebviewWindow.getByLabel("main");
       const isMainVisible = mainWin ? await mainWin.isVisible() : false;
       if (!isMainVisible) {
-        appActions.startStatusPolling();
+        await appActions.initializeApp();
         startedPollingHere = true;
       }
-      await Promise.all([settingsActions.load(), appActions.refreshStatus()]);
+      await settingsActions.load();
       void emit("logs:request-snapshot");
     })();
   });

@@ -81,9 +81,7 @@ function App() {
 
   onMount(() => {
     void (async () => {
-      appActions.startStatusPolling();
       await settingsActions.load();
-
       await appActions.initializeApp();
 
       if (
