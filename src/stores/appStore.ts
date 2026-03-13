@@ -68,14 +68,15 @@ const DEFAULT_TIMEOUT = 2111; // ms
 
 function initialState(): AppState {
   return {
-    currentScreen: AppScreen.Initialization,
-    serviceInfo: null,
     availableDestinations: [],
-    destinations: {},
-    isLoading: false,
+    currentScreen: AppScreen.Initialization,
     destination: null,
-    selectedId: null,
+    destinations: {},
+    error: undefined,
+    isLoading: false,
     runMode: null,
+    selectedId: null,
+    serviceInfo: null,
     vpnStatus: "ServiceUnavailable",
   };
 }
@@ -291,7 +292,7 @@ export function createAppStore(): AppStoreTuple {
         if (isServiceVersionCompatible(info.version)) {
           await VPNService.startClient(10);
           startStatusPolling(() => {
-            setState(reconcile({ ...initialState() }));
+            setState(reconcile(initialState()));
             setTimeout(() => {
               actions.stopStatusPolling();
               actions.initializeApp();
