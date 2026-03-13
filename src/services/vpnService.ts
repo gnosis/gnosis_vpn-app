@@ -272,7 +272,7 @@ export type BalanceResponse = z.infer<typeof BalanceResponseSchema>;
 
 export const ServiceInfoSchema = z.object({
   version: z.string(),
-  log_file: z.string().optional(),
+  log_file: z.string().nullable(),
 });
 export type ServiceInfo = z.infer<typeof ServiceInfoSchema>;
 
