@@ -69,7 +69,7 @@ const DEFAULT_TIMEOUT = 2111; // ms
 export function createAppStore(): AppStoreTuple {
   const [state, setState] = createStore<AppState>({
     currentScreen: AppScreen.Initialization,
-    serviceInfo: undefined,
+    serviceInfo: null,
     availableDestinations: [],
     destinations: {},
     isLoading: false,
@@ -143,8 +143,8 @@ export function createAppStore(): AppStoreTuple {
     setState("currentScreen", screen);
 
     const prevDestStates = state.destinations;
-    const [nextDestStates, availableDestinations] = response.destinations
-      .reduce(
+    const [nextDestStates, availableDestinations] =
+      response.destinations.reduce(
         ([states, dests], ds) => {
           states[ds.destination.id] = ds;
           dests.push(ds.destination);

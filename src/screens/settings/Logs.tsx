@@ -7,7 +7,7 @@ export default function Logs() {
   const [logsState] = useLogsStore();
   const [appStore] = useAppStore();
 
-  const log_file: string | undefined = appStore.serviceInfo?.log_file;
+  const logFile: string | undefined | null = appStore.serviceInfo?.logFile;
 
   return (
     <div class="w-full p-2 flex flex-col flex-1 min-h-0 bg-bg-primary select-none">
@@ -25,7 +25,7 @@ export default function Logs() {
           </For>
         </Show>
       </div>
-      {log_file && <ExportLogs logs={log_file} />}
+      {logFile && <ExportLogs logs={logFile} />}
     </div>
   );
 }

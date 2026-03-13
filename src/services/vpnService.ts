@@ -265,7 +265,7 @@ export type BalanceResponse = z.infer<typeof BalanceResponseSchema>;
 
 export const ServiceInfoSchema = z.object({
   version: z.string(),
-  log_file: z.string().nullable(),
+  logFile: z.string().nullable(),
 });
 export type ServiceInfo = z.infer<typeof ServiceInfoSchema>;
 
@@ -530,7 +530,7 @@ export class VPNService {
 
     // Sort by id for consistent selection
     const sorted = [...destinations].sort((a, b) =>
-      a.destination.id.localeCompare(b.destination.id)
+      a.destination.id.localeCompare(b.destination.id),
     );
     return sorted[0].destination.id;
   }
