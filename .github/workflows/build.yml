@@ -15,7 +15,7 @@ env:
 jobs:
   checks:
     name: Lint, format and unit test
-    runs-on: ubuntu-24.04
+    runs-on: depot-ubuntu-22.04-4
     steps:
       - name: Checkout repository
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
@@ -34,16 +34,16 @@ jobs:
     strategy:
       matrix:
         binary:
-          - architecture: universal-darwin
-            runner: macos-15-xlarge
-          - architecture: aarch64-darwin
-            runner: macos-15
-          - architecture: x86_64-darwin
-            runner: macos-15-intel
           - architecture: x86_64-linux
-            runner: ubuntu-22.04
+            runner: depot-ubuntu-22.04-4 # Depot Ubuntu 22.04, 4 CPUs, 16 GB RAM
           - architecture: aarch64-linux
-            runner: ubuntu-22.04-arm
+            runner: depot-ubuntu-22.04-arm-4 # Depot Ubuntu 22.04 ARM, 4 CPUs, 16 GB RAM
+          - architecture: aarch64-darwin
+            runner: macos-15-xlarge # Uses Apple Silicon M2 hardware 5vCPU, 14GB RAM and 14GB SSD. 8-core GPU
+          - architecture: universal-darwin
+            runner: macos-15-xlarge # Uses Apple Silicon M2 hardware 5vCPU, 14GB RAM and 14GB SSD. 8-core GPU
+          - architecture: x86_64-darwin
+            runner: macos-15-intel # Uses Intel hardware 4vCPU, 14GB RAM and 14GB SSD
     name: Binary ${{ matrix.binary.architecture }}
     uses: ./.github/workflows/build-binaries.yaml
     with:

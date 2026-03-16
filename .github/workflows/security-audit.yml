@@ -9,7 +9,7 @@ on:
 jobs:
   deno-audit:
     name: Deno dependency audit (deno.lock)
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-22.04-4
     permissions:
       contents: read
 
@@ -28,7 +28,7 @@ jobs:
 
   pnpm-audit:
     name: Node dependency audit (pnpm)
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-22.04-4
     permissions:
       contents: read
 

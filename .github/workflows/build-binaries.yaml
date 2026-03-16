@@ -17,28 +17,6 @@ on:
       runner:
         required: true
         type: string
-  workflow_dispatch:
-    inputs:
-      architecture:
-        type: choice
-        options:
-          - aarch64-darwin
-          - x86_64-darwin
-          - universal-darwin
-          - x86_64-linux
-          - aarch64-linux
-        required: true
-        description: "Architecture to build for"
-      runner:
-        type: choice
-        options:
-          - macos-15
-          - macos-15-xlarge
-          - macos-15-intel
-          - ubuntu-22.04
-          - ubuntu-22.04-arm
-        required: true
-        description: "Runner to use"
 jobs:
   binary:
     if: >-
