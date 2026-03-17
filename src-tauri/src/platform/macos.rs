@@ -13,6 +13,7 @@ impl PlatformInterface for MacOSPlatform {
 /// Prevents macOS App Nap from throttling this process.
 ///
 /// The returned token must be kept alive for the process lifetime.
+#[must_use]
 pub fn disable_app_nap() -> app_nap::ActivityToken {
     app_nap::disable("VPN client must remain responsive")
 }
