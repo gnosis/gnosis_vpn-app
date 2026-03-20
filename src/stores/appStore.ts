@@ -144,8 +144,8 @@ export function createAppStore(): AppStoreTuple {
     setState("warmupStatus", warmupStatus);
 
     const prevDestStates = state.destinations;
-    const [nextDestStates, availableDestinations] =
-      response.destinations.reduce(
+    const [nextDestStates, availableDestinations] = response.destinations
+      .reduce(
         ([states, dests], ds) => {
           states[ds.destination.id] = ds;
           dests.push(ds.destination);
@@ -459,10 +459,14 @@ function findDelayReason(destinations: DestinationState[]): string | null {
     }
   }
   if (missing_peers >= missing_channels) {
-    return `Looking for ${missing_peers} more peer${missing_peers > 1 ? "s" : ""}`;
+    return `Looking for ${missing_peers} more peer${
+      missing_peers > 1 ? "s" : ""
+    }`;
   }
   if (missing_channels > 0) {
-    return `Setting up ${missing_channels} more channel${missing_channels > 1 ? "s" : ""}`;
+    return `Setting up ${missing_channels} more channel${
+      missing_channels > 1 ? "s" : ""
+    }`;
   }
   return null;
 }
