@@ -3,7 +3,6 @@ import { Dynamic } from "solid-js/web";
 import {
   AppScreen,
   AppState,
-  formatWarmup,
   useAppStore,
 } from "@src/stores/appStore.ts";
 import { onCleanup, onMount } from "solid-js";
@@ -57,7 +56,7 @@ function mapStoreToScreenProps(screen: ValidScreen, state: AppState) {
       };
     case "synchronization":
       return {
-        warmupStatus: formatWarmup(state.runMode),
+        warmupStatus: state.warmupStatus,
       };
     case "main":
     case "onboarding":
