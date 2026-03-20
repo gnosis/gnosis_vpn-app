@@ -129,6 +129,12 @@ pub fn run() {
             // Setup platform-specific functionality
             let _ = Platform::setup_system_tray();
 
+            // Prevent macOS App Nap from throttling the process when backgrounded.
+            // The token must stay alive for the process lifetime; Tauri's managed
+            // state keeps it until the application exits.
+            #[cfg(target_os = "macos")]
+            app.manage(platform::macos::disable_app_nap());
+
             // Intercept window close to hide to tray instead of exiting
             if let Some(window) = app.get_webview_window("main") {
                 #[cfg(target_os = "macos")]
