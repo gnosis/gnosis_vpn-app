@@ -32,6 +32,8 @@
     "@tauri-apps/cli": "^2.10.1"
   },
   "overrides": {
-    "flatted": "3.4.2"
+    "eslint": {
+      "flatted": "3.4.2"
+    }
   }
 }
