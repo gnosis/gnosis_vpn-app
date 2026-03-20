@@ -149,12 +149,15 @@ jobs:
       - name: Build tauri mac artifact
         if: ${{ endsWith(steps.vars.outputs.architecture, '-darwin') }}
         id: build-tauri-mac
-        uses: tauri-apps/tauri-action@73fb865345c54760d875b94642314f8c0c894afa # v0.6.1
+        uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE_DEVELOPER_P12_BASE64 }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_DEVELOPER_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ steps.certificate.outputs.signing_identity }}
+          # Explicitly set CI=true so tauri-bundler adds --skip-jenkins to bundle_dmg.sh,
+          # skipping the osascript/Finder step that hangs on headless Depot macOS runners.
+          CI: "true"
         with:
           tauriScript: "deno task tauri"
           args: ${{ steps.vars.outputs.tauri_args }}
