@@ -1,5 +1,5 @@
 #################################################################################
-##                       Pipeline to build binaries                            ##
+# Pipeline to build binaries
 #################################################################################
 name: Create binaries
 on:
@@ -20,24 +20,18 @@ on:
 jobs:
   binary:
     if: >-
-      github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action != 'closed' && contains(github.event.pull_request.labels.*.name, format('binary:{0}', inputs.architecture))) || (github.event_name == 'pull_request' && github.event.pull_request.merged)
+      github.event_name != 'pull_request' || github.event.pull_request.merged == true || contains(github.event.pull_request.labels.*.name, format('binary:{0}', inputs.architecture))
     runs-on: ${{ inputs.runner }}
     timeout-minutes: 90
     steps:
       - name: Set environment variables
         id: vars
         run: |
-          declare branch architecture publish_type
-          if [[ "${{ inputs.branch }}" != "" ]]; then
+          declare branch architecture architecture_apple_darwin rust_toolchain_target tauri_args
             echo "The workflow is triggered by other pipeline"
             # It can be triggered by the build, merge or release pipelines
             branch=${{ inputs.branch }}
             architecture=${{ inputs.architecture }}
-          else
-            echo "The workflow is triggered manually"
-            branch=${{ github.ref_name }}
-            architecture=${{ github.event.inputs.architecture }}
-          fi
           if [[ "$architecture" =~ "-darwin" ]]; then
             architecture_apple_darwin="${architecture/-darwin/}-apple-darwin"
             rust_toolchain_target="${architecture_apple_darwin/universal-/x86_64-}"
@@ -56,7 +50,7 @@ jobs:
           echo "rust_toolchain_target=${rust_toolchain_target}" | tee -a $GITHUB_OUTPUT
           echo "tauri_args=${tauri_args}" | tee -a $GITHUB_OUTPUT
       - name: Checkout repository
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ steps.vars.outputs.branch }}
       - name: Get PR labels
@@ -69,7 +63,7 @@ jobs:
       - name: Install Nix
         uses: cachix/install-nix-action@4e002c8ec80594ecd40e759629461e26c8abed15 # v31
       - name: Use Nix Cache
-        uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad # v16
+        uses: cachix/cachix-action@v17
         with:
           name: gnosis-vpn-app
           authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
