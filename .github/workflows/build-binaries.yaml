@@ -159,6 +159,7 @@ jobs:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE_DEVELOPER_P12_BASE64 }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_DEVELOPER_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ steps.certificate.outputs.signing_identity }}
+          TAURI_BUNDLER_DMG_IGNORE_CI: "false"
           # Explicitly set CI=true so tauri-bundler adds --skip-jenkins to bundle_dmg.sh,
           # skipping the osascript/Finder step that hangs on headless Depot macOS runners.
           CI: "true"
