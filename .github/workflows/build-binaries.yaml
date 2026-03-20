@@ -91,7 +91,14 @@ jobs:
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
       - name: install macOS dependencies
         if: ${{ endsWith(steps.vars.outputs.architecture, '-darwin') }}
-        run: brew install create-dmg
+        run: |
+          # Tauri's bundle_dmg.sh relies on create-dmg for DMG packaging. 
+          # It's not pre-installed on the macOS Depot runners
+          brew install create-dmg
+          # Tauri's bundle_dmg.sh uses osascript to communicate with Finder for DMG window setup.
+          # On headless Depot runners, Finder is not running by default, causing osascript to hang
+          # and eventually fail. Starting Finder here ensures it's ready before the build step.
+          open -a Finder
       - name: Install frontend dependencies
         run: deno install
       - name: Get version
