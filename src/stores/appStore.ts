@@ -139,7 +139,7 @@ export function createAppStore(): AppStoreTuple {
       return null;
     }
 
-    const [screen, warmupStatus] = determineWarmupStatus(response);
+    const [screen, warmupStatus] = determineScreenAndStatus(response);
     setState("currentScreen", screen);
     setState("warmupStatus", warmupStatus);
 
@@ -414,7 +414,7 @@ function timeoutFromState(
 
 const MAXIMUM_DELAY_TIME = 120 * 1000; // 2 minutes
 let initialDelayTime: number | undefined = undefined;
-function determineWarmupStatus(status: StatusResponse): [AppScreen, string] {
+function determineScreenAndStatus(status: StatusResponse): [AppScreen, string] {
   const runMode = status.run_mode;
   if (runMode === "Shutdown") {
     return [AppScreen.Main, "Shutdown"];
