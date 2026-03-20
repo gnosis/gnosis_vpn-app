@@ -170,8 +170,8 @@ jobs:
           if [ -f "$script" ]; then
             echo "--- First 50 lines (args passed by Tauri) ---"
             head -50 "$script"
-            echo "--- Re-running with bash -x (timeout 3m) ---"
-            timeout 180 bash -x "$script" 2>&1 || echo "Exit code: $?"
+            echo "--- Re-running with bash -x ---"
+            bash -x "$script" 2>&1 || echo "Exit code: $?"
           else
             echo "Script not found at: $script"
           fi
