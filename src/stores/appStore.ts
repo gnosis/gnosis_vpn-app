@@ -458,11 +458,11 @@ function findDelayReason(destinations: DestinationState[]): string | null {
         break;
     }
   }
-  if (missing_peers > missing_channels) {
-    return `Exploring network looking for ${missing_peers} more peer${missing_peers > 1 ? "s" : ""}`;
+  if (missing_peers >= missing_channels) {
+    return `Looking for ~ ${missing_peers} peer${missing_peers > 1 ? "s" : ""}`;
   }
   if (missing_channels > 0) {
-    return `Setting up ${missing_channels} more channel${missing_channels > 1 ? "s" : ""}`;
+    return `Setting up ~ ${missing_channels} channel${missing_channels > 1 ? "s" : ""}`;
   }
   return null;
 }
