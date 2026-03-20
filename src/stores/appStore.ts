@@ -49,6 +49,7 @@ export interface AppState {
   selectedId: string | null;
   runMode: RunMode | null;
   vpnStatus: string;
+  warmupStatus: string;
 }
 
 type AppActions = {
@@ -78,6 +79,7 @@ function initialState(): AppState {
     selectedId: null,
     serviceInfo: null,
     vpnStatus: "ServiceUnavailable",
+    warmupStatus: "",
   };
 }
 
@@ -137,12 +139,13 @@ export function createAppStore(): AppStoreTuple {
       return null;
     }
 
-    const screen = screenFromRunMode(response.run_mode);
+    const [screen, warmupStatus] = determineWarmupStatus(response);
     setState("currentScreen", screen);
+    setState("warmupStatus", warmupStatus);
 
     const prevDestStates = state.destinations;
-    const [nextDestStates, availableDestinations] = response.destinations
-      .reduce(
+    const [nextDestStates, availableDestinations] =
+      response.destinations.reduce(
         ([states, dests], ds) => {
           states[ds.destination.id] = ds;
           dests.push(ds.destination);
@@ -409,34 +412,57 @@ function timeoutFromState(
   return DEFAULT_TIMEOUT;
 }
 
-function screenFromRunMode(mode: RunMode): AppScreen {
-  if (mode === "Shutdown") {
-    return AppScreen.Main;
+function determineWarmupStatus(status: StatusResponse): [AppScreen, string] {
+  const runMode = status.run_mode;
+  if (runMode === "Shutdown") {
+    return [AppScreen.Main, "Shutdown"];
   }
-  if (isPreparingSafeRunMode(mode)) {
-    return AppScreen.Onboarding;
-  }
-  if (isDeployingSafeRunMode(mode)) {
-    return AppScreen.Synchronization;
-  }
-  if (isWarmupRunMode(mode)) {
-    return AppScreen.Synchronization;
-  }
-  return AppScreen.Main;
-}
-
-export function formatWarmup(runMode: RunMode | null): string {
-  if (!runMode) {
-    return "Service unavailable";
-  }
-  if (typeof runMode === "string") {
-    return runMode;
+  if (isPreparingSafeRunMode(runMode)) {
+    return [AppScreen.Onboarding, "Onboarding"];
   }
   if (isDeployingSafeRunMode(runMode)) {
-    return `Safe deployment ongoing`;
+    return [AppScreen.Synchronization, "Safe deployment ongoing"];
   }
   if (isWarmupRunMode(runMode)) {
-    return formatWarmupStatus(runMode.Warmup.status);
+    return [
+      AppScreen.Synchronization,
+      formatWarmupStatus(runMode.Warmup.status),
+    ];
   }
-  return "Moving on";
+  // delay initial screen as long as no interaction makes sense
+  const delay = findDelayReason(status.destinations);
+  if (delay) {
+    return [AppScreen.Synchronization, delay];
+  }
+  return [AppScreen.Main, "Moving on"];
+}
+
+function findDelayReason(destinations: DestinationState[]): string | null {
+  let missing_peers = 0;
+  let missing_channels = 0;
+  for (const ds of destinations) {
+    switch (ds.connectivity.health) {
+      case "ReadyToConnect":
+        return null;
+      case "MissingPeeredFundedChannel":
+        missing_peers++;
+        missing_channels++;
+        break;
+      case "MissingPeeredChannel":
+        missing_peers++;
+        break;
+      case "MissingFundedChannel":
+        missing_channels++;
+        break;
+      default:
+        break;
+    }
+  }
+  if (missing_peers > missing_channels) {
+    return `Exploring network looking for ${missing_peers} more peer${missing_peers > 1 ? "s" : ""}`;
+  }
+  if (missing_channels > 0) {
+    return `Setting up ${missing_channels} more channel${missing_channels > 1 ? "s" : ""}`;
+  }
+  return null;
 }
