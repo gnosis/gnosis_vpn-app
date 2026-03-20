@@ -144,8 +144,8 @@ export function createAppStore(): AppStoreTuple {
     setState("warmupStatus", warmupStatus);
 
     const prevDestStates = state.destinations;
-    const [nextDestStates, availableDestinations] = response.destinations
-      .reduce(
+    const [nextDestStates, availableDestinations] =
+      response.destinations.reduce(
         ([states, dests], ds) => {
           states[ds.destination.id] = ds;
           dests.push(ds.destination);
@@ -414,9 +414,9 @@ function timeoutFromState(
 
 const MAXIMUM_DELAY_TIME = 120 * 1000; // 2 minutes
 let initialDelay:
-  | { delaying_since: number }
-  | { never_ran: true }
-  | { already_ran: true } = { never_ran: true };
+  | { delayingSince: number }
+  | { neverRan: true }
+  | { alreadyRan: true } = { neverRan: true };
 function determineScreenAndStatus(status: StatusResponse): [AppScreen, string] {
   const runMode = status.run_mode;
   if (runMode === "Shutdown") {
@@ -437,30 +437,30 @@ function determineScreenAndStatus(status: StatusResponse): [AppScreen, string] {
   // delay initial screen as long as no interaction makes sense
   const delay = findDelayReason(status.destinations);
   if (delay) {
-    // delay propposed and never ran
-    if ("never_ran" in initialDelay) {
+    // delay proposed and never ran
+    if ("neverRan" in initialDelay) {
       // leads to start delay
-      initialDelay = { delaying_since: Date.now() };
+      initialDelay = { delayingSince: Date.now() };
       return [AppScreen.Synchronization, delay];
     }
     // delay proposed and already in delay
-    if ("delaying_since" in initialDelay) {
+    if ("delayingSince" in initialDelay) {
       // leads to continue delay until maximum time is reached
-      if (Date.now() - initialDelay.delaying_since > MAXIMUM_DELAY_TIME) {
+      if (Date.now() - initialDelay.delayingSince > MAXIMUM_DELAY_TIME) {
         // if the delay reason persists for too long, move on to main screen
-        initialDelay = { already_ran: true };
+        initialDelay = { alreadyRan: true };
         return [AppScreen.Main, "Moving on"];
       }
       return [AppScreen.Synchronization, delay];
     }
     // delay proposed but already ran
-    if ("already_ran" in initialDelay) {
+    if ("alreadyRan" in initialDelay) {
       // leads to main screen
       return [AppScreen.Main, "Moving on"];
     }
   }
   // no delay proposed - treat as if already ran
-  initialDelay = { already_ran: true };
+  initialDelay = { alreadyRan: true };
   return [AppScreen.Main, "Moving on"];
 }
 
