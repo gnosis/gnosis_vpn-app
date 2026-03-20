@@ -438,34 +438,34 @@ function determineWarmupStatus(status: StatusResponse): [AppScreen, string] {
 }
 
 function findDelayReason(destinations: DestinationState[]): string | null {
-  let missing_peers = 0;
-  let missing_channels = 0;
+  let missingPeers = 0;
+  let missingChannels = 0;
   for (const ds of destinations) {
     switch (ds.connectivity.health) {
       case "ReadyToConnect":
         return null;
       case "MissingPeeredFundedChannel":
-        missing_peers++;
-        missing_channels++;
+        missingPeers++;
+        missingChannels++;
         break;
       case "MissingPeeredChannel":
-        missing_peers++;
+        missingPeers++;
         break;
       case "MissingFundedChannel":
-        missing_channels++;
+        missingChannels++;
         break;
       default:
         break;
     }
   }
-  if (missing_peers >= missing_channels) {
-    return `Looking for ${missing_peers} more peer${
-      missing_peers > 1 ? "s" : ""
+  if (missingPeers > 0 && missingPeers >= missingChannels) {
+    return `Looking for ${missingPeers} more peer${
+      missingPeers > 1 ? "s" : ""
     }`;
   }
-  if (missing_channels > 0) {
-    return `Setting up ${missing_channels} more channel${
-      missing_channels > 1 ? "s" : ""
+  if (missingChannels > 0) {
+    return `Setting up ${missingChannels} more channel${
+      missingChannels > 1 ? "s" : ""
     }`;
   }
   return null;
