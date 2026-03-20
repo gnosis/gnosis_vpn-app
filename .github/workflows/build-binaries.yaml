@@ -86,7 +86,7 @@ jobs:
       - name: install macOS dependencies
         if: ${{ endsWith(steps.vars.outputs.architecture, '-darwin') }}
         run: |
-          # Tauri's bundle_dmg.sh relies on create-dmg for DMG packaging. 
+          # Tauri's bundle_dmg.sh relies on create-dmg for DMG packaging.
           # It's not pre-installed on the macOS Depot runners
           brew install create-dmg
           # Tauri's bundle_dmg.sh uses osascript to communicate with Finder for DMG window setup.
