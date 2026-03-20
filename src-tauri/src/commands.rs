@@ -262,7 +262,7 @@ pub async fn set_app_icon(app: AppHandle, icon_name: String) -> Result<(), Strin
     .map_err(|e| format!("set_app_icon: blocking task panicked: {e}"))?
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(target_os = "linux")]
 #[tauri::command]
 pub async fn set_app_icon(app: AppHandle, icon_name: String) -> Result<(), String> {
     use std::fs;

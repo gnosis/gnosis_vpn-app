@@ -3918,7 +3918,7 @@ dependencies = [
 
 [[package]]
 name = "gnosis_vpn-app"
-version = "0.20.1"
+version = "0.21.0"
 dependencies = [
  "cocoa",
  "dark-light",
@@ -3941,7 +3941,7 @@ dependencies = [
 [[package]]
 name = "gnosis_vpn-lib"
 version = "0.81.1"
-source = "git+https://github.com/gnosis/gnosis_vpn-client.git?rev=50f0323aef410d5a9f7763940463683f95c6b2e1#50f0323aef410d5a9f7763940463683f95c6b2e1"
+source = "git+https://github.com/gnosis/gnosis_vpn-client.git?rev=9bf2561c8e2e72a5066ea3ad0ab1d20468f7168f#9bf2561c8e2e72a5066ea3ad0ab1d20468f7168f"
 dependencies = [
  "anyhow",
  "backon",
