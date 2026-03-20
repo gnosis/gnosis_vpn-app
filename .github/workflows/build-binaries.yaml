@@ -1,5 +1,5 @@
 #################################################################################
-#         Pipeline to build binaries                                            #
+# Pipeline to build binaries
 #################################################################################
 name: Create binaries
 on:
@@ -79,19 +79,16 @@ jobs:
         with:
           deno-version: v2.x
 
-      - name: install macOS dependencies
-        if: ${{ endsWith(steps.vars.outputs.architecture, '-darwin') }}
-        run: |
-          # Tauri's bundle_dmg.sh relies on create-dmg for DMG packaging.
-          # It's not pre-installed on the macOS Depot runners
-          brew install create-dmg
-          # Tauri's bundle_dmg.sh uses osascript to communicate with Finder for DMG window setup.
-          # On headless Depot runners, Finder is not running by default, causing osascript to hang
-          # and eventually fail. Starting Finder here ensures it's ready before the build step.
-          open -a Finder
-      - name: Install tauri-cli from fork
-        if: ${{ endsWith(steps.vars.outputs.architecture, '-darwin') }}
-        run: cargo install --git https://github.com/ausias-armesto/tauri --branch ausias/debug-dmg tauri-cli --force
+      # - name: install macOS dependencies
+      #   if: ${{ endsWith(steps.vars.outputs.architecture, '-darwin') }}
+      #   run: |
+      #     # Tauri's bundle_dmg.sh relies on create-dmg for DMG packaging.
+      #     # It's not pre-installed on the macOS Depot runners
+      #     brew install create-dmg
+      #     # Tauri's bundle_dmg.sh uses osascript to communicate with Finder for DMG window setup.
+      #     # On headless Depot runners, Finder is not running by default, causing osascript to hang
+      #     # and eventually fail. Starting Finder here ensures it's ready before the build step.
+      #     open -a Finder
 
       - name: install ubuntu dependencies
         if: ${{ endsWith(steps.vars.outputs.architecture, '-linux') }}
@@ -159,12 +156,10 @@ jobs:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE_DEVELOPER_P12_BASE64 }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_DEVELOPER_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ steps.certificate.outputs.signing_identity }}
+          # https://github.com/tauri-apps/tauri-action/issues/1294
           TAURI_BUNDLER_DMG_IGNORE_CI: "false"
-          # Explicitly set CI=true so tauri-bundler adds --skip-jenkins to bundle_dmg.sh,
-          # skipping the osascript/Finder step that hangs on headless Depot macOS runners.
-          CI: "true"
         with:
-          tauriScript: "cargo tauri" # "deno task tauri"
+          tauriScript: "deno task tauri"
           args: ${{ steps.vars.outputs.tauri_args }}
 
       - name: Debug bundle_dmg.sh
