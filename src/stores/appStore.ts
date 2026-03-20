@@ -412,6 +412,8 @@ function timeoutFromState(
   return DEFAULT_TIMEOUT;
 }
 
+const MAXIMUM_DELAY_TIME = 120 * 1000; // 2 minutes
+let initialDelayTime: number | undefined = undefined;
 function determineWarmupStatus(status: StatusResponse): [AppScreen, string] {
   const runMode = status.run_mode;
   if (runMode === "Shutdown") {
@@ -432,8 +434,17 @@ function determineWarmupStatus(status: StatusResponse): [AppScreen, string] {
   // delay initial screen as long as no interaction makes sense
   const delay = findDelayReason(status.destinations);
   if (delay) {
+    if (!initialDelayTime) {
+      initialDelayTime = Date.now();
+    } else if (Date.now() - initialDelayTime > MAXIMUM_DELAY_TIME) {
+      // if the delay reason persists for too long, move on to main screen
+      return [AppScreen.Main, "Moving on"];
+    }
+    // show delayed warmup screen with reason for delay
     return [AppScreen.Synchronization, delay];
   }
+  initialDelayTime = undefined;
+  // main screen
   return [AppScreen.Main, "Moving on"];
 }
 
