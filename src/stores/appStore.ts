@@ -413,7 +413,10 @@ function timeoutFromState(
 }
 
 const MAXIMUM_DELAY_TIME = 120 * 1000; // 2 minutes
-let initialDelayTime: number | undefined = undefined;
+let initialDelay:
+  | { delaying_since: number }
+  | { never_ran: true }
+  | { already_ran: true } = { never_ran: true };
 function determineScreenAndStatus(status: StatusResponse): [AppScreen, string] {
   const runMode = status.run_mode;
   if (runMode === "Shutdown") {
@@ -434,17 +437,30 @@ function determineScreenAndStatus(status: StatusResponse): [AppScreen, string] {
   // delay initial screen as long as no interaction makes sense
   const delay = findDelayReason(status.destinations);
   if (delay) {
-    if (!initialDelayTime) {
-      initialDelayTime = Date.now();
-    } else if (Date.now() - initialDelayTime > MAXIMUM_DELAY_TIME) {
-      // if the delay reason persists for too long, move on to main screen
+    // delay propposed and never ran
+    if ("never_ran" in initialDelay) {
+      // leads to start delay
+      initialDelay = { delaying_since: Date.now() };
+      return [AppScreen.Synchronization, delay];
+    }
+    // delay proposed and already in delay
+    if ("delaying_since" in initialDelay) {
+      // leads to continue delay until maximum time is reached
+      if (Date.now() - initialDelay.delaying_since > MAXIMUM_DELAY_TIME) {
+        // if the delay reason persists for too long, move on to main screen
+        initialDelay = { already_ran: true };
+        return [AppScreen.Main, "Moving on"];
+      }
+      return [AppScreen.Synchronization, delay];
+    }
+    // delay proposed but already ran
+    if ("already_ran" in initialDelay) {
+      // leads to main screen
       return [AppScreen.Main, "Moving on"];
     }
-    // show delayed warmup screen with reason for delay
-    return [AppScreen.Synchronization, delay];
   }
-  initialDelayTime = undefined;
-  // main screen
+  // no delay proposed - treat as if already ran
+  initialDelay = { already_ran: true };
   return [AppScreen.Main, "Moving on"];
 }
 
