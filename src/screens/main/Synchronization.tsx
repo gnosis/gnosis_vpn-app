@@ -32,7 +32,7 @@ export default function Synchronization(props: SynchronizationProps) {
   const [index, setIndex] = createSignal(0);
   const [isVisible, setIsVisible] = createSignal(true);
 
-  const CYCLE_DURATION = 5000;
+  const CYCLE_DURATION = 6600;
   const FADE_DURATION = 500;
 
   onMount(() => {

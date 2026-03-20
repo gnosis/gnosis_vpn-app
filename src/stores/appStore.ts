@@ -49,6 +49,7 @@ export interface AppState {
   selectedId: string | null;
   runMode: RunMode | null;
   vpnStatus: string;
+  warmupStatus: string;
 }
 
 type AppActions = {
@@ -78,6 +79,7 @@ function initialState(): AppState {
     selectedId: null,
     serviceInfo: null,
     vpnStatus: "ServiceUnavailable",
+    warmupStatus: "",
   };
 }
 
@@ -137,8 +139,9 @@ export function createAppStore(): AppStoreTuple {
       return null;
     }
 
-    const screen = screenFromRunMode(response.run_mode);
+    const [screen, warmupStatus] = determineScreenAndStatus(response);
     setState("currentScreen", screen);
+    setState("warmupStatus", warmupStatus);
 
     const prevDestStates = state.destinations;
     const [nextDestStates, availableDestinations] = response.destinations
@@ -409,34 +412,88 @@ function timeoutFromState(
   return DEFAULT_TIMEOUT;
 }
 
-function screenFromRunMode(mode: RunMode): AppScreen {
-  if (mode === "Shutdown") {
-    return AppScreen.Main;
+const MAXIMUM_DELAY_TIME = 120 * 1000; // 2 minutes
+let initialDelay:
+  | { delayingSince: number }
+  | { neverRan: true }
+  | { alreadyRan: true } = { neverRan: true };
+function determineScreenAndStatus(status: StatusResponse): [AppScreen, string] {
+  const runMode = status.run_mode;
+  if (runMode === "Shutdown") {
+    return [AppScreen.Main, "Shutdown"];
   }
-  if (isPreparingSafeRunMode(mode)) {
-    return AppScreen.Onboarding;
-  }
-  if (isDeployingSafeRunMode(mode)) {
-    return AppScreen.Synchronization;
-  }
-  if (isWarmupRunMode(mode)) {
-    return AppScreen.Synchronization;
-  }
-  return AppScreen.Main;
-}
-
-export function formatWarmup(runMode: RunMode | null): string {
-  if (!runMode) {
-    return "Service unavailable";
-  }
-  if (typeof runMode === "string") {
-    return runMode;
+  if (isPreparingSafeRunMode(runMode)) {
+    return [AppScreen.Onboarding, "Onboarding"];
   }
   if (isDeployingSafeRunMode(runMode)) {
-    return `Safe deployment ongoing`;
+    return [AppScreen.Synchronization, "Safe deployment ongoing"];
   }
   if (isWarmupRunMode(runMode)) {
-    return formatWarmupStatus(runMode.Warmup.status);
+    return [
+      AppScreen.Synchronization,
+      formatWarmupStatus(runMode.Warmup.status),
+    ];
   }
-  return "Moving on";
+  // delay initial screen as long as no interaction makes sense
+  const delay = findDelayReason(status.destinations);
+  if (delay) {
+    // delay proposed and never ran
+    if ("neverRan" in initialDelay) {
+      // leads to start delay
+      initialDelay = { delayingSince: Date.now() };
+      return [AppScreen.Synchronization, delay];
+    }
+    // delay proposed and already in delay
+    if ("delayingSince" in initialDelay) {
+      // leads to continue delay until maximum time is reached
+      if (Date.now() - initialDelay.delayingSince > MAXIMUM_DELAY_TIME) {
+        // if the delay reason persists for too long, move on to main screen
+        initialDelay = { alreadyRan: true };
+        return [AppScreen.Main, "Moving on"];
+      }
+      return [AppScreen.Synchronization, delay];
+    }
+    // delay proposed but already ran
+    if ("alreadyRan" in initialDelay) {
+      // leads to main screen
+      return [AppScreen.Main, "Moving on"];
+    }
+  }
+  // no delay proposed - treat as if already ran
+  initialDelay = { alreadyRan: true };
+  return [AppScreen.Main, "Moving on"];
+}
+
+function findDelayReason(destinations: DestinationState[]): string | null {
+  let missingPeers = 0;
+  let missingChannels = 0;
+  for (const ds of destinations) {
+    switch (ds.connectivity.health) {
+      case "ReadyToConnect":
+        return null;
+      case "MissingPeeredFundedChannel":
+        missingPeers++;
+        missingChannels++;
+        break;
+      case "MissingPeeredChannel":
+        missingPeers++;
+        break;
+      case "MissingFundedChannel":
+        missingChannels++;
+        break;
+      default:
+        break;
+    }
+  }
+  if (missingPeers > 0 && missingPeers >= missingChannels) {
+    return `Looking for ${missingPeers} more peer${
+      missingPeers > 1 ? "s" : ""
+    }`;
+  }
+  if (missingChannels > 0) {
+    return `Setting up ${missingChannels} more channel${
+      missingChannels > 1 ? "s" : ""
+    }`;
+  }
+  return null;
 }
