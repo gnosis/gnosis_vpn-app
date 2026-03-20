@@ -9,13 +9,13 @@ on:
 jobs:
   deno-audit:
     name: Deno dependency audit (deno.lock)
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-22.04-4
     permissions:
       contents: read
 
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@v6
 
       - name: Setup Deno
         uses: denoland/setup-deno@e95548e56dfa95d4e1a28d6f422fafe75c4c26fb # v2.0.3
@@ -28,13 +28,13 @@ jobs:
 
   pnpm-audit:
     name: Node dependency audit (pnpm)
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-22.04-4
     permissions:
       contents: read
 
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@v6
 
       - name: Check pnpm lockfile exists
         id: pnpm_lock

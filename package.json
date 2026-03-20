@@ -19,16 +19,21 @@
     "solid-js": "^1.9.11",
     "@tauri-apps/api": "^2.10.1",
     "@tauri-apps/plugin-opener": "^2.5.3",
-    "tailwindcss": "^4.2.1",
+    "tailwindcss": "^4.2.2",
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.2.1",
+    "@tailwindcss/vite": "^4.2.2",
     "eslint": "^10.0.3",
     "prettier": "^3.8.1",
     "typescript": "^5.9.3",
     "vite": "^7.3.1",
-    "vite-plugin-solid": "^2.11.10",
+    "vite-plugin-solid": "^2.11.11",
     "@tauri-apps/cli": "^2.10.1"
+  },
+  "overrides": {
+    "eslint": {
+      "flatted": "3.4.2"
+    }
   }
 }

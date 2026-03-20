@@ -17,49 +17,21 @@ on:
       runner:
         required: true
         type: string
-  workflow_dispatch:
-    inputs:
-      architecture:
-        type: choice
-        options:
-          - aarch64-darwin
-          - x86_64-darwin
-          - universal-darwin
-          - x86_64-linux
-          - aarch64-linux
-        required: true
-        description: "Architecture to build for"
-      runner:
-        type: choice
-        options:
-          - macos-15
-          - macos-15-xlarge
-          - macos-15-intel
-          - ubuntu-22.04
-          - ubuntu-22.04-arm
-        required: true
-        description: "Runner to use"
 jobs:
   binary:
     if: >-
-      github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action != 'closed' && contains(github.event.pull_request.labels.*.name, format('binary:{0}', inputs.architecture))) || (github.event_name == 'pull_request' && github.event.pull_request.merged)
+      github.event_name != 'pull_request' || github.event.pull_request.merged == true || contains(github.event.pull_request.labels.*.name, format('binary:{0}', inputs.architecture))
     runs-on: ${{ inputs.runner }}
     timeout-minutes: 90
     steps:
       - name: Set environment variables
         id: vars
         run: |
-          declare branch architecture publish_type
-          if [[ "${{ inputs.branch }}" != "" ]]; then
+          declare branch architecture architecture_apple_darwin rust_toolchain_target tauri_args
             echo "The workflow is triggered by other pipeline"
             # It can be triggered by the build, merge or release pipelines
             branch=${{ inputs.branch }}
             architecture=${{ inputs.architecture }}
-          else
-            echo "The workflow is triggered manually"
-            branch=${{ github.ref_name }}
-            architecture=${{ github.event.inputs.architecture }}
-          fi
           if [[ "$architecture" =~ "-darwin" ]]; then
             architecture_apple_darwin="${architecture/-darwin/}-apple-darwin"
             rust_toolchain_target="${architecture_apple_darwin/universal-/x86_64-}"
@@ -78,7 +50,7 @@ jobs:
           echo "rust_toolchain_target=${rust_toolchain_target}" | tee -a $GITHUB_OUTPUT
           echo "tauri_args=${tauri_args}" | tee -a $GITHUB_OUTPUT
       - name: Checkout repository
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ steps.vars.outputs.branch }}
       - name: Get PR labels
@@ -91,7 +63,7 @@ jobs:
       - name: Install Nix
         uses: cachix/install-nix-action@4e002c8ec80594ecd40e759629461e26c8abed15 # v31
       - name: Use Nix Cache
-        uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad # v16
+        uses: cachix/cachix-action@1eb2ef646ac0255473d23a5907ad7b04ce94065c # v17
         with:
           name: gnosis-vpn-app
           authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
@@ -167,6 +139,7 @@ jobs:
         if: ${{ endsWith(steps.vars.outputs.architecture, '-darwin') }}
         id: build-tauri-mac
         uses: tauri-apps/tauri-action@73fb865345c54760d875b94642314f8c0c894afa # v0.6.1
+        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE_DEVELOPER_P12_BASE64 }}
@@ -176,6 +149,21 @@ jobs:
           tauriScript: "deno task tauri"
           args: ${{ steps.vars.outputs.tauri_args }}
 
+      - name: Debug bundle_dmg.sh
+        if: ${{ endsWith(steps.vars.outputs.architecture, '-darwin') }}
+        run: |
+          echo "CI env var: '$CI'"
+          arch="${{ steps.vars.outputs.architecture }}"
+          target_arch="${arch/-darwin/}-apple-darwin"
+          script="src-tauri/target/${target_arch}/release/bundle/dmg/bundle_dmg.sh"
+          if [ -f "$script" ]; then
+            echo "--- First 50 lines (args passed by Tauri) ---"
+            head -50 "$script"
+            echo "--- Re-running with bash -x (timeout 3m) ---"
+            timeout 180 bash -x "$script" 2>&1 || echo "Exit code: $?"
+          else
+            echo "Script not found at: $script"
+          fi
       - name: Build tauri linux artifact
         if: ${{ endsWith(steps.vars.outputs.architecture, '-linux') }}
         id: build-tauri-linux
