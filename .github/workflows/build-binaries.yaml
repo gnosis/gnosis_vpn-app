@@ -150,7 +150,6 @@ jobs:
         if: ${{ endsWith(steps.vars.outputs.architecture, '-darwin') }}
         id: build-tauri-mac
         uses: tauri-apps/tauri-action@73fb865345c54760d875b94642314f8c0c894afa # v0.6.1
-        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE_DEVELOPER_P12_BASE64 }}
@@ -161,17 +160,39 @@ jobs:
           args: ${{ steps.vars.outputs.tauri_args }}
 
       - name: Debug bundle_dmg.sh
-        if: ${{ endsWith(steps.vars.outputs.architecture, '-darwin') }}
+        if: always()
+        continue-on-error: true
         run: |
           echo "CI env var: '$CI'"
           arch="${{ steps.vars.outputs.architecture }}"
           target_arch="${arch/-darwin/}-apple-darwin"
-          script="src-tauri/target/${target_arch}/release/bundle/dmg/bundle_dmg.sh"
+          dmg_dir="src-tauri/target/${target_arch}/release/bundle/dmg"
+          macos_dir="src-tauri/target/${target_arch}/release/bundle/macos"
+          script="${dmg_dir}/bundle_dmg.sh"
+
+          echo "--- Leftover temp files in DMG dir (shows how far hdiutil got) ---"
+          ls -la "${dmg_dir}/" 2>/dev/null || echo "DMG dir not found"
+
+          echo "--- Any Gnosis VPN volumes still mounted ---"
+          hdiutil info | grep -i "gnosis\|Gnosis" || echo "None mounted"
+
           if [ -f "$script" ]; then
-            echo "--- First 50 lines (args passed by Tauri) ---"
-            head -50 "$script"
-            echo "--- Re-running with bash -x ---"
-            bash -x "$script" 2>&1 || echo "Exit code: $?"
+            echo "--- Injecting set -x and re-running with Tauri's actual arguments ---"
+            # Inject set -x right after the shebang so we see every command
+            sed -i '' '2s/^/set -x\n/' "$script"
+            app_name=$(ls "${macos_dir}/" | grep "\.app$" | head -1)
+            dmg_name="${dmg_dir}/GnosisVPN_debug.dmg"
+            echo "App: $app_name, DMG output: $dmg_name"
+            cd "${macos_dir}"
+            bash "${OLDPWD}/${script}" \
+              --volname "Gnosis VPN" \
+              --icon "${app_name}" 180 170 \
+              --app-drop-link 480 170 \
+              --window-size 660 400 \
+              --hide-extension "${app_name}" \
+              --skip-jenkins \
+              "${OLDPWD}/${dmg_name}" \
+              "${app_name}" 2>&1 || echo "Exit code: $?"
           else
             echo "Script not found at: $script"
           fi
