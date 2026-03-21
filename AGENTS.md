@@ -4,7 +4,7 @@
 
 - **Dev**: `deno task tauri dev` (starts Vite + Tauri dev server on port 1420)
 - **Build**: `deno task tauri build [--target ARCH]` (e.g.,
-  `--target universal-apple-darwin`)
+  `--target aarch64-apple-darwin`)
 - **Format**: `nix fmt` (Deno + rustfmt via Treefmt)
 - **Lint**: `nix develop --command deno lint --fix` (Deno linter for TS/JS)
 - **Preview**: `vite preview` or `npm run serve`
