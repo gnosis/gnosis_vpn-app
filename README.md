@@ -6,9 +6,7 @@ The Gnosis VPN application supports the following platforms and architectures:
 
 ### macOS
 
-- **universal-darwin** - Universal binary (Intel + Apple Silicon)
 - **aarch64-darwin** - Apple Silicon (M1/M2/M3)
-- **x86_64-darwin** - Intel-based Macs
 
 ### Linux
 
@@ -36,17 +34,11 @@ nix develop --command deno task tauri dev
 - `deno install`
 - `deno task tauri dev`
 
-#### Building for specific architectures
+#### Building
 
 ```bash
 # Build for Apple Silicon
 deno task tauri build --target aarch64-apple-darwin
-
-# Build for Intel Macs
-deno task tauri build --target x86_64-apple-darwin
-
-# Build universal binary (recommended for distribution)
-deno task tauri build --target universal-apple-darwin
 ```
 
 ### Code Signing (macOS)
@@ -97,7 +89,7 @@ architectures.
 
 The CI builds binaries for the following platforms:
 
-- **macOS**: universal-darwin, aarch64-darwin, x86_64-darwin
+- **macOS**: aarch64-darwin
 - **Linux**: x86_64-linux, aarch64-linux
 
 Linux builds are performed on GitHub-hosted runners:

@@ -34,7 +34,7 @@ jobs:
             architecture=${{ inputs.architecture }}
           if [[ "$architecture" =~ "-darwin" ]]; then
             architecture_apple_darwin="${architecture/-darwin/}-apple-darwin"
-            rust_toolchain_target="${architecture_apple_darwin/universal-/x86_64-}"
+            rust_toolchain_target="${architecture_apple_darwin}"
             tauri_args="--target ${architecture_apple_darwin}"
           elif [[ "$architecture" == "aarch64-linux" ]]; then
             rust_toolchain_target="aarch64-unknown-linux-gnu"
@@ -138,36 +138,21 @@ jobs:
       - name: Build tauri mac artifact
         if: ${{ endsWith(steps.vars.outputs.architecture, '-darwin') }}
         id: build-tauri-mac
-        uses: tauri-apps/tauri-action@73fb865345c54760d875b94642314f8c0c894afa # v0.6.1
-        continue-on-error: true
+        uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE_DEVELOPER_P12_BASE64 }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_DEVELOPER_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ steps.certificate.outputs.signing_identity }}
+          # https://github.com/tauri-apps/tauri-action/issues/1294
+          TAURI_BUNDLER_DMG_IGNORE_CI: "false"
         with:
           tauriScript: "deno task tauri"
           args: ${{ steps.vars.outputs.tauri_args }}
-
-      - name: Debug bundle_dmg.sh
-        if: ${{ endsWith(steps.vars.outputs.architecture, '-darwin') }}
-        run: |
-          echo "CI env var: '$CI'"
-          arch="${{ steps.vars.outputs.architecture }}"
-          target_arch="${arch/-darwin/}-apple-darwin"
-          script="src-tauri/target/${target_arch}/release/bundle/dmg/bundle_dmg.sh"
-          if [ -f "$script" ]; then
-            echo "--- First 50 lines (args passed by Tauri) ---"
-            head -50 "$script"
-            echo "--- Re-running with bash -x (timeout 3m) ---"
-            timeout 180 bash -x "$script" 2>&1 || echo "Exit code: $?"
-          else
-            echo "Script not found at: $script"
-          fi
       - name: Build tauri linux artifact
         if: ${{ endsWith(steps.vars.outputs.architecture, '-linux') }}
         id: build-tauri-linux
-        uses: tauri-apps/tauri-action@73fb865345c54760d875b94642314f8c0c894afa # v0.6.1
+        uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
