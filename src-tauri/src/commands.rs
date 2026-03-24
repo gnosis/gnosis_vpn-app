@@ -1,17 +1,21 @@
 use gnosis_vpn_lib::command;
 use gnosis_vpn_lib::socket::root as root_socket;
 
-use tauri::{AppHandle, Manager};
+use tokio_util::sync::CancellationToken;
+use tauri::{AppHandle, Emitter, Manager};
 use zstd::stream::Encoder;
 
 use std::fs::File;
 use std::io::{self, BufReader};
 use std::path::PathBuf;
 use std::time::Duration;
+use std::sync::atomic::Ordering;
 use tokio::task::spawn_blocking;
+use tokio::time::{self, Instant};
 
-use crate::icons;
-use crate::types::{BalanceResponse, ConnectResponse, DisconnectResponse, StatusResponse};
+use crate::tray;
+use crate::icons::{self, TrayIconState, AppIconState};
+use crate::types::{BalanceResponse, ConnectResponse, ConnectionState, DisconnectResponse, StatusResponse};
 
 const ALLOWED_APP_ICONS: &[&str] = &[
     icons::APP_ICON_CONNECTED,
@@ -283,7 +287,50 @@ pub async fn stop_client() -> Result<(), String> {
     }
 }
 
-pub async fn status() -> (Duration, Result<Option<StatusResponse>, String>) {
+#[tauri::command]
+pub async fn start_status_polling(app_handle: AppHandle) {
+    let cancel = CancellationToken::new();
+    let owned_cancel = cancel.clone();
+    app_handle.manage(owned_cancel);
+        let app = app_handle.clone();
+    tauri::async_runtime::spawn(async move {
+        let tick_timeout = time::sleep(Duration::from_secs(2));
+        tokio::pin!(tick_timeout);
+
+        loop {
+
+            tokio::select! {
+                _ = cancel.cancelled() => {
+                    println!("Status tick received cancellation signal, exiting...");
+                    break;
+                }
+                _ = tick_timeout.as_mut() => {
+                    let (status_delay, result) = query_status().await;
+                    tick_timeout.as_mut().reset(Instant::now() + status_delay);
+                    if let Ok(Some(status)) = result.clone() {
+                        // derive tray icon
+                        let conn_state = status.into();
+                        icons::update_tray_icon(&app, &app.state::<TrayIconState>(), &conn_state);
+                        // animate icon
+                        let should_animate = matches!(conn_state, ConnectionState::Connecting(_) | ConnectionState::Disconnecting);
+                        let app_icon_stat = app.state::<AppIconState>();
+                        app_icon_stat.is_animating.store(should_animate, Ordering::Relaxed);
+                        // set status text
+                        let status_item = app.state::<tray::TrayStatusItem>();
+                        if let Ok(guard) = status_item.0.lock() {
+                            let _ = guard.set_text(conn_state.to_string());
+                        };
+
+                        let _ = app.emit("status", result);
+
+                    }
+                }
+            }
+        }
+    });
+}
+
+async fn query_status() -> (Duration, Result<Option<StatusResponse>, String>) {
     let p = PathBuf::from(root_socket::DEFAULT_PATH);
     let resp = root_socket::process_cmd(&p, &command::Command::Status).await;
     match resp {

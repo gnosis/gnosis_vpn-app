@@ -187,8 +187,6 @@ pub fn run() {
                 }
             }
 
-            let cancel = emit_status_periodically(app.handle().clone());
-            app.manage(cancel);
 
             Ok(())
         })
@@ -223,44 +221,4 @@ pub fn run() {
                 }
             }
         });
-}
-
-async fn emit_status_periodically(app: AppHandle) -> CancellationToken {
-    let cancel = CancellationToken::new();
-    let owned_cancel = cancel.clone();
-    tauri::async_runtime::spawn(async move {
-        let tick_timeout = time::sleep(Duration::from_secs(2));
-        tokio::pin!(tick_timeout);
-
-        loop {
-            tokio::select! {
-                    _ = cancel.cancelled() => {
-                        println!("Status tick received cancellation signal, exiting...");
-                        break;
-                    }
-                    _ = tick_timeout.as_mut() => {
-                        let (status_delay, result) = commands::status().await;
-                        tick_timeout.as_mut().reset(Instant::now() + status_delay);
-                        if let Ok(Some(status)) = result.clone() {
-                            // derive tray icon
-                            let conn_state = status.into();
-                            icons::update_tray_icon(&app, &app.state::<TrayIconState>(), &conn_state);
-                            // animate icon
-                            let should_animate = matches!(conn_state, ConnectionState::Connecting(_) | ConnectionState::Disconnecting);
-                            let app_icon_stat = app.state::<AppIconState>();
-            app_icon_stat.is_animating.store(should_animate, Ordering::Relaxed);
-                            // set status text
-            let status_item = app.state::<tray::TrayStatusItem>();
-                            if let Ok(guard) = status_item.0.lock() {
-                                let _ = guard.set_text(conn_state.to_string());
-                            };
-
-                        let _ = app.emit("status", result);
-
-                        }
-                    }
-                }
-        }
-    });
-    owned_cancel
 }
