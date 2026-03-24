@@ -288,40 +288,46 @@ pub async fn status() -> (Duration, Result<Option<StatusResponse>, String>) {
     let resp = root_socket::process_cmd(&p, &command::Command::Status).await;
     match resp {
         Ok(command::Response::Status(status_resp)) => {
-            let resp = status_resp.destinations.iter().fold(StatusResponse {
-                run_mode: status_resp.run_mode.into(),
-                destinations: Default::default(),
-                dest_order: Vec::new(),
-                connected: None,
-                connecting: None,
-                disconnecting: Vec::new(),
-            }, |mut acc, ds| {
-                let id = ds.destination.clone().id.clone();
-                match ds.connection_state {
-                    command::ConnectionState::Connected(_) => {
-                        acc.connected = Some(id.clone());
-                    }
-                    command::ConnectionState::Connecting(_, _) => {
-                        acc.connecting = Some(id.clone());
-                    }
-                    command::ConnectionState::Disconnecting(_, _) => {
-                        acc.disconnecting.push(id.clone());
-                    }
-                    command::ConnectionState::None => {}
-                };
-                acc.destinations.insert(id.clone(), ds.clone().into());
-                acc.dest_order.push(id.clone());
-                acc
-            });
+            let resp = status_resp.destinations.iter().fold(
+                StatusResponse {
+                    run_mode: status_resp.run_mode.into(),
+                    destinations: Default::default(),
+                    dest_order: Vec::new(),
+                    connected: None,
+                    connecting: None,
+                    disconnecting: Vec::new(),
+                },
+                |mut acc, ds| {
+                    let id = ds.destination.clone().id.clone();
+                    match ds.connection_state {
+                        command::ConnectionState::Connected(_) => {
+                            acc.connected = Some(id.clone());
+                        }
+                        command::ConnectionState::Connecting(_, _) => {
+                            acc.connecting = Some(id.clone());
+                        }
+                        command::ConnectionState::Disconnecting(_, _) => {
+                            acc.disconnecting.push(id.clone());
+                        }
+                        command::ConnectionState::None => {}
+                    };
+                    acc.destinations.insert(id.clone(), ds.clone().into());
+                    acc.dest_order.push(id.clone());
+                    acc
+                },
+            );
 
             if resp.connecting.is_some() {
-(Duration::from_millis(222), Ok(Some(resp)))
+                (Duration::from_millis(222), Ok(Some(resp)))
             } else {
                 (Duration::from_secs(2), Ok(Some(resp)))
             }
         }
         Ok(command::Response::WorkerOffline) => (Duration::from_secs(5), Ok(None)),
-        Ok(unexpected) => (Duration::from_secs(2), Err(format!("Unexpected response type: {:?}", unexpected).to_string())),
+        Ok(unexpected) => (
+            Duration::from_secs(2),
+            Err(format!("Unexpected response type: {:?}", unexpected).to_string()),
+        ),
         Err(e) => (Duration::from_secs(2), Err(e.to_string())),
     }
 }

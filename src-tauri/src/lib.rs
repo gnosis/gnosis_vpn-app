@@ -6,12 +6,12 @@ use serde::Serialize;
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_store::StoreExt;
-use tokio_util::sync::CancellationToken;
 use tokio::time::{self, Instant};
+use tokio_util::sync::CancellationToken;
 
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 mod commands;
@@ -226,14 +226,14 @@ pub fn run() {
 }
 
 async fn emit_status_periodically(app: AppHandle) -> CancellationToken {
-            let cancel = CancellationToken::new();
-            let owned_cancel = cancel.clone();
-        tauri::async_runtime::spawn(async move {
-            let tick_timeout = time::sleep(Duration::from_secs(2));
-            tokio::pin!(tick_timeout);
+    let cancel = CancellationToken::new();
+    let owned_cancel = cancel.clone();
+    tauri::async_runtime::spawn(async move {
+        let tick_timeout = time::sleep(Duration::from_secs(2));
+        tokio::pin!(tick_timeout);
 
-            loop {
-                tokio::select! {
+        loop {
+            tokio::select! {
                     _ = cancel.cancelled() => {
                         println!("Status tick received cancellation signal, exiting...");
                         break;
@@ -260,9 +260,7 @@ async fn emit_status_periodically(app: AppHandle) -> CancellationToken {
                         }
                     }
                 }
-
-            }
         }
-        );
-        owned_cancel
+    });
+    owned_cancel
 }

@@ -62,7 +62,10 @@ pub fn update_icon_name_if_changed(current: &Mutex<String>, next: &str) -> bool 
     }
 }
 
-pub fn determine_app_icon(connection_state: &ConnectionState, run_mode: &command::RunMode) -> String {
+pub fn determine_app_icon(
+    connection_state: &ConnectionState,
+    run_mode: &command::RunMode,
+) -> String {
     // Check for low funds in Running mode
     let has_low_funds = if let command::RunMode::Running {
         funding: command::FundingState::TopIssue(issue),
@@ -87,7 +90,9 @@ pub fn determine_app_icon(connection_state: &ConnectionState, run_mode: &command
     match (connection_state, has_low_funds) {
         (ConnectionState::Connected(_), true) => APP_ICON_CONNECTED_LOW_FUNDS.to_string(),
         (ConnectionState::Connected(_), false) => APP_ICON_CONNECTED.to_string(),
-        (ConnectionState::Connecting(_) | ConnectionState::Disconnecting, _) => APP_ICON_CONNECTING_1.to_string(), // Will be animated by heartbeat
+        (ConnectionState::Connecting(_) | ConnectionState::Disconnecting, _) => {
+            APP_ICON_CONNECTING_1.to_string()
+        } // Will be animated by heartbeat
         (_, true) => APP_ICON_DISCONNECTED_LOW_FUNDS.to_string(), // Disconnected with low funds
         (_, false) => APP_ICON_DISCONNECTED.to_string(),          // Disconnected
     }
@@ -97,7 +102,9 @@ pub fn determine_tray_icon(connection_state: &ConnectionState) -> &'static str {
     if cfg!(target_os = "linux") {
         match connection_state {
             ConnectionState::Connected(_) => TRAY_ICON_LINUX_CONNECTED,
-            ConnectionState::Connecting(_) | ConnectionState::Disconnecting => TRAY_ICON_LINUX_CONNECTING,
+            ConnectionState::Connecting(_) | ConnectionState::Disconnecting => {
+                TRAY_ICON_LINUX_CONNECTING
+            }
             _ => TRAY_ICON_LINUX_DISCONNECTED,
         }
     } else {
@@ -109,7 +116,11 @@ pub fn determine_tray_icon(connection_state: &ConnectionState) -> &'static str {
     }
 }
 
-pub fn update_tray_icon(app: &AppHandle, tray_icon_state: &TrayIconState, conn_state: &ConnectionState) {
+pub fn update_tray_icon(
+    app: &AppHandle,
+    tray_icon_state: &TrayIconState,
+    conn_state: &ConnectionState,
+) {
     let tray_icon_name = determine_tray_icon(conn_state);
     if update_icon_name_if_changed(&tray_icon_state.current_icon, tray_icon_name) {
         if let Ok(tray_icon_path) = Manager::path(app)
