@@ -220,31 +220,31 @@ pub async fn set_app_icon(app: AppHandle, icon_name: String) -> Result<(), Strin
         let (tx, rx) = mpsc::channel();
 
         Queue::main().exec_async(move || unsafe {
-            use cocoa::{
-                appkit::NSImage,
-                base::{id, nil},
-                foundation::NSData,
-            };
+            use objc::runtime::Object;
+
+            type ObjcObjectPtr = *mut Object;
 
             let result = (|| {
-                let app: id = msg_send![class!(NSApplication), sharedApplication];
-                if app == nil {
+                let app: ObjcObjectPtr = msg_send![class!(NSApplication), sharedApplication];
+                if app.is_null() {
                     return Err("Failed to get NSApplication".to_string());
                 }
 
-                let data = NSData::dataWithBytes_length_(
-                    nil,
-                    icon_data.as_ptr() as *const std::os::raw::c_void,
-                    icon_data.len() as u64,
-                );
+                let data_alloc: ObjcObjectPtr = msg_send![class!(NSData), alloc];
+                let data: ObjcObjectPtr = msg_send![
+                    data_alloc,
+                    initWithBytes: icon_data.as_ptr() as *const std::os::raw::c_void
+                    length: icon_data.len() as u64
+                ];
 
-                if data == nil {
+                if data.is_null() {
                     return Err("Failed to create NSData".to_string());
                 }
 
-                let app_icon = NSImage::initWithData_(NSImage::alloc(nil), data);
-                if app_icon == nil {
-                    return Err("Failed to create NSImage from data".to_string());
+                let app_icon_alloc: ObjcObjectPtr = msg_send![class!(NSImage), alloc];
+                let app_icon: ObjcObjectPtr = msg_send![app_icon_alloc, initWithData: data];
+                if app_icon.is_null() {
+                   return Err("Failed to create NSImage from data".to_string());
                 }
 
                 let _: () = msg_send![app, setApplicationIconImage: app_icon];
