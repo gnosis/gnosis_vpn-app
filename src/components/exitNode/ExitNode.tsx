@@ -56,19 +56,15 @@ export default function ExitNode() {
                 fallback={<span class="font-bold text-sm">Random</span>}
               >
                 {(randDest) => {
-                  const ds = () => appState.destinations[randDest().id];
-                  const exitHealth = (): DestinationHealth | undefined =>
-                    ds()?.exit_health;
-                  const connected = () =>
-                    ds()
-                      ? getConnectionLabel(ds()!.connection_state) ===
-                        "Connected"
-                      : false;
+                  // const ds = () => appState.destinations[randDest().id];
+                  // const exitHealth = (): DestinationHealth | undefined => ds()?.exit_health;
+                  // const connected = () => (ds() ? getConnectionLabel(ds()!.connection_state) === "Connected" : false);
                   return (
                     <span class="flex flex-col items-start">
                       <span class="font-bold text-sm">Random</span>
                       <span class="flex items-center gap-1.5 text-xs text-text-secondary font-light break-all">
-                        <Show when={exitHealth()}>
+                        {
+                          /* <Show when={exitHealth()}>
                           {(eh) => (
                             <ExitHealthBadge
                               exitHealth={eh()}
@@ -76,7 +72,8 @@ export default function ExitNode() {
                               connected={connected()}
                             />
                           )}
-                        </Show>
+                        </Show> */
+                        }
                         {destinationLabel(randDest())}
                       </span>
                     </span>
@@ -86,24 +83,16 @@ export default function ExitNode() {
             }
           >
             {(dest) => {
-              const ds = () => appState.destinations[dest().id];
-              const exitHealth = (): DestinationHealth | undefined =>
-                ds()?.exit_health;
-              const connected = () =>
-                ds()
-                  ? getConnectionLabel(ds()!.connection_state) === "Connected"
-                  : false;
+              // const ds = () => appState.destinations[dest().id];
+              // const exitHealth = (): DestinationHealth | undefined => ds()?.exit_health;
+              // const connected = () => (ds() ? getConnectionLabel(ds()!.connection_state) === "Connected" : false);
               return (
                 <span class="flex items-center gap-1.5">
-                  <Show when={exitHealth()}>
-                    {(eh) => (
-                      <ExitHealthBadge
-                        exitHealth={eh()}
-                        compact
-                        connected={connected()}
-                      />
-                    )}
-                  </Show>
+                  {
+                    /* <Show when={exitHealth()}>
+                    {eh => <ExitHealthBadge exitHealth={eh()} compact connected={connected()} />}
+                  </Show> */
+                  }
                   <span class="break-all text-sm">
                     {destinationLabel(dest())}
                   </span>
