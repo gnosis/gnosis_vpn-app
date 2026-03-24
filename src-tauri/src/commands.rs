@@ -244,7 +244,7 @@ pub async fn set_app_icon(app: AppHandle, icon_name: String) -> Result<(), Strin
                 let app_icon_alloc: ObjcObjectPtr = msg_send![class!(NSImage), alloc];
                 let app_icon: ObjcObjectPtr = msg_send![app_icon_alloc, initWithData: data];
                 if app_icon.is_null() {
-                   return Err("Failed to create NSImage from data".to_string());
+                    return Err("Failed to create NSImage from data".to_string());
                 }
 
                 let _: () = msg_send![app, setApplicationIconImage: app_icon];
