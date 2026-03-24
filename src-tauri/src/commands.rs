@@ -289,7 +289,7 @@ pub async fn stop_client() -> Result<(), String> {
     }
 }
 
-pub async fn status() -> Result<(Duration, Option<StatusResponse>), String> {
+pub async fn status() -> (Duration, Result<Option<StatusResponse>, String>) {
     let p = PathBuf::from(root_socket::DEFAULT_PATH);
     let resp = root_socket::process_cmd(&p, &command::Command::Status).await;
     match resp {
@@ -321,16 +321,13 @@ pub async fn status() -> Result<(Duration, Option<StatusResponse>), String> {
             });
 
             if resp.connecting.is_some() {
-                Ok((Duration::from_millis(222), Some(resp)))
+(Duration::from_millis(222), Ok(Some(resp)))
             } else {
-                Ok((Duration::from_secs(2), Some(resp)))
+                (Duration::from_secs(2), Ok(Some(resp)))
             }
         }
-        Ok(command::Response::WorkerOffline) => Ok((Duration::from_secs(5), None)),
-        Ok(unexpected) => {
-            eprintln!("Unexpected status response: {:?}", unexpected);
-            Err("Unexpected response type".to_string())
-        }
-        Err(e) => Err(e.to_string())
+        Ok(command::Response::WorkerOffline) => (Duration::from_secs(5), Ok(None)),
+        Ok(unexpected) => (Duration::from_secs(2), Err(format!("Unexpected response type: {:?}", unexpected).to_string())),
+        Err(e) => (Duration::from_secs(2), Err(e.to_string())),
     }
 }

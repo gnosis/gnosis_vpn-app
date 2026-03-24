@@ -6,11 +6,14 @@ use serde::Serialize;
 use tauri::Manager;
 use tauri::tray::TrayIconBuilder;
 use tauri_plugin_store::StoreExt;
+use tokio_util::sync::CancellationToken;
+use tokio::time::{self, Instant};
 
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::atomic::AtomicBool;
+use std::time::Duration;
 
 mod commands;
 mod icons;
@@ -21,7 +24,7 @@ pub mod types;
 
 use commands::{
     balance, compress_logs, connect, disconnect, info, refresh_node, set_app_icon, start_client,
-    status, stop_client,
+    stop_client,
 };
 use icons::{AppIconState, TrayIconState, determine_tray_icon, start_app_icon_heartbeat};
 use platform::{Platform, PlatformInterface};
@@ -30,6 +33,7 @@ use theme::spawn_linux_theme_monitor;
 #[cfg_attr(target_os = "macos", allow(unused_imports))]
 use theme::{InitialTheme, get_initial_theme, system_theme};
 use tray::{create_tray_menu, handle_tray_event, show_settings, toggle_main_window_visibility};
+use types::{ConnectionState, StatusResponse};
 
 struct HeartbeatHandle(Mutex<Option<tauri::async_runtime::JoinHandle<()>>>);
 
@@ -184,12 +188,14 @@ pub fn run() {
                 }
             }
 
+            let cancel = emit_status_periodically(app.handle().clone());
+            app.manage(cancel);
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             info,
             start_client,
-            status,
             connect,
             disconnect,
             balance,
@@ -202,6 +208,10 @@ pub fn run() {
         .expect("error while building tauri application")
         .run(|app_handle, event| {
             if let tauri::RunEvent::Exit = event {
+                // cancel query status loop
+                let c = app_handle.state::<CancellationToken>();
+                c.cancel();
+
                 if let Ok(mut guard) = app_handle.state::<HeartbeatHandle>().0.lock() {
                     if let Some(handle) = guard.take() {
                         handle.abort();
@@ -214,4 +224,43 @@ pub fn run() {
                 }
             }
         });
+}
+
+async fn emit_status_periodically(app_handle: tauri::AppHandle) -> CancellationToken {
+            let cancel = CancellationToken::new();
+            let owned_cancel = cancel.clone();
+        tauri::async_runtime::spawn(async move {
+            let tick_timeout = time::sleep(Duration::from_secs(2));
+            tokio::pin!(tick_timeout);
+
+            loop {
+                tokio::select! {
+                    _ = cancel.cancelled() => {
+                        println!("Status tick received cancellation signal, exiting...");
+                        break;
+                    }
+                    _ = tick_timeout.as_mut() => {
+                        let (status_delay, result) = commands::status().await;
+                        tick_timeout.as_mut().reset(Instant::now() + status_delay);
+                        let _ = app_handle.emit("status", result);
+                        if let Ok(Some(status)) = result {
+                            // derive tray icon
+                            let conn_state = status.into();
+                            icons::update_tray_icon(&app_handle, app_handle.state::<TrayIconState>(), &conn_state);
+                            // animate icon
+                            let should_animate = matches!(conn_state, ConnectionState::Connecting(_) | ConnectionState::Disconnecting(_))
+            app_icon_stat.is_animating.store(should_animate, Ordering::Relaxed);
+                            // set status text
+                            if let Ok(guard) = status_item.0.lock() {
+                                let _ = guard.set_text(conn_state.to_string());
+                            }
+
+
+                        }}
+                }
+                }
+
+            }
+        );
+        owned_cancel
 }

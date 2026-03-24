@@ -6,10 +6,10 @@ use gnosis_vpn_lib::{
 use serde::Serialize;
 
 use std::collections::HashMap;
+use std::fmt::{self, Display};
 use std::time::SystemTime;
 
 // Sanitized library responses
-
 #[derive(Debug, Serialize)]
 pub struct StatusResponse {
     pub run_mode: RunMode,
@@ -18,6 +18,14 @@ pub struct StatusResponse {
     pub connected: Option<String>,
     pub connecting: Option<String>,
     pub disconnecting: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+pub enum ConnectionState {
+    Connected(String),
+    Connecting(String),
+    Disconnecting,
+    Disconnected,
 }
 
 #[derive(Debug, Serialize)]
@@ -382,6 +390,31 @@ impl From<command::BalanceResponse> for BalanceResponse {
             channels_out,
             info: br.info.into(),
             issues: br.issues,
+        }
+    }
+}
+
+impl From<StatusResponse> for ConnectionState {
+    fn from(sr: StatusResponse) -> Self {
+        if let Some(dest) = sr.connected {
+            ConnectionState::Connected(dest)
+        } else if let Some(dest) = sr.connecting {
+            ConnectionState::Connecting(dest)
+        } else if !sr.disconnecting.is_empty() {
+            ConnectionState::Disconnecting
+        } else {
+            ConnectionState::Disconnected
+        }
+    }
+}
+
+impl Display for ConnectionState {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ConnectionState::Connected(dest) => write!(f, "Connected to {}", dest),
+            ConnectionState::Connecting(dest) => write!(f, "Connecting to {}", dest),
+            ConnectionState::Disconnecting => write!(f, "Disconnecting"),
+            ConnectionState::Disconnected => write!(f, "Disconnected"),
         }
     }
 }
