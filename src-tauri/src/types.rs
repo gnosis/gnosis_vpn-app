@@ -10,7 +10,7 @@ use std::fmt::{self, Display};
 use std::time::SystemTime;
 
 // Sanitized library responses
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct StatusResponse {
     pub run_mode: RunMode,
     pub destinations: HashMap<String, DestinationState>,
@@ -53,7 +53,7 @@ pub struct BalanceResponse {
 
 // Sanitized library structs
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub enum RunMode {
     /// Initial start, checking funds to run safe creation or find existing safe
     /// can jump to Warmup or DeployingSafe
@@ -78,7 +78,7 @@ pub enum RunMode {
     Shutdown,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub enum CombinedHoprStatus {
     // hopr construction not yet started
     Initializing,
@@ -104,7 +104,7 @@ pub enum CombinedHoprStatus {
     Terminated,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct DestinationState {
     pub destination: Destination,
     pub connection_state: command::ConnectionState,
@@ -112,13 +112,13 @@ pub struct DestinationState {
     pub exit_health: destination_health::DestinationHealth,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub enum RoutingOptions {
     Hops(usize),
     IntermediatePath(Vec<String>),
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct Destination {
     pub id: String,
     pub meta: HashMap<String, String>,
@@ -126,7 +126,7 @@ pub struct Destination {
     pub routing: RoutingOptions,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct ConnectivityHealth {
     pub last_error: Option<String>,
     pub health: connectivity_health::Health,
@@ -135,7 +135,7 @@ pub struct ConnectivityHealth {
 
 /// Requirements to be able to connect to this destination
 /// This is statically derived at construction time from a destination's routing options.
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub enum Need {
     Channel(String),
     AnyChannel,

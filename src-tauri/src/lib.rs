@@ -3,16 +3,15 @@
 extern crate objc;
 
 use serde::Serialize;
-use tauri::Manager;
 use tauri::tray::TrayIconBuilder;
+use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_store::StoreExt;
 use tokio_util::sync::CancellationToken;
 use tokio::time::{self, Instant};
 
 use std::path::PathBuf;
-use std::sync::Arc;
-use std::sync::Mutex;
-use std::sync::atomic::AtomicBool;
+use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 mod commands;
@@ -76,7 +75,7 @@ pub fn run() {
             // Create tray menu
             let menu = create_tray_menu(app.handle())?;
 
-            let icon_name: &str = determine_tray_icon("Disconnected");
+            let icon_name: &str = determine_tray_icon(&ConnectionState::Disconnected);
 
             let tray_icon_path: PathBuf = app
                 .path()
@@ -226,7 +225,7 @@ pub fn run() {
         });
 }
 
-async fn emit_status_periodically(app_handle: tauri::AppHandle) -> CancellationToken {
+async fn emit_status_periodically(app: AppHandle) -> CancellationToken {
             let cancel = CancellationToken::new();
             let owned_cancel = cancel.clone();
         tauri::async_runtime::spawn(async move {
@@ -242,25 +241,28 @@ async fn emit_status_periodically(app_handle: tauri::AppHandle) -> CancellationT
                     _ = tick_timeout.as_mut() => {
                         let (status_delay, result) = commands::status().await;
                         tick_timeout.as_mut().reset(Instant::now() + status_delay);
-                        let _ = app_handle.emit("status", result);
-                        if let Ok(Some(status)) = result {
+                        if let Ok(Some(status)) = result.clone() {
                             // derive tray icon
                             let conn_state = status.into();
-                            icons::update_tray_icon(&app_handle, app_handle.state::<TrayIconState>(), &conn_state);
+                            icons::update_tray_icon(&app, &app.state::<TrayIconState>(), &conn_state);
                             // animate icon
-                            let should_animate = matches!(conn_state, ConnectionState::Connecting(_) | ConnectionState::Disconnecting(_))
+                            let should_animate = matches!(conn_state, ConnectionState::Connecting(_) | ConnectionState::Disconnecting);
+                            let app_icon_stat = app.state::<AppIconState>();
             app_icon_stat.is_animating.store(should_animate, Ordering::Relaxed);
                             // set status text
+            let status_item = app.state::<tray::TrayStatusItem>();
                             if let Ok(guard) = status_item.0.lock() {
                                 let _ = guard.set_text(conn_state.to_string());
-                            }
+                            };
 
+                        let _ = app.emit("status", result);
 
-                        }}
-                }
+                        }
+                    }
                 }
 
             }
+        }
         );
         owned_cancel
 }
