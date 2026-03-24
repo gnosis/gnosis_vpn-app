@@ -4,15 +4,13 @@ extern crate objc;
 
 use serde::Serialize;
 use tauri::tray::TrayIconBuilder;
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::Manager;
 use tauri_plugin_store::StoreExt;
-use tokio::time::{self, Instant};
 use tokio_util::sync::CancellationToken;
 
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
 
 mod commands;
 mod icons;
