@@ -1,22 +1,16 @@
 use gnosis_vpn_lib::command;
 use gnosis_vpn_lib::socket::root as root_socket;
 
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Manager};
 use zstd::stream::Encoder;
 
 use std::fs::File;
 use std::io::{self, BufReader};
 use std::path::PathBuf;
-use std::sync::Arc;
-use std::sync::atomic::Ordering;
 use std::time::Duration;
 use tokio::task::spawn_blocking;
 
-use crate::icons::{
-    self, AppIconState, TrayIconState, determine_app_icon, update_icon_name_if_changed,
-    update_tray_icon,
-};
-use crate::tray::TrayStatusItem;
+use crate::icons;
 use crate::types::{BalanceResponse, ConnectResponse, DisconnectResponse, StatusResponse};
 
 const ALLOWED_APP_ICONS: &[&str] = &[

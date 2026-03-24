@@ -4,7 +4,7 @@ extern crate objc;
 
 use serde::Serialize;
 use tauri::tray::TrayIconBuilder;
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_store::StoreExt;
 use tokio_util::sync::CancellationToken;
 use tokio::time::{self, Instant};
@@ -32,7 +32,7 @@ use theme::spawn_linux_theme_monitor;
 #[cfg_attr(target_os = "macos", allow(unused_imports))]
 use theme::{InitialTheme, get_initial_theme, system_theme};
 use tray::{create_tray_menu, handle_tray_event, show_settings, toggle_main_window_visibility};
-use types::{ConnectionState, StatusResponse};
+use types::ConnectionState;
 
 struct HeartbeatHandle(Mutex<Option<tauri::async_runtime::JoinHandle<()>>>);
 
