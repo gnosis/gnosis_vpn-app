@@ -13,7 +13,11 @@ use std::time::SystemTime;
 #[derive(Debug, Serialize)]
 pub struct StatusResponse {
     pub run_mode: RunMode,
-    pub destinations: Vec<DestinationState>,
+    pub destinations: HashMap<String, DestinationState>,
+    pub dest_order: Vec<String>,
+    pub connected: Option<String>,
+    pub connecting: Option<String>,
+    pub disconnecting: Vec<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -321,15 +325,6 @@ impl From<command::RunMode> for RunMode {
                 hopr_status: hopr_status.map(|s| s.into()),
             },
             command::RunMode::Shutdown => RunMode::Shutdown,
-        }
-    }
-}
-
-impl From<command::StatusResponse> for StatusResponse {
-    fn from(sr: command::StatusResponse) -> Self {
-        StatusResponse {
-            run_mode: sr.run_mode.into(),
-            destinations: sr.destinations.into_iter().map(|d| d.into()).collect(),
         }
     }
 }
