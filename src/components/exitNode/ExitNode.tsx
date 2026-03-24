@@ -1,28 +1,17 @@
+import { createMemo, createSignal, Show } from "solid-js";
+import { Portal } from "solid-js/web";
 import { useAppStore } from "../../stores/appStore.ts";
-import { Dropdown } from "../common/Dropdown.tsx";
 import { destinationLabel, selectTargetId } from "../../utils/destinations.ts";
-import type {
-  Destination,
-  DestinationHealth,
-} from "../../services/vpnService.ts";
-import { createMemo, Show } from "solid-js";
+import type { DestinationHealth } from "../../services/vpnService.ts";
 import { useSettingsStore } from "../../stores/settingsStore.ts";
 import ExitHealthBadge from "./ExitHealthBadge.tsx";
-import {
-  formatLatency,
-  getHealthScore,
-  getHopCount,
-} from "../../utils/exitHealth.ts";
-import HopsIcon from "./HopsIcon.tsx";
 import { getConnectionLabel } from "../../utils/status.ts";
-
-type RandomOption = { type: "random" };
-type ExitOption = Destination | RandomOption;
-const RANDOM_OPTION: RandomOption = { type: "random" };
+import ExitNodeList from "./ExitNodeList.tsx";
 
 export default function ExitNode() {
-  const [appState, appActions] = useAppStore();
+  const [appState] = useAppStore();
   const [settings] = useSettingsStore();
+  const [showList, setShowList] = createSignal(false);
 
   const randomDestination = createMemo(() => {
     const available = appState.availableDestinations;
@@ -35,145 +24,117 @@ export default function ExitNode() {
     );
 
     if (!id) return null;
-    const df = available.find((d) => d.id === id) ?? null;
-    return df;
+    return available.find((d) => d.id === id) ?? null;
   });
 
-  const sortedDestinations = createMemo(() => {
-    const dests = [...appState.availableDestinations];
-    dests.sort((a, b) => {
-      const dsA = appState.destinations[a.id];
-      const dsB = appState.destinations[b.id];
-      if (!dsA && !dsB) return 0;
-      if (!dsA) return 1;
-      if (!dsB) return -1;
-      return getHealthScore(dsB) - getHealthScore(dsA);
-    });
-    return dests;
-  });
+  const selectedDest = createMemo(() =>
+    appState.selectedId
+      ? (appState.availableDestinations.find((d) =>
+        d.id === appState.selectedId
+      ) ?? null)
+      : null
+  );
+
+  const isDisabled = () =>
+    appState.isLoading || appState.vpnStatus === "ServiceUnavailable";
 
   return (
     <div class="w-full flex flex-row bg-bg-surface rounded-2xl p-4">
-      <Dropdown<ExitOption>
-        label="Exit Node"
-        options={[RANDOM_OPTION, ...sortedDestinations()]}
-        renderOption={(opt: ExitOption) => {
-          if ("id" in opt) {
-            const ds = appState.destinations[opt.id];
-            const exitHealth: DestinationHealth | undefined = ds?.exit_health;
-            const latency = exitHealth ? formatLatency(exitHealth) : null;
-            const hops = getHopCount(opt.routing);
-            const connected = ds
-              ? getConnectionLabel(ds.connection_state) === "Connected"
-              : false;
-            return (
-              <span class="flex items-center justify-between gap-2">
-                <span class="flex items-center gap-1.5 min-w-0">
-                  <span class="w-4 shrink-0 flex items-center justify-center">
-                    {exitHealth && (
+      <button
+        type="button"
+        class="w-full flex items-center justify-between gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        disabled={isDisabled()}
+        onClick={() => setShowList(true)}
+      >
+        <div class="flex flex-col gap-0.5 items-start min-w-0">
+          <span class="text-xs text-text-secondary">Exit Node</span>
+          <Show
+            when={selectedDest()}
+            fallback={
+              <Show
+                when={randomDestination()}
+                fallback={<span class="font-bold text-sm">Random</span>}
+              >
+                {(randDest) => {
+                  const ds = () => appState.destinations[randDest().id];
+                  const exitHealth = (): DestinationHealth | undefined =>
+                    ds()?.exit_health;
+                  const connected = () =>
+                    ds()
+                      ? getConnectionLabel(ds()!.connection_state) ===
+                        "Connected"
+                      : false;
+                  return (
+                    <span class="flex flex-col items-start">
+                      <span class="font-bold text-sm">Random</span>
+                      <span class="flex items-center gap-1.5 text-xs text-text-secondary font-light break-all">
+                        <Show when={exitHealth()}>
+                          {(eh) => (
+                            <ExitHealthBadge
+                              exitHealth={eh()}
+                              compact
+                              connected={connected()}
+                            />
+                          )}
+                        </Show>
+                        {destinationLabel(randDest())}
+                      </span>
+                    </span>
+                  );
+                }}
+              </Show>
+            }
+          >
+            {(dest) => {
+              const ds = () => appState.destinations[dest().id];
+              const exitHealth = (): DestinationHealth | undefined =>
+                ds()?.exit_health;
+              const connected = () =>
+                ds()
+                  ? getConnectionLabel(ds()!.connection_state) === "Connected"
+                  : false;
+              return (
+                <span class="flex items-center gap-1.5">
+                  <Show when={exitHealth()}>
+                    {(eh) => (
                       <ExitHealthBadge
-                        exitHealth={exitHealth}
+                        exitHealth={eh()}
                         compact
-                        connected={connected}
+                        connected={connected()}
                       />
                     )}
-                  </span>
-                  <span class="break-all">{destinationLabel(opt)}</span>
-                </span>
-                <span class="shrink-0 text-xs text-text-secondary flex items-center gap-2">
-                  {latency && (
-                    <span class="tabular-nums" title="Latency">
-                      {latency}
-                    </span>
-                  )}
-                  <Show when={hops !== 1}>
-                    <HopsIcon count={hops} />
                   </Show>
+                  <span class="break-all text-sm">
+                    {destinationLabel(dest())}
+                  </span>
                 </span>
-              </span>
-            );
-          }
-          return (
-            <span class="flex items-center gap-1.5">
-              <span class="w-4 shrink-0" />
-              Random
-            </span>
-          );
-        }}
-        value={(appState.selectedId
-          ? (appState.availableDestinations.find((d) =>
-            d.id === appState.selectedId
-          ) ?? RANDOM_OPTION)
-          : RANDOM_OPTION) as ExitOption}
-        onChange={(opt: ExitOption) => {
-          const current = appState.selectedId;
-          if ("id" in opt) {
-            if (current === opt.id) {
-              return;
-            }
-            appActions.chooseDestination(opt.id);
-          } else {
-            if (current !== null) {
-              appActions.chooseDestination(null);
-            }
-          }
-        }}
-        itemToString={(opt: ExitOption) => {
-          if ("id" in opt) {
-            return destinationLabel(opt);
-          }
-          return "Random";
-        }}
-        isOptionDisabled={() => false}
-        renderValue={(opt: ExitOption) => {
-          if ("id" in opt) {
-            const ds = appState.destinations[opt.id];
-            const exitHealth: DestinationHealth | undefined = ds?.exit_health;
-            const connected = ds
-              ? getConnectionLabel(ds.connection_state) === "Connected"
-              : false;
-            return (
-              <span class="flex items-center gap-1.5">
-                {exitHealth && (
-                  <ExitHealthBadge
-                    exitHealth={exitHealth}
-                    compact
-                    connected={connected}
-                  />
-                )}
-                <span class="break-all">{destinationLabel(opt)}</span>
-              </span>
-            );
-          }
-          const randomDest = randomDestination();
-          if (randomDest) {
-            const ds = appState.destinations[randomDest.id];
-            const exitHealth: DestinationHealth | undefined = ds?.exit_health;
-            const connected = ds
-              ? getConnectionLabel(ds.connection_state) === "Connected"
-              : false;
-            return (
-              <span class="flex flex-col">
-                <span class="font-bold">Random</span>
-                <span class="flex items-center gap-1.5 text-xs text-text-secondary font-light break-all">
-                  {exitHealth && (
-                    <ExitHealthBadge
-                      exitHealth={exitHealth}
-                      compact
-                      connected={connected}
-                    />
-                  )}
-                  {destinationLabel(randomDest)}
-                </span>
-              </span>
-            );
-          }
-          return <span class="font-bold">Random</span>;
-        }}
-        placeholder="Random"
-        disabled={appState.isLoading ||
-          appState.vpnStatus === "ServiceUnavailable"}
-      />
+              );
+            }}
+          </Show>
+        </div>
+
+        {/* Chevron right */}
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          class="h-4 w-4 shrink-0 text-text-secondary"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M9 5l7 7-7 7"
+          />
+        </svg>
+      </button>
+
+      <Show when={showList()}>
+        <Portal>
+          <ExitNodeList onClose={() => setShowList(false)} />
+        </Portal>
+      </Show>
     </div>
   );
 }
