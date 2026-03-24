@@ -82,15 +82,8 @@ export default function ExitNodeCard(props: {
       : undefined;
   };
 
-  const borderClass = () => {
-    // if (isConnected()) return "ring-1 ring-vpn-light-green";
-    // if (props.isSelected) return "ring-1 ring-text-secondary";
-    return "";
-  };
-
   const isClickable = () =>
     hasInteractiveStatus() && hasReachableExit() && !isConnecting();
-
   const healthLabel =
     () => (isConnected()
       ? "Connected"
@@ -98,7 +91,7 @@ export default function ExitNodeCard(props: {
 
   return (
     <div
-      class={`w-full bg-bg-surface-alt px-4 py-3 text-xs transition-opacity ${borderClass()} ${
+      class={`flex w-full bg-bg-surface-alt text-xs transition-opacity ${
         !(hasInteractiveStatus() && hasReachableExit())
           ? "opacity-40 pointer-events-none"
           : isClickable()
@@ -108,52 +101,62 @@ export default function ExitNodeCard(props: {
       onClick={isClickable() ? () => props.onClick() : undefined}
       role={isClickable() ? "button" : undefined}
     >
-      <div class="flex justify-between items-start">
-        <div class="min-w-0 w-full">
-          <div class="flex w-full flex-wrap items-start justify-between gap-1.5 mb-1">
-            {
-              /* <span class="w-4 shrink-0 flex items-center justify-center">
-              <ExitHealthBadge exitHealth={exitHealth()} compact connected={isConnected()} />
-            </span> */
-            }
-            <span class="font-semibold text-sm text-text-primary break-all">
-              {destinationLabel(props.destinationState.destination)}
-            </span>
-            <Show when={route() && hops() !== 1}>
-              <span class="font-bold inline-flex items-center rounded-full px-2 py-0.5 bg-bg-primary text-text-primary">
-                <HopsIcon count={hops()} hideCount />
-                <span class="ml-1">{route()}</span>
+      <Show when={isConnected()}>
+        <div class="w-1 shrink-0 self-stretch bg-vpn-light-green" aria-hidden />
+      </Show>
+      <Show when={isConnecting()}>
+        <div
+          class="w-1 shrink-0 self-stretch bg-vpn-light-green animate-pulse"
+          aria-hidden
+        />
+      </Show>
+      <div class="min-w-0 flex-1 px-4 py-3">
+        <div class="flex justify-between items-start">
+          <div class="min-w-0 w-full">
+            <div class="flex w-full flex-wrap items-start justify-between gap-1.5 mb-1">
+              <span class="font-semibold text-sm text-text-primary break-all">
+                {destinationLabel(props.destinationState.destination)}
               </span>
-            </Show>
-            <ExitNodeStatusTags
-              showExitStatusOnly={showExitStatusOnly}
-              exitStatusText={status}
-              exitColor={color}
-              healthLabel={healthLabel}
-              healthColorClass={healthColorClass}
-              isConnecting={isConnecting}
-            />
+              <Show when={route() && hops() !== 1}>
+                <span class="font-bold inline-flex items-center rounded-full px-2 py-0.5 bg-bg-primary text-text-primary">
+                  <HopsIcon count={hops()} hideCount />
+                  <span class="ml-1">{route()}</span>
+                </span>
+              </Show>
+              <ExitNodeStatusTags
+                showExitStatusOnly={showExitStatusOnly}
+                exitStatusText={status}
+                exitColor={color}
+                healthLabel={healthLabel}
+                healthColorClass={healthColorClass}
+                isConnecting={isConnecting}
+              />
+            </div>
           </div>
-
-          {
-            /* <div class="flex flex-wrap items-center gap-1.5 mb-2">
-            <Tag value={status()} class={`${statusColorClass[color()]} bg-bg-primary`} />
-            <Show when={isConnected()}>
-              <Tag value="Connected" class="text-vpn-light-green bg-bg-primary" />
-            </Show>
-            <Show when={isConnecting()}>
-              <Tag value="Connecting" class={`${healthColorClass() ?? "text-text-primary"} bg-bg-primary`} />
-            </Show>
-          </div> */
-          }
         </div>
-      </div>
 
-      <div class="grid grid-cols-[3fr_2fr] gap-x-4 gap-y-1 text-text-secondary">
-        <Stat label="Latency" value={latency()} />
-        <Stat label="Capacity" value={slots()} />
-        <Stat label="Load" value={loadAvg()} />
-        <Stat label="Checked" value={lastChecked()} />
+        <div class="grid grid-cols-[3fr_2fr] gap-x-4 gap-y-1 text-text-secondary">
+          <Stat
+            label="Latency"
+            value={latency()}
+            tooltip={
+              <div class="space-y-1">
+                <p class="text-white font-bold">Expected ~200ms</p>
+                <div class="flex items-center gap-1.5">
+                  <span class="text-vpn-light-green">&#9660;</span>
+                  <span>Lower is better</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <span class="text-vpn-red">&#9650;</span>
+                  <span>Higher is worse</span>
+                </div>
+              </div>
+            }
+          />
+          <Stat label="Capacity" value={slots()} />
+          <Stat label="Load" value={loadAvg()} />
+          <Stat label="Checked" value={lastChecked()} />
+        </div>
       </div>
     </div>
   );

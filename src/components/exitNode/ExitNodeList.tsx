@@ -123,10 +123,10 @@ export default function ExitNodeList(props: { onClose: () => void }) {
       class="fixed inset-0 z-100 bg-bg-primary flex flex-col outline-none"
     >
       {/* Header */}
-      <div class="flex items-center gap-2 px-3 py-3 border-b border-border shrink-0">
+      <div class="flex items-center w-full gap-2 px-3 py-3 border-b border-border shrink-0">
         <button
           type="button"
-          class="rounded-md p-1 hover:bg-bg-surface"
+          class="rounded-md p-1 hover:bg-bg-surface absolute left-2 my-auto"
           aria-label="Back"
           onClick={() => props.onClose()}
         >
@@ -145,7 +145,9 @@ export default function ExitNodeList(props: { onClose: () => void }) {
             />
           </svg>
         </button>
-        <h1 class="text-text-primary text-lg font-medium">Exit Node</h1>
+        <h1 class="text-text-primary text-lg font-bold text-center flex-1">
+          Exit Node
+        </h1>
       </div>
 
       {/* Search */}
