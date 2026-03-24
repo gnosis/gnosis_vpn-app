@@ -2,13 +2,14 @@ use gnosis_vpn_lib::command;
 use gnosis_vpn_lib::socket::root as root_socket;
 
 use tokio_util::sync::CancellationToken;
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{State, AppHandle, Emitter, Manager};
 use zstd::stream::Encoder;
 
 use std::fs::File;
 use std::io::{self, BufReader};
 use std::path::PathBuf;
 use std::time::Duration;
+use std::sync::Mutex;
 use std::sync::atomic::Ordering;
 use tokio::task::spawn_blocking;
 use tokio::time::{self, Instant};
@@ -288,11 +289,15 @@ pub async fn stop_client() -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn start_status_polling(app_handle: AppHandle) {
-    let cancel = CancellationToken::new();
-    let owned_cancel = cancel.clone();
-    app_handle.manage(owned_cancel);
-        let app = app_handle.clone();
+pub async fn start_status_polling(app_handle: AppHandle, m_cancel: State<'_, Mutex<CancellationToken>>) -> Result<(), String> {
+    // cancel previous polling
+    let mut cancel_guard = m_cancel.lock().map_err(|e| e.to_string())?;
+    cancel_guard.cancel();
+    *cancel_guard = CancellationToken::new();
+    let cancel = cancel_guard.clone();
+    drop(cancel_guard);
+
+    let app = app_handle.clone();
     tauri::async_runtime::spawn(async move {
         let tick_timeout = time::sleep(Duration::from_secs(2));
         tokio::pin!(tick_timeout);
@@ -328,6 +333,7 @@ pub async fn start_status_polling(app_handle: AppHandle) {
             }
         }
     });
+    Ok(())
 }
 
 async fn query_status() -> (Duration, Result<Option<StatusResponse>, String>) {

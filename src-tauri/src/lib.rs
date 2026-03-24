@@ -22,6 +22,7 @@ pub mod types;
 use commands::{
     balance, compress_logs, connect, disconnect, info, refresh_node, set_app_icon, start_client,
     stop_client,
+    start_status_polling,
 };
 use icons::{AppIconState, TrayIconState, determine_tray_icon, start_app_icon_heartbeat};
 use platform::{Platform, PlatformInterface};
@@ -185,6 +186,8 @@ pub fn run() {
                 }
             }
 
+            // cancelation token for status polling
+            app.manage(Mutex::new(CancellationToken::new()));
 
             Ok(())
         })
@@ -198,6 +201,7 @@ pub fn run() {
             compress_logs,
             set_app_icon,
             get_initial_theme,
+            start_status_polling
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

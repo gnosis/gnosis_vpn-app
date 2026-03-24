@@ -421,6 +421,15 @@ export class VPNService {
     }
   }
 
+  static async startStatusPolling(): Promise<void> {
+    try {
+      await invoke("start_status_polling");
+    } catch (error) {
+      console.error("Failed to start status polling", error);
+      throw new Error(`StartStatusPolling Error: ${error}`);
+    }
+  }
+
   static async connect(id: string): Promise<ConnectResponse> {
     let rawRes;
     try {
@@ -501,7 +510,7 @@ export class VPNService {
 
     // Sort by id for consistent selection
     const sorted = [...destinations].sort((a, b) =>
-      a.destination.id.localeCompare(b.destination.id)
+      a.destination.id.localeCompare(b.destination.id),
     );
     return sorted[0].destination.id;
   }

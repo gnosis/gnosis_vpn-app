@@ -1,4 +1,5 @@
 import { createStore, reconcile, type Store } from "solid-js/store";
+import { listen } from "@tauri-apps/api/event";
 
 import {
   type Destination,
@@ -87,7 +88,6 @@ export function createAppStore(): AppStoreTuple {
   const [state, setState] = createStore<AppState>(initialState());
 
   let pollingId: ReturnType<typeof globalThis.setTimeout> | undefined;
-  let pollingActive = false;
 
   const [settings] = useSettingsStore();
   let lastPreferredLocation: string | null = settings.preferredLocation;
@@ -144,8 +144,8 @@ export function createAppStore(): AppStoreTuple {
     setState("warmupStatus", warmupStatus);
 
     const prevDestStates = state.destinations;
-    const [nextDestStates, availableDestinations] = response.destinations
-      .reduce(
+    const [nextDestStates, availableDestinations] =
+      response.destinations.reduce(
         ([states, dests], ds) => {
           states[ds.destination.id] = ds;
           dests.push(ds.destination);
@@ -269,23 +269,6 @@ export function createAppStore(): AppStoreTuple {
     return timeoutFromState(response.run_mode, response.destinations);
   };
 
-  const startStatusPolling = (resetCb: () => void) => {
-    pollingActive = true;
-    clearTimeout(pollingId);
-    const tick = async () => {
-      if (!pollingActive) return;
-      const timeout = await syncStatus();
-      if (!timeout) {
-        resetCb();
-        return;
-      }
-      if (!pollingActive) return;
-      clearTimeout(pollingId);
-      pollingId = setTimeout(tick, timeout);
-    };
-    tick();
-  };
-
   const actions = {
     initializeApp: async () => {
       setState("isLoading", true);
@@ -294,13 +277,7 @@ export function createAppStore(): AppStoreTuple {
         setState("serviceInfo", info);
         if (isServiceVersionCompatible(info.version)) {
           await VPNService.startClient(10);
-          startStatusPolling(() => {
-            setState(reconcile(initialState()));
-            setTimeout(() => {
-              actions.stopStatusPolling();
-              actions.initializeApp();
-            }, 0);
-          });
+          await VPNService.startStatusPolling();
         } else {
           log(
             "Incompatible service version: " +
@@ -381,12 +358,6 @@ export function createAppStore(): AppStoreTuple {
       } finally {
         setState("isLoading", false);
       }
-    },
-
-    stopStatusPolling: () => {
-      pollingActive = false;
-      clearTimeout(pollingId);
-      pollingId = undefined;
     },
   } as const;
 
