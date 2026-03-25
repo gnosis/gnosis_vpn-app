@@ -394,12 +394,12 @@ impl From<command::BalanceResponse> for BalanceResponse {
     }
 }
 
-impl From<StatusResponse> for ConnectionState {
-    fn from(sr: StatusResponse) -> Self {
-        if let Some(dest) = sr.connected {
-            ConnectionState::Connected(dest)
-        } else if let Some(dest) = sr.connecting {
-            ConnectionState::Connecting(dest)
+impl From<&StatusResponse> for ConnectionState {
+    fn from(sr: &StatusResponse) -> Self {
+        if let Some(ref dest) = sr.connected {
+            ConnectionState::Connected(dest.clone())
+        } else if let Some(ref dest) = sr.connecting {
+            ConnectionState::Connecting(dest.clone())
         } else if !sr.disconnecting.is_empty() {
             ConnectionState::Disconnecting
         } else {

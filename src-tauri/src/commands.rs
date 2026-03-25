@@ -318,9 +318,9 @@ pub async fn start_status_polling(
                 _ = tick_timeout.as_mut() => {
                     let (status_delay, result) = query_status().await;
                     tick_timeout.as_mut().reset(Instant::now() + status_delay);
-                    if let Ok(Some(status)) = result.clone() {
+                    if let Ok(Some(ref status)) = result {
                         // derive tray icon
-                        let conn_state = status.clone().into();
+                        let conn_state = status.into();
                         icons::update_tray_icon(&app, &app.state::<TrayIconState>(), &conn_state);
 
                         // animate icon
@@ -366,7 +366,7 @@ async fn query_status() -> (Duration, Result<Option<StatusResponse>, String>) {
                     disconnecting: Vec::new(),
                 },
                 |mut acc, ds| {
-                    let id = ds.destination.clone().id.clone();
+                    let id = ds.destination.id.clone();
                     match ds.connection_state {
                         command::ConnectionState::Connected(_) => {
                             acc.connected = Some(id.clone());
@@ -378,9 +378,9 @@ async fn query_status() -> (Duration, Result<Option<StatusResponse>, String>) {
                             acc.disconnecting.push(id.clone());
                         }
                         command::ConnectionState::None => {}
-                    };
-                    acc.destinations.insert(id.clone(), ds.clone().into());
+                    }
                     acc.dest_order.push(id.clone());
+                    acc.destinations.insert(id, ds.clone().into());
                     acc
                 },
             );

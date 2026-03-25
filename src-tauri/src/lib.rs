@@ -185,7 +185,7 @@ pub fn run() {
                 }
             }
 
-            // cancelation token for status polling
+            // cancellation token for status polling
             app.manage(Mutex::new(CancellationToken::new()));
 
             Ok(())

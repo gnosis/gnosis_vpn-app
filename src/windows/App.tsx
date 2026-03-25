@@ -88,6 +88,7 @@ function App() {
 
     // Clear any pending transition if the store requests a new screen quickly
     clearTimeout(timeoutId);
+    timeoutId = undefined;
 
     const now = Date.now();
     const elapsed = now - lastChangeTime;

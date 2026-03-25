@@ -121,6 +121,7 @@ export function createAppStore(): AppStoreTuple {
 
   const processStatusResponse = (response: StatusResponse) => {
     const [screen, warmupStatus] = determineScreenAndStatus(response);
+    /// the payload from rust will always make sure the ids in dest order are present in destinations, so this mapping is safe
     const availableDestinations = response.dest_order
       .map((id) => response.destinations[id].destination)
       .filter((ds) => ds);
@@ -198,12 +199,14 @@ export function createAppStore(): AppStoreTuple {
                 if (statusResp) {
                   processStatusResponse(statusResp);
                 } else {
+                  // Service reported as unavailable (e.g. WorkerOffline).
+                  setState(reconcile(initialState()));
                   setState("vpnStatus", "ServiceUnavailable");
+                  setState("appVersion", appVersion);
                 }
               } catch (err) {
-                const message = err instanceof Error
-                  ? err.message
-                  : String(err);
+                const message =
+                  err instanceof Error ? err.message : String(err);
                 log(message);
               }
             },
@@ -406,6 +409,6 @@ function incomingStatusEvent(event: StatusEvent): StatusResponse | void {
     }
   } else {
     console.error("Error processing status update", rawRes.Err);
-    throw rawRes.Err;
+    throw new Error(rawRes.Err);
   }
 }
