@@ -317,7 +317,7 @@ pub async fn start_status_polling(
 
                 _ = tick_timeout.as_mut() => {
                     let (status_delay, result) = query_status().await;
-                    tick_timeout.as_mut().reset(Instant::now() + status_delay + Duration::from_hours(100));
+                    tick_timeout.as_mut().reset(Instant::now() + status_delay);
                     if let Ok(Some(status)) = result.clone() {
                         // derive tray icon
                         let conn_state = status.clone().into();
@@ -342,7 +342,6 @@ pub async fn start_status_polling(
                             let _ = guard.set_text(conn_state.to_string());
                         };
                     }
-                    eprintln!("Emitting status event with result: {:?}", result);
                     let _ = app.emit("status", result);
                 }
 
