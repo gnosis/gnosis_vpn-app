@@ -59,7 +59,6 @@ type AppActions = {
   chooseDestination: (id: string | null) => void;
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
-  stopStatusPolling: () => void;
 };
 
 type AppStoreTuple = readonly [Store<AppState>, AppActions];
@@ -87,7 +86,7 @@ function initialState(): AppState {
 export function createAppStore(): AppStoreTuple {
   const [state, setState] = createStore<AppState>(initialState());
 
-  let pollingId: ReturnType<typeof globalThis.setTimeout> | undefined;
+  let unlistenStatusUpdate: (() => void) | undefined;
 
   const [settings] = useSettingsStore();
   let lastPreferredLocation: string | null = settings.preferredLocation;
@@ -125,10 +124,12 @@ export function createAppStore(): AppStoreTuple {
     }
   };
 
-  const syncStatus = async (): Promise<number | null> => {
+  const processStatusResult = async (
+    result: Promise<StatusResponse | null>,
+  ) => {
     let response;
     try {
-      response = await VPNService.getStatus();
+      response = await result;
     } catch (error) {
       console.error("error", error);
       const message = error instanceof Error ? error.message : String(error);
@@ -278,6 +279,15 @@ export function createAppStore(): AppStoreTuple {
         if (isServiceVersionCompatible(info.version)) {
           await VPNService.startClient(10);
           await VPNService.startStatusPolling();
+          if (unlistenStatusUpdate) {
+            unlistenStatusUpdate();
+          }
+          unlistenStatusUpdate = await listen<Promise<StatusResponse | null>>(
+            "status",
+            (event) => {
+              processStatusResult(event.payload);
+            },
+          );
         } else {
           log(
             "Incompatible service version: " +
