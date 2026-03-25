@@ -1,3 +1,4 @@
+import { getVersion } from "@tauri-apps/api/app";
 import { createStore, reconcile, type Store } from "solid-js/store";
 
 import {
@@ -40,6 +41,8 @@ export enum AppScreen {
 
 export interface AppState {
   currentScreen: AppScreen;
+  /** Tauri app version from Cargo.toml; set during initializeApp */
+  appVersion: string | null;
   serviceInfo: ServiceInfo | null;
   availableDestinations: Destination[];
   destinations: Record<string, DestinationState>;
@@ -69,6 +72,7 @@ const DEFAULT_TIMEOUT = 2111; // ms
 
 function initialState(): AppState {
   return {
+    appVersion: null,
     availableDestinations: [],
     currentScreen: AppScreen.Initialization,
     destination: null,
@@ -212,8 +216,8 @@ export function createAppStore(): AppStoreTuple {
     }
 
     const hasConnChange = Object.values(state.destinations).some((prev) => {
-      const found_next = Object.entries(nextDestStates).find(
-        ([id, _]) => id === prev.destination.id,
+      const found_next = Object.entries(nextDestStates).find(([id, _]) =>
+        id === prev.destination.id
       );
       if (!found_next) return false;
       const [_, next] = found_next;
@@ -223,8 +227,7 @@ export function createAppStore(): AppStoreTuple {
       const prevLabel = getConnectionLabel(prevState);
       const nextLabel = getConnectionLabel(nextState);
       if (
-        prevLabel !== nextLabel &&
-        nextLabel !== "None" &&
+        prevLabel !== nextLabel && nextLabel !== "None" &&
         nextLabel !== "Unknown"
       ) {
         return true;
@@ -290,6 +293,8 @@ export function createAppStore(): AppStoreTuple {
     initializeApp: async () => {
       setState("isLoading", true);
       try {
+        const appVer = await getVersion().catch((): null => null);
+        setState("appVersion", appVer);
         const info = await VPNService.info();
         setState("serviceInfo", info);
         if (isServiceVersionCompatible(info.version)) {
@@ -310,10 +315,8 @@ export function createAppStore(): AppStoreTuple {
           );
           setState(
             "error",
-            "Incompatible service version: " +
-              info.version +
-              ". Supported versions: " +
-              COMPATIBLE_VERSIONS.join(", "),
+            "Incompatible service version: " + info.version +
+              ". Supported versions: " + COMPATIBLE_VERSIONS.join(", "),
           );
         }
       } catch (error) {
@@ -344,8 +347,8 @@ export function createAppStore(): AppStoreTuple {
 
       const reasonForLog = requestedId ? "selected exit node" : selectionReason;
       if (targetId && reasonForLog !== "selected exit node") {
-        const selected = state.availableDestinations.find(
-          (d) => d.id === targetId,
+        const selected = state.availableDestinations.find((d) =>
+          d.id === targetId
         );
         if (!selected) {
           return;
@@ -416,7 +419,9 @@ const MAXIMUM_DELAY_TIME = 120 * 1000; // 2 minutes
 let initialDelay:
   | { delayingSince: number }
   | { neverRan: true }
-  | { alreadyRan: true } = { neverRan: true };
+  | {
+    alreadyRan: true;
+  } = { neverRan: true };
 function determineScreenAndStatus(status: StatusResponse): [AppScreen, string] {
   const runMode = status.run_mode;
   if (runMode === "Shutdown") {
