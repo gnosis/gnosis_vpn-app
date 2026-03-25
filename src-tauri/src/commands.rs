@@ -9,7 +9,7 @@ use std::fs::File;
 use std::io::{self, BufReader};
 use std::path::PathBuf;
 use std::time::Duration;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::sync::atomic::Ordering;
 use tokio::task::spawn_blocking;
 use tokio::time::{self, Instant};
@@ -290,6 +290,7 @@ pub async fn stop_client() -> Result<(), String> {
 
 #[tauri::command]
 pub async fn start_status_polling(app_handle: AppHandle, m_cancel: State<'_, Mutex<CancellationToken>>) -> Result<(), String> {
+    println!("Starting status polling...");
     // cancel previous polling
     let mut cancel_guard = m_cancel.lock().map_err(|e| e.to_string())?;
     cancel_guard.cancel();
@@ -319,7 +320,7 @@ pub async fn start_status_polling(app_handle: AppHandle, m_cancel: State<'_, Mut
 
                         // animate icon
                         let should_animate = matches!(conn_state, ConnectionState::Connecting(_) | ConnectionState::Disconnecting);
-                        let app_icon_state = app.state::<AppIconState>();
+                        let app_icon_state = app.state::<Arc<AppIconState>>();
                         app_icon_state.is_animating.store(should_animate, Ordering::Relaxed);
 
                         // derive app_icon
