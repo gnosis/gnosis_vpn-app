@@ -24,6 +24,8 @@ type NavigatePayload =
     step?: OnboardingStep;
   };
 
+const MIN_SCREEN_DISPLAY_TIME = 1333; // ms - ensure screens show for at least this long
+
 const isValidScreen = (s: string): s is ValidScreen =>
   (validScreens as readonly string[]).includes(s);
 
@@ -92,7 +94,7 @@ function App() {
 
     const now = Date.now();
     const elapsed = now - lastChangeTime;
-    const minDelay = 1111;
+    const minDelay = MIN_SCREEN_DISPLAY_TIME;
 
     if (elapsed >= minDelay) {
       // If it's been longer than 1111ms, change immediately
