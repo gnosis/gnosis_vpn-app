@@ -11,6 +11,7 @@ import {
   type RunMode,
   type ServiceInfo,
   type StatusResponse,
+  StatusResponseSchema,
   VPNService,
 } from "@src/services/vpnService.ts";
 import { useLogsStore } from "@src/stores/logsStore.ts";
@@ -187,8 +188,9 @@ export function createAppStore(): AppStoreTuple {
             "status",
             async (event) => {
               try {
-                const resp = await event.payload;
-                if (resp) {
+                const raw = await event.payload;
+                if (raw) {
+                  const resp = StatusResponseSchema.parse(raw);
                   processStatusResponse(resp);
                 } else {
                   setState("vpnStatus", "ServiceUnavailable");
