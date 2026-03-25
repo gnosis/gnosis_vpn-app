@@ -136,8 +136,8 @@ export function createLogsStore(): LogsStoreTuple {
       } else if (isWarmupRunMode(rm)) {
         content = `Warmup: ${formatWarmupStatus(rm.Warmup.status)}`;
       } else {
-        const destinations = Object.keys(args.response.destinations);
-        content = `status: Unknown, destinations: ${destinations}`;
+        const destinationCount = Object.keys(args.response.destinations).length;
+        content = `status: Unknown, destinations: ${destinationCount}`;
       }
     } else if (args.error) {
       content = `${args.error}`;
