@@ -191,6 +191,8 @@ export function createAppStore(): AppStoreTuple {
           }
           unlistenStatusUpdate = await listen<Promise<StatusResponse | null>>(
             "status",
+            // for some reason the expected TS type here is wrong
+            // thats why we cast the type (3 lines below) to the expected one, even if it is not correct according to the event emitter
             (event) => {
               try {
                 const statusResp = incomingStatusEvent(
