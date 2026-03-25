@@ -9,9 +9,8 @@ import {
 import { useAppStore } from "@src/stores/appStore.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import { destinationLabel, selectTargetId } from "@src/utils/destinations.ts";
-import { getConnectionLabel } from "@src/utils/status.ts";
 import { getHealthScore } from "@src/utils/exitHealth.ts";
-import { isReadyToConnect, VPNService } from "@src/services/vpnService.ts";
+import { VPNService } from "@src/services/vpnService.ts";
 import Button from "../common/Button.tsx";
 import ExitNodeCard from "./ExitNodeCard.tsx";
 
@@ -85,12 +84,6 @@ export default function ExitNodeList(props: { onClose: () => void }) {
   const handleCardClick = (id: string) => {
     const ds = appState.destinations[id];
     if (!ds) return;
-    const isConnected = getConnectionLabel(ds.connection_state) === "Connected";
-    const ready = isReadyToConnect(ds.connectivity.health);
-    const eh = ds.exit_health;
-    const hasReachableExit = typeof eh === "object" && "Success" in eh &&
-      eh.Success.health.slots.available > 0;
-    if (!isConnected && !(ready && hasReachableExit)) return;
 
     const vpnActive = appState.vpnStatus === "Connected" ||
       appState.vpnStatus === "Connecting";
