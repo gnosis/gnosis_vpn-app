@@ -2,7 +2,7 @@ import { MainScreen } from "../screens/main/MainScreen.tsx";
 import { getVersion } from "@tauri-apps/api/app";
 import { Dynamic } from "solid-js/web";
 import { AppScreen, AppState, useAppStore } from "@src/stores/appStore.ts";
-import { onCleanup, onMount } from "solid-js";
+import { createEffect, createSignal, onCleanup, onMount } from "solid-js";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import Onboarding from "../screens/main/Onboarding.tsx";
 import Synchronization from "../screens/main/Synchronization.tsx";
@@ -76,6 +76,37 @@ function App() {
   let unlistenNavigate: (() => void) | undefined;
   let disposed = false;
 
+  const [displayedScreen, setDisplayedScreen] = createSignal<ValidScreen>(
+    appState.currentScreen as ValidScreen,
+  );
+  let lastChangeTime = Date.now();
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  createEffect(() => {
+    // This effect tracks the store's currentScreen
+    const nextScreen = appState.currentScreen as ValidScreen;
+
+    // Clear any pending transition if the store requests a new screen quickly
+    clearTimeout(timeoutId);
+
+    const now = Date.now();
+    const elapsed = now - lastChangeTime;
+    const minDelay = 1111;
+
+    if (elapsed >= minDelay) {
+      // If it's been longer than 1111ms, change immediately
+      setDisplayedScreen(nextScreen);
+      lastChangeTime = Date.now();
+    } else {
+      // Otherwise, wait for the remaining time to reach 1111ms
+      const remaining = minDelay - elapsed;
+      timeoutId = setTimeout(() => {
+        setDisplayedScreen(nextScreen);
+        lastChangeTime = Date.now();
+      }, remaining);
+    }
+  });
+
   onMount(() => {
     void (async () => {
       const appVersion = await getVersion();
@@ -108,14 +139,15 @@ function App() {
   onCleanup(() => {
     disposed = true;
     unlistenNavigate?.();
+    if (timeoutId) clearTimeout(timeoutId);
   });
 
   return (
     <div class="h-screen bg-bg-primary">
       <Dynamic
-        component={screens[appState.currentScreen]}
+        component={screens[displayedScreen()]}
         {...mapStoreToScreenProps(
-          appState.currentScreen as ValidScreen,
+          displayedScreen(),
           appState,
         )}
       />
