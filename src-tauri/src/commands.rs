@@ -328,12 +328,15 @@ pub async fn start_status_polling(
                         let app_icon_state = app.state::<Arc<AppIconState>>();
                         app_icon_state.is_animating.store(should_animate, Ordering::Relaxed);
 
-                        // derive app_icon
+                        // derive app_icon only when not animating; during animation, the heartbeat
+                        // logic owns app icon changes to avoid fighting with it
+                        if !should_animate {
                         let icon_name = icons::determine_app_icon(&conn_state, &status.run_mode);
                         if icons::update_icon_name_if_changed(&app_icon_state.current_icon, &icon_name) {
                             if let Err(e) = set_app_icon(app.clone(), icon_name.to_string()).await {
                                 eprintln!("Failed to update app icon: {}", e);
                             }
+                        }
                         }
 
                         // set status text

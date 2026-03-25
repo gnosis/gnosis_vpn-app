@@ -406,25 +406,6 @@ export class VPNService {
     }
   }
 
-  static async getStatus(): Promise<StatusResponse | null> {
-    let rawRes;
-    try {
-      rawRes = await invoke("status");
-      if (!rawRes) return null;
-      return StatusResponseSchema.parse(rawRes);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        console.error(`Issues with StatusResponseSchema`, rawRes);
-        for (const i of error.issues) {
-          console.error("Type error:", i);
-        }
-      } else {
-        console.error("Status error:", error);
-      }
-      throw new Error(`Status error: ${error}`);
-    }
-  }
-
   static async startStatusPolling(): Promise<void> {
     try {
       await invoke("start_status_polling");
