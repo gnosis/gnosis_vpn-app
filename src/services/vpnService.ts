@@ -511,7 +511,7 @@ export class VPNService {
     // when we have an actual StatusResponse, destinations can never be empty
     // Thats why we do not need to check for that case
     const sorted = Object.values(ds_states).sort((a, b) =>
-      a.destination.id.localeCompare(b.destination.id),
+      a.destination.id.localeCompare(b.destination.id)
     );
     return sorted[0].destination.id;
   }

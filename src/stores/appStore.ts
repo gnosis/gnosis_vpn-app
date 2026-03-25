@@ -205,8 +205,9 @@ export function createAppStore(): AppStoreTuple {
                   setState("appVersion", appVersion);
                 }
               } catch (err) {
-                const message =
-                  err instanceof Error ? err.message : String(err);
+                const message = err instanceof Error
+                  ? err.message
+                  : String(err);
                 log(message);
               }
             },

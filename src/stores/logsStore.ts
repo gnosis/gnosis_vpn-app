@@ -74,35 +74,37 @@ export function createLogsStore(): LogsStoreTuple {
       } else if (connectingDest) {
         const destination = connectingDest.destination;
         const where = destinationLabel(destination);
-        const phase =
-          typeof connectingDest.connection_state === "object" &&
-          "Connecting" in connectingDest.connection_state
-            ? (
-                connectingDest.connection_state as {
-                  Connecting: [SerializedSinceTime, string];
-                }
-              ).Connecting[1]
-            : undefined;
+        const phase = typeof connectingDest.connection_state === "object" &&
+            "Connecting" in connectingDest.connection_state
+          ? (
+            connectingDest.connection_state as {
+              Connecting: [SerializedSinceTime, string];
+            }
+          ).Connecting[1]
+          : undefined;
         const phaseSuffix = phase ? ` - ${phase}` : "";
-        content = `Connecting: ${where} - ${shortAddress(
-          destination.address,
-        )}${phaseSuffix}`;
+        content = `Connecting: ${where} - ${
+          shortAddress(
+            destination.address,
+          )
+        }${phaseSuffix}`;
       } else if (disconnectingDest) {
         const destination = disconnectingDest.destination;
         const where = destinationLabel(destination);
-        const phase =
-          typeof disconnectingDest.connection_state === "object" &&
-          "Disconnecting" in disconnectingDest.connection_state
-            ? (
-                disconnectingDest.connection_state as {
-                  Disconnecting: [SerializedSinceTime, string];
-                }
-              ).Disconnecting[1]
-            : undefined;
+        const phase = typeof disconnectingDest.connection_state === "object" &&
+            "Disconnecting" in disconnectingDest.connection_state
+          ? (
+            disconnectingDest.connection_state as {
+              Disconnecting: [SerializedSinceTime, string];
+            }
+          ).Disconnecting[1]
+          : undefined;
         const phaseSuffix = phase ? ` - ${phase}` : "";
-        content = `Disconnecting: ${where} - ${shortAddress(
-          destination.address,
-        )}${phaseSuffix}`;
+        content = `Disconnecting: ${where} - ${
+          shortAddress(
+            destination.address,
+          )
+        }${phaseSuffix}`;
       } else if (typeof rm === "object" && "Running" in rm) {
         // Running but no active connection
         const lastWasDisconnected = Boolean(
