@@ -39,6 +39,7 @@ export enum AppScreen {
 }
 
 export interface AppState {
+  appVersion: string;
   currentScreen: AppScreen;
   serviceInfo: ServiceInfo | null;
   availableDestinations: Destination[];
@@ -53,7 +54,7 @@ export interface AppState {
 }
 
 type AppActions = {
-  initializeApp: () => Promise<void>;
+  initializeApp: (appVersion: string) => Promise<void>;
   setScreen: (screen: AppScreen) => void;
   chooseDestination: (id: string | null) => void;
   connect: () => Promise<void>;
@@ -70,6 +71,7 @@ type StatusEvent = {
 
 function initialState(): AppState {
   return {
+    appVersion: "",
     availableDestinations: [],
     currentScreen: AppScreen.Initialization,
     destination: null,
@@ -114,9 +116,7 @@ export function createAppStore(): AppStoreTuple {
       }
     }
 
-    if (state.destination !== null) {
-      setState("destination", null);
-    }
+    setState("destination", null);
   };
 
   const processStatusResponse = (response: StatusResponse) => {
@@ -176,7 +176,8 @@ export function createAppStore(): AppStoreTuple {
   const OFFLINE_TIMEOUT = 5000; // ms
 
   const actions = {
-    initializeApp: async () => {
+    initializeApp: async (appVersion: string) => {
+      setState("appVersion", appVersion);
       setState("isLoading", true);
       try {
         const info = await VPNService.info();
@@ -225,7 +226,7 @@ export function createAppStore(): AppStoreTuple {
         const message = error instanceof Error ? error.message : String(error);
         log("Failed to connect to service: " + message);
         setState("error", message);
-        setTimeout(() => actions.initializeApp(), OFFLINE_TIMEOUT);
+        setTimeout(() => actions.initializeApp(appVersion), OFFLINE_TIMEOUT);
       } finally {
         setState("isLoading", false);
       }
