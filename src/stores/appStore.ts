@@ -201,8 +201,9 @@ export function createAppStore(): AppStoreTuple {
                   setState("vpnStatus", "ServiceUnavailable");
                 }
               } catch (err) {
-                const message =
-                  err instanceof Error ? err.message : String(err);
+                const message = err instanceof Error
+                  ? err.message
+                  : String(err);
                 log(message);
               }
             },

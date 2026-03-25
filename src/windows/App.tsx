@@ -78,7 +78,7 @@ function App() {
 
   onMount(() => {
     void (async () => {
-        const appVersion = await getVersion();
+      const appVersion = await getVersion();
       await settingsActions.load();
       await appActions.initializeApp(appVersion);
 

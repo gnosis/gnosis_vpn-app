@@ -19,7 +19,7 @@ export default function SettingsWindow() {
 
   onMount(() => {
     void (async () => {
-        const appVersion = await getVersion();
+      const appVersion = await getVersion();
       const unlisten = await listen<string>("navigate", (event) => {
         const next = event.payload;
         if (next === "settings" || next === "usage" || next === "logs") {
@@ -31,7 +31,10 @@ export default function SettingsWindow() {
 
       // NOTE: tauri apps use separate JS contexts between windows,
       // so this one needs to populate its own app state
-      await Promise.all([appActions.initializeApp(appVersion), settingsActions.load()]);
+      await Promise.all([
+        appActions.initializeApp(appVersion),
+        settingsActions.load(),
+      ]);
       void emit("logs:request-snapshot");
     })();
   });
