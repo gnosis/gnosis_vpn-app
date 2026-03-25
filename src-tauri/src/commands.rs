@@ -314,12 +314,22 @@ pub async fn start_status_polling(app_handle: AppHandle, m_cancel: State<'_, Mut
                     tick_timeout.as_mut().reset(Instant::now() + status_delay);
                     if let Ok(Some(status)) = result.clone() {
                         // derive tray icon
-                        let conn_state = status.into();
+                        let conn_state = status.clone().into();
                         icons::update_tray_icon(&app, &app.state::<TrayIconState>(), &conn_state);
+
                         // animate icon
                         let should_animate = matches!(conn_state, ConnectionState::Connecting(_) | ConnectionState::Disconnecting);
-                        let app_icon_stat = app.state::<AppIconState>();
-                        app_icon_stat.is_animating.store(should_animate, Ordering::Relaxed);
+                        let app_icon_state = app.state::<AppIconState>();
+                        app_icon_state.is_animating.store(should_animate, Ordering::Relaxed);
+
+                        // derive app_icon
+                        let icon_name = icons::determine_app_icon(&conn_state, &status.run_mode);
+                        if icons::update_icon_name_if_changed(&app_icon_state.current_icon, &icon_name) {
+                            if let Err(e) = set_app_icon(app.clone(), icon_name.to_string()).await {
+                                eprintln!("Failed to update app icon: {}", e);
+                            }
+                        }
+
                         // set status text
                         let status_item = app.state::<tray::TrayStatusItem>();
                         if let Ok(guard) = status_item.0.lock() {

@@ -8,7 +8,7 @@ use tauri::{AppHandle, Manager, tray::TrayIcon};
 use tokio::time::sleep;
 
 use crate::commands::set_app_icon;
-use crate::types::ConnectionState;
+use crate::types::{RunMode, ConnectionState};
 use gnosis_vpn_lib::{balance, command};
 
 // App icon constants
@@ -64,10 +64,10 @@ pub fn update_icon_name_if_changed(current: &Mutex<String>, next: &str) -> bool 
 
 pub fn determine_app_icon(
     connection_state: &ConnectionState,
-    run_mode: &command::RunMode,
+    run_mode: &RunMode,
 ) -> String {
     // Check for low funds in Running mode
-    let has_low_funds = if let command::RunMode::Running {
+    let has_low_funds = if let RunMode::Running {
         funding: command::FundingState::TopIssue(issue),
         hopr_status: _,
     } = run_mode
