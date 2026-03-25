@@ -97,11 +97,11 @@ function App() {
     const minDelay = MIN_SCREEN_DISPLAY_TIME;
 
     if (elapsed >= minDelay) {
-      // If it's been longer than 1111ms, change immediately
+      // If it's been longer than minDelay, change immediately
       setDisplayedScreen(nextScreen);
       lastChangeTime = Date.now();
     } else {
-      // Otherwise, wait for the remaining time to reach 1111ms
+      // Otherwise, wait for the remaining time to reach minDelay
       const remaining = minDelay - elapsed;
       timeoutId = setTimeout(() => {
         setDisplayedScreen(nextScreen);
