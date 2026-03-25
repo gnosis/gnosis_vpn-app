@@ -101,8 +101,9 @@ export function deriveVPNStatus(
   if ("Shutdown" === response.run_mode) return "ServiceUnavailable";
   if (isPreparingSafeRunMode(response.run_mode)) return "PreparingSafe";
   if (isDeployingSafeRunMode(response.run_mode)) return "DeployingSafe";
-  if (isWarmupRunMode(response.run_mode))
+  if (isWarmupRunMode(response.run_mode)) {
     return response.run_mode.Warmup.status;
+  }
   if ("Running" in response.run_mode) {
     if (response.connected) return "Connected";
     if (response.connecting) return "Connecting";

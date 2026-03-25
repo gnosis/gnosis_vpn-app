@@ -3,8 +3,8 @@
 extern crate objc;
 
 use serde::Serialize;
-use tauri::tray::TrayIconBuilder;
 use tauri::Manager;
+use tauri::tray::TrayIconBuilder;
 use tauri_plugin_store::StoreExt;
 use tokio_util::sync::CancellationToken;
 
@@ -21,8 +21,7 @@ pub mod types;
 
 use commands::{
     balance, compress_logs, connect, disconnect, info, refresh_node, set_app_icon, start_client,
-    stop_client,
-    start_status_polling,
+    start_status_polling, stop_client,
 };
 use icons::{AppIconState, TrayIconState, determine_tray_icon, start_app_icon_heartbeat};
 use platform::{Platform, PlatformInterface};

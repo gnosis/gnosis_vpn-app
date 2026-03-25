@@ -1,22 +1,24 @@
 use gnosis_vpn_lib::command;
 use gnosis_vpn_lib::socket::root as root_socket;
 
+use tauri::{AppHandle, Emitter, Manager, State};
 use tokio_util::sync::CancellationToken;
-use tauri::{State, AppHandle, Emitter, Manager};
 use zstd::stream::Encoder;
 
 use std::fs::File;
 use std::io::{self, BufReader};
 use std::path::PathBuf;
-use std::time::Duration;
-use std::sync::{Arc, Mutex};
 use std::sync::atomic::Ordering;
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 use tokio::task::spawn_blocking;
 use tokio::time::{self, Instant};
 
+use crate::icons::{self, AppIconState, TrayIconState};
 use crate::tray;
-use crate::icons::{self, TrayIconState, AppIconState};
-use crate::types::{BalanceResponse, ConnectResponse, ConnectionState, DisconnectResponse, StatusResponse};
+use crate::types::{
+    BalanceResponse, ConnectResponse, ConnectionState, DisconnectResponse, StatusResponse,
+};
 
 const ALLOWED_APP_ICONS: &[&str] = &[
     icons::APP_ICON_CONNECTED,
@@ -289,7 +291,10 @@ pub async fn stop_client() -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn start_status_polling(app_handle: AppHandle, m_cancel: State<'_, Mutex<CancellationToken>>) -> Result<(), String> {
+pub async fn start_status_polling(
+    app_handle: AppHandle,
+    m_cancel: State<'_, Mutex<CancellationToken>>,
+) -> Result<(), String> {
     println!("Starting status polling...");
     // cancel previous polling
     let mut cancel_guard = m_cancel.lock().map_err(|e| e.to_string())?;
