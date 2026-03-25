@@ -312,7 +312,7 @@ pub async fn start_status_polling(app_handle: AppHandle, m_cancel: State<'_, Mut
 
                 _ = tick_timeout.as_mut() => {
                     let (status_delay, result) = query_status().await;
-                    tick_timeout.as_mut().reset(Instant::now() + status_delay + Duration::from_hours(1));
+                    tick_timeout.as_mut().reset(Instant::now() + status_delay);
                     if let Ok(Some(status)) = result.clone() {
                         // derive tray icon
                         let conn_state = status.clone().into();

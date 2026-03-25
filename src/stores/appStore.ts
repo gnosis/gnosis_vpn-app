@@ -380,16 +380,16 @@ function findDelayReason(destinations: DestinationState[]): string | null {
 }
 
 async function incomingStatusEvent(event): Promise<StatusResponse | void> {
-  try {
-    const rawRes = await event.payload;
-    if (!rawRes) {
-      return;
-    }
-    const res = StatusResponseSchema.safeParse(rawRes);
+  const rawRes = event.payload;
+  if (!rawRes) {
+    return;
+  }
+  if ("Ok" in rawRes) {
+    const res = StatusResponseSchema.safeParse(rawRes.Ok);
     if (res.success) {
       return res.data;
     } else {
-      console.error("Issues with StatusResponseSchema", rawRes);
+      console.error("Issues with StatusResponseSchema", rawRes.Ok);
       for (const i of res.error.issues) {
         console.error("Type error:", i);
       }
@@ -397,9 +397,8 @@ async function incomingStatusEvent(event): Promise<StatusResponse | void> {
       console.error(message);
       throw new Error(message);
     }
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("Error processing status update", message);
-    throw err;
+  } else {
+    console.error("Error processing status update", rawRes.Err);
+    throw rawRes.Err;
   }
 }
