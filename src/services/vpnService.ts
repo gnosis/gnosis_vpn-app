@@ -250,7 +250,11 @@ export type Info = z.infer<typeof InfoSchema>;
 
 export const StatusResponseSchema = z.object({
   run_mode: RunModeSchema,
-  destinations: z.array(DestinationStateSchema),
+  destinations: z.record(z.string(), DestinationStateSchema),
+  dest_order: z.array(z.string()),
+  connected: z.string().nullable(),
+  connecting: z.string().nullable(),
+  disconnecting: z.array(z.string()),
 });
 export type StatusResponse = z.infer<typeof StatusResponseSchema>;
 
@@ -503,13 +507,8 @@ export class VPNService {
     }
   }
 
-  static getBestDestination(
-    destinations: StatusResponse["destinations"],
-  ): string | null {
-    if (destinations.length === 0) return null;
-
-    // Sort by id for consistent selection
-    const sorted = [...destinations].sort((a, b) =>
+  static getBestDestination(ds_states: StatusResponse["destinations"]): string {
+    const sorted = Object.values(ds_states).sort((a, b) =>
       a.destination.id.localeCompare(b.destination.id),
     );
     return sorted[0].destination.id;

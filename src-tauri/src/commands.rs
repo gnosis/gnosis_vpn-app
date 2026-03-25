@@ -325,10 +325,9 @@ pub async fn start_status_polling(app_handle: AppHandle, m_cancel: State<'_, Mut
                         if let Ok(guard) = status_item.0.lock() {
                             let _ = guard.set_text(conn_state.to_string());
                         };
-
-                        let _ = app.emit("status", result);
-
                     }
+                    let _ = app.emit("status", result);
+
                 }
             }
         }
