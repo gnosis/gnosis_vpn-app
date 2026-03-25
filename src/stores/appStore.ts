@@ -188,17 +188,15 @@ export function createAppStore(): AppStoreTuple {
             "status",
             async (event) => {
               try {
-                const raw = await event.payload;
-                if (raw) {
-                  const resp = StatusResponseSchema.parse(raw);
-                  processStatusResponse(resp);
+                const status = await incomingStatusEvent(event);
+                if (status) {
+                  processStatusResponse(status);
                 } else {
                   setState("vpnStatus", "ServiceUnavailable");
                 }
-              } catch (error) {
+              } catch (err) {
                 const message =
-                  error instanceof Error ? error.message : String(error);
-                console.error("Error processing status update", message);
+                  err instanceof Error ? err.message : String(err);
                 log(message);
               }
             },
@@ -379,4 +377,29 @@ function findDelayReason(destinations: DestinationState[]): string | null {
     }`;
   }
   return null;
+}
+
+async function incomingStatusEvent(event): Promise<StatusResponse | void> {
+  try {
+    const rawRes = await event.payload;
+    if (!rawRes) {
+      return;
+    }
+    const res = StatusResponseSchema.safeParse(rawRes);
+    if (res.success) {
+      return res.data;
+    } else {
+      console.error("Issues with StatusResponseSchema", rawRes);
+      for (const i of res.error.issues) {
+        console.error("Type error:", i);
+      }
+      const message = `Received invalid status response`;
+      console.error(message);
+      throw new Error(message);
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("Error processing status update", message);
+    throw err;
+  }
 }
