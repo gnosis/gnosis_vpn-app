@@ -1,20 +1,17 @@
 import { createSignal, onCleanup, Show } from "solid-js";
 import type { DestinationState } from "@src/services/vpnService.ts";
-import { formatHealth, isReadyToConnect } from "@src/services/vpnService.ts";
+import { isReadyToConnect } from "@src/services/vpnService.ts";
 import { getConnectionLabel } from "@src/utils/status.ts";
 import { destinationLabel } from "@src/utils/destinations.ts";
 import {
-  formatExitHealthStatus,
   formatLatency,
   formatLoadAvg,
   formatRouting,
   formatSecondsAgo,
   formatSlots,
   formatTotalTime,
-  getExitHealthColor,
   getHopCount,
   getLastCheckedEpoch,
-  isExitHealthPendingOrUnreachable,
 } from "@src/utils/exitHealth.ts";
 import { ExitNodeStatusTags } from "./ExitNodeStatusTags.tsx";
 import HopsIcon from "./HopsIcon.tsx";
@@ -37,11 +34,6 @@ export default function ExitNodeCard(props: {
   const hasInteractiveStatus = () =>
     isConnected() || isReadyToConnect(connectivityHealth());
 
-  /** Checking/Unreachable exit: show exit status; otherwise show connectivity healthLabel */
-  const showExitStatusOnly = () =>
-    isExitHealthPendingOrUnreachable(exitHealth()) && !isConnected() &&
-    !isConnecting();
-
   const hasReachableExit = () => {
     if (isConnected()) return true;
     const eh = exitHealth();
@@ -49,8 +41,6 @@ export default function ExitNodeCard(props: {
       eh.Success.health.slots.available > 0;
   };
 
-  const color = () => getExitHealthColor(exitHealth());
-  const status = () => formatExitHealthStatus(exitHealth());
   const latency = () => {
     const tt = formatTotalTime(exitHealth());
     const rtt = formatLatency(exitHealth());
@@ -73,21 +63,8 @@ export default function ExitNodeCard(props: {
     return formatSecondsAgo(diff);
   };
 
-  const healthColorClass = () => {
-    if (isConnected()) return "text-vpn-light-green";
-    return color() === "red"
-      ? "text-vpn-red"
-      : color() === "green"
-      ? "text-vpn-light-green"
-      : undefined;
-  };
-
   const isClickable = () =>
     hasInteractiveStatus() && hasReachableExit() && !isConnecting();
-  const healthLabel =
-    () => (isConnected()
-      ? "Connected"
-      : (formatHealth(connectivityHealth()) as string));
 
   return (
     <div
@@ -124,12 +101,7 @@ export default function ExitNodeCard(props: {
                 </span>
               </Show>
               <ExitNodeStatusTags
-                showExitStatusOnly={showExitStatusOnly}
-                exitStatusText={status}
-                exitColor={color}
-                healthLabel={healthLabel}
-                healthColorClass={healthColorClass}
-                isConnecting={isConnecting}
+                destinationState={props.destinationState}
               />
             </div>
           </div>
