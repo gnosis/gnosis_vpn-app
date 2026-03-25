@@ -299,16 +299,16 @@ pub async fn start_status_polling(app_handle: AppHandle, m_cancel: State<'_, Mut
 
     let app = app_handle.clone();
     tauri::async_runtime::spawn(async move {
-        let tick_timeout = time::sleep(Duration::from_secs(2));
+        let tick_timeout = time::sleep(Duration::ZERO);
         tokio::pin!(tick_timeout);
-
         loop {
-
             tokio::select! {
+
                 _ = cancel.cancelled() => {
                     println!("Status tick received cancellation signal, exiting...");
                     break;
                 }
+
                 _ = tick_timeout.as_mut() => {
                     let (status_delay, result) = query_status().await;
                     tick_timeout.as_mut().reset(Instant::now() + status_delay);
@@ -327,8 +327,8 @@ pub async fn start_status_polling(app_handle: AppHandle, m_cancel: State<'_, Mut
                         };
                     }
                     let _ = app.emit("status", result);
-
                 }
+
             }
         }
     });

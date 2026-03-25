@@ -4,7 +4,7 @@ import {
   isDeployingSafeRunMode,
   isPreparingSafeRunMode,
   isWarmupRunMode,
-  RunMode,
+  StatusResponse,
 } from "@src/services/vpnService.ts";
 import type { AppState } from "@src/stores/appStore.ts";
 
@@ -13,23 +13,26 @@ function getDestinationsWithConnection(state: AppState): DestinationState[] {
 }
 
 export function isConnected(destinations: DestinationState[]): boolean {
-  return destinations.some((ds) =>
-    typeof ds.connection_state === "object" &&
-    "Connected" in ds.connection_state
+  return destinations.some(
+    (ds) =>
+      typeof ds.connection_state === "object" &&
+      "Connected" in ds.connection_state,
   );
 }
 
 export function isConnecting(destinations: DestinationState[]): boolean {
-  return destinations.some((ds) =>
-    typeof ds.connection_state === "object" &&
-    "Connecting" in ds.connection_state
+  return destinations.some(
+    (ds) =>
+      typeof ds.connection_state === "object" &&
+      "Connecting" in ds.connection_state,
   );
 }
 
 export function isDisconnecting(destinations: DestinationState[]): boolean {
-  return destinations.some((ds) =>
-    typeof ds.connection_state === "object" &&
-    "Disconnecting" in ds.connection_state
+  return destinations.some(
+    (ds) =>
+      typeof ds.connection_state === "object" &&
+      "Disconnecting" in ds.connection_state,
   );
 }
 
@@ -46,12 +49,14 @@ export function isConnectedTo(
   destination: Destination,
 ): boolean {
   const destinations = getDestinationsWithConnection(state);
-  const destState = destinations.find((ds) =>
-    ds.destination.id === destination.id
+  const destState = destinations.find(
+    (ds) => ds.destination.id === destination.id,
   );
   if (destState) {
-    return typeof destState.connection_state === "object" &&
-      "Connected" in destState.connection_state;
+    return (
+      typeof destState.connection_state === "object" &&
+      "Connected" in destState.connection_state
+    );
   }
   return false;
 }
@@ -61,12 +66,14 @@ export function isConnectingTo(
   destination: Destination,
 ): boolean {
   const destinations = getDestinationsWithConnection(state);
-  const destState = destinations.find((ds) =>
-    ds.destination.id === destination.id
+  const destState = destinations.find(
+    (ds) => ds.destination.id === destination.id,
   );
   if (destState) {
-    return typeof destState.connection_state === "object" &&
-      "Connecting" in destState.connection_state;
+    return (
+      typeof destState.connection_state === "object" &&
+      "Connecting" in destState.connection_state
+    );
   }
   return false;
 }
@@ -76,43 +83,47 @@ export function isDisconnectingFrom(
   destination: Destination,
 ): boolean {
   const destinations = getDestinationsWithConnection(state);
-  const destState = destinations.find((ds) =>
-    ds.destination.id === destination.id
+  const destState = destinations.find(
+    (ds) => ds.destination.id === destination.id,
   );
   if (destState) {
-    return typeof destState.connection_state === "object" &&
-      "Disconnecting" in destState.connection_state;
+    return (
+      typeof destState.connection_state === "object" &&
+      "Disconnecting" in destState.connection_state
+    );
   }
   return false;
 }
 
-export function getVpnStatus(
-  runMode: RunMode,
-  destinations: DestinationState[],
+export function deriveVPNStatus(
+  response: StatusResponse,
 ): AppState["vpnStatus"] {
-  if (!runMode) return "ServiceUnavailable";
-  if ("Shutdown" === runMode) return "ServiceUnavailable";
-  if (isPreparingSafeRunMode(runMode)) return "PreparingSafe";
-  if (isDeployingSafeRunMode(runMode)) return "DeployingSafe";
-  if (isWarmupRunMode(runMode)) return runMode.Warmup.status;
-  if ("Running" in runMode) {
-    if (isConnected(destinations)) return "Connected";
-    if (isConnecting(destinations)) return "Connecting";
-    if (isDisconnecting(destinations)) return "Disconnecting";
-    if (isDisconnected(destinations)) return "Disconnected";
+  if ("Shutdown" === response.runMode) return "ServiceUnavailable";
+  if (isPreparingSafeRunMode(response.runMode)) return "PreparingSafe";
+  if (isDeployingSafeRunMode(response.runMode)) return "DeployingSafe";
+  if (isWarmupRunMode(response.runMode)) return response.runMode.Warmup.status;
+  if ("Running" in response.runMode) {
+    if (response.connected) return "Connected";
+    if (response.connecting) return "Connecting";
+    if (response.disconnecting.length > 0) return "Disconnecting";
+    if (response.disconnected.length > 0) return "Disconnected";
   }
 
   return "ServiceUnavailable";
 }
 
 export function isXDAITransferred(state: AppState): boolean {
-  return !!state && isPreparingSafeRunMode(state.runMode) &&
-    parseFloat(state.runMode.PreparingSafe.node_xdai) >= 0.01;
+  return (
+    !!state &&
+    isPreparingSafeRunMode(state.runMode) &&
+    parseFloat(state.runMode.PreparingSafe.node_xdai) >= 0.01
+  );
 }
 
 export function isWxHOPRTransferred(state: AppState): boolean {
   return (
-    !!state && isPreparingSafeRunMode(state.runMode) &&
+    !!state &&
+    isPreparingSafeRunMode(state.runMode) &&
     parseFloat(state.runMode.PreparingSafe.node_wxhopr) >= 0.01
   );
 }
@@ -136,19 +147,20 @@ export type ConnectionLabel =
 export function getConnectionLabel(
   cs: DestinationState["connection_state"],
 ): ConnectionLabel {
-  if (cs === "None") return "None";
-  if (typeof cs === "object" && "Connecting" in cs) return "Connecting";
-  if (typeof cs === "object" && "Connected" in cs) return "Connected";
-  if (typeof cs === "object" && "Disconnecting" in cs) return "Disconnecting";
-  return "Unknown";
+  if (typeof cs === "object") {
+    if ("Connected" in cs) return "Connected";
+    if ("Connecting" in cs) return "Connecting";
+    if ("Disconnecting" in cs) return "Disconnecting";
+  }
+  return "None";
 }
 
 export function getConnectionPhase(
   cs: DestinationState["connection_state"],
 ): string | undefined {
-  if (typeof cs === "object" && "Connecting" in cs) return cs.Connecting[1];
-  if (typeof cs === "object" && "Disconnecting" in cs) {
-    return cs.Disconnecting[1];
+  if (typeof cs === "object") {
+    if ("Connecting" in cs) return cs.Connecting[1];
+    if ("Disconnecting" in cs) return cs.Disconnecting[1];
   }
   return undefined;
 }

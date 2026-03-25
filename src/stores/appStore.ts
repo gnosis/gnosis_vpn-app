@@ -15,9 +15,7 @@ import {
 } from "@src/services/vpnService.ts";
 import { useLogsStore } from "@src/stores/logsStore.ts";
 import {
-  areDestinationsEqualUnordered,
   destinationLabel,
-  destinationLabelById,
   getPreferredAvailabilityChangeMessage,
   selectTargetId,
 } from "@src/utils/destinations.ts";
@@ -29,7 +27,7 @@ import {
 
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import { getConnectionLabel, getConnectionPhase } from "@src/utils/status.ts";
-import { getVpnStatus, isConnecting } from "@src/utils/status.ts";
+import { deriveVPNStatus } from "@src/utils/status.ts";
 import { shortAddress } from "../utils/shortAddress.ts";
 
 export enum AppScreen {
@@ -63,10 +61,6 @@ type AppActions = {
 
 type AppStoreTuple = readonly [Store<AppState>, AppActions];
 
-const OFFLINE_TIMEOUT = 5000; // ms
-const FAST_TIMEOUT = 555; // ms
-const DEFAULT_TIMEOUT = 2111; // ms
-
 function initialState(): AppState {
   return {
     availableDestinations: [],
@@ -89,9 +83,6 @@ export function createAppStore(): AppStoreTuple {
   let unlistenStatusUpdate: (() => void) | undefined;
 
   const [settings] = useSettingsStore();
-  let lastPreferredLocation: string | null = settings.preferredLocation;
-  let hasInitializedPreferred = false;
-
   const [, logActions] = useLogsStore();
   const log = (content: string) => logActions.append(content);
   const logStatus = (response: StatusResponse) =>
@@ -124,40 +115,30 @@ export function createAppStore(): AppStoreTuple {
     }
   };
 
-  const processStatusResult = async (
-    result: Promise<StatusResponse | null>,
-  ) => {
-    let response;
-    try {
-      response = await result;
-    } catch (error) {
-      console.error("error", error);
-      const message = error instanceof Error ? error.message : String(error);
-      log(message);
-      return null;
-    }
-    if (!response) {
-      return null;
-    }
-
+  const processStatusResponse = (response: StatusResponse) => {
     const [screen, warmupStatus] = determineScreenAndStatus(response);
+    const availableDestinations = Object.values(response.destinations).map(
+      (ds) => ds.destination,
+    );
+    logStateChange(response);
+    logPrefMsg(availableDestinations);
+    logStatus(response);
+    setState("error", undefined);
     setState("currentScreen", screen);
     setState("warmupStatus", warmupStatus);
+    setState("runMode", reconcile(response.run_mode));
+    setState("destinations", reconcile(response.destinations));
+    setState("vpnStatus", deriveVPNStatus(response));
+    setState("availableDestinations", availableDestinations);
+    applyDestinationSelection();
+  };
 
+  const logStateChange = (response: StatusResponse) => {
     const prevDestStates = state.destinations;
-    const [nextDestStates, availableDestinations] =
-      response.destinations.reduce(
-        ([states, dests], ds) => {
-          states[ds.destination.id] = ds;
-          dests.push(ds.destination);
-          return [states, dests];
-        },
-        [{} as Record<string, DestinationState>, [] as Destination[]],
-      );
-
-    for (const [id, next] of Object.entries(nextDestStates)) {
+    response.dest_order.forEach((id) => {
       const prev = prevDestStates[id];
-      if (!prev) continue;
+      const next = response.destinations[id];
+      if (!prev || !next) return;
       const prevLabel = getConnectionLabel(prev.connection_state);
       const nextLabel = getConnectionLabel(next.connection_state);
       const prevPhase = getConnectionPhase(prev.connection_state);
@@ -176,99 +157,19 @@ export function createAppStore(): AppStoreTuple {
         const phaseSuffix = nextPhase ? ` - ${nextPhase}` : "";
         log(`${nextLabel}: ${display}${phaseSuffix}`);
       }
-    }
+    });
+  };
 
+  const logPrefMsg = (availableDestinations: Destination[]) => {
     const prefMsg = getPreferredAvailabilityChangeMessage(
       state.availableDestinations,
       availableDestinations,
       settings.preferredLocation,
     );
     if (prefMsg) log(prefMsg);
-
-    if (!hasInitializedPreferred) {
-      lastPreferredLocation = settings.preferredLocation;
-      hasInitializedPreferred = true;
-    }
-
-    const preferredChanged =
-      settings.preferredLocation !== lastPreferredLocation;
-    if (preferredChanged) {
-      const nowHasPreferred = settings.preferredLocation
-        ? availableDestinations.some((d) => d.id === settings.preferredLocation)
-        : false;
-      if (settings.preferredLocation) {
-        if (nowHasPreferred) {
-          const pretty = destinationLabelById(
-            settings.preferredLocation,
-            availableDestinations,
-          );
-          log(`Preferred location set to ${pretty}.`);
-        } else {
-          log(
-            `Preferred location ${settings.preferredLocation} currently unavailable.`,
-          );
-        }
-      }
-      lastPreferredLocation = settings.preferredLocation;
-    }
-
-    const hasConnChange = Object.values(state.destinations).some((prev) => {
-      const found_next = Object.entries(nextDestStates).find(
-        ([id, _]) => id === prev.destination.id,
-      );
-      if (!found_next) return false;
-      const [_, next] = found_next;
-      const prevState = prev.connection_state;
-      const nextState = next.connection_state;
-      if (prevState === nextState) return false;
-      const prevLabel = getConnectionLabel(prevState);
-      const nextLabel = getConnectionLabel(nextState);
-      if (
-        prevLabel !== nextLabel &&
-        nextLabel !== "None" &&
-        nextLabel !== "Unknown"
-      ) {
-        return true;
-      }
-      if (nextLabel === "Connecting") {
-        const prevPhase = getConnectionPhase(prevState);
-        const nextPhase = getConnectionPhase(nextState);
-        return prevPhase !== nextPhase;
-      }
-      if (nextLabel === "Disconnecting") {
-        const prevPhase = getConnectionPhase(prevState);
-        const nextPhase = getConnectionPhase(nextState);
-        return prevPhase !== nextPhase;
-      }
-      return false;
-    });
-    if (!preferredChanged && !hasConnChange) {
-      logStatus(response);
-    }
-
-    setState("runMode", reconcile(response.run_mode));
-    setState("destinations", nextDestStates);
-
-    const vpnStatus = getVpnStatus(response.run_mode, response.destinations);
-    setState("vpnStatus", vpnStatus);
-
-    if (
-      !areDestinationsEqualUnordered(
-        availableDestinations,
-        state.availableDestinations,
-      )
-    ) {
-      setState("availableDestinations", availableDestinations);
-      applyDestinationSelection();
-    }
-    setState("error", undefined);
-
-    if (preferredChanged) {
-      applyDestinationSelection();
-    }
-
-    return timeoutFromState(response.run_mode, response.destinations);
   };
+
+  const OFFLINE_TIMEOUT = 5000; // ms
 
   const actions = {
     initializeApp: async () => {
@@ -284,8 +185,20 @@ export function createAppStore(): AppStoreTuple {
           }
           unlistenStatusUpdate = await listen<Promise<StatusResponse | null>>(
             "status",
-            (event) => {
-              processStatusResult(event.payload);
+            async (event) => {
+              try {
+                const resp = await event.payload;
+                if (resp) {
+                  processStatusResponse(resp);
+                } else {
+                  setState("vpnStatus", "ServiceUnavailable");
+                }
+              } catch (error) {
+                const message =
+                  error instanceof Error ? error.message : String(error);
+                console.error("Error processing status update", message);
+                log(message);
+              }
             },
           );
         } else {
@@ -380,19 +293,6 @@ export function useAppStore(): AppStoreTuple {
   return appStore;
 }
 
-function timeoutFromState(
-  runMode: RunMode | undefined,
-  destinations: DestinationState[],
-): number {
-  if (isWarmupRunMode(runMode)) {
-    return FAST_TIMEOUT;
-  }
-  if (isConnecting(Object.values(destinations))) {
-    return FAST_TIMEOUT;
-  }
-  return DEFAULT_TIMEOUT;
-}
-
 const MAXIMUM_DELAY_TIME = 120 * 1000; // 2 minutes
 let initialDelay:
   | { delayingSince: number }
@@ -416,7 +316,7 @@ function determineScreenAndStatus(status: StatusResponse): [AppScreen, string] {
     ];
   }
   // delay initial screen as long as no interaction makes sense
-  const delay = findDelayReason(status.destinations);
+  const delay = findDelayReason(Object.values(status.destinations));
   if (delay) {
     // delay proposed and never ran
     if ("neverRan" in initialDelay) {
