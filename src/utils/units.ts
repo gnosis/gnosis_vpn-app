@@ -1,3 +1,18 @@
+/** Format wei as a decimal string, truncating (flooring) to `fractionDigits` — never rounds up. */
+function formatWeiFixedFloor(
+  wei: bigint,
+  decimals: number,
+  fractionDigits: number,
+): string {
+  const fractionScale = 10n ** BigInt(fractionDigits);
+  const denom = 10n ** BigInt(decimals);
+  const scaled = (wei * fractionScale) / denom;
+  const intPart = scaled / fractionScale;
+  const fracPart = scaled % fractionScale;
+  const fracStr = fracPart.toString().padStart(fractionDigits, "0");
+  return `${intPart.toString()}.${fracStr}`;
+}
+
 export function fromWeiToFixed(
   value: string | number | bigint,
   decimals = 18,
@@ -13,43 +28,13 @@ export function fromWeiToFixed(
       const clean = value.trim();
       wei = BigInt(clean.length > 0 ? clean : "0");
     }
-
-    const base = 10n ** BigInt(decimals);
-    let intPart = wei / base;
-    const fracPart = wei % base;
-
-    if (fracPart === 0n) {
-      return `${intPart.toString()}.${"0".repeat(fractionDigits)}`;
-    }
-
-    const fullFrac = fracPart.toString().padStart(decimals, "0");
-
-    const firstNonZeroIdx = fullFrac.search(/[1-9]/);
-    let showLen = Math.max(
-      fractionDigits,
-      firstNonZeroIdx >= 0 ? firstNonZeroIdx + 1 : fractionDigits,
-    );
-    if (showLen > decimals) showLen = decimals;
-
-    const scale = 10n ** BigInt(showLen);
-    const rounded = (fracPart * scale + base / 2n) / base;
-    if (rounded === scale) {
-      intPart = intPart + 1n;
-      return `${intPart.toString()}.${"0".repeat(showLen)}`;
-    }
-    let fracOut = rounded.toString().padStart(showLen, "0");
-
-    if (showLen > fractionDigits) {
-      const trimmed = fracOut.replace(/0+$/, "");
-      fracOut = trimmed.length >= fractionDigits
-        ? trimmed
-        : fracOut.slice(0, fractionDigits);
-    }
-
-    return `${intPart.toString()}.${fracOut}`;
+    return formatWeiFixedFloor(wei, decimals, fractionDigits);
   } catch {
     const num = Number(value);
     if (!Number.isFinite(num)) return "0.00";
-    return (num / 1e18).toFixed(fractionDigits);
+    const fractionScale = 10 ** fractionDigits;
+    const floored = Math.floor((num / 10 ** decimals) * fractionScale) /
+      fractionScale;
+    return floored.toFixed(fractionDigits);
   }
 }
