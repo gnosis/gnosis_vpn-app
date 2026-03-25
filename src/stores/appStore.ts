@@ -62,6 +62,12 @@ type AppActions = {
 
 type AppStoreTuple = readonly [Store<AppState>, AppActions];
 
+type StatusEvent = {
+  payload: { Ok: StatusResponse | null } | { Err: string };
+  id: number;
+  event: string;
+};
+
 function initialState(): AppState {
   return {
     availableDestinations: [],
@@ -118,6 +124,7 @@ export function createAppStore(): AppStoreTuple {
 
   const processStatusResponse = (response: StatusResponse) => {
     const [screen, warmupStatus] = determineScreenAndStatus(response);
+    console.log("screen", screen, "warmupStatus", warmupStatus);
     const availableDestinations = Object.values(response.destinations).map(
       (ds) => ds.destination,
     );
@@ -186,11 +193,13 @@ export function createAppStore(): AppStoreTuple {
           }
           unlistenStatusUpdate = await listen<Promise<StatusResponse | null>>(
             "status",
-            async (event) => {
+            (event) => {
               try {
-                const status = await incomingStatusEvent(event);
-                if (status) {
-                  processStatusResponse(status);
+                const statusResp = incomingStatusEvent(
+                  event as unknown as StatusEvent,
+                );
+                if (statusResp) {
+                  processStatusResponse(statusResp);
                 } else {
                   setState("vpnStatus", "ServiceUnavailable");
                 }
@@ -379,12 +388,12 @@ function findDelayReason(destinations: DestinationState[]): string | null {
   return null;
 }
 
-async function incomingStatusEvent(event): Promise<StatusResponse | void> {
+function incomingStatusEvent(event: StatusEvent): StatusResponse | void {
   const rawRes = event.payload;
-  if (!rawRes) {
-    return;
-  }
   if ("Ok" in rawRes) {
+    if (rawRes.Ok === null) {
+      return;
+    }
     const res = StatusResponseSchema.safeParse(rawRes.Ok);
     if (res.success) {
       return res.data;

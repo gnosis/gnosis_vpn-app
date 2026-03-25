@@ -37,7 +37,6 @@ export default function SettingsWindow() {
   onCleanup(() => {
     disposed = true;
     unlistenNavigate?.();
-    appActions.stopStatusPolling();
   });
 
   return (

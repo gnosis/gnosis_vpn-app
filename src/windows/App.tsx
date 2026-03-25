@@ -105,7 +105,6 @@ function App() {
   onCleanup(() => {
     disposed = true;
     unlistenNavigate?.();
-    appActions.stopStatusPolling();
   });
 
   return (

@@ -98,15 +98,16 @@ export function isDisconnectingFrom(
 export function deriveVPNStatus(
   response: StatusResponse,
 ): AppState["vpnStatus"] {
-  if ("Shutdown" === response.runMode) return "ServiceUnavailable";
-  if (isPreparingSafeRunMode(response.runMode)) return "PreparingSafe";
-  if (isDeployingSafeRunMode(response.runMode)) return "DeployingSafe";
-  if (isWarmupRunMode(response.runMode)) return response.runMode.Warmup.status;
-  if ("Running" in response.runMode) {
+  if ("Shutdown" === response.run_mode) return "ServiceUnavailable";
+  if (isPreparingSafeRunMode(response.run_mode)) return "PreparingSafe";
+  if (isDeployingSafeRunMode(response.run_mode)) return "DeployingSafe";
+  if (isWarmupRunMode(response.run_mode))
+    return response.run_mode.Warmup.status;
+  if ("Running" in response.run_mode) {
     if (response.connected) return "Connected";
     if (response.connecting) return "Connecting";
     if (response.disconnecting.length > 0) return "Disconnecting";
-    if (response.disconnected.length > 0) return "Disconnected";
+    return "Disconnected";
   }
 
   return "ServiceUnavailable";

@@ -29,9 +29,10 @@ export function createLogsStore(): LogsStoreTuple {
   const [state, setState] = createStore<LogsState>({ logs: [] });
   const isMainWindow = getCurrentWindow().label === "main";
 
-  function buildStatusLog(
-    args: { response?: StatusResponse; error?: string },
-  ): string | undefined {
+  function buildStatusLog(args: {
+    response?: StatusResponse;
+    error?: string;
+  }): string | undefined {
     const lastMessage = state.logs.length
       ? state.logs[state.logs.length - 1].message
       : undefined;
@@ -48,18 +49,19 @@ export function createLogsStore(): LogsStoreTuple {
     let content: string | undefined;
     if (args.response) {
       const rm = args.response.run_mode;
+      const dests = Object.values(args.response.destinations);
       // Check connection state from destinations (connection info is in DestinationState, not RunMode)
-      const connectedDest = args.response.destinations.find(
+      const connectedDest = dests.find(
         (ds) =>
           typeof ds.connection_state === "object" &&
           "Connected" in ds.connection_state,
       );
-      const connectingDest = args.response.destinations.find(
+      const connectingDest = dests.find(
         (ds) =>
           typeof ds.connection_state === "object" &&
           "Connecting" in ds.connection_state,
       );
-      const disconnectingDest = args.response.destinations.find(
+      const disconnectingDest = dests.find(
         (ds) =>
           typeof ds.connection_state === "object" &&
           "Disconnecting" in ds.connection_state,
@@ -72,40 +74,42 @@ export function createLogsStore(): LogsStoreTuple {
       } else if (connectingDest) {
         const destination = connectingDest.destination;
         const where = destinationLabel(destination);
-        const phase = typeof connectingDest.connection_state === "object" &&
-            "Connecting" in connectingDest.connection_state
-          ? (
-            connectingDest.connection_state as {
-              Connecting: [SerializedSinceTime, string];
-            }
-          ).Connecting[1]
-          : undefined;
+        const phase =
+          typeof connectingDest.connection_state === "object" &&
+          "Connecting" in connectingDest.connection_state
+            ? (
+                connectingDest.connection_state as {
+                  Connecting: [SerializedSinceTime, string];
+                }
+              ).Connecting[1]
+            : undefined;
         const phaseSuffix = phase ? ` - ${phase}` : "";
-        content = `Connecting: ${where} - ${
-          shortAddress(destination.address)
-        }${phaseSuffix}`;
+        content = `Connecting: ${where} - ${shortAddress(
+          destination.address,
+        )}${phaseSuffix}`;
       } else if (disconnectingDest) {
         const destination = disconnectingDest.destination;
         const where = destinationLabel(destination);
-        const phase = typeof disconnectingDest.connection_state === "object" &&
-            "Disconnecting" in disconnectingDest.connection_state
-          ? (
-            disconnectingDest.connection_state as {
-              Disconnecting: [SerializedSinceTime, string];
-            }
-          ).Disconnecting[1]
-          : undefined;
+        const phase =
+          typeof disconnectingDest.connection_state === "object" &&
+          "Disconnecting" in disconnectingDest.connection_state
+            ? (
+                disconnectingDest.connection_state as {
+                  Disconnecting: [SerializedSinceTime, string];
+                }
+              ).Disconnecting[1]
+            : undefined;
         const phaseSuffix = phase ? ` - ${phase}` : "";
-        content = `Disconnecting: ${where} - ${
-          shortAddress(destination.address)
-        }${phaseSuffix}`;
+        content = `Disconnecting: ${where} - ${shortAddress(
+          destination.address,
+        )}${phaseSuffix}`;
       } else if (typeof rm === "object" && "Running" in rm) {
         // Running but no active connection
         const lastWasDisconnected = Boolean(
           lastMessage && lastMessage.startsWith("Disconnected"),
         );
         if (!lastWasDisconnected) {
-          const lines = args.response.destinations.map((ds) => {
+          const lines = dests.map((ds) => {
             const d = ds.destination;
             const where = destinationLabel(d);
             return `- ${where} - ${shortAddress(d.address)}`;
@@ -113,9 +117,8 @@ export function createLogsStore(): LogsStoreTuple {
           content = `Disconnected. Available:\n${lines.join("\n")}`;
         }
       } else if (isPreparingSafeRunMode(rm)) {
-        const addr =
-          (rm as { PreparingSafe: { node_address: unknown } }).PreparingSafe
-            .node_address;
+        const addr = (rm as { PreparingSafe: { node_address: unknown } })
+          .PreparingSafe.node_address;
         let isUnknown = false;
         if (typeof addr === "string") {
           const s = addr.trim().toLowerCase();
@@ -167,24 +170,29 @@ export function createLogsStore(): LogsStoreTuple {
       ? state.logs[state.logs.length - 1]
       : undefined;
     if (
-      last && last.date === payload.date && last.message === payload.message
+      last &&
+      last.date === payload.date &&
+      last.message === payload.message
     ) {
       return;
     }
     setState("logs", (existing) => [...existing, payload]);
-  }).then((u) => unlisteners.push(u))
+  })
+    .then((u) => unlisteners.push(u))
     .catch((e) => console.error("logs:append listener failed", e));
 
   if (isMainWindow) {
     listen("logs:request-snapshot", () => {
       void emit("logs:snapshot", state.logs);
-    }).then((u) => unlisteners.push(u))
+    })
+      .then((u) => unlisteners.push(u))
       .catch((e) => console.error("logs:request-snapshot listener failed", e));
   }
 
   listen<LogEntry[]>("logs:snapshot", ({ payload }) => {
     setState("logs", Array.isArray(payload) ? payload : []);
-  }).then((u) => unlisteners.push(u))
+  })
+    .then((u) => unlisteners.push(u))
     .catch((e) => console.error("logs:snapshot listener failed", e));
 
   const dispose = () => {
