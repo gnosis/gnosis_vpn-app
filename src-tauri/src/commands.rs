@@ -1,23 +1,24 @@
 use gnosis_vpn_lib::command;
 use gnosis_vpn_lib::socket::root as root_socket;
 
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Emitter, Manager, State};
+use tokio_util::sync::CancellationToken;
 use zstd::stream::Encoder;
 
 use std::fs::File;
 use std::io::{self, BufReader};
 use std::path::PathBuf;
-use std::sync::Arc;
 use std::sync::atomic::Ordering;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::task::spawn_blocking;
+use tokio::time::{self, Instant};
 
-use crate::icons::{
-    self, AppIconState, TrayIconState, determine_app_icon, update_icon_name_if_changed,
-    update_tray_icon,
+use crate::icons::{self, AppIconState, TrayIconState};
+use crate::tray;
+use crate::types::{
+    BalanceResponse, ConnectResponse, ConnectionState, DisconnectResponse, StatusResponse,
 };
-use crate::tray::TrayStatusItem;
-use crate::types::{BalanceResponse, ConnectResponse, DisconnectResponse, StatusResponse};
 
 const ALLOWED_APP_ICONS: &[&str] = &[
     icons::APP_ICON_CONNECTED,
@@ -63,80 +64,6 @@ pub async fn start_client(keep_alive: Duration) -> Result<(), String> {
     match resp {
         command::Response::StartClient(_resp) => Ok(()),
         _ => Err("Unexpected response type".to_string()),
-    }
-}
-
-#[tauri::command]
-pub async fn status(
-    app: AppHandle,
-    status_item: State<'_, TrayStatusItem>,
-    tray_icon_state: State<'_, TrayIconState>,
-    app_icon_state: State<'_, Arc<AppIconState>>,
-) -> Result<Option<StatusResponse>, String> {
-    let p = PathBuf::from(root_socket::DEFAULT_PATH);
-    let resp = root_socket::process_cmd(&p, &command::Command::Status).await;
-    match resp {
-        Ok(command::Response::Status(status_resp)) => {
-            let mut derived = "Disconnected";
-            if matches!(status_resp.run_mode, command::RunMode::Running { .. }) {
-                let mut connecting = false;
-                let mut disconnecting = false;
-
-                for ds in &status_resp.destinations {
-                    match ds.connection_state {
-                        command::ConnectionState::Connected(_) => {
-                            derived = "Connected";
-                            break;
-                        }
-                        command::ConnectionState::Connecting(_, _) => connecting = true,
-                        command::ConnectionState::Disconnecting(_, _) => disconnecting = true,
-                        command::ConnectionState::None => {}
-                    }
-                }
-
-                if derived == "Disconnected" {
-                    if connecting {
-                        derived = "Connecting";
-                    } else if disconnecting {
-                        derived = "Disconnecting";
-                    }
-                }
-            }
-            if let Ok(guard) = status_item.0.lock() {
-                let _ = guard.set_text(format!("Status: {}", derived));
-            }
-
-            update_tray_icon(&app, tray_icon_state.inner(), derived);
-
-            let icon_name = determine_app_icon(derived, &status_resp.run_mode);
-            let should_animate = derived == "Connecting" || derived == "Disconnecting";
-
-            app_icon_state
-                .is_animating
-                .store(should_animate, Ordering::Relaxed);
-
-            if !should_animate
-                && update_icon_name_if_changed(&app_icon_state.current_icon, &icon_name)
-            {
-                if let Err(e) = set_app_icon(app, icon_name).await {
-                    eprintln!("Failed to update app icon: {}", e);
-                }
-            }
-
-            Ok(Some(status_resp.into()))
-        }
-        Ok(command::Response::WorkerOffline) => Ok(None),
-        Err(e) => {
-            if let Ok(guard) = status_item.0.lock() {
-                let _ = guard.set_text("Status: Not available");
-            }
-            update_tray_icon(&app, tray_icon_state.inner(), "Disconnected");
-            Err(e.to_string())
-        }
-        Ok(unexpected) => {
-            eprintln!("Unexpected status response: {:?}", unexpected);
-            Err("Unexpected response type".to_string())
-        }
     }
 }
 
@@ -360,5 +287,118 @@ pub async fn stop_client() -> Result<(), String> {
     match resp {
         command::Response::StopClient(_resp) => Ok(()),
         _ => Err("Unexpected response type".to_string()),
+    }
+}
+
+#[tauri::command]
+pub async fn start_status_polling(
+    app_handle: AppHandle,
+    m_cancel: State<'_, Mutex<CancellationToken>>,
+) -> Result<(), String> {
+    println!("Starting status polling...");
+    // cancel previous polling
+    let mut cancel_guard = m_cancel.lock().map_err(|e| e.to_string())?;
+    cancel_guard.cancel();
+    *cancel_guard = CancellationToken::new();
+    let cancel = cancel_guard.clone();
+    drop(cancel_guard);
+
+    let app = app_handle.clone();
+    tauri::async_runtime::spawn(async move {
+        let tick_timeout = time::sleep(Duration::ZERO);
+        tokio::pin!(tick_timeout);
+        loop {
+            tokio::select! {
+
+                _ = cancel.cancelled() => {
+                    println!("Status tick received cancellation signal, exiting...");
+                    break;
+                }
+
+                _ = tick_timeout.as_mut() => {
+                    let (status_delay, result) = query_status().await;
+                    tick_timeout.as_mut().reset(Instant::now() + status_delay);
+                    if let Ok(Some(ref status)) = result {
+                        // derive tray icon
+                        let conn_state = status.into();
+                        icons::update_tray_icon(&app, &app.state::<TrayIconState>(), &conn_state);
+
+                        // animate icon
+                        let should_animate = matches!(conn_state, ConnectionState::Connecting(_) | ConnectionState::Disconnecting);
+                        let app_icon_state = app.state::<Arc<AppIconState>>();
+                        app_icon_state.is_animating.store(should_animate, Ordering::Relaxed);
+
+                        // derive app_icon only when not animating; during animation, the heartbeat
+                        // logic owns app icon changes to avoid fighting with it
+                        if !should_animate {
+                        let icon_name = icons::determine_app_icon(&conn_state, &status.run_mode);
+                        if icons::update_icon_name_if_changed(&app_icon_state.current_icon, &icon_name) {
+                            if let Err(e) = set_app_icon(app.clone(), icon_name.to_string()).await {
+                                eprintln!("Failed to update app icon: {}", e);
+                            }
+                        }
+                        }
+
+                        // set status text
+                        let status_item = app.state::<tray::TrayStatusItem>();
+                        if let Ok(guard) = status_item.0.lock() {
+                            let _ = guard.set_text(conn_state.to_string());
+                        };
+                    }
+                    let _ = app.emit("status", result);
+                }
+
+            }
+        }
+    });
+    Ok(())
+}
+
+async fn query_status() -> (Duration, Result<Option<StatusResponse>, String>) {
+    let p = PathBuf::from(root_socket::DEFAULT_PATH);
+    let resp = root_socket::process_cmd(&p, &command::Command::Status).await;
+    match resp {
+        Ok(command::Response::Status(status_resp)) => {
+            let resp = status_resp.destinations.iter().fold(
+                StatusResponse {
+                    run_mode: status_resp.run_mode.into(),
+                    destinations: Default::default(),
+                    dest_order: Vec::new(),
+                    connected: None,
+                    connecting: None,
+                    disconnecting: Vec::new(),
+                },
+                |mut acc, ds| {
+                    let id = ds.destination.id.clone();
+                    match ds.connection_state {
+                        command::ConnectionState::Connected(_) => {
+                            acc.connected = Some(id.clone());
+                        }
+                        command::ConnectionState::Connecting(_, _) => {
+                            acc.connecting = Some(id.clone());
+                        }
+                        command::ConnectionState::Disconnecting(_, _) => {
+                            acc.disconnecting.push(id.clone());
+                        }
+                        command::ConnectionState::None => {}
+                    }
+                    acc.dest_order.push(id.clone());
+                    acc.destinations.insert(id, ds.clone().into());
+                    acc
+                },
+            );
+
+            if resp.connecting.is_some() {
+                (Duration::from_millis(222), Ok(Some(resp)))
+            } else {
+                (Duration::from_secs(2), Ok(Some(resp)))
+            }
+        }
+        Ok(command::Response::WorkerOffline) => (Duration::from_secs(5), Ok(None)),
+        Ok(unexpected) => (
+            Duration::from_secs(2),
+            Err(format!("Unexpected response type: {:?}", unexpected).to_string()),
+        ),
+        Err(e) => (Duration::from_secs(2), Err(e.to_string())),
     }
 }

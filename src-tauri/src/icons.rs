@@ -8,6 +8,7 @@ use tauri::{AppHandle, Manager, tray::TrayIcon};
 use tokio::time::sleep;
 
 use crate::commands::set_app_icon;
+use crate::types::{ConnectionState, RunMode};
 use gnosis_vpn_lib::{balance, command};
 
 // App icon constants
@@ -61,9 +62,9 @@ pub fn update_icon_name_if_changed(current: &Mutex<String>, next: &str) -> bool 
     }
 }
 
-pub fn determine_app_icon(connection_state: &str, run_mode: &command::RunMode) -> String {
+pub fn determine_app_icon(connection_state: &ConnectionState, run_mode: &RunMode) -> String {
     // Check for low funds in Running mode
-    let has_low_funds = if let command::RunMode::Running {
+    let has_low_funds = if let RunMode::Running {
         funding: command::FundingState::TopIssue(issue),
         hopr_status: _,
     } = run_mode
@@ -84,32 +85,40 @@ pub fn determine_app_icon(connection_state: &str, run_mode: &command::RunMode) -
 
     // Determine icon based on connection state and funding status
     match (connection_state, has_low_funds) {
-        ("Connected", true) => APP_ICON_CONNECTED_LOW_FUNDS.to_string(),
-        ("Connected", false) => APP_ICON_CONNECTED.to_string(),
-        ("Connecting" | "Disconnecting", _) => APP_ICON_CONNECTING_1.to_string(), // Will be animated by heartbeat
+        (ConnectionState::Connected(_), true) => APP_ICON_CONNECTED_LOW_FUNDS.to_string(),
+        (ConnectionState::Connected(_), false) => APP_ICON_CONNECTED.to_string(),
+        (ConnectionState::Connecting(_) | ConnectionState::Disconnecting, _) => {
+            APP_ICON_CONNECTING_1.to_string()
+        } // Will be animated by heartbeat
         (_, true) => APP_ICON_DISCONNECTED_LOW_FUNDS.to_string(), // Disconnected with low funds
         (_, false) => APP_ICON_DISCONNECTED.to_string(),          // Disconnected
     }
 }
 
-pub fn determine_tray_icon(connection_state: &str) -> &'static str {
+pub fn determine_tray_icon(connection_state: &ConnectionState) -> &'static str {
     if cfg!(target_os = "linux") {
         match connection_state {
-            "Connected" => TRAY_ICON_LINUX_CONNECTED,
-            "Connecting" | "Disconnecting" => TRAY_ICON_LINUX_CONNECTING,
+            ConnectionState::Connected(_) => TRAY_ICON_LINUX_CONNECTED,
+            ConnectionState::Connecting(_) | ConnectionState::Disconnecting => {
+                TRAY_ICON_LINUX_CONNECTING
+            }
             _ => TRAY_ICON_LINUX_DISCONNECTED,
         }
     } else {
         match connection_state {
-            "Connected" => TRAY_ICON_CONNECTED,
-            "Connecting" | "Disconnecting" => TRAY_ICON_CONNECTING,
+            ConnectionState::Connected(_) => TRAY_ICON_CONNECTED,
+            ConnectionState::Connecting(_) | ConnectionState::Disconnecting => TRAY_ICON_CONNECTING,
             _ => TRAY_ICON_DISCONNECTED,
         }
     }
 }
 
-pub fn update_tray_icon(app: &AppHandle, tray_icon_state: &TrayIconState, connection_state: &str) {
-    let tray_icon_name = determine_tray_icon(connection_state);
+pub fn update_tray_icon(
+    app: &AppHandle,
+    tray_icon_state: &TrayIconState,
+    conn_state: &ConnectionState,
+) {
+    let tray_icon_name = determine_tray_icon(conn_state);
     if update_icon_name_if_changed(&tray_icon_state.current_icon, tray_icon_name) {
         if let Ok(tray_icon_path) = Manager::path(app)
             .resource_dir()
