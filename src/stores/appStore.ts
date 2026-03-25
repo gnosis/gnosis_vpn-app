@@ -96,25 +96,22 @@ export function createAppStore(): AppStoreTuple {
     logActions.appendStatus(response);
 
   const applyDestinationSelection = () => {
-    const available = state.availableDestinations;
-    const userSelected = state.selectedId
-      ? available.find((d) => d.id === state.selectedId)
-      : undefined;
-    if (userSelected) {
-      if (state.destination?.id !== userSelected.id) {
-        setState("destination", userSelected);
+    if (state.selectedId) {
+      const dest = state.destinations[state.selectedId];
+      if (dest) {
+        setState("selectedId", dest.destination.id);
+        setState("destination", dest.destination);
+        return;
       }
-      return;
     }
 
-    const preferred = settings.preferredLocation
-      ? available.find((d) => d.id === settings.preferredLocation)
-      : undefined;
-    if (preferred) {
-      if (state.destination?.id !== preferred.id) {
-        setState("destination", preferred);
+    if (settings.preferredLocation) {
+      const dest = state.destinations[settings.preferredLocation];
+      if (dest) {
+        setState("selectedId", dest.destination.id);
+        setState("destination", dest.destination);
+        return;
       }
-      return;
     }
 
     if (state.destination !== null) {
@@ -124,9 +121,9 @@ export function createAppStore(): AppStoreTuple {
 
   const processStatusResponse = (response: StatusResponse) => {
     const [screen, warmupStatus] = determineScreenAndStatus(response);
-    const availableDestinations = Object.values(response.destinations).map(
-      (ds) => ds.destination,
-    );
+    const availableDestinations = response.dest_order
+      .map((id) => response.destinations[id].destination)
+      .filter((ds) => ds);
     logStateChange(response);
     logPrefMsg(availableDestinations);
     logStatus(response);
