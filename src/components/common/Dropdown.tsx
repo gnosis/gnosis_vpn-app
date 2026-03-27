@@ -211,9 +211,11 @@ export function Dropdown<T>(props: DropdownProps<T>) {
           aria-haspopup="listbox"
           aria-expanded={open()}
           class={`inline-flex items-center justify-center rounded-2xl px-4 py-2
-               bg-accent text-accent-text hover:bg-accent-hover disabled:opacity-50 hover:cursor-pointer outline-none
+               text-accent-text disabled:opacity-50 hover:cursor-pointer outline-none
                transition-transform duration-150 ease-out select-none ${
-            props.size === "sm" ? "bg-transparent h-6 w-10" : "h-10 w-16"
+            props.size === "sm"
+              ? "bg-transparent h-6 w-10 hover:bg-transparent"
+              : "bg-accent h-10 w-16 hover:bg-accent-hover"
           }`}
           classList={{ "btn-press": pressed() }}
           onPointerDown={() => playPressAnimation()}

@@ -218,7 +218,7 @@ export function createAppStore(): AppStoreTuple {
           log(
             "Incompatible service version: " +
               info.version +
-              " can only work with versions: " +
+              ". Supported versions: " +
               COMPATIBLE_VERSIONS.join(", "),
           );
           setState(
@@ -257,8 +257,8 @@ export function createAppStore(): AppStoreTuple {
 
       const reasonForLog = requestedId ? "selected exit node" : selectionReason;
       if (targetId && reasonForLog !== "selected exit node") {
-        const selected = state.availableDestinations.find(
-          (d) => d.id === targetId,
+        const selected = state.availableDestinations.find((d) =>
+          d.id === targetId
         );
         if (!selected) {
           return;
