@@ -1,4 +1,4 @@
-import { fromWeiToFixed } from "./units.ts";
+import { fromWeiToFixed } from "./wei.ts";
 
 declare const Deno: {
   test(name: string, fn: () => void | Promise<void>): void;
