@@ -36,4 +36,16 @@ export default defineConfig(() => ({
       ignored: ["**/src-tauri/**"],
     },
   },
+  test: {
+    environment: "node",
+    resolve: {
+      alias: [
+        { find: "@src", replacement: new URL("src", import.meta.url).pathname },
+        {
+          find: "@assets",
+          replacement: new URL("src/assets", import.meta.url).pathname,
+        },
+      ],
+    },
+  },
 }));

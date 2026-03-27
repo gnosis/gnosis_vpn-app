@@ -9,7 +9,7 @@
     "build": "vite build",
     "serve": "vite preview",
     "tauri": "tauri",
-    "test:from-wei": "deno test src/utils/fromWeiToFixed_test.ts"
+    "test": "vitest run"
   },
   "license": "MIT",
   "dependencies": {
@@ -30,7 +30,8 @@
     "typescript": "^5.9.3",
     "vite": "^7.3.1",
     "vite-plugin-solid": "^2.11.11",
-    "@tauri-apps/cli": "^2.10.1"
+    "@tauri-apps/cli": "^2.10.1",
+    "vitest": "^4.1.2"
   },
   "overrides": {
     "eslint": {
