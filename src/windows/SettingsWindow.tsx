@@ -1,4 +1,5 @@
 import { createSignal, onCleanup, onMount } from "solid-js";
+import { getVersion } from "@tauri-apps/api/app";
 import { emit, listen } from "@tauri-apps/api/event";
 import Settings from "../screens/settings/Settings.tsx";
 import Usage from "../screens/settings/Usage.tsx";
@@ -18,6 +19,7 @@ export default function SettingsWindow() {
 
   onMount(() => {
     void (async () => {
+      const appVersion = await getVersion();
       const unlisten = await listen<string>("navigate", (event) => {
         const next = event.payload;
         if (next === "settings" || next === "usage" || next === "logs") {
@@ -29,7 +31,10 @@ export default function SettingsWindow() {
 
       // NOTE: tauri apps use separate JS contexts between windows,
       // so this one needs to populate its own app state
-      await Promise.all([appActions.initializeApp(), settingsActions.load()]);
+      await Promise.all([
+        appActions.initializeApp(appVersion),
+        settingsActions.load(),
+      ]);
       void emit("logs:request-snapshot");
     })();
   });
@@ -37,7 +42,6 @@ export default function SettingsWindow() {
   onCleanup(() => {
     disposed = true;
     unlistenNavigate?.();
-    appActions.stopStatusPolling();
   });
 
   return (

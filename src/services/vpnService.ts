@@ -250,7 +250,11 @@ export type Info = z.infer<typeof InfoSchema>;
 
 export const StatusResponseSchema = z.object({
   run_mode: RunModeSchema,
-  destinations: z.array(DestinationStateSchema),
+  destinations: z.record(z.string(), DestinationStateSchema),
+  dest_order: z.array(z.string()),
+  connected: z.string().nullable(),
+  connecting: z.string().nullable(),
+  disconnecting: z.array(z.string()),
 });
 export type StatusResponse = z.infer<typeof StatusResponseSchema>;
 
@@ -402,22 +406,12 @@ export class VPNService {
     }
   }
 
-  static async getStatus(): Promise<StatusResponse | null> {
-    let rawRes;
+  static async startStatusPolling(): Promise<void> {
     try {
-      rawRes = await invoke("status");
-      if (!rawRes) return null;
-      return StatusResponseSchema.parse(rawRes);
+      await invoke("start_status_polling");
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        console.error(`Issues with StatusResponseSchema`, rawRes);
-        for (const i of error.issues) {
-          console.error("Type error:", i);
-        }
-      } else {
-        console.error("Status error:", error);
-      }
-      throw new Error(`Status error: ${error}`);
+      console.error("Failed to start status polling", error);
+      throw new Error(`StartStatusPolling Error: ${error}`);
     }
   }
 
@@ -494,13 +488,10 @@ export class VPNService {
     }
   }
 
-  static getBestDestination(
-    destinations: StatusResponse["destinations"],
-  ): string | null {
-    if (destinations.length === 0) return null;
-
-    // Sort by id for consistent selection
-    const sorted = [...destinations].sort((a, b) =>
+  static getBestDestination(ds_states: StatusResponse["destinations"]): string {
+    // when we have an actual StatusResponse, destinations can never be empty
+    // Thats why we do not need to check for that case
+    const sorted = Object.values(ds_states).sort((a, b) =>
       a.destination.id.localeCompare(b.destination.id)
     );
     return sorted[0].destination.id;

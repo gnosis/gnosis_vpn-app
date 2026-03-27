@@ -1,5 +1,5 @@
-import { getVersion } from "@tauri-apps/api/app";
 import { createStore, reconcile, type Store } from "solid-js/store";
+import { listen } from "@tauri-apps/api/event";
 
 import {
   type Destination,
@@ -11,13 +11,12 @@ import {
   type RunMode,
   type ServiceInfo,
   type StatusResponse,
+  StatusResponseSchema,
   VPNService,
 } from "@src/services/vpnService.ts";
 import { useLogsStore } from "@src/stores/logsStore.ts";
 import {
-  areDestinationsEqualUnordered,
   destinationLabel,
-  destinationLabelById,
   getPreferredAvailabilityChangeMessage,
   selectTargetId,
 } from "@src/utils/destinations.ts";
@@ -29,7 +28,7 @@ import {
 
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import { getConnectionLabel, getConnectionPhase } from "@src/utils/status.ts";
-import { getVpnStatus, isConnecting } from "@src/utils/status.ts";
+import { deriveVPNStatus } from "@src/utils/status.ts";
 import { shortAddress } from "../utils/shortAddress.ts";
 
 export enum AppScreen {
@@ -40,9 +39,8 @@ export enum AppScreen {
 }
 
 export interface AppState {
+  appVersion: string;
   currentScreen: AppScreen;
-  /** Tauri app version from Cargo.toml; set during initializeApp */
-  appVersion: string | null;
   serviceInfo: ServiceInfo | null;
   availableDestinations: Destination[];
   destinations: Record<string, DestinationState>;
@@ -56,23 +54,24 @@ export interface AppState {
 }
 
 type AppActions = {
-  initializeApp: () => Promise<void>;
+  initializeApp: (appVersion: string) => Promise<void>;
   setScreen: (screen: AppScreen) => void;
   chooseDestination: (id: string | null) => void;
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
-  stopStatusPolling: () => void;
 };
 
 type AppStoreTuple = readonly [Store<AppState>, AppActions];
 
-const OFFLINE_TIMEOUT = 5000; // ms
-const FAST_TIMEOUT = 555; // ms
-const DEFAULT_TIMEOUT = 2111; // ms
+type StatusEvent = {
+  payload: { Ok: StatusResponse | null } | { Err: string };
+  id: number;
+  event: string;
+};
 
 function initialState(): AppState {
   return {
-    appVersion: null,
+    appVersion: "",
     availableDestinations: [],
     currentScreen: AppScreen.Initialization,
     destination: null,
@@ -90,77 +89,61 @@ function initialState(): AppState {
 export function createAppStore(): AppStoreTuple {
   const [state, setState] = createStore<AppState>(initialState());
 
-  let pollingId: ReturnType<typeof globalThis.setTimeout> | undefined;
-  let pollingActive = false;
+  let unlistenStatusUpdate: (() => void) | undefined;
 
   const [settings] = useSettingsStore();
-  let lastPreferredLocation: string | null = settings.preferredLocation;
-  let hasInitializedPreferred = false;
-
   const [, logActions] = useLogsStore();
   const log = (content: string) => logActions.append(content);
   const logStatus = (response: StatusResponse) =>
     logActions.appendStatus(response);
 
   const applyDestinationSelection = () => {
-    const available = state.availableDestinations;
-    const userSelected = state.selectedId
-      ? available.find((d) => d.id === state.selectedId)
-      : undefined;
-    if (userSelected) {
-      if (state.destination?.id !== userSelected.id) {
-        setState("destination", userSelected);
+    if (state.selectedId) {
+      const dest = state.destinations[state.selectedId];
+      if (dest) {
+        setState("selectedId", dest.destination.id);
+        setState("destination", dest.destination);
+        return;
       }
-      return;
     }
 
-    const preferred = settings.preferredLocation
-      ? available.find((d) => d.id === settings.preferredLocation)
-      : undefined;
-    if (preferred) {
-      if (state.destination?.id !== preferred.id) {
-        setState("destination", preferred);
+    if (settings.preferredLocation) {
+      const dest = state.destinations[settings.preferredLocation];
+      if (dest) {
+        setState("selectedId", dest.destination.id);
+        setState("destination", dest.destination);
+        return;
       }
-      return;
     }
 
-    if (state.destination !== null) {
-      setState("destination", null);
-    }
+    setState("destination", null);
   };
 
-  const syncStatus = async (): Promise<number | null> => {
-    let response;
-    try {
-      response = await VPNService.getStatus();
-    } catch (error) {
-      console.error("error", error);
-      const message = error instanceof Error ? error.message : String(error);
-      log(message);
-      return null;
-    }
-    if (!response) {
-      return null;
-    }
-
+  const processStatusResponse = (response: StatusResponse) => {
     const [screen, warmupStatus] = determineScreenAndStatus(response);
+    /// the payload from rust will always make sure the ids in dest order are present in destinations, so this mapping is safe
+    const availableDestinations = response.dest_order
+      .map((id) => response.destinations[id].destination)
+      .filter((ds) => ds);
+    logStateChange(response);
+    logPrefMsg(availableDestinations);
+    logStatus(response);
+    setState("error", undefined);
     setState("currentScreen", screen);
     setState("warmupStatus", warmupStatus);
+    setState("runMode", reconcile(response.run_mode));
+    setState("destinations", reconcile(response.destinations));
+    setState("vpnStatus", deriveVPNStatus(response));
+    setState("availableDestinations", availableDestinations);
+    applyDestinationSelection();
+  };
 
+  const logStateChange = (response: StatusResponse) => {
     const prevDestStates = state.destinations;
-    const [nextDestStates, availableDestinations] = response.destinations
-      .reduce(
-        ([states, dests], ds) => {
-          states[ds.destination.id] = ds;
-          dests.push(ds.destination);
-          return [states, dests];
-        },
-        [{} as Record<string, DestinationState>, [] as Destination[]],
-      );
-
-    for (const [id, next] of Object.entries(nextDestStates)) {
+    response.dest_order.forEach((id) => {
       const prev = prevDestStates[id];
-      if (!prev) continue;
+      const next = response.destinations[id];
+      if (!prev || !next) return;
       const prevLabel = getConnectionLabel(prev.connection_state);
       const nextLabel = getConnectionLabel(next.connection_state);
       const prevPhase = getConnectionPhase(prev.connection_state);
@@ -179,151 +162,78 @@ export function createAppStore(): AppStoreTuple {
         const phaseSuffix = nextPhase ? ` - ${nextPhase}` : "";
         log(`${nextLabel}: ${display}${phaseSuffix}`);
       }
-    }
+    });
+  };
 
+  const logPrefMsg = (availableDestinations: Destination[]) => {
     const prefMsg = getPreferredAvailabilityChangeMessage(
       state.availableDestinations,
       availableDestinations,
       settings.preferredLocation,
     );
     if (prefMsg) log(prefMsg);
-
-    if (!hasInitializedPreferred) {
-      lastPreferredLocation = settings.preferredLocation;
-      hasInitializedPreferred = true;
-    }
-
-    const preferredChanged =
-      settings.preferredLocation !== lastPreferredLocation;
-    if (preferredChanged) {
-      const nowHasPreferred = settings.preferredLocation
-        ? availableDestinations.some((d) => d.id === settings.preferredLocation)
-        : false;
-      if (settings.preferredLocation) {
-        if (nowHasPreferred) {
-          const pretty = destinationLabelById(
-            settings.preferredLocation,
-            availableDestinations,
-          );
-          log(`Preferred location set to ${pretty}.`);
-        } else {
-          log(
-            `Preferred location ${settings.preferredLocation} currently unavailable.`,
-          );
-        }
-      }
-      lastPreferredLocation = settings.preferredLocation;
-    }
-
-    const hasConnChange = Object.values(state.destinations).some((prev) => {
-      const found_next = Object.entries(nextDestStates).find(([id, _]) =>
-        id === prev.destination.id
-      );
-      if (!found_next) return false;
-      const [_, next] = found_next;
-      const prevState = prev.connection_state;
-      const nextState = next.connection_state;
-      if (prevState === nextState) return false;
-      const prevLabel = getConnectionLabel(prevState);
-      const nextLabel = getConnectionLabel(nextState);
-      if (
-        prevLabel !== nextLabel && nextLabel !== "None" &&
-        nextLabel !== "Unknown"
-      ) {
-        return true;
-      }
-      if (nextLabel === "Connecting") {
-        const prevPhase = getConnectionPhase(prevState);
-        const nextPhase = getConnectionPhase(nextState);
-        return prevPhase !== nextPhase;
-      }
-      if (nextLabel === "Disconnecting") {
-        const prevPhase = getConnectionPhase(prevState);
-        const nextPhase = getConnectionPhase(nextState);
-        return prevPhase !== nextPhase;
-      }
-      return false;
-    });
-    if (!preferredChanged && !hasConnChange) {
-      logStatus(response);
-    }
-
-    setState("runMode", reconcile(response.run_mode));
-    setState("destinations", nextDestStates);
-
-    const vpnStatus = getVpnStatus(response.run_mode, response.destinations);
-    setState("vpnStatus", vpnStatus);
-
-    if (
-      !areDestinationsEqualUnordered(
-        availableDestinations,
-        state.availableDestinations,
-      )
-    ) {
-      setState("availableDestinations", availableDestinations);
-      applyDestinationSelection();
-    }
-    setState("error", undefined);
-
-    if (preferredChanged) {
-      applyDestinationSelection();
-    }
-
-    return timeoutFromState(response.run_mode, response.destinations);
   };
 
-  const startStatusPolling = (resetCb: () => void) => {
-    pollingActive = true;
-    clearTimeout(pollingId);
-    const tick = async () => {
-      if (!pollingActive) return;
-      const timeout = await syncStatus();
-      if (!timeout) {
-        resetCb();
-        return;
-      }
-      if (!pollingActive) return;
-      clearTimeout(pollingId);
-      pollingId = setTimeout(tick, timeout);
-    };
-    tick();
-  };
+  const OFFLINE_TIMEOUT = 5000; // ms
 
   const actions = {
-    initializeApp: async () => {
+    initializeApp: async (appVersion: string) => {
+      setState("appVersion", appVersion);
       setState("isLoading", true);
       try {
-        const appVer = await getVersion().catch((): null => null);
-        setState("appVersion", appVer);
         const info = await VPNService.info();
         setState("serviceInfo", info);
         if (isServiceVersionCompatible(info.version)) {
           await VPNService.startClient(10);
-          startStatusPolling(() => {
-            setState(reconcile(initialState()));
-            setTimeout(() => {
-              actions.stopStatusPolling();
-              actions.initializeApp();
-            }, 0);
-          });
+          await VPNService.startStatusPolling();
+          if (unlistenStatusUpdate) {
+            unlistenStatusUpdate();
+          }
+          unlistenStatusUpdate = await listen<Promise<StatusResponse | null>>(
+            "status",
+            // for some reason the expected TS type here is wrong
+            // thats why we cast the type (3 lines below) to the expected one, even if it is not correct according to the event emitter
+            (event) => {
+              try {
+                const statusResp = incomingStatusEvent(
+                  event as unknown as StatusEvent,
+                );
+                if (statusResp) {
+                  processStatusResponse(statusResp);
+                } else {
+                  // Service reported as unavailable (e.g. WorkerOffline).
+                  setState(reconcile(initialState()));
+                  setState("vpnStatus", "ServiceUnavailable");
+                  setState("appVersion", appVersion);
+                }
+              } catch (err) {
+                const message = err instanceof Error
+                  ? err.message
+                  : String(err);
+                log(message);
+              }
+            },
+          );
         } else {
           log(
             "Incompatible service version: " +
               info.version +
-              " can only work with versions: " +
+              ". Supported versions: " +
               COMPATIBLE_VERSIONS.join(", "),
           );
           setState(
             "error",
-            "Incompatible service version: " + info.version +
-              ". Supported versions: " + COMPATIBLE_VERSIONS.join(", "),
+            "Incompatible service version: " +
+              info.version +
+              ". Supported versions: " +
+              COMPATIBLE_VERSIONS.join(", "),
           );
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         log("Failed to connect to service: " + message);
         setState("error", message);
-        setTimeout(() => actions.initializeApp(), OFFLINE_TIMEOUT);
+        setTimeout(() => actions.initializeApp(appVersion), OFFLINE_TIMEOUT);
       } finally {
         setState("isLoading", false);
       }
@@ -385,12 +295,6 @@ export function createAppStore(): AppStoreTuple {
         setState("isLoading", false);
       }
     },
-
-    stopStatusPolling: () => {
-      pollingActive = false;
-      clearTimeout(pollingId);
-      pollingId = undefined;
-    },
   } as const;
 
   return [state, actions] as const;
@@ -402,26 +306,11 @@ export function useAppStore(): AppStoreTuple {
   return appStore;
 }
 
-function timeoutFromState(
-  runMode: RunMode | undefined,
-  destinations: DestinationState[],
-): number {
-  if (isWarmupRunMode(runMode)) {
-    return FAST_TIMEOUT;
-  }
-  if (isConnecting(Object.values(destinations))) {
-    return FAST_TIMEOUT;
-  }
-  return DEFAULT_TIMEOUT;
-}
-
 const MAXIMUM_DELAY_TIME = 120 * 1000; // 2 minutes
 let initialDelay:
   | { delayingSince: number }
   | { neverRan: true }
-  | {
-    alreadyRan: true;
-  } = { neverRan: true };
+  | { alreadyRan: true } = { neverRan: true };
 function determineScreenAndStatus(status: StatusResponse): [AppScreen, string] {
   const runMode = status.run_mode;
   if (runMode === "Shutdown") {
@@ -440,7 +329,7 @@ function determineScreenAndStatus(status: StatusResponse): [AppScreen, string] {
     ];
   }
   // delay initial screen as long as no interaction makes sense
-  const delay = findDelayReason(status.destinations);
+  const delay = findDelayReason(Object.values(status.destinations));
   if (delay) {
     // delay proposed and never ran
     if ("neverRan" in initialDelay) {
@@ -501,4 +390,28 @@ function findDelayReason(destinations: DestinationState[]): string | null {
     }`;
   }
   return null;
+}
+
+function incomingStatusEvent(event: StatusEvent): StatusResponse | void {
+  const rawRes = event.payload;
+  if ("Ok" in rawRes) {
+    if (rawRes.Ok === null) {
+      return;
+    }
+    const res = StatusResponseSchema.safeParse(rawRes.Ok);
+    if (res.success) {
+      return res.data;
+    } else {
+      console.error("Issues with StatusResponseSchema", rawRes.Ok);
+      for (const i of res.error.issues) {
+        console.error("Type error:", i);
+      }
+      const message = `Received invalid status response`;
+      console.error(message);
+      throw new Error(message);
+    }
+  } else {
+    console.error("Error processing status update", rawRes.Err);
+    throw new Error(rawRes.Err);
+  }
 }

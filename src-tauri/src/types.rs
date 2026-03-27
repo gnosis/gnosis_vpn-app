@@ -6,14 +6,26 @@ use gnosis_vpn_lib::{
 use serde::Serialize;
 
 use std::collections::HashMap;
+use std::fmt::{self, Display};
 use std::time::SystemTime;
 
 // Sanitized library responses
-
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct StatusResponse {
     pub run_mode: RunMode,
-    pub destinations: Vec<DestinationState>,
+    pub destinations: HashMap<String, DestinationState>,
+    pub dest_order: Vec<String>,
+    pub connected: Option<String>,
+    pub connecting: Option<String>,
+    pub disconnecting: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+pub enum ConnectionState {
+    Connected(String),
+    Connecting(String),
+    Disconnecting,
+    Disconnected,
 }
 
 #[derive(Debug, Serialize)]
@@ -41,7 +53,7 @@ pub struct BalanceResponse {
 
 // Sanitized library structs
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub enum RunMode {
     /// Initial start, checking funds to run safe creation or find existing safe
     /// can jump to Warmup or DeployingSafe
@@ -66,7 +78,7 @@ pub enum RunMode {
     Shutdown,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub enum CombinedHoprStatus {
     // hopr construction not yet started
     Initializing,
@@ -92,7 +104,7 @@ pub enum CombinedHoprStatus {
     Terminated,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct DestinationState {
     pub destination: Destination,
     pub connection_state: command::ConnectionState,
@@ -100,13 +112,13 @@ pub struct DestinationState {
     pub exit_health: destination_health::DestinationHealth,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub enum RoutingOptions {
     Hops(usize),
     IntermediatePath(Vec<String>),
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct Destination {
     pub id: String,
     pub meta: HashMap<String, String>,
@@ -114,7 +126,7 @@ pub struct Destination {
     pub routing: RoutingOptions,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct ConnectivityHealth {
     pub last_error: Option<String>,
     pub health: connectivity_health::Health,
@@ -123,7 +135,7 @@ pub struct ConnectivityHealth {
 
 /// Requirements to be able to connect to this destination
 /// This is statically derived at construction time from a destination's routing options.
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub enum Need {
     Channel(String),
     AnyChannel,
@@ -325,15 +337,6 @@ impl From<command::RunMode> for RunMode {
     }
 }
 
-impl From<command::StatusResponse> for StatusResponse {
-    fn from(sr: command::StatusResponse) -> Self {
-        StatusResponse {
-            run_mode: sr.run_mode.into(),
-            destinations: sr.destinations.into_iter().map(|d| d.into()).collect(),
-        }
-    }
-}
-
 impl From<command::ConnectResponse> for ConnectResponse {
     fn from(cr: command::ConnectResponse) -> Self {
         match cr {
@@ -387,6 +390,31 @@ impl From<command::BalanceResponse> for BalanceResponse {
             channels_out,
             info: br.info.into(),
             issues: br.issues,
+        }
+    }
+}
+
+impl From<&StatusResponse> for ConnectionState {
+    fn from(sr: &StatusResponse) -> Self {
+        if let Some(ref dest) = sr.connected {
+            ConnectionState::Connected(dest.clone())
+        } else if let Some(ref dest) = sr.connecting {
+            ConnectionState::Connecting(dest.clone())
+        } else if !sr.disconnecting.is_empty() {
+            ConnectionState::Disconnecting
+        } else {
+            ConnectionState::Disconnected
+        }
+    }
+}
+
+impl Display for ConnectionState {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ConnectionState::Connected(dest) => write!(f, "Connected to {}", dest),
+            ConnectionState::Connecting(dest) => write!(f, "Connecting to {}", dest),
+            ConnectionState::Disconnecting => write!(f, "Disconnecting"),
+            ConnectionState::Disconnected => write!(f, "Disconnected"),
         }
     }
 }

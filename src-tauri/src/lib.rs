@@ -6,11 +6,11 @@ use serde::Serialize;
 use tauri::Manager;
 use tauri::tray::TrayIconBuilder;
 use tauri_plugin_store::StoreExt;
+use tokio_util::sync::CancellationToken;
 
 use std::path::PathBuf;
-use std::sync::Arc;
-use std::sync::Mutex;
 use std::sync::atomic::AtomicBool;
+use std::sync::{Arc, Mutex};
 
 mod commands;
 mod icons;
@@ -21,7 +21,7 @@ pub mod types;
 
 use commands::{
     balance, compress_logs, connect, disconnect, info, refresh_node, set_app_icon, start_client,
-    status, stop_client,
+    start_status_polling, stop_client,
 };
 use icons::{AppIconState, TrayIconState, determine_tray_icon, start_app_icon_heartbeat};
 use platform::{Platform, PlatformInterface};
@@ -30,6 +30,7 @@ use theme::spawn_linux_theme_monitor;
 #[cfg_attr(target_os = "macos", allow(unused_imports))]
 use theme::{InitialTheme, get_initial_theme, system_theme};
 use tray::{create_tray_menu, handle_tray_event, show_settings, toggle_main_window_visibility};
+use types::ConnectionState;
 
 struct HeartbeatHandle(Mutex<Option<tauri::async_runtime::JoinHandle<()>>>);
 
@@ -72,7 +73,7 @@ pub fn run() {
             // Create tray menu
             let menu = create_tray_menu(app.handle())?;
 
-            let icon_name: &str = determine_tray_icon("Disconnected");
+            let icon_name: &str = determine_tray_icon(&ConnectionState::Disconnected);
 
             let tray_icon_path: PathBuf = app
                 .path()
@@ -184,12 +185,14 @@ pub fn run() {
                 }
             }
 
+            // cancellation token for status polling
+            app.manage(Mutex::new(CancellationToken::new()));
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             info,
             start_client,
-            status,
             connect,
             disconnect,
             balance,
@@ -197,11 +200,16 @@ pub fn run() {
             compress_logs,
             set_app_icon,
             get_initial_theme,
+            start_status_polling
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app_handle, event| {
             if let tauri::RunEvent::Exit = event {
+                // cancel query status loop
+                let c = app_handle.state::<CancellationToken>();
+                c.cancel();
+
                 if let Ok(mut guard) = app_handle.state::<HeartbeatHandle>().0.lock() {
                     if let Some(handle) = guard.take() {
                         handle.abort();

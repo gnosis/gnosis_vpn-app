@@ -3,6 +3,7 @@ import Spinner from "@src/components/common/Spinner.tsx";
 
 interface InitializationProps {
   info: ServiceInfo | null;
+  appVersion: string;
   error?: string;
 }
 
@@ -23,9 +24,14 @@ export default function Initialization(props: InitializationProps) {
             <Spinner class="mb-4 h-8 w-8 text-brand-primary" />
             <p class="text-text-secondary">Running startup tasks</p>
             {props.info && (
-              <p class="mt-2 text-xs text-text-tertiary">
-                Service Version: {props.info.version}
-              </p>
+              <>
+                <p class="mt-2 text-xs text-text-tertiary">
+                  Service Version: {props.info.version}
+                </p>
+                <p class="mt-2 text-xs text-text-tertiary">
+                  App Version: {props.appVersion}
+                </p>
+              </>
             )}
           </div>
         )}
