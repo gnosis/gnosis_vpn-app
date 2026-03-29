@@ -109,6 +109,16 @@ export function formatLastChecked(dh: DestinationHealth): string | null {
   return formatSecondsAgo(diffSec);
 }
 
+/**
+ * Exit check still running or failed — show exit status (e.g. Checking…, Unreachable)
+ * instead of connectivity labels like "Ready to connect".
+ */
+export function isExitHealthPendingOrUnreachable(
+  dh: DestinationHealth,
+): boolean {
+  return dh === "Init" || "Running" in dh || "Failure" in dh;
+}
+
 /** Simple status label for the exit health state. */
 export function formatExitHealthStatus(dh: DestinationHealth): string {
   if (dh === "Init") return "Checking…";
