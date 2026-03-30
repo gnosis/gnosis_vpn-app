@@ -14,6 +14,9 @@ export default defineConfig(() => ({
       { find: "@assets", replacement: "/src/assets" },
     ],
   },
+  test: {
+    environment: "node",
+  },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
@@ -34,18 +37,6 @@ export default defineConfig(() => ({
     watch: {
       // 3. tell vite to ignore watching `src-tauri`
       ignored: ["**/src-tauri/**"],
-    },
-  },
-  test: {
-    environment: "node",
-    resolve: {
-      alias: [
-        { find: "@src", replacement: new URL("src", import.meta.url).pathname },
-        {
-          find: "@assets",
-          replacement: new URL("src/assets", import.meta.url).pathname,
-        },
-      ],
     },
   },
 }));
