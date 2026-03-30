@@ -148,10 +148,9 @@ function App() {
 
   return (
     <div class="h-screen bg-bg-primary">
-      {/* <Dynamic component={screens[displayedScreen()]} {...mapStoreToScreenProps(displayedScreen(), appState)} /> */}
-      <Synchronization
-        warmupStatus="Safe deployment ongoing"
-        runMode={{ DeployingSafe: { node_address: "0x0" } }}
+      <Dynamic
+        component={screens[displayedScreen()]}
+        {...mapStoreToScreenProps(displayedScreen(), appState)}
       />
     </div>
   );
