@@ -99,15 +99,28 @@ export function createAppStore(): AppStoreTuple {
     logActions.appendStatus(response);
 
   const applyDestinationSelection = () => {
+    // 1. Explicit user selection
     if (state.selectedId) {
       const dest = state.destinations[state.selectedId];
       if (dest) {
-        setState("selectedId", dest.destination.id);
         setState("destination", dest.destination);
         return;
       }
     }
 
+    // 2. Already connected/connecting server (service running on app open)
+    const connectedEntry = Object.values(state.destinations).find(
+      (ds) =>
+        getConnectionLabel(ds.connection_state) === "Connected" ||
+        getConnectionLabel(ds.connection_state) === "Connecting",
+    );
+    if (connectedEntry) {
+      setState("selectedId", connectedEntry.destination.id);
+      setState("destination", connectedEntry.destination);
+      return;
+    }
+
+    // 3. Preferred location (if available)
     if (settings.preferredLocation) {
       const dest = state.destinations[settings.preferredLocation];
       if (dest) {
