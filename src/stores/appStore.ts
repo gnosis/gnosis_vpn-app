@@ -20,6 +20,7 @@ import {
   getPreferredAvailabilityChangeMessage,
   selectTargetId,
 } from "@src/utils/destinations.ts";
+import { sortByHealthScore } from "@src/utils/exitHealth.ts";
 
 import {
   COMPATIBLE_VERSIONS,
@@ -249,10 +250,14 @@ export function createAppStore(): AppStoreTuple {
     connect: async () => {
       setState("isLoading", true);
       const requestedId = state.selectedId ?? undefined;
+      const sorted = sortByHealthScore(
+        state.availableDestinations,
+        state.destinations,
+      );
       const { id: targetId, reason: selectionReason } = selectTargetId(
         requestedId,
         settings.preferredLocation,
-        state.availableDestinations,
+        sorted,
       );
 
       const reasonForLog = requestedId ? "selected exit node" : selectionReason;

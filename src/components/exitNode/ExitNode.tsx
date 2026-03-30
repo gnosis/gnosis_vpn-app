@@ -10,8 +10,8 @@ import { useSettingsStore } from "../../stores/settingsStore.ts";
 import ExitHealthBadge from "./ExitHealthBadge.tsx";
 import {
   formatLatency,
-  getHealthScore,
   getHopCount,
+  sortByHealthScore,
 } from "../../utils/exitHealth.ts";
 import HopsIcon from "./HopsIcon.tsx";
 import { getConnectionLabel } from "../../utils/status.ts";
@@ -24,8 +24,12 @@ export default function ExitNode() {
   const [appState, appActions] = useAppStore();
   const [settings] = useSettingsStore();
 
+  const sortedDestinations = createMemo(() =>
+    sortByHealthScore(appState.availableDestinations, appState.destinations)
+  );
+
   const randomDestination = createMemo(() => {
-    const available = appState.availableDestinations;
+    const available = sortedDestinations();
     if (available.length === 0) return null;
 
     const { id } = selectTargetId(
@@ -35,21 +39,7 @@ export default function ExitNode() {
     );
 
     if (!id) return null;
-    const df = available.find((d) => d.id === id) ?? null;
-    return df;
-  });
-
-  const sortedDestinations = createMemo(() => {
-    const dests = [...appState.availableDestinations];
-    dests.sort((a, b) => {
-      const dsA = appState.destinations[a.id];
-      const dsB = appState.destinations[b.id];
-      if (!dsA && !dsB) return 0;
-      if (!dsA) return 1;
-      if (!dsB) return -1;
-      return getHealthScore(dsB) - getHealthScore(dsA);
-    });
-    return dests;
+    return available.find((d) => d.id === id) ?? null;
   });
 
   return (
@@ -149,6 +139,7 @@ export default function ExitNode() {
           if (randomDest) {
             const ds = appState.destinations[randomDest.id];
             const exitHealth: DestinationHealth | undefined = ds?.exit_health;
+            const latency = exitHealth ? formatLatency(exitHealth) : null;
             const connected = ds
               ? getConnectionLabel(ds.connection_state) === "Connected"
               : false;
@@ -164,6 +155,7 @@ export default function ExitNode() {
                     />
                   )}
                   {destinationLabel(randomDest)}
+                  {latency && <span class="tabular-nums">{latency}</span>}
                 </span>
               </span>
             );
