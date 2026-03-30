@@ -57,6 +57,7 @@ function mapStoreToScreenProps(screen: ValidScreen, state: AppState) {
     case "synchronization":
       return {
         warmupStatus: state.warmupStatus,
+        runMode: state.runMode,
       };
     case "main":
     case "onboarding":
@@ -147,12 +148,10 @@ function App() {
 
   return (
     <div class="h-screen bg-bg-primary">
-      <Dynamic
-        component={screens[displayedScreen()]}
-        {...mapStoreToScreenProps(
-          displayedScreen(),
-          appState,
-        )}
+      {/* <Dynamic component={screens[displayedScreen()]} {...mapStoreToScreenProps(displayedScreen(), appState)} /> */}
+      <Synchronization
+        warmupStatus="Safe deployment ongoing"
+        runMode={{ DeployingSafe: { node_address: "0x0" } }}
       />
     </div>
   );

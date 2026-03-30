@@ -1,8 +1,19 @@
-import { createSignal, onCleanup, onMount } from "solid-js";
-import syncIcon from "@assets/icons/sync.svg";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  onCleanup,
+  onMount,
+} from "solid-js";
+import {
+  isDeployingSafeRunMode,
+  isWarmupRunMode,
+  type RunMode,
+} from "@src/services/vpnService.ts";
 
 export interface SynchronizationProps {
   warmupStatus: string;
+  runMode: RunMode | null;
 }
 
 const trivia = [
@@ -28,9 +39,47 @@ const trivia = [
   "Strong privacy requires both encryption and metadata protection.",
 ];
 
+const STEP_CONFIG = [
+  { step: 1, startPct: 0, endPct: 30, durationMs: 30_000 },
+  { step: 2, startPct: 30, endPct: 40, durationMs: 10_000 },
+  { step: 3, startPct: 40, endPct: 100, durationMs: 60_000 },
+] as const;
+
+const INIT_STATES = new Set([
+  "Initializing",
+  "ValidatingConfig",
+  "IdentifyingNode",
+  "InitializingDatabase",
+  "ConnectingBlockchain",
+  "CreatingNode",
+  "StartingNode",
+  "Ready",
+]);
+
+function getCurrentStep(runMode: RunMode | null): 1 | 2 | 3 | null {
+  if (!runMode) return null;
+  if (isDeployingSafeRunMode(runMode)) return 1;
+  if (isWarmupRunMode(runMode)) {
+    return INIT_STATES.has(runMode.Warmup.status) ? 2 : 3;
+  }
+  return null;
+}
+
 export default function Synchronization(props: SynchronizationProps) {
   const [index, setIndex] = createSignal(0);
   const [isVisible, setIsVisible] = createSignal(true);
+  const [displayedProgress, setDisplayedProgress] = createSignal(0);
+  let stepEnteredAt = Date.now();
+
+  const currentStep = createMemo(() => getCurrentStep(props.runMode));
+
+  createEffect(() => {
+    const step = currentStep();
+    if (step === null) return;
+    const cfg = STEP_CONFIG[step - 1];
+    stepEnteredAt = Date.now();
+    setDisplayedProgress((prev) => Math.max(prev, cfg.startPct));
+  });
 
   const CYCLE_DURATION = 6600;
   const FADE_DURATION = 500;
@@ -46,16 +95,58 @@ export default function Synchronization(props: SynchronizationProps) {
       }, FADE_DURATION);
     }, CYCLE_DURATION);
 
+    const progressTick = setInterval(() => {
+      const step = currentStep();
+      if (step === null) return;
+      const cfg = STEP_CONFIG[step - 1];
+      const elapsed = Date.now() - stepEnteredAt;
+      const raw = cfg.startPct +
+        (elapsed / cfg.durationMs) * (cfg.endPct - cfg.startPct);
+      const clamped = Math.min(Math.max(raw, cfg.startPct), cfg.endPct);
+      setDisplayedProgress((prev) => Math.max(prev, clamped));
+    }, 50);
+
     onCleanup(() => {
       clearInterval(timer);
+      clearInterval(progressTick);
       clearTimeout(fadeTimeout);
     });
   });
 
   return (
-    <div class="h-full w-full flex flex-col items-center p-6 select-none bg-bg-primary text-text-primary">
+    <div class="h-full w-full flex flex-col items-center justify-between p-6 select-none bg-bg-primary text-text-primary">
+      <h1 class="text-2xl font-bold text-text-primary self-start ml-4">
+        Syncing
+      </h1>
+
+      {/* Progress Bar Section */}
+      <div class="w-full flex flex-col items-center justify-center px-6 gap-4 pt-20">
+        <div class="flex flex-col items-center justify-center gap-1">
+          <span class="text-xs uppercase tracking-widest text-text-secondary opacity-70">
+            Progress
+          </span>
+          <span class="text-sm font-semibold text-text-primary">
+            {Math.round(displayedProgress())}%
+          </span>
+        </div>
+
+        <div
+          class="w-3/4 h-3 rounded-full overflow-hidden"
+          style={{ "background-color": "var(--color-progress-track)" }}
+        >
+          <div
+            class="h-full transition-none"
+            style={{
+              width: `${displayedProgress()}%`,
+              background: "var(--color-progress-fill)",
+              "border-radius": "5px",
+            }}
+          />
+        </div>
+      </div>
+
       {/* Trivia Section */}
-      <div class="grow flex flex-col items-center justify-center w-full max-w-lg text-center px-4">
+      <div class="flex flex-col w-full max-w-lg text-center px-4 h-80 mt-20">
         <h3 class="text-xs uppercase tracking-widest text-text-secondary mb-4 opacity-70">
           Did you know?
         </h3>
@@ -66,15 +157,6 @@ export default function Synchronization(props: SynchronizationProps) {
         >
           {trivia[index()]}
         </p>
-      </div>
-
-      {/* Spinner Section */}
-      <div class="flex flex-col items-center justify-center py-8">
-        <img
-          src={syncIcon}
-          alt="Synchronization Spinner"
-          class="w-16 h-16 dark:invert animate-spin-smooth opacity-80"
-        />
       </div>
 
       {/* Status Section */}
