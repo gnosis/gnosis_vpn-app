@@ -1,7 +1,7 @@
 import { createEffect, createSignal, onCleanup, Show } from "solid-js";
 import { Portal } from "solid-js/web";
 import { type BalanceResponse, VPNService } from "@src/services/vpnService.ts";
-import { fromWeiToFixed } from "@src/utils/units.ts";
+import { fromWeiToFixed } from "@src/utils/wei.ts";
 import {
   calculateGlobalFundingStatus,
   type GlobalFundingStatus,
