@@ -187,6 +187,7 @@ export function createAppStore(): AppStoreTuple {
   };
 
   const OFFLINE_TIMEOUT = 5000; // ms
+  let redoTimeout: ReturnType<typeof setTimeout> | undefined;
 
   const actions = {
     /**
@@ -211,10 +212,7 @@ export function createAppStore(): AppStoreTuple {
           unlistenStatusUpdate();
           unlistenStatusUpdate = undefined;
         }
-        redoTimeout = setTimeout(
-          () => actions.initializeApp(appVersion),
-          OFFLINE_TIMEOUT,
-        );
+        redoTimeout = setTimeout(() => actions.initializeApp(appVersion), OFFLINE_TIMEOUT);
       };
 
       let info;
