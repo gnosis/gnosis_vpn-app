@@ -14,6 +14,7 @@ use std::time::Duration;
 use tokio::task::spawn_blocking;
 use tokio::time::{self, Instant};
 
+use crate::StatusPollingHandle;
 use crate::icons::{self, AppIconState, TrayIconState};
 use crate::tray;
 use crate::types::{
@@ -293,18 +294,27 @@ pub async fn stop_client() -> Result<(), String> {
 #[tauri::command]
 pub async fn start_status_polling(
     app_handle: AppHandle,
-    m_cancel: State<'_, Mutex<CancellationToken>>,
+    polling_state: State<'_, Mutex<StatusPollingHandle>>,
 ) -> Result<(), String> {
     println!("Starting status polling...");
-    // cancel previous polling
-    let mut cancel_guard = m_cancel.lock().map_err(|e| e.to_string())?;
-    cancel_guard.cancel();
-    *cancel_guard = CancellationToken::new();
-    let cancel = cancel_guard.clone();
-    drop(cancel_guard);
+    // cancel previous polling and wait for it to finish
+    let prev_handle = {
+        let mut guard = polling_state.lock().map_err(|e| e.to_string())?;
+        guard.cancel.cancel();
+        guard.cancel = CancellationToken::new();
+        guard.handle.take()
+    };
+    if let Some(handle) = prev_handle {
+        let _ = handle.await;
+    }
+
+    let cancel = {
+        let guard = polling_state.lock().map_err(|e| e.to_string())?;
+        guard.cancel.clone()
+    };
 
     let app = app_handle.clone();
-    tauri::async_runtime::spawn(async move {
+    let join_handle = tauri::async_runtime::spawn(async move {
         let tick_timeout = time::sleep(Duration::ZERO);
         tokio::pin!(tick_timeout);
         loop {
@@ -351,6 +361,13 @@ pub async fn start_status_polling(
             }
         }
     });
+
+    // Store the join handle so it can be awaited on shutdown
+    {
+        let mut guard = polling_state.lock().map_err(|e| e.to_string())?;
+        guard.handle = Some(join_handle);
+    }
+
     Ok(())
 }
 
