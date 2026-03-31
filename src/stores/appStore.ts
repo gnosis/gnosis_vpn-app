@@ -238,10 +238,10 @@ export function createAppStore(): AppStoreTuple {
 
       // for some reason the expected TS type here is wrong
       // thats why we cast the type (3 lines below) to the expected one, even if it is not correct according to the event emitter
-      const listenCb = (event) => {
+      const listenCb = (event: unknown) => {
         let statusResp: StatusResponse | void;
         try {
-          statusResp = incomingStatusEvent(event as unknown as StatusEvent);
+          statusResp = incomingStatusEvent(event as StatusEvent);
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : String(err);
           const message = "Error processing status update: " + errorMsg;
