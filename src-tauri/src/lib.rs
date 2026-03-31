@@ -34,6 +34,11 @@ use types::ConnectionState;
 
 struct HeartbeatHandle(Mutex<Option<tauri::async_runtime::JoinHandle<()>>>);
 
+pub struct StatusPollingHandle {
+    pub cancel: CancellationToken,
+    pub handle: Option<tauri::async_runtime::JoinHandle<()>>,
+}
+
 #[derive(Clone, Serialize, Default)]
 struct AppSettings {
     preferred_location: Option<String>,
@@ -185,8 +190,11 @@ pub fn run() {
                 }
             }
 
-            // cancellation token for status polling
-            app.manage(Mutex::new(CancellationToken::new()));
+            // status polling handle (cancellation token + join handle)
+            app.manage(Mutex::new(StatusPollingHandle {
+                cancel: CancellationToken::new(),
+                handle: None,
+            }));
 
             Ok(())
         })
@@ -206,9 +214,19 @@ pub fn run() {
         .expect("error while building tauri application")
         .run(|app_handle, event| {
             if let tauri::RunEvent::Exit = event {
-                // cancel query status loop
-                let c = app_handle.state::<CancellationToken>();
-                c.cancel();
+                // cancel query status loop and wait for it to finish
+                let polling_handle = {
+                    let state = app_handle.state::<Mutex<StatusPollingHandle>>();
+                    if let Ok(mut guard) = state.lock() {
+                        guard.cancel.cancel();
+                        guard.handle.take()
+                    } else {
+                        None
+                    }
+                };
+                if let Some(handle) = polling_handle {
+                    let _ = tauri::async_runtime::block_on(handle);
+                }
 
                 if let Ok(mut guard) = app_handle.state::<HeartbeatHandle>().0.lock() {
                     if let Some(handle) = guard.take() {
