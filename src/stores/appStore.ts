@@ -178,6 +178,7 @@ export function createAppStore(): AppStoreTuple {
     initializeApp: async (appVersion: string) => {
       if (unlistenStatusUpdate) {
         unlistenStatusUpdate();
+        unlistenStatusUpdate = undefined;
       }
       setState("appVersion", appVersion);
       setState("isLoading", true);
@@ -189,6 +190,7 @@ export function createAppStore(): AppStoreTuple {
         setState("error", message);
         if (unlistenStatusUpdate) {
           unlistenStatusUpdate();
+          unlistenStatusUpdate = undefined;
         }
         setTimeout(() => actions.initializeApp(appVersion), OFFLINE_TIMEOUT);
       };
@@ -205,7 +207,8 @@ export function createAppStore(): AppStoreTuple {
 
       setState("serviceInfo", info);
       if (!isServiceVersionCompatible(info.version)) {
-        const message = "Incompatible service version: " +
+        const message =
+          "Incompatible service version: " +
           info.version +
           " can only work with versions: " +
           COMPATIBLE_VERSIONS.join(", ");
