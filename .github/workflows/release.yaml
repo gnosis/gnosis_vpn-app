@@ -43,10 +43,123 @@ jobs:
       runner: ${{ matrix.binary.runner }}
       version_type: "release"
     secrets: inherit
+
+  container-scan:
+    name: On-Demand Container Vulnerability Scan
+    runs-on: depot-ubuntu-22.04-4
+    permissions:
+      contents: read
+    env:
+      GCP_PROJECT: gnosisvpn-production
+      GCP_REGION: europe-west3
+      SCAN_REPO: docker-scan
+      IMAGE_NAME: release-base
+    steps:
+      - name: Setup GCP
+        uses: hoprnet/hopr-workflows/actions/setup-gcp@setup-gcp-v1
+        with:
+          google_credentials: ${{ secrets.GCP_SA_GITHUB_ACTIONS }}
+          install_sdk: "true"
+
+      - name: Configure Docker authentication for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
+
+      - name: Ensure scan repository exists
+        run: |
+          gcloud artifacts repositories describe "${{ env.SCAN_REPO }}" \
+            --location="${{ env.GCP_REGION }}" \
+            --project="${{ env.GCP_PROJECT }}" \
+            --quiet 2>/dev/null || \
+          gcloud artifacts repositories create "${{ env.SCAN_REPO }}" \
+            --repository-format=docker \
+            --location="${{ env.GCP_REGION }}" \
+            --project="${{ env.GCP_PROJECT }}" \
+            --description="Temporary repository for on-demand container scanning"
+
+      - name: Build and push image representing the deployment environment
+        id: push-image
+        run: |
+          IMAGE_URI="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT }}/${{ env.SCAN_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          echo "image_uri=${IMAGE_URI}" >> "$GITHUB_OUTPUT"
+          # Build an image matching the runtime environment where .deb packages are installed
+          docker build --no-cache -t "${IMAGE_URI}" - <<'EOF'
+          FROM ubuntu:22.04
+          RUN apt-get update && apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-0 \
+            libappindicator3-1 \
+            librsvg2-2 \
+            && rm -rf /var/lib/apt/lists/*
+          EOF
+          docker push "${IMAGE_URI}"
+
+      - name: Run on-demand vulnerability scan
+        id: scan
+        run: |
+          SCAN_OUTPUT=$(gcloud artifacts docker images scan \
+            "${{ steps.push-image.outputs.image_uri }}" \
+            --location="${{ env.GCP_REGION }}" \
+            --project="${{ env.GCP_PROJECT }}" \
+            --format=json)
+          echo "$SCAN_OUTPUT" > scan-results.json
+          SCAN_RESOURCE=$(echo "$SCAN_OUTPUT" | jq -r '.response.results.name')
+          echo "scan_resource=${SCAN_RESOURCE}" >> "$GITHUB_OUTPUT"
+          CRITICAL=$(echo "$SCAN_OUTPUT" | jq -r '.response.results.summary.severityCounts.CRITICAL // 0')
+          HIGH=$(echo "$SCAN_OUTPUT" | jq -r '.response.results.summary.severityCounts.HIGH // 0')
+          echo "critical_count=${CRITICAL}" >> "$GITHUB_OUTPUT"
+          echo "high_count=${HIGH}" >> "$GITHUB_OUTPUT"
+
+      - name: Display blocking vulnerabilities
+        if: >-
+          steps.scan.outputs.critical_count != '0' ||
+          steps.scan.outputs.high_count != '0'
+        run: |
+          gcloud artifacts docker images list-vulnerabilities \
+            "${{ steps.scan.outputs.scan_resource }}" \
+            --format=json \
+            --project="${{ env.GCP_PROJECT }}" | \
+          jq '[.[] | select(
+            .vulnerability.effectiveSeverity == "CRITICAL" or
+            .vulnerability.effectiveSeverity == "HIGH"
+          ) | {
+            severity:     .vulnerability.effectiveSeverity,
+            cve:          .vulnerability.shortDescription,
+            package:      .vulnerability.packageIssue[0].affectedPackage,
+            version:      .vulnerability.packageIssue[0].affectedVersion.name,
+            fixedVersion: .vulnerability.packageIssue[0].fixedVersion.name
+          }]'
+
+      - name: Block release on Critical or High findings
+        run: |
+          CRITICAL="${{ steps.scan.outputs.critical_count }}"
+          HIGH="${{ steps.scan.outputs.high_count }}"
+          echo "Critical: ${CRITICAL}  |  High: ${HIGH}"
+          if [ "${CRITICAL}" -gt 0 ] || [ "${HIGH}" -gt 0 ]; then
+            echo "Release blocked: ${CRITICAL} Critical and ${HIGH} High vulnerabilities detected in the deployment image."
+            exit 1
+          fi
+          echo "Scan passed — no Critical or High vulnerabilities found."
+
+      - name: Upload scan report
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: container-scan-report-${{ github.sha }}
+          path: scan-results.json
+          retention-days: 30
+
+      - name: Cleanup scanned image from Artifact Registry
+        if: always()
+        run: |
+          gcloud artifacts docker images delete \
+            "${{ steps.push-image.outputs.image_uri }}" \
+            --quiet \
+            --project="${{ env.GCP_PROJECT }}" || true
+
   release:
     name: Close release
     needs:
       - build-binaries
+      - container-scan
     runs-on: depot-ubuntu-22.04-4
     steps:
       - name: Checkout repository
