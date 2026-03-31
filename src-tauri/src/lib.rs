@@ -215,17 +215,14 @@ pub fn run() {
         .run(|app_handle, event| {
             if let tauri::RunEvent::Exit = event {
                 // cancel query status loop and wait for it to finish
-                let polling_handle = {
-                    let state = app_handle.state::<Mutex<StatusPollingHandle>>();
-                    if let Ok(mut guard) = state.lock() {
-                        guard.cancel.cancel();
-                        guard.handle.take()
-                    } else {
-                        None
+
+                let state = app_handle.state::<Mutex<StatusPollingHandle>>();
+                if let Ok(mut guard) = state.lock() {
+                    guard.cancel.cancel();
+
+                    if let Some(handle) = guard.handle.take() {
+                        let _ = tauri::async_runtime::block_on(handle);
                     }
-                };
-                if let Some(handle) = polling_handle {
-                    let _ = tauri::async_runtime::block_on(handle);
                 }
 
                 if let Ok(mut guard) = app_handle.state::<HeartbeatHandle>().0.lock() {

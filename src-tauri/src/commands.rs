@@ -14,12 +14,12 @@ use std::time::Duration;
 use tokio::task::spawn_blocking;
 use tokio::time::{self, Instant};
 
+use crate::StatusPollingHandle;
 use crate::icons::{self, AppIconState, TrayIconState};
 use crate::tray;
 use crate::types::{
     BalanceResponse, ConnectResponse, ConnectionState, DisconnectResponse, StatusResponse,
 };
-use crate::StatusPollingHandle;
 
 const ALLOWED_APP_ICONS: &[&str] = &[
     icons::APP_ICON_CONNECTED,
