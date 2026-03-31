@@ -15,6 +15,7 @@ import {
 } from "../../utils/exitHealth.ts";
 import HopsIcon from "./HopsIcon.tsx";
 import { getConnectionLabel } from "../../utils/status.ts";
+import Tooltip from "../common/Tooltip.tsx";
 
 type RandomOption = { type: "random" };
 type ExitOption = Destination | RandomOption;
@@ -41,6 +42,21 @@ export default function ExitNode() {
     if (!id) return null;
     return available.find((d) => d.id === id) ?? null;
   });
+
+  // Created once at component init — outside any reactive tracking.
+  // Reusing the same DOM node in renderValue means SolidJS moves it (DOM adoption)
+  // rather than recreating it on every status tick, so the Tooltip's visible
+  // signal survives across re-renders.
+  const autoTooltipLabel = (
+    <Tooltip content="Preferred or best available" position="top">
+      <span class="flex items-center gap-1 font-bold">
+        Auto
+        <span class="text-xs font-light text-text-secondary cursor-default">
+          ⓘ
+        </span>
+      </span>
+    </Tooltip>
+  ) as HTMLElement;
 
   return (
     <div class="w-full flex flex-row bg-bg-surface rounded-2xl p-4">
@@ -83,10 +99,39 @@ export default function ExitNode() {
               </span>
             );
           }
+          const resolvedDest = randomDestination();
+          const resolvedDs = resolvedDest
+            ? appState.destinations[resolvedDest.id]
+            : null;
+          const resolvedLatency = resolvedDs?.exit_health
+            ? formatLatency(resolvedDs.exit_health)
+            : null;
           return (
-            <span class="flex items-center gap-1.5">
-              <span class="w-4 shrink-0" />
-              Random
+            <span class="flex flex-col gap-0.5 w-full">
+              <span class="flex items-center gap-1.5">
+                <span class="w-4 shrink-0" />
+                Auto
+                <Tooltip content="Preferred or best available" position="top">
+                  <span class="text-xs font-light text-text-secondary cursor-default">
+                    ⓘ
+                  </span>
+                </Tooltip>
+              </span>
+              {resolvedDest && (
+                <span class="flex items-center gap-1.5 pl-5 text-xs text-text-secondary">
+                  {resolvedDs?.exit_health && (
+                    <ExitHealthBadge
+                      exitHealth={resolvedDs.exit_health}
+                      compact
+                      connected={false}
+                    />
+                  )}
+                  {destinationLabel(resolvedDest)}
+                  {resolvedLatency && (
+                    <span class="tabular-nums">{resolvedLatency}</span>
+                  )}
+                </span>
+              )}
             </span>
           );
         }}
@@ -112,7 +157,7 @@ export default function ExitNode() {
           if ("id" in opt) {
             return destinationLabel(opt);
           }
-          return "Random";
+          return "Auto";
         }}
         isOptionDisabled={() => false}
         renderValue={(opt: ExitOption) => {
@@ -145,7 +190,7 @@ export default function ExitNode() {
               : false;
             return (
               <span class="flex flex-col">
-                <span class="font-bold">Random</span>
+                {autoTooltipLabel}
                 <span class="flex items-center gap-1.5 text-xs text-text-secondary font-light break-all">
                   {exitHealth && (
                     <ExitHealthBadge
@@ -160,9 +205,9 @@ export default function ExitNode() {
               </span>
             );
           }
-          return <span class="font-bold">Random</span>;
+          return autoTooltipLabel;
         }}
-        placeholder="Random"
+        placeholder="Auto"
         disabled={appState.isLoading ||
           appState.vpnStatus === "ServiceUnavailable"}
       />

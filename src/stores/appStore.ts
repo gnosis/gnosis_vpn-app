@@ -131,11 +131,13 @@ export function createAppStore(): AppStoreTuple {
       }
     }
 
-    // 3. Preferred location (if available)
+    // 3. Preferred location (if available).
+    // Only sets destination — not selectedId — so the user's "Random" choice
+    // stays visible in the dropdown. connect() resolves preferredLocation
+    // independently via selectTargetId.
     if (settings.preferredLocation) {
       const dest = state.destinations[settings.preferredLocation];
       if (dest) {
-        setState("selectedId", dest.destination.id);
         setState("destination", dest.destination);
         return;
       }
