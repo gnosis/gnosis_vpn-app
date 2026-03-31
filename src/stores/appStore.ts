@@ -205,8 +205,7 @@ export function createAppStore(): AppStoreTuple {
 
       setState("serviceInfo", info);
       if (!isServiceVersionCompatible(info.version)) {
-        const message =
-          "Incompatible service version: " +
+        const message = "Incompatible service version: " +
           info.version +
           " can only work with versions: " +
           COMPATIBLE_VERSIONS.join(", ");
