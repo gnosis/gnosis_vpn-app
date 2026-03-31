@@ -236,30 +236,39 @@ export function createAppStore(): AppStoreTuple {
         return;
       }
 
-      unlistenStatusUpdate = await listen<Promise<StatusResponse | null>>(
-        "status",
-        // for some reason the expected TS type here is wrong
-        // thats why we cast the type (3 lines below) to the expected one, even if it is not correct according to the event emitter
-        (event) => {
-          let statusResp: StatusResponse | void;
-          try {
-            statusResp = incomingStatusEvent(event as unknown as StatusEvent);
-          } catch (err) {
-            const errorMsg = err instanceof Error ? err.message : String(err);
-            const message = "Error processing status update: " + errorMsg;
-            criticalError(message);
-            return;
-          }
+      // for some reason the expected TS type here is wrong
+      // thats why we cast the type (3 lines below) to the expected one, even if it is not correct according to the event emitter
+      const listenCb = (event) => {
+        let statusResp: StatusResponse | void;
+        try {
+          statusResp = incomingStatusEvent(event as unknown as StatusEvent);
+        } catch (err) {
+          const errorMsg = err instanceof Error ? err.message : String(err);
+          const message = "Error processing status update: " + errorMsg;
+          criticalError(message);
+          return;
+        }
 
-          if (!statusResp) {
-            const errorMsg = "Received empty status response";
-            criticalError(errorMsg);
-            return;
-          }
+        if (!statusResp) {
+          const errorMsg = "Received empty status response";
+          criticalError(errorMsg);
+          return;
+        }
 
-          processStatusResponse(statusResp);
-        },
-      );
+        processStatusResponse(statusResp);
+      };
+
+      try {
+        unlistenStatusUpdate = await listen<Promise<StatusResponse | null>>(
+          "status",
+          listenCb,
+        );
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        const message = "Failed to listen for status updates: " + errorMsg;
+        criticalError(message);
+        return;
+      }
     },
 
     setScreen: (screen: AppScreen) => setState("currentScreen", screen),
