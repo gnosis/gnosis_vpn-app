@@ -13,5 +13,4 @@ target/
 gcp-sa-*.json
 .yarn.lock
 
-
-.claude/
+settings.local.json
