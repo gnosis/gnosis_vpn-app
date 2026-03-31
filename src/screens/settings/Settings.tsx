@@ -13,7 +13,7 @@ export default function Settings() {
   const [settings, settingsActions] = useSettingsStore();
 
   return (
-    <div class="space-y-4 w-full p-6 max-w-lg bg-bg-primary select-none">
+    <div class="space-y-4 w-full p-6 max-w-lg bg-bg-primary select-none flex flex-col h-full">
       <label class="flex items-center justify-between gap-2 text-text-primary">
         Preferred server location
         <Show
@@ -56,6 +56,21 @@ export default function Settings() {
         onChange={(e) =>
           void settingsActions.setStartMinimized(e.currentTarget.checked)}
       />
+      <div class="grow" />
+      <div class="space-y-1 text-sm text-text-secondary text-center">
+        <Show when={appState.serviceInfo}>
+          {(info) => (
+            <div>
+              Service version:{" "}
+              <span class="text-text-primary">{info().version}</span>
+            </div>
+          )}
+        </Show>
+        <div>
+          App version:{" "}
+          <span class="text-text-primary">{appState.appVersion ?? "—"}</span>
+        </div>
+      </div>
     </div>
   );
 }
