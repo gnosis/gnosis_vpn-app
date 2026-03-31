@@ -87,7 +87,6 @@ function initialState(): AppState {
 }
 
 export function createAppStore(): AppStoreTuple {
-  let unlistenStatusUpdate: (() => void) | undefined;
   const [state, setState] = createStore<AppState>(initialState());
   const [settings] = useSettingsStore();
   const [, logActions] = useLogsStore();
@@ -173,15 +172,19 @@ export function createAppStore(): AppStoreTuple {
   };
 
   const OFFLINE_TIMEOUT = 5000; // ms
+  let unlistenStatusUpdate: (() => void) | undefined;
 
   const actions = {
+    /**
+     * Only call this function once.
+     * It will keep calling itself until status querying works.
+     */
     initializeApp: async (appVersion: string) => {
       if (unlistenStatusUpdate) {
         unlistenStatusUpdate();
         unlistenStatusUpdate = undefined;
       }
       setState("appVersion", appVersion);
-      setState("isLoading", true);
 
       const criticalError = (message: string) => {
         log(message);
@@ -207,8 +210,7 @@ export function createAppStore(): AppStoreTuple {
 
       setState("serviceInfo", info);
       if (!isServiceVersionCompatible(info.version)) {
-        const message =
-          "Incompatible service version: " +
+        const message = "Incompatible service version: " +
           info.version +
           " can only work with versions: " +
           COMPATIBLE_VERSIONS.join(", ");
@@ -258,7 +260,6 @@ export function createAppStore(): AppStoreTuple {
           processStatusResponse(statusResp);
         },
       );
-      setState("isLoading", false);
     },
 
     setScreen: (screen: AppScreen) => setState("currentScreen", screen),
