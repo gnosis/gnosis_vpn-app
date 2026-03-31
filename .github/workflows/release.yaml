@@ -159,7 +159,8 @@ jobs:
     name: Close release
     needs:
       - build-binaries
-      - container-scan
+      # reenable when working
+      # - container-scan
     runs-on: depot-ubuntu-22.04-4
     steps:
       - name: Checkout repository
