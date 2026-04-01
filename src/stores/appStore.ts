@@ -249,9 +249,10 @@ export function createAppStore(): AppStoreTuple {
           return;
         }
 
+        // WorkerOffline and similar yield Ok(None) from the daemon; keep last
+        // known UI state instead of resetting (avoids frozen sync progress,
+        // etc. while the worker is briefly unavailable).
         if (!statusResp) {
-          const errorMsg = "Received empty status response";
-          criticalError(errorMsg);
           return;
         }
 

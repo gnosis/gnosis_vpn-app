@@ -7,6 +7,7 @@ import {
 } from "solid-js";
 import {
   isDeployingSafeRunMode,
+  isRunningRunMode,
   isWarmupRunMode,
   type RunMode,
 } from "@src/services/vpnService.ts";
@@ -45,23 +46,11 @@ const STEP_CONFIG = [
   { step: 3, startPct: 40, endPct: 100, durationMs: 60_000 },
 ] as const;
 
-const INIT_STATES = new Set([
-  "Initializing",
-  "ValidatingConfig",
-  "IdentifyingNode",
-  "InitializingDatabase",
-  "ConnectingBlockchain",
-  "CreatingNode",
-  "StartingNode",
-  "Ready",
-]);
-
 function getCurrentStep(runMode: RunMode | null): 1 | 2 | 3 | null {
   if (!runMode) return null;
   if (isDeployingSafeRunMode(runMode)) return 1;
-  if (isWarmupRunMode(runMode)) {
-    return INIT_STATES.has(runMode.Warmup.status) ? 2 : 3;
-  }
+  if (isWarmupRunMode(runMode)) return 2;
+  if (isRunningRunMode(runMode)) return 3;
   return null;
 }
 
@@ -69,13 +58,25 @@ export default function Synchronization(props: SynchronizationProps) {
   const [index, setIndex] = createSignal(0);
   const [isVisible, setIsVisible] = createSignal(true);
   const [displayedProgress, setDisplayedProgress] = createSignal(0);
+  const [lastKnownStep, setLastKnownStep] = createSignal<1 | 2 | 3 | null>(
+    null,
+  );
   let stepEnteredAt = Date.now();
+  let prevEffectiveStep: 1 | 2 | 3 | null = null;
 
-  const currentStep = createMemo(() => getCurrentStep(props.runMode));
+  const resolvedStep = createMemo(() => getCurrentStep(props.runMode));
+  createEffect(() => {
+    const s = resolvedStep();
+    if (s !== null) setLastKnownStep(s);
+  });
+  const effectiveStep = createMemo(() =>
+    resolvedStep() ?? lastKnownStep() ?? 1
+  );
 
   createEffect(() => {
-    const step = currentStep();
-    if (step === null) return;
+    const step = effectiveStep();
+    if (step === prevEffectiveStep) return;
+    prevEffectiveStep = step;
     const cfg = STEP_CONFIG[step - 1];
     stepEnteredAt = Date.now();
     setDisplayedProgress((prev) => Math.max(prev, cfg.startPct));
@@ -96,8 +97,7 @@ export default function Synchronization(props: SynchronizationProps) {
     }, CYCLE_DURATION);
 
     const progressTick = setInterval(() => {
-      const step = currentStep();
-      if (step === null) return;
+      const step = effectiveStep();
       const cfg = STEP_CONFIG[step - 1];
       const elapsed = Date.now() - stepEnteredAt;
       const raw = cfg.startPct +
