@@ -7,14 +7,12 @@ import type {
 } from "../../services/vpnService.ts";
 import { createMemo, Show } from "solid-js";
 import { useSettingsStore } from "../../stores/settingsStore.ts";
-import ExitHealthBadge from "./ExitHealthBadge.tsx";
 import {
   formatLatency,
   getHopCount,
   sortByHealthScore,
 } from "../../utils/exitHealth.ts";
 import HopsIcon from "./HopsIcon.tsx";
-import { getConnectionLabel } from "../../utils/status.ts";
 import Tooltip from "../common/Tooltip.tsx";
 
 type RandomOption = { type: "random" };
@@ -69,21 +67,9 @@ export default function ExitNode() {
             const exitHealth: DestinationHealth | undefined = ds?.exit_health;
             const latency = exitHealth ? formatLatency(exitHealth) : null;
             const hops = getHopCount(opt.routing);
-            const connected = ds
-              ? getConnectionLabel(ds.connection_state) === "Connected"
-              : false;
             return (
               <span class="flex items-center justify-between gap-2">
                 <span class="flex items-center gap-1.5 min-w-0">
-                  <span class="w-4 shrink-0 flex items-center justify-center">
-                    {exitHealth && (
-                      <ExitHealthBadge
-                        exitHealth={exitHealth}
-                        compact
-                        connected={connected}
-                      />
-                    )}
-                  </span>
                   <span class="break-all">{destinationLabel(opt)}</span>
                 </span>
                 <span class="shrink-0 text-xs text-text-secondary flex items-center gap-2">
@@ -109,7 +95,6 @@ export default function ExitNode() {
           return (
             <span class="flex flex-col gap-0.5 w-full">
               <span class="flex items-center gap-1.5">
-                <span class="w-4 shrink-0" />
                 Auto
                 <Tooltip content="Preferred or best available" position="top">
                   <span class="text-xs font-light text-text-secondary cursor-default">
@@ -118,14 +103,7 @@ export default function ExitNode() {
                 </Tooltip>
               </span>
               {resolvedDest && (
-                <span class="flex items-center gap-1.5 pl-5 text-xs text-text-secondary">
-                  {resolvedDs?.exit_health && (
-                    <ExitHealthBadge
-                      exitHealth={resolvedDs.exit_health}
-                      compact
-                      connected={false}
-                    />
-                  )}
+                <span class="flex items-center gap-1.5 text-xs text-text-secondary">
                   {destinationLabel(resolvedDest)}
                   {resolvedLatency && (
                     <span class="tabular-nums">{resolvedLatency}</span>
@@ -162,20 +140,8 @@ export default function ExitNode() {
         isOptionDisabled={() => false}
         renderValue={(opt: ExitOption) => {
           if ("id" in opt) {
-            const ds = appState.destinations[opt.id];
-            const exitHealth: DestinationHealth | undefined = ds?.exit_health;
-            const connected = ds
-              ? getConnectionLabel(ds.connection_state) === "Connected"
-              : false;
             return (
               <span class="flex items-center gap-1.5">
-                {exitHealth && (
-                  <ExitHealthBadge
-                    exitHealth={exitHealth}
-                    compact
-                    connected={connected}
-                  />
-                )}
                 <span class="break-all">{destinationLabel(opt)}</span>
               </span>
             );
@@ -185,20 +151,10 @@ export default function ExitNode() {
             const ds = appState.destinations[randomDest.id];
             const exitHealth: DestinationHealth | undefined = ds?.exit_health;
             const latency = exitHealth ? formatLatency(exitHealth) : null;
-            const connected = ds
-              ? getConnectionLabel(ds.connection_state) === "Connected"
-              : false;
             return (
               <span class="flex flex-col">
                 {autoTooltipLabel}
                 <span class="flex items-center gap-1.5 text-xs text-text-secondary font-light break-all">
-                  {exitHealth && (
-                    <ExitHealthBadge
-                      exitHealth={exitHealth}
-                      compact
-                      connected={connected}
-                    />
-                  )}
                   {destinationLabel(randomDest)}
                   {latency && <span class="tabular-nums">{latency}</span>}
                 </span>
