@@ -6,6 +6,7 @@ use serde::Serialize;
 use tauri::Manager;
 use tauri::tray::TrayIconBuilder;
 use tauri_plugin_store::StoreExt;
+use tokio::sync::Notify;
 use tokio_util::sync::CancellationToken;
 
 use std::path::PathBuf;
@@ -37,6 +38,7 @@ struct HeartbeatHandle(Mutex<Option<tauri::async_runtime::JoinHandle<()>>>);
 pub struct StatusPollingHandle {
     pub cancel: CancellationToken,
     pub handle: Option<tauri::async_runtime::JoinHandle<()>>,
+    pub trigger: Arc<Notify>,
 }
 
 #[derive(Clone, Serialize, Default)]
@@ -190,10 +192,11 @@ pub fn run() {
                 }
             }
 
-            // status polling handle (cancellation token + join handle)
+            // status polling handle (cancellation token + join handle + trigger)
             app.manage(Mutex::new(StatusPollingHandle {
                 cancel: CancellationToken::new(),
                 handle: None,
+                trigger: Arc::new(Notify::new()),
             }));
 
             Ok(())
