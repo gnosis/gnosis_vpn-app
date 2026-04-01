@@ -48,13 +48,7 @@ export default function StatusLine(
           style={{ height: `${props.heightPx}px`, "pointer-events": "none" }}
         />
       </Show>
-      <Show when={appState.vpnStatus === "Disconnecting"}>
-        <div
-          class={`vpn-connector-line bottom-6 disconnecting-static`}
-          style={{ height: `${props.heightPx}px`, "pointer-events": "none" }}
-        />
-      </Show>
-      <Show when={appState.vpnStatus === "Disconnected" && wasDisconnecting()}>
+      <Show when={(appState.vpnStatus === "Disconnecting" || appState.vpnStatus === "Disconnected") && wasDisconnecting()}>
         <div
           class={`vpn-connector-line bottom-6 disconnected-shrinking`}
           style={{ height: `${props.heightPx}px`, "pointer-events": "none" }}
