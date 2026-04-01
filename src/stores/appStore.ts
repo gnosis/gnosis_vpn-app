@@ -82,10 +82,13 @@ function initialState(): AppState {
 
 export function createAppStore(): AppStoreTuple {
   const [state, setState] = createStore<AppState>(initialState());
+<<<<<<< fix/exit-node-default
 
   let unlistenStatusUpdate: (() => void) | undefined;
   let connectedOnOpenDetected = false;
 
+=======
+>>>>>>> main
   const [settings] = useSettingsStore();
   const [, logActions] = useLogsStore();
   const log = (content: string) => logActions.append(content);
@@ -187,6 +190,10 @@ export function createAppStore(): AppStoreTuple {
   };
 
   const OFFLINE_TIMEOUT = 5000; // ms
+<<<<<<< fix/exit-node-default
+=======
+  let unlistenStatusUpdate: (() => void) | undefined;
+>>>>>>> main
   let redoTimeout: ReturnType<typeof setTimeout> | undefined;
 
   const actions = {
@@ -212,7 +219,14 @@ export function createAppStore(): AppStoreTuple {
           unlistenStatusUpdate();
           unlistenStatusUpdate = undefined;
         }
+<<<<<<< fix/exit-node-default
         redoTimeout = setTimeout(() => actions.initializeApp(appVersion), OFFLINE_TIMEOUT);
+=======
+        redoTimeout = setTimeout(
+          () => actions.initializeApp(appVersion),
+          OFFLINE_TIMEOUT,
+        );
+>>>>>>> main
       };
 
       let info;
@@ -227,8 +241,12 @@ export function createAppStore(): AppStoreTuple {
 
       setState("serviceInfo", info);
       if (!isServiceVersionCompatible(info.version)) {
+<<<<<<< fix/exit-node-default
         const message =
           "Incompatible service version: " +
+=======
+        const message = "Incompatible service version: " +
+>>>>>>> main
           info.version +
           ". Supported versions: " +
           COMPATIBLE_VERSIONS.join(", ");
@@ -277,7 +295,14 @@ export function createAppStore(): AppStoreTuple {
       };
 
       try {
+<<<<<<< fix/exit-node-default
         unlistenStatusUpdate = await listen<Promise<StatusResponse | null>>("status", listenCb);
+=======
+        unlistenStatusUpdate = await listen<Promise<StatusResponse | null>>(
+          "status",
+          listenCb,
+        );
+>>>>>>> main
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
         const message = "Failed to listen for status updates: " + errorMsg;
