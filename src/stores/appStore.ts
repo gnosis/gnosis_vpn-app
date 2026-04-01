@@ -173,13 +173,16 @@ export function createAppStore(): AppStoreTuple {
 
   const OFFLINE_TIMEOUT = 5000; // ms
   let unlistenStatusUpdate: (() => void) | undefined;
+  let redoTimeout: ReturnType<typeof setTimeout> | undefined;
 
   const actions = {
     /**
-     * Only call this function once.
-     * It will keep calling itself until status querying works.
+     * Run initialization logic, will keep looping.
+     * Reset upon calling it again.
      */
     initializeApp: async (appVersion: string) => {
+      clearTimeout(redoTimeout);
+      redoTimeout = undefined;
       if (unlistenStatusUpdate) {
         unlistenStatusUpdate();
         unlistenStatusUpdate = undefined;
@@ -195,7 +198,10 @@ export function createAppStore(): AppStoreTuple {
           unlistenStatusUpdate();
           unlistenStatusUpdate = undefined;
         }
-        setTimeout(() => actions.initializeApp(appVersion), OFFLINE_TIMEOUT);
+        redoTimeout = setTimeout(
+          () => actions.initializeApp(appVersion),
+          OFFLINE_TIMEOUT,
+        );
       };
 
       let info;
