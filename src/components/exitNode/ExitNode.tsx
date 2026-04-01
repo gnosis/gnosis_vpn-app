@@ -68,7 +68,11 @@ export default function ExitNode() {
             const latency = exitHealth ? formatLatency(exitHealth) : null;
             const hops = getHopCount(opt.routing);
             return (
-              <span class="flex items-center justify-between gap-2">
+              <span
+                class={`flex items-center justify-between gap-2${
+                  latency ? "" : " opacity-40"
+                }`}
+              >
                 <span class="flex items-center gap-1.5 min-w-0">
                   <span class="break-all">{destinationLabel(opt)}</span>
                 </span>
