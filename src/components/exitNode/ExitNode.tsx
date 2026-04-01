@@ -1,17 +1,17 @@
 import { useAppStore } from "../../stores/appStore.ts";
 import { Dropdown } from "../common/Dropdown.tsx";
-import { destinationLabel, selectTargetId } from "../../utils/destinations.ts";
+import {
+  destinationLabel,
+  destinationsForTargetSelection,
+  selectTargetId,
+} from "../../utils/destinations.ts";
 import type {
   Destination,
   DestinationHealth,
 } from "../../services/vpnService.ts";
 import { createMemo, Show } from "solid-js";
 import { useSettingsStore } from "../../stores/settingsStore.ts";
-import {
-  formatLatency,
-  getHopCount,
-  sortByHealthScore,
-} from "../../utils/exitHealth.ts";
+import { formatLatency, getHopCount } from "../../utils/exitHealth.ts";
 import HopsIcon from "./HopsIcon.tsx";
 import Tooltip from "../common/Tooltip.tsx";
 
@@ -24,7 +24,11 @@ export default function ExitNode() {
   const [settings] = useSettingsStore();
 
   const sortedDestinations = createMemo(() =>
-    sortByHealthScore(appState.availableDestinations, appState.destinations)
+    destinationsForTargetSelection(
+      undefined,
+      appState.availableDestinations,
+      appState.destinations,
+    )
   );
 
   const resolvedAutoDestination = createMemo(() => {

@@ -15,7 +15,10 @@ import ConnectButton from "../../components/ConnectButton.tsx";
 import StatusHero from "../../components/status/StatusHero.tsx";
 import StatusLine from "../../components/status/StatusLine.tsx";
 import ExitHealthDetail from "../../components/exitNode/ExitHealthDetail.tsx";
-import { selectTargetId } from "../../utils/destinations.ts";
+import {
+  destinationsForTargetSelection,
+  selectTargetId,
+} from "../../utils/destinations.ts";
 import ConnectionStatus from "../../components/status/ConnectionStatus.tsx";
 
 export function MainScreen() {
@@ -29,7 +32,11 @@ export function MainScreen() {
       selectTargetId(
         undefined,
         settings.preferredLocation,
-        appState.availableDestinations,
+        destinationsForTargetSelection(
+          undefined,
+          appState.availableDestinations,
+          appState.destinations,
+        ),
       ).id;
     if (!effectiveId) return undefined;
     return appState.destinations[effectiveId];

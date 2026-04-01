@@ -2,7 +2,10 @@ import { createMemo } from "solid-js";
 import Button from "./common/Button.tsx";
 import { useAppStore } from "../stores/appStore.ts";
 import { useSettingsStore } from "../stores/settingsStore.ts";
-import { selectTargetId } from "../utils/destinations.ts";
+import {
+  destinationsForTargetSelection,
+  selectTargetId,
+} from "../utils/destinations.ts";
 import { isReadyToConnect } from "../services/vpnService.ts";
 
 export default function ConnectButton() {
@@ -20,7 +23,11 @@ export default function ConnectButton() {
     const { id } = selectTargetId(
       undefined,
       settings.preferredLocation,
-      appState.availableDestinations,
+      destinationsForTargetSelection(
+        undefined,
+        appState.availableDestinations,
+        appState.destinations,
+      ),
     );
     if (id) return id;
     return appState.destinations[0]?.destination.id;

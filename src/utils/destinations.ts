@@ -1,4 +1,9 @@
-import type { Destination, RoutingOptions } from "@src/services/vpnService.ts";
+import type {
+  Destination,
+  DestinationState,
+  RoutingOptions,
+} from "@src/services/vpnService.ts";
+import { sortByHealthScore } from "@src/utils/exitHealth.ts";
 
 export const canonicalizeMeta = (
   meta: Record<string, string> | undefined,
@@ -58,6 +63,19 @@ export function getPreferredAvailabilityChangeMessage(
   return nowHasPreferred
     ? `Preferred location ${preferredId} is available again.`
     : `Preferred location ${preferredId} currently unavailable.`;
+}
+
+/**
+ * List to pass to {@link selectTargetId}: preserves `available` order when the user
+ * chose a specific exit; otherwise health-sorted (same ordering as connect’s auto path).
+ */
+export function destinationsForTargetSelection(
+  explicitExitId: string | null | undefined,
+  available: Destination[],
+  destinations: Record<string, DestinationState>,
+): Destination[] {
+  if (explicitExitId) return available;
+  return sortByHealthScore(available, destinations);
 }
 
 export function selectTargetId(

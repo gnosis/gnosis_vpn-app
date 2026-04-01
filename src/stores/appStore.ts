@@ -17,10 +17,10 @@ import {
 import { useLogsStore } from "@src/stores/logsStore.ts";
 import {
   destinationLabel,
+  destinationsForTargetSelection,
   getPreferredAvailabilityChangeMessage,
   selectTargetId,
 } from "@src/utils/destinations.ts";
-import { sortByHealthScore } from "@src/utils/exitHealth.ts";
 
 import {
   COMPATIBLE_VERSIONS,
@@ -317,9 +317,11 @@ export function createAppStore(): AppStoreTuple {
       const { id: targetId, reason: selectionReason } = selectTargetId(
         requestedId,
         settings.preferredLocation,
-        requestedId
-          ? state.availableDestinations
-          : sortByHealthScore(state.availableDestinations, state.destinations),
+        destinationsForTargetSelection(
+          requestedId ?? null,
+          state.availableDestinations,
+          state.destinations,
+        ),
       );
 
       const reasonForLog = requestedId ? "selected exit node" : selectionReason;
