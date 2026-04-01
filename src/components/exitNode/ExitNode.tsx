@@ -2,6 +2,7 @@ import { useAppStore } from "../../stores/appStore.ts";
 import { Dropdown } from "../common/Dropdown.tsx";
 import {
   destinationLabel,
+  destinationLabelById,
   destinationsForTargetSelection,
   selectTargetId,
 } from "../../utils/destinations.ts";
@@ -50,7 +51,7 @@ export default function ExitNode() {
   // rather than recreating it on every status tick, so the Tooltip's visible
   // signal survives across re-renders.
   const autoTooltipLabel = (
-    <Tooltip content="Preferred or best available" position="top">
+    <Tooltip content="Preferred or best available" position="top" tabIndex={0}>
       <span class="flex items-center gap-1 font-bold">
         Auto
         <span class="text-xs font-light text-text-secondary cursor-default">
@@ -104,7 +105,11 @@ export default function ExitNode() {
             <span class="flex flex-col gap-0.5 w-full">
               <span class="flex items-center gap-1.5">
                 Auto
-                <Tooltip content="Preferred or best available" position="top">
+                <Tooltip
+                  content="Preferred or best available"
+                  position="top"
+                  tabIndex={0}
+                >
                   <span class="text-xs font-light text-text-secondary cursor-default">
                     ⓘ
                   </span>
@@ -124,7 +129,7 @@ export default function ExitNode() {
         value={(appState.selectedId
           ? (appState.availableDestinations.find((d) =>
             d.id === appState.selectedId
-          ) ?? AUTO_OPTION)
+          ) ?? { id: appState.selectedId })
           : AUTO_OPTION) as ExitOption}
         onChange={(opt: ExitOption) => {
           const current = appState.selectedId;
@@ -150,7 +155,9 @@ export default function ExitNode() {
           if ("id" in opt) {
             return (
               <span class="flex items-center gap-1.5">
-                <span class="break-all">{destinationLabel(opt)}</span>
+                <span class="break-all">
+                  {destinationLabelById(opt.id, appState.availableDestinations)}
+                </span>
               </span>
             );
           }

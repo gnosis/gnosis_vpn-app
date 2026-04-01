@@ -30,7 +30,7 @@ export default function ConnectButton() {
       ),
     );
     if (id) return id;
-    return appState.destinations[0]?.destination.id;
+    return appState.availableDestinations[0]?.id;
   });
 
   const targetDestinationState = createMemo(() =>

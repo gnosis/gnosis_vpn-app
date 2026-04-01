@@ -15,6 +15,7 @@ export default function Tooltip(
     content: JSX.Element;
     children: JSX.Element;
     position?: "top" | "bottom";
+    tabIndex?: number;
   },
 ) {
   const [visible, setVisible] = createSignal(false);
@@ -91,6 +92,7 @@ export default function Tooltip(
     <div
       ref={triggerRef}
       class="relative inline-flex w-fit"
+      tabindex={props.tabIndex}
       onMouseEnter={show}
       onMouseLeave={hide}
       onFocusIn={show}
@@ -101,7 +103,7 @@ export default function Tooltip(
         <Portal mount={document.body}>
           <div
             ref={bubbleRef}
-            class="tooltip-bubble fixed z-500 max-w-52 rounded-lg bg-neutral-800 px-3 py-2 shadow-lg text-xs leading-relaxed text-gray-100"
+            class="tooltip-bubble fixed z-50 max-w-52 rounded-lg bg-neutral-800 px-3 py-2 shadow-lg text-xs leading-relaxed text-gray-100"
             style={{
               ...(anchorY().bottom !== undefined
                 ? { bottom: `${anchorY().bottom}px` }
