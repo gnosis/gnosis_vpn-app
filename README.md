@@ -33,9 +33,11 @@ nix develop --command deno task tauri dev
 #### Prerequisites
 
 1. Install [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) (Xcode and Rust)
+   - If you don’t have Xcode tooling yet, Apple’s docs explain how to install [Command Line Tools for Xcode](https://developer.apple.com/documentation/xcode/installing-the-command-line-tools/) (e.g. `xcode-select --install`). That is usually enough without installing the full Xcode app; you may be prompted to accept the license on first use.
+   - Install Rust via [rustup](https://rustup.rs/)
 2. Install Deno — choose one of:
-   - **Homebrew**: `brew install deno`
-   - **Official installer**: `curl -fsSL https://deno.land/install.sh | sh`
+   - **Homebrew** (requires installing Homebrew first): `brew install deno` (Homebrew install docs: https://brew.sh/)
+   - **Official installer**: `curl -fsSL https://deno.land/install.sh | sh` (then ensure Deno is on your `PATH`: https://docs.deno.com/runtime/getting_started/installation/)
    - **Nix** (if you have Nix installed): enter the dev shell with `nix develop` — Deno, Rust, and all tools are provided automatically, then run the commands below without the `nix develop --command` prefix
 3. `deno install` (if you get errors about lifecycle scripts, use `deno install --allow-scripts`)
 4. `deno task tauri dev`
