@@ -15,10 +15,17 @@ import {
   VPNService,
 } from "@src/services/vpnService.ts";
 import { useLogsStore } from "@src/stores/logsStore.ts";
-import { destinationLabel, getPreferredAvailabilityChangeMessage, selectTargetId } from "@src/utils/destinations.ts";
+import {
+  destinationLabel,
+  getPreferredAvailabilityChangeMessage,
+  selectTargetId,
+} from "@src/utils/destinations.ts";
 import { sortByHealthScore } from "@src/utils/exitHealth.ts";
 
-import { COMPATIBLE_VERSIONS, isServiceVersionCompatible } from "@src/utils/compatibility.ts";
+import {
+  COMPATIBLE_VERSIONS,
+  isServiceVersionCompatible,
+} from "@src/utils/compatibility.ts";
 
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import { getConnectionLabel, getConnectionPhase } from "@src/utils/status.ts";
@@ -82,17 +89,15 @@ function initialState(): AppState {
 
 export function createAppStore(): AppStoreTuple {
   const [state, setState] = createStore<AppState>(initialState());
-<<<<<<< fix/exit-node-default
 
   let unlistenStatusUpdate: (() => void) | undefined;
   let connectedOnOpenDetected = false;
 
-=======
->>>>>>> main
   const [settings] = useSettingsStore();
   const [, logActions] = useLogsStore();
   const log = (content: string) => logActions.append(content);
-  const logStatus = (response: StatusResponse) => logActions.appendStatus(response);
+  const logStatus = (response: StatusResponse) =>
+    logActions.appendStatus(response);
 
   const applyDestinationSelection = () => {
     // 1. Explicit user selection
@@ -109,7 +114,7 @@ export function createAppStore(): AppStoreTuple {
     // after the user later chooses it and a connection succeeds.
     if (!connectedOnOpenDetected) {
       const connectedEntry = Object.values(state.destinations).find(
-        ds =>
+        (ds) =>
           getConnectionLabel(ds.connection_state) === "Connected" ||
           getConnectionLabel(ds.connection_state) === "Connecting",
       );
@@ -144,7 +149,9 @@ export function createAppStore(): AppStoreTuple {
   const processStatusResponse = (response: StatusResponse) => {
     const [screen, warmupStatus] = determineScreenAndStatus(response);
     /// the payload from rust will always make sure the ids in dest order are present in destinations, so this mapping is safe
-    const availableDestinations = response.dest_order.map(id => response.destinations[id].destination).filter(ds => ds);
+    const availableDestinations = response.dest_order.map((id) =>
+      response.destinations[id].destination
+    ).filter((ds) => ds);
     logStateChange(response);
     logPrefMsg(availableDestinations);
     logStatus(response);
@@ -160,7 +167,7 @@ export function createAppStore(): AppStoreTuple {
 
   const logStateChange = (response: StatusResponse) => {
     const prevDestStates = state.destinations;
-    response.dest_order.forEach(id => {
+    response.dest_order.forEach((id) => {
       const prev = prevDestStates[id];
       const next = response.destinations[id];
       if (!prev || !next) return;
@@ -169,8 +176,13 @@ export function createAppStore(): AppStoreTuple {
       const prevPhase = getConnectionPhase(prev.connection_state);
       const nextPhase = getConnectionPhase(next.connection_state);
       const labelChanged = prevLabel !== nextLabel;
-      const phaseChanged = (nextLabel === "Connecting" || nextLabel === "Disconnecting") && prevPhase !== nextPhase;
-      if ((labelChanged && nextLabel !== "Unknown" && nextLabel !== "None") || phaseChanged) {
+      const phaseChanged =
+        (nextLabel === "Connecting" || nextLabel === "Disconnecting") &&
+        prevPhase !== nextPhase;
+      if (
+        (labelChanged && nextLabel !== "Unknown" && nextLabel !== "None") ||
+        phaseChanged
+      ) {
         const label = destinationLabel(next.destination);
         const short = shortAddress(next.destination.address);
         const display = label ? `${label} - ${short}` : short;
@@ -190,10 +202,6 @@ export function createAppStore(): AppStoreTuple {
   };
 
   const OFFLINE_TIMEOUT = 5000; // ms
-<<<<<<< fix/exit-node-default
-=======
-  let unlistenStatusUpdate: (() => void) | undefined;
->>>>>>> main
   let redoTimeout: ReturnType<typeof setTimeout> | undefined;
 
   const actions = {
@@ -219,14 +227,10 @@ export function createAppStore(): AppStoreTuple {
           unlistenStatusUpdate();
           unlistenStatusUpdate = undefined;
         }
-<<<<<<< fix/exit-node-default
-        redoTimeout = setTimeout(() => actions.initializeApp(appVersion), OFFLINE_TIMEOUT);
-=======
         redoTimeout = setTimeout(
           () => actions.initializeApp(appVersion),
           OFFLINE_TIMEOUT,
         );
->>>>>>> main
       };
 
       let info;
@@ -241,15 +245,8 @@ export function createAppStore(): AppStoreTuple {
 
       setState("serviceInfo", info);
       if (!isServiceVersionCompatible(info.version)) {
-<<<<<<< fix/exit-node-default
-        const message =
-          "Incompatible service version: " +
-=======
-        const message = "Incompatible service version: " +
->>>>>>> main
-          info.version +
-          ". Supported versions: " +
-          COMPATIBLE_VERSIONS.join(", ");
+        const message = "Incompatible service version: " + info.version +
+          ". Supported versions: " + COMPATIBLE_VERSIONS.join(", ");
         criticalError(message);
         return;
       }
@@ -295,14 +292,10 @@ export function createAppStore(): AppStoreTuple {
       };
 
       try {
-<<<<<<< fix/exit-node-default
-        unlistenStatusUpdate = await listen<Promise<StatusResponse | null>>("status", listenCb);
-=======
         unlistenStatusUpdate = await listen<Promise<StatusResponse | null>>(
           "status",
           listenCb,
         );
->>>>>>> main
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
         const message = "Failed to listen for status updates: " + errorMsg;
@@ -324,12 +317,16 @@ export function createAppStore(): AppStoreTuple {
       const { id: targetId, reason: selectionReason } = selectTargetId(
         requestedId,
         settings.preferredLocation,
-        requestedId ? state.availableDestinations : sortByHealthScore(state.availableDestinations, state.destinations),
+        requestedId
+          ? state.availableDestinations
+          : sortByHealthScore(state.availableDestinations, state.destinations),
       );
 
       const reasonForLog = requestedId ? "selected exit node" : selectionReason;
       if (targetId && reasonForLog !== "selected exit node") {
-        const selected = state.availableDestinations.find(d => d.id === targetId);
+        const selected = state.availableDestinations.find((d) =>
+          d.id === targetId
+        );
         if (!selected) {
           return;
         }
@@ -381,8 +378,8 @@ let initialDelay:
   | { delayingSince: number }
   | { neverRan: true }
   | {
-      alreadyRan: true;
-    } = { neverRan: true };
+    alreadyRan: true;
+  } = { neverRan: true };
 function determineScreenAndStatus(status: StatusResponse): [AppScreen, string] {
   const runMode = status.run_mode;
   if (runMode === "Shutdown") {
@@ -395,7 +392,10 @@ function determineScreenAndStatus(status: StatusResponse): [AppScreen, string] {
     return [AppScreen.Synchronization, "Safe deployment ongoing"];
   }
   if (isWarmupRunMode(runMode)) {
-    return [AppScreen.Synchronization, formatWarmupStatus(runMode.Warmup.status)];
+    return [
+      AppScreen.Synchronization,
+      formatWarmupStatus(runMode.Warmup.status),
+    ];
   }
   // delay initial screen as long as no interaction makes sense
   const delay = findDelayReason(Object.values(status.destinations));
@@ -449,10 +449,14 @@ function findDelayReason(destinations: DestinationState[]): string | null {
     }
   }
   if (missingPeers > 0 && missingPeers >= missingChannels) {
-    return `Looking for ${missingPeers} more peer${missingPeers > 1 ? "s" : ""}`;
+    return `Looking for ${missingPeers} more peer${
+      missingPeers > 1 ? "s" : ""
+    }`;
   }
   if (missingChannels > 0) {
-    return `Setting up ${missingChannels} more channel${missingChannels > 1 ? "s" : ""}`;
+    return `Setting up ${missingChannels} more channel${
+      missingChannels > 1 ? "s" : ""
+    }`;
   }
   return null;
 }
