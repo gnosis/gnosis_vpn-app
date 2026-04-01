@@ -39,7 +39,9 @@ export default function Tooltip(
     const cx = rect.left + rect.width / 2;
     setTriggerX(cx);
     if (pos() === "top") {
-      setAnchorY({ bottom: window.innerHeight - rect.top + MARGIN });
+      setAnchorY({
+        bottom: globalThis.innerHeight - rect.top + MARGIN,
+      });
     } else {
       setAnchorY({ top: rect.bottom + MARGIN });
     }
@@ -55,7 +57,7 @@ export default function Tooltip(
     const cx = triggerX();
     const clamped = Math.max(
       half + MARGIN,
-      Math.min(cx, window.innerWidth - half - MARGIN),
+      Math.min(cx, globalThis.innerWidth - half - MARGIN),
     );
     setLeft(clamped);
     const rawOffset = cx - clamped;
