@@ -15,9 +15,9 @@ import {
 import HopsIcon from "./HopsIcon.tsx";
 import Tooltip from "../common/Tooltip.tsx";
 
-type RandomOption = { type: "random" };
-type ExitOption = Destination | RandomOption;
-const RANDOM_OPTION: RandomOption = { type: "random" };
+type AutoOption = { type: "auto" };
+type ExitOption = Destination | AutoOption;
+const AUTO_OPTION: AutoOption = { type: "auto" };
 
 export default function ExitNode() {
   const [appState, appActions] = useAppStore();
@@ -27,7 +27,7 @@ export default function ExitNode() {
     sortByHealthScore(appState.availableDestinations, appState.destinations)
   );
 
-  const randomDestination = createMemo(() => {
+  const resolvedAutoDestination = createMemo(() => {
     const available = sortedDestinations();
     if (available.length === 0) return null;
 
@@ -60,7 +60,7 @@ export default function ExitNode() {
     <div class="w-full flex flex-row bg-bg-surface rounded-2xl p-4">
       <Dropdown<ExitOption>
         label="Exit Node"
-        options={[RANDOM_OPTION, ...sortedDestinations()]}
+        options={[AUTO_OPTION, ...sortedDestinations()]}
         renderOption={(opt: ExitOption) => {
           if ("id" in opt) {
             const ds = appState.destinations[opt.id];
@@ -89,7 +89,7 @@ export default function ExitNode() {
               </span>
             );
           }
-          const resolvedDest = randomDestination();
+          const resolvedDest = resolvedAutoDestination();
           const resolvedDs = resolvedDest
             ? appState.destinations[resolvedDest.id]
             : null;
@@ -120,8 +120,8 @@ export default function ExitNode() {
         value={(appState.selectedId
           ? (appState.availableDestinations.find((d) =>
             d.id === appState.selectedId
-          ) ?? RANDOM_OPTION)
-          : RANDOM_OPTION) as ExitOption}
+          ) ?? AUTO_OPTION)
+          : AUTO_OPTION) as ExitOption}
         onChange={(opt: ExitOption) => {
           const current = appState.selectedId;
           if ("id" in opt) {
@@ -150,16 +150,16 @@ export default function ExitNode() {
               </span>
             );
           }
-          const randomDest = randomDestination();
-          if (randomDest) {
-            const ds = appState.destinations[randomDest.id];
+          const resolvedDest = resolvedAutoDestination();
+          if (resolvedDest) {
+            const ds = appState.destinations[resolvedDest.id];
             const exitHealth: DestinationHealth | undefined = ds?.exit_health;
             const latency = exitHealth ? formatLatency(exitHealth) : null;
             return (
               <span class="flex flex-col">
                 {autoTooltipLabel}
                 <span class="flex items-center gap-1.5 text-xs text-text-secondary font-light break-all">
-                  {destinationLabel(randomDest)}
+                  {destinationLabel(resolvedDest)}
                   {latency && <span class="tabular-nums">{latency}</span>}
                 </span>
               </span>
