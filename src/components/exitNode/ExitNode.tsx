@@ -54,7 +54,7 @@ export default function ExitNode() {
         </span>
       </span>
     </Tooltip>
-  ) as HTMLElement;
+  );
 
   return (
     <div class="w-full flex flex-row bg-bg-surface rounded-2xl p-4">

@@ -18,7 +18,6 @@ export default function Tooltip(
   },
 ) {
   const [visible, setVisible] = createSignal(false);
-  // triggerX/Y are set before the tooltip shows; left/arrowOffset updated after render
   const [triggerX, setTriggerX] = createSignal(0);
   const [anchorY, setAnchorY] = createSignal<
     | { bottom: number; top?: never }
@@ -26,16 +25,16 @@ export default function Tooltip(
   >({ bottom: 0 });
   const [left, setLeft] = createSignal(-9999); // off-screen until measured
   const [arrowOffset, setArrowOffset] = createSignal(0);
+  const [remeasure, setRemeasure] = createSignal(0); // bumped to force re-measure on reposition
 
-  let triggerRef: HTMLDivElement | undefined;
-  let bubbleRef: HTMLDivElement | undefined;
+  let triggerRef!: HTMLDivElement;
+  let bubbleRef!: HTMLDivElement;
   let timeout: ReturnType<typeof setTimeout> | undefined;
   onCleanup(() => clearTimeout(timeout));
 
   const pos = () => props.position ?? "top";
 
   const updateAnchor = () => {
-    if (!triggerRef) return;
     const rect = triggerRef.getBoundingClientRect();
     const cx = rect.left + rect.width / 2;
     setTriggerX(cx);
@@ -44,12 +43,13 @@ export default function Tooltip(
     } else {
       setAnchorY({ top: rect.bottom + MARGIN });
     }
-    setLeft(-9999); // reset so measureAndPosition runs after next render
+    setRemeasure((n) => n + 1);
   };
 
-  // After the bubble renders, measure its actual width and compute left + arrowOffset
+  // After the bubble renders (or on reposition), measure actual width and compute left + arrowOffset
   createEffect(() => {
     if (!visible() || !bubbleRef) return;
+    remeasure(); // track for re-runs triggered by scroll/resize
     const bw = bubbleRef.offsetWidth;
     const half = bw / 2;
     const cx = triggerX();
@@ -61,6 +61,17 @@ export default function Tooltip(
     const rawOffset = cx - clamped;
     const maxOffset = half - ARROW_INSET;
     setArrowOffset(Math.max(-maxOffset, Math.min(rawOffset, maxOffset)));
+  });
+
+  // Keep position in sync while visible
+  createEffect(() => {
+    if (!visible()) return;
+    globalThis.addEventListener("resize", updateAnchor);
+    globalThis.addEventListener("scroll", updateAnchor, true);
+    onCleanup(() => {
+      globalThis.removeEventListener("resize", updateAnchor);
+      globalThis.removeEventListener("scroll", updateAnchor, true);
+    });
   });
 
   const show = () => {
