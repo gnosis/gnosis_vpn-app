@@ -61,8 +61,6 @@ export default function Synchronization(props: SynchronizationProps) {
   const [lastKnownStep, setLastKnownStep] = createSignal<1 | 2 | 3 | null>(
     null,
   );
-  let stepEnteredAt = Date.now();
-  let prevEffectiveStep: 1 | 2 | 3 | null = null;
 
   const resolvedStep = createMemo(() => getCurrentStep(props.runMode));
   createEffect(() => {
@@ -73,12 +71,16 @@ export default function Synchronization(props: SynchronizationProps) {
     resolvedStep() ?? lastKnownStep() ?? 1
   );
 
+  const [stepData, setStepData] = createSignal({
+    step: effectiveStep(),
+    enteredAt: Date.now(),
+  });
+
   createEffect(() => {
     const step = effectiveStep();
-    if (step === prevEffectiveStep) return;
-    prevEffectiveStep = step;
+    if (step === stepData().step) return;
     const cfg = STEP_CONFIG[step - 1];
-    stepEnteredAt = Date.now();
+    setStepData({ step, enteredAt: Date.now() });
     setDisplayedProgress((prev) => Math.max(prev, cfg.startPct));
   });
 
@@ -97,9 +99,9 @@ export default function Synchronization(props: SynchronizationProps) {
     }, CYCLE_DURATION);
 
     const progressTick = setInterval(() => {
-      const step = effectiveStep();
-      const cfg = STEP_CONFIG[step - 1];
-      const elapsed = Date.now() - stepEnteredAt;
+      const data = stepData();
+      const cfg = STEP_CONFIG[data.step - 1];
+      const elapsed = Date.now() - data.enteredAt;
       const raw = cfg.startPct +
         (elapsed / cfg.durationMs) * (cfg.endPct - cfg.startPct);
       const clamped = Math.min(Math.max(raw, cfg.startPct), cfg.endPct);
@@ -131,6 +133,10 @@ export default function Synchronization(props: SynchronizationProps) {
         </div>
 
         <div
+          role="progressbar"
+          aria-valuenow={Math.round(displayedProgress())}
+          aria-valuemin="0"
+          aria-valuemax="100"
           class="w-3/4 h-3 rounded-full overflow-hidden"
           style={{ "background-color": "var(--color-progress-track)" }}
         >
@@ -138,7 +144,7 @@ export default function Synchronization(props: SynchronizationProps) {
             class="h-full transition-none"
             style={{
               width: `${displayedProgress()}%`,
-              background: "var(--color-progress-fill)",
+              background: "var(--progress-fill-gradient)",
               "border-radius": "5px",
             }}
           />
