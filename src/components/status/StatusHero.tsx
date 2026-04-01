@@ -9,7 +9,7 @@ export function StatusHero() {
 
   const isConnecting = () => appState.vpnStatus === "Connecting";
 
-  const showDisconnected =
+  const showDisconnected = () =>
     appState.vpnStatus === "Disconnected" ||
     appState.vpnStatus === "Disconnecting" ||
     !appState.runMode;
@@ -23,7 +23,7 @@ export function StatusHero() {
         <Show when={appState.vpnStatus === "Connected"}>
           <img src={connectedImg} alt="Connected" class="h-24" />
         </Show>
-        <Show when={showDisconnected}>
+        <Show when={showDisconnected()}>
           <img src={disconnectedImg} alt="Disconnected" class="h-24" />
         </Show>
       </div>
