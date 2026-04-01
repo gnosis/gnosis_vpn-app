@@ -38,7 +38,9 @@ nix develop --command deno task tauri dev
      [Command Line Tools for Xcode](https://developer.apple.com/documentation/xcode/installing-the-command-line-tools/)
      (e.g. `xcode-select --install`). That is usually enough without installing
      the full Xcode app; you may be prompted to accept the license on first use.
-   - Install Rust via [rustup](https://rustup.rs/)
+   - Install Rust via [rustup](https://rustup.rs/). If you plan to build
+     Intel-only or universal binaries, also install the corresponding Rust
+     targets: `rustup target add aarch64-apple-darwin x86_64-apple-darwin`
 2. Install Deno — choose one of:
    - **Homebrew** (requires installing Homebrew first): `brew install deno`
      (Homebrew install docs: https://brew.sh/)
@@ -64,6 +66,9 @@ deno add npm:<package-name> --dev     # dev dependency
 ```bash
 # Build for Apple Silicon only
 deno task tauri build --target aarch64-apple-darwin
+
+# Build for Intel only
+deno task tauri build --target x86_64-apple-darwin
 
 # Build a universal binary (Apple Silicon + Intel)
 deno task tauri build --target universal-apple-darwin
