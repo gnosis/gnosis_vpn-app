@@ -212,6 +212,7 @@ export function createAppStore(): AppStoreTuple {
     initializeApp: async (appVersion: string) => {
       clearTimeout(redoTimeout);
       redoTimeout = undefined;
+      connectedOnOpenDetected = false;
       if (unlistenStatusUpdate) {
         unlistenStatusUpdate();
         unlistenStatusUpdate = undefined;
@@ -220,6 +221,7 @@ export function createAppStore(): AppStoreTuple {
 
       const criticalError = (message: string) => {
         log(message);
+        connectedOnOpenDetected = false;
         setState(reconcile(initialState()));
         setState("appVersion", appVersion);
         setState("error", message);
