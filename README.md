@@ -30,15 +30,31 @@ nix develop --command deno task tauri dev
 
 ### macOS
 
-- Install [Prerequisites](https://v2.tauri.app/start/prerequisites/)
-- `deno install`
-- `deno task tauri dev`
+#### Prerequisites
+
+1. Install [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) (Xcode and Rust)
+2. Install Deno — choose one of:
+   - **Homebrew**: `brew install deno`
+   - **Official installer**: `curl -fsSL https://deno.land/install.sh | sh`
+   - **Nix** (if you have Nix installed): enter the dev shell with `nix develop` — Deno, Rust, and all tools are provided automatically, then run the commands below without the `nix develop --command` prefix
+3. `deno install` (if you get errors about lifecycle scripts, use `deno install --allow-scripts`)
+4. `deno task tauri dev`
+
+#### Adding npm packages
+
+```bash
+deno add npm:<package-name>           # dependency
+deno add npm:<package-name> --dev     # dev dependency
+```
 
 #### Building
 
 ```bash
-# Build for Apple Silicon
+# Build for Apple Silicon only
 deno task tauri build --target aarch64-apple-darwin
+
+# Build a universal binary (Apple Silicon + Intel)
+deno task tauri build --target universal-apple-darwin
 ```
 
 ### Code Signing (macOS)
