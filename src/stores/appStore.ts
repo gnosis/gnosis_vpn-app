@@ -110,7 +110,8 @@ export function createAppStore(): AppStoreTuple {
   let catchUpTarget: number | null = null;
   let pendingScreenTransition: AppScreen | null = null;
 
-  const CATCH_UP_SPEED = 3.3; // % per 33ms tick
+  const CATCH_UP_SPEED = 6.6; // % per 100ms tick
+  const TICK_INTERVAL = 100; // ms
 
   const tickSyncProgress = () => {
     const current = state.syncProgress;
@@ -147,7 +148,7 @@ export function createAppStore(): AppStoreTuple {
     activeSyncPhase = next;
     syncPhaseStartTime = Date.now();
     if (!syncTimer) {
-      syncTimer = setInterval(tickSyncProgress, 33);
+      syncTimer = setInterval(tickSyncProgress, TICK_INTERVAL);
     }
   };
 
@@ -156,7 +157,7 @@ export function createAppStore(): AppStoreTuple {
     pendingScreenTransition = screen;
     catchUpTarget = 100;
     if (!syncTimer) {
-      syncTimer = setInterval(tickSyncProgress, 33);
+      syncTimer = setInterval(tickSyncProgress, TICK_INTERVAL);
     }
   };
 
