@@ -66,11 +66,11 @@ export default function Synchronization(props: SynchronizationProps) {
         <span class="text-5xl font-bold">{progress()}%</span>
         <div class="w-full h-2 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
           <div
-            class="h-full rounded-full bg-accent relative overflow-hidden"
+            class="h-full rounded-full bg-accent relative overflow-hidden transition-[width] duration-100 ease-linear"
             style={{
               width: `${progress()}%`,
-              transition: "width 100ms linear",
             }}
+          >
           >
             <div class="absolute inset-0 progress-shimmer" />
           </div>
