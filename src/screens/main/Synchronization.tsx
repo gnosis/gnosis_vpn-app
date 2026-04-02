@@ -1,8 +1,8 @@
 import { createSignal, onCleanup, onMount } from "solid-js";
-import syncIcon from "@assets/icons/sync.svg";
 
 export interface SynchronizationProps {
   warmupStatus: string;
+  syncProgress: number;
 }
 
 const trivia = [
@@ -53,9 +53,30 @@ export default function Synchronization(props: SynchronizationProps) {
   });
 
   return (
-    <div class="h-full w-full flex flex-col items-center p-6 select-none bg-bg-primary text-text-primary">
+    <div class="h-full w-full flex flex-col p-6 select-none bg-bg-primary text-text-primary">
+      <h1 class="text-4xl font-bold">Syncing</h1>
+
+      {/* Progress Section */}
+      <div class="flex flex-col items-center gap-3 pt-12 w-full">
+        <span class="text-xs font-bold uppercase tracking-widest text-text-secondary">
+          Progress
+        </span>
+        <span class="text-5xl font-bold">{props.syncProgress}%</span>
+        <div class="w-full h-2 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
+          <div
+            class="h-full rounded-full bg-accent relative overflow-hidden"
+            style={{
+              width: `${props.syncProgress}%`,
+              transition: "width 100ms linear",
+            }}
+          >
+            <div class="absolute inset-0 progress-shimmer" />
+          </div>
+        </div>
+      </div>
+
       {/* Trivia Section */}
-      <div class="grow flex flex-col items-center justify-center w-full max-w-lg text-center px-4">
+      <div class="grow flex flex-col items-center justify-end w-full max-w-lg self-center text-center px-4 pb-4">
         <h3 class="text-xs uppercase tracking-widest text-text-secondary mb-4 opacity-70">
           Did you know?
         </h3>
@@ -68,16 +89,7 @@ export default function Synchronization(props: SynchronizationProps) {
         </p>
       </div>
 
-      {/* Spinner Section */}
-      <div class="flex flex-col items-center justify-center py-8">
-        <img
-          src={syncIcon}
-          alt="Synchronization Spinner"
-          class="w-16 h-16 dark:invert animate-spin-smooth opacity-80"
-        />
-      </div>
-
-      {/* Status Section */}
+      {/* Status */}
       <div class="w-full flex justify-center pb-2">
         <span class="text-xs font-mono text-text-secondary opacity-30 truncate max-w-[80%] text-center">
           {props.warmupStatus}

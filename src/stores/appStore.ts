@@ -52,6 +52,7 @@ export interface AppState {
   runMode: RunMode | null;
   vpnStatus: string;
   warmupStatus: string;
+  syncProgress: number;
 }
 
 type AppActions = {
@@ -84,14 +85,57 @@ function initialState(): AppState {
     serviceInfo: null,
     vpnStatus: "ServiceUnavailable",
     warmupStatus: "",
+    syncProgress: 0,
   };
 }
+
+// Phase boundaries and expected durations for sync progress estimation.
+// floor/ceiling are % values; durationMs is the expected phase duration.
+// Adjust durationMs when real-world timing data is available.
+const SYNC_PHASES = [
+  { floor: 0,  ceiling: 30,  durationMs: 30_000 }, // DeployingSafe
+  { floor: 30, ceiling: 40,  durationMs: 10_000 }, // Warmup
+  { floor: 40, ceiling: 100, durationMs: 60_000 }, // Channels/peers delay
+] as const;
+type SyncPhaseIndex = 0 | 1 | 2;
 
 export function createAppStore(): AppStoreTuple {
   const [state, setState] = createStore<AppState>(initialState());
 
   let unlistenStatusUpdate: (() => void) | undefined;
   let connectedOnOpenDetected = false;
+  let activeSyncPhase: SyncPhaseIndex | null = null;
+  let syncPhaseStartTime = 0;
+  let syncTimer: ReturnType<typeof setInterval> | undefined;
+
+  const tickSyncProgress = () => {
+    if (activeSyncPhase === null) return;
+    const phase = SYNC_PHASES[activeSyncPhase];
+    const elapsed = Date.now() - syncPhaseStartTime;
+    const phaseRange = phase.ceiling - phase.floor;
+    const raw = phase.floor + (elapsed / phase.durationMs) * phaseRange;
+    setState("syncProgress", Math.min(Math.round(raw), phase.ceiling));
+  };
+
+  // When advancing to a later phase, snap to the previous phase's ceiling first
+  // so progress never goes backward.
+  const enterSyncPhase = (next: SyncPhaseIndex | null) => {
+    if (next === null || activeSyncPhase === next) return;
+    if (activeSyncPhase !== null && next > activeSyncPhase) {
+      setState("syncProgress", SYNC_PHASES[activeSyncPhase].ceiling);
+    }
+    activeSyncPhase = next;
+    syncPhaseStartTime = Date.now();
+    if (!syncTimer) {
+      syncTimer = setInterval(tickSyncProgress, 100);
+    }
+  };
+
+  const stopSyncProgress = () => {
+    clearInterval(syncTimer);
+    syncTimer = undefined;
+    activeSyncPhase = null;
+  };
 
   const [settings] = useSettingsStore();
   const [, logActions] = useLogsStore();
@@ -148,6 +192,11 @@ export function createAppStore(): AppStoreTuple {
 
   const processStatusResponse = (response: StatusResponse) => {
     const [screen, warmupStatus] = determineScreenAndStatus(response);
+    if (screen === AppScreen.Synchronization) {
+      enterSyncPhase(detectSyncPhase(response));
+    } else {
+      stopSyncProgress();
+    }
     /// the payload from rust will always make sure the ids in dest order are present in destinations, so this mapping is safe
     const availableDestinations = response.dest_order.map((id) =>
       response.destinations[id].destination
@@ -213,6 +262,8 @@ export function createAppStore(): AppStoreTuple {
       clearTimeout(redoTimeout);
       redoTimeout = undefined;
       connectedOnOpenDetected = false;
+      stopSyncProgress();
+      setState("syncProgress", 0);
       if (unlistenStatusUpdate) {
         unlistenStatusUpdate();
         unlistenStatusUpdate = undefined;
@@ -222,6 +273,7 @@ export function createAppStore(): AppStoreTuple {
       const criticalError = (message: string) => {
         log(message);
         connectedOnOpenDetected = false;
+        stopSyncProgress();
         setState(reconcile(initialState()));
         setState("appVersion", appVersion);
         setState("error", message);
@@ -462,6 +514,14 @@ function findDelayReason(destinations: DestinationState[]): string | null {
       missingChannels > 1 ? "s" : ""
     }`;
   }
+  return null;
+}
+
+function detectSyncPhase(response: StatusResponse): SyncPhaseIndex | null {
+  const { run_mode, destinations } = response;
+  if (isDeployingSafeRunMode(run_mode)) return 0;
+  if (isWarmupRunMode(run_mode)) return 1;
+  if (findDelayReason(Object.values(destinations))) return 2;
   return null;
 }
 
