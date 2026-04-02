@@ -107,8 +107,26 @@ export function createAppStore(): AppStoreTuple {
   let activeSyncPhase: SyncPhaseIndex | null = null;
   let syncPhaseStartTime = 0;
   let syncTimer: ReturnType<typeof setInterval> | undefined;
+  let catchUpTarget: number | null = null;
+  let pendingScreenTransition: AppScreen | null = null;
+
+  const CATCH_UP_SPEED = 4; // % per 100ms tick (~40%/s)
 
   const tickSyncProgress = () => {
+    const current = state.syncProgress;
+    if (catchUpTarget !== null) {
+      const next = Math.min(current + CATCH_UP_SPEED, catchUpTarget);
+      setState("syncProgress", next);
+      if (next >= catchUpTarget) {
+        catchUpTarget = null;
+        if (pendingScreenTransition !== null) {
+          setState("currentScreen", pendingScreenTransition);
+          pendingScreenTransition = null;
+          stopSyncProgress();
+        }
+      }
+      return;
+    }
     if (activeSyncPhase === null) return;
     const phase = SYNC_PHASES[activeSyncPhase];
     const elapsed = Date.now() - syncPhaseStartTime;
@@ -117,15 +135,23 @@ export function createAppStore(): AppStoreTuple {
     setState("syncProgress", Math.min(Math.round(raw), phase.ceiling));
   };
 
-  // When advancing to a later phase, snap to the previous phase's ceiling first
-  // so progress never goes backward.
+  // When advancing to a later phase, animate quickly to the phase boundary.
   const enterSyncPhase = (next: SyncPhaseIndex | null) => {
     if (next === null || activeSyncPhase === next) return;
     if (activeSyncPhase !== null && next > activeSyncPhase) {
-      setState("syncProgress", SYNC_PHASES[activeSyncPhase].ceiling);
+      catchUpTarget = SYNC_PHASES[activeSyncPhase].ceiling;
     }
     activeSyncPhase = next;
     syncPhaseStartTime = Date.now();
+    if (!syncTimer) {
+      syncTimer = setInterval(tickSyncProgress, 100);
+    }
+  };
+
+  // Animate to 100% then transition to the next screen.
+  const completeSyncAndTransition = (screen: AppScreen) => {
+    pendingScreenTransition = screen;
+    catchUpTarget = 100;
     if (!syncTimer) {
       syncTimer = setInterval(tickSyncProgress, 100);
     }
@@ -135,6 +161,8 @@ export function createAppStore(): AppStoreTuple {
     clearInterval(syncTimer);
     syncTimer = undefined;
     activeSyncPhase = null;
+    catchUpTarget = null;
+    pendingScreenTransition = null;
   };
 
   const [settings] = useSettingsStore();
@@ -194,7 +222,9 @@ export function createAppStore(): AppStoreTuple {
     const [screen, warmupStatus] = determineScreenAndStatus(response);
     if (screen === AppScreen.Synchronization) {
       enterSyncPhase(detectSyncPhase(response));
-    } else {
+    } else if (state.currentScreen === AppScreen.Synchronization && pendingScreenTransition === null) {
+      completeSyncAndTransition(screen);
+    } else if (pendingScreenTransition === null) {
       stopSyncProgress();
     }
     /// the payload from rust will always make sure the ids in dest order are present in destinations, so this mapping is safe
@@ -205,7 +235,9 @@ export function createAppStore(): AppStoreTuple {
     logPrefMsg(availableDestinations);
     logStatus(response);
     setState("error", undefined);
-    setState("currentScreen", screen);
+    if (pendingScreenTransition === null) {
+      setState("currentScreen", screen);
+    }
     setState("warmupStatus", warmupStatus);
     setState("runMode", reconcile(response.run_mode));
     setState("destinations", reconcile(response.destinations));
