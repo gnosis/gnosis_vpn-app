@@ -103,12 +103,15 @@ export default function ExitNode() {
             : null;
           return (
             <span class="flex flex-col gap-0.5 w-full">
-              <span class="flex items-center gap-1.5">
+              <span
+                class="flex items-center gap-1.5"
+                title="Preferred or best available"
+              >
                 Auto
                 <Tooltip
                   content="Preferred or best available"
                   position="top"
-                  tabIndex={0}
+                  tabIndex={-1}
                 >
                   <span class="text-xs font-light text-text-secondary cursor-default">
                     ⓘ
