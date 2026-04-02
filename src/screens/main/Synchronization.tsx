@@ -71,10 +71,10 @@ export default function Synchronization(props: SynchronizationProps) {
               width: `${progress()}%`,
             }}
           >
-            >
             <div class="absolute inset-0 progress-shimmer" />
           </div>
         </div>
+      </div>
       </div>
 
       {/* Trivia Section */}
