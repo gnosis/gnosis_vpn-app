@@ -132,7 +132,7 @@ export function createAppStore(): AppStoreTuple {
     const elapsed = Date.now() - syncPhaseStartTime;
     const phaseRange = phase.ceiling - phase.floor;
     const raw = phase.floor + (elapsed / phase.durationMs) * phaseRange;
-    setState("syncProgress", Math.min(Math.round(raw), phase.ceiling));
+    setState("syncProgress", Math.min(raw, phase.ceiling));
   };
 
   // When advancing to a later phase, animate quickly to the phase boundary.
@@ -140,7 +140,7 @@ export function createAppStore(): AppStoreTuple {
   const enterSyncPhase = (next: SyncPhaseIndex | null) => {
     if (next === null || activeSyncPhase === next) return;
     if (activeSyncPhase !== null && next > activeSyncPhase) {
-      catchUpTarget = SYNC_PHASES[activeSyncPhase].ceiling;
+      catchUpTarget = SYNC_PHASES[next].floor;
     } else if (activeSyncPhase === null && next > 0) {
       catchUpTarget = SYNC_PHASES[next].floor;
     }
