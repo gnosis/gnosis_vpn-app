@@ -17,6 +17,7 @@ import {
 import { useLogsStore } from "@src/stores/logsStore.ts";
 import {
   destinationLabel,
+  destinationsForTargetSelection,
   getPreferredAvailabilityChangeMessage,
   selectTargetId,
 } from "@src/utils/destinations.ts";
@@ -88,6 +89,10 @@ function initialState(): AppState {
 
 export function createAppStore(): AppStoreTuple {
   const [state, setState] = createStore<AppState>(initialState());
+
+  let unlistenStatusUpdate: (() => void) | undefined;
+  let connectedOnOpenDetected = false;
+
   const [settings] = useSettingsStore();
   const [, logActions] = useLogsStore();
   const log = (content: string) => logActions.append(content);
@@ -95,19 +100,44 @@ export function createAppStore(): AppStoreTuple {
     logActions.appendStatus(response);
 
   const applyDestinationSelection = () => {
+    // 1. Explicit user selection
     if (state.selectedId) {
       const dest = state.destinations[state.selectedId];
       if (dest) {
-        setState("selectedId", dest.destination.id);
         setState("destination", dest.destination);
         return;
       }
     }
 
+    // 2. Service already connected/connecting when app opened (one-time detection).
+    // Only runs until we've detected it once — avoids locking out "Random" mode
+    // after the user later chooses it and a connection succeeds.
+    if (!connectedOnOpenDetected) {
+      const connectedEntry = Object.values(state.destinations).find(
+        (ds) =>
+          getConnectionLabel(ds.connection_state) === "Connected" ||
+          getConnectionLabel(ds.connection_state) === "Connecting",
+      );
+      if (connectedEntry) {
+        connectedOnOpenDetected = true;
+        setState("selectedId", connectedEntry.destination.id);
+        setState("destination", connectedEntry.destination);
+        return;
+      }
+      // No connection found yet — mark as done once destinations are present
+      // so a fresh session doesn't keep probing after the user has interacted.
+      if (Object.values(state.destinations).length > 0) {
+        connectedOnOpenDetected = true;
+      }
+    }
+
+    // 3. Preferred location (if available).
+    // Only sets destination — not selectedId — so the user's "Random" choice
+    // stays visible in the dropdown. connect() resolves preferredLocation
+    // independently via selectTargetId.
     if (settings.preferredLocation) {
       const dest = state.destinations[settings.preferredLocation];
       if (dest) {
-        setState("selectedId", dest.destination.id);
         setState("destination", dest.destination);
         return;
       }
@@ -119,9 +149,9 @@ export function createAppStore(): AppStoreTuple {
   const processStatusResponse = (response: StatusResponse) => {
     const [screen, warmupStatus] = determineScreenAndStatus(response);
     /// the payload from rust will always make sure the ids in dest order are present in destinations, so this mapping is safe
-    const availableDestinations = response.dest_order
-      .map((id) => response.destinations[id].destination)
-      .filter((ds) => ds);
+    const availableDestinations = response.dest_order.map((id) =>
+      response.destinations[id].destination
+    ).filter((ds) => ds);
     logStateChange(response);
     logPrefMsg(availableDestinations);
     logStatus(response);
@@ -172,7 +202,6 @@ export function createAppStore(): AppStoreTuple {
   };
 
   const OFFLINE_TIMEOUT = 5000; // ms
-  let unlistenStatusUpdate: (() => void) | undefined;
   let redoTimeout: ReturnType<typeof setTimeout> | undefined;
 
   const actions = {
@@ -183,6 +212,7 @@ export function createAppStore(): AppStoreTuple {
     initializeApp: async (appVersion: string) => {
       clearTimeout(redoTimeout);
       redoTimeout = undefined;
+      connectedOnOpenDetected = false;
       if (unlistenStatusUpdate) {
         unlistenStatusUpdate();
         unlistenStatusUpdate = undefined;
@@ -191,6 +221,7 @@ export function createAppStore(): AppStoreTuple {
 
       const criticalError = (message: string) => {
         log(message);
+        connectedOnOpenDetected = false;
         setState(reconcile(initialState()));
         setState("appVersion", appVersion);
         setState("error", message);
@@ -216,10 +247,8 @@ export function createAppStore(): AppStoreTuple {
 
       setState("serviceInfo", info);
       if (!isServiceVersionCompatible(info.version)) {
-        const message = "Incompatible service version: " +
-          info.version +
-          ". Supported versions: " +
-          COMPATIBLE_VERSIONS.join(", ");
+        const message = "Incompatible service version: " + info.version +
+          ". Supported versions: " + COMPATIBLE_VERSIONS.join(", ");
         criticalError(message);
         return;
       }
@@ -290,13 +319,17 @@ export function createAppStore(): AppStoreTuple {
       const { id: targetId, reason: selectionReason } = selectTargetId(
         requestedId,
         settings.preferredLocation,
-        state.availableDestinations,
+        destinationsForTargetSelection(
+          requestedId ?? null,
+          state.availableDestinations,
+          state.destinations,
+        ),
       );
 
       const reasonForLog = requestedId ? "selected exit node" : selectionReason;
       if (targetId && reasonForLog !== "selected exit node") {
-        const selected = state.availableDestinations.find(
-          (d) => d.id === targetId,
+        const selected = state.availableDestinations.find((d) =>
+          d.id === targetId
         );
         if (!selected) {
           return;
@@ -348,7 +381,9 @@ const MAXIMUM_DELAY_TIME = 120 * 1000; // 2 minutes
 let initialDelay:
   | { delayingSince: number }
   | { neverRan: true }
-  | { alreadyRan: true } = { neverRan: true };
+  | {
+    alreadyRan: true;
+  } = { neverRan: true };
 function determineScreenAndStatus(status: StatusResponse): [AppScreen, string] {
   const runMode = status.run_mode;
   if (runMode === "Shutdown") {
