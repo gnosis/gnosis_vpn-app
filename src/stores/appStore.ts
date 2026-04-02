@@ -136,10 +136,13 @@ export function createAppStore(): AppStoreTuple {
   };
 
   // When advancing to a later phase, animate quickly to the phase boundary.
+  // When entering sync for the first time mid-process, animate from 0 to the phase floor.
   const enterSyncPhase = (next: SyncPhaseIndex | null) => {
     if (next === null || activeSyncPhase === next) return;
     if (activeSyncPhase !== null && next > activeSyncPhase) {
       catchUpTarget = SYNC_PHASES[activeSyncPhase].ceiling;
+    } else if (activeSyncPhase === null && next > 0) {
+      catchUpTarget = SYNC_PHASES[next].floor;
     }
     activeSyncPhase = next;
     syncPhaseStartTime = Date.now();
