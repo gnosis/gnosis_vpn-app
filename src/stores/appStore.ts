@@ -93,8 +93,8 @@ function initialState(): AppState {
 // floor/ceiling are % values; durationMs is the expected phase duration.
 // Adjust durationMs when real-world timing data is available.
 const SYNC_PHASES = [
-  { floor: 0,  ceiling: 30,  durationMs: 30_000 }, // DeployingSafe
-  { floor: 30, ceiling: 40,  durationMs: 10_000 }, // Warmup
+  { floor: 0, ceiling: 30, durationMs: 30_000 }, // DeployingSafe
+  { floor: 30, ceiling: 40, durationMs: 10_000 }, // Warmup
   { floor: 40, ceiling: 100, durationMs: 60_000 }, // Channels/peers delay
 ] as const;
 type SyncPhaseIndex = 0 | 1 | 2;
@@ -110,7 +110,7 @@ export function createAppStore(): AppStoreTuple {
   let catchUpTarget: number | null = null;
   let pendingScreenTransition: AppScreen | null = null;
 
-  const CATCH_UP_SPEED = 4; // % per 100ms tick (~40%/s)
+  const CATCH_UP_SPEED = 3.3; // % per 33ms tick
 
   const tickSyncProgress = () => {
     const current = state.syncProgress;
@@ -147,7 +147,7 @@ export function createAppStore(): AppStoreTuple {
     activeSyncPhase = next;
     syncPhaseStartTime = Date.now();
     if (!syncTimer) {
-      syncTimer = setInterval(tickSyncProgress, 100);
+      syncTimer = setInterval(tickSyncProgress, 33);
     }
   };
 
@@ -156,7 +156,7 @@ export function createAppStore(): AppStoreTuple {
     pendingScreenTransition = screen;
     catchUpTarget = 100;
     if (!syncTimer) {
-      syncTimer = setInterval(tickSyncProgress, 100);
+      syncTimer = setInterval(tickSyncProgress, 33);
     }
   };
 
@@ -225,15 +225,18 @@ export function createAppStore(): AppStoreTuple {
     const [screen, warmupStatus] = determineScreenAndStatus(response);
     if (screen === AppScreen.Synchronization) {
       enterSyncPhase(detectSyncPhase(response));
-    } else if (state.currentScreen === AppScreen.Synchronization && pendingScreenTransition === null) {
+    } else if (
+      state.currentScreen === AppScreen.Synchronization &&
+      pendingScreenTransition === null
+    ) {
       completeSyncAndTransition(screen);
     } else if (pendingScreenTransition === null) {
       stopSyncProgress();
     }
     /// the payload from rust will always make sure the ids in dest order are present in destinations, so this mapping is safe
-    const availableDestinations = response.dest_order.map((id) =>
-      response.destinations[id].destination
-    ).filter((ds) => ds);
+    const availableDestinations = response.dest_order
+      .map((id) => response.destinations[id].destination)
+      .filter((ds) => ds);
     logStateChange(response);
     logPrefMsg(availableDestinations);
     logStatus(response);
@@ -334,8 +337,11 @@ export function createAppStore(): AppStoreTuple {
 
       setState("serviceInfo", info);
       if (!isServiceVersionCompatible(info.version)) {
-        const message = "Incompatible service version: " + info.version +
-          ". Supported versions: " + COMPATIBLE_VERSIONS.join(", ");
+        const message =
+          "Incompatible service version: " +
+          info.version +
+          ". Supported versions: " +
+          COMPATIBLE_VERSIONS.join(", ");
         criticalError(message);
         return;
       }
@@ -415,8 +421,8 @@ export function createAppStore(): AppStoreTuple {
 
       const reasonForLog = requestedId ? "selected exit node" : selectionReason;
       if (targetId && reasonForLog !== "selected exit node") {
-        const selected = state.availableDestinations.find((d) =>
-          d.id === targetId
+        const selected = state.availableDestinations.find(
+          (d) => d.id === targetId,
         );
         if (!selected) {
           return;
@@ -469,8 +475,8 @@ let initialDelay:
   | { delayingSince: number }
   | { neverRan: true }
   | {
-    alreadyRan: true;
-  } = { neverRan: true };
+      alreadyRan: true;
+    } = { neverRan: true };
 function determineScreenAndStatus(status: StatusResponse): [AppScreen, string] {
   const runMode = status.run_mode;
   if (runMode === "Shutdown") {
