@@ -337,8 +337,7 @@ export function createAppStore(): AppStoreTuple {
 
       setState("serviceInfo", info);
       if (!isServiceVersionCompatible(info.version)) {
-        const message =
-          "Incompatible service version: " +
+        const message = "Incompatible service version: " +
           info.version +
           ". Supported versions: " +
           COMPATIBLE_VERSIONS.join(", ");
@@ -475,8 +474,8 @@ let initialDelay:
   | { delayingSince: number }
   | { neverRan: true }
   | {
-      alreadyRan: true;
-    } = { neverRan: true };
+    alreadyRan: true;
+  } = { neverRan: true };
 function determineScreenAndStatus(status: StatusResponse): [AppScreen, string] {
   const runMode = status.run_mode;
   if (runMode === "Shutdown") {
