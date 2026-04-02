@@ -52,6 +52,7 @@ export interface AppState {
   runMode: RunMode | null;
   vpnStatus: string;
   warmupStatus: string;
+  syncProgress: number;
 }
 
 type AppActions = {
@@ -84,14 +85,93 @@ function initialState(): AppState {
     serviceInfo: null,
     vpnStatus: "ServiceUnavailable",
     warmupStatus: "",
+    syncProgress: 0,
   };
 }
+
+// Phase boundaries and expected durations for sync progress estimation.
+// floor/ceiling are % values; durationMs is the expected phase duration.
+// Adjust durationMs when real-world timing data is available.
+const SYNC_PHASES = [
+  { floor: 0, ceiling: 30, durationMs: 30_000 }, // DeployingSafe
+  { floor: 30, ceiling: 40, durationMs: 10_000 }, // Warmup
+  { floor: 40, ceiling: 100, durationMs: 60_000 }, // Channels/peers delay
+] as const;
+type SyncPhaseIndex = 0 | 1 | 2;
 
 export function createAppStore(): AppStoreTuple {
   const [state, setState] = createStore<AppState>(initialState());
 
   let unlistenStatusUpdate: (() => void) | undefined;
   let connectedOnOpenDetected = false;
+  let activeSyncPhase: SyncPhaseIndex | null = null;
+  let syncPhaseStartTime = 0;
+  let syncTimer: ReturnType<typeof setInterval> | undefined;
+  let catchUpTarget: number | null = null;
+  let pendingScreenTransition: AppScreen | null = null;
+
+  const CATCH_UP_SPEED = 6.6; // % per 100ms tick
+  const TICK_INTERVAL = 100; // ms
+
+  const tickSyncProgress = () => {
+    const current = state.syncProgress;
+    if (catchUpTarget !== null) {
+      const next = Math.min(current + CATCH_UP_SPEED, catchUpTarget);
+      setState("syncProgress", next);
+      if (next >= catchUpTarget) {
+        catchUpTarget = null;
+        if (pendingScreenTransition !== null) {
+          setState("currentScreen", pendingScreenTransition);
+          pendingScreenTransition = null;
+          stopSyncProgress();
+        }
+      }
+      return;
+    }
+    if (activeSyncPhase === null) return;
+    const phase = SYNC_PHASES[activeSyncPhase];
+    const elapsed = Date.now() - syncPhaseStartTime;
+    const phaseRange = phase.ceiling - phase.floor;
+    const raw = phase.floor + (elapsed / phase.durationMs) * phaseRange;
+    setState("syncProgress", Math.min(raw, phase.ceiling));
+  };
+
+  // When advancing to a later phase, animate quickly to the phase boundary.
+  // When entering sync for the first time mid-process, animate from 0 to the phase floor.
+  const enterSyncPhase = (next: SyncPhaseIndex | null) => {
+    if (next === null || activeSyncPhase === next) return;
+    if (activeSyncPhase !== null && next > activeSyncPhase) {
+      catchUpTarget = SYNC_PHASES[next].floor;
+    } else if (activeSyncPhase === null && next > 0) {
+      catchUpTarget = SYNC_PHASES[next].floor;
+    }
+    activeSyncPhase = next;
+    syncPhaseStartTime = Date.now();
+    if (!syncTimer) {
+      syncTimer = setInterval(tickSyncProgress, TICK_INTERVAL);
+    }
+  };
+
+  // Animate to 100% then transition to the next screen.
+  const completeSyncAndTransition = (screen: AppScreen) => {
+    pendingScreenTransition = screen;
+    catchUpTarget = 100;
+    if (!syncTimer) {
+      syncTimer = setInterval(tickSyncProgress, TICK_INTERVAL);
+    }
+  };
+
+  /**
+   * stops sync progress ticks
+   * syncing is reset via initializeApp function if needed
+   */
+  const stopSyncProgress = () => {
+    clearInterval(syncTimer);
+    syncTimer = undefined;
+    activeSyncPhase = null;
+    catchUpTarget = null;
+    pendingScreenTransition = null;
+  };
 
   const [settings] = useSettingsStore();
   const [, logActions] = useLogsStore();
@@ -148,15 +228,27 @@ export function createAppStore(): AppStoreTuple {
 
   const processStatusResponse = (response: StatusResponse) => {
     const [screen, warmupStatus] = determineScreenAndStatus(response);
+    if (screen === AppScreen.Synchronization) {
+      enterSyncPhase(detectSyncPhase(response));
+    } else if (
+      state.currentScreen === AppScreen.Synchronization &&
+      pendingScreenTransition === null
+    ) {
+      completeSyncAndTransition(screen);
+    } else if (pendingScreenTransition === null) {
+      stopSyncProgress();
+    }
     /// the payload from rust will always make sure the ids in dest order are present in destinations, so this mapping is safe
-    const availableDestinations = response.dest_order.map((id) =>
-      response.destinations[id].destination
-    ).filter((ds) => ds);
+    const availableDestinations = response.dest_order
+      .map((id) => response.destinations[id].destination)
+      .filter((ds) => ds);
     logStateChange(response);
     logPrefMsg(availableDestinations);
     logStatus(response);
     setState("error", undefined);
-    setState("currentScreen", screen);
+    if (pendingScreenTransition === null) {
+      setState("currentScreen", screen);
+    }
     setState("warmupStatus", warmupStatus);
     setState("runMode", reconcile(response.run_mode));
     setState("destinations", reconcile(response.destinations));
@@ -213,6 +305,8 @@ export function createAppStore(): AppStoreTuple {
       clearTimeout(redoTimeout);
       redoTimeout = undefined;
       connectedOnOpenDetected = false;
+      stopSyncProgress();
+      setState("syncProgress", 0);
       if (unlistenStatusUpdate) {
         unlistenStatusUpdate();
         unlistenStatusUpdate = undefined;
@@ -222,6 +316,7 @@ export function createAppStore(): AppStoreTuple {
       const criticalError = (message: string) => {
         log(message);
         connectedOnOpenDetected = false;
+        stopSyncProgress();
         setState(reconcile(initialState()));
         setState("appVersion", appVersion);
         setState("error", message);
@@ -247,8 +342,10 @@ export function createAppStore(): AppStoreTuple {
 
       setState("serviceInfo", info);
       if (!isServiceVersionCompatible(info.version)) {
-        const message = "Incompatible service version: " + info.version +
-          ". Supported versions: " + COMPATIBLE_VERSIONS.join(", ");
+        const message = "Incompatible service version: " +
+          info.version +
+          ". Supported versions: " +
+          COMPATIBLE_VERSIONS.join(", ");
         criticalError(message);
         return;
       }
@@ -328,8 +425,8 @@ export function createAppStore(): AppStoreTuple {
 
       const reasonForLog = requestedId ? "selected exit node" : selectionReason;
       if (targetId && reasonForLog !== "selected exit node") {
-        const selected = state.availableDestinations.find((d) =>
-          d.id === targetId
+        const selected = state.availableDestinations.find(
+          (d) => d.id === targetId,
         );
         if (!selected) {
           return;
@@ -462,6 +559,14 @@ function findDelayReason(destinations: DestinationState[]): string | null {
       missingChannels > 1 ? "s" : ""
     }`;
   }
+  return null;
+}
+
+function detectSyncPhase(response: StatusResponse): SyncPhaseIndex | null {
+  const { run_mode, destinations } = response;
+  if (isDeployingSafeRunMode(run_mode)) return 0;
+  if (isWarmupRunMode(run_mode)) return 1;
+  if (findDelayReason(Object.values(destinations))) return 2;
   return null;
 }
 
