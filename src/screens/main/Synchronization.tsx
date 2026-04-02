@@ -75,7 +75,6 @@ export default function Synchronization(props: SynchronizationProps) {
           </div>
         </div>
       </div>
-      </div>
 
       {/* Trivia Section */}
       <div class="grow flex flex-col items-center justify-end w-full max-w-lg self-center text-center px-4 pb-4">
