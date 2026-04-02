@@ -1,4 +1,4 @@
-import { createEffect, createSignal, on, onCleanup, onMount } from "solid-js";
+import { createSignal, onCleanup, onMount } from "solid-js";
 
 export interface SynchronizationProps {
   warmupStatus: string;
@@ -31,12 +31,6 @@ const trivia = [
 export default function Synchronization(props: SynchronizationProps) {
   const [index, setIndex] = createSignal(0);
   const [isVisible, setIsVisible] = createSignal(true);
-  // Start at 0 so the bar always animates in from the left, even if the store
-  // has already advanced while the initialization screen was showing.
-  const [displayProgress, setDisplayProgress] = createSignal(0);
-  // defer: true skips the initial run so displayProgress stays at 0 for the
-  // first render, then tracks props.syncProgress on every subsequent change.
-  createEffect(on(() => props.syncProgress, setDisplayProgress, { defer: true }));
 
   const CYCLE_DURATION = 7200;
   const FADE_DURATION = 500;
@@ -67,11 +61,11 @@ export default function Synchronization(props: SynchronizationProps) {
         <span class="text-xs font-bold uppercase tracking-widest text-text-secondary">
           Progress
         </span>
-        <span class="text-5xl font-bold">{Math.round(displayProgress())}%</span>
+        <span class="text-5xl font-bold">{Math.round(props.syncProgress)}%</span>
         <div class="w-full h-2 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
           <div
             class="h-full rounded-full bg-accent relative overflow-hidden"
-            style={{ width: `${displayProgress()}%`, transition: "width 100ms linear" }}
+            style={{ width: `${props.syncProgress}%`, transition: "width 100ms linear" }}
           >
             <div class="absolute inset-0 progress-shimmer" />
           </div>
