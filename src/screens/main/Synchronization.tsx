@@ -1,4 +1,4 @@
-import { createEffect, createSignal, onCleanup, onMount } from "solid-js";
+import { createEffect, createSignal, on, onCleanup, onMount } from "solid-js";
 
 export interface SynchronizationProps {
   warmupStatus: string;
@@ -34,7 +34,9 @@ export default function Synchronization(props: SynchronizationProps) {
   // Start at 0 so the bar always animates in from the left, even if the store
   // has already advanced while the initialization screen was showing.
   const [displayProgress, setDisplayProgress] = createSignal(0);
-  createEffect(() => setDisplayProgress(props.syncProgress));
+  // defer: true skips the initial run so displayProgress stays at 0 for the
+  // first render, then tracks props.syncProgress on every subsequent change.
+  createEffect(on(() => props.syncProgress, setDisplayProgress, { defer: true }));
 
   const CYCLE_DURATION = 7200;
   const FADE_DURATION = 500;
