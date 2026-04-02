@@ -36,7 +36,7 @@ export default function Synchronization(props: SynchronizationProps) {
   const [displayProgress, setDisplayProgress] = createSignal(0);
   createEffect(() => setDisplayProgress(props.syncProgress));
 
-  const CYCLE_DURATION = 6600;
+  const CYCLE_DURATION = 7200;
   const FADE_DURATION = 500;
 
   onMount(() => {
