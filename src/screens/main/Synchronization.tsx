@@ -32,6 +32,8 @@ export default function Synchronization(props: SynchronizationProps) {
   const [index, setIndex] = createSignal(0);
   const [isVisible, setIsVisible] = createSignal(true);
 
+  const progress = () => Math.min(100, Math.round(props.syncProgress));
+
   const CYCLE_DURATION = 7200;
   const FADE_DURATION = 500;
 
@@ -61,14 +63,12 @@ export default function Synchronization(props: SynchronizationProps) {
         <span class="text-xs font-bold uppercase tracking-widest text-text-secondary">
           Progress
         </span>
-        <span class="text-5xl font-bold">
-          {Math.round(props.syncProgress)}%
-        </span>
+        <span class="text-5xl font-bold">{progress()}%</span>
         <div class="w-full h-2 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
           <div
             class="h-full rounded-full bg-accent relative overflow-hidden"
             style={{
-              width: `${props.syncProgress}%`,
+              width: `${progress()}%`,
               transition: "width 100ms linear",
             }}
           >
