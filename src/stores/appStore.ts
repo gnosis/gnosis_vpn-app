@@ -161,6 +161,10 @@ export function createAppStore(): AppStoreTuple {
     }
   };
 
+  /**
+   * stops sync progress ticks
+   * syncing is reset via initializeApp function if needed
+   */
   const stopSyncProgress = () => {
     clearInterval(syncTimer);
     syncTimer = undefined;
