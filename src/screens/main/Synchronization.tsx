@@ -65,7 +65,7 @@ export default function Synchronization(props: SynchronizationProps) {
         <div class="w-full h-2 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
           <div
             class="h-full rounded-full bg-accent relative overflow-hidden"
-            style={{ width: `${props.syncProgress}%` }}
+            style={{ width: `${props.syncProgress}%`, transition: "width 100ms linear" }}
           >
             <div class="absolute inset-0 progress-shimmer" />
           </div>
