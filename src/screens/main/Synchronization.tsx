@@ -78,7 +78,7 @@ export default function Synchronization(props: SynchronizationProps) {
 
       {/* Status */}
       <div class="w-full flex justify-center pt-2">
-        <span class="text-xs font-mono text-text-secondary opacity-30 truncate max-w-[80%] text-center">
+        <span class="text-xs font-mono text-text-secondary opacity-50 max-w-[80%] text-center">
           {props.warmupStatus}
         </span>
       </div>
