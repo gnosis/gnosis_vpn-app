@@ -128,7 +128,7 @@ architectures.
 
 The CI builds binaries for the following platforms:
 
-- **macOS**: arch64-darwin
+- **macOS**: aarch64-darwin
 - **Linux**: x86_64-linux, aarch64-linux
 
 Linux builds are performed on GitHub-hosted runners:
