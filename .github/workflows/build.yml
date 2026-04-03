@@ -9,6 +9,7 @@ on:
       - labeled
 permissions:
   contents: read
+  pull-requests: read
 
 concurrency:
   group: ${{ github.ref }}-build
