@@ -6,7 +6,7 @@ The Gnosis VPN application supports the following platforms and architectures:
 
 ### macOS
 
-- **aarch64-darwin** - Apple Silicon (M1/M2/M3)
+- **aarch64-darwin** - Apple Silicon
 
 ### Linux
 
@@ -30,8 +30,10 @@ nix develop --command deno task tauri dev
 
 ### macOS
 
-- Install [Prerequisites](https://v2.tauri.app/start/prerequisites/)
-- `deno install`
+- Install [Prerequisites](https://v2.tauri.app/start/prerequisites/) 
+- `curl -fsSL https://deno.land/install.sh | sh` (if you do not have deno)
+- `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh` (if you do not have rust)
+- `deno install` 
 - `deno task tauri dev`
 
 #### Building
@@ -89,7 +91,7 @@ architectures.
 
 The CI builds binaries for the following platforms:
 
-- **macOS**: aarch64-darwin
+- **macOS**: arch64-darwin
 - **Linux**: x86_64-linux, aarch64-linux
 
 Linux builds are performed on GitHub-hosted runners:

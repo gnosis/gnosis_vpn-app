@@ -16,6 +16,16 @@
   font-display: swap;
 }
 
+* {
+  cursor: default !important;
+}
+
+input,
+textarea,
+select {
+  cursor: text !important;
+}
+
 :root {
   font-family: "Unica77", sans-serif;
   font-size: 16px;
