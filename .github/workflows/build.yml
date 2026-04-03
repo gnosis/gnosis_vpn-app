@@ -7,6 +7,10 @@ on:
       - reopened
       - ready_for_review
       - labeled
+permissions:
+  contents: read
+  pull-requests: read
+
 concurrency:
   group: ${{ github.ref }}-build
   cancel-in-progress: true

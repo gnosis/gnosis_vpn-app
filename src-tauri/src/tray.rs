@@ -3,8 +3,6 @@ use tauri::{
     menu::{Menu, MenuBuilder, MenuItem},
     tray::TrayIconEvent,
 };
-use tauri_plugin_positioner::{Position, WindowExt};
-
 use std::sync::Mutex;
 use std::time::Duration;
 use tokio::time::sleep;
@@ -38,22 +36,18 @@ pub fn toggle_main_window_visibility(app: &AppHandle, triggered_by_tray: bool) {
     if let Some(window) = app.get_webview_window("main") {
         let is_visible = window.is_visible().unwrap_or(false);
         let is_focused = window.is_focused().unwrap_or(false);
-        if !is_visible || !is_focused {
+        if !is_visible || (triggered_by_tray && !is_focused) {
             #[cfg(target_os = "macos")]
             {
                 let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
             }
-            if triggered_by_tray {
-                position_main_window_by_tray(&window);
-            }
             let _ = window.show();
             let _ = window.set_focus();
-            if triggered_by_tray {
-                let handle = window.clone();
-                tauri::async_runtime::spawn(async move {
-                    sleep(Duration::from_millis(10)).await;
-                    position_main_window_by_tray(&handle);
-                });
+            if let Some(settings) = app.get_webview_window("settings") {
+                if settings.is_visible().unwrap_or(false) {
+                    let _ = settings.set_focus();
+                    let _ = window.set_focus();
+                }
             }
         } else {
             let _ = window.hide();
@@ -65,32 +59,7 @@ pub fn toggle_main_window_visibility(app: &AppHandle, triggered_by_tray: bool) {
     }
 }
 
-fn position_main_window_by_tray(window: &tauri::WebviewWindow) {
-    let _ = window.move_window(Position::TrayBottomLeft);
-
-    let Ok(Some(monitor)) = window.current_monitor() else {
-        return;
-    };
-    let Ok(pos) = window.outer_position() else {
-        return;
-    };
-    let Ok(size) = window.outer_size() else {
-        return;
-    };
-
-    let monitor_pos = monitor.position();
-    let monitor_size = monitor.size();
-
-    let max_x = monitor_pos.x + monitor_size.width as i32;
-    let win_right = pos.x + size.width as i32;
-
-    if win_right > max_x {
-        let _ = window.move_window(Position::TopRight);
-    }
-}
-
 pub fn handle_tray_event(app: &AppHandle, event: TrayIconEvent) {
-    tauri_plugin_positioner::on_tray_event(app.app_handle(), &event);
     if let TrayIconEvent::Click {
         button: tauri::tray::MouseButton::Left,
         button_state: tauri::tray::MouseButtonState::Up,

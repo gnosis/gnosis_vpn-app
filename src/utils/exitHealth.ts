@@ -1,4 +1,5 @@
 import type {
+  Destination,
   DestinationHealth,
   DestinationState,
   RoutingOptions,
@@ -132,6 +133,21 @@ export function getHopCount(routing: RoutingOptions): number {
 export function formatRouting(routing: RoutingOptions): string {
   const n = getHopCount(routing);
   return n === 1 ? "1 hop" : `${n} hops`;
+}
+
+/** Sort destinations by health score descending (best first). */
+export function sortByHealthScore(
+  available: Destination[],
+  destinations: Record<string, DestinationState>,
+): Destination[] {
+  return [...available].sort((a, b) => {
+    const dsA = destinations[a.id];
+    const dsB = destinations[b.id];
+    if (!dsA && !dsB) return 0;
+    if (!dsA) return 1;
+    if (!dsB) return -1;
+    return getHealthScore(dsB) - getHealthScore(dsA);
+  });
 }
 
 /** Compute a numeric quality score for sorting (higher = better). */

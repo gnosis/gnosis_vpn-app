@@ -69,27 +69,42 @@ pub async fn start_client(keep_alive: Duration) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn connect(id: String) -> Result<ConnectResponse, String> {
+pub async fn connect(
+    id: String,
+    polling_state: State<'_, Mutex<StatusPollingHandle>>,
+) -> Result<ConnectResponse, String> {
     let p = PathBuf::from(root_socket::DEFAULT_PATH);
     let cmd = command::Command::Connect(id);
     let resp = root_socket::process_cmd(&p, &cmd)
         .await
         .map_err(|e| e.to_string())?;
     match resp {
-        command::Response::Connect(resp) => Ok(resp.into()),
+        command::Response::Connect(resp) => {
+            if let Ok(guard) = polling_state.lock() {
+                guard.trigger.notify_one();
+            }
+            Ok(resp.into())
+        }
         _ => Err("Unexpected response type".to_string()),
     }
 }
 
 #[tauri::command]
-pub async fn disconnect() -> Result<DisconnectResponse, String> {
+pub async fn disconnect(
+    polling_state: State<'_, Mutex<StatusPollingHandle>>,
+) -> Result<DisconnectResponse, String> {
     let p = PathBuf::from(root_socket::DEFAULT_PATH);
     let cmd = command::Command::Disconnect;
     let resp = root_socket::process_cmd(&p, &cmd)
         .await
         .map_err(|e| e.to_string())?;
     match resp {
-        command::Response::Disconnect(resp) => Ok(resp.into()),
+        command::Response::Disconnect(resp) => {
+            if let Ok(guard) = polling_state.lock() {
+                guard.trigger.notify_one();
+            }
+            Ok(resp.into())
+        }
         _ => Err("Unexpected response type".to_string()),
     }
 }
@@ -308,9 +323,9 @@ pub async fn start_status_polling(
         let _ = handle.await;
     }
 
-    let cancel = {
+    let (cancel, trigger) = {
         let guard = polling_state.lock().map_err(|e| e.to_string())?;
-        guard.cancel.clone()
+        (guard.cancel.clone(), guard.trigger.clone())
     };
 
     let app = app_handle.clone();
@@ -323,6 +338,11 @@ pub async fn start_status_polling(
                 _ = cancel.cancelled() => {
                     println!("Status tick received cancellation signal, exiting...");
                     break;
+                }
+
+                _ = trigger.notified() => {
+                    // immediate status query triggered by connect/disconnect
+                    tick_timeout.as_mut().reset(Instant::now());
                 }
 
                 _ = tick_timeout.as_mut() => {

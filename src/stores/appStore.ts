@@ -17,6 +17,7 @@ import {
 import { useLogsStore } from "@src/stores/logsStore.ts";
 import {
   destinationLabel,
+  destinationsForTargetSelection,
   getPreferredAvailabilityChangeMessage,
   selectTargetId,
 } from "@src/utils/destinations.ts";
@@ -51,6 +52,7 @@ export interface AppState {
   runMode: RunMode | null;
   vpnStatus: string;
   warmupStatus: string;
+  syncProgress: number;
 }
 
 type AppActions = {
@@ -83,11 +85,94 @@ function initialState(): AppState {
     serviceInfo: null,
     vpnStatus: "ServiceUnavailable",
     warmupStatus: "",
+    syncProgress: 0,
   };
 }
 
+// Phase boundaries and expected durations for sync progress estimation.
+// floor/ceiling are % values; durationMs is the expected phase duration.
+// Adjust durationMs when real-world timing data is available.
+const SYNC_PHASES = [
+  { floor: 0, ceiling: 30, durationMs: 30_000 }, // DeployingSafe
+  { floor: 30, ceiling: 40, durationMs: 10_000 }, // Warmup
+  { floor: 40, ceiling: 100, durationMs: 60_000 }, // Channels/peers delay
+] as const;
+type SyncPhaseIndex = 0 | 1 | 2;
+
 export function createAppStore(): AppStoreTuple {
   const [state, setState] = createStore<AppState>(initialState());
+
+  let unlistenStatusUpdate: (() => void) | undefined;
+  let connectedOnOpenDetected = false;
+  let activeSyncPhase: SyncPhaseIndex | null = null;
+  let syncPhaseStartTime = 0;
+  let syncTimer: ReturnType<typeof setInterval> | undefined;
+  let catchUpTarget: number | null = null;
+  let pendingScreenTransition: AppScreen | null = null;
+
+  const CATCH_UP_SPEED = 6.6; // % per 100ms tick
+  const TICK_INTERVAL = 100; // ms
+
+  const tickSyncProgress = () => {
+    const current = state.syncProgress;
+    if (catchUpTarget !== null) {
+      const next = Math.min(current + CATCH_UP_SPEED, catchUpTarget);
+      setState("syncProgress", next);
+      if (next >= catchUpTarget) {
+        catchUpTarget = null;
+        if (pendingScreenTransition !== null) {
+          setState("currentScreen", pendingScreenTransition);
+          pendingScreenTransition = null;
+          stopSyncProgress();
+        }
+      }
+      return;
+    }
+    if (activeSyncPhase === null) return;
+    const phase = SYNC_PHASES[activeSyncPhase];
+    const elapsed = Date.now() - syncPhaseStartTime;
+    const phaseRange = phase.ceiling - phase.floor;
+    const raw = phase.floor + (elapsed / phase.durationMs) * phaseRange;
+    setState("syncProgress", Math.min(raw, phase.ceiling));
+  };
+
+  // When advancing to a later phase, animate quickly to the phase boundary.
+  // When entering sync for the first time mid-process, animate from 0 to the phase floor.
+  const enterSyncPhase = (next: SyncPhaseIndex | null) => {
+    if (next === null || activeSyncPhase === next) return;
+    if (activeSyncPhase !== null && next > activeSyncPhase) {
+      catchUpTarget = SYNC_PHASES[next].floor;
+    } else if (activeSyncPhase === null && next > 0) {
+      catchUpTarget = SYNC_PHASES[next].floor;
+    }
+    activeSyncPhase = next;
+    syncPhaseStartTime = Date.now();
+    if (!syncTimer) {
+      syncTimer = setInterval(tickSyncProgress, TICK_INTERVAL);
+    }
+  };
+
+  // Animate to 100% then transition to the next screen.
+  const completeSyncAndTransition = (screen: AppScreen) => {
+    pendingScreenTransition = screen;
+    catchUpTarget = 100;
+    if (!syncTimer) {
+      syncTimer = setInterval(tickSyncProgress, TICK_INTERVAL);
+    }
+  };
+
+  /**
+   * stops sync progress ticks
+   * syncing is reset via initializeApp function if needed
+   */
+  const stopSyncProgress = () => {
+    clearInterval(syncTimer);
+    syncTimer = undefined;
+    activeSyncPhase = null;
+    catchUpTarget = null;
+    pendingScreenTransition = null;
+  };
+
   const [settings] = useSettingsStore();
   const [, logActions] = useLogsStore();
   const log = (content: string) => logActions.append(content);
@@ -95,19 +180,44 @@ export function createAppStore(): AppStoreTuple {
     logActions.appendStatus(response);
 
   const applyDestinationSelection = () => {
+    // 1. Explicit user selection
     if (state.selectedId) {
       const dest = state.destinations[state.selectedId];
       if (dest) {
-        setState("selectedId", dest.destination.id);
         setState("destination", dest.destination);
         return;
       }
     }
 
+    // 2. Service already connected/connecting when app opened (one-time detection).
+    // Only runs until we've detected it once — avoids locking out "Random" mode
+    // after the user later chooses it and a connection succeeds.
+    if (!connectedOnOpenDetected) {
+      const connectedEntry = Object.values(state.destinations).find(
+        (ds) =>
+          getConnectionLabel(ds.connection_state) === "Connected" ||
+          getConnectionLabel(ds.connection_state) === "Connecting",
+      );
+      if (connectedEntry) {
+        connectedOnOpenDetected = true;
+        setState("selectedId", connectedEntry.destination.id);
+        setState("destination", connectedEntry.destination);
+        return;
+      }
+      // No connection found yet — mark as done once destinations are present
+      // so a fresh session doesn't keep probing after the user has interacted.
+      if (Object.values(state.destinations).length > 0) {
+        connectedOnOpenDetected = true;
+      }
+    }
+
+    // 3. Preferred location (if available).
+    // Only sets destination — not selectedId — so the user's "Random" choice
+    // stays visible in the dropdown. connect() resolves preferredLocation
+    // independently via selectTargetId.
     if (settings.preferredLocation) {
       const dest = state.destinations[settings.preferredLocation];
       if (dest) {
-        setState("selectedId", dest.destination.id);
         setState("destination", dest.destination);
         return;
       }
@@ -118,6 +228,16 @@ export function createAppStore(): AppStoreTuple {
 
   const processStatusResponse = (response: StatusResponse) => {
     const [screen, warmupStatus] = determineScreenAndStatus(response);
+    if (screen === AppScreen.Synchronization) {
+      enterSyncPhase(detectSyncPhase(response));
+    } else if (
+      state.currentScreen === AppScreen.Synchronization &&
+      pendingScreenTransition === null
+    ) {
+      completeSyncAndTransition(screen);
+    } else if (pendingScreenTransition === null) {
+      stopSyncProgress();
+    }
     /// the payload from rust will always make sure the ids in dest order are present in destinations, so this mapping is safe
     const availableDestinations = response.dest_order
       .map((id) => response.destinations[id].destination)
@@ -126,7 +246,9 @@ export function createAppStore(): AppStoreTuple {
     logPrefMsg(availableDestinations);
     logStatus(response);
     setState("error", undefined);
-    setState("currentScreen", screen);
+    if (pendingScreenTransition === null) {
+      setState("currentScreen", screen);
+    }
     setState("warmupStatus", warmupStatus);
     setState("runMode", reconcile(response.run_mode));
     setState("destinations", reconcile(response.destinations));
@@ -172,14 +294,19 @@ export function createAppStore(): AppStoreTuple {
   };
 
   const OFFLINE_TIMEOUT = 5000; // ms
-  let unlistenStatusUpdate: (() => void) | undefined;
+  let redoTimeout: ReturnType<typeof setTimeout> | undefined;
 
   const actions = {
     /**
-     * Only call this function once.
-     * It will keep calling itself until status querying works.
+     * Run initialization logic, will keep looping.
+     * Reset upon calling it again.
      */
     initializeApp: async (appVersion: string) => {
+      clearTimeout(redoTimeout);
+      redoTimeout = undefined;
+      connectedOnOpenDetected = false;
+      stopSyncProgress();
+      setState("syncProgress", 0);
       if (unlistenStatusUpdate) {
         unlistenStatusUpdate();
         unlistenStatusUpdate = undefined;
@@ -188,6 +315,8 @@ export function createAppStore(): AppStoreTuple {
 
       const criticalError = (message: string) => {
         log(message);
+        connectedOnOpenDetected = false;
+        stopSyncProgress();
         setState(reconcile(initialState()));
         setState("appVersion", appVersion);
         setState("error", message);
@@ -195,7 +324,10 @@ export function createAppStore(): AppStoreTuple {
           unlistenStatusUpdate();
           unlistenStatusUpdate = undefined;
         }
-        setTimeout(() => actions.initializeApp(appVersion), OFFLINE_TIMEOUT);
+        redoTimeout = setTimeout(
+          () => actions.initializeApp(appVersion),
+          OFFLINE_TIMEOUT,
+        );
       };
 
       let info;
@@ -284,7 +416,11 @@ export function createAppStore(): AppStoreTuple {
       const { id: targetId, reason: selectionReason } = selectTargetId(
         requestedId,
         settings.preferredLocation,
-        state.availableDestinations,
+        destinationsForTargetSelection(
+          requestedId ?? null,
+          state.availableDestinations,
+          state.destinations,
+        ),
       );
 
       const reasonForLog = requestedId ? "selected exit node" : selectionReason;
@@ -342,7 +478,9 @@ const MAXIMUM_DELAY_TIME = 120 * 1000; // 2 minutes
 let initialDelay:
   | { delayingSince: number }
   | { neverRan: true }
-  | { alreadyRan: true } = { neverRan: true };
+  | {
+    alreadyRan: true;
+  } = { neverRan: true };
 function determineScreenAndStatus(status: StatusResponse): [AppScreen, string] {
   const runMode = status.run_mode;
   if (runMode === "Shutdown") {
@@ -421,6 +559,14 @@ function findDelayReason(destinations: DestinationState[]): string | null {
       missingChannels > 1 ? "s" : ""
     }`;
   }
+  return null;
+}
+
+function detectSyncPhase(response: StatusResponse): SyncPhaseIndex | null {
+  const { run_mode, destinations } = response;
+  if (isDeployingSafeRunMode(run_mode)) return 0;
+  if (isWarmupRunMode(run_mode)) return 1;
+  if (findDelayReason(Object.values(destinations))) return 2;
   return null;
 }
 
