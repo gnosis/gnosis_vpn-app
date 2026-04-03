@@ -76,6 +76,13 @@ export default function Synchronization(props: SynchronizationProps) {
         </div>
       </div>
 
+      {/* Status */}
+      <div class="w-full flex justify-center pt-2">
+        <span class="text-xs font-mono text-text-secondary opacity-30 truncate max-w-[80%] text-center">
+          {props.warmupStatus}
+        </span>
+      </div>
+
       {/* Trivia Section */}
       <div class="grow flex flex-col items-center justify-end w-full max-w-lg self-center text-center px-4 pb-4">
         <h3 class="text-xs uppercase tracking-widest text-text-secondary mb-4 opacity-70">
@@ -88,13 +95,6 @@ export default function Synchronization(props: SynchronizationProps) {
         >
           {trivia[index()]}
         </p>
-      </div>
-
-      {/* Status */}
-      <div class="w-full flex justify-center pb-2">
-        <span class="text-xs font-mono text-text-secondary opacity-30 truncate max-w-[80%] text-center">
-          {props.warmupStatus}
-        </span>
       </div>
     </div>
   );
