@@ -6,6 +6,9 @@ on:
       # - synchronize
     branches:
       - main
+permissions:
+  contents: write
+
 concurrency:
   group: merge
   cancel-in-progress: false
