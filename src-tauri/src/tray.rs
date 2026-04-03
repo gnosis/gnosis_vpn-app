@@ -36,7 +36,7 @@ pub fn toggle_main_window_visibility(app: &AppHandle, triggered_by_tray: bool) {
     if let Some(window) = app.get_webview_window("main") {
         let is_visible = window.is_visible().unwrap_or(false);
         let is_focused = window.is_focused().unwrap_or(false);
-        if !is_visible || (triggered_by_tray && !is_focused) {
+        if !is_visible || !is_focused {
             #[cfg(target_os = "macos")]
             {
                 let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
