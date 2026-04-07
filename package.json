@@ -21,7 +21,7 @@
     "@tauri-apps/api": "^2.10.1",
     "@tauri-apps/plugin-opener": "^2.5.3",
     "tailwindcss": "^4.2.2",
-    "vite": "^8.0.3",
+    "vite": "^8.0.5",
     "zod": "^4.3.6"
   },
   "devDependencies": {
