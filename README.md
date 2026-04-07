@@ -30,9 +30,7 @@ nix develop --command deno task tauri dev
 
 ### macOS
 
-- Install [Prerequisites](https://v2.tauri.app/start/prerequisites/) 
-- `curl -fsSL https://deno.land/install.sh | sh` (if you do not have deno)
-- `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh` (if you do not have rust)
+- Install [Prerequisites](#prerequisites)
 - `deno install`
 - `deno task tauri dev`
 
