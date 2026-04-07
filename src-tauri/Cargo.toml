@@ -7,6 +7,11 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+# objc 0.2's msg_send! macro uses cfg(feature = "cargo-clippy") which triggers unexpected_cfgs
+[lints.rust.unexpected_cfgs]
+level = "warn"
+check-cfg = ['cfg(feature, values("cargo-clippy"))']
+
 [lib]
 # The `_lib` suffix may seem redundant but it is necessary
 # to make the lib name unique and wouldn't conflict with the bin name.
@@ -36,10 +41,3 @@ zstd = "0.13.3"
 cocoa = "0.26"
 objc = "0.2"
 dispatch = "0.2"
-
-[lints.rust]
-# The `objc` crate (v0.2) uses `cfg(cargo-clippy)` inside its macros (msg_send!, class!) to
-# special-case behaviour when running under Clippy. Newer Rust versions flag unknown cfg values as
-# warnings. Updating `objc` is not possible because neither `cocoa` nor `tauri` support a newer
-# version yet, so we suppress the warning here instead.
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(cargo-clippy)'] }
