@@ -1,22 +1,22 @@
 {
   "version": "5",
   "specifiers": {
-    "npm:@tailwindcss/vite@^4.2.2": "4.2.2_vite@8.0.5__@emnapi+core@1.9.1__@emnapi+runtime@1.9.1_@emnapi+core@1.9.1_@emnapi+runtime@1.9.1",
+    "npm:@tailwindcss/vite@^4.2.2": "4.2.2_vite@8.0.5__@emnapi+core@1.9.2__@emnapi+runtime@1.9.2_@emnapi+core@1.9.2_@emnapi+runtime@1.9.2",
     "npm:@tauri-apps/api@^2.10.1": "2.10.1",
     "npm:@tauri-apps/cli@^2.10.1": "2.10.1",
-    "npm:@tauri-apps/plugin-dialog@^2.7.0": "2.7.0",
+    "npm:@tauri-apps/plugin-dialog@2.6.0": "2.6.0",
     "npm:@tauri-apps/plugin-opener@^2.5.3": "2.5.3",
     "npm:@tauri-apps/plugin-store@^2.4.2": "2.4.2",
     "npm:@types/qrcode@^1.5.6": "1.5.6",
-    "npm:eslint@^10.2.0": "10.2.0",
+    "npm:eslint@^10.1.0": "10.2.0",
     "npm:prettier@^3.8.1": "3.8.1",
     "npm:qrcode@^1.5.4": "1.5.4",
     "npm:solid-js@^1.9.12": "1.9.12",
     "npm:tailwindcss@^4.2.2": "4.2.2",
     "npm:typescript@^6.0.2": "6.0.2",
-    "npm:vite-plugin-solid@^2.11.12": "2.11.12_solid-js@1.9.12_vite@8.0.5__@emnapi+core@1.9.1__@emnapi+runtime@1.9.1_@emnapi+core@1.9.1_@emnapi+runtime@1.9.1",
-    "npm:vite@8.0.5": "8.0.5_@emnapi+core@1.9.1_@emnapi+runtime@1.9.1",
-    "npm:vitest@^4.1.3": "4.1.3_vite@8.0.5__@emnapi+core@1.9.1__@emnapi+runtime@1.9.1_@emnapi+core@1.9.1_@emnapi+runtime@1.9.1",
+    "npm:vite-plugin-solid@^2.11.11": "2.11.12_solid-js@1.9.12_vite@8.0.5__@emnapi+core@1.9.2__@emnapi+runtime@1.9.2_@emnapi+core@1.9.2_@emnapi+runtime@1.9.2",
+    "npm:vite@8.0.5": "8.0.5_@emnapi+core@1.9.2_@emnapi+runtime@1.9.2",
+    "npm:vitest@^4.1.2": "4.1.3_vite@8.0.5__@emnapi+core@1.9.2__@emnapi+runtime@1.9.2_@emnapi+core@1.9.2_@emnapi+runtime@1.9.2",
     "npm:zod@^4.3.6": "4.3.6"
   },
   "npm": {
@@ -156,21 +156,21 @@
         "@babel/helper-validator-identifier"
       ]
     },
-    "@emnapi/core@1.9.1": {
-      "integrity": "sha512-mukuNALVsoix/w1BJwFzwXBN/dHeejQtuVzcDsfOEsdpCumXb/E9j8w11h5S54tT1xhifGfbbSm/ICrObRb3KA==",
+    "@emnapi/core@1.9.2": {
+      "integrity": "sha512-UC+ZhH3XtczQYfOlu3lNEkdW/p4dsJ1r/bP7H8+rhao3TTTMO1ATq/4DdIi23XuGoFY+Cz0JmCbdVl0hz9jZcA==",
       "dependencies": [
         "@emnapi/wasi-threads",
         "tslib"
       ]
     },
-    "@emnapi/runtime@1.9.1": {
-      "integrity": "sha512-VYi5+ZVLhpgK4hQ0TAjiQiZ6ol0oe4mBx7mVv7IflsiEp0OWoVsp/+f9Vc1hOhE0TtkORVrI1GvzyreqpgWtkA==",
+    "@emnapi/runtime@1.9.2": {
+      "integrity": "sha512-3U4+MIWHImeyu1wnmVygh5WlgfYDtyf0k8AbLhMFxOipihf6nrWC4syIm/SwEeec0mNSafiiNnMJwbza/Is6Lw==",
       "dependencies": [
         "tslib"
       ]
     },
-    "@emnapi/wasi-threads@1.2.0": {
-      "integrity": "sha512-N10dEJNSsUx41Z6pZsXU8FjPjpBEplgH24sfkmITrBED1/U2Esum9F3lfLrMjKHHjmi557zQn7kR9R+XWXu5Rg==",
+    "@emnapi/wasi-threads@1.2.1": {
+      "integrity": "sha512-uTII7OYF+/Mes/MrcIOYp5yOtSMLBWSIoLPpcgwipoiKbli6k322tcoFsxoIIxPDqW01SQGAgko4EzZi2BNv2w==",
       "dependencies": [
         "tslib"
       ]
@@ -258,7 +258,7 @@
         "@jridgewell/sourcemap-codec"
       ]
     },
-    "@napi-rs/wasm-runtime@1.1.2_@emnapi+core@1.9.1_@emnapi+runtime@1.9.1": {
+    "@napi-rs/wasm-runtime@1.1.2_@emnapi+core@1.9.2_@emnapi+runtime@1.9.2": {
       "integrity": "sha512-sNXv5oLJ7ob93xkZ1XnxisYhGYXfaG9f65/ZgYuAu3qt7b3NadcOEhLvx28hv31PgX8SZJRYrAIPQilQmFpLVw==",
       "dependencies": [
         "@emnapi/core",
@@ -329,7 +329,7 @@
       "os": ["openharmony"],
       "cpu": ["arm64"]
     },
-    "@rolldown/binding-wasm32-wasi@1.0.0-rc.12_@emnapi+core@1.9.1_@emnapi+runtime@1.9.1": {
+    "@rolldown/binding-wasm32-wasi@1.0.0-rc.12_@emnapi+core@1.9.2_@emnapi+runtime@1.9.2": {
       "integrity": "sha512-ykGiLr/6kkiHc0XnBfmFJuCjr5ZYKKofkx+chJWDjitX+KsJuAmrzWhwyOMSHzPhzOHOy7u9HlFoa5MoAOJ/Zg==",
       "dependencies": [
         "@napi-rs/wasm-runtime"
@@ -440,7 +440,7 @@
         "@tailwindcss/oxide-win32-x64-msvc"
       ]
     },
-    "@tailwindcss/vite@4.2.2_vite@8.0.5__@emnapi+core@1.9.1__@emnapi+runtime@1.9.1_@emnapi+core@1.9.1_@emnapi+runtime@1.9.1": {
+    "@tailwindcss/vite@4.2.2_vite@8.0.5__@emnapi+core@1.9.2__@emnapi+runtime@1.9.2_@emnapi+core@1.9.2_@emnapi+runtime@1.9.2": {
       "integrity": "sha512-mEiF5HO1QqCLXoNEfXVA1Tzo+cYsrqV7w9Juj2wdUFyW07JRenqMG225MvPwr3ZD9N1bFQj46X7r33iHxLUW0w==",
       "dependencies": [
         "@tailwindcss/node",
@@ -524,8 +524,8 @@
       ],
       "bin": true
     },
-    "@tauri-apps/plugin-dialog@2.7.0": {
-      "integrity": "sha512-4nS/hfGMGCXiAS3LtVjH9AgsSAPJeG/7R+q8agTFqytjnMa4Zq95Bq8WzVDkckpanX+yyRHXnRtrKXkANKDHvw==",
+    "@tauri-apps/plugin-dialog@2.6.0": {
+      "integrity": "sha512-q4Uq3eY87TdcYzXACiYSPhmpBA76shgmQswGkSVio4C82Sz2W4iehe9TnKYwbq7weHiL88Yw19XZm7v28+Micg==",
       "dependencies": [
         "@tauri-apps/api"
       ]
@@ -619,7 +619,7 @@
         "tinyrainbow"
       ]
     },
-    "@vitest/mocker@4.1.3_vite@8.0.5__@emnapi+core@1.9.1__@emnapi+runtime@1.9.1_@emnapi+core@1.9.1_@emnapi+runtime@1.9.1": {
+    "@vitest/mocker@4.1.3_vite@8.0.5__@emnapi+core@1.9.2__@emnapi+runtime@1.9.2_@emnapi+core@1.9.2_@emnapi+runtime@1.9.2": {
       "integrity": "sha512-XN3TrycitDQSzGRnec/YWgoofkYRhouyVQj4YNsJ5r/STCUFqMrP4+oxEv3e7ZbLi4og5kIHrZwekDJgw6hcjw==",
       "dependencies": [
         "@vitest/spy",
@@ -1263,7 +1263,7 @@
     "require-main-filename@2.0.0": {
       "integrity": "sha512-NKN5kMDylKuldxYLSUfrbo5Tuzh4hd+2E8NPPX02mZtn1VuREQToYe/ZdlJy+J3uCpfaiGF05e7B8W0iXbQHmg=="
     },
-    "rolldown@1.0.0-rc.12_@emnapi+core@1.9.1_@emnapi+runtime@1.9.1": {
+    "rolldown@1.0.0-rc.12_@emnapi+core@1.9.2_@emnapi+runtime@1.9.2": {
       "integrity": "sha512-yP4USLIMYrwpPHEFB5JGH1uxhcslv6/hL0OyvTuY+3qlOSJvZ7ntYnoWpehBxufkgN0cvXxppuTu5hHa/zPh+A==",
       "dependencies": [
         "@oxc-project/types",
@@ -1409,7 +1409,7 @@
         "punycode"
       ]
     },
-    "vite-plugin-solid@2.11.12_solid-js@1.9.12_vite@8.0.5__@emnapi+core@1.9.1__@emnapi+runtime@1.9.1_@emnapi+core@1.9.1_@emnapi+runtime@1.9.1": {
+    "vite-plugin-solid@2.11.12_solid-js@1.9.12_vite@8.0.5__@emnapi+core@1.9.2__@emnapi+runtime@1.9.2_@emnapi+core@1.9.2_@emnapi+runtime@1.9.2": {
       "integrity": "sha512-FgjPcx2OwX9h6f28jli7A4bG7PP3te8uyakE5iqsmpq3Jqi1TWLgSroC9N6cMfGRU2zXsl4Q6ISvTr2VL0QHpA==",
       "dependencies": [
         "@babel/core",
@@ -1422,7 +1422,7 @@
         "vitefu"
       ]
     },
-    "vite@8.0.5_@emnapi+core@1.9.1_@emnapi+runtime@1.9.1": {
+    "vite@8.0.5_@emnapi+core@1.9.2_@emnapi+runtime@1.9.2": {
       "integrity": "sha512-nmu43Qvq9UopTRfMx2jOYW5l16pb3iDC1JH6yMuPkpVbzK0k+L7dfsEDH4jRgYFmsg0sTAqkojoZgzLMlwHsCQ==",
       "dependencies": [
         "lightningcss",
@@ -1436,7 +1436,7 @@
       ],
       "bin": true
     },
-    "vitefu@1.1.3_vite@8.0.5__@emnapi+core@1.9.1__@emnapi+runtime@1.9.1_@emnapi+core@1.9.1_@emnapi+runtime@1.9.1": {
+    "vitefu@1.1.3_vite@8.0.5__@emnapi+core@1.9.2__@emnapi+runtime@1.9.2_@emnapi+core@1.9.2_@emnapi+runtime@1.9.2": {
       "integrity": "sha512-ub4okH7Z5KLjb6hDyjqrGXqWtWvoYdU3IGm/NorpgHncKoLTCfRIbvlhBm7r0YstIaQRYlp4yEbFqDcKSzXSSg==",
       "dependencies": [
         "vite"
@@ -1445,7 +1445,7 @@
         "vite"
       ]
     },
-    "vitest@4.1.3_vite@8.0.5__@emnapi+core@1.9.1__@emnapi+runtime@1.9.1_@emnapi+core@1.9.1_@emnapi+runtime@1.9.1": {
+    "vitest@4.1.3_vite@8.0.5__@emnapi+core@1.9.2__@emnapi+runtime@1.9.2_@emnapi+core@1.9.2_@emnapi+runtime@1.9.2": {
       "integrity": "sha512-DBc4Tx0MPNsqb9isoyOq00lHftVx/KIU44QOm2q59npZyLUkENn8TMFsuzuO+4U2FUa9rgbbPt3udrP25GcjXw==",
       "dependencies": [
         "@vitest/expect",
@@ -1542,19 +1542,19 @@
         "npm:@tailwindcss/vite@^4.2.2",
         "npm:@tauri-apps/api@^2.10.1",
         "npm:@tauri-apps/cli@^2.10.1",
-        "npm:@tauri-apps/plugin-dialog@^2.7.0",
+        "npm:@tauri-apps/plugin-dialog@2.6.0",
         "npm:@tauri-apps/plugin-opener@^2.5.3",
         "npm:@tauri-apps/plugin-store@^2.4.2",
         "npm:@types/qrcode@^1.5.6",
-        "npm:eslint@^10.2.0",
+        "npm:eslint@^10.1.0",
         "npm:prettier@^3.8.1",
         "npm:qrcode@^1.5.4",
         "npm:solid-js@^1.9.12",
         "npm:tailwindcss@^4.2.2",
         "npm:typescript@^6.0.2",
-        "npm:vite-plugin-solid@^2.11.12",
+        "npm:vite-plugin-solid@^2.11.11",
         "npm:vite@8.0.5",
-        "npm:vitest@^4.1.3",
+        "npm:vitest@^4.1.2",
         "npm:zod@^4.3.6"
       ],
       "overrides": {
