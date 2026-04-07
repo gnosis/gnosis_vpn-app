@@ -162,8 +162,6 @@ pub async fn set_app_icon(app: AppHandle, icon_name: String) -> Result<(), Strin
 
         let (tx, rx) = mpsc::channel();
 
-        // objc 0.2's msg_send! macro uses cfg(feature = "cargo-clippy") internally
-        #[allow(unexpected_cfgs)]
         Queue::main().exec_async(move || unsafe {
             use objc::runtime::Object;
 
