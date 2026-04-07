@@ -32,7 +32,7 @@ pub fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Erro
         .build()
 }
 
-pub fn toggle_main_window_visibility(app: &AppHandle, triggered_by_tray: bool) {
+pub fn toggle_main_window_visibility(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let is_visible = window.is_visible().unwrap_or(false);
         let is_focused = window.is_focused().unwrap_or(false);
@@ -66,7 +66,7 @@ pub fn handle_tray_event(app: &AppHandle, event: TrayIconEvent) {
         ..
     } = event
     {
-        toggle_main_window_visibility(app, true);
+        toggle_main_window_visibility(app);
     }
 }
 

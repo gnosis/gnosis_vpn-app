@@ -102,7 +102,7 @@ pub fn run() {
                         app.exit(0);
                     }
                     "show" => {
-                        toggle_main_window_visibility(app, false);
+                        toggle_main_window_visibility(app);
                     }
                     "settings" => show_settings(app, "settings"),
                     "logs" => show_settings(app, "logs"),
