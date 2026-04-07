@@ -28,27 +28,26 @@ export default function FundingAddress(
   );
   let copyTimeout: ReturnType<typeof setTimeout> | undefined;
 
-  const observer = new MutationObserver(() => {
-    setIsDark(document.documentElement.classList.contains("dark"));
-  });
-  observer.observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: ["class"],
-  });
-
   onCleanup(() => {
     clearTimeout(copyTimeout);
-    observer.disconnect();
   });
 
   const [, logActions] = useLogsStore();
   const log = (message: string) => logActions.append(message);
 
   createEffect(() => {
-    if (!props.qrVisible) {
+    if (!props.qrVisible || isMissing()) {
       setQrDataUrl(undefined);
       return;
     }
+    const observer = new MutationObserver(() => {
+      setIsDark(document.documentElement.classList.contains("dark"));
+    });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+    onCleanup(() => observer.disconnect());
     const dark = isDark();
     QRCodeGenerator.toDataURL(address(), {
       margin: 1,
