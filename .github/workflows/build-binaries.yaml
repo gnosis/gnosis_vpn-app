@@ -154,13 +154,13 @@ jobs:
             echo "gnosisvpn_app_artifact_path=${artifact_path}/${binary_name}.deb" | tee -a $GITHUB_OUTPUT
           fi
       - name: Setup GCP
-        if: steps.version.outputs.publish_artifact_registry == true
+        if: steps.version.outputs.publish_artifact_registry == 'true'
         uses: hoprnet/hopr-workflows/actions/setup-gcp@setup-gcp-v2
         with:
           google_credentials: ${{ secrets.GCP_SA_GITHUB_ACTIONS }}
           install_sdk: "true"
       - name: Publish ${{ inputs.architecture }} into Google Artifact registry
-        if: steps.version.outputs.publish_artifact_registry == true
+        if: steps.version.outputs.publish_artifact_registry == 'true'
         uses: hoprnet/hopr-workflows/actions/upload-artifact-registry@upload-artifact-registry-v1
         with:
           source: ${{ github.workspace }}/artifacts
