@@ -1,7 +1,6 @@
 import { createSignal, onCleanup, onMount } from "solid-js";
 
 export interface SynchronizationProps {
-  warmupStatus: string;
   syncProgress: number;
 }
 
@@ -63,7 +62,7 @@ export default function Synchronization(props: SynchronizationProps) {
         <span class="text-xs font-bold uppercase tracking-widest text-text-secondary">
           Progress
         </span>
-        <span class="text-5xl font-bold">{progress()}%</span>
+        <span class="text-3xl font-bold">{progress()}%</span>
         <div class="w-full h-2 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
           <div
             class="h-full rounded-full bg-accent relative overflow-hidden transition-[width] duration-100 ease-linear"
@@ -76,15 +75,8 @@ export default function Synchronization(props: SynchronizationProps) {
         </div>
       </div>
 
-      {/* Status */}
-      <div class="w-full flex justify-center pt-2">
-        <span class="text-xs font-mono text-text-secondary opacity-50 max-w-[80%] text-center">
-          {props.warmupStatus}
-        </span>
-      </div>
-
       {/* Trivia Section */}
-      <div class="grow flex flex-col items-center justify-end w-full max-w-lg self-center text-center px-4 pb-4">
+      <div class="grow flex flex-col items-center justify-center w-full max-w-lg self-center text-center px-4 pb-4">
         <h3 class="text-xs uppercase tracking-widest text-text-secondary mb-4 opacity-70">
           Did you know?
         </h3>
