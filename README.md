@@ -6,7 +6,7 @@ The Gnosis VPN application supports the following platforms and architectures:
 
 ### macOS
 
-- **aarch64-darwin** - Apple Silicon (M1/M2/M3)
+- **aarch64-darwin** - Apple Silicon
 
 ### Linux
 
@@ -29,6 +29,10 @@ nix develop --command deno task tauri dev
 ```
 
 ### macOS
+
+- Install [Prerequisites](#prerequisites)
+- `deno install`
+- `deno task tauri dev`
 
 #### Prerequisites
 

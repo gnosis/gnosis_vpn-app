@@ -25,7 +25,6 @@ serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
 tauri = { version = "2.9.5", features = ["tray-icon", "image-png"] }
 tauri-plugin-opener = "2.5.3"
-tauri-plugin-positioner = { version = "2.3.1", features = ["tray-icon"] }
 tauri-plugin-store = "2.4.0"
 tauri-plugin-dialog = "2.6.0"
 dark-light = "2.0"
@@ -37,3 +36,10 @@ zstd = "0.13.3"
 cocoa = "0.26"
 objc = "0.2"
 dispatch = "0.2"
+
+[lints.rust]
+# The `objc` crate (v0.2) uses `cfg(cargo-clippy)` inside its macros (msg_send!, class!) to
+# special-case behaviour when running under Clippy. Newer Rust versions flag unknown cfg values as
+# warnings. Updating `objc` is not possible because neither `cocoa` nor `tauri` support a newer
+# version yet, so we suppress the warning here instead.
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(cargo-clippy)'] }

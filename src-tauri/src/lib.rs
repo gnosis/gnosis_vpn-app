@@ -54,7 +54,6 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_positioner::init())
         .setup(|app| {
             // Load settings from the shared store (settings.json) before any UI decisions
             let mut loaded: AppSettings = AppSettings::default();
@@ -103,7 +102,7 @@ pub fn run() {
                         app.exit(0);
                     }
                     "show" => {
-                        toggle_main_window_visibility(app, false);
+                        toggle_main_window_visibility(app);
                     }
                     "settings" => show_settings(app, "settings"),
                     "logs" => show_settings(app, "logs"),
