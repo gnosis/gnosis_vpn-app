@@ -1,10 +1,10 @@
+use std::sync::Mutex;
+use std::time::Duration;
 use tauri::{
     AppHandle, Emitter, Manager,
     menu::{Menu, MenuBuilder, MenuItem},
     tray::TrayIconEvent,
 };
-use std::sync::Mutex;
-use std::time::Duration;
 use tokio::time::sleep;
 
 /// State to hold a reference to the tray "status" menu item so commands can update it.

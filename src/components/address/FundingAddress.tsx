@@ -1,4 +1,10 @@
-import { Show, createEffect, createMemo, createSignal, onCleanup } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  onCleanup,
+  Show,
+} from "solid-js";
 import { useLogsStore } from "../../stores/logsStore.ts";
 import { explorerUrl } from "../../utils/explorerUrl.ts";
 import { shortAddress } from "../../utils/shortAddress.ts";
@@ -12,7 +18,12 @@ import * as opener from "@tauri-apps/plugin-opener";
 import Tooltip from "../common/Tooltip.tsx";
 
 export default function FundingAddress(
-  props: { address: string | undefined; full?: boolean; title?: string; qrVisible?: boolean },
+  props: {
+    address: string | undefined;
+    full?: boolean;
+    title?: string;
+    qrVisible?: boolean;
+  },
 ) {
   const address = createMemo(() => (props.address ?? "").trim());
   const isMissing = createMemo(() => {
@@ -89,7 +100,9 @@ export default function FundingAddress(
   return (
     <Show
       when={!isMissing()}
-      fallback={<div class="text-sm text-red-500">No Gnosis VPN address found</div>}
+      fallback={
+        <div class="text-sm text-red-500">No Gnosis VPN address found</div>
+      }
     >
       <div class="flex flex-row justify-between items-center">
         <div class="text-sm">
