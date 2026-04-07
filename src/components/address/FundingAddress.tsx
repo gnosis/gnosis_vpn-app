@@ -1,4 +1,4 @@
-import { Show, createEffect, createSignal, onCleanup } from "solid-js";
+import { Show, createEffect, createMemo, createSignal, onCleanup } from "solid-js";
 import { useLogsStore } from "../../stores/logsStore.ts";
 import { explorerUrl } from "../../utils/explorerUrl.ts";
 import { shortAddress } from "../../utils/shortAddress.ts";
@@ -14,14 +14,11 @@ import Tooltip from "../common/Tooltip.tsx";
 export default function FundingAddress(
   props: { address: string | undefined; full?: boolean; title?: string; qrVisible?: boolean },
 ) {
-  const raw = (props.address ?? "").trim();
-  const isMissing = raw.length === 0 || raw.toLowerCase() === "unknown";
-
-  if (isMissing) {
-    return <div class="text-sm text-red-500">No Gnosis VPN address found</div>;
-  }
-
-  const address: string = raw;
+  const address = createMemo(() => (props.address ?? "").trim());
+  const isMissing = createMemo(() => {
+    const a = address();
+    return a.length === 0 || a.toLowerCase() === "unknown";
+  });
 
   const [showQR, setShowQR] = createSignal(false);
   const [copied, setCopied] = createSignal(false);
@@ -53,7 +50,7 @@ export default function FundingAddress(
       return;
     }
     const dark = isDark();
-    QRCodeGenerator.toDataURL(address, {
+    QRCodeGenerator.toDataURL(address(), {
       margin: 1,
       width: 224,
       color: {
@@ -68,7 +65,7 @@ export default function FundingAddress(
       });
   });
 
-  async function copy(addr = address) {
+  async function copy(addr = address()) {
     try {
       await navigator.clipboard.writeText(addr ?? "");
       setCopied(true);
@@ -84,19 +81,22 @@ export default function FundingAddress(
 
   async function openExplorer() {
     try {
-      await opener.openUrl(explorerUrl(address));
+      await opener.openUrl(explorerUrl(address()));
     } catch (error) {
       log(`Error opening explorer: ${String(error)}`);
     }
   }
 
   return (
-    <>
+    <Show
+      when={!isMissing()}
+      fallback={<div class="text-sm text-red-500">No Gnosis VPN address found</div>}
+    >
       <div class="flex flex-row justify-between items-center">
         <div class="text-sm">
           <div class="font-bold">Gnosis VPN address</div>
           <div class={`font-mono ${props.full ? "text-[10px]" : "text-lg"}`}>
-            {props.full ? address : shortAddress(address)}
+            {props.full ? address() : shortAddress(address())}
           </div>
         </div>
 
@@ -159,10 +159,10 @@ export default function FundingAddress(
       <QrCode
         open={showQR()}
         onClose={() => setShowQR(false)}
-        value={address}
+        value={address()}
         title={props.title ?? "Gnosis VPN address"}
         size={256}
       />
-    </>
+    </Show>
   );
 }
