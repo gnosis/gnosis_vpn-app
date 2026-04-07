@@ -48,7 +48,7 @@ export default function Manually() {
       <FundingAddress
         full
         address={nodeAddress()}
-        qrVisible={true}
+        qrVisible
       />
       <div
         class={`flex flex-col gap-4 grow ${
