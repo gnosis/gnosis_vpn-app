@@ -3918,7 +3918,7 @@ dependencies = [
 
 [[package]]
 name = "gnosis_vpn-app"
-version = "0.24.0"
+version = "0.24.1"
 dependencies = [
  "cocoa",
  "dark-light",
