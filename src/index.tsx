@@ -46,7 +46,7 @@ function applyTheme(theme: string) {
         mq.addEventListener("change", handleMediaChange);
 
         // macOS: Tauri also emits theme changes (kept for backend/tray awareness).
-        // Linux: backend emits "os-theme-changed" via gsettings monitor (kept for tray icon updates).
+        // Linux: backend emits "os-theme-changed" via XDG Desktop Portal (ashpd) (kept for tray icon updates).
         const unlistenTauri = await curWindow.onThemeChanged(
           ({ payload: theme }) => {
             applyTheme(theme);
