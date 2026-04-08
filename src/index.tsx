@@ -34,11 +34,19 @@ function applyTheme(theme: string) {
       let unlisten: (() => void) | undefined;
 
       const initTheme = async () => {
-        // App windows dark/light: use backend initial theme (all OS), then follow OS changes
+        // Sync initial class is already applied by the inline script in index.html via matchMedia.
+        // Re-apply from backend to stay consistent with tray icon state (all OS).
         const initial = await invoke<string>("get_initial_theme");
         applyTheme(initial);
 
-        // macOS: Tauri emits theme changes; Linux: backend emits "os-theme-changed" via gsettings monitor
+        const mq = window.matchMedia("(prefers-color-scheme: dark)");
+        const handleMediaChange = (e: MediaQueryListEvent) => {
+          applyTheme(e.matches ? "dark" : "light");
+        };
+        mq.addEventListener("change", handleMediaChange);
+
+        // macOS: Tauri also emits theme changes (kept for backend/tray awareness).
+        // Linux: backend emits "os-theme-changed" via gsettings monitor (kept for tray icon updates).
         const unlistenTauri = await curWindow.onThemeChanged(
           ({ payload: theme }) => {
             applyTheme(theme);
@@ -52,6 +60,7 @@ function applyTheme(theme: string) {
         );
 
         unlisten = () => {
+          mq.removeEventListener("change", handleMediaChange);
           unlistenTauri();
           unlistenLinux();
         };
