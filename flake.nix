@@ -115,21 +115,9 @@
                 mkdir -p $out
               '';
 
-          # VM auto-detection by reading DMI info at eval time.
-          # Usage: nix develop --impure
-          isVM =
-            let
-              vmPattern = "vmware|virtualbox|kvm|qemu|xen|hyper-v|innotek";
-              readLower =
-                path: if builtins.pathExists path then pkgs.lib.toLower (builtins.readFile path) else "";
-            in
-            pkgs.stdenv.isLinux
-            && (
-              builtins.match (".*(" + vmPattern + ").*") (readLower "/sys/class/dmi/id/sys_vendor") != null
-              || builtins.match (".*(" + vmPattern + ").*") (readLower "/sys/class/dmi/id/product_name") != null
-            );
-
-          vmPackages = pkgs.lib.optionals isVM [
+          # GL/Mesa packages — always available on Linux (harmless on bare metal).
+          # VM-specific env vars are set conditionally at runtime in shellHook.
+          glPackages = pkgs.lib.optionals pkgs.stdenv.isLinux [
             pkgs.libglvnd
             pkgs.libGL
             pkgs.mesa
@@ -140,7 +128,7 @@
           checks = {
             deno-lint = deno-lint;
           };
-          devShells.default = craneLib.devShell {
+        devShells.default = craneLib.devShell {
             # Inherit inputs from checks.
             checks = self.checks.${system};
 
@@ -171,7 +159,7 @@
               pkgs.libayatana-appindicator
               pkgs.patchelf
             ]
-            ++ vmPackages
+            ++ glPackages
             ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
               # macOS-specific packages
               pkgs.libiconv
@@ -184,16 +172,27 @@
               ]
             );
 
-            shellHook = pkgs.lib.optionalString isVM ''
-              # Force X11 backend to avoid Wayland/Mesa conflicts in VM
-              unset WAYLAND_DISPLAY
-              export GDK_BACKEND=x11
+            shellHook = pkgs.lib.optionalString pkgs.stdenv.isLinux ''
+              # Make gsettings find system schemas (needed for OS theme detection)
+              export XDG_DATA_DIRS="${pkgs.gsettings-desktop-schemas}/share/gsettings-schemas/${pkgs.gsettings-desktop-schemas.name}:${pkgs.gtk3}/share/gsettings-schemas/${pkgs.gtk3.name}:/usr/share:$XDG_DATA_DIRS"
 
-              # Disable WebKit hardware compositing
-              export WEBKIT_DISABLE_COMPOSITING_MODE=1
+              # Enable WebKit remote inspector
+              export WEBKIT_INSPECTOR_SERVER=127.0.0.1:9222
 
-              # Add GL/Mesa libraries needed in VM environments
-              export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath vmPackages}:$LD_LIBRARY_PATH"
+              # VM-specific workarounds (runtime detection, no --impure needed)
+              if systemd-detect-virt --quiet --vm 2>/dev/null || \
+                 grep -qiE 'vmware|virtualbox|kvm|qemu|xen|hyper-v' /sys/class/dmi/id/sys_vendor 2>/dev/null || \
+                 grep -qiE 'vmware|virtualbox|kvm|qemu|xen|hyper-v' /sys/class/dmi/id/product_name 2>/dev/null; then
+                # Force X11 backend to avoid Wayland/Mesa conflicts in VM
+                unset WAYLAND_DISPLAY
+                export GDK_BACKEND=x11
+
+                # Disable WebKit hardware compositing
+                export WEBKIT_DISABLE_COMPOSITING_MODE=1
+
+                # Add GL/Mesa libraries for VM environments
+                export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath glPackages}:$LD_LIBRARY_PATH"
+              fi
             '';
           };
 
