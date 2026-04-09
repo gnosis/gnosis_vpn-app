@@ -162,6 +162,7 @@
             LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath (
               pkgs.lib.optionals pkgs.stdenv.isLinux [
                 pkgs.libayatana-appindicator
+                pkgs.libproxy
               ]
             );
           };
