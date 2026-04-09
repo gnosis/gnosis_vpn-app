@@ -9,7 +9,6 @@
       url = "github:numtide/treefmt-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
   };
 
   outputs =
@@ -116,6 +115,26 @@
                 mkdir -p $out
               '';
 
+          # VM auto-detection by reading DMI info at eval time.
+          # Usage: nix develop --impure
+          isVM =
+            let
+              vmPattern = "vmware|virtualbox|kvm|qemu|xen|hyper-v|innotek";
+              readLower =
+                path: if builtins.pathExists path then pkgs.lib.toLower (builtins.readFile path) else "";
+            in
+            pkgs.stdenv.isLinux
+            && (
+              builtins.match (".*(" + vmPattern + ").*") (readLower "/sys/class/dmi/id/sys_vendor") != null
+              || builtins.match (".*(" + vmPattern + ").*") (readLower "/sys/class/dmi/id/product_name") != null
+            );
+
+          vmPackages = pkgs.lib.optionals isVM [
+            pkgs.libglvnd
+            pkgs.libGL
+            pkgs.mesa
+          ];
+
         in
         {
           checks = {
@@ -124,9 +143,6 @@
           devShells.default = craneLib.devShell {
             # Inherit inputs from checks.
             checks = self.checks.${system};
-
-            # Additional dev-shell environment variables can be set directly
-            # MY_CUSTOM_DEVELOPMENT_VAR = "something else";
 
             # Extra inputs can be added here; cargo and rustc are provided by default.
             packages = [
@@ -153,7 +169,9 @@
               pkgs.pango
               pkgs.webkitgtk_4_1
               pkgs.libayatana-appindicator
+              pkgs.patchelf
             ]
+            ++ vmPackages
             ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
               # macOS-specific packages
               pkgs.libiconv
@@ -165,6 +183,18 @@
                 pkgs.libproxy
               ]
             );
+
+            shellHook = pkgs.lib.optionalString isVM ''
+              # Force X11 backend to avoid Wayland/Mesa conflicts in VM
+              unset WAYLAND_DISPLAY
+              export GDK_BACKEND=x11
+
+              # Disable WebKit hardware compositing
+              export WEBKIT_DISABLE_COMPOSITING_MODE=1
+
+              # Add GL/Mesa libraries needed in VM environments
+              export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath vmPackages}:$LD_LIBRARY_PATH"
+            '';
           };
 
           apps = {
