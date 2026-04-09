@@ -170,7 +170,12 @@ export default function Usage() {
           </div>
 
           <div class="w-64 flex flex-col gap-2">
-            <Button onClick={() => setIsAddFundsOpen(true)}>Add funds</Button>
+            <Button 
+              class="hover:bg-accent-hover"
+              onClick={() => setIsAddFundsOpen(true)}
+            >
+              Add funds
+            </Button>
             <div class="flex flex-row items-center gap-2 max-w-md">
               <div class="text-xs text-text-secondary px-2">
                 <WarningIcon />
