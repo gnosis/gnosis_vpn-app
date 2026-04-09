@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Use .dark class for dark: variant (matches how the app sets the theme via JS) */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* Local fonts */
 @font-face {
   font-family: "Unica77";

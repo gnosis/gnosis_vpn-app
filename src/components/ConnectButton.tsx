@@ -60,6 +60,7 @@ export default function ConnectButton() {
   return (
     <div class="relative z-20 w-full bg-bg-primary rounded-2xl">
       <Button
+        class="hover:bg-accent-hover"
         size="lg"
         onClick={() => void handleClick()}
         disabled={appState.isLoading ||
