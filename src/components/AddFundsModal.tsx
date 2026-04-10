@@ -29,7 +29,7 @@ export default function AddFundsModal(props: {
           />
         </div>
         <div class="flex flex-row justify-end gap-2">
-           <Button size="md" onClick={props.onClose}>
+          <Button size="md" onClick={props.onClose}>
             Close
           </Button>
         </div>
