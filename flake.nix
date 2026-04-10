@@ -176,19 +176,16 @@
               # Make gsettings find system schemas (needed for OS theme detection)
               export XDG_DATA_DIRS="${pkgs.gsettings-desktop-schemas}/share/gsettings-schemas/${pkgs.gsettings-desktop-schemas.name}:${pkgs.gtk3}/share/gsettings-schemas/${pkgs.gtk3.name}:/usr/share:$XDG_DATA_DIRS"
 
-              # Enable WebKit remote inspector
-              export WEBKIT_INSPECTOR_SERVER=127.0.0.1:9222
+              # Disable WebKit hardware compositing (prevents flickering on Linux)
+              export WEBKIT_DISABLE_COMPOSITING_MODE=1
 
               # VM-specific workarounds (runtime detection, no --impure needed)
               if systemd-detect-virt --quiet --vm 2>/dev/null || \
-                 grep -qiE 'vmware|virtualbox|kvm|qemu|xen|hyper-v' /sys/class/dmi/id/sys_vendor 2>/dev/null || \
-                 grep -qiE 'vmware|virtualbox|kvm|qemu|xen|hyper-v' /sys/class/dmi/id/product_name 2>/dev/null; then
-                # Force X11 backend to avoid Wayland/Mesa conflicts in VM
-                unset WAYLAND_DISPLAY
-                export GDK_BACKEND=x11
-
-                # Disable WebKit hardware compositing
-                export WEBKIT_DISABLE_COMPOSITING_MODE=1
+                grep -qiE 'vmware|virtualbox|kvm|qemu|xen|hyper-v' /sys/class/dmi/id/sys_vendor 2>/dev/null || \
+                grep -qiE 'vmware|virtualbox|kvm|qemu|xen|hyper-v' /sys/class/dmi/id/product_name 2>/dev/null; then
+                # Force X11 backend to avoid Wayland/Mesa conflicts in VM (uncomment if needed)
+                # unset WAYLAND_DISPLAY
+                # export GDK_BACKEND=x11
 
                 # Add GL/Mesa libraries for VM environments
                 export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath glPackages}:$LD_LIBRARY_PATH"
