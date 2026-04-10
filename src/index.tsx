@@ -31,9 +31,10 @@ function applyTheme(theme: string) {
 
   render(() => {
     onMount(() => {
-      let unlisten: (() => void) | undefined;
+      let disposed = false;
+      let cleanup: (() => void) | undefined;
 
-      const initTheme = async () => {
+      const initTheme = async (): Promise<() => void> => {
         let mq: MediaQueryList | undefined;
         let handleMediaChange: ((e: MediaQueryListEvent) => void) | undefined;
         let unlistenTauri: (() => void) | undefined;
@@ -48,15 +49,25 @@ function applyTheme(theme: string) {
           console.error("[theme] initial theme fetch failed", e);
         }
 
-        try {
-          mq = window.matchMedia("(prefers-color-scheme: dark)");
-          handleMediaChange = (e: MediaQueryListEvent) => {
-            applyTheme(e.matches ? "dark" : "light");
-          };
+        mq = window.matchMedia("(prefers-color-scheme: dark)");
+        handleMediaChange = (e: MediaQueryListEvent) => {
+          applyTheme(e.matches ? "dark" : "light");
+        };
+        if (typeof mq.addEventListener === "function") {
           mq.addEventListener("change", handleMediaChange);
+        } else {
+          // Fallback for older WebKit
+          mq.addListener(
+            handleMediaChange as (
+              this: MediaQueryList,
+              ev: MediaQueryListEvent,
+            ) => void,
+          );
+        }
 
-          // macOS: Tauri also emits theme changes (kept for backend/tray awareness).
-          // Linux: backend emits "os-theme-changed" via XDG Desktop Portal (ashpd) (kept for tray icon updates).
+        // macOS: Tauri also emits theme changes (kept for backend/tray awareness).
+        // Linux: backend emits "os-theme-changed" via XDG Desktop Portal (ashpd) (kept for tray icon updates).
+        try {
           unlistenTauri = await curWindow.onThemeChanged(
             ({ payload: theme }) => {
               applyTheme(theme);
@@ -69,23 +80,35 @@ function applyTheme(theme: string) {
             },
           );
         } catch (e) {
-          console.error("[theme] listener setup failed", e);
+          console.error("[theme] Tauri listener setup failed", e);
         }
 
-        unlisten = () => {
+        return () => {
           if (mq && handleMediaChange) {
-            mq.removeEventListener("change", handleMediaChange);
+            if (typeof mq.removeEventListener === "function") {
+              mq.removeEventListener("change", handleMediaChange);
+            } else {
+              mq.removeListener(
+                handleMediaChange as (
+                  this: MediaQueryList,
+                  ev: MediaQueryListEvent,
+                ) => void,
+              );
+            }
           }
           unlistenTauri?.();
           unlistenLinux?.();
         };
       };
-      initTheme();
+
+      initTheme().then((c) => {
+        if (disposed) c();
+        else cleanup = c;
+      });
 
       onCleanup(() => {
-        if (unlisten) {
-          unlisten();
-        }
+        disposed = true;
+        cleanup?.();
       });
     });
 

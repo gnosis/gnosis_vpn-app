@@ -136,6 +136,9 @@ pub fn spawn_linux_theme_monitor(app: AppHandle) {
                 let _ = window.set_theme(Some(theme));
             }
         }
+        // Stream ended (portal restart/disconnect) — fall back so monitoring continues.
+        eprintln!("[theme] XDG portal stream ended, falling back to gsettings monitor");
+        spawn_gsettings_monitor(app);
     });
 }
 
