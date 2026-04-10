@@ -79,8 +79,7 @@ export default function Button(allProps: ButtonProps): JSX.Element {
       variantClasses[local.variant!],
       sizeClasses[local.size!],
       pressed() ? "btn-press" : undefined,
-      local.class,
-      'hover:bg-accent-hover'
+      local.class
     ]
       .filter(Boolean)
       .join(" ");
