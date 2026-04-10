@@ -35,6 +35,7 @@ function applyTheme(theme: string) {
       let cleanup: (() => void) | undefined;
 
       const initTheme = async (): Promise<() => void> => {
+        let mqCleanup: (() => void) | undefined;
         let unlistenTauri: (() => void) | undefined;
         let unlistenLinux: (() => void) | undefined;
 
@@ -47,20 +48,15 @@ function applyTheme(theme: string) {
           console.error("[theme] initial theme fetch failed", e);
         }
 
-        const mq = globalThis.matchMedia("(prefers-color-scheme: dark)");
-        const handleMediaChange = (e: MediaQueryListEvent) => {
-          applyTheme(e.matches ? "dark" : "light");
-        };
-        if (typeof mq.addEventListener === "function") {
+        // Each block is isolated so a failure in one does not skip the others.
+        try {
+          const mq = globalThis.matchMedia("(prefers-color-scheme: dark)");
+          const handleMediaChange = (e: MediaQueryListEvent) =>
+            applyTheme(e.matches ? "dark" : "light");
           mq.addEventListener("change", handleMediaChange);
-        } else {
-          // Fallback for older WebKit
-          mq.addListener(
-            handleMediaChange as (
-              this: MediaQueryList,
-              ev: MediaQueryListEvent,
-            ) => void,
-          );
+          mqCleanup = () => mq.removeEventListener("change", handleMediaChange);
+        } catch (e) {
+          console.error("[theme] matchMedia setup failed", e);
         }
 
         // macOS: Tauri also emits theme changes (kept for backend/tray awareness).
@@ -73,6 +69,7 @@ function applyTheme(theme: string) {
         } catch (e) {
           console.error("[theme] onThemeChanged setup failed", e);
         }
+
         // Linux: backend emits "os-theme-changed" via XDG Desktop Portal (ashpd) (kept for tray icon updates).
         try {
           unlistenLinux = await listen<string>(
@@ -86,16 +83,7 @@ function applyTheme(theme: string) {
         }
 
         return () => {
-          if (typeof mq.removeEventListener === "function") {
-            mq.removeEventListener("change", handleMediaChange);
-          } else {
-            mq.removeListener(
-              handleMediaChange as (
-                this: MediaQueryList,
-                ev: MediaQueryListEvent,
-              ) => void,
-            );
-          }
+          mqCleanup?.();
           unlistenTauri?.();
           unlistenLinux?.();
         };
