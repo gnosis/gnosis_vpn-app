@@ -128,7 +128,7 @@
           checks = {
             deno-lint = deno-lint;
           };
-        devShells.default = craneLib.devShell {
+          devShells.default = craneLib.devShell {
             # Inherit inputs from checks.
             checks = self.checks.${system};
 
