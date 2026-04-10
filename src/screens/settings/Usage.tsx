@@ -171,7 +171,6 @@ export default function Usage() {
 
           <div class="w-64 flex flex-col gap-2">
             <Button 
-              class="hover:bg-accent-hover"
               onClick={() => setIsAddFundsOpen(true)}
             >
               Add funds

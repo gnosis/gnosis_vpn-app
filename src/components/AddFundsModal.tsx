@@ -32,7 +32,6 @@ export default function AddFundsModal(props: {
           <Button 
             size="md" 
             onClick={props.onClose}
-            class="hover:bg-accent-hover"
           >
             Close
           </Button>
