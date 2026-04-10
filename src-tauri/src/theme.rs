@@ -109,22 +109,24 @@ pub fn spawn_linux_theme_monitor(app: AppHandle) {
 pub fn system_theme() -> tauri::Theme {
     #[cfg(target_os = "linux")]
     {
-        // Prefer gsettings on Linux so tray icon is correct on first render (dark_light often returns Default at startup).
-        if let Some(t) = linux_theme_from_gsettings() {
-            return t;
-        }
+        // On Linux use gsettings only — dark_light falls back to D-Bus/portal which can
+        // timeout in environments without a full desktop session (e.g. VMs, minimal installs).
+        return linux_theme_from_gsettings().unwrap_or(tauri::Theme::Dark);
     }
 
-    let mode = dark_light::detect()
-        .map_err(|e| {
-            eprintln!("Failed to detect OS theme: {e}");
-        })
-        .unwrap_or(dark_light::Mode::Unspecified);
+    #[cfg(not(target_os = "linux"))]
+    {
+        let mode = dark_light::detect()
+            .map_err(|e| {
+                eprintln!("Failed to detect OS theme: {e}");
+            })
+            .unwrap_or(dark_light::Mode::Unspecified);
 
-    match mode {
-        dark_light::Mode::Dark => tauri::Theme::Dark,
-        dark_light::Mode::Light => tauri::Theme::Light,
-        dark_light::Mode::Unspecified => tauri::Theme::Dark,
+        match mode {
+            dark_light::Mode::Dark => tauri::Theme::Dark,
+            dark_light::Mode::Light => tauri::Theme::Light,
+            dark_light::Mode::Unspecified => tauri::Theme::Dark,
+        }
     }
 }
 

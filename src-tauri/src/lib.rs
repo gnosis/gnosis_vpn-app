@@ -4,7 +4,10 @@ extern crate objc;
 
 use serde::Serialize;
 use tauri::Manager;
+use tauri::WebviewUrl;
+use tauri::WebviewWindowBuilder;
 use tauri::tray::TrayIconBuilder;
+use tauri::window::Color;
 use tauri_plugin_store::StoreExt;
 use tokio::sync::Notify;
 use tokio_util::sync::CancellationToken;
@@ -88,6 +91,17 @@ pub fn run() {
 
             // First step: OS theme for app windows (all OS) and tray icons (non-macOS only)
             let theme = system_theme();
+
+            // Set native window background color before HTML loads to prevent flash.
+            // Colors match --color-bg-primary in index.css for each theme.
+            if let Some(window) = app.get_webview_window("main") {
+                let color = match theme {
+                    tauri::Theme::Light => Color(0, 255, 0, 255), //
+                    _ => Color(17, 24, 39, 255),
+                };
+                let _ = window.set_background_color(Some(color));
+            }
+
             app.manage(InitialTheme(theme));
 
             // Create tray menu

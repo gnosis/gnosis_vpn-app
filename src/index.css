@@ -39,8 +39,6 @@ select {
   height: 100%;
 
   color: var(--color-text-primary);
-  background-color: var(--color-bg-primary);
-
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -48,7 +46,6 @@ select {
   -webkit-text-size-adjust: 100%;
 
   /* Background colors */
-  --color-bg-primary: #f6f6f6;
   --color-bg-surface: #ffffff;
   --color-bg-surface-alt: #f0f0f0;
   --color-bg-overlay: rgba(0, 0, 0, 0.5);
@@ -79,7 +76,6 @@ select {
 
 :root.dark {
   /* Background colors */
-  --color-bg-primary: #111827;
   --color-bg-surface: #1f2937;
   --color-bg-surface-alt: #1a2233;
   --color-bg-overlay: rgba(0, 0, 0, 0.7);
