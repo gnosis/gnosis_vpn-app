@@ -49,7 +49,7 @@ fn spawn_gsettings_monitor(app: AppHandle) {
         to_theme: impl Fn(&str) -> Option<&'static str> + Send + 'static,
     ) {
         std::thread::spawn(move || {
-            let child = match Command::new("gsettings")
+            let mut child = match Command::new("gsettings")
                 .args(["monitor", "org.gnome.desktop.interface", key])
                 .stdout(Stdio::piped())
                 .stderr(Stdio::null())
@@ -58,7 +58,9 @@ fn spawn_gsettings_monitor(app: AppHandle) {
                 Ok(c) => c,
                 Err(_) => return,
             };
-            let Some(stdout) = child.stdout else { return };
+            let Some(stdout) = child.stdout.take() else {
+                return;
+            };
             let reader = std::io::BufReader::new(stdout);
             for line_result in reader.lines() {
                 let line = match line_result {
