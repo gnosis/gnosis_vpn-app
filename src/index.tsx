@@ -51,6 +51,8 @@ function applyTheme(theme: string) {
         // Each block is isolated so a failure in one does not skip the others.
         try {
           const mq = globalThis.matchMedia("(prefers-color-scheme: dark)");
+          // Apply current value as fallback in case get_initial_theme failed or is stale.
+          applyTheme(mq.matches ? "dark" : "light");
           const handleMediaChange = (e: MediaQueryListEvent) =>
             applyTheme(e.matches ? "dark" : "light");
           mq.addEventListener("change", handleMediaChange);
@@ -59,7 +61,7 @@ function applyTheme(theme: string) {
           console.error("[theme] matchMedia setup failed", e);
         }
 
-        // macOS: Tauri also emits theme changes (kept for backend/tray awareness).
+        // macOS: keep frontend in sync when Tauri reports a theme change.
         try {
           unlistenTauri = await curWindow.onThemeChanged(
             ({ payload: theme }) => {
@@ -70,7 +72,7 @@ function applyTheme(theme: string) {
           console.error("[theme] onThemeChanged setup failed", e);
         }
 
-        // Linux: backend emits "os-theme-changed" via XDG Desktop Portal (ashpd) (kept for tray icon updates).
+        // Linux: backend emits "os-theme-changed" via XDG Desktop Portal / gsettings fallback.
         try {
           unlistenLinux = await listen<string>(
             "os-theme-changed",
