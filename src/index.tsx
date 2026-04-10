@@ -39,8 +39,8 @@ function applyTheme(theme: string) {
         let unlistenTauri: (() => void) | undefined;
         let unlistenLinux: (() => void) | undefined;
 
-        // Sync initial class is already applied by the inline script in index.html via matchMedia.
-        // Re-apply from backend to stay consistent with tray icon state (all OS).
+        // index.html applies initial colors via a CSS media query
+        // Apply the backend theme to set the Tailwind .dark class consistently across all OS.
         try {
           const initial = await invoke<string>("get_initial_theme");
           applyTheme(initial);

@@ -144,7 +144,7 @@ pub fn spawn_linux_theme_monitor(app: AppHandle) {
     });
 }
 
-/// OS theme at startup: used for app windows (all OS) and tray icons (non-macOS only).
+/// OS theme at startup: seeds [`InitialTheme`] state so the frontend can apply dark/light on all OS.
 /// Defaults to dark theme.
 pub fn system_theme() -> tauri::Theme {
     #[cfg(target_os = "linux")]
