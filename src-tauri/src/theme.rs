@@ -8,6 +8,10 @@ use tauri::{AppHandle, Emitter, Manager, State};
 use ashpd::desktop::settings::{ColorScheme, Settings as XdgSettings};
 #[cfg(target_os = "linux")]
 use futures_util::StreamExt;
+#[cfg(target_os = "linux")]
+use std::io::BufRead;
+#[cfg(target_os = "linux")]
+use std::process::{Command, Stdio};
 
 /// On Linux, query the XDG Desktop Portal for the current color scheme.
 /// NoPreference is treated as light
@@ -35,8 +39,64 @@ fn linux_theme_from_portal() -> Option<tauri::Theme> {
         .flatten()
 }
 
+/// Fallback theme monitor for environments without a working XDG Desktop Portal.
+/// Watches gsettings color-scheme and gtk-theme keys and emits "os-theme-changed".
+#[cfg(target_os = "linux")]
+fn spawn_gsettings_monitor(app: AppHandle) {
+    fn run_monitor(
+        app: AppHandle,
+        key: &'static str,
+        to_theme: impl Fn(&str) -> Option<&'static str> + Send + 'static,
+    ) {
+        std::thread::spawn(move || {
+            let child = match Command::new("gsettings")
+                .args(["monitor", "org.gnome.desktop.interface", key])
+                .stdout(Stdio::piped())
+                .stderr(Stdio::null())
+                .spawn()
+            {
+                Ok(c) => c,
+                Err(_) => return,
+            };
+            let Some(stdout) = child.stdout else { return };
+            let reader = std::io::BufReader::new(stdout);
+            for line_result in reader.lines() {
+                let line = match line_result {
+                    Ok(l) => l,
+                    Err(e) => {
+                        eprintln!("[theme] gsettings monitor read error: {e}");
+                        break;
+                    }
+                };
+                if let Some(theme) = to_theme(&line) {
+                    let _ = app.emit("os-theme-changed", theme);
+                }
+            }
+        });
+    }
+    run_monitor(app.clone(), "color-scheme", |line| {
+        if line.contains("prefer-dark") {
+            Some("dark")
+        } else if line.contains("prefer-light") {
+            Some("light")
+        } else {
+            None
+        }
+    });
+    run_monitor(app, "gtk-theme", |line| {
+        let lower = line.to_lowercase();
+        if lower.contains("-dark") || lower.contains("dark") {
+            Some("dark")
+        } else if !line.is_empty() {
+            Some("light")
+        } else {
+            None
+        }
+    });
+}
+
 /// On Linux, Tauri's onThemeChanged is not emitted when the OS theme changes.
-/// Subscribe to the XDG Desktop Portal settings stream via ashpd — event-driven.
+/// Tries the XDG Desktop Portal first; falls back to gsettings monitor if unavailable.
 /// Emits "os-theme-changed" to all windows on change.
 #[cfg(target_os = "linux")]
 pub fn spawn_linux_theme_monitor(app: AppHandle) {
@@ -44,14 +104,20 @@ pub fn spawn_linux_theme_monitor(app: AppHandle) {
         let settings = match XdgSettings::new().await {
             Ok(s) => s,
             Err(e) => {
-                eprintln!("[theme] XDG Settings portal unavailable: {e}");
+                eprintln!(
+                    "[theme] XDG portal unavailable ({e}), falling back to gsettings monitor"
+                );
+                spawn_gsettings_monitor(app);
                 return;
             }
         };
         let mut stream = match settings.receive_color_scheme_changed().await {
             Ok(s) => s,
             Err(e) => {
-                eprintln!("[theme] Failed to subscribe to color scheme changes: {e}");
+                eprintln!(
+                    "[theme] XDG portal subscription failed ({e}), falling back to gsettings monitor"
+                );
+                spawn_gsettings_monitor(app);
                 return;
             }
         };

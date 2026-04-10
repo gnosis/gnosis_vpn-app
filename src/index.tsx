@@ -39,12 +39,16 @@ function applyTheme(theme: string) {
         let unlistenTauri: (() => void) | undefined;
         let unlistenLinux: (() => void) | undefined;
 
+        // Sync initial class is already applied by the inline script in index.html via matchMedia.
+        // Re-apply from backend to stay consistent with tray icon state (all OS).
         try {
-          // Sync initial class is already applied by the inline script in index.html via matchMedia.
-          // Re-apply from backend to stay consistent with tray icon state (all OS).
           const initial = await invoke<string>("get_initial_theme");
           applyTheme(initial);
+        } catch (e) {
+          console.error("[theme] initial theme fetch failed", e);
+        }
 
+        try {
           mq = window.matchMedia("(prefers-color-scheme: dark)");
           handleMediaChange = (e: MediaQueryListEvent) => {
             applyTheme(e.matches ? "dark" : "light");
@@ -65,7 +69,7 @@ function applyTheme(theme: string) {
             },
           );
         } catch (e) {
-          console.error("[theme] init failed", e);
+          console.error("[theme] listener setup failed", e);
         }
 
         unlisten = () => {
