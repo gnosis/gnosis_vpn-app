@@ -64,13 +64,17 @@ function applyTheme(theme: string) {
         }
 
         // macOS: Tauri also emits theme changes (kept for backend/tray awareness).
-        // Linux: backend emits "os-theme-changed" via XDG Desktop Portal (ashpd) (kept for tray icon updates).
         try {
           unlistenTauri = await curWindow.onThemeChanged(
             ({ payload: theme }) => {
               applyTheme(theme);
             },
           );
+        } catch (e) {
+          console.error("[theme] onThemeChanged setup failed", e);
+        }
+        // Linux: backend emits "os-theme-changed" via XDG Desktop Portal (ashpd) (kept for tray icon updates).
+        try {
           unlistenLinux = await listen<string>(
             "os-theme-changed",
             ({ payload: theme }) => {
@@ -78,7 +82,7 @@ function applyTheme(theme: string) {
             },
           );
         } catch (e) {
-          console.error("[theme] Tauri listener setup failed", e);
+          console.error("[theme] os-theme-changed listener setup failed", e);
         }
 
         return () => {
