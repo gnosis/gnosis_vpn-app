@@ -2,7 +2,7 @@
 //! Provides startup theme detection and OS theme change monitoring on Linux via the XDG Desktop Portal.
 
 #[cfg_attr(not(target_os = "linux"), allow(unused_imports))]
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 #[cfg(target_os = "linux")]
 use ashpd::desktop::settings::{ColorScheme, Settings as XdgSettings};
@@ -10,25 +10,34 @@ use ashpd::desktop::settings::{ColorScheme, Settings as XdgSettings};
 use futures_util::StreamExt;
 
 /// On Linux, query the XDG Desktop Portal for the current color scheme.
-/// NoPreference is treated as light (GNOME uses it to signal "user chose light", not "no preference").
-/// Uses tauri's tokio runtime via block_on — setup() runs on the main thread outside an async
-/// context, so block_on is safe here.
+/// NoPreference is treated as light
+/// Spawns on Tauri's tokio runtime and blocks on the channel — avoids blocking the main thread's
+/// tokio context while still waiting for the real D-Bus response.
 #[cfg(target_os = "linux")]
 fn linux_theme_from_portal() -> Option<tauri::Theme> {
-    tauri::async_runtime::block_on(async {
-        let settings = XdgSettings::new().await.ok()?;
-        let scheme = settings.color_scheme().await.ok()?;
-        match scheme {
-            ColorScheme::PreferDark => Some(tauri::Theme::Dark),
-            // NoPreference treated as light: GNOME uses it to signal "user chose light"
-            ColorScheme::PreferLight | ColorScheme::NoPreference => Some(tauri::Theme::Light),
+    let (tx, rx) = std::sync::mpsc::channel();
+    tauri::async_runtime::spawn(async move {
+        let result: Option<tauri::Theme> = async {
+            let settings = XdgSettings::new().await.ok()?;
+            let scheme = settings.color_scheme().await.ok()?;
+            match scheme {
+                ColorScheme::PreferDark => Some(tauri::Theme::Dark),
+                // NoPreference treated as light: GNOME uses it to signal "user chose light"
+                ColorScheme::PreferLight | ColorScheme::NoPreference => Some(tauri::Theme::Light),
+            }
         }
-    })
+        .await;
+        let _ = tx.send(result);
+    });
+    // Fall back immediately if the portal is slow or unavailable — caller falls through to dark_light::detect().
+    rx.recv_timeout(std::time::Duration::from_millis(500))
+        .ok()
+        .flatten()
 }
 
 /// On Linux, Tauri's onThemeChanged is not emitted when the OS theme changes.
 /// Subscribe to the XDG Desktop Portal settings stream via ashpd — event-driven.
-/// Runs on tauri's tokio runtime; emits "os-theme-changed" to all windows on change.
+/// Emits "os-theme-changed" to all windows on change.
 #[cfg(target_os = "linux")]
 pub fn spawn_linux_theme_monitor(app: AppHandle) {
     tauri::async_runtime::spawn(async move {
@@ -52,6 +61,14 @@ pub fn spawn_linux_theme_monitor(app: AppHandle) {
             let is_dark = matches!(color_scheme, ColorScheme::PreferDark);
             let theme_str = if is_dark { "dark" } else { "light" };
             let _ = app.emit("os-theme-changed", theme_str);
+            let theme = if is_dark {
+                tauri::Theme::Dark
+            } else {
+                tauri::Theme::Light
+            };
+            for window in app.webview_windows().into_values() {
+                let _ = window.set_theme(Some(theme));
+            }
         }
     });
 }

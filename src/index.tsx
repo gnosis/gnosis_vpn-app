@@ -34,35 +34,46 @@ function applyTheme(theme: string) {
       let unlisten: (() => void) | undefined;
 
       const initTheme = async () => {
-        // Sync initial class is already applied by the inline script in index.html via matchMedia.
-        // Re-apply from backend to stay consistent with tray icon state (all OS).
-        const initial = await invoke<string>("get_initial_theme");
-        applyTheme(initial);
+        let mq: MediaQueryList | undefined;
+        let handleMediaChange: ((e: MediaQueryListEvent) => void) | undefined;
+        let unlistenTauri: (() => void) | undefined;
+        let unlistenLinux: (() => void) | undefined;
 
-        const mq = window.matchMedia("(prefers-color-scheme: dark)");
-        const handleMediaChange = (e: MediaQueryListEvent) => {
-          applyTheme(e.matches ? "dark" : "light");
-        };
-        mq.addEventListener("change", handleMediaChange);
+        try {
+          // Sync initial class is already applied by the inline script in index.html via matchMedia.
+          // Re-apply from backend to stay consistent with tray icon state (all OS).
+          const initial = await invoke<string>("get_initial_theme");
+          applyTheme(initial);
 
-        // macOS: Tauri also emits theme changes (kept for backend/tray awareness).
-        // Linux: backend emits "os-theme-changed" via XDG Desktop Portal (ashpd) (kept for tray icon updates).
-        const unlistenTauri = await curWindow.onThemeChanged(
-          ({ payload: theme }) => {
-            applyTheme(theme);
-          },
-        );
-        const unlistenLinux = await listen<string>(
-          "os-theme-changed",
-          ({ payload: theme }) => {
-            applyTheme(theme);
-          },
-        );
+          mq = window.matchMedia("(prefers-color-scheme: dark)");
+          handleMediaChange = (e: MediaQueryListEvent) => {
+            applyTheme(e.matches ? "dark" : "light");
+          };
+          mq.addEventListener("change", handleMediaChange);
+
+          // macOS: Tauri also emits theme changes (kept for backend/tray awareness).
+          // Linux: backend emits "os-theme-changed" via XDG Desktop Portal (ashpd) (kept for tray icon updates).
+          unlistenTauri = await curWindow.onThemeChanged(
+            ({ payload: theme }) => {
+              applyTheme(theme);
+            },
+          );
+          unlistenLinux = await listen<string>(
+            "os-theme-changed",
+            ({ payload: theme }) => {
+              applyTheme(theme);
+            },
+          );
+        } catch (e) {
+          console.error("[theme] init failed", e);
+        }
 
         unlisten = () => {
-          mq.removeEventListener("change", handleMediaChange);
-          unlistenTauri();
-          unlistenLinux();
+          if (mq && handleMediaChange) {
+            mq.removeEventListener("change", handleMediaChange);
+          }
+          unlistenTauri?.();
+          unlistenLinux?.();
         };
       };
       initTheme();
