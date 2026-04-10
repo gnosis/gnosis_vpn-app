@@ -35,8 +35,6 @@ function applyTheme(theme: string) {
       let cleanup: (() => void) | undefined;
 
       const initTheme = async (): Promise<() => void> => {
-        let mq: MediaQueryList | undefined;
-        let handleMediaChange: ((e: MediaQueryListEvent) => void) | undefined;
         let unlistenTauri: (() => void) | undefined;
         let unlistenLinux: (() => void) | undefined;
 
@@ -49,8 +47,8 @@ function applyTheme(theme: string) {
           console.error("[theme] initial theme fetch failed", e);
         }
 
-        mq = window.matchMedia("(prefers-color-scheme: dark)");
-        handleMediaChange = (e: MediaQueryListEvent) => {
+        const mq = globalThis.matchMedia("(prefers-color-scheme: dark)");
+        const handleMediaChange = (e: MediaQueryListEvent) => {
           applyTheme(e.matches ? "dark" : "light");
         };
         if (typeof mq.addEventListener === "function") {
@@ -84,17 +82,15 @@ function applyTheme(theme: string) {
         }
 
         return () => {
-          if (mq && handleMediaChange) {
-            if (typeof mq.removeEventListener === "function") {
-              mq.removeEventListener("change", handleMediaChange);
-            } else {
-              mq.removeListener(
-                handleMediaChange as (
-                  this: MediaQueryList,
-                  ev: MediaQueryListEvent,
-                ) => void,
-              );
-            }
+          if (typeof mq.removeEventListener === "function") {
+            mq.removeEventListener("change", handleMediaChange);
+          } else {
+            mq.removeListener(
+              handleMediaChange as (
+                this: MediaQueryList,
+                ev: MediaQueryListEvent,
+              ) => void,
+            );
           }
           unlistenTauri?.();
           unlistenLinux?.();
