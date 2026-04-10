@@ -52,7 +52,7 @@ jobs:
       IMAGE_NAME: release-base
     steps:
       - name: Setup GCP
-        uses: hoprnet/hopr-workflows/actions/setup-gcp@setup-gcp-v1
+        uses: hoprnet/hopr-workflows/actions/setup-gcp@setup-gcp-v3
         with:
           google_credentials: ${{ secrets.GCP_SA_GITHUB_ACTIONS }}
           install_sdk: "true"

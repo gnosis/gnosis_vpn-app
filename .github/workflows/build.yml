@@ -20,20 +20,24 @@ jobs:
   build-binaries:
     strategy:
       matrix:
-        binary:
+        include:
           - architecture: x86_64-linux
             runner: depot-ubuntu-22.04-4 # Depot Ubuntu 22.04, 4 CPUs, 16 GB RAM
+            required_label: ""
           - architecture: aarch64-linux
             runner: depot-ubuntu-22.04-arm-4 # Depot Ubuntu 22.04 ARM, 4 CPUs, 16 GB RAM
+            required_label: "binary:aarch64-linux"
           - architecture: aarch64-darwin
             runner: depot-macos-15 # Depot Apple Silicon M2, 8 CPUs, 24 GB RAM, 400 GB SSD
-    name: Binary ${{ matrix.binary.architecture }}
+            required_label: "binary:aarch64-darwin"
+    name: Binary ${{ matrix.architecture }}
     uses: ./.github/workflows/build-binaries.yaml
     with:
       source_branch: ${{ github.event.pull_request.head.ref || github.ref }}
-      architecture: ${{ matrix.binary.architecture }}
-      runner: ${{ matrix.binary.runner }}
+      architecture: ${{ matrix.architecture }}
+      runner: ${{ matrix.runner }}
       version_type: "commit"
+      enabled: ${{ matrix.required_label == '' || contains(github.event.pull_request.labels.*.name, matrix.required_label) }}
     secrets: inherit
   checks:
     name: Checks

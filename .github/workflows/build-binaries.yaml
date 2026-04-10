@@ -17,13 +17,16 @@ on:
       runner:
         required: true
         type: string
+      enabled:
+        required: false
+        type: boolean
+        default: true
 jobs:
   binary:
     permissions:
       contents: read
       pull-requests: read
-    if: >-
-      github.event_name != 'pull_request' || github.event.pull_request.merged == true || contains(github.event.pull_request.labels.*.name, format('binary:{0}', inputs.architecture))
+    if: inputs.enabled
     runs-on: ${{ inputs.runner }}
     timeout-minutes: 90
     steps:
@@ -155,13 +158,13 @@ jobs:
           fi
       - name: Setup GCP
         if: steps.version.outputs.publish_artifact_registry == 'true'
-        uses: hoprnet/hopr-workflows/actions/setup-gcp@setup-gcp-v2
+        uses: hoprnet/hopr-workflows/actions/setup-gcp@setup-gcp-v3
         with:
           google_credentials: ${{ secrets.GCP_SA_GITHUB_ACTIONS }}
           install_sdk: "true"
       - name: Publish ${{ inputs.architecture }} into Google Artifact registry
         if: steps.version.outputs.publish_artifact_registry == 'true'
-        uses: hoprnet/hopr-workflows/actions/upload-artifact-registry@upload-artifact-registry-v1
+        uses: hoprnet/hopr-workflows/actions/upload-artifact-registry@upload-artifact-registry-v2
         with:
           source: ${{ github.workspace }}/artifacts
           package: gnosis_vpn-app
