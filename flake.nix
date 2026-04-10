@@ -176,8 +176,8 @@
               # Make gsettings find system schemas (needed for OS theme detection)
               export XDG_DATA_DIRS="${pkgs.gsettings-desktop-schemas}/share/gsettings-schemas/${pkgs.gsettings-desktop-schemas.name}:${pkgs.gtk3}/share/gsettings-schemas/${pkgs.gtk3.name}:/usr/share''${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
 
-              # Disable WebKit hardware compositing by default (prevents flickering on Linux)
-              export WEBKIT_DISABLE_COMPOSITING_MODE="${WEBKIT_DISABLE_COMPOSITING_MODE:-1}"
+              # Disable WebKit hardware compositing (prevents flickering on Linux)
+              export WEBKIT_DISABLE_COMPOSITING_MODE=1
 
               # VM-specific workarounds (runtime detection, no --impure needed)
               if systemd-detect-virt --quiet --vm 2>/dev/null || \
