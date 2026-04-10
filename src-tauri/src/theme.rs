@@ -109,9 +109,25 @@ pub fn spawn_linux_theme_monitor(app: AppHandle) {
 pub fn system_theme() -> tauri::Theme {
     #[cfg(target_os = "linux")]
     {
-        // On Linux use gsettings only — dark_light falls back to D-Bus/portal which can
-        // timeout in environments without a full desktop session (e.g. VMs, minimal installs).
-        return linux_theme_from_gsettings().unwrap_or(tauri::Theme::Dark);
+        // Prefer gsettings (GNOME). On non-GNOME desktops where gsettings returns None,
+        // try dark_light::detect() on a background thread with a short timeout — it can
+        // hang indefinitely on systems without D-Bus/portal, so we cap it.
+        if let Some(t) = linux_theme_from_gsettings() {
+            return t;
+        }
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let _ = tx.send(dark_light::detect());
+        });
+        let mode = rx
+            .recv_timeout(std::time::Duration::from_millis(300))
+            .ok()
+            .and_then(|r| r.ok())
+            .unwrap_or(dark_light::Mode::Unspecified);
+        return match mode {
+            dark_light::Mode::Light => tauri::Theme::Light,
+            _ => tauri::Theme::Dark,
+        };
     }
 
     #[cfg(not(target_os = "linux"))]

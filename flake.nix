@@ -180,7 +180,7 @@
               export WEBKIT_DISABLE_COMPOSITING_MODE=1
 
               # VM-specific workarounds (runtime detection, no --impure needed)
-              if systemd-detect-virt --quiet --vm 2>/dev/null || \
+              if (command -v systemd-detect-virt >/dev/null 2>&1 && systemd-detect-virt --quiet --vm 2>/dev/null) || \
                 grep -qiE 'vmware|virtualbox|kvm|qemu|xen|hyper-v' /sys/class/dmi/id/sys_vendor 2>/dev/null || \
                 grep -qiE 'vmware|virtualbox|kvm|qemu|xen|hyper-v' /sys/class/dmi/id/product_name 2>/dev/null; then
                 # Force X11 backend to avoid Wayland/Mesa conflicts in VM (uncomment if needed)
