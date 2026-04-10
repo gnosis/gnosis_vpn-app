@@ -174,7 +174,7 @@
 
             shellHook = pkgs.lib.optionalString pkgs.stdenv.isLinux ''
               # Make gsettings find system schemas (needed for OS theme detection)
-              export XDG_DATA_DIRS="${pkgs.gsettings-desktop-schemas}/share/gsettings-schemas/${pkgs.gsettings-desktop-schemas.name}:${pkgs.gtk3}/share/gsettings-schemas/${pkgs.gtk3.name}:/usr/share:$XDG_DATA_DIRS"
+              export XDG_DATA_DIRS="${pkgs.gsettings-desktop-schemas}/share/gsettings-schemas/${pkgs.gsettings-desktop-schemas.name}:${pkgs.gtk3}/share/gsettings-schemas/${pkgs.gtk3.name}:/usr/share''${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
 
               # Disable WebKit hardware compositing (prevents flickering on Linux)
               export WEBKIT_DISABLE_COMPOSITING_MODE=1
