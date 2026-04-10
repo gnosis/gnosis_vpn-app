@@ -33,7 +33,7 @@ jobs:
       - name: Harden Runner
         uses: step-security/harden-runner@95d9a5deda9de15063e7595e9719c11c38c90ae2 # v2.13.2
         with:
-          disable-sudo: true
+          disable-sudo: false
           egress-policy: audit
       - name: Checkout repository
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
@@ -44,7 +44,7 @@ jobs:
         uses: hoprnet/hopr-workflows/actions/setup-nix@setup-nix-v1
         with:
           cachix_cache_name: gnosis-vpn-app
-          cachix_auth_token: "${{ secrets.cachix_auth_token }}"
+          cachix_auth_token: "${{ secrets.CACHIX_AUTH_TOKEN }}"
       - name: Updates build version
         id: version
         uses: hoprnet/hopr-workflows/actions/set-build-version@set-build-version-v2

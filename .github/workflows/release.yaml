@@ -35,7 +35,7 @@ jobs:
     name: Binary ${{ matrix.binary.architecture }}
     uses: ./.github/workflows/build-binaries.yaml
     with:
-      source_branch: main
+      source_branch: ${{ github.ref_name }}
       architecture: ${{ matrix.binary.architecture }}
       runner: ${{ matrix.binary.runner }}
       version_type: "release"
@@ -163,7 +163,7 @@ jobs:
       contents: write
     steps:
       - name: Release version
-        uses: hoprnet/hopr-workflows/actions/release-version@ausias/adapt-gnosisvpn # release-version-v2
+        uses: hoprnet/hopr-workflows/actions/release-version@release-version-v3
         with:
           source_branch: ${{ github.ref_name }}
           file: src-tauri/Cargo.toml
@@ -193,15 +193,3 @@ jobs:
           pathspec_error_handling: exitImmediately
           default_author: github_actions
           github_token: ${{ secrets.BOT_TOKEN }}
-      - name: Trigger installer snapshot
-        uses: peter-evans/repository-dispatch@ff45666b9427631e3450c54a1bcbee4d9ff4d7c0 # v3.0.0
-        with:
-          token: ${{ secrets.GNOSIS_GITHUB_WORKFLOW_TOKEN }}
-          repository: gnosis/gnosis_vpn
-          event-type: new_snapshot_release
-          client-payload: |-
-            {
-              "draft_release": "false",
-              "client_version": "latest",
-              "app_version": "${{ steps.bump.outputs.current_version }}"
-            }
