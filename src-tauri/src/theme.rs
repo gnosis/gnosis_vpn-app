@@ -2,87 +2,57 @@
 //! Provides startup theme detection and OS theme change monitoring on Linux via the XDG Desktop Portal.
 
 #[cfg_attr(not(target_os = "linux"), allow(unused_imports))]
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Emitter, State};
 
 #[cfg(target_os = "linux")]
 use ashpd::desktop::settings::{ColorScheme, Settings as XdgSettings};
 #[cfg(target_os = "linux")]
 use futures_util::StreamExt;
+
 /// On Linux, query the XDG Desktop Portal for the current color scheme.
-/// Uses a 500 ms timeout so startup is not delayed if the portal is slow.
 /// NoPreference is treated as light (GNOME uses it to signal "user chose light", not "no preference").
-/// Called during setup() before the tokio runtime is active, so async-std is isolated via
-/// std::thread::spawn + channel (tokio::task::spawn_blocking would panic with no reactor).
+/// Uses tauri's tokio runtime via block_on — setup() runs on the main thread outside an async
+/// context, so block_on is safe here.
 #[cfg(target_os = "linux")]
 fn linux_theme_from_portal() -> Option<tauri::Theme> {
-    let (tx, rx) = std::sync::mpsc::channel();
-    std::thread::spawn(move || {
-        let result = async_std::task::block_on(async_std::future::timeout(
-            std::time::Duration::from_millis(500),
-            async {
-                let settings = XdgSettings::new().await.ok()?;
-                let scheme = settings.color_scheme().await.ok()?;
-                match scheme {
-                    ColorScheme::PreferDark => Some(tauri::Theme::Dark),
-                    // NoPreference treated as light: GNOME uses it to signal "user chose light"
-                    ColorScheme::PreferLight | ColorScheme::NoPreference => {
-                        Some(tauri::Theme::Light)
-                    }
-                }
-            },
-        ));
-        let _ = tx.send(result.ok().flatten());
-    });
-    rx.recv_timeout(std::time::Duration::from_millis(600))
-        .ok()
-        .flatten()
+    tauri::async_runtime::block_on(async {
+        let settings = XdgSettings::new().await.ok()?;
+        let scheme = settings.color_scheme().await.ok()?;
+        match scheme {
+            ColorScheme::PreferDark => Some(tauri::Theme::Dark),
+            // NoPreference treated as light: GNOME uses it to signal "user chose light"
+            ColorScheme::PreferLight | ColorScheme::NoPreference => Some(tauri::Theme::Light),
+        }
+    })
 }
 
 /// On Linux, Tauri's onThemeChanged is not emitted when the OS theme changes.
 /// Subscribe to the XDG Desktop Portal settings stream via ashpd — event-driven.
-/// Uses std::thread::spawn (not tokio::task::spawn_blocking) because this runs an infinite loop;
-/// the blocking thread pool is not appropriate for long-lived tasks.
-/// async-std is intentionally isolated here to avoid mixing runtimes on tokio worker threads.
+/// Runs on tauri's tokio runtime; emits "os-theme-changed" to all windows on change.
 #[cfg(target_os = "linux")]
 pub fn spawn_linux_theme_monitor(app: AppHandle) {
-    std::thread::spawn(move || {
-        async_std::task::block_on(async {
-            let settings = match XdgSettings::new().await {
-                Ok(s) => s,
-                Err(e) => {
-                    eprintln!("[theme] XDG Settings portal unavailable: {e}");
-                    return;
-                }
-            };
-            let mut stream = match settings.receive_color_scheme_changed().await {
-                Ok(s) => s,
-                Err(e) => {
-                    eprintln!("[theme] Failed to subscribe to color scheme changes: {e}");
-                    return;
-                }
-            };
-            while let Some(color_scheme) = stream.next().await {
-                // NoPreference is treated as light: on GNOME/Debian, switching to light
-                // emits NoPreference rather than PreferLight.
-                let is_dark = match color_scheme {
-                    ColorScheme::PreferDark => true,
-                    ColorScheme::PreferLight | ColorScheme::NoPreference => false,
-                };
-                let app_clone = app.clone();
-                let _ = app.run_on_main_thread(move || {
-                    let theme_str = if is_dark { "dark" } else { "light" };
-                    for window in app_clone.webview_windows().values() {
-                        let _ = window.emit("os-theme-changed", theme_str);
-                        let t = if is_dark {
-                            tauri::Theme::Dark
-                        } else {
-                            tauri::Theme::Light
-                        };
-                        let _ = window.set_theme(Some(t));
-                    }
-                });
+    tauri::async_runtime::spawn(async move {
+        let settings = match XdgSettings::new().await {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("[theme] XDG Settings portal unavailable: {e}");
+                return;
             }
-        });
+        };
+        let mut stream = match settings.receive_color_scheme_changed().await {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("[theme] Failed to subscribe to color scheme changes: {e}");
+                return;
+            }
+        };
+        while let Some(color_scheme) = stream.next().await {
+            // NoPreference is treated as light: on GNOME/Debian, switching to light
+            // emits NoPreference rather than PreferLight.
+            let is_dark = matches!(color_scheme, ColorScheme::PreferDark);
+            let theme_str = if is_dark { "dark" } else { "light" };
+            let _ = app.emit("os-theme-changed", theme_str);
+        }
     });
 }
 

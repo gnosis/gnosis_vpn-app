@@ -40,7 +40,6 @@ zstd = "0.13.3"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 ashpd = { version = "0.10", default-features = false }
-async-std = "1"
 futures-util = { version = "0.3", default-features = false }
 
 [target.'cfg(target_os = "macos")'.dependencies]
