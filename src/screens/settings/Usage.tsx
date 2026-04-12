@@ -171,7 +171,9 @@ export default function Usage() {
               </div>
               <div
                 class={`text-lg font-bold ${
-                  isCreditEmpty(credit()!) ? "text-vpn-red" : "text-text-primary"
+                  isCreditEmpty(credit()!)
+                    ? "text-vpn-red"
+                    : "text-text-primary"
                 }`}
               >
                 {formatCredit(credit()!)}
