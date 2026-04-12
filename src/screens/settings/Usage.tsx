@@ -8,7 +8,7 @@ import {
 } from "../../services/vpnService.ts";
 import { onCleanup, onMount } from "solid-js";
 import {
-  computeCreditBytes,
+  computeEffectiveCredit,
   computeHoprPerGb,
   formatCredit,
   isCreditEmpty,
@@ -61,10 +61,10 @@ export default function Usage() {
       ? appState.runMode.PreparingSafe
       : null);
 
-  const credit = createMemo(() => {
+  const effectiveCredit = createMemo(() => {
     const b = balance();
     if (!b) return null;
-    return computeCreditBytes(b.channels_out, b.ticket_value);
+    return computeEffectiveCredit(b.channels_out, b.safe, b.ticket_value);
   });
   const ratePerGb = createMemo(() => {
     const b = balance();
@@ -164,44 +164,38 @@ export default function Usage() {
             </div>
           </Show>
 
-          <Show when={credit() !== null && isRunningRunMode(appState.runMode)}>
-            <div class="mb-4 p-3 rounded-lg bg-surface-secondary w-64">
-              <div class="text-xs text-text-secondary uppercase tracking-wide mb-1">
-                Remaining Credit
-              </div>
-              <div
-                class={`text-lg font-bold ${
-                  isCreditEmpty(credit()!)
-                    ? "text-vpn-red"
-                    : "text-text-primary"
-                }`}
+          <div class="flex flex-col py-4 my-4 w-64">
+            <div class="flex flex-col pb-3 mb-3">
+              <FundsInfo
+                name="Safe"
+                subtitle="For traffic"
+                balance={preparingSafe()?.node_wxhopr ?? balance()?.safe}
+                ticker="wxHOPR"
+                address={preparingSafe()?.node_address ??
+                  balance()?.info.safe_address}
+                status={fundingStatus()?.safeStatus}
+                isLoading={isBalanceLoading()}
+              />
+              <Show
+                when={effectiveCredit() !== null &&
+                  isRunningRunMode(appState.runMode)}
               >
-                {formatCredit(credit()!)}
-              </div>
-              <Show when={ratePerGb() !== null && ratePerGb() !== "—"}>
-                <div class="text-xs text-text-secondary mt-1">
-                  Rate: 1 GB ≈ {ratePerGb()} HOPR
-                </div>
-              </Show>
-              <Show when={isCreditEmpty(credit()!)}>
-                <div class="text-xs text-vpn-red mt-1">
-                  ⚠ Limited privacy — add funds to channels
+                <div
+                  class={`text-xs mt-1 pr-1 text-right ${
+                    isCreditEmpty(effectiveCredit()!.bytes)
+                      ? "text-vpn-red"
+                      : "text-text-secondary"
+                  }`}
+                >
+                  ≈{formatCredit(effectiveCredit()!.bytes)} of traffic
+                  <Show when={ratePerGb() !== null && ratePerGb() !== "—"}>
+                    <div class="text-[10px] opacity-60">
+                      1 GB ≈ {ratePerGb()} HOPR
+                    </div>
+                  </Show>
                 </div>
               </Show>
             </div>
-          </Show>
-
-          <div class="flex flex-col gap-2 py-4 my-4 w-64">
-            <FundsInfo
-              name="Safe"
-              subtitle="For traffic"
-              balance={preparingSafe()?.node_wxhopr ?? balance()?.safe}
-              ticker="wxHOPR"
-              address={preparingSafe()?.node_address ??
-                balance()?.info.safe_address}
-              status={fundingStatus()?.safeStatus}
-              isLoading={isBalanceLoading()}
-            />
             <FundsInfo
               name="EOA"
               subtitle="For channels"

@@ -15,6 +15,8 @@ import {
   isWxHOPRTransferred,
   isXDAITransferred,
 } from "@src/utils/status.ts";
+import { isPreparingSafeRunMode } from "../../services/vpnService.ts";
+import { computeHoprPerGb } from "../../utils/credit.ts";
 import FundingAddress from "../address/FundingAddress.tsx";
 import StatusIndicator from "../status/StatusIndicator.tsx";
 
@@ -38,6 +40,13 @@ export default function Manually() {
 
   const nodeAddress = createMemo(() => {
     return getPreparingSafeNodeAddress(appState);
+  });
+
+  const ratePerGb = createMemo(() => {
+    if (!isPreparingSafeRunMode(appState.runMode)) return null;
+    const tv = appState.runMode.PreparingSafe.ticket_value;
+    if (!tv) return null;
+    return computeHoprPerGb(tv);
   });
 
   return (
@@ -65,10 +74,19 @@ export default function Manually() {
           />
           <div class="flex flex-col">
             <div class="font-bold">Transfer wxHOPR (Gnosis Chain)</div>
-            <div class="text-sm text-text-secondary">
-              The amount you fund determines your privacy budget (GB of
-              traffic).
-            </div>
+            <Show
+              when={ratePerGb() !== null && ratePerGb() !== "—"}
+              fallback={
+                <div class="text-sm text-text-secondary">
+                  The amount you fund determines your privacy budget (GB of
+                  traffic).
+                </div>
+              }
+            >
+              <div class="text-sm text-text-secondary">
+                1 GB ≈ {ratePerGb()} HOPR
+              </div>
+            </Show>
           </div>
         </div>
 

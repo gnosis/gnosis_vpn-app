@@ -21,16 +21,20 @@ export function computeCreditBytes(
   }
 }
 
+const BYTES_PER_TB = BYTES_PER_GB * 1024n;
+
 /**
- * Format credit bytes as a human-readable string: "1.98 GB", "568 MB", "0 MB".
+ * Format credit bytes as a human-readable string.
+ * Scales from MB up through GB and TB.
  */
 export function formatCredit(creditBytes: bigint): string {
-  if (creditBytes >= BYTES_PER_GB) {
-    const gb = (Number(creditBytes) / Number(BYTES_PER_GB)).toFixed(2);
-    return `${gb} GB`;
+  if (creditBytes >= BYTES_PER_TB) {
+    return `${(Number(creditBytes) / Number(BYTES_PER_TB)).toFixed(2)} TB`;
   }
-  const mb = (Number(creditBytes) / 1_048_576).toFixed(0);
-  return `${mb} MB`;
+  if (creditBytes >= BYTES_PER_GB) {
+    return `${(Number(creditBytes) / Number(BYTES_PER_GB)).toFixed(2)} GB`;
+  }
+  return `${(Number(creditBytes) / 1_048_576).toFixed(0)} MB`;
 }
 
 /**
@@ -44,7 +48,7 @@ export function computeHoprPerGb(ticketValue: string): string {
     if (tv === 0n) return "—";
     const perGbWei = (BYTES_PER_GB / PAYLOAD_PER_MESSAGE) * tv;
     const perGbFixed = Number(perGbWei) / 1e18;
-    if (perGbFixed < 0.01) return perGbFixed.toExponential(2);
+    if (perGbFixed < 0.01) return perGbFixed.toPrecision(3);
     return perGbFixed.toFixed(2);
   } catch {
     return "—";
@@ -54,4 +58,25 @@ export function computeHoprPerGb(ticketValue: string): string {
 /** Returns true if credit is at or below zero (channels effectively empty). */
 export function isCreditEmpty(creditBytes: bigint): boolean {
   return creditBytes === 0n;
+}
+
+const BYTES_PER_MB = 1_048_576n;
+
+/**
+ * Compute effective credit: channel credit when meaningful (≥ 1 MB), safe
+ * balance as potential fallback when channels are empty or below display threshold.
+ * Returns { bytes, isEstimate } — isEstimate=true means the value is based
+ * on the safe (not yet in channels) and should be shown as approximate ("~").
+ */
+export function computeEffectiveCredit(
+  channelsOut: string,
+  safe: string,
+  ticketValue: string,
+): { bytes: bigint; isEstimate: boolean } {
+  const channelBytes = computeCreditBytes(channelsOut, ticketValue);
+  if (channelBytes >= BYTES_PER_MB) {
+    return { bytes: channelBytes, isEstimate: false };
+  }
+  const safeBytes = computeCreditBytes(safe, ticketValue);
+  return { bytes: safeBytes, isEstimate: safeBytes > 0n };
 }

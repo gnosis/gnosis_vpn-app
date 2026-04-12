@@ -8,7 +8,7 @@ import {
   type StatusText,
 } from "@src/utils/funding.ts";
 import {
-  computeCreditBytes,
+  computeEffectiveCredit,
   formatCredit,
   isCreditEmpty,
 } from "@src/utils/credit.ts";
@@ -42,14 +42,14 @@ export default function BalancePopup(props: Props) {
     nodeStatus: "Sufficient",
   });
 
-  const credit = () => {
+  const effectiveCredit = () => {
     const b = balance();
     if (!b) return null;
-    return computeCreditBytes(b.channels_out, b.ticket_value);
+    return computeEffectiveCredit(b.channels_out, b.safe, b.ticket_value);
   };
   const creditEmpty = () => {
-    const c = credit();
-    return c !== null && isCreditEmpty(c);
+    const ec = effectiveCredit();
+    return ec !== null && isCreditEmpty(ec.bytes);
   };
 
   const loadBalance = async () => {
@@ -143,17 +143,24 @@ export default function BalancePopup(props: Props) {
                   <div class="text-[10px] text-accent-text/70">Loading...</div>
                 }
               >
-                {(_b) => (
-                  <div
-                    class={`text-sm font-bold ${
-                      creditEmpty() ? "text-red-500" : ""
-                    }`}
-                  >
-                    {credit() !== null ? formatCredit(credit()!) : "—"}
-                    <span class="text-[9px] font-normal text-accent-text/50 ml-1">
-                      remaining
-                    </span>
-                  </div>
+                {(b) => (
+                  <>
+                    <div
+                      class={`text-sm font-bold ${
+                        creditEmpty() ? "text-red-500" : ""
+                      }`}
+                    >
+                      {effectiveCredit()?.isEstimate
+                        ? fromWeiToFixed(b().safe)
+                        : fromWeiToFixed(b().channels_out)} wxHOPR
+                    </div>
+                    <div class="text-[10px] text-accent-text/50">
+                      {effectiveCredit()?.isEstimate ? "≈" : ""}
+                      {effectiveCredit() !== null
+                        ? formatCredit(effectiveCredit()!.bytes)
+                        : "—"}
+                    </div>
+                  </>
                 )}
               </Show>
             </div>

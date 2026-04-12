@@ -65,6 +65,7 @@ pub enum RunMode {
         funding_tool: Option<String>,
         // came back from safe deployment with an error
         error: Option<String>,
+        ticket_value: Option<String>,
     },
     /// Safe deployment ongoing, enough funds, no existing safe
     DeployingSafe { node_address: String },
@@ -301,12 +302,14 @@ impl From<command::RunMode> for RunMode {
                 node_wxhopr,
                 funding_tool,
                 error,
+                ticket_value,
             } => RunMode::PreparingSafe {
                 node_address: node_address.to_string(),
                 node_xdai: node_xdai.amount().to_string(),
                 node_wxhopr: node_wxhopr.amount().to_string(),
                 funding_tool,
                 error,
+                ticket_value: ticket_value.map(|tv| tv.amount().to_string()),
             },
 
             command::RunMode::DeployingSafe { node_address } => RunMode::DeployingSafe {

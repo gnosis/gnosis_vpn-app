@@ -190,6 +190,7 @@ export const PreparingSafeSchema = z.object({
   node_wxhopr: z.string(),
   funding_tool: z.string().nullable(),
   error: z.string().nullable(),
+  ticket_value: z.string().nullable(),
 });
 export type PreparingSafe = z.infer<typeof PreparingSafeSchema>;
 
