@@ -7,6 +7,11 @@ import {
   type GlobalFundingStatus,
   type StatusText,
 } from "@src/utils/funding.ts";
+import {
+  computeCreditBytes,
+  formatCredit,
+  isCreditEmpty,
+} from "@src/utils/credit.ts";
 
 const BALANCE_REFRESH_INTERVAL_MS = 60000;
 
@@ -36,6 +41,16 @@ export default function BalancePopup(props: Props) {
     safeStatus: "Sufficient",
     nodeStatus: "Sufficient",
   });
+
+  const credit = () => {
+    const b = balance();
+    if (!b) return null;
+    return computeCreditBytes(b.channels_out, b.ticket_value);
+  };
+  const creditEmpty = () => {
+    const c = credit();
+    return c !== null && isCreditEmpty(c);
+  };
 
   const loadBalance = async () => {
     try {
@@ -115,7 +130,9 @@ export default function BalancePopup(props: Props) {
 
             <div class="mb-2">
               <div class="flex items-center gap-1 mb-0.5">
-                <StatusDot status={fundingStatus().safeStatus} />
+                <StatusDot
+                  status={creditEmpty() ? "Empty" : fundingStatus().safeStatus}
+                />
                 <div class="text-[9px] text-accent-text/70 uppercase tracking-wide">
                   TRAFFIC
                 </div>
@@ -126,9 +143,16 @@ export default function BalancePopup(props: Props) {
                   <div class="text-[10px] text-accent-text/70">Loading...</div>
                 }
               >
-                {(b) => (
-                  <div class="flex items-baseline gap-1 text-sm font-bold">
-                    {fromWeiToFixed(b().safe)} wxHOPR
+                {(_b) => (
+                  <div
+                    class={`text-sm font-bold ${
+                      creditEmpty() ? "text-red-500" : ""
+                    }`}
+                  >
+                    {credit() !== null ? formatCredit(credit()!) : "—"}
+                    <span class="text-[9px] font-normal text-accent-text/50 ml-1">
+                      remaining
+                    </span>
                   </div>
                 )}
               </Show>
