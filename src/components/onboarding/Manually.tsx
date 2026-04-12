@@ -65,7 +65,10 @@ export default function Manually() {
           />
           <div class="flex flex-col">
             <div class="font-bold">Transfer wxHOPR (Gnosis Chain)</div>
-            <div class="text-sm text-text-secondary">1 GB is 110 wxHOPR.</div>
+            <div class="text-sm text-text-secondary">
+              The amount you fund determines your privacy budget (GB of
+              traffic).
+            </div>
           </div>
         </div>
 
