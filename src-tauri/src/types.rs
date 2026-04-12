@@ -49,6 +49,7 @@ pub struct BalanceResponse {
     pub channels_out: String,
     pub info: Info,
     pub issues: Vec<balance::FundingIssue>,
+    pub ticket_value: String,
 }
 
 // Sanitized library structs
@@ -383,6 +384,7 @@ impl From<command::BalanceResponse> for BalanceResponse {
                 _ => None,
             })
             .sum::<balance::Balance<balance::WxHOPR>>()
+            .amount()
             .to_string();
         BalanceResponse {
             node: br.node.amount().to_string(),
@@ -390,6 +392,7 @@ impl From<command::BalanceResponse> for BalanceResponse {
             channels_out,
             info: br.info.into(),
             issues: br.issues,
+            ticket_value: br.ticket_value.amount().to_string(),
         }
     }
 }
