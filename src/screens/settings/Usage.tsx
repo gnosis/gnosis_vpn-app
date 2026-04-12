@@ -1,4 +1,4 @@
-import { createSignal, Match, Switch } from "solid-js";
+import { createMemo, createSignal, Match, Switch } from "solid-js";
 import {
   type BalanceResponse,
   isPreparingSafeRunMode,
@@ -7,6 +7,12 @@ import {
   VPNService,
 } from "../../services/vpnService.ts";
 import { onCleanup, onMount } from "solid-js";
+import {
+  computeCreditBytes,
+  computeHoprPerGb,
+  formatCredit,
+  isCreditEmpty,
+} from "../../utils/credit.ts";
 import FundsInfo from "../../components/FundsInfo.tsx";
 import { Show } from "solid-js";
 import {
@@ -32,6 +38,7 @@ function balancesEqual(
     a.node === b.node &&
     a.safe === b.safe &&
     a.channels_out === b.channels_out &&
+    a.ticket_value === b.ticket_value &&
     a.info.node_address === b.info.node_address &&
     a.info.node_peer_id === b.info.node_peer_id &&
     a.info.safe_address === b.info.safe_address &&
@@ -53,6 +60,17 @@ export default function Usage() {
     () => (isPreparingSafeRunMode(appState.runMode)
       ? appState.runMode.PreparingSafe
       : null);
+
+  const credit = createMemo(() => {
+    const b = balance();
+    if (!b) return null;
+    return computeCreditBytes(b.channels_out, b.ticket_value);
+  });
+  const ratePerGb = createMemo(() => {
+    const b = balance();
+    if (!b) return null;
+    return computeHoprPerGb(b.ticket_value);
+  });
 
   async function loadBalance() {
     try {
@@ -143,6 +161,31 @@ export default function Usage() {
           <Show when={preparingSafe()}>
             <div class="px-4 py-2 rounded-lg text-sm font-medium bg-amber-100 text-amber-800">
               Waiting for incoming funds
+            </div>
+          </Show>
+
+          <Show when={credit() !== null && isRunningRunMode(appState.runMode)}>
+            <div class="mb-4 p-3 rounded-lg bg-surface-secondary w-64">
+              <div class="text-xs text-text-secondary uppercase tracking-wide mb-1">
+                Remaining Credit
+              </div>
+              <div
+                class={`text-lg font-bold ${
+                  isCreditEmpty(credit()!) ? "text-vpn-red" : "text-text-primary"
+                }`}
+              >
+                {formatCredit(credit()!)}
+              </div>
+              <Show when={ratePerGb() !== null && ratePerGb() !== "—"}>
+                <div class="text-xs text-text-secondary mt-1">
+                  Rate: 1 GB ≈ {ratePerGb()} HOPR
+                </div>
+              </Show>
+              <Show when={isCreditEmpty(credit()!)}>
+                <div class="text-xs text-vpn-red mt-1">
+                  ⚠ Limited privacy — add funds to channels
+                </div>
+              </Show>
             </div>
           </Show>
 
