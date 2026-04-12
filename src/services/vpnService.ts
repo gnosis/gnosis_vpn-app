@@ -264,6 +264,7 @@ export const BalanceResponseSchema = z.object({
   channels_out: z.string(),
   info: InfoSchema,
   issues: z.array(FundingIssueSchema),
+  ticket_value: z.string(),
 });
 export type BalanceResponse = z.infer<typeof BalanceResponseSchema>;
 
