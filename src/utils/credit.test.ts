@@ -6,13 +6,16 @@ import {
   formatCredit,
 } from "./credit.ts";
 
-/** Must match `credit.ts`: `PAYLOAD_PER_MESSAGE` and `BYTES_PER_MB`. */
+/** Must match `credit.ts` (`PAYLOAD_BYTES_PER_MESSAGE`, `BYTES_PER_MB`, `WEI_PER_TOKEN`). */
 const PAYLOAD_BYTES_PER_MESSAGE = 650n;
 const BYTES_PER_MB = 1_048_576n;
+const WEI_PER_TOKEN = 10n ** 18n;
+const BYTES_PER_TB = BYTES_PER_MB * 1024n * 1024n;
 
 /**
- * Smallest integer message count where `messages × PAYLOAD_BYTES_PER_MESSAGE >= BYTES_PER_MB`
- * (same 1 MiB cutoff `computeEffectiveCredit` uses for “meaningful” channel credit).
+ * Smallest integer message count where
+ * `messageCount * PAYLOAD_BYTES_PER_MESSAGE >= BYTES_PER_MB`
+ * (same 1 MiB cutoff as `computeEffectiveCredit`).
  * ceil(BYTES_PER_MB / PAYLOAD_BYTES_PER_MESSAGE) → 1614.
  */
 const MIN_MESSAGES_AT_OR_ABOVE_1MIB =
@@ -28,7 +31,7 @@ describe("computeCreditBytes", () => {
   });
 
   it("computes messages times payload", () => {
-    const ticketValueWei = "650000000000000000000"; // 650 wxHOPR (18-decimal string)
+    const ticketValueWei = "650000000000000000000"; // 650 * 1e18 wei
     const channelsOutWei = "1300000000000000000000"; // 2 × ticket → 2 messages
     expect(computeCreditBytes(channelsOutWei, ticketValueWei)).toBe(1300n);
   });
@@ -40,10 +43,8 @@ describe("computeCreditBytes", () => {
 
 describe("computeEffectiveCredit", () => {
   it("uses channel bytes when at or above 1 MB", () => {
-    const ticketValueWei = "1000000000000000000"; // 1 wxHOPR per message
-    const weiPerMessage = 10n ** 18n;
-    // Balance in wei = messages × (1 wxHOPR per message in wei)
-    const channelsOutWei = (MIN_MESSAGES_AT_OR_ABOVE_1MIB * weiPerMessage)
+    const ticketValueWei = "1000000000000000000"; // 1 * WEI_PER_TOKEN wei per message
+    const channelsOutWei = (MIN_MESSAGES_AT_OR_ABOVE_1MIB * WEI_PER_TOKEN)
       .toString();
     const effectiveCredit = computeEffectiveCredit(
       channelsOutWei,
@@ -71,11 +72,11 @@ describe("computeEffectiveCredit", () => {
 
   it("uses safe as estimate when channel is below threshold and safe has credit", () => {
     const ticketValueWei = "650000000000000000000";
-    const channelsOutWei = "0";
-    const safeWei = "1300000000000000000000";
+    const channelsOut = "0";
+    const safe = "1300000000000000000000";
     const effectiveCredit = computeEffectiveCredit(
-      channelsOutWei,
-      safeWei,
+      channelsOut,
+      safe,
       ticketValueWei,
     );
     expect(effectiveCredit.bytes).toBe(1300n);
@@ -85,15 +86,14 @@ describe("computeEffectiveCredit", () => {
 
 describe("formatCredit", () => {
   it("formats MB without fractional digits", () => {
-    expect(formatCredit(1048576n)).toMatch(/^1 MB$/);
+    expect(formatCredit(BYTES_PER_MB)).toMatch(/^1 MB$/);
   });
 
   it("formats large values without Number precision loss", () => {
-    const bytesPerTb = 2n ** 30n * 1024n ** 2n;
-    const creditBytes = bytesPerTb * 3n + bytesPerTb / 2n;
-    const formatted = formatCredit(creditBytes);
-    expect(formatted).toMatch(/ TB$/);
-    expect(formatted).not.toContain("Infinity");
+    const creditBytes = BYTES_PER_TB * 3n + BYTES_PER_TB / 2n;
+    const formattedCredit = formatCredit(creditBytes);
+    expect(formattedCredit).toMatch(/ TB$/);
+    expect(formattedCredit).not.toContain("Infinity");
   });
 });
 
@@ -103,16 +103,16 @@ describe("computeHoprPerGb", () => {
   });
 
   it("formats normal rates with two fractional digits", () => {
-    const ticketValueWei = "1000000000000000000"; // 1 wxHOPR per message unit
-    const formattedPerGb = computeHoprPerGb(ticketValueWei);
-    expect(formattedPerGb).not.toBe("—");
-    expect(formattedPerGb).toMatch(/^\d+\.\d{2}$/);
+    const ticketValueWei = "1000000000000000000";
+    const hoprPerGb = computeHoprPerGb(ticketValueWei);
+    expect(hoprPerGb).not.toBe("—");
+    expect(hoprPerGb).toMatch(/^\d+\.\d{2}$/);
   });
 
   it("uses extra precision for very small per-GB rates", () => {
-    const ticketValueWei = "5000000000"; // per-GB rate lands below 0.01 wxHOPR
-    const formattedPerGb = computeHoprPerGb(ticketValueWei);
-    expect(formattedPerGb).not.toBe("—");
-    expect(formattedPerGb.startsWith("0.")).toBe(true);
+    const ticketValueWei = "5000000000"; // per-GB wei below WEI_PER_TOKEN / 100
+    const hoprPerGb = computeHoprPerGb(ticketValueWei);
+    expect(hoprPerGb).not.toBe("—");
+    expect(hoprPerGb.startsWith("0.")).toBe(true);
   });
 });
