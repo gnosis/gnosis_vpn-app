@@ -187,10 +187,11 @@ export default function Usage() {
                       : "text-text-secondary"
                   }`}
                 >
-                  ≈{formatCredit(effectiveCredit()!.bytes)} of traffic
+                  {effectiveCredit()?.isEstimate ? "≈" : ""}
+                  {formatCredit(effectiveCredit()!.bytes)} of traffic
                   <Show when={ratePerGb() !== null && ratePerGb() !== "—"}>
                     <div class="text-[10px] opacity-60">
-                      1 GB ≈ {ratePerGb()} HOPR
+                      1 GB ≈ {ratePerGb()} wxHOPR
                     </div>
                   </Show>
                 </div>

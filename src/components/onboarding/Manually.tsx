@@ -54,11 +54,7 @@ export default function Manually() {
       <h1 class="w-full text-3xl font-bold text-center mt-6 mb-3 flex flex-row">
         Fund your VPN
       </h1>
-      <FundingAddress
-        full
-        address={nodeAddress()}
-        qrVisible
-      />
+      <FundingAddress full address={nodeAddress()} qrVisible />
       <div
         class={`flex flex-col gap-4 grow ${
           !isServiceAvailable() ? "opacity-50 pointer-events-none" : ""
@@ -84,7 +80,7 @@ export default function Manually() {
               }
             >
               <div class="text-sm text-text-secondary">
-                1 GB ≈ {ratePerGb()} HOPR
+                1 GB ≈ {ratePerGb()} wxHOPR
               </div>
             </Show>
           </div>
@@ -101,7 +97,9 @@ export default function Manually() {
           <div class="flex flex-col">
             <div class="font-bold">Transfer xDAI (Gnosis Chain)</div>
             <div class="text-sm text-text-secondary">
-              1 xDAI is enough for one year<br />switching exit nodes.
+              1 xDAI is enough for one year
+              <br />
+              switching exit nodes.
             </div>
           </div>
         </div>

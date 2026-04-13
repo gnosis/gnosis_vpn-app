@@ -1,4 +1,10 @@
-import { createEffect, createSignal, onCleanup, Show } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  onCleanup,
+  Show,
+} from "solid-js";
 import { Portal } from "solid-js/web";
 import { type BalanceResponse, VPNService } from "@src/services/vpnService.ts";
 import { fromWeiToFixed } from "@src/utils/wei.ts";
@@ -42,15 +48,15 @@ export default function BalancePopup(props: Props) {
     nodeStatus: "Sufficient",
   });
 
-  const effectiveCredit = () => {
+  const effectiveCredit = createMemo(() => {
     const b = balance();
     if (!b) return null;
     return computeEffectiveCredit(b.channels_out, b.safe, b.ticket_value);
-  };
-  const creditEmpty = () => {
+  });
+  const creditEmpty = createMemo(() => {
     const ec = effectiveCredit();
     return ec !== null && isCreditEmpty(ec.bytes);
-  };
+  });
 
   const loadBalance = async () => {
     try {
