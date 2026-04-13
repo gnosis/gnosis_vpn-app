@@ -9,7 +9,6 @@
       url = "github:numtide/treefmt-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
   };
 
   outputs =
@@ -125,9 +124,6 @@
             # Inherit inputs from checks.
             checks = self.checks.${system};
 
-            # Additional dev-shell environment variables can be set directly
-            # MY_CUSTOM_DEVELOPMENT_VAR = "something else";
-
             # Extra inputs can be added here; cargo and rustc are provided by default.
             packages = [
               # nativeBuildInputs
@@ -153,6 +149,7 @@
               pkgs.pango
               pkgs.webkitgtk_4_1
               pkgs.libayatana-appindicator
+              pkgs.patchelf
             ]
             ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
               # macOS-specific packages
@@ -163,6 +160,8 @@
               pkgs.lib.optionals pkgs.stdenv.isLinux [
                 pkgs.libayatana-appindicator
                 pkgs.libproxy
+                pkgs.libGL
+                pkgs.mesa
               ]
             );
           };
