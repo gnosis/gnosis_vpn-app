@@ -140,21 +140,19 @@ jobs:
         run: |
           mkdir -p artifacts
           artifact_path="${{ github.workspace }}/artifacts"
-          binary_name="gnosisvpn-app-${{ inputs.architecture }}"
+          binary_name="gnosis_vpn-app-${{ inputs.architecture }}"
           if [[ "${{ inputs.architecture }}" =~ "-darwin" ]]; then
             echo "Filtering DMG artifact for architecture ${{ inputs.architecture }}"
             artifact_json='${{ steps.build-tauri-mac.outputs.artifactPaths }}'
             dmg_path=$(echo "$artifact_json" | jq -r '.[] | select(endswith(".dmg"))')
             mv "${dmg_path}" "${artifact_path}/${binary_name}.dmg"
             shasum -a 256 "${artifact_path}/${binary_name}.dmg" > "${artifact_path}/${binary_name}.dmg.sha256"
-            echo "gnosisvpn_app_artifact_path=${artifact_path}/${binary_name}.dmg" | tee -a $GITHUB_OUTPUT
           else
             echo "Filtering DEB artifact for architecture ${{ inputs.architecture }}"
             artifact_json='${{ steps.build-tauri-linux.outputs.artifactPaths }}'
             deb_path=$(echo "$artifact_json" | jq -r '.[] | select(endswith(".deb"))')
             mv "${deb_path}" "${artifact_path}/${binary_name}.deb"
             shasum -a 256 "${artifact_path}/${binary_name}.deb" > "${artifact_path}/${binary_name}.deb.sha256"
-            echo "gnosisvpn_app_artifact_path=${artifact_path}/${binary_name}.deb" | tee -a $GITHUB_OUTPUT
           fi
       - name: Setup GCP
         if: steps.version.outputs.publish_artifact_registry == 'true'
@@ -172,5 +170,5 @@ jobs:
       - name: Upload ${{ inputs.architecture }} binaries
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
-          name: gnosisvpn-app-${{ inputs.architecture }}-binaries
+          name: gnosis_vpn-app-${{ inputs.architecture }}-binaries
           path: ${{ github.workspace }}/artifacts
