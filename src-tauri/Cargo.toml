@@ -40,7 +40,7 @@ zstd = "0.13.3"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 ashpd = { version = "0.10", default-features = false }
-futures-util = { version = "0.3", default-features = false }
+futures-core = { version = "0.3", default-features = false }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 cocoa = "0.26"

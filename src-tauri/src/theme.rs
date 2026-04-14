@@ -7,7 +7,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 #[cfg(target_os = "linux")]
 use ashpd::desktop::settings::{ColorScheme, Settings as XdgSettings};
 #[cfg(target_os = "linux")]
-use futures_util::StreamExt;
+use futures_core::Stream;
 #[cfg(target_os = "linux")]
 use std::io::BufRead;
 #[cfg(target_os = "linux")]
@@ -113,7 +113,7 @@ pub fn spawn_linux_theme_monitor(app: AppHandle) {
                 return;
             }
         };
-        let mut stream = match settings.receive_color_scheme_changed().await {
+        let stream = match settings.receive_color_scheme_changed().await {
             Ok(s) => s,
             Err(e) => {
                 eprintln!(
@@ -123,7 +123,10 @@ pub fn spawn_linux_theme_monitor(app: AppHandle) {
                 return;
             }
         };
-        while let Some(color_scheme) = stream.next().await {
+        let mut stream = std::pin::pin!(stream);
+        while let Some(color_scheme) =
+            std::future::poll_fn(|cx| stream.as_mut().poll_next(cx)).await
+        {
             // NoPreference is treated as light: on GNOME/Debian, switching to light
             // emits NoPreference rather than PreferLight.
             let is_dark = matches!(color_scheme, ColorScheme::PreferDark);

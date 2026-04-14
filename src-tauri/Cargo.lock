@@ -3924,7 +3924,7 @@ dependencies = [
  "cocoa",
  "dark-light",
  "dispatch",
- "futures-util",
+ "futures-core",
  "gnosis_vpn-lib",
  "liblzma",
  "objc",
