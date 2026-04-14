@@ -3,19 +3,15 @@ on:
   workflow_dispatch:
     inputs:
       release_type:
-        description: "Next version type"
+        description: Version type after release
         required: true
         type: choice
         default: "patch"
         options:
+          - rc
           - patch
           - minor
           - major
-      trigger_snapshot:
-        description: "Trigger installer snapshot in gnosis_vpn"
-        required: false
-        type: boolean
-        default: false
 
 permissions:
   contents: write
@@ -39,7 +35,7 @@ jobs:
     name: Binary ${{ matrix.binary.architecture }}
     uses: ./.github/workflows/build-binaries.yaml
     with:
-      branch: main
+      source_branch: ${{ github.ref_name }}
       architecture: ${{ matrix.binary.architecture }}
       runner: ${{ matrix.binary.runner }}
       version_type: "release"
@@ -49,129 +45,38 @@ jobs:
     name: Close release
     needs:
       - build-binaries
-      # reenable when working
     runs-on: depot-ubuntu-22.04-4
+    permissions:
+      contents: write
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
+      - name: Release version
+        uses: hoprnet/hopr-workflows/actions/release-version@release-version-v3
         with:
-          token: ${{ secrets.BOT_TOKEN }}
-      - name: Setup GCP
-        id: gcp
-        uses: hoprnet/hopr-workflows/actions/setup-gcp@setup-gcp-v1
-        with:
-          google_credentials: ${{ secrets.GCP_SA_GITHUB_ACTIONS }}
-          install_sdk: "true"
-      - name: Install Nix
-        uses: cachix/install-nix-action@4e002c8ec80594ecd40e759629461e26c8abed15 # v31
-      - name: Setup environment variables
-        id: environment
-        run: |
-          release_version=$(grep -E '^version\s*=' src-tauri/Cargo.toml | awk -F\" '{print $2}')
-          echo "release_version=${release_version}" | tee -a $GITHUB_OUTPUT
-      - name: Download macOS binaries from Artifact Registry
-        uses: hoprnet/hopr-workflows/actions/download-artifact-registry@download-artifact-registry-v1
-        with:
-          destination: ./binaries
-          project: gnosisvpn-production
-          region: europe-west3
-          repository: rust-binaries
-          package: gnosis_vpn-app
-          version: ${{ steps.environment.outputs.release_version }}
-      - name: Create GitHub release
-        run: |
-          TAG="v${{ steps.environment.outputs.release_version }}"
-          echo "Checking if release ${TAG} already exists"
-          if gh release view "${TAG}" > /dev/null 2>&1; then
-            echo "Release ${TAG} already exists, deleting it"
-            gh release delete "${TAG}" --yes --cleanup-tag
-          fi
-          echo "Generating release notes"
-          gh release create "${TAG}" --generate-notes
-          echo "Uploading binaries to release ${TAG}"
-          for file in binaries/*; do
-            if [ -f "$file" ]; then
-              echo "Uploading $file"
-              gh release upload "${TAG}" "$file" --clobber
-            fi
-          done
-          echo "Release ${TAG} created and binaries uploaded"
-        env:
-          GH_TOKEN: ${{ github.token }}
-      - name: Bump Version
+          source_branch: ${{ github.ref_name }}
+          file: src-tauri/Cargo.toml
+          release_type: ${{ inputs.release_type }}
+          package_name: gnosis_vpn-app
+          cachix_cache_name: gnosis-vpn-app
+          cachix_auth_token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          zulip_api_key: ${{ secrets.ZULIP_API_KEY }}
+          zulip_email: ${{ secrets.ZULIP_EMAIL }}
+          zulip_channel: GnosisVPN
+          zulip_topic: Releases
+          gcp_service_account: ${{ secrets.GCP_SA_GITHUB_ACTIONS }}
+          gcp_project: gnosisvpn-production
+          github_token: ${{ secrets.BOT_TOKEN }}
+      - name: Bump Package.json
         id: bump
         shell: bash
         run: |
-          current_version=$(grep -E '^version\s*=' src-tauri/Cargo.toml | awk -F\" '{print $2}')
-          echo "current_version=$current_version" | tee -a $GITHUB_OUTPUT
-          # Extract parts without IFS or read
-          IFS='.' read -r major_version minor_version patch_version <<< "${current_version}"
-          echo "Current version $major_version $minor_version $patch_version"
-
-          # Bump the appropriate part
-          echo "Bumping ${{ inputs.release_type }} version"
-          case "${{ inputs.release_type }}" in
-              major)
-                  major_version=$((major_version+1))
-                  minor_version=0
-                  patch_version=0
-                  ;;
-              minor)
-                  minor_version=$((minor_version+1))
-                  patch_version=0
-                  ;;
-              patch)
-                  patch_version=$((patch_version+1))
-                  ;;
-              *)
-                  echo "Invalid release type"
-                  exit 1
-                  ;;
-          esac
-          echo "New version: ${major_version}.${minor_version}.${patch_version}"
-
-          bump_version="${major_version}.${minor_version}.${patch_version}"
-          echo "Updating version from $current_version to $bump_version"
-
-          # Update the version in src-tauri/Cargo.toml
-          # capture group 1: version = "
-          # capture group 2: the version number
-          # capture group 3: "
-          sed -i.bak -E "s/(^version = \")([0-9]+\.[0-9]+\.[0-9]+)(\")/\1${bump_version}\3/" src-tauri/Cargo.toml
-          rm src-tauri/Cargo.toml.bak
-          nix develop --command cargo metadata --format-version 1 --manifest-path src-tauri/Cargo.toml > /dev/null
+          bump_version=$(grep -E '^version\s*=' src-tauri/Cargo.toml | awk -F\" '{print $2}')
           jq --arg v "$bump_version" '.version = $v' package.json > package-tmp.json && mv package-tmp.json package.json
           echo "bump_version=${bump_version}" | tee -a $GITHUB_OUTPUT
       - uses: EndBug/add-and-commit@a94899bca583c204427a224a7af87c02f9b325d5 # v9
         with:
-          add: '["src-tauri/Cargo.*", "package.json"]'
+          add: '["package.json"]'
           new_branch: main
-          message: "Bump to version ${{ steps.bump.outputs.bump_version }}"
+          message: "Bump package.json to version ${{ steps.bump.outputs.bump_version }}"
           pathspec_error_handling: exitImmediately
           default_author: github_actions
           github_token: ${{ secrets.BOT_TOKEN }}
-      - name: Notify release
-        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5 # v1.0.2
-        with:
-          api-key: ${{ secrets.ZULIP_API_KEY }}
-          email: ${{ secrets.ZULIP_EMAIL }}
-          organization-url: "https://hopr.zulipchat.com"
-          type: "stream"
-          to: "GnosisVPN"
-          topic: "Releases"
-          content: |
-            I'm thrilled to inform the new `gnosis_vpn-app` version `v${{ steps.bump.outputs.current_version }}` has been released.
-            [Release Notes](${{ github.server_url }}/${{ github.repository }}/releases/tag/v${{ steps.bump.outputs.current_version }})
-      - name: Trigger installer snapshot
-        if: ${{ inputs.trigger_snapshot }}
-        uses: peter-evans/repository-dispatch@ff45666b9427631e3450c54a1bcbee4d9ff4d7c0 # v3.0.0
-        with:
-          token: ${{ secrets.GNOSIS_GITHUB_WORKFLOW_TOKEN }}
-          repository: gnosis/gnosis_vpn
-          event-type: new_snapshot_release
-          client-payload: |-
-            {
-              "draft_release": "false",
-              "client_version": "latest",
-              "app_version": "${{ steps.bump.outputs.current_version }}"
-            }
