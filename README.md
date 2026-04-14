@@ -71,7 +71,8 @@ deno add npm:<package-name> --dev     # dev dependency
 deno task tauri build
 ```
 
-You can add `--target` for `x86_64-apple-darwin`, `aarch64-apple-darwin`, `universal-apple-darwin`, `x86_64-linux`, `aarch64-linux`.
+You can add `--target` for `x86_64-apple-darwin`, `aarch64-apple-darwin`,
+`universal-apple-darwin`, `x86_64-linux`, `aarch64-linux`.
 
 ### Code Signing (macOS)
 
