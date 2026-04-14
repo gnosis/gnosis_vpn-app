@@ -65,18 +65,13 @@ deno add npm:<package-name>           # dependency
 deno add npm:<package-name> --dev     # dev dependency
 ```
 
-#### Building
+#### Build and run
 
 ```bash
-# Build for Apple Silicon only
-deno task tauri build --target aarch64-apple-darwin
-
-# Build for Intel only
-deno task tauri build --target x86_64-apple-darwin
-
-# Build a universal binary (Apple Silicon + Intel)
-deno task tauri build --target universal-apple-darwin
+deno task tauri build
 ```
+
+You can add `--target` for `x86_64-apple-darwin`, `aarch64-apple-darwin`, `universal-apple-darwin`, `x86_64-linux`, `aarch64-linux`.
 
 ### Code Signing (macOS)
 
