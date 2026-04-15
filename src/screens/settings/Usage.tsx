@@ -1,4 +1,4 @@
-import { createMemo, createSignal, Match, Switch } from "solid-js";
+import { createMemo, createSignal, For, Match, Switch } from "solid-js";
 import {
   type BalanceResponse,
   isPreparingSafeRunMode,
@@ -7,31 +7,21 @@ import {
   VPNService,
 } from "../../services/vpnService.ts";
 import { onCleanup, onMount } from "solid-js";
-import {
-  computeEffectiveCredit,
-  computeHoprPerGb,
-  formatCredit,
-  isCreditEmpty,
-} from "../../utils/credit.ts";
+import { computeEffectiveCredit, formatCredit, isCreditEmpty } from "../../utils/credit.ts";
 import FundsInfo from "../../components/FundsInfo.tsx";
 import { Show } from "solid-js";
-import {
-  calculateGlobalFundingStatus,
-  type GlobalFundingStatus,
-} from "../../utils/funding.ts";
+import { calculateGlobalFundingStatus, type GlobalFundingStatus } from "../../utils/funding.ts";
 import WarningIcon from "../../components/common/WarningIcon.tsx";
 import { useLogsStore } from "../../stores/logsStore.ts";
 import refreshIcon from "../../assets/icons/refresh.svg";
 import Button from "../../components/common/Button.tsx";
 import { useAppStore } from "../../stores/appStore.ts";
+import { getMaxHopCount } from "../../utils/exitHealth.ts";
 import AddFundsModal from "@src/components/AddFundsModal.tsx";
 
 const BALANCE_REFRESH_INTERVAL_MS = 5_000;
 
-function balancesEqual(
-  a: BalanceResponse | null,
-  b: BalanceResponse | null,
-): boolean {
+function balancesEqual(a: BalanceResponse | null, b: BalanceResponse | null): boolean {
   if (a === null && b === null) return true;
   if (a === null || b === null) return false;
   return (
@@ -49,27 +39,20 @@ function balancesEqual(
 export default function Usage() {
   const [balance, setBalance] = createSignal<BalanceResponse | null>(null);
   const [isBalanceLoading, setIsBalanceLoading] = createSignal(true);
-  const [fundingStatus, setFundingStatus] = createSignal<
-    GlobalFundingStatus | null
-  >(null);
+  const [fundingStatus, setFundingStatus] = createSignal<GlobalFundingStatus | null>(null);
   const [isAddFundsOpen, setIsAddFundsOpen] = createSignal(false);
   const [, logActions] = useLogsStore();
   const [appState] = useAppStore();
 
-  const preparingSafe =
-    () => (isPreparingSafeRunMode(appState.runMode)
-      ? appState.runMode.PreparingSafe
-      : null);
+  const maxHops = createMemo(() => getMaxHopCount(appState.availableDestinations));
+  const hopRange = createMemo(() => Array.from({ length: maxHops() }, (_, i) => i + 1));
+
+  const preparingSafe = () => (isPreparingSafeRunMode(appState.runMode) ? appState.runMode.PreparingSafe : null);
 
   const effectiveCredit = createMemo(() => {
     const b = balance();
     if (!b) return null;
     return computeEffectiveCredit(b.channels_out, b.safe, b.ticket_value);
-  });
-  const ratePerGb = createMemo(() => {
-    const b = balance();
-    if (!b) return null;
-    return computeHoprPerGb(b.ticket_value);
   });
 
   async function loadBalance() {
@@ -127,19 +110,13 @@ export default function Usage() {
     <div class="p-4 w-full flex flex-col gap-2 items-center">
       <Switch>
         <Match when={appState.vpnStatus === "ServiceUnavailable"}>
-          <div class="px-4 py-2 rounded-lg text-sm font-medium bg-red-100 text-red-800">
-            Service unavailable
-          </div>
+          <div class="px-4 py-2 rounded-lg text-sm font-medium bg-red-100 text-red-800">Service unavailable</div>
         </Match>
         <Match when={appState.vpnStatus === "DeployingSafe"}>
-          <div class="px-4 py-2 rounded-lg text-sm font-medium bg-amber-100 text-amber-800">
-            Preparing service
-          </div>
+          <div class="px-4 py-2 rounded-lg text-sm font-medium bg-amber-100 text-amber-800">Preparing service</div>
         </Match>
         <Match when={isWarmupRunMode(appState.runMode)}>
-          <div class="px-4 py-2 rounded-lg text-sm font-medium bg-amber-100 text-amber-800">
-            Syncing in progress
-          </div>
+          <div class="px-4 py-2 rounded-lg text-sm font-medium bg-amber-100 text-amber-800">Syncing in progress</div>
         </Match>
         <Match when={isRunningRunMode(appState.runMode) || preparingSafe()}>
           <Show when={fundingStatus()?.description}>
@@ -148,8 +125,8 @@ export default function Usage() {
                 fundingStatus()?.overall === "Empty"
                   ? "bg-red-100 text-red-800"
                   : fundingStatus()?.overall === "Low"
-                  ? "bg-amber-100 text-amber-800"
-                  : "bg-emerald-100 text-emerald-800"
+                    ? "bg-amber-100 text-amber-800"
+                    : "bg-emerald-100 text-emerald-800"
               }`}
             >
               <div class="flex items-center gap-2">
@@ -171,30 +148,30 @@ export default function Usage() {
                 subtitle="For traffic"
                 balance={preparingSafe()?.node_wxhopr ?? balance()?.safe}
                 ticker="wxHOPR"
-                address={preparingSafe()?.node_address ??
-                  balance()?.info.safe_address}
+                address={preparingSafe()?.node_address ?? balance()?.info.safe_address}
                 status={fundingStatus()?.safeStatus}
                 isLoading={isBalanceLoading()}
               />
-              <Show
-                when={effectiveCredit() !== null &&
-                  isRunningRunMode(appState.runMode)}
-              >
-                <div
-                  class={`text-xs mt-1 pr-1 text-right ${
-                    isCreditEmpty(effectiveCredit()!.bytes)
-                      ? "text-vpn-red"
-                      : "text-text-secondary"
-                  }`}
-                >
-                  {effectiveCredit()?.isEstimate ? "≈" : ""}
-                  {formatCredit(effectiveCredit()!.bytes)} of traffic
-                  <Show when={ratePerGb() !== null && ratePerGb() !== "—"}>
-                    <div class="text-[10px] opacity-60">
-                      1 GB ≈ {ratePerGb()} wxHOPR
-                    </div>
-                  </Show>
-                </div>
+              <Show when={effectiveCredit() !== null && isRunningRunMode(appState.runMode)}>
+                <For each={hopRange()}>
+                  {hops => {
+                    const b = balance();
+                    if (!b) return null;
+                    const credit = computeEffectiveCredit(b.channels_out, b.safe, b.ticket_value, hops);
+                    const hopLabel = hops === 1 ? "1 hop" : `${hops} hops`;
+                    return (
+                      <div class="text-xs mt-1 pr-1 text-right">
+                        <div class={isCreditEmpty(credit.bytes) ? "text-vpn-red" : "text-text-secondary"}>
+                          {credit.isEstimate ? "≈" : ""}
+                          {formatCredit(credit.bytes)}
+                          <Show when={maxHops() > 1}>
+                            <span class="opacity-40"> / {hopLabel}</span>
+                          </Show>
+                        </div>
+                      </div>
+                    );
+                  }}
+                </For>
               </Show>
             </div>
             <FundsInfo
@@ -202,8 +179,7 @@ export default function Usage() {
               subtitle="For channels"
               balance={preparingSafe()?.node_xdai ?? balance()?.node}
               ticker="xDAI"
-              address={preparingSafe()?.node_address ??
-                balance()?.info.node_address}
+              address={preparingSafe()?.node_address ?? balance()?.info.node_address}
               status={fundingStatus()?.nodeStatus}
               isLoading={isBalanceLoading()}
             />
@@ -214,20 +190,11 @@ export default function Usage() {
             <div class="flex flex-row items-center gap-2 max-w-md">
               <div class="text-xs text-text-secondary px-2">
                 <WarningIcon />
-                It may take up to 2 minutes until your funds have been
-                registered after transaction.
+                It may take up to 2 minutes until your funds have been registered after transaction.
               </div>
               <div class="w-8 h-8">
-                <button
-                  type="button"
-                  class="h-8 w-8 hover:cursor-pointer"
-                  onClick={handleRefresh}
-                >
-                  <img
-                    src={refreshIcon}
-                    alt="Refresh"
-                    class="h-8 w-8 dark:invert"
-                  />
+                <button type="button" class="h-8 w-8 hover:cursor-pointer" onClick={handleRefresh}>
+                  <img src={refreshIcon} alt="Refresh" class="h-8 w-8 dark:invert" />
                 </button>
               </div>
             </div>
@@ -238,10 +205,8 @@ export default function Usage() {
           <AddFundsModal
             open={isAddFundsOpen()}
             onClose={() => setIsAddFundsOpen(false)}
-            nodeAddress={preparingSafe()?.node_address ??
-              balance()?.info.node_address ?? ""}
-            safeAddress={preparingSafe()?.node_address ??
-              balance()?.info.safe_address ?? ""}
+            nodeAddress={preparingSafe()?.node_address ?? balance()?.info.node_address ?? ""}
+            safeAddress={preparingSafe()?.node_address ?? balance()?.info.safe_address ?? ""}
           />
         </Match>
       </Switch>
