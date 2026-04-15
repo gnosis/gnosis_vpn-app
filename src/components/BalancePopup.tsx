@@ -2,11 +2,14 @@ import {
   createEffect,
   createMemo,
   createSignal,
+  For,
   onCleanup,
   Show,
 } from "solid-js";
 import { Portal } from "solid-js/web";
 import { type BalanceResponse, VPNService } from "@src/services/vpnService.ts";
+import { useAppStore } from "@src/stores/appStore.ts";
+import { getMaxHopCount } from "@src/utils/exitHealth.ts";
 import { fromWeiToFixed } from "@src/utils/wei.ts";
 import {
   calculateGlobalFundingStatus,
@@ -57,6 +60,14 @@ export default function BalancePopup(props: Props) {
     const ec = effectiveCredit();
     return ec !== null && isCreditEmpty(ec.bytes);
   });
+
+  const [appState] = useAppStore();
+  const maxHops = createMemo(() =>
+    getMaxHopCount(appState.availableDestinations)
+  );
+  const hopRange = createMemo(() =>
+    Array.from({ length: maxHops() }, (_, i) => i + 1)
+  );
 
   const loadBalance = async () => {
     try {
@@ -160,12 +171,39 @@ export default function BalancePopup(props: Props) {
                         ? fromWeiToFixed(b().safe)
                         : fromWeiToFixed(b().channels_out)} wxHOPR
                     </div>
-                    <div class="text-[10px] text-accent-text/50">
-                      {effectiveCredit()?.isEstimate ? "≈" : ""}
-                      {effectiveCredit() !== null
-                        ? formatCredit(effectiveCredit()!.bytes)
-                        : "—"}
-                    </div>
+                    <Show
+                      when={maxHops() === 1}
+                      fallback={
+                        <For each={hopRange()}>
+                          {(hops) => {
+                            const credit = computeEffectiveCredit(
+                              b().channels_out,
+                              b().safe,
+                              b().ticket_value,
+                              hops,
+                            );
+                            return (
+                              <div class="flex justify-between text-[10px] text-accent-text/50">
+                                <span>
+                                  {credit.isEstimate ? "≈" : ""}
+                                  {formatCredit(credit.bytes)}
+                                </span>
+                                <span class="text-accent-text/40 ml-2">
+                                  {hops === 1 ? "1 hop" : `${hops} hops`}
+                                </span>
+                              </div>
+                            );
+                          }}
+                        </For>
+                      }
+                    >
+                      <div class="text-[10px] text-accent-text/50">
+                        {effectiveCredit()?.isEstimate ? "≈" : ""}
+                        {effectiveCredit() !== null
+                          ? formatCredit(effectiveCredit()!.bytes)
+                          : "—"}
+                      </div>
+                    </Show>
                   </>
                 )}
               </Show>
