@@ -53,8 +53,15 @@ function applyTheme(theme: string) {
         // Each block is isolated so a failure in one does not skip the others.
         try {
           const mq = globalThis.matchMedia("(prefers-color-scheme: dark)");
-          // Fallback: only apply if backend call above failed.
-          if (!initialApplied) applyTheme(mq.matches ? "dark" : "light");
+          // Apply if backend failed, or if it returned a stale value that disagrees with the
+          // current OS state — matchMedia is always current, backend can be stale.
+          const mqTheme = mq.matches ? "dark" : "light";
+          if (
+            !initialApplied ||
+            document.documentElement.classList.contains("dark") !== mq.matches
+          ) {
+            applyTheme(mqTheme);
+          }
           const handleMediaChange = (e: MediaQueryListEvent) =>
             applyTheme(e.matches ? "dark" : "light");
           mq.addEventListener("change", handleMediaChange);
