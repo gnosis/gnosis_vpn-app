@@ -6,6 +6,11 @@ const BYTES_PER_TB = BYTES_PER_GB * 1024n;
 /** 10^18 wei per whole token (standard ERC-20 decimals). */
 const WEI_PER_TOKEN = 10n ** 18n;
 
+/** Insert comma thousands separators into a non-negative integer string. */
+function withThousandsSep(intStr: string): string {
+  return intStr.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
 /**
  * Format a byte amount in `unitBytes` with half-up rounding (matches Number.toFixed
  * for positive values) without converting through `number`.
@@ -18,13 +23,13 @@ function formatCreditUnit(
 ): string {
   if (decimals === 0) {
     const rounded = (creditBytes + unitBytes / 2n) / unitBytes;
-    return `${rounded.toString()} ${suffix}`;
+    return `${withThousandsSep(rounded.toString())} ${suffix}`;
   }
   const scale = 10n ** BigInt(decimals);
   const scaled = (creditBytes * scale + unitBytes / 2n) / unitBytes;
   const whole = scaled / scale;
   const fraction = (scaled % scale).toString().padStart(decimals, "0");
-  return `${whole.toString()}.${fraction} ${suffix}`;
+  return `${withThousandsSep(whole.toString())}.${fraction} ${suffix}`;
 }
 
 /** Half-up: format wei as whole-token decimal with a fixed number of fractional digits. */
@@ -84,13 +89,15 @@ function formatWeiPerGbBelowPointZeroOneToPrecision3(valueWei: bigint): string {
 export function computeCreditBytes(
   channelsOut: string,
   ticketValue: string,
+  hops = 1,
 ): bigint {
   try {
     const channelsOutWei = BigInt(channelsOut.trim() || "0");
     const ticketValueWei = BigInt(ticketValue.trim() || "0");
     if (ticketValueWei === 0n || channelsOutWei === 0n) return 0n;
+    const h = BigInt(Math.max(1, hops));
     const messageCount = channelsOutWei / ticketValueWei;
-    return messageCount * PAYLOAD_BYTES_PER_MESSAGE;
+    return messageCount * PAYLOAD_BYTES_PER_MESSAGE / h;
   } catch {
     return 0n;
   }
@@ -115,12 +122,13 @@ export function formatCredit(creditBytes: bigint): string {
  * Exact rate is rational wei; we round to nearest integer wei (half-up) before formatting.
  * Returns a human-readable string like "110.00".
  */
-export function computeHoprPerGb(ticketValue: string): string {
+export function computeHoprPerGb(ticketValue: string, hops = 1): string {
   try {
     const ticketValueWei = BigInt(ticketValue.trim() || "0");
     if (ticketValueWei === 0n) return "—";
+    const h = BigInt(Math.max(1, hops));
     const perGbWei =
-      (BYTES_PER_GB * ticketValueWei + PAYLOAD_BYTES_PER_MESSAGE / 2n) /
+      (BYTES_PER_GB * ticketValueWei * h + PAYLOAD_BYTES_PER_MESSAGE / 2n) /
       PAYLOAD_BYTES_PER_MESSAGE;
     const weiThreshold = WEI_PER_TOKEN / 100n;
     if (perGbWei < weiThreshold) {
@@ -147,12 +155,13 @@ export function computeEffectiveCredit(
   channelsOut: string,
   safe: string,
   ticketValue: string,
+  hops = 1,
 ): { bytes: bigint; isEstimate: boolean } {
-  const channelBytes = computeCreditBytes(channelsOut, ticketValue);
+  const channelBytes = computeCreditBytes(channelsOut, ticketValue, hops);
   if (channelBytes >= BYTES_PER_MB) {
     return { bytes: channelBytes, isEstimate: false };
   }
-  const safeBytes = computeCreditBytes(safe, ticketValue);
+  const safeBytes = computeCreditBytes(safe, ticketValue, hops);
   if (channelBytes > 0n && safeBytes === 0n) {
     return { bytes: channelBytes, isEstimate: false };
   }

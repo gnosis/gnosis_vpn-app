@@ -116,3 +116,41 @@ describe("computeHoprPerGb", () => {
     expect(hoprPerGb.startsWith("0.")).toBe(true);
   });
 });
+
+describe("hop-aware credit", () => {
+  const ticketValueWei = "1000000000000000000"; // 1 token per message
+  // 10 messages → 6500 bytes at 1 hop
+  const channelsOutWei = "10000000000000000000";
+
+  it("computeCreditBytes halves bytes for 2 hops", () => {
+    const one = computeCreditBytes(channelsOutWei, ticketValueWei, 1);
+    const two = computeCreditBytes(channelsOutWei, ticketValueWei, 2);
+    expect(two).toBe(one / 2n);
+  });
+
+  it("computeCreditBytes divides by n for n hops", () => {
+    const one = computeCreditBytes(channelsOutWei, ticketValueWei, 1);
+    for (const hops of [3, 4, 5]) {
+      expect(computeCreditBytes(channelsOutWei, ticketValueWei, hops)).toBe(
+        one / BigInt(hops),
+      );
+    }
+  });
+
+  it("computeHoprPerGb doubles for 2 hops", () => {
+    const rate1 = computeHoprPerGb(ticketValueWei, 1);
+    const rate2 = computeHoprPerGb(ticketValueWei, 2);
+    expect(parseFloat(rate2)).toBeCloseTo(parseFloat(rate1) * 2, 1);
+  });
+
+  it("computeEffectiveCredit uses 1-hop bytes when hops=1 (default)", () => {
+    const ec1 = computeEffectiveCredit("0", channelsOutWei, ticketValueWei);
+    const ec1explicit = computeEffectiveCredit(
+      "0",
+      channelsOutWei,
+      ticketValueWei,
+      1,
+    );
+    expect(ec1.bytes).toBe(ec1explicit.bytes);
+  });
+});
