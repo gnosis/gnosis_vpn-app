@@ -95,9 +95,9 @@ export function computeCreditBytes(
     const channelsOutWei = BigInt(channelsOut.trim() || "0");
     const ticketValueWei = BigInt(ticketValue.trim() || "0");
     if (ticketValueWei === 0n || channelsOutWei === 0n) return 0n;
-    const h = BigInt(Math.max(1, hops));
-    const messageCount = channelsOutWei / ticketValueWei;
-    return messageCount * PAYLOAD_BYTES_PER_MESSAGE / h;
+    const h = BigInt(Math.max(1, Math.floor(hops)));
+    const maxMessages = channelsOutWei / (ticketValueWei * h);
+    return maxMessages * PAYLOAD_BYTES_PER_MESSAGE;
   } catch {
     return 0n;
   }

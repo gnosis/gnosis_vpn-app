@@ -128,13 +128,14 @@ describe("hop-aware credit", () => {
     expect(two).toBe(one / 2n);
   });
 
-  it("computeCreditBytes divides by n for n hops", () => {
-    const one = computeCreditBytes(channelsOutWei, ticketValueWei, 1);
-    for (const hops of [3, 4, 5]) {
-      expect(computeCreditBytes(channelsOutWei, ticketValueWei, hops)).toBe(
-        one / BigInt(hops),
-      );
-    }
+  it("computeCreditBytes floors to whole sendable messages per n hops", () => {
+    // 10 messages of budget; each hop multiplies ticket cost
+    // hops=3 → floor(10/3)=3 messages → 3*650=1950 bytes
+    expect(computeCreditBytes(channelsOutWei, ticketValueWei, 3)).toBe(1950n);
+    // hops=4 → floor(10/4)=2 messages → 2*650=1300 bytes
+    expect(computeCreditBytes(channelsOutWei, ticketValueWei, 4)).toBe(1300n);
+    // hops=5 → floor(10/5)=2 messages → 2*650=1300 bytes
+    expect(computeCreditBytes(channelsOutWei, ticketValueWei, 5)).toBe(1300n);
   });
 
   it("computeHoprPerGb doubles for 2 hops", () => {
