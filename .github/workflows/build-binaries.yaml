@@ -5,41 +5,62 @@ name: Create binaries
 on:
   workflow_call:
     inputs:
-      branch:
-        required: true
-        type: string
-      architecture:
+      source_branch:
         required: true
         type: string
       version_type:
         required: true
         type: string
+      architecture:
+        required: true
+        type: string
       runner:
         required: true
         type: string
+      enabled:
+        required: false
+        type: boolean
+        default: true
 jobs:
   binary:
     permissions:
       contents: read
       pull-requests: read
-    if: >-
-      github.event_name != 'pull_request' || github.event.pull_request.merged == true || contains(github.event.pull_request.labels.*.name, format('binary:{0}', inputs.architecture))
+    if: inputs.enabled
     runs-on: ${{ inputs.runner }}
     timeout-minutes: 90
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@95d9a5deda9de15063e7595e9719c11c38c90ae2 # v2.13.2
+        with:
+          disable-sudo: false
+          egress-policy: audit
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.source_branch }}
+      - name: Setup Nix
+        uses: hoprnet/hopr-workflows/actions/setup-nix@setup-nix-v1
+        with:
+          cachix_cache_name: gnosis-vpn-app
+          cachix_auth_token: "${{ secrets.CACHIX_AUTH_TOKEN }}"
+      - name: Updates build version
+        id: version
+        uses: hoprnet/hopr-workflows/actions/set-build-version@set-build-version-v2
+        with:
+          file: src-tauri/Cargo.toml
+          version_type: ${{ inputs.version_type }}
+          architecture: ${{ inputs.architecture }}
       - name: Set environment variables
         id: vars
         run: |
-          declare branch architecture architecture_apple_darwin rust_toolchain_target tauri_args
-            echo "The workflow is triggered by other pipeline"
-            # It can be triggered by the build, merge or release pipelines
-            branch=${{ inputs.branch }}
+          declare architecture rust_toolchain_target tauri_args
             architecture=${{ inputs.architecture }}
-          if [[ "$architecture" =~ "-darwin" ]]; then
-            architecture_apple_darwin="${architecture/-darwin/}-apple-darwin"
-            rust_toolchain_target="${architecture_apple_darwin}"
-            tauri_args="--target ${architecture_apple_darwin}"
-          elif [[ "$architecture" == "aarch64-linux" ]]; then
+          if [[ "${architecture}" =~ "-darwin" ]]; then
+            rust_toolchain_target="${architecture/-darwin/}-apple-darwin"
+            tauri_args="--target ${rust_toolchain_target}"
+          elif [[ "${architecture}" == "aarch64-linux" ]]; then
             rust_toolchain_target="aarch64-unknown-linux-gnu"
             tauri_args="--bundles deb"
           else
@@ -48,30 +69,12 @@ jobs:
           fi
 
           echo "Invocation parameters:"
-          echo "branch=${branch}" | tee -a $GITHUB_OUTPUT
-          echo "architecture=${architecture}" | tee -a $GITHUB_OUTPUT
           echo "rust_toolchain_target=${rust_toolchain_target}" | tee -a $GITHUB_OUTPUT
           echo "tauri_args=${tauri_args}" | tee -a $GITHUB_OUTPUT
-      - name: Checkout repository
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ steps.vars.outputs.branch }}
-      - name: Get PR labels
-        id: pr-labels
-        uses: joerick/pr-labels-action@0543b277721e852d821c6738d449f2f4dea03d5f # v1.0.9
       - name: Install Rust toolchain (stable) + targets
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ steps.vars.outputs.rust_toolchain_target }}
-      - name: Install Nix
-        uses: cachix/install-nix-action@4e002c8ec80594ecd40e759629461e26c8abed15 # v31
-      - name: Use Nix Cache
-        uses: cachix/cachix-action@1eb2ef646ac0255473d23a5907ad7b04ce94065c # v17
-        with:
-          name: gnosis-vpn-app
-          authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
-        env:
-          USER: runner
       - name: Rust cache
         uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2
         with:
@@ -82,42 +85,14 @@ jobs:
         with:
           deno-version: v2.x
       - name: install ubuntu dependencies
-        if: ${{ endsWith(steps.vars.outputs.architecture, '-linux') }}
+        if: ${{ endsWith(inputs.architecture, '-linux') }}
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
       - name: Install frontend dependencies
         run: deno install
-      - name: Get version
-        id: version
-        run: |
-          base_version=$(grep -E '^version\s*=' src-tauri/Cargo.toml | awk -F\" '{print $2}')
-          if [[ "${{ inputs.version_type }}" == "commit" ]]; then
-            bump_version=${base_version}+commit.$(git rev-parse --short HEAD)
-            echo "binary_version=${bump_version}" | tee -a $GITHUB_OUTPUT
-            if [ "${GITHUB_PR_LABEL_PUBLISH_COMMITS:-0}" == '1' ]; then
-              echo "publish_type=artifact-registry" | tee -a $GITHUB_OUTPUT
-            else
-              echo "publish_type=workflow" | tee -a $GITHUB_OUTPUT
-            fi
-          elif [[ "${{ inputs.version_type }}" == "pr" ]]; then
-            bump_version=${base_version}+pr.${{ github.event.pull_request.number }}
-            echo "binary_version=${bump_version}" | tee -a $GITHUB_OUTPUT
-            echo "publish_type=artifact-registry" | tee -a $GITHUB_OUTPUT
-          elif [[ "${{ inputs.version_type }}" == "release" ]]; then
-            bump_version=${base_version}
-            echo "binary_version=${bump_version}" | tee -a $GITHUB_OUTPUT
-            echo "publish_type=github" | tee -a $GITHUB_OUTPUT
-          else
-            echo "Invoked with unknown version_type (workflow dispatch), defaulting to commit-based versioning"
-            echo "binary_version=${base_version}-commit.$(git rev-parse --short HEAD)" | tee -a $GITHUB_OUTPUT
-            echo "publish_type=workflow" | tee -a $GITHUB_OUTPUT
-          fi
-          sed -i.bak -E "s/(^version = \")([0-9]+\.[0-9]+\.[0-9]+)(\")/\1${bump_version}\3/" src-tauri/Cargo.toml
-          rm src-tauri/Cargo.toml.bak
-
       - name: Import Apple Developer Certificate
-        if: ${{ endsWith(steps.vars.outputs.architecture, '-darwin') }}
+        if: ${{ endsWith(inputs.architecture, '-darwin') }}
         id: certificate
         shell: bash
         env:
@@ -137,9 +112,8 @@ jobs:
           signing_identity=$(security find-identity -v -p codesigning build.keychain | awk -F'"' '{print $2}')
           echo "Apple signing identity: $signing_identity"
           echo "signing_identity=${signing_identity}" | tee -a $GITHUB_OUTPUT
-
       - name: Build tauri mac artifact
-        if: ${{ endsWith(steps.vars.outputs.architecture, '-darwin') }}
+        if: ${{ endsWith(inputs.architecture, '-darwin') }}
         id: build-tauri-mac
         uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
         env:
@@ -153,7 +127,7 @@ jobs:
           tauriScript: "deno task tauri"
           args: ${{ steps.vars.outputs.tauri_args }}
       - name: Build tauri linux artifact
-        if: ${{ endsWith(steps.vars.outputs.architecture, '-linux') }}
+        if: ${{ endsWith(inputs.architecture, '-linux') }}
         id: build-tauri-linux
         uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
         env:
@@ -161,39 +135,42 @@ jobs:
         with:
           tauriScript: "deno task tauri"
           args: ${{ steps.vars.outputs.tauri_args }}
-      - name: Parsing artifact path
+      - name: Post-process artifacts
         id: path
         run: |
-          if [[ "${{ steps.vars.outputs.architecture }}" =~ "-darwin" ]]; then
-            echo "Filtering DMG artifact for architecture ${{ steps.vars.outputs.architecture }}"
+          mkdir -p artifacts
+          artifact_path="${{ github.workspace }}/artifacts"
+          binary_name="gnosisvpn-app-${{ inputs.architecture }}"
+          if [[ "${{ inputs.architecture }}" =~ "-darwin" ]]; then
+            echo "Filtering DMG artifact for architecture ${{ inputs.architecture }}"
             artifact_json='${{ steps.build-tauri-mac.outputs.artifactPaths }}'
             dmg_path=$(echo "$artifact_json" | jq -r '.[] | select(endswith(".dmg"))')
-            mv "${dmg_path}" "gnosis_vpn-app-${{ steps.vars.outputs.architecture }}.dmg"
-            echo "gnosisvpn_app_artifact_path=gnosis_vpn-app-${{ steps.vars.outputs.architecture }}.dmg" | tee -a $GITHUB_OUTPUT
+            mv "${dmg_path}" "${artifact_path}/${binary_name}.dmg"
+            shasum -a 256 "${artifact_path}/${binary_name}.dmg" > "${artifact_path}/${binary_name}.dmg.sha256"
+            echo "gnosisvpn_app_artifact_path=${artifact_path}/${binary_name}.dmg" | tee -a $GITHUB_OUTPUT
           else
-            echo "Filtering DEB artifact for architecture ${{ steps.vars.outputs.architecture }}"
+            echo "Filtering DEB artifact for architecture ${{ inputs.architecture }}"
             artifact_json='${{ steps.build-tauri-linux.outputs.artifactPaths }}'
             deb_path=$(echo "$artifact_json" | jq -r '.[] | select(endswith(".deb"))')
-            mv "${deb_path}" "gnosis_vpn-app-${{ steps.vars.outputs.architecture }}.deb"
-            echo "gnosisvpn_app_artifact_path=gnosis_vpn-app-${{ steps.vars.outputs.architecture }}.deb" | tee -a $GITHUB_OUTPUT
+            mv "${deb_path}" "${artifact_path}/${binary_name}.deb"
+            shasum -a 256 "${artifact_path}/${binary_name}.deb" > "${artifact_path}/${binary_name}.deb.sha256"
+            echo "gnosisvpn_app_artifact_path=${artifact_path}/${binary_name}.deb" | tee -a $GITHUB_OUTPUT
           fi
       - name: Setup GCP
-        if: steps.version.outputs.publish_type == 'artifact-registry' || steps.version.outputs.publish_type == 'github'
-        uses: hoprnet/hopr-workflows/actions/setup-gcp@setup-gcp-v1
+        if: steps.version.outputs.publish_artifact_registry == 'true'
+        uses: hoprnet/hopr-workflows/actions/setup-gcp@setup-gcp-v3
         with:
           google_credentials: ${{ secrets.GCP_SA_GITHUB_ACTIONS }}
           install_sdk: "true"
-      - name: Publish Artifact registry
-        if: steps.version.outputs.publish_type == 'artifact-registry' || steps.version.outputs.publish_type == 'github'
-        run: |
-          gcloud artifacts generic upload --location=europe-west3 --repository="rust-binaries" --version=${{ steps.version.outputs.binary_version }} --package=gnosis_vpn-app --source=${{ steps.path.outputs.gnosisvpn_app_artifact_path }}
-          if [[ "${{ inputs.version_type }}" == "release" ]]; then
-             shasum -a 256 ${{ steps.path.outputs.gnosisvpn_app_artifact_path }} > ${{ steps.path.outputs.gnosisvpn_app_artifact_path }}.sha256
-             gcloud artifacts generic upload --location=europe-west3 --repository="rust-binaries" --version=${{ steps.version.outputs.binary_version }} --package=gnosis_vpn-app --source=${{ steps.path.outputs.gnosisvpn_app_artifact_path }}.sha256
-          fi
-      - name: Upload ${{ steps.vars.outputs.architecture }} binaries
-        if: steps.version.outputs.publish_type == 'workflow'
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+      - name: Publish ${{ inputs.architecture }} into Google Artifact registry
+        if: steps.version.outputs.publish_artifact_registry == 'true'
+        uses: hoprnet/hopr-workflows/actions/upload-artifact-registry@upload-artifact-registry-v2
         with:
-          name: ${{ steps.path.outputs.gnosisvpn_app_artifact_path }}
-          path: ${{ steps.path.outputs.gnosisvpn_app_artifact_path }}
+          source: ${{ github.workspace }}/artifacts
+          package: gnosis_vpn-app
+          version: ${{ steps.version.outputs.build_version }}
+      - name: Upload ${{ inputs.architecture }} binaries
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: gnosisvpn-app-${{ inputs.architecture }}-binaries
+          path: ${{ github.workspace }}/artifacts
