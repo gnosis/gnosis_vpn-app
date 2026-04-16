@@ -153,6 +153,7 @@
               pkgs.pango
               pkgs.webkitgtk_4_1
               pkgs.libayatana-appindicator
+              pkgs.patchelf
             ]
             ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
               # macOS-specific packages
@@ -163,6 +164,8 @@
               pkgs.lib.optionals pkgs.stdenv.isLinux [
                 pkgs.libayatana-appindicator
                 pkgs.libproxy
+                pkgs.libGL
+                pkgs.mesa
               ]
             );
           };
