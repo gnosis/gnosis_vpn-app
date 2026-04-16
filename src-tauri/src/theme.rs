@@ -19,6 +19,8 @@ use std::process::{Command, Stdio};
 /// tokio context while still waiting for the real D-Bus response.
 #[cfg(target_os = "linux")]
 fn linux_theme_from_portal() -> Option<tauri::Theme> {
+    // find a balance between delaying and not hanging
+    const PORTAL_TIMEOUT_MS: u64 = 222;
     let (tx, rx) = std::sync::mpsc::channel();
     tauri::async_runtime::spawn(async move {
         let result: Option<tauri::Theme> = async {
@@ -34,7 +36,7 @@ fn linux_theme_from_portal() -> Option<tauri::Theme> {
         let _ = tx.send(result);
     });
     // Fall back immediately if the portal is slow or unavailable — caller falls through to dark_light::detect().
-    rx.recv_timeout(std::time::Duration::from_millis(500))
+    rx.recv_timeout(std::time::Duration::from_millis(PORTAL_TIMEOUT_MS))
         .ok()
         .flatten()
 }
