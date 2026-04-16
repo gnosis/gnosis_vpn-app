@@ -31,37 +31,87 @@ function applyTheme(theme: string) {
 
   render(() => {
     onMount(() => {
-      let unlisten: (() => void) | undefined;
+      let disposed = false;
+      let cleanup: (() => void) | undefined;
 
-      const initTheme = async () => {
-        // App windows dark/light: use backend initial theme (all OS), then follow OS changes
-        const initial = await invoke<string>("get_initial_theme");
-        applyTheme(initial);
+      const initTheme = async (): Promise<() => void> => {
+        let mqCleanup: () => void = () => {};
+        let unlistenTauri: () => void = () => {};
+        let unlistenLinux: () => void = () => {};
 
-        // macOS: Tauri emits theme changes; Linux: backend emits "os-theme-changed" via gsettings monitor
-        const unlistenTauri = await curWindow.onThemeChanged(
-          ({ payload: theme }) => {
-            applyTheme(theme);
-          },
-        );
-        const unlistenLinux = await listen<string>(
-          "os-theme-changed",
-          ({ payload: theme }) => {
-            applyTheme(theme);
-          },
-        );
+        // index.html applies initial colors via a CSS media query.
+        // Apply the backend theme to set the Tailwind .dark class consistently across all OS.
+        let initialApplied = false;
+        try {
+          const initial = await invoke<string>("get_initial_theme");
+          applyTheme(initial);
+          initialApplied = true;
+        } catch (e) {
+          console.error("[theme] initial theme fetch failed", e);
+        }
 
-        unlisten = () => {
+        // Each block is isolated so a failure in one does not skip the others.
+        try {
+          const mq = globalThis.matchMedia("(prefers-color-scheme: dark)");
+          // Apply if backend failed, or if it returned a stale value that disagrees with the
+          // current OS state — matchMedia is always current, backend can be stale.
+          const mqTheme = mq.matches ? "dark" : "light";
+          if (
+            !initialApplied ||
+            document.documentElement.classList.contains("dark") !== mq.matches
+          ) {
+            applyTheme(mqTheme);
+          }
+          const handleMediaChange = (e: MediaQueryListEvent) =>
+            applyTheme(e.matches ? "dark" : "light");
+          mq.addEventListener("change", handleMediaChange);
+          mqCleanup = () => mq.removeEventListener("change", handleMediaChange);
+        } catch (e) {
+          console.error("[theme] matchMedia setup failed", e);
+        }
+
+        // macOS/Windows: keep frontend in sync when Tauri reports a theme change.
+        // Registering on Linux is a harmless no-op: onThemeChanged never fires there.
+        try {
+          unlistenTauri = await curWindow.onThemeChanged(
+            ({ payload: theme }) => {
+              applyTheme(theme);
+            },
+          );
+        } catch (e) {
+          console.error("[theme] onThemeChanged setup failed", e);
+        }
+
+        // Linux: backend emits "os-theme-changed" via XDG Desktop Portal / gsettings fallback.
+        // Registering on macOS/Windows is a harmless no-op: this event is never emitted there.
+        try {
+          unlistenLinux = await listen<string>(
+            "os-theme-changed",
+            ({ payload: theme }) => {
+              applyTheme(theme);
+            },
+          );
+        } catch (e) {
+          console.error("[theme] os-theme-changed listener setup failed", e);
+        }
+
+        return () => {
+          mqCleanup();
           unlistenTauri();
           unlistenLinux();
         };
       };
-      initTheme();
+
+      // initTheme never rejects: each of the 4 async operations has its own try/catch,
+      // so no rejection propagates. The .catch() is intentionally absent.
+      initTheme().then((c) => {
+        if (disposed) c();
+        else cleanup = c;
+      });
 
       onCleanup(() => {
-        if (unlisten) {
-          unlisten();
-        }
+        disposed = true;
+        cleanup?.();
       });
     });
 
