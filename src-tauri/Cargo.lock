@@ -3918,11 +3918,13 @@ dependencies = [
 
 [[package]]
 name = "gnosis_vpn-app"
-version = "0.24.1"
+version = "0.24.2"
 dependencies = [
+ "ashpd",
  "cocoa",
  "dark-light",
  "dispatch",
+ "futures-core",
  "gnosis_vpn-lib",
  "liblzma",
  "objc",
