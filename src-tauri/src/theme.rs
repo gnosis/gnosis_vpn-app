@@ -1,64 +1,57 @@
-//! Theme detection and change handling for app windows and tray icons.
-//! Uses [crate::icons] for tray icon updates when theme changes.
+//! Theme detection and change handling for app windows.
+//! Provides startup theme detection and OS theme change monitoring on Linux via the XDG Desktop Portal.
 
 #[cfg_attr(not(target_os = "linux"), allow(unused_imports))]
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 #[cfg(target_os = "linux")]
-use std::io;
+use ashpd::desktop::settings::{ColorScheme, Settings as XdgSettings};
+#[cfg(target_os = "linux")]
+use futures_core::Stream;
 #[cfg(target_os = "linux")]
 use std::io::BufRead;
 #[cfg(target_os = "linux")]
 use std::process::{Command, Stdio};
 
-/// Run a command and return its stdout as a string. Returns `None` on failure.
+/// On Linux, query the XDG Desktop Portal for the current color scheme.
+/// NoPreference is treated as light
+/// Spawns on Tauri's tokio runtime and blocks on the channel — avoids blocking the main thread's
+/// tokio context while still waiting for the real D-Bus response.
 #[cfg(target_os = "linux")]
-fn run_stdout(mut cmd: Command) -> Option<String> {
-    let out = cmd.output().ok()?;
-    if out.status.success() {
-        String::from_utf8(out.stdout)
-            .ok()
-            .map(|s| s.trim().to_string())
-    } else {
-        None
-    }
+fn linux_theme_from_portal() -> Option<tauri::Theme> {
+    // find a balance between delaying and not hanging
+    const PORTAL_TIMEOUT_MS: u64 = 222;
+    let (tx, rx) = std::sync::mpsc::channel();
+    tauri::async_runtime::spawn(async move {
+        let result: Option<tauri::Theme> = async {
+            let settings = XdgSettings::new().await.ok()?;
+            let scheme = settings.color_scheme().await.ok()?;
+            match scheme {
+                ColorScheme::PreferDark => Some(tauri::Theme::Dark),
+                // NoPreference treated as light: GNOME uses it to signal "user chose light"
+                ColorScheme::PreferLight | ColorScheme::NoPreference => Some(tauri::Theme::Light),
+            }
+        }
+        .await;
+        let _ = tx.send(result);
+    });
+    // Fall back immediately if the portal is slow or unavailable — caller falls through to dark_light::detect().
+    rx.recv_timeout(std::time::Duration::from_millis(PORTAL_TIMEOUT_MS))
+        .ok()
+        .flatten()
 }
 
-/// On Linux, try gsettings (GNOME) so the tray uses the correct icon on first render. Tries color-scheme first, then gtk-theme.
+/// Fallback theme monitor for environments without a working XDG Desktop Portal.
+/// Watches gsettings color-scheme and gtk-theme keys and emits "os-theme-changed".
 #[cfg(target_os = "linux")]
-fn linux_theme_from_gsettings() -> Option<tauri::Theme> {
-    // 1) GNOME 42+: org.gnome.desktop.interface color-scheme → 'prefer-dark' / 'prefer-light'
-    let mut cmd = Command::new("gsettings");
-    cmd.args(["get", "org.gnome.desktop.interface", "color-scheme"]);
-    let out = run_stdout(cmd)?;
-    if out.contains("prefer-dark") {
-        return Some(tauri::Theme::Dark);
-    }
-    if out.contains("prefer-light") {
-        return Some(tauri::Theme::Light);
-    }
-
-    // 2) Fallback: gtk-theme (e.g. 'Adwaita-dark' vs 'Adwaita') on older GNOME or when color-scheme is unset
-    let mut cmd = Command::new("gsettings");
-    cmd.args(["get", "org.gnome.desktop.interface", "gtk-theme"]);
-    let out = run_stdout(cmd)?.to_lowercase();
-    if out.contains("-dark") || out.contains("dark") {
-        return Some(tauri::Theme::Dark);
-    }
-    Some(tauri::Theme::Light)
-}
-
-/// On Linux, Tauri's onThemeChanged is not emitted when the OS theme changes. Spawn threads that
-/// monitor gsettings and emit "os-theme-changed" so the frontend and tray icon update.
-#[cfg(target_os = "linux")]
-pub fn spawn_linux_theme_monitor(app: AppHandle) {
+fn spawn_gsettings_monitor(app: AppHandle) {
     fn run_monitor(
         app: AppHandle,
         key: &'static str,
         to_theme: impl Fn(&str) -> Option<&'static str> + Send + 'static,
     ) {
         std::thread::spawn(move || {
-            let child = match Command::new("gsettings")
+            let mut child = match Command::new("gsettings")
                 .args(["monitor", "org.gnome.desktop.interface", key])
                 .stdout(Stdio::piped())
                 .stderr(Stdio::null())
@@ -67,13 +60,15 @@ pub fn spawn_linux_theme_monitor(app: AppHandle) {
                 Ok(c) => c,
                 Err(_) => return,
             };
-            let Some(stdout) = child.stdout else { return };
-            let reader = io::BufReader::new(stdout);
+            let Some(stdout) = child.stdout.take() else {
+                return;
+            };
+            let reader = std::io::BufReader::new(stdout);
             for line_result in reader.lines() {
                 let line = match line_result {
                     Ok(l) => l,
                     Err(e) => {
-                        eprintln!("Error reading stream: {}", e);
+                        eprintln!("[theme] gsettings monitor read error: {e}");
                         break;
                     }
                 };
@@ -104,13 +99,63 @@ pub fn spawn_linux_theme_monitor(app: AppHandle) {
     });
 }
 
-/// OS theme at startup: used for app windows (all OS) and tray icons (non-macOS only).
+/// On Linux, Tauri's onThemeChanged is not emitted when the OS theme changes.
+/// Tries the XDG Desktop Portal first; falls back to gsettings monitor if unavailable.
+/// Emits "os-theme-changed" to all windows on change.
+#[cfg(target_os = "linux")]
+pub fn spawn_linux_theme_monitor(app: AppHandle) {
+    tauri::async_runtime::spawn(async move {
+        let settings = match XdgSettings::new().await {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!(
+                    "[theme] XDG portal unavailable ({e}), falling back to gsettings monitor"
+                );
+                spawn_gsettings_monitor(app);
+                return;
+            }
+        };
+        let stream = match settings.receive_color_scheme_changed().await {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!(
+                    "[theme] XDG portal subscription failed ({e}), falling back to gsettings monitor"
+                );
+                spawn_gsettings_monitor(app);
+                return;
+            }
+        };
+        let mut stream = std::pin::pin!(stream);
+        while let Some(color_scheme) =
+            std::future::poll_fn(|cx| stream.as_mut().poll_next(cx)).await
+        {
+            // NoPreference is treated as light: on GNOME/Debian, switching to light
+            // emits NoPreference rather than PreferLight.
+            let is_dark = matches!(color_scheme, ColorScheme::PreferDark);
+            let theme_str = if is_dark { "dark" } else { "light" };
+            let _ = app.emit("os-theme-changed", theme_str);
+            let theme = if is_dark {
+                tauri::Theme::Dark
+            } else {
+                tauri::Theme::Light
+            };
+            for window in app.webview_windows().into_values() {
+                let _ = window.set_theme(Some(theme));
+            }
+        }
+        // Stream ended (portal restart/disconnect) — fall back so monitoring continues.
+        eprintln!("[theme] XDG portal stream ended, falling back to gsettings monitor");
+        spawn_gsettings_monitor(app);
+    });
+}
+
+/// OS theme at startup: seeds [`InitialTheme`] state so the frontend can apply dark/light on all OS.
 /// Defaults to dark theme.
 pub fn system_theme() -> tauri::Theme {
     #[cfg(target_os = "linux")]
     {
-        // Prefer gsettings on Linux so tray icon is correct on first render (dark_light often returns Default at startup).
-        if let Some(t) = linux_theme_from_gsettings() {
+        // Query XDG portal directly
+        if let Some(t) = linux_theme_from_portal() {
             return t;
         }
     }
