@@ -40,7 +40,7 @@ function toMs(serTime: SerializedTime): number {
 }
 
 function formatMs(serTime: SerializedTime): string {
-  return `${toMs(serTime).toFixed(0)}ms`;
+  return `${toMs(serTime).toFixed(0)} ms`;
 }
 
 /** Extract exit health data from a route health state, if available. */
@@ -58,7 +58,7 @@ export function formatLatency(rhv: RouteHealthView): string | null {
   const exit = getExitData(rhv.state);
   if (!exit) return null;
   const rttMs = toMs(exit.ping_rtt);
-  return `${(rttMs / 2).toFixed(0)}ms`;
+  return `${(rttMs / 2).toFixed(0)} ms`;
 }
 
 /** Format slots as e.g. "3/10". Returns null when unavailable. */
