@@ -12,7 +12,6 @@ import {
   formatExitHealthStatus,
   formatLatency,
   formatLoadAvg,
-  formatRouteHealthLabel,
   formatRouting,
   formatSecondsAgo,
   formatSlots,
@@ -84,8 +83,6 @@ export default function ExitHealthDetail(
   const connectionLabel = () =>
     getConnectionLabel(props.destinationState.connection_state);
   const isConnected = () => connectionLabel() === "Connected";
-  const healthLabel = () =>
-    isConnected() ? "Connected" : formatRouteHealthLabel(routeHealth());
 
   const latencyLabel = () => latency();
 
@@ -117,15 +114,6 @@ export default function ExitHealthDetail(
     }
   };
 
-  const healthColorClass = () => {
-    if (isConnected()) return "text-vpn-light-green";
-    return color() === "red"
-      ? "text-vpn-red"
-      : color() === "green"
-      ? "text-vpn-light-green"
-      : undefined;
-  };
-
   return (
     <Show when={hasContent() ? destId() : false} keyed>
       {(_id: string) => (
@@ -149,14 +137,6 @@ export default function ExitHealthDetail(
                   value={status()}
                   class={`${statusColorClass[color()]} bg-bg-primary`}
                 />
-                <Show when={healthLabel()}>
-                  <Tag
-                    value={healthLabel()}
-                    class={`${
-                      healthColorClass() ?? "text-text-primary"
-                    } bg-bg-primary`}
-                  />
-                </Show>
               </div>
             </div>
 

@@ -39,9 +39,6 @@ function toMs(serTime: SerializedTime): number {
   return serTime.secs * 1000 + serTime.nanos / 1_000_000;
 }
 
-function formatMs(serTime: SerializedTime): string {
-  return `${toMs(serTime).toFixed(0)} ms`;
-}
 
 /** Extract exit health data from a route health state, if available. */
 function getExitData(state: RouteHealthState): ExitHealthData | null {
@@ -120,33 +117,13 @@ export function formatLastChecked(rhv: RouteHealthView): string | null {
   return formatSecondsAgo(diffSec);
 }
 
-/** Simple status label for the route health state. */
+/** Single status label for the route health state. */
 export function formatExitHealthStatus(rhv: RouteHealthView): string {
   const { state } = rhv;
   if (state === "Routable") return "Checking…";
   if (state === "NeedsFunding") return "Needs funding";
   if (typeof state === "object") {
-    if ("NeedsPeering" in state) return "Needs peering";
-    if ("Unrecoverable" in state) return "Unreachable";
-    if ("ReadyToConnect" in state) {
-      return state.ReadyToConnect.exit.health.slots.available <= 0 ? "Full" : "Healthy";
-    }
-    if ("Connecting" in state) {
-      return state.Connecting.exit.health.slots.available <= 0 ? "Full" : "Connected";
-    }
-  }
-  return "Checking…";
-}
-
-/** Format route health connectivity status label. */
-export function formatRouteHealthLabel(rhv: RouteHealthView): string {
-  const { state } = rhv;
-  if (state === "Routable") return "Route available";
-  if (state === "NeedsFunding") return "Setting up channel";
-  if (typeof state === "object") {
-    if ("NeedsPeering" in state) {
-      return state.NeedsPeering.funded ? "Looking for peer" : "Looking for peer";
-    }
+    if ("NeedsPeering" in state) return "Looking for peer";
     if ("Unrecoverable" in state) {
       const { reason } = state.Unrecoverable;
       if (reason === "NotAllowed") return "Connection not allowed";
@@ -154,11 +131,18 @@ export function formatRouteHealthLabel(rhv: RouteHealthView): string {
       if (typeof reason === "object" && "IncompatibleApiVersion" in reason) {
         return "Incompatible server version";
       }
+      return "Unreachable";
     }
-    if ("ReadyToConnect" in state) return "Ready to connect";
-    if ("Connecting" in state) return "Connected";
+    if ("ReadyToConnect" in state) {
+      return state.ReadyToConnect.exit.health.slots.available <= 0
+        ? "Full"
+        : "Ready to connect";
+    }
+    if ("Connecting" in state) {
+      return state.Connecting.exit.health.slots.available <= 0 ? "Full" : "Connected";
+    }
   }
-  return "";
+  return "Checking…";
 }
 
 /** Whether the route is ready to connect (exit health confirmed). */
