@@ -60,8 +60,16 @@ export default function ExitHealthDetail(
   const routing = (): RoutingOptions =>
     props.destinationState.destination.routing;
 
+  const connectionLabel = () =>
+    getConnectionLabel(props.destinationState.connection_state);
+  const isConnected = () => connectionLabel() === "Connected";
+
   const color = () => getExitHealthColor(routeHealth());
-  const status = () => formatExitHealthStatus(routeHealth());
+  const status = () => {
+    // connection_state is authoritative for whether the tunnel is up
+    if (isConnected()) return "Connected";
+    return formatExitHealthStatus(routeHealth());
+  };
   const latency = () => formatLatency(routeHealth());
   const slots = () => formatSlots(routeHealth());
   const loadAvg = () => formatLoadAvg(routeHealth());
@@ -79,10 +87,6 @@ export default function ExitHealthDetail(
   };
 
   const [appState, appActions] = useAppStore();
-
-  const connectionLabel = () =>
-    getConnectionLabel(props.destinationState.connection_state);
-  const isConnected = () => connectionLabel() === "Connected";
 
   const latencyLabel = () => latency();
 

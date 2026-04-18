@@ -139,7 +139,7 @@ export function formatExitHealthStatus(rhv: RouteHealthView): string {
         : "Ready to connect";
     }
     if ("Connecting" in state) {
-      return state.Connecting.exit.health.slots.available <= 0 ? "Full" : "Connected";
+      return state.Connecting.exit.health.slots.available <= 0 ? "Full" : "Connecting";
     }
   }
   return "Checking…";
