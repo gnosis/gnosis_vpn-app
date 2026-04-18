@@ -1,5 +1,5 @@
 import { Show } from "solid-js";
-import type { DestinationHealth } from "@src/services/vpnService.ts";
+import type { RouteHealthView } from "@src/services/vpnService.ts";
 import {
   formatLatency,
   formatSlots,
@@ -22,7 +22,7 @@ const dotColorClass: Record<HealthColor, string> = {
  * Designed to sit inline inside dropdown option rows.
  */
 export default function ExitHealthBadge(props: {
-  exitHealth: DestinationHealth;
+  exitHealth: RouteHealthView;
   /** When true, show only the dot/checkmark (for very compact contexts). */
   compact?: boolean;
   /** When true, hide the dot (show only latency/slots text). */
