@@ -50,12 +50,17 @@ function getExitData(state: RouteHealthState): ExitHealthData | null {
 }
 
 /** Format one-way latency as e.g. "42ms". Returns null when unavailable.
- * ping_rtt is a round-trip time, so we halve it to get one-way latency. */
+ * Prefers tunnel_ping_rtt once the tunnel is up; falls back to exit ping_rtt.
+ * Both are round-trip times, so we halve to get one-way latency. */
 export function formatLatency(rhv: RouteHealthView): string | null {
-  const exit = getExitData(rhv.state);
+  const { state } = rhv;
+  if (typeof state === "object" && "Connecting" in state) {
+    const rtt = state.Connecting.tunnel_ping_rtt ?? state.Connecting.exit.ping_rtt;
+    return `${(toMs(rtt) / 2).toFixed(0)} ms`;
+  }
+  const exit = getExitData(state);
   if (!exit) return null;
-  const rttMs = toMs(exit.ping_rtt);
-  return `${(rttMs / 2).toFixed(0)} ms`;
+  return `${(toMs(exit.ping_rtt) / 2).toFixed(0)} ms`;
 }
 
 /** Format slots as e.g. "3/10". Returns null when unavailable. */
