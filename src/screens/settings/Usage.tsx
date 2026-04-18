@@ -192,7 +192,7 @@ export default function Usage() {
                       b.ticket_value,
                       hops,
                     );
-                    const hopLabel = hops === 1 ? "1 hop" : `${hops} hops`;
+                    const hopLabel = hops === 1 ? "1-hop" : `${hops}-hops`;
                     return (
                       <div class="text-xs mt-1 pr-1 text-right">
                         <div

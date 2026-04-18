@@ -185,7 +185,7 @@ export default function BalancePopup(props: Props) {
                             return (
                               <div class="flex justify-between text-[10px] text-accent-text/50">
                                 <span class="text-accent-text/40">
-                                  {hops === 1 ? "1 hop" : `${hops} hops`}
+                                  {hops === 1 ? "1-hop" : `${hops}-hops`}
                                 </span>
                                 <span class="font-mono">
                                   {credit.isEstimate ? "≈" : ""}
