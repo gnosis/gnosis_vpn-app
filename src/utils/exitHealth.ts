@@ -52,7 +52,7 @@ function getExitData(state: RouteHealthState): ExitHealthData | null {
   return null;
 }
 
-/** Format one-way latency as e.g. "42ms". Returns null when unavailable.
+/** Format one-way latency as e.g. "42 ms". Returns null when unavailable.
  * Prefers tunnel_ping_rtt once the tunnel is up; falls back to exit ping_rtt.
  * Both are round-trip times, so we halve to get one-way latency. */
 export function formatLatency(rhv: RouteHealthView): string | null {
