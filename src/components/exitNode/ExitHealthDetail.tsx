@@ -96,6 +96,7 @@ export default function ExitHealthDetail(
   const hasContent = () => {
     const state = routeHealth().state;
     return state !== "NeedsFunding" &&
+      state !== "Routable" &&
       !(typeof state === "object" && "NeedsPeering" in state) &&
       !(typeof state === "object" && "Unrecoverable" in state);
   };
