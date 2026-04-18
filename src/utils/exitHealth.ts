@@ -52,11 +52,13 @@ function getExitData(state: RouteHealthState): ExitHealthData | null {
   return null;
 }
 
-/** Format round-trip time as e.g. "42ms". Returns null when unavailable. */
+/** Format one-way latency as e.g. "42ms". Returns null when unavailable.
+ * ping_rtt is a round-trip time, so we halve it to get one-way latency. */
 export function formatLatency(rhv: RouteHealthView): string | null {
   const exit = getExitData(rhv.state);
   if (!exit) return null;
-  return formatMs(exit.ping_rtt);
+  const rttMs = toMs(exit.ping_rtt);
+  return `${(rttMs / 2).toFixed(0)}ms`;
 }
 
 /** Format slots as e.g. "3/10". Returns null when unavailable. */
