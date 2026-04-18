@@ -6,10 +6,7 @@ import {
   destinationsForTargetSelection,
   selectTargetId,
 } from "../../utils/destinations.ts";
-import type {
-  Destination,
-  DestinationHealth,
-} from "../../services/vpnService.ts";
+import type { Destination } from "../../services/vpnService.ts";
 import { createMemo, Show } from "solid-js";
 import { useSettingsStore } from "../../stores/settingsStore.ts";
 import { formatLatency, getHopCount } from "../../utils/exitHealth.ts";
@@ -69,8 +66,8 @@ export default function ExitNode() {
         renderOption={(opt: ExitOption) => {
           if ("id" in opt) {
             const ds = appState.destinations[opt.id];
-            const exitHealth: DestinationHealth | undefined = ds?.exit_health;
-            const latency = exitHealth ? formatLatency(exitHealth) : null;
+            const routeHealth = ds?.route_health;
+            const latency = routeHealth ? formatLatency(routeHealth) : null;
             const hops = getHopCount(opt.routing);
             return (
               <span
@@ -98,8 +95,8 @@ export default function ExitNode() {
           const resolvedDs = resolvedDest
             ? appState.destinations[resolvedDest.id]
             : null;
-          const resolvedLatency = resolvedDs?.exit_health
-            ? formatLatency(resolvedDs.exit_health)
+          const resolvedLatency = resolvedDs?.route_health
+            ? formatLatency(resolvedDs.route_health)
             : null;
           return (
             <span class="flex flex-col gap-0.5 w-full">
@@ -167,8 +164,8 @@ export default function ExitNode() {
           const resolvedDest = resolvedAutoDestination();
           if (resolvedDest) {
             const ds = appState.destinations[resolvedDest.id];
-            const exitHealth: DestinationHealth | undefined = ds?.exit_health;
-            const latency = exitHealth ? formatLatency(exitHealth) : null;
+            const routeHealth = ds?.route_health;
+            const latency = routeHealth ? formatLatency(routeHealth) : null;
             return (
               <span class="flex flex-col">
                 {autoTooltipLabel}

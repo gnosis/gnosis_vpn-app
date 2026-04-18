@@ -1,15 +1,10 @@
 import { createSignal, type JSX, onCleanup, Show } from "solid-js";
 import type {
-  DestinationHealth,
   DestinationState,
-  Health,
+  RouteHealthView,
   RoutingOptions,
 } from "@src/services/vpnService.ts";
-import {
-  formatHealth,
-  isReadyToConnect,
-  VPNService,
-} from "@src/services/vpnService.ts";
+import { VPNService } from "@src/services/vpnService.ts";
 import { getConnectionLabel } from "@src/utils/status.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { destinationLabel } from "@src/utils/destinations.ts";
@@ -17,13 +12,14 @@ import {
   formatExitHealthStatus,
   formatLatency,
   formatLoadAvg,
+  formatRouteHealthLabel,
   formatRouting,
   formatSecondsAgo,
   formatSlots,
-  formatTotalTime,
   getExitHealthColor,
   getHopCount,
   getLastCheckedEpoch,
+  isReadyToConnect,
   type HealthColor,
 } from "@src/utils/exitHealth.ts";
 import HopsIcon from "./HopsIcon.tsx";
@@ -60,19 +56,16 @@ function Tag(
 export default function ExitHealthDetail(
   props: { destinationState: DestinationState },
 ) {
-  const exitHealth = (): DestinationHealth =>
-    props.destinationState.exit_health;
+  const routeHealth = (): RouteHealthView =>
+    props.destinationState.route_health;
   const routing = (): RoutingOptions =>
     props.destinationState.destination.routing;
-  const connectivityHealth = (): Health =>
-    props.destinationState.connectivity.health;
 
-  const color = () => getExitHealthColor(exitHealth());
-  const status = () => formatExitHealthStatus(exitHealth());
-  const latency = () => formatLatency(exitHealth());
-  const totalTime = () => formatTotalTime(exitHealth());
-  const slots = () => formatSlots(exitHealth());
-  const loadAvg = () => formatLoadAvg(exitHealth());
+  const color = () => getExitHealthColor(routeHealth());
+  const status = () => formatExitHealthStatus(routeHealth());
+  const latency = () => formatLatency(routeHealth());
+  const slots = () => formatSlots(routeHealth());
+  const loadAvg = () => formatLoadAvg(routeHealth());
   const route = () => formatRouting(routing());
 
   const [nowSec, setNowSec] = createSignal(Date.now() / 1000);
@@ -80,7 +73,7 @@ export default function ExitHealthDetail(
   onCleanup(() => clearInterval(tick));
 
   const lastChecked = (): string | null => {
-    const epoch = getLastCheckedEpoch(exitHealth());
+    const epoch = getLastCheckedEpoch(routeHealth());
     if (epoch === null) return null;
     const diff = Math.max(0, Math.round(nowSec() - epoch));
     return formatSecondsAgo(diff);
@@ -91,19 +84,16 @@ export default function ExitHealthDetail(
   const connectionLabel = () =>
     getConnectionLabel(props.destinationState.connection_state);
   const isConnected = () => connectionLabel() === "Connected";
-  const healthLabel =
-    () => (isConnected() ? "Connected" : formatHealth(connectivityHealth()));
+  const healthLabel = () =>
+    isConnected() ? "Connected" : formatRouteHealthLabel(routeHealth());
 
-  const latencyLabel = () => {
-    const tt = totalTime();
-    const rtt = latency();
-    if (rtt && tt) return `${rtt} (total: ${tt})`;
-    return rtt;
-  };
+  const latencyLabel = () => latency();
 
   const hasContent = () => {
-    const eh = exitHealth();
-    return eh !== "Init";
+    const state = routeHealth().state;
+    return state !== "NeedsFunding" &&
+      !(typeof state === "object" && "NeedsPeering" in state) &&
+      !(typeof state === "object" && "Unrecoverable" in state);
   };
 
   const destId = () => props.destinationState.destination.id;
@@ -115,7 +105,7 @@ export default function ExitHealthDetail(
       appState.vpnStatus === "Connecting") &&
     !isConnected() &&
     !isConnecting() &&
-    isReadyToConnect(connectivityHealth());
+    isReadyToConnect(routeHealth());
 
   const handleSwitch = async () => {
     const nodeId = props.destinationState.destination.id;
