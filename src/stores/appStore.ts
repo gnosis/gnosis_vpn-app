@@ -533,7 +533,10 @@ function findDelayReason(destinations: DestinationState[]): string | null {
   let missingChannels = 0;
   for (const ds of destinations) {
     const state = ds.route_health.state;
-    if (typeof state === "object" && ("ReadyToConnect" in state || "Connecting" in state)) {
+    if (
+      typeof state === "object" &&
+      ("ReadyToConnect" in state || "Connecting" in state)
+    ) {
       return null;
     }
     if (state === "NeedsFunding") {
@@ -544,10 +547,14 @@ function findDelayReason(destinations: DestinationState[]): string | null {
     }
   }
   if (missingPeers > 0 && missingPeers >= missingChannels) {
-    return `Looking for ${missingPeers} more peer${missingPeers > 1 ? "s" : ""}`;
+    return `Looking for ${missingPeers} more peer${
+      missingPeers > 1 ? "s" : ""
+    }`;
   }
   if (missingChannels > 0) {
-    return `Setting up ${missingChannels} more channel${missingChannels > 1 ? "s" : ""}`;
+    return `Setting up ${missingChannels} more channel${
+      missingChannels > 1 ? "s" : ""
+    }`;
   }
   return null;
 }

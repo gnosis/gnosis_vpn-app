@@ -25,10 +25,14 @@ export function getExitHealthColor(rhv: RouteHealthView): HealthColor {
     if ("Unrecoverable" in state) return "red";
     if ("NeedsPeering" in state) return "yellow";
     if ("ReadyToConnect" in state) {
-      return state.ReadyToConnect.exit.health.slots.available <= 0 ? "red" : "green";
+      return state.ReadyToConnect.exit.health.slots.available <= 0
+        ? "red"
+        : "green";
     }
     if ("Connecting" in state) {
-      return state.Connecting.exit.health.slots.available <= 0 ? "red" : "green";
+      return state.Connecting.exit.health.slots.available <= 0
+        ? "red"
+        : "green";
     }
   }
   return "gray";
@@ -38,7 +42,6 @@ export function getExitHealthColor(rhv: RouteHealthView): HealthColor {
 function toMs(serTime: SerializedTime): number {
   return serTime.secs * 1000 + serTime.nanos / 1_000_000;
 }
-
 
 /** Extract exit health data from a route health state, if available. */
 function getExitData(state: RouteHealthState): ExitHealthData | null {
@@ -55,7 +58,8 @@ function getExitData(state: RouteHealthState): ExitHealthData | null {
 export function formatLatency(rhv: RouteHealthView): string | null {
   const { state } = rhv;
   if (typeof state === "object" && "Connecting" in state) {
-    const rtt = state.Connecting.tunnel_ping_rtt ?? state.Connecting.exit.ping_rtt;
+    const rtt = state.Connecting.tunnel_ping_rtt ??
+      state.Connecting.exit.ping_rtt;
     return `${(toMs(rtt) / 2).toFixed(0)} ms`;
   }
   const exit = getExitData(state);
@@ -132,7 +136,9 @@ export function formatExitHealthStatus(rhv: RouteHealthView): string {
     if ("Unrecoverable" in state) {
       const { reason } = state.Unrecoverable;
       if (reason === "NotAllowed") return "Connection not allowed";
-      if (reason === "InvalidId" || reason === "InvalidPath") return "Connection impossible";
+      if (reason === "InvalidId" || reason === "InvalidPath") {
+        return "Connection impossible";
+      }
       if (typeof reason === "object" && "IncompatibleApiVersion" in reason) {
         return "Incompatible server version";
       }
@@ -144,7 +150,9 @@ export function formatExitHealthStatus(rhv: RouteHealthView): string {
         : "Ready to connect";
     }
     if ("Connecting" in state) {
-      return state.Connecting.exit.health.slots.available <= 0 ? "Full" : "Connecting";
+      return state.Connecting.exit.health.slots.available <= 0
+        ? "Full"
+        : "Connecting";
     }
   }
   return "Checking…";

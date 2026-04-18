@@ -18,8 +18,8 @@ import {
   getExitHealthColor,
   getHopCount,
   getLastCheckedEpoch,
-  isReadyToConnect,
   type HealthColor,
+  isReadyToConnect,
 } from "@src/utils/exitHealth.ts";
 import HopsIcon from "./HopsIcon.tsx";
 import Button from "../common/Button.tsx";
