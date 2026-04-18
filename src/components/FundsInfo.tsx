@@ -20,7 +20,7 @@ export default function FundsInfo(props: Props) {
           <span class="h-6 w-1/3 rounded bg-sky-600/15 animate-pulse" />
         }
       >
-        <span class="font-semibold w-1/3 text-right">
+        <span class="font-semibold font-mono w-1/3 text-right">
           {fromWeiToFixed(props.balance ?? "0")}
         </span>
       </Show>

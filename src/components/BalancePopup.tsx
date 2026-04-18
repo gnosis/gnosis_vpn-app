@@ -163,7 +163,7 @@ export default function BalancePopup(props: Props) {
                 {(b) => (
                   <>
                     <div
-                      class={`text-sm font-bold ${
+                      class={`text-sm font-bold font-mono text-right ${
                         creditEmpty() ? "text-red-500" : ""
                       }`}
                     >
@@ -184,12 +184,12 @@ export default function BalancePopup(props: Props) {
                             );
                             return (
                               <div class="flex justify-between text-[10px] text-accent-text/50">
-                                <span>
+                                <span class="text-accent-text/40">
+                                  {hops === 1 ? "1 hop" : `${hops} hops`}
+                                </span>
+                                <span class="font-mono">
                                   {credit.isEstimate ? "≈" : ""}
                                   {formatCredit(credit.bytes)}
-                                </span>
-                                <span class="text-accent-text/40 ml-2">
-                                  {hops === 1 ? "1 hop" : `${hops} hops`}
                                 </span>
                               </div>
                             );
@@ -197,7 +197,7 @@ export default function BalancePopup(props: Props) {
                         </For>
                       }
                     >
-                      <div class="text-[10px] text-accent-text/50">
+                      <div class="text-[10px] text-accent-text/50 font-mono text-right">
                         {effectiveCredit()?.isEstimate ? "≈" : ""}
                         {effectiveCredit() !== null
                           ? formatCredit(effectiveCredit()!.bytes)
@@ -223,7 +223,7 @@ export default function BalancePopup(props: Props) {
                 }
               >
                 {(b) => (
-                  <div class="flex items-baseline gap-1 text-sm font-bold">
+                  <div class="flex items-baseline gap-1 text-sm font-bold font-mono justify-end">
                     {fromWeiToFixed(b().node)} xDAI
                   </div>
                 )}
