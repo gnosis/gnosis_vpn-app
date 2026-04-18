@@ -108,14 +108,14 @@ export function getLastCheckedEpoch(rhv: RouteHealthView): number | null {
   return checkingSince?.secs_since_epoch ?? null;
 }
 
-/** Format a seconds-ago diff as a human-readable relative time, e.g. "17s ago". */
+/** Format a seconds-ago diff as a human-readable relative time, e.g. "17 s ago". */
 export function formatSecondsAgo(diffSec: number): string {
   if (diffSec < 5) return "just now";
-  if (diffSec < 60) return `${diffSec}s ago`;
+  if (diffSec < 60) return `${diffSec} s ago`;
   const minutes = Math.floor(diffSec / 60);
   if (minutes < 60) return `${minutes} min ago`;
   const hours = Math.floor(minutes / 60);
-  return `${hours}h ago`;
+  return `${hours} h ago`;
 }
 
 /** Format "last checked" as a human-readable relative time, e.g. "2 min ago". */
