@@ -190,6 +190,7 @@ export const PreparingSafeSchema = z.object({
   node_wxhopr: z.string(),
   funding_tool: z.string().nullable(),
   error: z.string().nullable(),
+  ticket_value: z.string().nullable(),
 });
 export type PreparingSafe = z.infer<typeof PreparingSafeSchema>;
 
@@ -264,6 +265,7 @@ export const BalanceResponseSchema = z.object({
   channels_out: z.string(),
   info: InfoSchema,
   issues: z.array(FundingIssueSchema),
+  ticket_value: z.string(),
 });
 export type BalanceResponse = z.infer<typeof BalanceResponseSchema>;
 

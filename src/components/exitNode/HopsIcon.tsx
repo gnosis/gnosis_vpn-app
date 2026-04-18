@@ -5,7 +5,7 @@ export default function HopsIcon(
   return (
     <span
       class="inline-flex items-center gap-0.5"
-      title={`${props.count} hop${props.count !== 1 ? "s" : ""}`}
+      title={`${props.count}-hop${props.count !== 1 ? "s" : ""}`}
     >
       <svg
         width="16"

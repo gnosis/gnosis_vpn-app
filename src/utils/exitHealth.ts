@@ -129,10 +129,16 @@ export function getHopCount(routing: RoutingOptions): number {
   return routing.IntermediatePath.length;
 }
 
-/** Format routing as e.g. "1 hop" */
+/** Format routing as e.g. "1-hop" */
 export function formatRouting(routing: RoutingOptions): string {
   const n = getHopCount(routing);
-  return n === 1 ? "1 hop" : `${n} hops`;
+  return n === 1 ? "1-hop" : `${n}-hops`;
+}
+
+/** Largest hop count across all available destinations, minimum 1. */
+export function getMaxHopCount(destinations: Destination[]): number {
+  if (destinations.length === 0) return 1;
+  return Math.max(1, ...destinations.map((d) => getHopCount(d.routing)));
 }
 
 /** Sort destinations by health score descending (best first). */

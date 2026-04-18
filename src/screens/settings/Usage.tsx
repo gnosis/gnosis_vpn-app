@@ -1,4 +1,4 @@
-import { createSignal, Match, Switch } from "solid-js";
+import { createMemo, createSignal, For, Match, Switch } from "solid-js";
 import {
   type BalanceResponse,
   isPreparingSafeRunMode,
@@ -7,6 +7,11 @@ import {
   VPNService,
 } from "../../services/vpnService.ts";
 import { onCleanup, onMount } from "solid-js";
+import {
+  computeEffectiveCredit,
+  formatCredit,
+  isCreditEmpty,
+} from "../../utils/credit.ts";
 import FundsInfo from "../../components/FundsInfo.tsx";
 import { Show } from "solid-js";
 import {
@@ -18,6 +23,7 @@ import { useLogsStore } from "../../stores/logsStore.ts";
 import refreshIcon from "../../assets/icons/refresh.svg";
 import Button from "../../components/common/Button.tsx";
 import { useAppStore } from "../../stores/appStore.ts";
+import { getMaxHopCount } from "../../utils/exitHealth.ts";
 import AddFundsModal from "@src/components/AddFundsModal.tsx";
 
 const BALANCE_REFRESH_INTERVAL_MS = 5_000;
@@ -32,6 +38,7 @@ function balancesEqual(
     a.node === b.node &&
     a.safe === b.safe &&
     a.channels_out === b.channels_out &&
+    a.ticket_value === b.ticket_value &&
     a.info.node_address === b.info.node_address &&
     a.info.node_peer_id === b.info.node_peer_id &&
     a.info.safe_address === b.info.safe_address &&
@@ -49,10 +56,23 @@ export default function Usage() {
   const [, logActions] = useLogsStore();
   const [appState] = useAppStore();
 
+  const maxHops = createMemo(() =>
+    getMaxHopCount(appState.availableDestinations)
+  );
+  const hopRange = createMemo(() =>
+    Array.from({ length: maxHops() }, (_, i) => i + 1)
+  );
+
   const preparingSafe =
     () => (isPreparingSafeRunMode(appState.runMode)
       ? appState.runMode.PreparingSafe
       : null);
+
+  const effectiveCredit = createMemo(() => {
+    const b = balance();
+    if (!b) return null;
+    return computeEffectiveCredit(b.channels_out, b.safe, b.ticket_value);
+  });
 
   async function loadBalance() {
     try {
@@ -146,17 +166,52 @@ export default function Usage() {
             </div>
           </Show>
 
-          <div class="flex flex-col gap-2 py-4 my-4 w-64">
-            <FundsInfo
-              name="Safe"
-              subtitle="For traffic"
-              balance={preparingSafe()?.node_wxhopr ?? balance()?.safe}
-              ticker="wxHOPR"
-              address={preparingSafe()?.node_address ??
-                balance()?.info.safe_address}
-              status={fundingStatus()?.safeStatus}
-              isLoading={isBalanceLoading()}
-            />
+          <div class="flex flex-col py-4 my-4 w-64">
+            <div class="flex flex-col pb-3 mb-3">
+              <FundsInfo
+                name="Safe"
+                subtitle="For traffic"
+                balance={preparingSafe()?.node_wxhopr ?? balance()?.safe}
+                ticker="wxHOPR"
+                address={preparingSafe()?.node_address ??
+                  balance()?.info.safe_address}
+                status={fundingStatus()?.safeStatus}
+                isLoading={isBalanceLoading()}
+              />
+              <Show
+                when={effectiveCredit() !== null &&
+                  isRunningRunMode(appState.runMode)}
+              >
+                <For each={hopRange()}>
+                  {(hops) => {
+                    const b = balance();
+                    if (!b) return null;
+                    const credit = computeEffectiveCredit(
+                      b.channels_out,
+                      b.safe,
+                      b.ticket_value,
+                      hops,
+                    );
+                    const hopLabel = hops === 1 ? "1-hop" : `${hops}-hops`;
+                    return (
+                      <div class="text-xs mt-1 pr-1 text-right">
+                        <div
+                          class={isCreditEmpty(credit.bytes)
+                            ? "text-vpn-red"
+                            : "text-text-secondary"}
+                        >
+                          {credit.isEstimate ? "≈" : ""}
+                          {formatCredit(credit.bytes)}
+                          <Show when={maxHops() > 1}>
+                            <span class="opacity-40">/ {hopLabel}</span>
+                          </Show>
+                        </div>
+                      </div>
+                    );
+                  }}
+                </For>
+              </Show>
+            </div>
             <FundsInfo
               name="EOA"
               subtitle="For channels"

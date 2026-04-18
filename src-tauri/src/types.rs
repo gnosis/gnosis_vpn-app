@@ -49,6 +49,7 @@ pub struct BalanceResponse {
     pub channels_out: String,
     pub info: Info,
     pub issues: Vec<balance::FundingIssue>,
+    pub ticket_value: String,
 }
 
 // Sanitized library structs
@@ -64,6 +65,7 @@ pub enum RunMode {
         funding_tool: Option<String>,
         // came back from safe deployment with an error
         error: Option<String>,
+        ticket_value: Option<String>,
     },
     /// Safe deployment ongoing, enough funds, no existing safe
     DeployingSafe { node_address: String },
@@ -300,12 +302,14 @@ impl From<command::RunMode> for RunMode {
                 node_wxhopr,
                 funding_tool,
                 error,
+                ticket_value,
             } => RunMode::PreparingSafe {
                 node_address: node_address.to_string(),
                 node_xdai: node_xdai.amount().to_string(),
                 node_wxhopr: node_wxhopr.amount().to_string(),
                 funding_tool,
                 error,
+                ticket_value: ticket_value.map(|tv| tv.amount().to_string()),
             },
 
             command::RunMode::DeployingSafe { node_address } => RunMode::DeployingSafe {
@@ -383,6 +387,7 @@ impl From<command::BalanceResponse> for BalanceResponse {
                 _ => None,
             })
             .sum::<balance::Balance<balance::WxHOPR>>()
+            .amount()
             .to_string();
         BalanceResponse {
             node: br.node.amount().to_string(),
@@ -390,6 +395,7 @@ impl From<command::BalanceResponse> for BalanceResponse {
             channels_out,
             info: br.info.into(),
             issues: br.issues,
+            ticket_value: br.ticket_value.amount().to_string(),
         }
     }
 }
