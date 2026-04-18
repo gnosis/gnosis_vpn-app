@@ -6,7 +6,7 @@ import {
   destinationsForTargetSelection,
   selectTargetId,
 } from "../utils/destinations.ts";
-import { isReadyToConnect } from "../services/vpnService.ts";
+import { isReadyToConnect } from "../utils/exitHealth.ts";
 
 export default function ConnectButton() {
   const [appState, appActions] = useAppStore();
@@ -39,10 +39,9 @@ export default function ConnectButton() {
     )
   );
 
-  const targetHealth = createMemo(() =>
-    targetDestinationState()?.connectivity?.health
+  const isTargetReady = createMemo(() =>
+    isReadyToConnect(targetDestinationState()?.route_health)
   );
-  const isTargetReady = createMemo(() => isReadyToConnect(targetHealth()));
 
   const handleClick = async () => {
     try {

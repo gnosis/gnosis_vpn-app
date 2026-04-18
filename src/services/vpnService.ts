@@ -66,33 +66,6 @@ export const DestinationSchema = z.object({
 });
 export type Destination = z.infer<typeof DestinationSchema>;
 
-export const HealthSchema = z.enum([
-  "ReadyToConnect",
-  "MissingPeeredFundedChannel",
-  "MissingPeeredChannel",
-  "MissingFundedChannel",
-  "NotPeered",
-  "NotAllowed",
-  "InvalidId",
-  "InvalidPath",
-]);
-export type Health = z.infer<typeof HealthSchema>;
-
-export const NeedSchema = z.union([
-  z.object({ Channel: z.string() }),
-  z.literal("AnyChannel"),
-  z.object({ Peering: z.string() }),
-  z.literal("Nothing"),
-]);
-export type Need = z.infer<typeof NeedSchema>;
-
-export const ConnectivitySchema = z.object({
-  last_error: z.string().nullable(),
-  health: HealthSchema,
-  need: NeedSchema,
-});
-export type Connectivity = z.infer<typeof ConnectivitySchema>;
-
 export const SlotsSchema = z.object({
   available: z.number(),
   connected: z.number(),
@@ -113,49 +86,62 @@ export const ExitHealthSchema = z.object({
 });
 export type ExitHealth = z.infer<typeof ExitHealthSchema>;
 
-export const DHRunningSchema = z.object({
-  since: SerializedSinceTimeSchema,
-});
-export type DHRunning = z.infer<typeof DHRunningSchema>;
-
-export const DHFailureSchema = z.object({
+export const ExitHealthDataSchema = z.object({
   checked_at: SerializedSinceTimeSchema,
-  error: z.string(),
-  previous_failures: z.number(),
-});
-export type DHFailure = z.infer<typeof DHFailureSchema>;
-
-export const DHSuccessSchema = z.object({
-  checked_at: SerializedSinceTimeSchema,
+  versions: z.object({ versions: z.array(z.string()), latest: z.string() }),
+  ping_rtt: SerializedTimeSchema,
   health: ExitHealthSchema,
-  total_time: SerializedTimeSchema,
-  round_trip_time: SerializedTimeSchema,
 });
-export type DHSuccess = z.infer<typeof DHSuccessSchema>;
+export type ExitHealthData = z.infer<typeof ExitHealthDataSchema>;
 
-export const DestinationHealthSchema = z.union([
-  z.literal("Init"),
-  z.object({ Running: DHRunningSchema }),
-  z.object({ Failure: DHFailureSchema }),
-  z.object({ Success: DHSuccessSchema }),
+export const UnrecoverableReasonSchema = z.union([
+  z.literal("NotAllowed"),
+  z.literal("InvalidId"),
+  z.literal("InvalidPath"),
+  z.object({
+    IncompatibleApiVersion: z.object({ server_versions: z.array(z.string()) }),
+  }),
 ]);
-export type DestinationHealth = z.infer<typeof DestinationHealthSchema>;
+export type UnrecoverableReason = z.infer<typeof UnrecoverableReasonSchema>;
+
+export const RouteHealthStateSchema = z.union([
+  z.object({ Unrecoverable: z.object({ reason: UnrecoverableReasonSchema }) }),
+  z.object({ NeedsPeering: z.object({ funded: z.boolean() }) }),
+  z.literal("NeedsFunding"),
+  z.literal("Routable"),
+  z.object({ ReadyToConnect: z.object({ exit: ExitHealthDataSchema }) }),
+  z.object({
+    Connecting: z.object({
+      exit: ExitHealthDataSchema,
+      tunnel_ping_rtt: SerializedTimeSchema.nullable(),
+    }),
+  }),
+]);
+export type RouteHealthState = z.infer<typeof RouteHealthStateSchema>;
+
+export const RouteHealthViewSchema = z.object({
+  state: RouteHealthStateSchema,
+  last_error: z.string().nullable(),
+  checking_since: SerializedSinceTimeSchema.nullable(),
+  consecutive_failures: z.number(),
+});
+export type RouteHealthView = z.infer<typeof RouteHealthViewSchema>;
 
 export const DestinationStateSchema = z.object({
   destination: DestinationSchema,
   connection_state: ConnectionStateSchema,
-  connectivity: ConnectivitySchema,
-  exit_health: DestinationHealthSchema,
+  route_health: RouteHealthViewSchema,
 });
 export type DestinationState = z.infer<typeof DestinationStateSchema>;
 
 export const ConnectResponseSchema = z.union([
+  z.object({ AlreadyConnected: DestinationSchema }),
   z.object({ Connecting: DestinationSchema }),
   z.object({
-    WaitingToConnect: z.tuple([DestinationSchema, ConnectivitySchema]),
+    WaitingToConnect: z.tuple([DestinationSchema, RouteHealthStateSchema]),
   }),
   z.object({
-    UnableToConnect: z.tuple([DestinationSchema, ConnectivitySchema]),
+    UnableToConnect: z.tuple([DestinationSchema, RouteHealthStateSchema]),
   }),
   z.literal("DestinationNotFound"),
 ]);
@@ -278,32 +264,6 @@ export type ServiceInfo = z.infer<typeof ServiceInfoSchema>;
 // ==========================================
 // Helper Functions
 // ==========================================
-
-export function isReadyToConnect(health: Health | undefined): boolean {
-  return health === "ReadyToConnect";
-}
-
-export function formatHealth(health: Health): string {
-  switch (health) {
-    case "ReadyToConnect":
-      return "Ready to connect";
-    case "MissingPeeredFundedChannel":
-      return "Missing peered funded channel";
-    case "MissingPeeredChannel":
-      return "Missing peered channel";
-    case "MissingFundedChannel":
-      return "Checking channel funds";
-    case "NotPeered":
-      return "Not peered";
-    case "NotAllowed":
-      return "Connection not allowed";
-    case "InvalidId":
-    case "InvalidPath":
-      return "Connection impossible";
-    default:
-      return String(health);
-  }
-}
 
 export function formatWarmupStatus(status: WarmupStatus): string {
   switch (status) {
