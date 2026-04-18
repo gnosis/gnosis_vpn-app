@@ -64,9 +64,12 @@ export default function ExitHealthDetail(
     getConnectionLabel(props.destinationState.connection_state);
   const isConnected = () => connectionLabel() === "Connected";
 
-  const color = () => getExitHealthColor(routeHealth());
-  const status = () => {
+  const color = (): HealthColor => {
     // connection_state is authoritative for whether the tunnel is up
+    if (isConnected()) return "green";
+    return getExitHealthColor(routeHealth());
+  };
+  const status = () => {
     if (isConnected()) return "Connected";
     return formatExitHealthStatus(routeHealth());
   };
