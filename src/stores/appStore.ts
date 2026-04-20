@@ -346,7 +346,7 @@ export function createAppStore(): AppStoreTuple {
           info.version +
           ". Supported versions: " +
           COMPATIBLE_VERSIONS.join(", ") +
-          ". If you just updated, please close and reopen the app.";
+          `. If you just updated, please restart the app (App Version: ${appVersion}).`;
         criticalError(message);
         return;
       }
