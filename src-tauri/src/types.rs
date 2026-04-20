@@ -13,8 +13,20 @@ pub struct StatusResponse {
     pub destinations: HashMap<String, DestinationState>,
     pub dest_order: Vec<String>,
     pub connected: Option<String>,
-    pub connecting: Option<String>,
-    pub disconnecting: Vec<String>,
+    pub connecting: Option<ConnectingInfo>,
+    pub disconnecting: Vec<DisconnectingInfo>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct ConnectingInfo {
+    pub destination_id: String,
+    pub phase: connection::up::Phase,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct DisconnectingInfo {
+    pub destination_id: String,
+    pub phase: connection::down::Phase,
 }
 
 #[derive(Debug, Clone)]
@@ -76,6 +88,8 @@ pub enum RunMode {
     },
     /// Shutdown service
     Shutdown,
+    /// Service not running (worker offline)
+    NotRunning,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -107,8 +121,7 @@ pub enum CombinedHoprStatus {
 #[derive(Clone, Debug, Serialize)]
 pub struct DestinationState {
     pub destination: Destination,
-    pub connection_state: command::ConnectionState,
-    pub route_health: command::RouteHealthView,
+    pub route_health: Option<command::RouteHealthView>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -162,7 +175,6 @@ impl From<command::DestinationState> for DestinationState {
     fn from(ds: command::DestinationState) -> Self {
         DestinationState {
             destination: ds.destination.into(),
-            connection_state: ds.connection_state,
             route_health: ds.route_health,
         }
     }
@@ -249,6 +261,7 @@ impl From<command::RunMode> for RunMode {
                 hopr_status: hopr_status.map(|s| s.into()),
             },
             command::RunMode::Shutdown => RunMode::Shutdown,
+            command::RunMode::NotRunning => RunMode::NotRunning,
         }
     }
 }
@@ -319,8 +332,8 @@ impl From<&StatusResponse> for ConnectionState {
     fn from(sr: &StatusResponse) -> Self {
         if let Some(ref dest) = sr.connected {
             ConnectionState::Connected(dest.clone())
-        } else if let Some(ref dest) = sr.connecting {
-            ConnectionState::Connecting(dest.clone())
+        } else if let Some(ref info) = sr.connecting {
+            ConnectionState::Connecting(info.destination_id.clone())
         } else if !sr.disconnecting.is_empty() {
             ConnectionState::Disconnecting
         } else {

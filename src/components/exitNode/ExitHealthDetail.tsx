@@ -5,7 +5,6 @@ import type {
   RoutingOptions,
 } from "@src/services/vpnService.ts";
 import { VPNService } from "@src/services/vpnService.ts";
-import { getConnectionLabel } from "@src/utils/status.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { destinationLabel } from "@src/utils/destinations.ts";
 import {
@@ -55,27 +54,51 @@ function Tag(
 export default function ExitHealthDetail(
   props: { destinationState: DestinationState },
 ) {
-  const routeHealth = (): RouteHealthView =>
-    props.destinationState.route_health;
+  const [appState, appActions] = useAppStore();
+
+  const routeHealth = (): RouteHealthView | null =>
+    props.destinationState.route_health ?? null;
   const routing = (): RoutingOptions =>
     props.destinationState.destination.routing;
 
-  const connectionLabel = () =>
-    getConnectionLabel(props.destinationState.connection_state);
+  const destId = () => props.destinationState.destination.id;
+
+  // Derive connection label from top-level app state instead of per-destination field
+  const connectionLabel = () => {
+    if (appState.connected === destId()) return "Connected";
+    if (appState.connecting?.destination_id === destId()) return "Connecting";
+    if (appState.disconnecting.some((d) => d.destination_id === destId())) {
+      return "Disconnecting";
+    }
+    return "None";
+  };
   const isConnected = () => connectionLabel() === "Connected";
+  const isConnecting = () => connectionLabel() === "Connecting";
 
   const color = (): HealthColor => {
-    // connection_state is authoritative for whether the tunnel is up
     if (isConnected()) return "green";
-    return getExitHealthColor(routeHealth());
+    const rh = routeHealth();
+    if (!rh) return "gray";
+    return getExitHealthColor(rh);
   };
   const status = () => {
     if (isConnected()) return "Connected";
-    return formatExitHealthStatus(routeHealth());
+    const rh = routeHealth();
+    if (!rh) return "Unavailable";
+    return formatExitHealthStatus(rh);
   };
-  const latency = () => formatLatency(routeHealth());
-  const slots = () => formatSlots(routeHealth());
-  const loadAvg = () => formatLoadAvg(routeHealth());
+  const latency = () => {
+    const rh = routeHealth();
+    return rh ? formatLatency(rh) : null;
+  };
+  const slots = () => {
+    const rh = routeHealth();
+    return rh ? formatSlots(rh) : null;
+  };
+  const loadAvg = () => {
+    const rh = routeHealth();
+    return rh ? formatLoadAvg(rh) : null;
+  };
   const route = () => formatRouting(routing());
 
   const [nowSec, setNowSec] = createSignal(Date.now() / 1000);
@@ -83,34 +106,32 @@ export default function ExitHealthDetail(
   onCleanup(() => clearInterval(tick));
 
   const lastChecked = (): string | null => {
-    const epoch = getLastCheckedEpoch(routeHealth());
+    const rh = routeHealth();
+    if (!rh) return null;
+    const epoch = getLastCheckedEpoch(rh);
     if (epoch === null) return null;
     const diff = Math.max(0, Math.round(nowSec() - epoch));
     return formatSecondsAgo(diff);
   };
 
-  const [appState, appActions] = useAppStore();
-
   const latencyLabel = () => latency();
 
   const hasContent = () => {
-    const state = routeHealth().state;
+    const rh = routeHealth();
+    if (!rh) return false;
+    const state = rh.state;
     return state !== "NeedsFunding" &&
       state !== "Routable" &&
       !(typeof state === "object" && "NeedsPeering" in state) &&
       !(typeof state === "object" && "Unrecoverable" in state);
   };
 
-  const destId = () => props.destinationState.destination.id;
-
-  const isConnecting = () => connectionLabel() === "Connecting";
-
   const canSwitch = () =>
     (appState.vpnStatus === "Connected" ||
       appState.vpnStatus === "Connecting") &&
     !isConnected() &&
     !isConnecting() &&
-    isReadyToConnect(routeHealth());
+    isReadyToConnect(routeHealth() ?? undefined);
 
   const handleSwitch = async () => {
     const nodeId = props.destinationState.destination.id;

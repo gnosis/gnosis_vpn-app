@@ -42,15 +42,17 @@ export const DownPhaseSchema = z.enum([
 ]);
 export type DownPhase = z.infer<typeof DownPhaseSchema>;
 
-export const ConnectionStateSchema = z.union([
-  z.literal("None"),
-  z.object({ Connecting: z.tuple([SerializedSinceTimeSchema, UpPhaseSchema]) }),
-  z.object({ Connected: SerializedSinceTimeSchema }),
-  z.object({
-    Disconnecting: z.tuple([SerializedSinceTimeSchema, DownPhaseSchema]),
-  }),
-]);
-export type ConnectionState = z.infer<typeof ConnectionStateSchema>;
+export const ConnectingInfoSchema = z.object({
+  destination_id: z.string(),
+  phase: UpPhaseSchema,
+});
+export type ConnectingInfo = z.infer<typeof ConnectingInfoSchema>;
+
+export const DisconnectingInfoSchema = z.object({
+  destination_id: z.string(),
+  phase: DownPhaseSchema,
+});
+export type DisconnectingInfo = z.infer<typeof DisconnectingInfoSchema>;
 
 export const RoutingOptionsSchema = z.union([
   z.object({ Hops: z.number() }),
@@ -129,8 +131,7 @@ export type RouteHealthView = z.infer<typeof RouteHealthViewSchema>;
 
 export const DestinationStateSchema = z.object({
   destination: DestinationSchema,
-  connection_state: ConnectionStateSchema,
-  route_health: RouteHealthViewSchema,
+  route_health: RouteHealthViewSchema.nullable(),
 });
 export type DestinationState = z.infer<typeof DestinationStateSchema>;
 
@@ -225,6 +226,7 @@ export const RunModeSchema = z.union([
   z.object({ Warmup: WarmupSchema }),
   z.object({ Running: RunningSchema }),
   z.literal("Shutdown"),
+  z.literal("NotRunning"),
 ]);
 export type RunMode = z.infer<typeof RunModeSchema>;
 
@@ -240,8 +242,8 @@ export const StatusResponseSchema = z.object({
   destinations: z.record(z.string(), DestinationStateSchema),
   dest_order: z.array(z.string()),
   connected: z.string().nullable(),
-  connecting: z.string().nullable(),
-  disconnecting: z.array(z.string()),
+  connecting: ConnectingInfoSchema.nullable(),
+  disconnecting: z.array(DisconnectingInfoSchema),
 });
 export type StatusResponse = z.infer<typeof StatusResponseSchema>;
 

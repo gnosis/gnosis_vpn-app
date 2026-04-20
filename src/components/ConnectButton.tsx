@@ -40,7 +40,7 @@ export default function ConnectButton() {
   );
 
   const isTargetReady = createMemo(() =>
-    isReadyToConnect(targetDestinationState()?.route_health)
+    isReadyToConnect(targetDestinationState()?.route_health ?? undefined)
   );
 
   const handleClick = async () => {

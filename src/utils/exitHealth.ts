@@ -203,6 +203,7 @@ export function sortByHealthScore(
 
 /** Compute a numeric quality score for sorting (higher = better). */
 export function getHealthScore(ds: DestinationState): number {
+  if (!ds.route_health) return 0;
   const { state } = ds.route_health;
   let score = 0;
 

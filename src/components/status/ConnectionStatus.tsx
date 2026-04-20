@@ -1,56 +1,46 @@
 import { createMemo, Show } from "solid-js";
 import { useAppStore } from "../../stores/appStore.ts";
-import type { DestinationState } from "../../services/vpnService.ts";
+import type { AppState } from "../../stores/appStore.ts";
 import {
   formatConnectionPhase,
-  getConnectionLabel,
-  getConnectionPhase,
 } from "../../utils/status.ts";
 import { destinationLabel } from "../../utils/destinations.ts";
 
 /**
- * Derives a single-line connection status message from all destinations.
+ * Derives a single-line connection status message from the top-level state.
  *
  * Priority:
- *  1. Connecting  → "Connecting to {location}: {phase}"
+ *  1. Connecting  → "{phase}" or "Connecting to {location}"
  *  2. Connected   → "Connected to {location}"
- *  3. Disconnecting (only when nothing is connecting) → "Disconnecting from {location}: {phase}"
+ *  3. Disconnecting (only when nothing is connecting) → "{phase}" or "Disconnecting from {location}"
  */
-function deriveStatus(
-  destinations: Record<string, DestinationState>,
-): string | undefined {
-  let connectingDs: DestinationState | undefined;
-  let connectedDs: DestinationState | undefined;
-  let disconnectingDs: DestinationState | undefined;
-
-  for (const ds of Object.values(destinations)) {
-    const label = getConnectionLabel(ds.connection_state);
-    if (label === "Connecting") connectingDs = ds;
-    else if (label === "Connected") connectedDs = ds;
-    else if (label === "Disconnecting") disconnectingDs = ds;
+function deriveStatus(appState: AppState): string | undefined {
+  if (appState.connecting) {
+    const dest =
+      appState.destinations[appState.connecting.destination_id]?.destination;
+    const label = dest
+      ? destinationLabel(dest)
+      : appState.connecting.destination_id;
+    const phaseLabel = formatConnectionPhase(appState.connecting.phase);
+    return phaseLabel !== appState.connecting.phase
+      ? phaseLabel
+      : `Connecting to ${label}`;
   }
 
-  if (connectingDs) {
-    const label = destinationLabel(connectingDs.destination);
-    const rawPhase = getConnectionPhase(connectingDs.connection_state);
-    if (rawPhase) {
-      return formatConnectionPhase(rawPhase);
-    }
-    return `Connecting to ${label}`;
-  }
-
-  if (connectedDs) {
-    const label = destinationLabel(connectedDs.destination);
+  if (appState.connected) {
+    const dest = appState.destinations[appState.connected]?.destination;
+    const label = dest ? destinationLabel(dest) : appState.connected;
     return `Connected to ${label}`;
   }
 
-  if (disconnectingDs && !connectingDs) {
-    const label = destinationLabel(disconnectingDs.destination);
-    const rawPhase = getConnectionPhase(disconnectingDs.connection_state);
-    if (rawPhase) {
-      return formatConnectionPhase(rawPhase);
-    }
-    return `Disconnecting from ${label}`;
+  if (appState.disconnecting.length > 0) {
+    const d = appState.disconnecting[0];
+    const dest = appState.destinations[d.destination_id]?.destination;
+    const label = dest ? destinationLabel(dest) : d.destination_id;
+    const phaseLabel = formatConnectionPhase(d.phase);
+    return phaseLabel !== d.phase
+      ? phaseLabel
+      : `Disconnecting from ${label}`;
   }
 
   return undefined;
@@ -61,7 +51,7 @@ export default function ConnectionStatus() {
 
   const status = createMemo(() => {
     if (appState.vpnStatus === "ServiceUnavailable") return undefined;
-    return deriveStatus(appState.destinations);
+    return deriveStatus(appState);
   });
 
   return (

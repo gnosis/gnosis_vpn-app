@@ -5,6 +5,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 use tokio_util::sync::CancellationToken;
 use zstd::stream::Encoder;
 
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, BufReader};
 use std::path::PathBuf;
@@ -18,7 +19,8 @@ use crate::StatusPollingHandle;
 use crate::icons::{self, AppIconState, TrayIconState};
 use crate::tray;
 use crate::types::{
-    BalanceResponse, ConnectResponse, ConnectionState, DisconnectResponse, StatusResponse,
+    BalanceResponse, ConnectResponse, ConnectionState, ConnectingInfo, DisconnectResponse,
+    DisconnectingInfo, StatusResponse,
 };
 
 const ALLOWED_APP_ICONS: &[&str] = &[
@@ -396,34 +398,34 @@ async fn query_status() -> (Duration, Result<Option<StatusResponse>, String>) {
     let resp = root_socket::process_cmd(&p, &command::Command::Status).await;
     match resp {
         Ok(command::Response::Status(status_resp)) => {
-            let resp = status_resp.destinations.iter().fold(
-                StatusResponse {
-                    run_mode: status_resp.run_mode.into(),
-                    destinations: Default::default(),
-                    dest_order: Vec::new(),
-                    connected: None,
-                    connecting: None,
-                    disconnecting: Vec::new(),
-                },
-                |mut acc, ds| {
-                    let id = ds.destination.id.clone();
-                    match ds.connection_state {
-                        command::ConnectionState::Connected(_) => {
-                            acc.connected = Some(id.clone());
-                        }
-                        command::ConnectionState::Connecting(_, _) => {
-                            acc.connecting = Some(id.clone());
-                        }
-                        command::ConnectionState::Disconnecting(_, _) => {
-                            acc.disconnecting.push(id.clone());
-                        }
-                        command::ConnectionState::None => {}
-                    }
-                    acc.dest_order.push(id.clone());
-                    acc.destinations.insert(id, ds.clone().into());
-                    acc
-                },
-            );
+            let (destinations, dest_order) =
+                status_resp
+                    .destinations
+                    .iter()
+                    .fold((HashMap::new(), Vec::new()), |(mut dests, mut order), ds| {
+                        let id = ds.destination.id.clone();
+                        order.push(id.clone());
+                        dests.insert(id, ds.clone().into());
+                        (dests, order)
+                    });
+            let resp = StatusResponse {
+                run_mode: status_resp.run_mode.into(),
+                destinations,
+                dest_order,
+                connected: status_resp.connected.map(|c| c.destination_id),
+                connecting: status_resp.connecting.map(|c| ConnectingInfo {
+                    destination_id: c.destination_id,
+                    phase: c.phase,
+                }),
+                disconnecting: status_resp
+                    .disconnecting
+                    .into_iter()
+                    .map(|d| DisconnectingInfo {
+                        destination_id: d.destination_id,
+                        phase: d.phase,
+                    })
+                    .collect(),
+            };
 
             if resp.connecting.is_some() {
                 (Duration::from_millis(222), Ok(Some(resp)))

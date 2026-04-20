@@ -2,8 +2,10 @@ import { createStore, reconcile, type Store } from "solid-js/store";
 import { listen } from "@tauri-apps/api/event";
 
 import {
+  type ConnectingInfo,
   type Destination,
   type DestinationState,
+  type DisconnectingInfo,
   formatWarmupStatus,
   isDeployingSafeRunMode,
   isPreparingSafeRunMode,
@@ -28,7 +30,6 @@ import {
 } from "@src/utils/compatibility.ts";
 
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
-import { getConnectionLabel, getConnectionPhase } from "@src/utils/status.ts";
 import { deriveVPNStatus } from "@src/utils/status.ts";
 import { shortAddress } from "../utils/shortAddress.ts";
 
@@ -45,6 +46,9 @@ export interface AppState {
   serviceInfo: ServiceInfo | null;
   availableDestinations: Destination[];
   destinations: Record<string, DestinationState>;
+  connected: string | null;
+  connecting: ConnectingInfo | null;
+  disconnecting: DisconnectingInfo[];
   isLoading: boolean;
   error?: string;
   destination: Destination | null;
@@ -75,9 +79,12 @@ function initialState(): AppState {
   return {
     appVersion: "",
     availableDestinations: [],
+    connected: null,
+    connecting: null,
     currentScreen: AppScreen.Initialization,
     destination: null,
     destinations: {},
+    disconnecting: [],
     error: undefined,
     isLoading: false,
     runMode: null,
@@ -193,11 +200,10 @@ export function createAppStore(): AppStoreTuple {
     // Only runs until we've detected it once — avoids locking out "Random" mode
     // after the user later chooses it and a connection succeeds.
     if (!connectedOnOpenDetected) {
-      const connectedEntry = Object.values(state.destinations).find(
-        (ds) =>
-          getConnectionLabel(ds.connection_state) === "Connected" ||
-          getConnectionLabel(ds.connection_state) === "Connecting",
-      );
+      const activeId = state.connected ?? state.connecting?.destination_id;
+      const connectedEntry = activeId
+        ? state.destinations[activeId]
+        : undefined;
       if (connectedEntry) {
         connectedOnOpenDetected = true;
         setState("selectedId", connectedEntry.destination.id);
@@ -252,36 +258,52 @@ export function createAppStore(): AppStoreTuple {
     setState("warmupStatus", warmupStatus);
     setState("runMode", reconcile(response.run_mode));
     setState("destinations", reconcile(response.destinations));
+    setState("connected", response.connected);
+    setState("connecting", reconcile(response.connecting));
+    setState("disconnecting", reconcile(response.disconnecting));
     setState("vpnStatus", deriveVPNStatus(response));
     setState("availableDestinations", availableDestinations);
     applyDestinationSelection();
   };
 
   const logStateChange = (response: StatusResponse) => {
-    const prevDestStates = state.destinations;
-    response.dest_order.forEach((id) => {
-      const prev = prevDestStates[id];
-      const next = response.destinations[id];
-      if (!prev || !next) return;
-      const prevLabel = getConnectionLabel(prev.connection_state);
-      const nextLabel = getConnectionLabel(next.connection_state);
-      const prevPhase = getConnectionPhase(prev.connection_state);
-      const nextPhase = getConnectionPhase(next.connection_state);
-      const labelChanged = prevLabel !== nextLabel;
-      const phaseChanged =
-        (nextLabel === "Connecting" || nextLabel === "Disconnecting") &&
-        prevPhase !== nextPhase;
-      if (
-        (labelChanged && nextLabel !== "Unknown" && nextLabel !== "None") ||
-        phaseChanged
-      ) {
-        const label = destinationLabel(next.destination);
-        const short = shortAddress(next.destination.address);
+    const prevConnecting = state.connecting;
+    const nextConnecting = response.connecting;
+    const connectingIdChanged =
+      prevConnecting?.destination_id !== nextConnecting?.destination_id;
+    const connectingPhaseChanged =
+      prevConnecting?.phase !== nextConnecting?.phase;
+    if (nextConnecting && (connectingIdChanged || connectingPhaseChanged)) {
+      const dest =
+        response.destinations[nextConnecting.destination_id]?.destination;
+      const label = dest ? destinationLabel(dest) : nextConnecting.destination_id;
+      const short = dest ? shortAddress(dest.address) : "";
+      const display = label ? `${label} - ${short}` : short;
+      log(`Connecting: ${display} - ${nextConnecting.phase}`);
+    }
+
+    const prevConnected = state.connected;
+    const nextConnected = response.connected;
+    if (nextConnected && nextConnected !== prevConnected) {
+      const dest = response.destinations[nextConnected]?.destination;
+      const label = dest ? destinationLabel(dest) : nextConnected;
+      const short = dest ? shortAddress(dest.address) : "";
+      const display = label ? `${label} - ${short}` : short;
+      log(`Connected: ${display}`);
+    }
+
+    const prevDisconnectingIds = new Set(
+      state.disconnecting.map((d) => d.destination_id),
+    );
+    for (const d of response.disconnecting) {
+      if (!prevDisconnectingIds.has(d.destination_id)) {
+        const dest = response.destinations[d.destination_id]?.destination;
+        const label = dest ? destinationLabel(dest) : d.destination_id;
+        const short = dest ? shortAddress(dest.address) : "";
         const display = label ? `${label} - ${short}` : short;
-        const phaseSuffix = nextPhase ? ` - ${nextPhase}` : "";
-        log(`${nextLabel}: ${display}${phaseSuffix}`);
+        log(`Disconnecting: ${display} - ${d.phase}`);
       }
-    });
+    }
   };
 
   const logPrefMsg = (availableDestinations: Destination[]) => {
@@ -532,7 +554,7 @@ function findDelayReason(destinations: DestinationState[]): string | null {
   let missingPeers = 0;
   let missingChannels = 0;
   for (const ds of destinations) {
-    const state = ds.route_health.state;
+    const state = ds.route_health?.state;
     if (
       typeof state === "object" &&
       ("ReadyToConnect" in state || "Connecting" in state)
