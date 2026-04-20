@@ -283,7 +283,7 @@ export function createAppStore(): AppStoreTuple {
         ? destinationLabel(dest)
         : nextConnecting.destination_id;
       const short = dest ? shortAddress(dest.address) : "";
-      const display = label ? `${label} - ${short}` : short;
+      const display = short ? `${label} - ${short}` : label;
       log(`Connecting: ${display} - ${nextConnecting.phase}`);
     }
 
@@ -291,19 +291,20 @@ export function createAppStore(): AppStoreTuple {
       const dest = destinations[response.connected]?.destination;
       const label = dest ? destinationLabel(dest) : response.connected;
       const short = dest ? shortAddress(dest.address) : "";
-      const display = label ? `${label} - ${short}` : short;
+      const display = short ? `${label} - ${short}` : label;
       log(`Connected: ${display}`);
     }
 
-    const prevDisconnectingIds = new Set(
-      state.disconnecting.map((d) => d.destination_id),
+    const prevDisconnectingMap = new Map(
+      state.disconnecting.map((d) => [d.destination_id, d.phase]),
     );
     for (const d of response.disconnecting) {
-      if (!prevDisconnectingIds.has(d.destination_id)) {
+      const prevPhase = prevDisconnectingMap.get(d.destination_id);
+      if (prevPhase === undefined || prevPhase !== d.phase) {
         const dest = destinations[d.destination_id]?.destination;
         const label = dest ? destinationLabel(dest) : d.destination_id;
         const short = dest ? shortAddress(dest.address) : "";
-        const display = label ? `${label} - ${short}` : short;
+        const display = short ? `${label} - ${short}` : label;
         log(`Disconnecting: ${display} - ${d.phase}`);
       }
     }

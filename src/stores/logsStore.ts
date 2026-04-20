@@ -59,18 +59,21 @@ export function createLogsStore(): LogsStoreTuple {
         const dest = destMap[connected]?.destination;
         const where = dest ? destinationLabel(dest) : connected;
         const addr = dest ? shortAddress(dest.address) : "";
-        content = `Connected: ${where} - ${addr}`;
+        const connDisplay = addr ? `${where} - ${addr}` : where;
+        content = `Connected: ${connDisplay}`;
       } else if (connecting) {
         const dest = destMap[connecting.destination_id]?.destination;
         const where = dest ? destinationLabel(dest) : connecting.destination_id;
         const addr = dest ? shortAddress(dest.address) : "";
-        content = `Connecting: ${where} - ${addr} - ${connecting.phase}`;
+        const connDisplay = addr ? `${where} - ${addr}` : where;
+        content = `Connecting: ${connDisplay} - ${connecting.phase}`;
       } else if (disconnecting.length > 0) {
         const d = disconnecting[0];
         const dest = destMap[d.destination_id]?.destination;
         const where = dest ? destinationLabel(dest) : d.destination_id;
         const addr = dest ? shortAddress(dest.address) : "";
-        content = `Disconnecting: ${where} - ${addr} - ${d.phase}`;
+        const connDisplay = addr ? `${where} - ${addr}` : where;
+        content = `Disconnecting: ${connDisplay} - ${d.phase}`;
       } else if (typeof rm === "object" && "Running" in rm) {
         // Running but no active connection
         const lastWasDisconnected = Boolean(

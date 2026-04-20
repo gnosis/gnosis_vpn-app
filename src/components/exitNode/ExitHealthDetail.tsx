@@ -1,4 +1,4 @@
-import { createSignal, type JSX, onCleanup, Show } from "solid-js";
+import { createMemo, createSignal, type JSX, onCleanup, Show } from "solid-js";
 import type {
   DestinationState,
   RouteHealthView,
@@ -56,8 +56,9 @@ export default function ExitHealthDetail(
 ) {
   const [appState, appActions] = useAppStore();
 
-  const routeHealth = (): RouteHealthView | null =>
-    props.destinationState.route_health ?? null;
+  const routeHealth = createMemo((): RouteHealthView | null =>
+    props.destinationState.route_health ?? null,
+  );
   const routing = (): RoutingOptions =>
     props.destinationState.destination.routing;
 
