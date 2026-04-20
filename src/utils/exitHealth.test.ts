@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { Destination, DestinationState } from "@src/services/vpnService.ts";
+import type {
+  Destination,
+  DestinationState,
+} from "@src/services/vpnService.ts";
 import { getHealthScore, sortByHealthScore } from "./exitHealth.ts";
 
 const BASE_DESTINATION: Destination = {
