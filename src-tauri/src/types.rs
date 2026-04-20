@@ -10,8 +10,7 @@ use std::fmt::{self, Display};
 #[derive(Clone, Debug, Serialize)]
 pub struct StatusResponse {
     pub run_mode: RunMode,
-    pub destinations: HashMap<String, DestinationState>,
-    pub dest_order: Vec<String>,
+    pub destinations: Vec<DestinationState>,
     pub connected: Option<String>,
     pub connecting: Option<ConnectingInfo>,
     pub disconnecting: Vec<DisconnectingInfo>,

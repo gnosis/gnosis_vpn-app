@@ -239,8 +239,7 @@ export type Info = z.infer<typeof InfoSchema>;
 
 export const StatusResponseSchema = z.object({
   run_mode: RunModeSchema,
-  destinations: z.record(z.string(), DestinationStateSchema),
-  dest_order: z.array(z.string()),
+  destinations: z.array(DestinationStateSchema),
   connected: z.string().nullable(),
   connecting: ConnectingInfoSchema.nullable(),
   disconnecting: z.array(DisconnectingInfoSchema),

@@ -244,11 +244,13 @@ export function createAppStore(): AppStoreTuple {
     } else if (pendingScreenTransition === null) {
       stopSyncProgress();
     }
-    /// the payload from rust will always make sure the ids in dest order are present in destinations, so this mapping is safe
-    const availableDestinations = response.dest_order
-      .map((id) => response.destinations[id].destination)
-      .filter((ds) => ds);
-    logStateChange(response);
+    const destinations = Object.fromEntries(
+      response.destinations.map((ds) => [ds.destination.id, ds]),
+    );
+    const availableDestinations = response.destinations.map(
+      (ds) => ds.destination,
+    );
+    logStateChange(response, destinations);
     logPrefMsg(availableDestinations);
     logStatus(response);
     setState("error", undefined);
@@ -257,7 +259,7 @@ export function createAppStore(): AppStoreTuple {
     }
     setState("warmupStatus", warmupStatus);
     setState("runMode", reconcile(response.run_mode));
-    setState("destinations", reconcile(response.destinations));
+    setState("destinations", reconcile(destinations));
     setState("connected", response.connected);
     setState("connecting", reconcile(response.connecting));
     setState("disconnecting", reconcile(response.disconnecting));
@@ -266,27 +268,28 @@ export function createAppStore(): AppStoreTuple {
     applyDestinationSelection();
   };
 
-  const logStateChange = (response: StatusResponse) => {
-    const prevConnecting = state.connecting;
+  const logStateChange = (
+    response: StatusResponse,
+    destinations: Record<string, DestinationState>,
+  ) => {
     const nextConnecting = response.connecting;
     const connectingIdChanged =
-      prevConnecting?.destination_id !== nextConnecting?.destination_id;
+      state.connecting?.destination_id !== nextConnecting?.destination_id;
     const connectingPhaseChanged =
-      prevConnecting?.phase !== nextConnecting?.phase;
+      state.connecting?.phase !== nextConnecting?.phase;
     if (nextConnecting && (connectingIdChanged || connectingPhaseChanged)) {
-      const dest =
-        response.destinations[nextConnecting.destination_id]?.destination;
-      const label = dest ? destinationLabel(dest) : nextConnecting.destination_id;
+      const dest = destinations[nextConnecting.destination_id]?.destination;
+      const label = dest
+        ? destinationLabel(dest)
+        : nextConnecting.destination_id;
       const short = dest ? shortAddress(dest.address) : "";
       const display = label ? `${label} - ${short}` : short;
       log(`Connecting: ${display} - ${nextConnecting.phase}`);
     }
 
-    const prevConnected = state.connected;
-    const nextConnected = response.connected;
-    if (nextConnected && nextConnected !== prevConnected) {
-      const dest = response.destinations[nextConnected]?.destination;
-      const label = dest ? destinationLabel(dest) : nextConnected;
+    if (response.connected && response.connected !== state.connected) {
+      const dest = destinations[response.connected]?.destination;
+      const label = dest ? destinationLabel(dest) : response.connected;
       const short = dest ? shortAddress(dest.address) : "";
       const display = label ? `${label} - ${short}` : short;
       log(`Connected: ${display}`);
@@ -297,7 +300,7 @@ export function createAppStore(): AppStoreTuple {
     );
     for (const d of response.disconnecting) {
       if (!prevDisconnectingIds.has(d.destination_id)) {
-        const dest = response.destinations[d.destination_id]?.destination;
+        const dest = destinations[d.destination_id]?.destination;
         const label = dest ? destinationLabel(dest) : d.destination_id;
         const short = dest ? shortAddress(dest.address) : "";
         const display = label ? `${label} - ${short}` : short;
@@ -521,7 +524,7 @@ function determineScreenAndStatus(status: StatusResponse): [AppScreen, string] {
     ];
   }
   // delay initial screen as long as no interaction makes sense
-  const delay = findDelayReason(Object.values(status.destinations));
+  const delay = findDelayReason(status.destinations);
   if (delay) {
     // delay proposed and never ran
     if ("neverRan" in initialDelay) {

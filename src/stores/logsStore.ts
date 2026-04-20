@@ -48,23 +48,24 @@ export function createLogsStore(): LogsStoreTuple {
     let content: string | undefined;
     if (args.response) {
       const rm = args.response.run_mode;
-      const dests = Object.values(args.response.destinations);
+      const dests = args.response.destinations;
       const { connected, connecting, disconnecting } = args.response;
+      // Build a keyed map for ID-based lookups
+      const destMap = Object.fromEntries(dests.map((ds) => [ds.destination.id, ds]));
 
       if (connected) {
-        const dest = args.response.destinations[connected]?.destination;
+        const dest = destMap[connected]?.destination;
         const where = dest ? destinationLabel(dest) : connected;
         const addr = dest ? shortAddress(dest.address) : "";
         content = `Connected: ${where} - ${addr}`;
       } else if (connecting) {
-        const dest =
-          args.response.destinations[connecting.destination_id]?.destination;
+        const dest = destMap[connecting.destination_id]?.destination;
         const where = dest ? destinationLabel(dest) : connecting.destination_id;
         const addr = dest ? shortAddress(dest.address) : "";
         content = `Connecting: ${where} - ${addr} - ${connecting.phase}`;
       } else if (disconnecting.length > 0) {
         const d = disconnecting[0];
-        const dest = args.response.destinations[d.destination_id]?.destination;
+        const dest = destMap[d.destination_id]?.destination;
         const where = dest ? destinationLabel(dest) : d.destination_id;
         const addr = dest ? shortAddress(dest.address) : "";
         content = `Disconnecting: ${where} - ${addr} - ${d.phase}`;
@@ -99,7 +100,7 @@ export function createLogsStore(): LogsStoreTuple {
       } else if (isWarmupRunMode(rm)) {
         content = `Warmup: ${formatWarmupStatus(rm.Warmup.status)}`;
       } else {
-        const destinationCount = Object.keys(args.response.destinations).length;
+        const destinationCount = args.response.destinations.length;
         content = `status: Unknown, destinations: ${destinationCount}`;
       }
     } else if (args.error) {
