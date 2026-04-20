@@ -51,7 +51,9 @@ export function createLogsStore(): LogsStoreTuple {
       const dests = args.response.destinations;
       const { connected, connecting, disconnecting } = args.response;
       // Build a keyed map for ID-based lookups
-      const destMap = Object.fromEntries(dests.map((ds) => [ds.destination.id, ds]));
+      const destMap = Object.fromEntries(
+        dests.map((ds) => [ds.destination.id, ds]),
+      );
 
       if (connected) {
         const dest = destMap[connected]?.destination;

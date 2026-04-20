@@ -1,9 +1,7 @@
 import { createMemo, Show } from "solid-js";
 import { useAppStore } from "../../stores/appStore.ts";
 import type { AppState } from "../../stores/appStore.ts";
-import {
-  formatConnectionPhase,
-} from "../../utils/status.ts";
+import { formatConnectionPhase } from "../../utils/status.ts";
 import { destinationLabel } from "../../utils/destinations.ts";
 
 /**
@@ -16,8 +14,8 @@ import { destinationLabel } from "../../utils/destinations.ts";
  */
 function deriveStatus(appState: AppState): string | undefined {
   if (appState.connecting) {
-    const dest =
-      appState.destinations[appState.connecting.destination_id]?.destination;
+    const dest = appState.destinations[appState.connecting.destination_id]
+      ?.destination;
     const label = dest
       ? destinationLabel(dest)
       : appState.connecting.destination_id;
@@ -38,9 +36,7 @@ function deriveStatus(appState: AppState): string | undefined {
     const dest = appState.destinations[d.destination_id]?.destination;
     const label = dest ? destinationLabel(dest) : d.destination_id;
     const phaseLabel = formatConnectionPhase(d.phase);
-    return phaseLabel !== d.phase
-      ? phaseLabel
-      : `Disconnecting from ${label}`;
+    return phaseLabel !== d.phase ? phaseLabel : `Disconnecting from ${label}`;
   }
 
   return undefined;

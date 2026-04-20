@@ -18,7 +18,7 @@ use crate::StatusPollingHandle;
 use crate::icons::{self, AppIconState, TrayIconState};
 use crate::tray;
 use crate::types::{
-    BalanceResponse, ConnectResponse, ConnectionState, ConnectingInfo, DisconnectResponse,
+    BalanceResponse, ConnectResponse, ConnectingInfo, ConnectionState, DisconnectResponse,
     DisconnectingInfo, StatusResponse,
 };
 
@@ -399,7 +399,11 @@ async fn query_status() -> (Duration, Result<Option<StatusResponse>, String>) {
         Ok(command::Response::Status(status_resp)) => {
             let resp = StatusResponse {
                 run_mode: status_resp.run_mode.into(),
-                destinations: status_resp.destinations.into_iter().map(Into::into).collect(),
+                destinations: status_resp
+                    .destinations
+                    .into_iter()
+                    .map(Into::into)
+                    .collect(),
                 connected: status_resp.connected.map(|c| c.destination_id),
                 connecting: status_resp.connecting.map(|c| ConnectingInfo {
                     destination_id: c.destination_id,
