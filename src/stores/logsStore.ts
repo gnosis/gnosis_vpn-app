@@ -3,7 +3,6 @@ import {
   formatWarmupStatus,
   isPreparingSafeRunMode,
   isWarmupRunMode,
-  SerializedSinceTime,
   type StatusResponse,
 } from "@src/services/vpnService.ts";
 import { destinationLabel } from "@src/utils/destinations.ts";
@@ -49,62 +48,32 @@ export function createLogsStore(): LogsStoreTuple {
     let content: string | undefined;
     if (args.response) {
       const rm = args.response.run_mode;
-      const dests = Object.values(args.response.destinations);
-      // Check connection state from destinations (connection info is in DestinationState, not RunMode)
-      const connectedDest = dests.find(
-        (ds) =>
-          typeof ds.connection_state === "object" &&
-          "Connected" in ds.connection_state,
-      );
-      const connectingDest = dests.find(
-        (ds) =>
-          typeof ds.connection_state === "object" &&
-          "Connecting" in ds.connection_state,
-      );
-      const disconnectingDest = dests.find(
-        (ds) =>
-          typeof ds.connection_state === "object" &&
-          "Disconnecting" in ds.connection_state,
+      const dests = args.response.destinations;
+      const { connected, connecting, disconnecting } = args.response;
+      // Build a keyed map for ID-based lookups
+      const destMap = Object.fromEntries(
+        dests.map((ds) => [ds.destination.id, ds]),
       );
 
-      if (connectedDest) {
-        const destination = connectedDest.destination;
-        const where = destinationLabel(destination);
-        content = `Connected: ${where} - ${shortAddress(destination.address)}`;
-      } else if (connectingDest) {
-        const destination = connectingDest.destination;
-        const where = destinationLabel(destination);
-        const phase = typeof connectingDest.connection_state === "object" &&
-            "Connecting" in connectingDest.connection_state
-          ? (
-            connectingDest.connection_state as {
-              Connecting: [SerializedSinceTime, string];
-            }
-          ).Connecting[1]
-          : undefined;
-        const phaseSuffix = phase ? ` - ${phase}` : "";
-        content = `Connecting: ${where} - ${
-          shortAddress(
-            destination.address,
-          )
-        }${phaseSuffix}`;
-      } else if (disconnectingDest) {
-        const destination = disconnectingDest.destination;
-        const where = destinationLabel(destination);
-        const phase = typeof disconnectingDest.connection_state === "object" &&
-            "Disconnecting" in disconnectingDest.connection_state
-          ? (
-            disconnectingDest.connection_state as {
-              Disconnecting: [SerializedSinceTime, string];
-            }
-          ).Disconnecting[1]
-          : undefined;
-        const phaseSuffix = phase ? ` - ${phase}` : "";
-        content = `Disconnecting: ${where} - ${
-          shortAddress(
-            destination.address,
-          )
-        }${phaseSuffix}`;
+      if (connected) {
+        const dest = destMap[connected]?.destination;
+        const where = dest ? destinationLabel(dest) : connected;
+        const addr = dest ? shortAddress(dest.address) : "";
+        const connDisplay = addr ? `${where} - ${addr}` : where;
+        content = `Connected: ${connDisplay}`;
+      } else if (connecting) {
+        const dest = destMap[connecting.destination_id]?.destination;
+        const where = dest ? destinationLabel(dest) : connecting.destination_id;
+        const addr = dest ? shortAddress(dest.address) : "";
+        const connDisplay = addr ? `${where} - ${addr}` : where;
+        content = `Connecting: ${connDisplay} - ${connecting.phase}`;
+      } else if (disconnecting.length > 0) {
+        const d = disconnecting[0];
+        const dest = destMap[d.destination_id]?.destination;
+        const where = dest ? destinationLabel(dest) : d.destination_id;
+        const addr = dest ? shortAddress(dest.address) : "";
+        const connDisplay = addr ? `${where} - ${addr}` : where;
+        content = `Disconnecting: ${connDisplay} - ${d.phase}`;
       } else if (typeof rm === "object" && "Running" in rm) {
         // Running but no active connection
         const lastWasDisconnected = Boolean(
@@ -136,7 +105,7 @@ export function createLogsStore(): LogsStoreTuple {
       } else if (isWarmupRunMode(rm)) {
         content = `Warmup: ${formatWarmupStatus(rm.Warmup.status)}`;
       } else {
-        const destinationCount = Object.keys(args.response.destinations).length;
+        const destinationCount = args.response.destinations.length;
         content = `status: Unknown, destinations: ${destinationCount}`;
       }
     } else if (args.error) {
