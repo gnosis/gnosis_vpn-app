@@ -57,7 +57,7 @@ export default function ExitHealthDetail(
   const [appState, appActions] = useAppStore();
 
   const routeHealth = createMemo((): RouteHealthView | null =>
-    props.destinationState.route_health ?? null,
+    props.destinationState.route_health ?? null
   );
   const routing = (): RoutingOptions =>
     props.destinationState.destination.routing;
