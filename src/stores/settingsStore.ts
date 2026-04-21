@@ -83,7 +83,9 @@ export function createSettingsStore(): SettingsStoreTuple {
       if (startMinimized !== undefined) {
         loaded.startMinimized = startMinimized;
       }
-      if (exitNodeSortOrder === "latency" || exitNodeSortOrder === "alpha") {
+      const isValidExitNodeSortOrder = exitNodeSortOrder === "latency" ||
+        exitNodeSortOrder === "alpha";
+      if (isValidExitNodeSortOrder) {
         loaded.exitNodeSortOrder = exitNodeSortOrder;
       }
 
@@ -92,7 +94,7 @@ export function createSettingsStore(): SettingsStoreTuple {
       const missingAny = preferredLocation === undefined ||
         connectOnStartup === undefined ||
         startMinimized === undefined ||
-        exitNodeSortOrder === undefined;
+        !isValidExitNodeSortOrder;
       if (missingAny) {
         await saveAllToDisk(loaded);
       }

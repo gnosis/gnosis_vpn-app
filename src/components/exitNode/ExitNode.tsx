@@ -237,7 +237,9 @@ export default function ExitNode() {
           }
           return "Auto";
         }}
-        isOptionDisabled={() => false}
+        isOptionDisabled={(opt: ExitOption) =>
+          "id" in opt &&
+          !appState.availableDestinations.some((d) => d.id === opt.id)}
         renderValue={(opt: ExitOption) => {
           if ("id" in opt) {
             return (
