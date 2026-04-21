@@ -171,13 +171,19 @@ export const FundingStateSchema = z.union([
 ]);
 export type FundingState = z.infer<typeof FundingStateSchema>;
 
+export const TicketStatsSchema = z.object({
+  ticket_price: z.string(),
+  winning_probability: z.number(),
+});
+export type TicketStats = z.infer<typeof TicketStatsSchema>;
+
 export const PreparingSafeSchema = z.object({
   node_address: z.string(),
   node_xdai: z.string(),
   node_wxhopr: z.string(),
   funding_tool: z.string().nullable(),
   error: z.string().nullable(),
-  ticket_value: z.string().nullable(),
+  ticket_stats: TicketStatsSchema.nullable(),
 });
 export type PreparingSafe = z.infer<typeof PreparingSafeSchema>;
 
@@ -252,7 +258,7 @@ export const BalanceResponseSchema = z.object({
   channels_out: z.string(),
   info: InfoSchema,
   issues: z.array(FundingIssueSchema),
-  ticket_value: z.string(),
+  ticket_stats: TicketStatsSchema,
 });
 export type BalanceResponse = z.infer<typeof BalanceResponseSchema>;
 

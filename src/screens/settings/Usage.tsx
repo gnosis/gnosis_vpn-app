@@ -38,7 +38,8 @@ function balancesEqual(
     a.node === b.node &&
     a.safe === b.safe &&
     a.channels_out === b.channels_out &&
-    a.ticket_value === b.ticket_value &&
+    a.ticket_stats.ticket_price === b.ticket_stats.ticket_price &&
+    a.ticket_stats.winning_probability === b.ticket_stats.winning_probability &&
     a.info.node_address === b.info.node_address &&
     a.info.node_peer_id === b.info.node_peer_id &&
     a.info.safe_address === b.info.safe_address &&
@@ -71,7 +72,7 @@ export default function Usage() {
   const effectiveCredit = createMemo(() => {
     const b = balance();
     if (!b) return null;
-    return computeEffectiveCredit(b.channels_out, b.safe, b.ticket_value);
+    return computeEffectiveCredit(b.channels_out, b.safe, b.ticket_stats.ticket_price);
   });
 
   async function loadBalance() {
@@ -189,7 +190,7 @@ export default function Usage() {
                     const credit = computeEffectiveCredit(
                       b.channels_out,
                       b.safe,
-                      b.ticket_value,
+                      b.ticket_stats.ticket_price,
                       hops,
                     );
                     const hopLabel = hops === 1 ? "1-hop" : `${hops}-hops`;
