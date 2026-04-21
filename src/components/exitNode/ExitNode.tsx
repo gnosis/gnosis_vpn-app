@@ -7,7 +7,14 @@ import {
   selectTargetId,
 } from "../../utils/destinations.ts";
 import type { Destination } from "../../services/vpnService.ts";
-import { createEffect, createMemo, createSignal, on, Show } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  on,
+  onCleanup,
+  Show,
+} from "solid-js";
 import { useSettingsStore } from "../../stores/settingsStore.ts";
 import { formatLatency, getHopCount } from "../../utils/exitHealth.ts";
 import HopsIcon from "./HopsIcon.tsx";
@@ -35,6 +42,8 @@ export default function ExitNode() {
   });
 
   const [frozenList, setFrozenList] = createSignal<Destination[] | null>(null);
+  let clearFrozenTimeout: ReturnType<typeof setTimeout> | undefined;
+  onCleanup(() => clearTimeout(clearFrozenTimeout));
 
   createEffect(
     on(
@@ -87,6 +96,7 @@ export default function ExitNode() {
             </span>
             <div class="flex gap-1">
               <button
+                type="button"
                 class={`text-xs px-2 py-0.5 rounded-md font-semibold transition-colors ${
                   settings.exitNodeSortOrder === "latency"
                     ? "bg-accent text-accent-text"
@@ -95,12 +105,15 @@ export default function ExitNode() {
                 onMouseDown={(e) => e.stopPropagation()}
                 onClick={(e) => {
                   e.stopPropagation();
-                  void settingsActions.setExitNodeSortOrder("latency");
+                  void settingsActions.setExitNodeSortOrder("latency").catch(
+                    (e) => console.error("Failed to save exitNodeSortOrder", e),
+                  );
                 }}
               >
                 Latency
               </button>
               <button
+                type="button"
                 class={`text-xs px-2 py-0.5 rounded-md font-semibold transition-colors ${
                   settings.exitNodeSortOrder === "alpha"
                     ? "bg-accent text-accent-text"
@@ -109,7 +122,9 @@ export default function ExitNode() {
                 onMouseDown={(e) => e.stopPropagation()}
                 onClick={(e) => {
                   e.stopPropagation();
-                  void settingsActions.setExitNodeSortOrder("alpha");
+                  void settingsActions.setExitNodeSortOrder("alpha").catch(
+                    (e) => console.error("Failed to save exitNodeSortOrder", e),
+                  );
                 }}
               >
                 A–Z
@@ -118,12 +133,13 @@ export default function ExitNode() {
           </div>
         )}
         onOpen={() => {
+          clearTimeout(clearFrozenTimeout);
           setFrozenList([...sortedDestinations()]);
         }}
         onClose={() => {
           // 160 ms: slightly after Dropdown's 150 ms unmount timeout, so frozenList
           // is cleared after the portal is gone rather than during the animation.
-          setTimeout(() => setFrozenList(null), 160);
+          clearFrozenTimeout = setTimeout(() => setFrozenList(null), 160);
         }}
         renderOption={(opt: ExitOption) => {
           if ("id" in opt) {
