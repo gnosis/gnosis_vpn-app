@@ -1,7 +1,8 @@
-import { createSignal, onCleanup, onMount } from "solid-js";
+import { Show, createSignal, onCleanup, onMount } from "solid-js";
 
 export interface SynchronizationProps {
   syncProgress: number;
+  recoveryDeadline?: number | null;
 }
 
 const trivia = [
@@ -30,15 +31,22 @@ const trivia = [
 export default function Synchronization(props: SynchronizationProps) {
   const [index, setIndex] = createSignal(0);
   const [isVisible, setIsVisible] = createSignal(true);
+  const [now, setNow] = createSignal(Date.now());
 
   const progress = () => Math.min(100, Math.round(props.syncProgress));
+
+  const secondsLeft = () => {
+    const deadline = props.recoveryDeadline;
+    if (deadline == null) return null;
+    return Math.max(0, Math.ceil((deadline - now()) / 1000));
+  };
 
   const CYCLE_DURATION = 7200;
   const FADE_DURATION = 500;
 
   onMount(() => {
     let fadeTimeout: ReturnType<typeof setTimeout> | undefined;
-    const timer = setInterval(() => {
+    const triviaTimer = setInterval(() => {
       setIsVisible(false);
       fadeTimeout = setTimeout(() => {
         setIndex((prev) => (prev + 1) % trivia.length);
@@ -47,8 +55,11 @@ export default function Synchronization(props: SynchronizationProps) {
       }, FADE_DURATION);
     }, CYCLE_DURATION);
 
+    const countdownTimer = setInterval(() => setNow(Date.now()), 1000);
+
     onCleanup(() => {
-      clearInterval(timer);
+      clearInterval(triviaTimer);
+      clearInterval(countdownTimer);
       clearTimeout(fadeTimeout);
     });
   });
@@ -74,6 +85,13 @@ export default function Synchronization(props: SynchronizationProps) {
           </div>
         </div>
       </div>
+
+      {/* Recovery warning when stuck at 100% waiting for peers/channels */}
+      <Show when={secondsLeft() !== null}>
+        <p class="text-center text-sm text-text-secondary mt-6 opacity-80">
+          Oh snap, something seems wrong, waiting for recovery: {secondsLeft()}s
+        </p>
+      </Show>
 
       {/* Trivia Section */}
       <div class="grow flex flex-col items-center justify-center w-full max-w-lg self-center text-center px-4 pb-4">
