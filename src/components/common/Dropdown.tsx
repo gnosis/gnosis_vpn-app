@@ -25,6 +25,9 @@ export type DropdownProps<T> = {
   isOptionDisabled?: (v: T) => boolean;
   class?: string;
   size?: "sm" | "lg";
+  header?: () => JSX.Element;
+  onOpen?: () => void;
+  onClose?: () => void;
 };
 
 export function Dropdown<T>(props: DropdownProps<T>) {
@@ -122,8 +125,10 @@ export function Dropdown<T>(props: DropdownProps<T>) {
           setActiveIdx(firstEnabledIndex());
         }
         updatePosition();
+        props.onOpen?.();
         queueMicrotask(() => list?.focus());
       } else if (mounted()) {
+        props.onClose?.();
         closeTimeout = globalThis.setTimeout(() => setMounted(false), 150);
       }
     }),
@@ -264,6 +269,11 @@ export function Dropdown<T>(props: DropdownProps<T>) {
               width: `${listPos().width}px`,
             }}
           >
+            <Show when={props.header}>
+              <li role="presentation" class="px-3 py-2 border-b border-white/8">
+                {props.header?.()}
+              </li>
+            </Show>
             <For each={props.options}>
               {(opt, i) => {
                 const isActive = () => activeIdx() === i();

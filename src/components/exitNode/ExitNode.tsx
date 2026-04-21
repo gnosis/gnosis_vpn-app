@@ -7,7 +7,7 @@ import {
   selectTargetId,
 } from "../../utils/destinations.ts";
 import type { Destination } from "../../services/vpnService.ts";
-import { createMemo, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, on, Show } from "solid-js";
 import { useSettingsStore } from "../../stores/settingsStore.ts";
 import { formatLatency, getHopCount } from "../../utils/exitHealth.ts";
 import HopsIcon from "./HopsIcon.tsx";
@@ -19,18 +19,35 @@ const AUTO_OPTION: AutoOption = { type: "auto" };
 
 export default function ExitNode() {
   const [appState, appActions] = useAppStore();
-  const [settings] = useSettingsStore();
+  const [settings, settingsActions] = useSettingsStore();
 
-  const sortedDestinations = createMemo(() =>
-    destinationsForTargetSelection(
+  const sortedDestinations = createMemo(() => {
+    if (settings.exitNodeSortOrder === "alpha") {
+      return [...appState.availableDestinations].sort((a, b) =>
+        destinationLabel(a).localeCompare(destinationLabel(b))
+      );
+    }
+    return destinationsForTargetSelection(
       undefined,
       appState.availableDestinations,
       appState.destinations,
-    )
+    );
+  });
+
+  const [frozenList, setFrozenList] = createSignal<Destination[] | null>(null);
+
+  createEffect(
+    on(
+      () => settings.exitNodeSortOrder,
+      () => {
+        if (frozenList() !== null) setFrozenList([...sortedDestinations()]);
+      },
+      { defer: true },
+    ),
   );
 
   const resolvedAutoDestination = createMemo(() => {
-    const available = sortedDestinations();
+    const available = appState.availableDestinations;
     if (available.length === 0) return null;
 
     const { id } = selectTargetId(
@@ -62,7 +79,52 @@ export default function ExitNode() {
     <div class="w-full flex flex-row bg-bg-surface rounded-2xl p-4">
       <Dropdown<ExitOption>
         label="Exit Node"
-        options={[AUTO_OPTION, ...sortedDestinations()]}
+        options={[AUTO_OPTION, ...(frozenList() ?? sortedDestinations())]}
+        header={() => (
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-text-secondary uppercase tracking-wider">
+              Sort by
+            </span>
+            <div class="flex gap-1">
+              <button
+                class={`text-xs px-2 py-0.5 rounded-md font-semibold transition-colors ${
+                  settings.exitNodeSortOrder === "latency"
+                    ? "bg-accent text-accent-text"
+                    : "bg-white/8 text-text-secondary hover:text-text-primary"
+                }`}
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void settingsActions.setExitNodeSortOrder("latency");
+                }}
+              >
+                Latency
+              </button>
+              <button
+                class={`text-xs px-2 py-0.5 rounded-md font-semibold transition-colors ${
+                  settings.exitNodeSortOrder === "alpha"
+                    ? "bg-accent text-accent-text"
+                    : "bg-white/8 text-text-secondary hover:text-text-primary"
+                }`}
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void settingsActions.setExitNodeSortOrder("alpha");
+                }}
+              >
+                A–Z
+              </button>
+            </div>
+          </div>
+        )}
+        onOpen={() => {
+          setFrozenList([...sortedDestinations()]);
+        }}
+        onClose={() => {
+          // 160 ms: slightly after Dropdown's 150 ms unmount timeout, so frozenList
+          // is cleared after the portal is gone rather than during the animation.
+          setTimeout(() => setFrozenList(null), 160);
+        }}
         renderOption={(opt: ExitOption) => {
           if ("id" in opt) {
             const ds = appState.destinations[opt.id];

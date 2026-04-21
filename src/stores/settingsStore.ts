@@ -6,12 +6,14 @@ export interface SettingsState {
   preferredLocation: string | null;
   connectOnStartup: boolean;
   startMinimized: boolean;
+  exitNodeSortOrder: "latency" | "alpha";
 }
 
 const DEFAULT_SETTINGS: SettingsState = {
   preferredLocation: null,
   connectOnStartup: false,
   startMinimized: false,
+  exitNodeSortOrder: "alpha",
 };
 
 type SettingsActions = {
@@ -19,6 +21,7 @@ type SettingsActions = {
   setPreferredLocation: (id: string | null) => Promise<void>;
   setConnectOnStartup: (enabled: boolean) => Promise<void>;
   setStartMinimized: (enabled: boolean) => Promise<void>;
+  setExitNodeSortOrder: (order: "latency" | "alpha") => Promise<void>;
   save: () => Promise<void>;
 };
 
@@ -42,6 +45,7 @@ async function saveAllToDisk(state: SettingsState): Promise<void> {
   await store.set("preferredLocation", state.preferredLocation);
   await store.set("connectOnStartup", state.connectOnStartup);
   await store.set("startMinimized", state.startMinimized);
+  await store.set("exitNodeSortOrder", state.exitNodeSortOrder);
   await store.save();
 }
 
@@ -53,16 +57,22 @@ export function createSettingsStore(): SettingsStoreTuple {
       const store = await getTauriStore();
       const loaded: SettingsState = { ...DEFAULT_SETTINGS };
 
-      const [preferredLocation, connectOnStartup, startMinimized] =
-        (await Promise.all([
-          store.get("preferredLocation"),
-          store.get("connectOnStartup"),
-          store.get("startMinimized"),
-        ])) as [
-          SettingsState["preferredLocation"] | undefined,
-          boolean | undefined,
-          boolean | undefined,
-        ];
+      const [
+        preferredLocation,
+        connectOnStartup,
+        startMinimized,
+        exitNodeSortOrder,
+      ] = (await Promise.all([
+        store.get("preferredLocation"),
+        store.get("connectOnStartup"),
+        store.get("startMinimized"),
+        store.get("exitNodeSortOrder"),
+      ])) as [
+        SettingsState["preferredLocation"] | undefined,
+        boolean | undefined,
+        boolean | undefined,
+        "latency" | "alpha" | undefined,
+      ];
 
       if (preferredLocation) {
         loaded.preferredLocation = preferredLocation;
@@ -73,12 +83,16 @@ export function createSettingsStore(): SettingsStoreTuple {
       if (startMinimized !== undefined) {
         loaded.startMinimized = startMinimized;
       }
+      if (exitNodeSortOrder !== undefined) {
+        loaded.exitNodeSortOrder = exitNodeSortOrder;
+      }
 
       setState({ ...loaded });
 
       const missingAny = preferredLocation === undefined ||
         connectOnStartup === undefined ||
-        startMinimized === undefined;
+        startMinimized === undefined ||
+        exitNodeSortOrder === undefined;
       if (missingAny) {
         await saveAllToDisk(loaded);
       }
@@ -111,6 +125,14 @@ export function createSettingsStore(): SettingsStoreTuple {
       void emit("settings:update", { startMinimized: enabled });
     },
 
+    setExitNodeSortOrder: async (order: "latency" | "alpha") => {
+      setState("exitNodeSortOrder", order);
+      const store = await getTauriStore();
+      await store.set("exitNodeSortOrder", order);
+      await store.save();
+      void emit("settings:update", { exitNodeSortOrder: order });
+    },
+
     save: async () => {
       await saveAllToDisk(state);
     },
@@ -126,6 +148,9 @@ export function createSettingsStore(): SettingsStoreTuple {
     }
     if (payload.startMinimized !== undefined) {
       setState("startMinimized", payload.startMinimized);
+    }
+    if (payload.exitNodeSortOrder !== undefined) {
+      setState("exitNodeSortOrder", payload.exitNodeSortOrder);
     }
   }).then((u) => {
     unlistenSettings = u;
