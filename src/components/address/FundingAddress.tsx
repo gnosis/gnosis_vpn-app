@@ -109,7 +109,7 @@ export default function FundingAddress(
           <div class="font-bold">Gnosis VPN address</div>
           <div
             class={`font-mono ${
-              props.full ? "text-[10px] break-all" : "text-lg"
+              props.full ? "text-[10px] break-all" : "text-lg break-all"
             }`}
           >
             {props.full ? address() : shortAddress(address())}
