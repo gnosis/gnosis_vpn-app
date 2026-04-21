@@ -1,4 +1,4 @@
-import { Show, createSignal, onCleanup, onMount } from "solid-js";
+import { createSignal, onCleanup, onMount, Show } from "solid-js";
 
 export interface SynchronizationProps {
   syncProgress: number;

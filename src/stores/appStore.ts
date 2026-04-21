@@ -235,7 +235,9 @@ export function createAppStore(): AppStoreTuple {
   };
 
   const processStatusResponse = (response: StatusResponse) => {
-    const [screen, warmupStatus, stuckSince] = determineScreenAndStatus(response);
+    const [screen, warmupStatus, stuckSince] = determineScreenAndStatus(
+      response,
+    );
     if (screen === AppScreen.Synchronization) {
       enterSyncPhase(detectSyncPhase(response));
     } else if (
@@ -260,7 +262,10 @@ export function createAppStore(): AppStoreTuple {
       setState("currentScreen", screen);
     }
     setState("warmupStatus", warmupStatus);
-    setState("syncRecoveryDeadline", stuckSince !== null ? stuckSince + MAXIMUM_DELAY_TIME : null);
+    setState(
+      "syncRecoveryDeadline",
+      stuckSince !== null ? stuckSince + MAXIMUM_DELAY_TIME : null,
+    );
     setState("runMode", reconcile(response.run_mode));
     setState("destinations", reconcile(destinations));
     setState("connected", response.connected);
