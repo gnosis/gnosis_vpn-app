@@ -57,6 +57,7 @@ export interface AppState {
   vpnStatus: string;
   warmupStatus: string;
   syncProgress: number;
+  syncRecoveryDeadline: number | null;
 }
 
 type AppActions = {
@@ -93,6 +94,7 @@ function initialState(): AppState {
     vpnStatus: "ServiceUnavailable",
     warmupStatus: "",
     syncProgress: 0,
+    syncRecoveryDeadline: null,
   };
 }
 
@@ -233,7 +235,9 @@ export function createAppStore(): AppStoreTuple {
   };
 
   const processStatusResponse = (response: StatusResponse) => {
-    const [screen, warmupStatus] = determineScreenAndStatus(response);
+    const [screen, warmupStatus, stuckSince] = determineScreenAndStatus(
+      response,
+    );
     if (screen === AppScreen.Synchronization) {
       enterSyncPhase(detectSyncPhase(response));
     } else if (
@@ -258,6 +262,10 @@ export function createAppStore(): AppStoreTuple {
       setState("currentScreen", screen);
     }
     setState("warmupStatus", warmupStatus);
+    setState(
+      "syncRecoveryDeadline",
+      stuckSince !== null ? stuckSince + MAXIMUM_DELAY_TIME : null,
+    );
     setState("runMode", reconcile(response.run_mode));
     setState("destinations", reconcile(destinations));
     setState("connected", response.connected);
@@ -508,21 +516,24 @@ let initialDelay:
   | {
     alreadyRan: true;
   } = { neverRan: true };
-function determineScreenAndStatus(status: StatusResponse): [AppScreen, string] {
+function determineScreenAndStatus(
+  status: StatusResponse,
+): [AppScreen, string, number | null] {
   const runMode = status.run_mode;
   if (runMode === "Shutdown") {
-    return [AppScreen.Main, "Shutdown"];
+    return [AppScreen.Main, "Shutdown", null];
   }
   if (isPreparingSafeRunMode(runMode)) {
-    return [AppScreen.Onboarding, "Onboarding"];
+    return [AppScreen.Onboarding, "Onboarding", null];
   }
   if (isDeployingSafeRunMode(runMode)) {
-    return [AppScreen.Synchronization, "Safe deployment ongoing"];
+    return [AppScreen.Synchronization, "Safe deployment ongoing", null];
   }
   if (isWarmupRunMode(runMode)) {
     return [
       AppScreen.Synchronization,
       formatWarmupStatus(runMode.Warmup.status),
+      null,
     ];
   }
   // delay initial screen as long as no interaction makes sense
@@ -531,8 +542,9 @@ function determineScreenAndStatus(status: StatusResponse): [AppScreen, string] {
     // delay proposed and never ran
     if ("neverRan" in initialDelay) {
       // leads to start delay
-      initialDelay = { delayingSince: Date.now() };
-      return [AppScreen.Synchronization, delay];
+      const delayingSince = Date.now();
+      initialDelay = { delayingSince };
+      return [AppScreen.Synchronization, delay, delayingSince];
     }
     // delay proposed and already in delay
     if ("delayingSince" in initialDelay) {
@@ -540,19 +552,19 @@ function determineScreenAndStatus(status: StatusResponse): [AppScreen, string] {
       if (Date.now() - initialDelay.delayingSince > MAXIMUM_DELAY_TIME) {
         // if the delay reason persists for too long, move on to main screen
         initialDelay = { alreadyRan: true };
-        return [AppScreen.Main, "Moving on"];
+        return [AppScreen.Main, "Moving on", null];
       }
-      return [AppScreen.Synchronization, delay];
+      return [AppScreen.Synchronization, delay, initialDelay.delayingSince];
     }
     // delay proposed but already ran
     if ("alreadyRan" in initialDelay) {
       // leads to main screen
-      return [AppScreen.Main, "Moving on"];
+      return [AppScreen.Main, "Moving on", null];
     }
   }
   // no delay proposed - treat as if already ran
   initialDelay = { alreadyRan: true };
-  return [AppScreen.Main, "Moving on"];
+  return [AppScreen.Main, "Moving on", null];
 }
 
 function findDelayReason(destinations: DestinationState[]): string | null {
