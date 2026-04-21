@@ -51,6 +51,12 @@ pub enum DisconnectResponse {
     NotConnected,
 }
 
+#[derive(Clone, Debug, Serialize)]
+pub struct TicketStats {
+    pub ticket_price: String,
+    pub winning_probability: f64,
+}
+
 #[derive(Debug, Serialize)]
 pub struct BalanceResponse {
     pub node: String,
@@ -58,7 +64,7 @@ pub struct BalanceResponse {
     pub channels_out: String,
     pub info: Info,
     pub issues: Vec<balance::FundingIssue>,
-    pub ticket_value: String,
+    pub ticket_stats: TicketStats,
 }
 
 // Sanitized library structs
@@ -74,7 +80,7 @@ pub enum RunMode {
         funding_tool: Option<String>,
         // came back from safe deployment with an error
         error: Option<String>,
-        ticket_value: Option<String>,
+        ticket_stats: Option<TicketStats>,
     },
     /// Safe deployment ongoing, enough funds, no existing safe
     DeployingSafe { node_address: String },
@@ -225,14 +231,17 @@ impl From<command::RunMode> for RunMode {
                 node_wxhopr,
                 funding_tool,
                 error,
-                ticket_value,
+                ticket_stats,
             } => RunMode::PreparingSafe {
                 node_address: node_address.to_string(),
                 node_xdai: node_xdai.amount().to_string(),
                 node_wxhopr: node_wxhopr.amount().to_string(),
                 funding_tool,
                 error,
-                ticket_value: ticket_value.map(|tv| tv.amount().to_string()),
+                ticket_stats: ticket_stats.map(|ts| TicketStats {
+                    ticket_price: ts.ticket_price.amount().to_string(),
+                    winning_probability: ts.winning_probability,
+                }),
             },
 
             command::RunMode::DeployingSafe { node_address } => RunMode::DeployingSafe {
@@ -322,7 +331,10 @@ impl From<command::BalanceResponse> for BalanceResponse {
             channels_out,
             info: br.info.into(),
             issues: br.issues,
-            ticket_value: br.ticket_value.amount().to_string(),
+            ticket_stats: TicketStats {
+                ticket_price: br.ticket_price.amount().to_string(),
+                winning_probability: br.winning_probability,
+            },
         }
     }
 }

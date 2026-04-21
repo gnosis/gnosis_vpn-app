@@ -82,21 +82,21 @@ function formatWeiPerGbBelowPointZeroOneToPrecision3(valueWei: bigint): string {
 }
 
 /**
- * Compute remaining credit in bytes from channel balance and ticket value.
+ * Compute remaining credit in bytes from channel balance and ticket price.
  * Both inputs are wei amounts as decimal strings (18 decimals).
- * Returns 0n if ticket_value is zero or inputs are invalid.
+ * Returns 0n if ticketPrice is zero or inputs are invalid.
  */
 export function computeCreditBytes(
   channelsOut: string,
-  ticketValue: string,
+  ticketPrice: string,
   hops = 1,
 ): bigint {
   try {
     const channelsOutWei = BigInt(channelsOut.trim() || "0");
-    const ticketValueWei = BigInt(ticketValue.trim() || "0");
-    if (ticketValueWei === 0n || channelsOutWei === 0n) return 0n;
+    const ticketPriceWei = BigInt(ticketPrice.trim() || "0");
+    if (ticketPriceWei === 0n || channelsOutWei === 0n) return 0n;
     const h = BigInt(Math.max(1, Math.floor(hops)));
-    const maxMessages = channelsOutWei / (ticketValueWei * h);
+    const maxMessages = channelsOutWei / (ticketPriceWei * h);
     return maxMessages * PAYLOAD_BYTES_PER_MESSAGE;
   } catch {
     return 0n;
@@ -118,17 +118,17 @@ export function formatCredit(creditBytes: bigint): string {
 }
 
 /**
- * Compute the wxHOPR-per-GB rate from ticket_value (wei string).
+ * Compute the wxHOPR-per-GB rate from ticketPrice (wei string).
  * Exact rate is rational wei; we round to nearest integer wei (half-up) before formatting.
  * Returns a human-readable string like "110.00".
  */
-export function computeHoprPerGb(ticketValue: string, hops = 1): string {
+export function computeHoprPerGb(ticketPrice: string, hops = 1): string {
   try {
-    const ticketValueWei = BigInt(ticketValue.trim() || "0");
-    if (ticketValueWei === 0n) return "—";
+    const ticketPriceWei = BigInt(ticketPrice.trim() || "0");
+    if (ticketPriceWei === 0n) return "—";
     const h = BigInt(Math.max(1, hops));
     const perGbWei =
-      (BYTES_PER_GB * ticketValueWei * h + PAYLOAD_BYTES_PER_MESSAGE / 2n) /
+      (BYTES_PER_GB * ticketPriceWei * h + PAYLOAD_BYTES_PER_MESSAGE / 2n) /
       PAYLOAD_BYTES_PER_MESSAGE;
     const weiThreshold = WEI_PER_TOKEN / 100n;
     if (perGbWei < weiThreshold) {
@@ -154,14 +154,14 @@ export function isCreditEmpty(creditBytes: bigint): boolean {
 export function computeEffectiveCredit(
   channelsOut: string,
   safe: string,
-  ticketValue: string,
+  ticketPrice: string,
   hops = 1,
 ): { bytes: bigint; isEstimate: boolean } {
-  const channelBytes = computeCreditBytes(channelsOut, ticketValue, hops);
+  const channelBytes = computeCreditBytes(channelsOut, ticketPrice, hops);
   if (channelBytes >= BYTES_PER_MB) {
     return { bytes: channelBytes, isEstimate: false };
   }
-  const safeBytes = computeCreditBytes(safe, ticketValue, hops);
+  const safeBytes = computeCreditBytes(safe, ticketPrice, hops);
   if (channelBytes > 0n && safeBytes === 0n) {
     return { bytes: channelBytes, isEstimate: false };
   }

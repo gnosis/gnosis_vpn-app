@@ -44,9 +44,9 @@ export default function Manually() {
 
   const ratePerGb = createMemo(() => {
     if (!isPreparingSafeRunMode(appState.runMode)) return null;
-    const tv = appState.runMode.PreparingSafe.ticket_value;
-    if (!tv) return null;
-    return computeHoprPerGb(tv);
+    const ts = appState.runMode.PreparingSafe.ticket_stats;
+    if (!ts) return null;
+    return computeHoprPerGb(ts.ticket_price);
   });
 
   return (
