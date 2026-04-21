@@ -83,7 +83,7 @@ export function createSettingsStore(): SettingsStoreTuple {
       if (startMinimized !== undefined) {
         loaded.startMinimized = startMinimized;
       }
-      if (exitNodeSortOrder !== undefined) {
+      if (exitNodeSortOrder === "latency" || exitNodeSortOrder === "alpha") {
         loaded.exitNodeSortOrder = exitNodeSortOrder;
       }
 
