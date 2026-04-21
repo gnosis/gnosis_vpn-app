@@ -56,17 +56,21 @@ export default function ExitNode() {
   );
 
   const resolvedAutoDestination = createMemo(() => {
-    const available = appState.availableDestinations;
-    if (available.length === 0) return null;
+    const candidates = destinationsForTargetSelection(
+      undefined,
+      appState.availableDestinations,
+      appState.destinations,
+    );
+    if (candidates.length === 0) return null;
 
     const { id } = selectTargetId(
       undefined,
       settings.preferredLocation,
-      available,
+      candidates,
     );
 
     if (!id) return null;
-    return available.find((d) => d.id === id) ?? null;
+    return candidates.find((d) => d.id === id) ?? null;
   });
 
   // Created once at component init — outside any reactive tracking.
