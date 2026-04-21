@@ -1,4 +1,4 @@
-import { createSignal, onCleanup, onMount, Show } from "solid-js";
+import { createEffect, createSignal, onCleanup, onMount, Show } from "solid-js";
 
 export interface SynchronizationProps {
   syncProgress: number;
@@ -55,13 +55,17 @@ export default function Synchronization(props: SynchronizationProps) {
       }, FADE_DURATION);
     }, CYCLE_DURATION);
 
-    const countdownTimer = setInterval(() => setNow(Date.now()), 1000);
-
     onCleanup(() => {
       clearInterval(triviaTimer);
-      clearInterval(countdownTimer);
       clearTimeout(fadeTimeout);
     });
+  });
+
+  createEffect(() => {
+    if (props.recoveryDeadline == null || progress() < 100) return;
+    setNow(Date.now());
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    onCleanup(() => clearInterval(timer));
   });
 
   return (
