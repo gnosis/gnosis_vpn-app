@@ -128,11 +128,17 @@ export function createSettingsStore(): SettingsStoreTuple {
     },
 
     setExitNodeSortOrder: async (order: "latency" | "alpha") => {
-      setState("exitNodeSortOrder", order);
-      const store = await getTauriStore();
-      await store.set("exitNodeSortOrder", order);
-      await store.save();
-      void emit("settings:update", { exitNodeSortOrder: order });
+      const prev = state.exitNodeSortOrder;
+      try {
+        const store = await getTauriStore();
+        await store.set("exitNodeSortOrder", order);
+        await store.save();
+        setState("exitNodeSortOrder", order);
+        void emit("settings:update", { exitNodeSortOrder: order });
+      } catch (e) {
+        setState("exitNodeSortOrder", prev);
+        throw e;
+      }
     },
 
     save: async () => {
