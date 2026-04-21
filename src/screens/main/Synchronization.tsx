@@ -87,7 +87,7 @@ export default function Synchronization(props: SynchronizationProps) {
       </div>
 
       {/* Recovery warning when stuck at 100% waiting for peers/channels */}
-      <Show when={secondsLeft() !== null}>
+      <Show when={secondsLeft() !== null && progress() >= 100}>
         <p class="text-center text-sm text-text-secondary mt-6 opacity-80">
           Oh snap, something seems wrong, waiting for recovery: {secondsLeft()}s
         </p>
