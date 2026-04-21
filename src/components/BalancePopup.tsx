@@ -54,7 +54,11 @@ export default function BalancePopup(props: Props) {
   const effectiveCredit = createMemo(() => {
     const b = balance();
     if (!b) return null;
-    return computeEffectiveCredit(b.channels_out, b.safe, b.ticket_stats.ticket_price);
+    return computeEffectiveCredit(
+      b.channels_out,
+      b.safe,
+      b.ticket_stats.ticket_price,
+    );
   });
   const creditEmpty = createMemo(() => {
     const ec = effectiveCredit();
