@@ -221,6 +221,9 @@ export default function ExitNode() {
             if (current === opt.id) {
               return;
             }
+            if (!appState.availableDestinations.some((d) => d.id === opt.id)) {
+              return;
+            }
             appActions.chooseDestination(opt.id);
           } else {
             if (current !== null) {
