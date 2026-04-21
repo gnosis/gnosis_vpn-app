@@ -41,6 +41,10 @@ export default function ExitNode() {
     );
   });
 
+  const availableIds = createMemo(
+    () => new Set(appState.availableDestinations.map((d) => d.id)),
+  );
+
   const [frozenList, setFrozenList] = createSignal<Destination[] | null>(null);
   let clearFrozenTimeout: ReturnType<typeof setTimeout> | undefined;
   onCleanup(() => clearTimeout(clearFrozenTimeout));
@@ -229,7 +233,7 @@ export default function ExitNode() {
             if (current === opt.id) {
               return;
             }
-            if (!appState.availableDestinations.some((d) => d.id === opt.id)) {
+            if (!availableIds().has(opt.id)) {
               return;
             }
             appActions.chooseDestination(opt.id);
@@ -246,8 +250,7 @@ export default function ExitNode() {
           return "Auto";
         }}
         isOptionDisabled={(opt: ExitOption) =>
-          "id" in opt &&
-          !appState.availableDestinations.some((d) => d.id === opt.id)}
+          "id" in opt && !availableIds().has(opt.id)}
         renderValue={(opt: ExitOption) => {
           if ("id" in opt) {
             return (
