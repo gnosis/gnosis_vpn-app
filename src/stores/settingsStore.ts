@@ -151,7 +151,10 @@ export function createSettingsStore(): SettingsStoreTuple {
     if (payload.startMinimized !== undefined) {
       setState("startMinimized", payload.startMinimized);
     }
-    if (payload.exitNodeSortOrder !== undefined) {
+    if (
+      payload.exitNodeSortOrder === "latency" ||
+      payload.exitNodeSortOrder === "alpha"
+    ) {
       setState("exitNodeSortOrder", payload.exitNodeSortOrder);
     }
   }).then((u) => {
