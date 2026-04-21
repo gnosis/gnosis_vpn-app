@@ -82,9 +82,9 @@ function formatWeiPerGbBelowPointZeroOneToPrecision3(valueWei: bigint): string {
 }
 
 /**
- * Compute remaining credit in bytes from channel balance and ticket value.
+ * Compute remaining credit in bytes from channel balance and ticket price.
  * Both inputs are wei amounts as decimal strings (18 decimals).
- * Returns 0n if ticket_value is zero or inputs are invalid.
+ * Returns 0n if ticketPrice is zero or inputs are invalid.
  */
 export function computeCreditBytes(
   channelsOut: string,
@@ -118,7 +118,7 @@ export function formatCredit(creditBytes: bigint): string {
 }
 
 /**
- * Compute the wxHOPR-per-GB rate from ticket_value (wei string).
+ * Compute the wxHOPR-per-GB rate from ticketPrice (wei string).
  * Exact rate is rational wei; we round to nearest integer wei (half-up) before formatting.
  * Returns a human-readable string like "110.00".
  */
