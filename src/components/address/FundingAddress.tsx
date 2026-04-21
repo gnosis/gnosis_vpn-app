@@ -104,15 +104,19 @@ export default function FundingAddress(
         <div class="text-sm text-red-500">No Gnosis VPN address found</div>
       }
     >
-      <div class="flex flex-row justify-between items-center">
-        <div class="text-sm">
+      <div class="flex flex-row justify-between items-center gap-2">
+        <div class="text-sm min-w-0">
           <div class="font-bold">Gnosis VPN address</div>
-          <div class={`font-mono ${props.full ? "text-[10px]" : "text-lg"}`}>
+          <div
+            class={`font-mono ${
+              props.full ? "text-[10px] break-all" : "text-lg break-all"
+            }`}
+          >
             {props.full ? address() : shortAddress(address())}
           </div>
         </div>
 
-        <div class="flex gap-1 items-center h-[20px]">
+        <div class="flex gap-1 items-center shrink-0">
           <Show when={!props.qrVisible}>
             <Tooltip content="Open on Gnosisscan" position="top">
               <button
