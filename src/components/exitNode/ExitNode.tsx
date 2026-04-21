@@ -103,6 +103,7 @@ export default function ExitNode() {
                     : "bg-white/8 text-text-secondary hover:text-text-primary"
                 }`}
                 onMouseDown={(e) => e.stopPropagation()}
+                onKeyDown={(e) => e.stopPropagation()}
                 onClick={(e) => {
                   e.stopPropagation();
                   void settingsActions.setExitNodeSortOrder("latency").catch(
@@ -120,6 +121,7 @@ export default function ExitNode() {
                     : "bg-white/8 text-text-secondary hover:text-text-primary"
                 }`}
                 onMouseDown={(e) => e.stopPropagation()}
+                onKeyDown={(e) => e.stopPropagation()}
                 onClick={(e) => {
                   e.stopPropagation();
                   void settingsActions.setExitNodeSortOrder("alpha").catch(
