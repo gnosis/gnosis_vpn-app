@@ -2,24 +2,27 @@
 
 ## Reporting Issues
 
-To help us manage feedback and improve the project, we use a discussion-first
-process for all bug reports and feature requests. Those are happening in the
-[Gnosis VPN Discussions](https://github.com/gnosis/gnosis_vpn/discussions)
-board.
+We use **[Gnosis VPN](https://github.com/gnosis/gnosis_vpn)** repository as the
+central hub for all user feedback.
 
-### How to report an issue
+> [!IMPORTANT]
+> Do not open a direct issue here
 
-1. Search existing
-   [Discussions](https://github.com/gnosis/gnosis_vpn/discussions) and
-   [Issues](https://github.com/gnosis/gnosis_vpn/issues) to see if your topic is
-   already covered.
-2. If not, start a new Discussion in the
+Follow these steps instead:
+
+1. Visit
+   [Gnosis VPN Discussions](https://github.com/gnosis/gnosis_vpn/discussions)
+   board.
+1. Search existing Discussions and Issues to see if your topic is already
+   covered.
+1. Start a new discussion in the
    [Issues & Bug Reports](https://github.com/gnosis/gnosis_vpn/discussions/new?category=issues-bug-reports)
    category.
-3. Provide as much detail as possible using the provided template.
+1. Provide details such as versions, operating system, and relevant logs.
 
-The team will review all discussions and promote confirmed bugs or planned
-features to actionable issues.
+This repository is reserved for tracking actionable work by the team. Once a
+discussion is triaged and confirmed, we will create an internal issue here to
+track the implementation or fix.
 
 ## Supported Platforms
 
