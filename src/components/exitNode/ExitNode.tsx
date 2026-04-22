@@ -124,10 +124,7 @@ export default function ExitNode() {
                   }}
                   onClick={(e) => {
                     e.stopPropagation();
-                    void settingsActions.setExitNodeSortOrder(order).catch(
-                      (e) =>
-                        console.error("Failed to save exitNodeSortOrder", e),
-                    );
+                    void settingsActions.setExitNodeSortOrder(order);
                   }}
                 >
                   {label}

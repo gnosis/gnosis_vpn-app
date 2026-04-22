@@ -105,41 +105,50 @@ export function createSettingsStore(): SettingsStoreTuple {
         return;
       }
       setState("preferredLocation", id);
-      const store = await getTauriStore();
-      await store.set("preferredLocation", id);
-      await store.save();
+      try {
+        const store = await getTauriStore();
+        await store.set("preferredLocation", id);
+        await store.save();
+      } catch (e) {
+        console.error("Failed to save preferredLocation", e);
+      }
       void emit("settings:update", { preferredLocation: id });
     },
 
     setConnectOnStartup: async (enabled: boolean) => {
       setState("connectOnStartup", enabled);
-      const store = await getTauriStore();
-      await store.set("connectOnStartup", enabled);
-      await store.save();
+      try {
+        const store = await getTauriStore();
+        await store.set("connectOnStartup", enabled);
+        await store.save();
+      } catch (e) {
+        console.error("Failed to save connectOnStartup", e);
+      }
       void emit("settings:update", { connectOnStartup: enabled });
     },
 
     setStartMinimized: async (enabled: boolean) => {
       setState("startMinimized", enabled);
-      const store = await getTauriStore();
-      await store.set("startMinimized", enabled);
-      await store.save();
+      try {
+        const store = await getTauriStore();
+        await store.set("startMinimized", enabled);
+        await store.save();
+      } catch (e) {
+        console.error("Failed to save startMinimized", e);
+      }
       void emit("settings:update", { startMinimized: enabled });
     },
 
     setExitNodeSortOrder: async (order: "latency" | "alpha") => {
-      // Persist first so state only reflects a confirmed write; roll back on failure.
-      const prev = state.exitNodeSortOrder;
+      setState("exitNodeSortOrder", order);
       try {
         const store = await getTauriStore();
         await store.set("exitNodeSortOrder", order);
         await store.save();
-        setState("exitNodeSortOrder", order);
-        void emit("settings:update", { exitNodeSortOrder: order });
       } catch (e) {
-        setState("exitNodeSortOrder", prev);
-        throw e;
+        console.error("Failed to save exitNodeSortOrder", e);
       }
+      void emit("settings:update", { exitNodeSortOrder: order });
     },
 
     save: async () => {
