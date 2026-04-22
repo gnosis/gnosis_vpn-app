@@ -133,7 +133,7 @@ export function Dropdown<T>(props: DropdownProps<T>) {
         queueMicrotask(() => list?.focus());
       } else if (mounted()) {
         props.onClose?.();
-        closeTimeout = globalThis.setTimeout(() => setMounted(false), 150);
+        closeTimeout = globalThis.setTimeout(() => setMounted(false), 200);
       }
     }),
   );
@@ -254,6 +254,12 @@ export function Dropdown<T>(props: DropdownProps<T>) {
         <Portal>
           <div
             ref={listContainer}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                setOpen(false);
+                btn?.focus();
+              }
+            }}
             class={`fixed z-50 rounded-xl bg-bg-surface shadow-lg ring-1 ring-black/10 outline-none
                      transition-all duration-200 ease-out origin-top
                      ${

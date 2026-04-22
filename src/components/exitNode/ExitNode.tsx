@@ -155,9 +155,9 @@ export default function ExitNode() {
           setFrozenList([...sortedDestinations()]);
         }}
         onClose={() => {
-          // 160 ms: slightly after Dropdown's 150 ms unmount timeout, so frozenList
+          // 210 ms: slightly after Dropdown's 200 ms unmount timeout, so frozenList
           // is cleared after the portal is gone rather than during the animation.
-          clearFrozenTimeout = setTimeout(() => setFrozenList(null), 160);
+          clearFrozenTimeout = setTimeout(() => setFrozenList(null), 210);
         }}
         renderOption={(opt: ExitOption) => {
           if ("id" in opt) {
