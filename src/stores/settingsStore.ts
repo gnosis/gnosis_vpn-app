@@ -128,6 +128,7 @@ export function createSettingsStore(): SettingsStoreTuple {
     },
 
     setExitNodeSortOrder: async (order: "latency" | "alpha") => {
+      // Persist first so state only reflects a confirmed write; roll back on failure.
       const prev = state.exitNodeSortOrder;
       try {
         const store = await getTauriStore();
