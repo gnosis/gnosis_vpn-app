@@ -178,9 +178,6 @@ export function Dropdown<T>(props: DropdownProps<T>) {
     } else if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       selectByIndex(activeIdx());
-    } else if (e.key === "Escape") {
-      setOpen(false);
-      btn?.focus();
     }
   };
 

@@ -13,7 +13,7 @@ const DEFAULT_SETTINGS: SettingsState = {
   preferredLocation: null,
   connectOnStartup: false,
   startMinimized: false,
-  exitNodeSortOrder: "alpha",
+  exitNodeSortOrder: "latency",
 };
 
 type SettingsActions = {

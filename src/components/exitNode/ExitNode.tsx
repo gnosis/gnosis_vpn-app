@@ -46,8 +46,8 @@ export default function ExitNode() {
   );
 
   const [frozenList, setFrozenList] = createSignal<Destination[] | null>(null);
-  let clearFrozenTimeout: ReturnType<typeof setTimeout> | undefined;
-  onCleanup(() => clearTimeout(clearFrozenTimeout));
+  let clearFrozenTimeout: ReturnType<typeof globalThis.setTimeout> | undefined;
+  onCleanup(() => globalThis.clearTimeout(clearFrozenTimeout));
 
   createEffect(
     on(
@@ -103,61 +103,50 @@ export default function ExitNode() {
               Sort by
             </span>
             <div class="flex gap-1">
-              <button
-                type="button"
-                class={`text-xs px-2 py-0.5 rounded-md font-semibold transition-colors ${
-                  settings.exitNodeSortOrder === "latency"
-                    ? "bg-accent text-accent-text"
-                    : "bg-white/8 text-text-secondary hover:text-text-primary"
-                }`}
-                onMouseDown={(e) => e.stopPropagation()}
-                onKeyDown={(e) => {
-                  if (e.key !== "Escape" && e.key !== "Tab") {
+              {(
+                [
+                  { order: "latency", label: "Latency" },
+                  { order: "alpha", label: "A–Z" },
+                ] as const
+              ).map(({ order, label }) => (
+                <button
+                  type="button"
+                  class={`text-xs px-2 py-0.5 rounded-md font-semibold transition-colors ${
+                    settings.exitNodeSortOrder === order
+                      ? "bg-accent text-accent-text"
+                      : "bg-white/8 text-text-secondary hover:text-text-primary"
+                  }`}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => {
+                    if (e.key !== "Escape" && e.key !== "Tab") {
+                      e.stopPropagation();
+                    }
+                  }}
+                  onClick={(e) => {
                     e.stopPropagation();
-                  }
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  void settingsActions.setExitNodeSortOrder("latency").catch(
-                    (e) => console.error("Failed to save exitNodeSortOrder", e),
-                  );
-                }}
-              >
-                Latency
-              </button>
-              <button
-                type="button"
-                class={`text-xs px-2 py-0.5 rounded-md font-semibold transition-colors ${
-                  settings.exitNodeSortOrder === "alpha"
-                    ? "bg-accent text-accent-text"
-                    : "bg-white/8 text-text-secondary hover:text-text-primary"
-                }`}
-                onMouseDown={(e) => e.stopPropagation()}
-                onKeyDown={(e) => {
-                  if (e.key !== "Escape" && e.key !== "Tab") {
-                    e.stopPropagation();
-                  }
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  void settingsActions.setExitNodeSortOrder("alpha").catch(
-                    (e) => console.error("Failed to save exitNodeSortOrder", e),
-                  );
-                }}
-              >
-                A–Z
-              </button>
+                    void settingsActions.setExitNodeSortOrder(order).catch(
+                      (e) =>
+                        console.error("Failed to save exitNodeSortOrder", e),
+                    );
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
           </div>
         )}
         onOpen={() => {
-          clearTimeout(clearFrozenTimeout);
+          globalThis.clearTimeout(clearFrozenTimeout);
           setFrozenList([...sortedDestinations()]);
         }}
         onClose={() => {
           // 210 ms: slightly after Dropdown's 200 ms unmount timeout, so frozenList
           // is cleared after the portal is gone rather than during the animation.
-          clearFrozenTimeout = setTimeout(() => setFrozenList(null), 210);
+          clearFrozenTimeout = globalThis.setTimeout(
+            () => setFrozenList(null),
+            210,
+          );
         }}
         renderOption={(opt: ExitOption) => {
           if ("id" in opt) {
