@@ -3,11 +3,19 @@ import { Dropdown } from "../common/Dropdown.tsx";
 import {
   destinationLabel,
   destinationLabelById,
-  destinationsForTargetSelection,
   selectTargetId,
+  sortAlphaDestinations,
+  sortByHealthScore,
 } from "../../utils/destinations.ts";
 import type { Destination } from "../../services/vpnService.ts";
-import { createMemo, Show } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  on,
+  onCleanup,
+  Show,
+} from "solid-js";
 import { useSettingsStore } from "../../stores/settingsStore.ts";
 import { formatLatency, getHopCount } from "../../utils/exitHealth.ts";
 import HopsIcon from "./HopsIcon.tsx";
@@ -19,28 +27,54 @@ const AUTO_OPTION: AutoOption = { type: "auto" };
 
 export default function ExitNode() {
   const [appState, appActions] = useAppStore();
-  const [settings] = useSettingsStore();
+  const [settings, settingsActions] = useSettingsStore();
 
-  const sortedDestinations = createMemo(() =>
-    destinationsForTargetSelection(
-      undefined,
+  const sortedDestinations = createMemo(() => {
+    if (settings.exitNodeSortOrder === "alpha") {
+      return sortAlphaDestinations(
+        appState.availableDestinations,
+        appState.destinations,
+      );
+    }
+    return sortByHealthScore(
       appState.availableDestinations,
       appState.destinations,
-    )
+    );
+  });
+
+  const availableIds = createMemo(
+    () => new Set(appState.availableDestinations.map((d) => d.id)),
+  );
+
+  const [frozenList, setFrozenList] = createSignal<Destination[] | null>(null);
+  let clearFrozenTimeout: ReturnType<typeof globalThis.setTimeout> | undefined;
+  onCleanup(() => globalThis.clearTimeout(clearFrozenTimeout));
+
+  createEffect(
+    on(
+      () => settings.exitNodeSortOrder,
+      () => {
+        if (frozenList() !== null) setFrozenList([...sortedDestinations()]);
+      },
+      { defer: true },
+    ),
   );
 
   const resolvedAutoDestination = createMemo(() => {
-    const available = sortedDestinations();
-    if (available.length === 0) return null;
+    const candidates = sortByHealthScore(
+      appState.availableDestinations,
+      appState.destinations,
+    );
+    if (candidates.length === 0) return null;
 
     const { id } = selectTargetId(
       undefined,
       settings.preferredLocation,
-      available,
+      candidates,
     );
 
     if (!id) return null;
-    return available.find((d) => d.id === id) ?? null;
+    return candidates.find((d) => d.id === id) ?? null;
   });
 
   // Created once at component init — outside any reactive tracking.
@@ -62,7 +96,55 @@ export default function ExitNode() {
     <div class="w-full flex flex-row bg-bg-surface rounded-2xl p-4">
       <Dropdown<ExitOption>
         label="Exit Node"
-        options={[AUTO_OPTION, ...sortedDestinations()]}
+        options={[AUTO_OPTION, ...(frozenList() ?? sortedDestinations())]}
+        header={() => (
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-text-secondary uppercase tracking-wider">
+              Sort by
+            </span>
+            <div class="flex gap-1">
+              {(
+                [
+                  { order: "latency", label: "Latency" },
+                  { order: "alpha", label: "A–Z" },
+                ] as const
+              ).map(({ order, label }) => (
+                <button
+                  type="button"
+                  class={`text-xs px-2 py-0.5 rounded-md font-semibold transition-colors ${
+                    settings.exitNodeSortOrder === order
+                      ? "bg-accent text-accent-text"
+                      : "bg-white/8 text-text-secondary hover:text-text-primary"
+                  }`}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => {
+                    if (e.key !== "Escape" && e.key !== "Tab") {
+                      e.stopPropagation();
+                    }
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void settingsActions.setExitNodeSortOrder(order);
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        onOpen={() => {
+          globalThis.clearTimeout(clearFrozenTimeout);
+          setFrozenList([...sortedDestinations()]);
+        }}
+        onClose={() => {
+          // 210 ms: slightly after Dropdown's 200 ms unmount timeout, so frozenList
+          // is cleared after the portal is gone rather than during the animation.
+          clearFrozenTimeout = globalThis.setTimeout(
+            () => setFrozenList(null),
+            210,
+          );
+        }}
         renderOption={(opt: ExitOption) => {
           if ("id" in opt) {
             const ds = appState.destinations[opt.id];
@@ -137,6 +219,9 @@ export default function ExitNode() {
             if (current === opt.id) {
               return;
             }
+            if (!availableIds().has(opt.id)) {
+              return;
+            }
             appActions.chooseDestination(opt.id);
           } else {
             if (current !== null) {
@@ -150,7 +235,8 @@ export default function ExitNode() {
           }
           return "Auto";
         }}
-        isOptionDisabled={() => false}
+        isOptionDisabled={(opt: ExitOption) =>
+          "id" in opt && !availableIds().has(opt.id)}
         renderValue={(opt: ExitOption) => {
           if ("id" in opt) {
             return (

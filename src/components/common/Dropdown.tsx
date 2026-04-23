@@ -25,6 +25,9 @@ export type DropdownProps<T> = {
   isOptionDisabled?: (v: T) => boolean;
   class?: string;
   size?: "sm" | "lg";
+  header?: () => JSX.Element;
+  onOpen?: () => void;
+  onClose?: () => void;
 };
 
 export function Dropdown<T>(props: DropdownProps<T>) {
@@ -51,6 +54,7 @@ export function Dropdown<T>(props: DropdownProps<T>) {
   let root!: HTMLDivElement;
   let btn!: HTMLButtonElement;
   let list!: HTMLUListElement;
+  let listContainer!: HTMLDivElement;
 
   const [listPos, setListPos] = createSignal({ top: 0, left: 0, width: 0 });
   const updatePosition = () => {
@@ -96,7 +100,10 @@ export function Dropdown<T>(props: DropdownProps<T>) {
 
   const onDocClick = (e: MouseEvent) => {
     const target = e.target as Node;
-    if (!root.contains(target) && !(list && list.contains(target))) {
+    if (
+      !root.contains(target) &&
+      !(listContainer && listContainer.contains(target))
+    ) {
       setOpen(false);
     }
   };
@@ -122,9 +129,11 @@ export function Dropdown<T>(props: DropdownProps<T>) {
           setActiveIdx(firstEnabledIndex());
         }
         updatePosition();
+        props.onOpen?.();
         queueMicrotask(() => list?.focus());
       } else if (mounted()) {
-        closeTimeout = globalThis.setTimeout(() => setMounted(false), 150);
+        props.onClose?.();
+        closeTimeout = globalThis.setTimeout(() => setMounted(false), 200);
       }
     }),
   );
@@ -169,9 +178,6 @@ export function Dropdown<T>(props: DropdownProps<T>) {
     } else if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       selectByIndex(activeIdx());
-    } else if (e.key === "Escape") {
-      setOpen(false);
-      btn?.focus();
     }
   };
 
@@ -243,15 +249,15 @@ export function Dropdown<T>(props: DropdownProps<T>) {
 
       <Show when={mounted()}>
         <Portal>
-          <ul
-            ref={list}
-            tabindex="0"
-            role="listbox"
-            aria-activedescendant={activeIdx() >= 0
-              ? `opt-${activeIdx()}`
-              : undefined}
-            onKeyDown={onListKey}
-            class={`fixed z-50 max-h-64 overflow-auto rounded-xl bg-bg-surface shadow-lg ring-1 ring-black/10 p-1 outline-none
+          <div
+            ref={listContainer}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                setOpen(false);
+                btn?.focus();
+              }
+            }}
+            class={`fixed z-50 rounded-xl bg-bg-surface shadow-lg ring-1 ring-black/10 outline-none
                      transition-all duration-200 ease-out origin-top
                      ${
               open()
@@ -264,42 +270,59 @@ export function Dropdown<T>(props: DropdownProps<T>) {
               width: `${listPos().width}px`,
             }}
           >
-            <For each={props.options}>
-              {(opt, i) => {
-                const isActive = () => activeIdx() === i();
-                const isSelected = () => selectedIdx() === i();
-                const isDisabled = () => (props.isOptionDisabled
-                  ? !!props.isOptionDisabled(opt)
-                  : false);
-                return (
-                  <li
-                    id={`opt-${i()}`}
-                    role="option"
-                    aria-selected={isSelected()}
-                    aria-disabled={isDisabled()}
-                    class={`cursor-pointer rounded-xl px-3 py-2 text-sm
-                             ${
-                      isActive() && !isDisabled()
-                        ? "bg-accent text-accent-text"
-                        : !isDisabled()
-                        ? "hover:bg-bg-surface/50"
-                        : "opacity-50 cursor-not-allowed"
-                    }
-                             ${
-                      isSelected() && !isActive() ? "font-semibold" : ""
-                    }`}
-                    onMouseEnter={() => !isDisabled() && setActiveIdx(i())}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => !isDisabled() && selectByIndex(i())}
-                  >
-                    {props.renderOption
-                      ? props.renderOption(opt)
-                      : toString(opt)}
-                  </li>
-                );
-              }}
-            </For>
-          </ul>
+            {/* header lives outside the listbox so interactive controls don't violate ARIA listbox semantics */}
+            <Show when={props.header}>
+              <div class="px-3 py-2 border-b border-white/8">
+                {props.header?.()}
+              </div>
+            </Show>
+            <ul
+              ref={list}
+              tabindex="0"
+              role="listbox"
+              aria-activedescendant={activeIdx() >= 0
+                ? `opt-${activeIdx()}`
+                : undefined}
+              onKeyDown={onListKey}
+              class="max-h-64 overflow-auto p-1 outline-none"
+            >
+              <For each={props.options}>
+                {(opt, i) => {
+                  const isActive = () => activeIdx() === i();
+                  const isSelected = () => selectedIdx() === i();
+                  const isDisabled = () => (props.isOptionDisabled
+                    ? !!props.isOptionDisabled(opt)
+                    : false);
+                  return (
+                    <li
+                      id={`opt-${i()}`}
+                      role="option"
+                      aria-selected={isSelected()}
+                      aria-disabled={isDisabled()}
+                      class={`cursor-pointer rounded-xl px-3 py-2 text-sm
+                               ${
+                        isActive() && !isDisabled()
+                          ? "bg-accent text-accent-text"
+                          : !isDisabled()
+                          ? "hover:bg-bg-surface/50"
+                          : "opacity-50 cursor-not-allowed"
+                      }
+                               ${
+                        isSelected() && !isActive() ? "font-semibold" : ""
+                      }`}
+                      onMouseEnter={() => !isDisabled() && setActiveIdx(i())}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => !isDisabled() && selectByIndex(i())}
+                    >
+                      {props.renderOption
+                        ? props.renderOption(opt)
+                        : toString(opt)}
+                    </li>
+                  );
+                }}
+              </For>
+            </ul>
+          </div>
         </Portal>
       </Show>
     </>

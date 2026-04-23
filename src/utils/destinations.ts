@@ -3,7 +3,7 @@ import type {
   DestinationState,
   RoutingOptions,
 } from "@src/services/vpnService.ts";
-import { sortByHealthScore } from "@src/utils/exitHealth.ts";
+import { getSortLatencyMs, isReadyToConnect } from "@src/utils/exitHealth.ts";
 
 export const canonicalizeMeta = (
   meta: Record<string, string> | undefined,
@@ -65,6 +65,25 @@ export function getPreferredAvailabilityChangeMessage(
     : `Preferred location ${preferredId} currently unavailable.`;
 }
 
+/** Sort: ReadyToConnect/Connecting first (latency ascending), all others after (A–Z). */
+export function sortByHealthScore(
+  available: Destination[],
+  destinations: Record<string, DestinationState>,
+): Destination[] {
+  return [...available].sort((a, b) => {
+    const msA = destinations[a.id]
+      ? getSortLatencyMs(destinations[a.id])
+      : null;
+    const msB = destinations[b.id]
+      ? getSortLatencyMs(destinations[b.id])
+      : null;
+    if (msA !== null && msB !== null) return msA - msB;
+    if (msA !== null) return -1;
+    if (msB !== null) return 1;
+    return destinationLabel(a).localeCompare(destinationLabel(b));
+  });
+}
+
 /**
  * List to pass to {@link selectTargetId}: preserves `available` order when the user
  * chose a specific exit; otherwise health-sorted (same ordering as connect’s auto path).
@@ -76,6 +95,23 @@ export function destinationsForTargetSelection(
 ): Destination[] {
   if (explicitExitId) return available;
   return sortByHealthScore(available, destinations);
+}
+
+/** Sort: ReadyToConnect/Connecting first (A–Z within tier), all others after (A–Z). */
+export function sortAlphaDestinations(
+  available: Destination[],
+  destinations: Record<string, DestinationState>,
+): Destination[] {
+  return [...available].sort((a, b) => {
+    const aReady = isReadyToConnect(
+      destinations[a.id]?.route_health ?? undefined,
+    );
+    const bReady = isReadyToConnect(
+      destinations[b.id]?.route_health ?? undefined,
+    );
+    if (aReady !== bReady) return aReady ? -1 : 1;
+    return destinationLabel(a).localeCompare(destinationLabel(b));
+  });
 }
 
 export function selectTargetId(
