@@ -1,5 +1,27 @@
 # Gnosis VPN client application
 
+## Reporting Issues
+
+We use **[Gnosis VPN](https://github.com/gnosis/gnosis_vpn)** repository as the
+central hub for all user feedback.
+
+### How to report an issue
+
+1. Visit
+   [Gnosis VPN Discussions](https://github.com/gnosis/gnosis_vpn/discussions)
+   board.
+1. Search existing Discussions and
+   [Issues](https://github.com/gnosis/gnosis_vpn/issues) to see if your topic is
+   already covered.
+1. If not, start a new Discussion in the
+   [Issues & Bug Reports](https://github.com/gnosis/gnosis_vpn/discussions/new?category=issues-bug-reports)
+   category.
+1. Provide as much detail as possible using the provided template.
+
+The team will review all discussions and promote confirmed bugs or planned
+features to actionable issues. This repository is reserved for tracking
+actionable work on this component.
+
 ## Supported Platforms
 
 The Gnosis VPN application supports the following platforms and architectures:
