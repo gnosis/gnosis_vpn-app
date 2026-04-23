@@ -6,7 +6,6 @@
   "semanticCommits": "enabled",
   "rangeStrategy": "bump",
   "minimumReleaseAge": "14 days",
-  "vulnerabilityAlerts": { "enabled": true },
   "nix": {
     "enabled": true
   },
