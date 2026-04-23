@@ -3,7 +3,11 @@ import type {
   Destination,
   DestinationState,
 } from "@src/services/vpnService.ts";
-import { getHealthScore, sortByHealthScore } from "./exitHealth.ts";
+import {
+  getHealthScore,
+  isNodeUnreachable,
+  sortByHealthScore,
+} from "./exitHealth.ts";
 
 const BASE_DESTINATION: Destination = {
   id: "a",
@@ -63,6 +67,33 @@ describe("getHealthScore", () => {
     expect(getHealthScore(unrecoverableDs)).toBeLessThan(
       getHealthScore(BASE_DEST_STATE),
     );
+  });
+});
+
+describe("isNodeUnreachable", () => {
+  it("returns false when route_health is null", () => {
+    expect(isNodeUnreachable(BASE_DEST_STATE)).toBe(false);
+  });
+
+  it("returns false for a healthy destination", () => {
+    expect(isNodeUnreachable(HEALTHY_DEST_STATE)).toBe(false);
+  });
+
+  it("returns true for Unrecoverable state", () => {
+    const unrecoverableDs: DestinationState = {
+      ...BASE_DEST_STATE,
+      route_health: {
+        state: { Unrecoverable: { reason: "NotAllowed" } },
+        last_error: null,
+        checking_since: null,
+        consecutive_failures: 0,
+      },
+    };
+    expect(isNodeUnreachable(unrecoverableDs)).toBe(true);
+  });
+
+  it("returns false when ds is undefined", () => {
+    expect(isNodeUnreachable(undefined)).toBe(false);
   });
 });
 

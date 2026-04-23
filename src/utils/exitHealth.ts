@@ -158,6 +158,13 @@ export function formatExitHealthStatus(rhv: RouteHealthView): string {
   return "Checking…";
 }
 
+/** Whether the route health state is Unrecoverable (shown as "Unreachable" in UI). */
+export function isNodeUnreachable(ds: DestinationState | undefined): boolean {
+  if (!ds?.route_health) return false;
+  const { state } = ds.route_health;
+  return typeof state === "object" && "Unrecoverable" in state;
+}
+
 /** Whether the route is ready to connect (exit health confirmed). */
 export function isReadyToConnect(rhv: RouteHealthView | undefined): boolean {
   if (!rhv) return false;
