@@ -3,8 +3,9 @@ import { Dropdown } from "../common/Dropdown.tsx";
 import {
   destinationLabel,
   destinationLabelById,
-  destinationsForTargetSelection,
   selectTargetId,
+  sortAlphaDestinations,
+  sortByHealthScore,
 } from "../../utils/destinations.ts";
 import type { Destination } from "../../services/vpnService.ts";
 import {
@@ -16,11 +17,7 @@ import {
   Show,
 } from "solid-js";
 import { useSettingsStore } from "../../stores/settingsStore.ts";
-import {
-  formatLatency,
-  getHopCount,
-  isNodeUnreachable,
-} from "../../utils/exitHealth.ts";
+import { formatLatency, getHopCount } from "../../utils/exitHealth.ts";
 import HopsIcon from "./HopsIcon.tsx";
 import Tooltip from "../common/Tooltip.tsx";
 
@@ -34,15 +31,12 @@ export default function ExitNode() {
 
   const sortedDestinations = createMemo(() => {
     if (settings.exitNodeSortOrder === "alpha") {
-      return [...appState.availableDestinations].sort((a, b) => {
-        const aUnreachable = isNodeUnreachable(appState.destinations[a.id]);
-        const bUnreachable = isNodeUnreachable(appState.destinations[b.id]);
-        if (aUnreachable !== bUnreachable) return aUnreachable ? 1 : -1;
-        return destinationLabel(a).localeCompare(destinationLabel(b));
-      });
+      return sortAlphaDestinations(
+        appState.availableDestinations,
+        appState.destinations,
+      );
     }
-    return destinationsForTargetSelection(
-      undefined,
+    return sortByHealthScore(
       appState.availableDestinations,
       appState.destinations,
     );
@@ -67,8 +61,7 @@ export default function ExitNode() {
   );
 
   const resolvedAutoDestination = createMemo(() => {
-    const candidates = destinationsForTargetSelection(
-      undefined,
+    const candidates = sortByHealthScore(
       appState.availableDestinations,
       appState.destinations,
     );

@@ -158,13 +158,6 @@ export function formatExitHealthStatus(rhv: RouteHealthView): string {
   return "Checking…";
 }
 
-/** Whether the route health state is Unrecoverable (shown as "Unreachable" in UI). */
-export function isNodeUnreachable(ds: DestinationState | undefined): boolean {
-  if (!ds?.route_health) return false;
-  const { state } = ds.route_health;
-  return typeof state === "object" && "Unrecoverable" in state;
-}
-
 /** Whether the route is ready to connect (exit health confirmed). */
 export function isReadyToConnect(rhv: RouteHealthView | undefined): boolean {
   if (!rhv) return false;
@@ -193,45 +186,19 @@ export function getMaxHopCount(destinations: Destination[]): number {
   return Math.max(1, ...destinations.map((d) => getHopCount(d.routing)));
 }
 
-/** Sort destinations by health score descending (best first). */
-export function sortByHealthScore(
-  available: Destination[],
-  destinations: Record<string, DestinationState>,
-): Destination[] {
-  return [...available].sort((a, b) => {
-    const dsA = destinations[a.id];
-    const dsB = destinations[b.id];
-    if (!dsA && !dsB) return 0;
-    if (!dsA) return 1;
-    if (!dsB) return -1;
-    return getHealthScore(dsB) - getHealthScore(dsA);
-  });
-}
-
-/** Compute a numeric quality score for sorting (higher = better). */
-export function getHealthScore(ds: DestinationState): number {
-  if (!ds.route_health) return 0;
-  const { state } = ds.route_health;
-  let score = 0;
-
-  if (state === "NeedsFunding" || state === "Routable") return score;
-  if (typeof state !== "object") return score;
-
-  if ("Unrecoverable" in state) return score - 1000;
-  if ("NeedsPeering" in state) return score;
-
-  const exit = getExitData(state);
-  if (!exit) return score;
-
-  score += 1000;
-  score += Math.min(exit.health.slots.available, 20) * 10;
-  // Lower latency → higher score
-  const ms = toMs(exit.ping_rtt);
-  score += Math.max(0, 2000 - Math.round(ms * 4));
-  const { one, nproc } = exit.health.load_avg;
-  if (nproc > 0) {
-    score -= Math.round((one / nproc) * 100);
+/** Latency ms for a ReadyToConnect/Connecting destination; null otherwise. */
+export function getSortLatencyMs(ds: DestinationState): number | null {
+  const rh = ds.route_health;
+  if (!rh) return null;
+  const { state } = rh;
+  if (typeof state !== "object") return null;
+  if ("Connecting" in state) {
+    const rtt = state.Connecting.tunnel_ping_rtt ??
+      state.Connecting.exit.ping_rtt;
+    return toMs(rtt);
   }
-
-  return score;
+  if ("ReadyToConnect" in state) {
+    return toMs(state.ReadyToConnect.exit.ping_rtt);
+  }
+  return null;
 }

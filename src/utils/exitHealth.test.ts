@@ -3,11 +3,7 @@ import type {
   Destination,
   DestinationState,
 } from "@src/services/vpnService.ts";
-import {
-  getHealthScore,
-  isNodeUnreachable,
-  sortByHealthScore,
-} from "./exitHealth.ts";
+import { sortByHealthScore } from "./destinations.ts";
 
 const BASE_DESTINATION: Destination = {
   id: "a",
@@ -21,93 +17,88 @@ const BASE_DEST_STATE: DestinationState = {
   route_health: null,
 };
 
-const HEALTHY_DEST_STATE: DestinationState = {
-  destination: BASE_DESTINATION,
-  route_health: {
-    state: {
-      ReadyToConnect: {
-        exit: {
-          checked_at: { secs_since_epoch: 0, nanos_since_epoch: 0 },
-          versions: { versions: [], latest: "" },
-          ping_rtt: { secs: 0, nanos: 50_000_000 },
-          health: {
-            slots: { available: 5, connected: 2 },
-            load_avg: { one: 0.5, five: 0.5, fifteen: 0.5, nproc: 4 },
+function makeReadyToConnect(id: string, pingNanos: number): DestinationState {
+  return {
+    destination: { ...BASE_DESTINATION, id },
+    route_health: {
+      state: {
+        ReadyToConnect: {
+          exit: {
+            checked_at: { secs_since_epoch: 0, nanos_since_epoch: 0 },
+            versions: { versions: [], latest: "" },
+            ping_rtt: { secs: 0, nanos: pingNanos },
+            health: {
+              slots: { available: 5, connected: 2 },
+              load_avg: { one: 0.5, five: 0.5, fifteen: 0.5, nproc: 4 },
+            },
           },
         },
       },
+      last_error: null,
+      checking_since: null,
+      consecutive_failures: 0,
     },
-    last_error: null,
-    checking_since: null,
-    consecutive_failures: 0,
-  },
-};
-
-describe("getHealthScore", () => {
-  it("returns 0 when route_health is null", () => {
-    expect(getHealthScore(BASE_DEST_STATE)).toBe(0);
-  });
-
-  it("scores null route_health below a healthy route", () => {
-    const nullScore = getHealthScore(BASE_DEST_STATE);
-    const healthyScore = getHealthScore(HEALTHY_DEST_STATE);
-    expect(healthyScore).toBeGreaterThan(nullScore);
-  });
-
-  it("scores Unrecoverable below null route_health", () => {
-    const unrecoverableDs: DestinationState = {
-      ...BASE_DEST_STATE,
-      route_health: {
-        state: { Unrecoverable: { reason: "NotAllowed" } },
-        last_error: null,
-        checking_since: null,
-        consecutive_failures: 0,
-      },
-    };
-    expect(getHealthScore(unrecoverableDs)).toBeLessThan(
-      getHealthScore(BASE_DEST_STATE),
-    );
-  });
-});
-
-describe("isNodeUnreachable", () => {
-  it("returns false when route_health is null", () => {
-    expect(isNodeUnreachable(BASE_DEST_STATE)).toBe(false);
-  });
-
-  it("returns false for a healthy destination", () => {
-    expect(isNodeUnreachable(HEALTHY_DEST_STATE)).toBe(false);
-  });
-
-  it("returns true for Unrecoverable state", () => {
-    const unrecoverableDs: DestinationState = {
-      ...BASE_DEST_STATE,
-      route_health: {
-        state: { Unrecoverable: { reason: "NotAllowed" } },
-        last_error: null,
-        checking_since: null,
-        consecutive_failures: 0,
-      },
-    };
-    expect(isNodeUnreachable(unrecoverableDs)).toBe(true);
-  });
-
-  it("returns false when ds is undefined", () => {
-    expect(isNodeUnreachable(undefined)).toBe(false);
-  });
-});
+  };
+}
 
 describe("sortByHealthScore", () => {
-  it("places destinations with null route_health after healthy ones", () => {
-    const destA: Destination = { ...BASE_DESTINATION, id: "healthy" };
+  it("places ReadyToConnect destinations before those with no route_health", () => {
+    const destA: Destination = { ...BASE_DESTINATION, id: "ready" };
     const destB: Destination = { ...BASE_DESTINATION, id: "no-health" };
 
     const sorted = sortByHealthScore([destB, destA], {
-      healthy: { ...HEALTHY_DEST_STATE, destination: destA },
+      ready: makeReadyToConnect("ready", 50_000_000),
       "no-health": { ...BASE_DEST_STATE, destination: destB },
     });
 
-    expect(sorted[0].id).toBe("healthy");
+    expect(sorted[0].id).toBe("ready");
     expect(sorted[1].id).toBe("no-health");
+  });
+
+  it("places Unrecoverable destinations after ReadyToConnect", () => {
+    const destA: Destination = { ...BASE_DESTINATION, id: "ready" };
+    const destB: Destination = { ...BASE_DESTINATION, id: "unreachable" };
+
+    const sorted = sortByHealthScore([destB, destA], {
+      ready: makeReadyToConnect("ready", 50_000_000),
+      unreachable: {
+        destination: destB,
+        route_health: {
+          state: { Unrecoverable: { reason: "NotAllowed" } },
+          last_error: null,
+          checking_since: null,
+          consecutive_failures: 0,
+        },
+      },
+    });
+
+    expect(sorted[0].id).toBe("ready");
+    expect(sorted[1].id).toBe("unreachable");
+  });
+
+  it("sorts ReadyToConnect destinations by latency ascending", () => {
+    const fast: Destination = { ...BASE_DESTINATION, id: "fast" };
+    const slow: Destination = { ...BASE_DESTINATION, id: "slow" };
+
+    const sorted = sortByHealthScore([slow, fast], {
+      fast: makeReadyToConnect("fast", 20_000_000), // 20 ms
+      slow: makeReadyToConnect("slow", 100_000_000), // 100 ms
+    });
+
+    expect(sorted[0].id).toBe("fast");
+    expect(sorted[1].id).toBe("slow");
+  });
+
+  it("sorts non-ready destinations alphabetically by id", () => {
+    const b: Destination = { ...BASE_DESTINATION, id: "bravo" };
+    const a: Destination = { ...BASE_DESTINATION, id: "alpha" };
+
+    const sorted = sortByHealthScore([b, a], {
+      bravo: { ...BASE_DEST_STATE, destination: b },
+      alpha: { ...BASE_DEST_STATE, destination: a },
+    });
+
+    expect(sorted[0].id).toBe("alpha");
+    expect(sorted[1].id).toBe("bravo");
   });
 });
