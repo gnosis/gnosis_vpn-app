@@ -5,10 +5,9 @@
   "prCreation": "not-pending",
   "semanticCommits": "enabled",
   "rangeStrategy": "bump",
+  "vulnerabilityAlerts": { "enabled": true },
   "minimumReleaseAge": "14 days",
-  "nix": {
-    "enabled": true
-  },
+  "nix": { "enabled": true },
   "packageRules": [
     {
       "matchManagers": ["github-actions"],
