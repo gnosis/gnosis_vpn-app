@@ -118,14 +118,6 @@ export function formatSecondsAgo(diffSec: number): string {
   return `${hours} h ago`;
 }
 
-/** Format "last checked" as a human-readable relative time, e.g. "2 min ago". */
-export function formatLastChecked(rhv: RouteHealthView): string | null {
-  const epoch = getLastCheckedEpoch(rhv);
-  if (epoch === null) return null;
-  const diffSec = Math.max(0, Math.round(Date.now() / 1000 - epoch));
-  return formatSecondsAgo(diffSec);
-}
-
 /** Single status label for the route health state. */
 export function formatExitHealthStatus(rhv: RouteHealthView): string {
   const { state } = rhv;
@@ -156,6 +148,18 @@ export function formatExitHealthStatus(rhv: RouteHealthView): string {
     }
   }
   return "Checking…";
+}
+
+/** Whether route health has displayable stats (latency, load, etc). */
+export function hasHealthContent(rhv: RouteHealthView | null): boolean {
+  if (!rhv) return false;
+  const { state } = rhv;
+  return (
+    state !== "NeedsFunding" &&
+    state !== "Routable" &&
+    !(typeof state === "object" && "NeedsPeering" in state) &&
+    !(typeof state === "object" && "Unrecoverable" in state)
+  );
 }
 
 /** Whether the route is ready to connect (exit health confirmed). */
@@ -201,4 +205,24 @@ export function getSortLatencyMs(ds: DestinationState): number | null {
     return toMs(state.ReadyToConnect.exit.ping_rtt);
   }
   return null;
+}
+
+export type ConnectionState =
+  | "Connected"
+  | "Connecting"
+  | "Disconnecting"
+  | "None";
+
+export function getConnectionState(
+  destId: string,
+  connected: string | null | undefined,
+  connectingId: string | undefined,
+  disconnecting: { destination_id: string }[],
+): ConnectionState {
+  if (connected === destId) return "Connected";
+  if (connectingId === destId) return "Connecting";
+  if (disconnecting.some((d) => d.destination_id === destId)) {
+    return "Disconnecting";
+  }
+  return "None";
 }
