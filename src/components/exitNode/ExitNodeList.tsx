@@ -186,6 +186,10 @@ export default function ExitNodeList(props: { onClose: () => void }) {
       return;
     }
     if (vpnActive() && !settings.skipSwitchConfirmation) {
+      if (!isAvailable(id)) {
+        setShowUnreachable(true);
+        return;
+      }
       setPendingShouldReconnect(vpnActive());
       setPendingId(id);
     } else {
