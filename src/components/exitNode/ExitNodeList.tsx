@@ -36,11 +36,15 @@ export default function ExitNodeList(props: { onClose: () => void }) {
   const [pendingAutoDestination, setPendingAutoDestination] = createSignal<
     Destination | null
   >(null);
+  const [pendingShouldReconnect, setPendingShouldReconnect] = createSignal(
+    false,
+  );
   const [showUnreachable, setShowUnreachable] = createSignal(false);
   const clearPending = () => {
     setPendingId(null);
     setPendingAuto(false);
     setPendingAutoDestination(null);
+    setPendingShouldReconnect(false);
   };
 
   let containerRef: HTMLDivElement | undefined;
@@ -157,6 +161,7 @@ export default function ExitNodeList(props: { onClose: () => void }) {
     if (vpnActive() && !settings.skipSwitchConfirmation) {
       if (resolvedAutoDestination()) {
         setPendingAutoDestination(resolvedAutoDestination());
+        setPendingShouldReconnect(vpnActive());
         setPendingAuto(true);
       } else {
         // No connectable node to resolve to — switch to Auto immediately.
@@ -181,6 +186,7 @@ export default function ExitNodeList(props: { onClose: () => void }) {
       return;
     }
     if (vpnActive() && !settings.skipSwitchConfirmation) {
+      setPendingShouldReconnect(vpnActive());
       setPendingId(id);
     } else {
       if (!isAvailable(id)) {
@@ -193,18 +199,16 @@ export default function ExitNodeList(props: { onClose: () => void }) {
     }
   };
 
-  // vpnActive() is read at confirm time, so if Disconnecting finishes between
-  // dialog open and confirm the user will need to reconnect manually.
   const handleConfirmSwitch = () => {
     if (pendingAuto()) {
-      const resolved = resolvedAutoDestination();
+      const resolved = pendingAutoDestination();
       if (!resolved || !isAvailable(resolved.id)) {
         clearPending();
         setShowUnreachable(true);
         return;
       }
       appActions.chooseDestination(null);
-      if (vpnActive()) void appActions.connect();
+      if (pendingShouldReconnect()) void appActions.connect();
     } else {
       const id = pendingId();
       if (!id || !isAvailable(id)) {
@@ -213,7 +217,7 @@ export default function ExitNodeList(props: { onClose: () => void }) {
         return;
       }
       appActions.chooseDestination(id);
-      if (vpnActive()) void appActions.connect();
+      if (pendingShouldReconnect()) void appActions.connect();
     }
     clearPending();
     props.onClose();
