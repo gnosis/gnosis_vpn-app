@@ -19,9 +19,8 @@ import {
 import { useLogsStore } from "@src/stores/logsStore.ts";
 import {
   destinationLabel,
-  destinationsForTargetSelection,
   getPreferredAvailabilityChangeMessage,
-  selectTargetId,
+  resolveAutoDestination,
 } from "@src/utils/destinations.ts";
 
 import {
@@ -220,9 +219,9 @@ export function createAppStore(): AppStoreTuple {
     }
 
     // 3. Preferred location (if available).
-    // Only sets destination — not selectedId — so the user's "Random" choice
-    // stays visible in the dropdown. connect() resolves preferredLocation
-    // independently via selectTargetId.
+    // Only sets destination — not selectedId — so the user's "Auto" choice
+    // stays visible. connect() resolves preferredLocation independently via
+    // resolveAutoDestination.
     if (settings.preferredLocation) {
       const dest = state.destinations[settings.preferredLocation];
       if (dest) {
@@ -447,16 +446,17 @@ export function createAppStore(): AppStoreTuple {
 
     connect: async () => {
       setState("isLoading", true);
-      const requestedId = state.selectedId ?? undefined;
-      const { id: targetId, reason: selectionReason } = selectTargetId(
-        requestedId,
-        settings.preferredLocation,
-        destinationsForTargetSelection(
-          requestedId ?? null,
-          state.availableDestinations,
-          state.destinations,
-        ),
-      );
+      const requestedId = state.selectedId;
+      const { id: targetId, reason: selectionReason } = requestedId
+        ? { id: requestedId, reason: "selected exit node" }
+        : {
+          id: resolveAutoDestination(
+            state.availableDestinations,
+            state.destinations,
+            settings.preferredLocation,
+          )?.id,
+          reason: "auto destination",
+        };
 
       const reasonForLog = requestedId ? "selected exit node" : selectionReason;
       if (targetId && reasonForLog !== "selected exit node") {
