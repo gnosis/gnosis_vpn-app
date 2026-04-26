@@ -45,19 +45,6 @@ export function sortByHealthScore(
   });
 }
 
-/**
- * List to pass to {@link selectTargetId}: preserves `available` order when the user
- * chose a specific exit; otherwise health-sorted (same ordering as connect’s auto path).
- */
-export function destinationsForTargetSelection(
-  explicitExitId: string | null | undefined,
-  available: Destination[],
-  destinations: Record<string, DestinationState>,
-): Destination[] {
-  if (explicitExitId) return available;
-  return sortByHealthScore(available, destinations);
-}
-
 /** Sort: ReadyToConnect/Connecting first (A–Z within tier), all others after (A–Z). */
 export function sortAlphaDestinations(
   available: Destination[],
@@ -73,28 +60,6 @@ export function sortAlphaDestinations(
     if (aReady !== bReady) return aReady ? -1 : 1;
     return destinationLabel(a).localeCompare(destinationLabel(b));
   });
-}
-
-export function selectTargetId(
-  id: string | undefined,
-  preferredId: string | null,
-  available: Destination[],
-): { id: string | undefined; reason: string } {
-  if (id) return { id, reason: "id parameter set" };
-  if (preferredId) {
-    const hasPreferred = available.some((d) => d.id === preferredId);
-    if (hasPreferred) {
-      return { id: preferredId, reason: "preferred location" };
-    }
-    return {
-      id: available[0]?.id,
-      reason: "fallback: preferred not present",
-    };
-  }
-  return {
-    id: available[0]?.id,
-    reason: "fallback: no preferred set",
-  };
 }
 
 export function resolveAutoDestination(

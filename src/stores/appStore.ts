@@ -464,6 +464,7 @@ export function createAppStore(): AppStoreTuple {
           (d) => d.id === targetId,
         );
         if (!selected) {
+          setState("isLoading", false);
           return;
         }
         const name = destinationLabel(selected);
