@@ -47,7 +47,6 @@ export default function ExitNodeList(props: { onClose: () => void }) {
     setPendingShouldReconnect(false);
   };
 
-  let containerRef: HTMLDivElement | undefined;
   let searchInputRef: HTMLInputElement | undefined;
 
   function handleKeyDown(e: KeyboardEvent) {
@@ -65,7 +64,7 @@ export default function ExitNodeList(props: { onClose: () => void }) {
   }
 
   onMount(() => {
-    containerRef?.focus();
+    searchInputRef?.focus();
     document.addEventListener("keydown", handleKeyDown);
   });
   onCleanup(() => document.removeEventListener("keydown", handleKeyDown));
@@ -107,9 +106,8 @@ export default function ExitNodeList(props: { onClose: () => void }) {
   createEffect(() => {
     const next = sortedDestinations();
     const prevIds = new Set(untrack(frozenList).map((d) => d.id));
-    const nextIds = new Set(next.map((d) => d.id));
-    const membershipChanged = prevIds.size !== nextIds.size ||
-      [...nextIds].some((id) => !prevIds.has(id));
+    const membershipChanged = prevIds.size !== next.length ||
+      next.some((d) => !prevIds.has(d.id));
     if (membershipChanged) setFrozenList([...next]);
   });
 
@@ -233,11 +231,7 @@ export default function ExitNodeList(props: { onClose: () => void }) {
   ];
 
   return (
-    <div
-      ref={containerRef}
-      tabIndex={0}
-      class="fixed inset-0 z-100 bg-bg-primary flex flex-col outline-none"
-    >
+    <div class="fixed inset-0 z-100 bg-bg-primary flex flex-col outline-none">
       <div class="flex items-center w-full gap-2 px-3 py-3 border-b border-border shrink-0">
         <button
           type="button"
