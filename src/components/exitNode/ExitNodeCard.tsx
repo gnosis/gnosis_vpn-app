@@ -8,10 +8,8 @@ import { useAppStore } from "@src/stores/appStore.ts";
 import { destinationLabel } from "@src/utils/destinations.ts";
 import {
   formatLatency,
-  formatLoadAvg,
   formatRouting,
   formatSecondsAgo,
-  formatSlots,
   getConnectionState,
   getHopCount,
   getLastCheckedEpoch,
@@ -58,14 +56,7 @@ export default function ExitNodeCard(props: {
     const rh = routeHealth();
     return rh ? formatLatency(rh) : null;
   };
-  const slots = () => {
-    const rh = routeHealth();
-    return rh ? formatSlots(rh) : null;
-  };
-  const loadAvg = () => {
-    const rh = routeHealth();
-    return rh ? formatLoadAvg(rh) : null;
-  };
+
   const route = () => formatRouting(routing());
   const hopCount = () => getHopCount(routing());
 
@@ -139,8 +130,6 @@ export default function ExitNodeCard(props: {
                 </div>
               }
             />
-            <Stat label="Capacity" value={slots()} />
-            <Stat label="Load" value={loadAvg()} />
             <Stat label="Checked" value={lastChecked()} />
           </div>
         </Show>
