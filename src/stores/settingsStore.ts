@@ -28,7 +28,11 @@ type SettingsActions = {
   save: () => Promise<void>;
 };
 
-type SettingsStoreTuple = readonly [SolidStore<SettingsState>, SettingsActions, () => void];
+type SettingsStoreTuple = readonly [
+  SolidStore<SettingsState>,
+  SettingsActions,
+  () => void,
+];
 
 let tauriStore: TauriStore | undefined;
 
@@ -57,20 +61,25 @@ export function createSettingsStore(): SettingsStoreTuple {
       const store = await getTauriStore();
       const loaded: SettingsState = { ...DEFAULT_SETTINGS };
 
-      const [preferredLocation, connectOnStartup, startMinimized, exitNodeSortOrder, showDetailedMetrics] =
-        (await Promise.all([
-          store.get("preferredLocation"),
-          store.get("connectOnStartup"),
-          store.get("startMinimized"),
-          store.get("exitNodeSortOrder"),
-          store.get("showDetailedMetrics"),
-        ])) as [
-          SettingsState["preferredLocation"] | undefined,
-          boolean | undefined,
-          boolean | undefined,
-          "latency" | "alpha" | undefined,
-          boolean | undefined,
-        ];
+      const [
+        preferredLocation,
+        connectOnStartup,
+        startMinimized,
+        exitNodeSortOrder,
+        showDetailedMetrics,
+      ] = (await Promise.all([
+        store.get("preferredLocation"),
+        store.get("connectOnStartup"),
+        store.get("startMinimized"),
+        store.get("exitNodeSortOrder"),
+        store.get("showDetailedMetrics"),
+      ])) as [
+        SettingsState["preferredLocation"] | undefined,
+        boolean | undefined,
+        boolean | undefined,
+        "latency" | "alpha" | undefined,
+        boolean | undefined,
+      ];
 
       if (preferredLocation !== undefined) {
         loaded.preferredLocation = preferredLocation;
@@ -81,7 +90,8 @@ export function createSettingsStore(): SettingsStoreTuple {
       if (startMinimized !== undefined) {
         loaded.startMinimized = startMinimized;
       }
-      const isValidExitNodeSortOrder = exitNodeSortOrder === "latency" || exitNodeSortOrder === "alpha";
+      const isValidExitNodeSortOrder = exitNodeSortOrder === "latency" ||
+        exitNodeSortOrder === "alpha";
       if (isValidExitNodeSortOrder) {
         loaded.exitNodeSortOrder = exitNodeSortOrder;
       }
@@ -91,8 +101,7 @@ export function createSettingsStore(): SettingsStoreTuple {
 
       setState({ ...loaded });
 
-      const missingAny =
-        preferredLocation === undefined ||
+      const missingAny = preferredLocation === undefined ||
         connectOnStartup === undefined ||
         startMinimized === undefined ||
         !isValidExitNodeSortOrder ||
@@ -178,17 +187,20 @@ export function createSettingsStore(): SettingsStoreTuple {
     if (payload.startMinimized !== undefined) {
       setState("startMinimized", payload.startMinimized);
     }
-    if (payload.exitNodeSortOrder === "latency" || payload.exitNodeSortOrder === "alpha") {
+    if (
+      payload.exitNodeSortOrder === "latency" ||
+      payload.exitNodeSortOrder === "alpha"
+    ) {
       setState("exitNodeSortOrder", payload.exitNodeSortOrder);
     }
     if (payload.showDetailedMetrics !== undefined) {
       setState("showDetailedMetrics", payload.showDetailedMetrics);
     }
   })
-    .then(u => {
+    .then((u) => {
       unlistenSettings = u;
     })
-    .catch(e => console.error("settings:update listener failed", e));
+    .catch((e) => console.error("settings:update listener failed", e));
 
   const dispose = () => {
     unlistenSettings?.();
