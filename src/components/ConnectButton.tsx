@@ -2,10 +2,7 @@ import { createMemo } from "solid-js";
 import Button from "./common/Button.tsx";
 import { useAppStore } from "../stores/appStore.ts";
 import { useSettingsStore } from "../stores/settingsStore.ts";
-import {
-  destinationsForTargetSelection,
-  selectTargetId,
-} from "../utils/destinations.ts";
+import { resolveAutoDestination } from "../utils/destinations.ts";
 import { isReadyToConnect } from "../utils/exitHealth.ts";
 
 export default function ConnectButton() {
@@ -19,18 +16,11 @@ export default function ConnectButton() {
 
   const targetId = createMemo(() => {
     if (appState.selectedId) return appState.selectedId;
-    if (appState.destination?.id) return appState.destination.id;
-    const { id } = selectTargetId(
-      undefined,
+    return resolveAutoDestination(
+      appState.availableDestinations,
+      appState.destinations,
       settings.preferredLocation,
-      destinationsForTargetSelection(
-        undefined,
-        appState.availableDestinations,
-        appState.destinations,
-      ),
-    );
-    if (id) return id;
-    return appState.availableDestinations[0]?.id;
+    )?.id ?? appState.availableDestinations[0]?.id;
   });
 
   const targetDestinationState = createMemo(() =>
