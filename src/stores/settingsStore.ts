@@ -7,6 +7,7 @@ export interface SettingsState {
   connectOnStartup: boolean;
   startMinimized: boolean;
   exitNodeSortOrder: "latency" | "alpha";
+  showDetailedMetrics: boolean;
 }
 
 const DEFAULT_SETTINGS: SettingsState = {
@@ -14,6 +15,7 @@ const DEFAULT_SETTINGS: SettingsState = {
   connectOnStartup: false,
   startMinimized: false,
   exitNodeSortOrder: "latency",
+  showDetailedMetrics: false,
 };
 
 type SettingsActions = {
@@ -22,6 +24,7 @@ type SettingsActions = {
   setConnectOnStartup: (enabled: boolean) => Promise<void>;
   setStartMinimized: (enabled: boolean) => Promise<void>;
   setExitNodeSortOrder: (order: "latency" | "alpha") => Promise<void>;
+  setShowDetailedMetrics: (show: boolean) => Promise<void>;
   save: () => Promise<void>;
 };
 
@@ -46,6 +49,7 @@ async function saveAllToDisk(state: SettingsState): Promise<void> {
   await store.set("connectOnStartup", state.connectOnStartup);
   await store.set("startMinimized", state.startMinimized);
   await store.set("exitNodeSortOrder", state.exitNodeSortOrder);
+  await store.set("showDetailedMetrics", state.showDetailedMetrics);
   await store.save();
 }
 
@@ -62,16 +66,19 @@ export function createSettingsStore(): SettingsStoreTuple {
         connectOnStartup,
         startMinimized,
         exitNodeSortOrder,
+        showDetailedMetrics,
       ] = (await Promise.all([
         store.get("preferredLocation"),
         store.get("connectOnStartup"),
         store.get("startMinimized"),
         store.get("exitNodeSortOrder"),
+        store.get("showDetailedMetrics"),
       ])) as [
         SettingsState["preferredLocation"] | undefined,
         boolean | undefined,
         boolean | undefined,
         "latency" | "alpha" | undefined,
+        boolean | undefined,
       ];
 
       if (preferredLocation !== undefined) {
@@ -88,13 +95,17 @@ export function createSettingsStore(): SettingsStoreTuple {
       if (isValidExitNodeSortOrder) {
         loaded.exitNodeSortOrder = exitNodeSortOrder;
       }
+      if (showDetailedMetrics !== undefined) {
+        loaded.showDetailedMetrics = showDetailedMetrics;
+      }
 
       setState({ ...loaded });
 
       const missingAny = preferredLocation === undefined ||
         connectOnStartup === undefined ||
         startMinimized === undefined ||
-        !isValidExitNodeSortOrder;
+        !isValidExitNodeSortOrder ||
+        showDetailedMetrics === undefined;
       if (missingAny) {
         await saveAllToDisk(loaded);
       }
@@ -148,6 +159,18 @@ export function createSettingsStore(): SettingsStoreTuple {
       }
     },
 
+    setShowDetailedMetrics: async (show: boolean) => {
+      setState("showDetailedMetrics", show);
+      void emit("settings:update", { showDetailedMetrics: show });
+      try {
+        const store = await getTauriStore();
+        await store.set("showDetailedMetrics", show);
+        await store.save();
+      } catch (e) {
+        console.error("Failed to save showDetailedMetrics", e);
+      }
+    },
+
     save: async () => {
       await saveAllToDisk(state);
     },
@@ -170,9 +193,13 @@ export function createSettingsStore(): SettingsStoreTuple {
     ) {
       setState("exitNodeSortOrder", payload.exitNodeSortOrder);
     }
-  }).then((u) => {
-    unlistenSettings = u;
+    if (payload.showDetailedMetrics !== undefined) {
+      setState("showDetailedMetrics", payload.showDetailedMetrics);
+    }
   })
+    .then((u) => {
+      unlistenSettings = u;
+    })
     .catch((e) => console.error("settings:update listener failed", e));
 
   const dispose = () => {
