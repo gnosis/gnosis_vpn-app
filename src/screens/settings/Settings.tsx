@@ -56,14 +56,6 @@ export default function Settings() {
         onChange={(e) =>
           void settingsActions.setStartMinimized(e.currentTarget.checked)}
       />
-      <Toggle
-        label="Don’t show confirmation when switching Exit Node"
-        checked={settings.skipSwitchConfirmation}
-        onChange={(e) =>
-          void settingsActions.setSkipSwitchConfirmation(
-            e.currentTarget.checked,
-          )}
-      />
       <div class="grow" />
       <div class="space-y-1 text-sm text-text-secondary text-center">
         <Show when={appState.serviceInfo}>

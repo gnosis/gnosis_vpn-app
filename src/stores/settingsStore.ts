@@ -7,7 +7,6 @@ export interface SettingsState {
   connectOnStartup: boolean;
   startMinimized: boolean;
   exitNodeSortOrder: "latency" | "alpha";
-  skipSwitchConfirmation: boolean;
 }
 
 const DEFAULT_SETTINGS: SettingsState = {
@@ -15,7 +14,6 @@ const DEFAULT_SETTINGS: SettingsState = {
   connectOnStartup: false,
   startMinimized: false,
   exitNodeSortOrder: "latency",
-  skipSwitchConfirmation: false,
 };
 
 type SettingsActions = {
@@ -24,7 +22,6 @@ type SettingsActions = {
   setConnectOnStartup: (enabled: boolean) => Promise<void>;
   setStartMinimized: (enabled: boolean) => Promise<void>;
   setExitNodeSortOrder: (order: "latency" | "alpha") => Promise<void>;
-  setSkipSwitchConfirmation: (skip: boolean) => Promise<void>;
   save: () => Promise<void>;
 };
 
@@ -49,7 +46,6 @@ async function saveAllToDisk(state: SettingsState): Promise<void> {
   await store.set("connectOnStartup", state.connectOnStartup);
   await store.set("startMinimized", state.startMinimized);
   await store.set("exitNodeSortOrder", state.exitNodeSortOrder);
-  await store.set("skipSwitchConfirmation", state.skipSwitchConfirmation);
   await store.save();
 }
 
@@ -66,19 +62,16 @@ export function createSettingsStore(): SettingsStoreTuple {
         connectOnStartup,
         startMinimized,
         exitNodeSortOrder,
-        skipSwitchConfirmation,
       ] = (await Promise.all([
         store.get("preferredLocation"),
         store.get("connectOnStartup"),
         store.get("startMinimized"),
         store.get("exitNodeSortOrder"),
-        store.get("skipSwitchConfirmation"),
       ])) as [
         SettingsState["preferredLocation"] | undefined,
         boolean | undefined,
         boolean | undefined,
         "latency" | "alpha" | undefined,
-        boolean | undefined,
       ];
 
       if (preferredLocation !== undefined) {
@@ -95,17 +88,13 @@ export function createSettingsStore(): SettingsStoreTuple {
       if (isValidExitNodeSortOrder) {
         loaded.exitNodeSortOrder = exitNodeSortOrder;
       }
-      if (skipSwitchConfirmation !== undefined) {
-        loaded.skipSwitchConfirmation = skipSwitchConfirmation;
-      }
 
       setState({ ...loaded });
 
       const missingAny = preferredLocation === undefined ||
         connectOnStartup === undefined ||
         startMinimized === undefined ||
-        !isValidExitNodeSortOrder ||
-        skipSwitchConfirmation === undefined;
+        !isValidExitNodeSortOrder;
       if (missingAny) {
         await saveAllToDisk(loaded);
       }
@@ -159,18 +148,6 @@ export function createSettingsStore(): SettingsStoreTuple {
       }
     },
 
-    setSkipSwitchConfirmation: async (skip: boolean) => {
-      setState("skipSwitchConfirmation", skip);
-      void emit("settings:update", { skipSwitchConfirmation: skip });
-      try {
-        const store = await getTauriStore();
-        await store.set("skipSwitchConfirmation", skip);
-        await store.save();
-      } catch (e) {
-        console.error("Failed to save skipSwitchConfirmation", e);
-      }
-    },
-
     save: async () => {
       await saveAllToDisk(state);
     },
@@ -192,9 +169,6 @@ export function createSettingsStore(): SettingsStoreTuple {
       payload.exitNodeSortOrder === "alpha"
     ) {
       setState("exitNodeSortOrder", payload.exitNodeSortOrder);
-    }
-    if (payload.skipSwitchConfirmation !== undefined) {
-      setState("skipSwitchConfirmation", payload.skipSwitchConfirmation);
     }
   }).then((u) => {
     unlistenSettings = u;
