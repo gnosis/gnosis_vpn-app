@@ -5,6 +5,7 @@ import type {
   RoutingOptions,
 } from "@src/services/vpnService.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
+import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import { destinationLabel } from "@src/utils/destinations.ts";
 import {
   formatExitHealthStatus,
@@ -39,6 +40,7 @@ export default function ExitHealthDetail(
   props: { destinationState: DestinationState },
 ) {
   const [appState] = useAppStore();
+  const [settings, settingsActions] = useSettingsStore();
 
   const routeHealth = createMemo((): RouteHealthView | null =>
     props.destinationState.route_health ?? null
@@ -139,9 +141,37 @@ export default function ExitHealthDetail(
                   </div>
                 }
               />
-              <Stat label="Capacity" value={slots()} />
-              <Stat label="Load" value={loadAvg()} />
-              <Stat label="Checked" value={lastChecked()} />
+              <Stat
+                label="Checked"
+                value={lastChecked()}
+                tooltip={<span>Time since last health check</span>}
+              />
+              <Show when={settings.showDetailedMetrics}>
+                <Stat
+                  label="Capacity"
+                  value={slots()}
+                  tooltip={<span>Available / total connection slots</span>}
+                />
+                <Stat
+                  label="Load"
+                  value={loadAvg()}
+                  tooltip={<span>Server load average. Lower is better.</span>}
+                />
+              </Show>
+            </div>
+            <div class="pl-2 mt-2">
+              <button
+                type="button"
+                class="text-text-muted hover:text-text-primary text-xs transition-colors"
+                onClick={() =>
+                  void settingsActions.setShowDetailedMetrics(
+                    !settings.showDetailedMetrics,
+                  )}
+              >
+                {settings.showDetailedMetrics
+                  ? "Hide detailed metrics"
+                  : "Show detailed metrics"}
+              </button>
             </div>
           </Show>
         </div>
