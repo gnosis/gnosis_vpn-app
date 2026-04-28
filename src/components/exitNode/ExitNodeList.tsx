@@ -9,10 +9,7 @@ import {
   Show,
   untrack,
 } from "solid-js";
-import type {
-  Destination,
-  DestinationState,
-} from "@src/services/vpnService.ts";
+import type { DestinationState } from "@src/services/vpnService.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import {
@@ -23,7 +20,6 @@ import {
 } from "@src/utils/destinations.ts";
 import { formatLatency } from "@src/utils/exitHealth.ts";
 import ExitNodeCard from "./ExitNodeCard.tsx";
-import SwitchConfirmDialog from "./SwitchConfirmDialog.tsx";
 import UnreachableDialog from "./UnreachableDialog.tsx";
 
 export default function ExitNodeList(props: { onClose: () => void }) {
@@ -31,21 +27,7 @@ export default function ExitNodeList(props: { onClose: () => void }) {
   const [settings, settingsActions] = useSettingsStore();
 
   const [query, setQuery] = createSignal("");
-  const [pendingId, setPendingId] = createSignal<string | null>(null);
-  const [pendingAuto, setPendingAuto] = createSignal(false);
-  const [pendingAutoDestination, setPendingAutoDestination] = createSignal<
-    Destination | null
-  >(null);
-  const [pendingShouldReconnect, setPendingShouldReconnect] = createSignal(
-    false,
-  );
   const [showUnreachable, setShowUnreachable] = createSignal(false);
-  const clearPending = () => {
-    setPendingId(null);
-    setPendingAuto(false);
-    setPendingAutoDestination(null);
-    setPendingShouldReconnect(false);
-  };
 
   let searchInputRef: HTMLInputElement | undefined;
 
@@ -53,8 +35,6 @@ export default function ExitNodeList(props: { onClose: () => void }) {
     if (e.key === "Escape") {
       if (showUnreachable()) {
         setShowUnreachable(false);
-      } else if (pendingId() !== null || pendingAuto()) {
-        clearPending();
       } else if (query()) {
         setQuery("");
       } else {
@@ -118,14 +98,8 @@ export default function ExitNodeList(props: { onClose: () => void }) {
     return list.filter((d) => destinationLabel(d).toLowerCase().includes(q));
   });
 
-  const pendingDest = createMemo(() => {
-    const id = pendingId();
-    if (!id) return null;
-    return appState.availableDestinations.find((d) => d.id === id) ?? null;
-  });
-
   // Includes Disconnecting so that picking a new node while tearing down
-  // the old tunnel still shows the confirmation dialog and calls connect().
+  // the old tunnel still triggers connect().
   const vpnActive = () =>
     appState.vpnStatus === "Connected" || appState.vpnStatus === "Connecting" ||
     appState.vpnStatus === "Disconnecting";
@@ -156,21 +130,9 @@ export default function ExitNodeList(props: { onClose: () => void }) {
       props.onClose();
       return;
     }
-    if (vpnActive() && !settings.skipSwitchConfirmation) {
-      if (resolvedAutoDestination()) {
-        setPendingAutoDestination(resolvedAutoDestination());
-        setPendingShouldReconnect(vpnActive());
-        setPendingAuto(true);
-      } else {
-        // No connectable node to resolve to — switch to Auto immediately.
-        appActions.chooseDestination(null);
-        props.onClose();
-      }
-    } else {
-      appActions.chooseDestination(null);
-      if (vpnActive() && resolvedAutoDestination()) void appActions.connect();
-      props.onClose();
-    }
+    appActions.chooseDestination(null);
+    if (vpnActive() && resolvedAutoDestination()) void appActions.connect();
+    props.onClose();
   };
 
   const handleCardClick = (id: string) => {
@@ -183,45 +145,12 @@ export default function ExitNodeList(props: { onClose: () => void }) {
       props.onClose();
       return;
     }
-    if (vpnActive() && !settings.skipSwitchConfirmation) {
-      if (!isAvailable(id)) {
-        setShowUnreachable(true);
-        return;
-      }
-      setPendingShouldReconnect(vpnActive());
-      setPendingId(id);
-    } else {
-      if (!isAvailable(id)) {
-        setShowUnreachable(true);
-        return;
-      }
-      appActions.chooseDestination(id);
-      if (vpnActive()) void appActions.connect();
-      props.onClose();
+    if (!isAvailable(id)) {
+      setShowUnreachable(true);
+      return;
     }
-  };
-
-  const handleConfirmSwitch = () => {
-    if (pendingAuto()) {
-      const resolved = pendingAutoDestination();
-      if (!resolved || !isAvailable(resolved.id)) {
-        clearPending();
-        setShowUnreachable(true);
-        return;
-      }
-      appActions.chooseDestination(null);
-      if (pendingShouldReconnect()) void appActions.connect();
-    } else {
-      const id = pendingId();
-      if (!id || !isAvailable(id)) {
-        clearPending();
-        setShowUnreachable(true);
-        return;
-      }
-      appActions.chooseDestination(id);
-      if (pendingShouldReconnect()) void appActions.connect();
-    }
-    clearPending();
+    appActions.chooseDestination(id);
+    if (vpnActive()) void appActions.connect();
     props.onClose();
   };
 
@@ -360,16 +289,6 @@ export default function ExitNodeList(props: { onClose: () => void }) {
           </p>
         </Show>
       </div>
-
-      <Show when={pendingAuto() ? pendingAutoDestination() : pendingDest()}>
-        {(dest) => (
-          <SwitchConfirmDialog
-            destination={dest()}
-            onConfirm={handleConfirmSwitch}
-            onCancel={clearPending}
-          />
-        )}
-      </Show>
 
       <Show when={showUnreachable()}>
         <UnreachableDialog onClose={() => setShowUnreachable(false)} />
