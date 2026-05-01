@@ -8,23 +8,31 @@ export default function HopsIcon(
       title={`${props.count}-hop${props.count !== 1 ? "s" : ""}`}
     >
       <svg
-        width="16"
+        width="18"
         height="12"
-        viewBox="0 0 16 12"
+        viewBox="0 0 18 12"
         class="shrink-0"
         aria-hidden="true"
       >
         <circle cx="2" cy="6" r="2" fill="currentColor" />
-        <line
-          x1="4"
-          y1="6"
-          x2="12"
-          y2="6"
-          stroke="currentColor"
-          stroke-width="1.5"
-          stroke-dasharray="2 2"
+        <rect
+          x="5"
+          y="5.25"
+          width="2"
+          height="1.5"
+          rx="0.5"
+          fill="currentColor"
         />
-        <circle cx="14" cy="6" r="2" fill="currentColor" />
+        <circle cx="9" cy="6" r="1" fill="currentColor" />
+        <rect
+          x="11"
+          y="5.25"
+          width="2"
+          height="1.5"
+          rx="0.5"
+          fill="currentColor"
+        />
+        <circle cx="16" cy="6" r="2" fill="currentColor" />
       </svg>
       {!props.hideCount && (
         <span class="text-[10px] tabular-nums">{props.count}</span>
