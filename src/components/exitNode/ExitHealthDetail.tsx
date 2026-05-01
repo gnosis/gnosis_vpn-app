@@ -104,7 +104,7 @@ export default function ExitHealthDetail(
   return (
     <Show when={destId()} keyed>
       {(_id: string) => (
-        <div class="w-full bg-bg-surface-alt rounded-2xl px-4 py-2.5 text-xs fade-in-up">
+        <div class="w-full bg-bg-surface rounded-2xl px-4 py-2.5 text-xs fade-in-up">
           <div class="flex flex-wrap items-center gap-1.5 mb-1">
             <Show when={route() && getHopCount(routing()) !== 1}>
               <Tag>

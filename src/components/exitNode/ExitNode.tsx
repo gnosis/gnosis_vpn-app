@@ -7,7 +7,6 @@ import {
 import { createMemo, createSignal, Show } from "solid-js";
 import { Portal } from "solid-js/web";
 import { useSettingsStore } from "../../stores/settingsStore.ts";
-import { formatLatency } from "../../utils/exitHealth.ts";
 import ExitNodeList from "./ExitNodeList.tsx";
 
 export default function ExitNode() {
@@ -29,7 +28,7 @@ export default function ExitNode() {
       <button
         type="button"
         aria-label="Select Exit Node"
-        class="w-full flex flex-row items-center justify-between gap-2 bg-bg-surface rounded-2xl p-4 disabled:opacity-50 disabled:cursor-not-allowed"
+        class="w-full flex flex-row items-center justify-between gap-2 bg-bg-surface hover:bg-bg-surface-alt rounded-2xl p-4 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         onClick={() => setShowList(true)}
         disabled={appState.isLoading ||
           appState.vpnStatus === "ServiceUnavailable"}
@@ -47,26 +46,16 @@ export default function ExitNode() {
                   </span>
                 }
               >
-                {(dest) => {
-                  const ds = () => appState.destinations[dest().id];
-                  const latency = () => {
-                    const rh = ds()?.route_health;
-                    return rh ? formatLatency(rh) : null;
-                  };
-                  return (
-                    <span class="flex flex-col">
-                      <span class="text-sm font-medium text-text-primary">
-                        Auto
-                      </span>
-                      <span class="flex items-center gap-1 text-xs text-text-secondary break-all">
-                        {destinationLabel(dest())}
-                        <Show when={latency()}>
-                          <span class="tabular-nums">{latency()}</span>
-                        </Show>
-                      </span>
+                {(dest) => (
+                  <span class="flex flex-col">
+                    <span class="text-sm font-medium text-text-primary">
+                      Auto
                     </span>
-                  );
-                }}
+                    <span class="text-xs text-text-secondary break-all">
+                      {destinationLabel(dest())}
+                    </span>
+                  </span>
+                )}
               </Show>
             }
           >
