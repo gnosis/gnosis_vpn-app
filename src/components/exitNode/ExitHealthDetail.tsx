@@ -6,7 +6,6 @@ import type {
 } from "@src/services/vpnService.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
-import { destinationLabel } from "@src/utils/destinations.ts";
 import {
   formatExitHealthStatus,
   formatLatency,
@@ -21,6 +20,7 @@ import {
   hasHealthContent,
   type HealthColor,
 } from "@src/utils/exitHealth.ts";
+import ChevronIcon from "../common/ChevronIcon.tsx";
 import HopsIcon from "./HopsIcon.tsx";
 import Stat from "./Stat.tsx";
 import Tag from "../common/Tag.tsx";
@@ -106,7 +106,6 @@ export default function ExitHealthDetail(
       {(_id: string) => (
         <div class="w-full bg-bg-surface-alt rounded-2xl px-4 py-2.5 text-xs fade-in-up">
           <div class="flex flex-wrap items-center gap-1.5 mb-1">
-            <Tag value={destinationLabel(props.destinationState.destination)} />
             <Show when={route() && getHopCount(routing()) !== 1}>
               <Tag>
                 <HopsIcon count={getHopCount(routing())} hideCount />
@@ -162,7 +161,7 @@ export default function ExitHealthDetail(
             <div class="pl-2 mt-2">
               <button
                 type="button"
-                class="text-text-muted hover:text-text-primary text-xs transition-colors"
+                class="flex items-center gap-1 text-text-muted hover:text-text-primary text-xs transition-colors"
                 onClick={() =>
                   void settingsActions.setShowDetailedMetrics(
                     !settings.showDetailedMetrics,
@@ -171,6 +170,11 @@ export default function ExitHealthDetail(
                 {settings.showDetailedMetrics
                   ? "Hide detailed metrics"
                   : "Show detailed metrics"}
+                <ChevronIcon
+                  class={`w-2.5 h-2.5 transition-transform duration-200 ${
+                    settings.showDetailedMetrics ? "-rotate-180" : ""
+                  }`}
+                />
               </button>
             </div>
           </Show>
