@@ -19,9 +19,8 @@ export default function AddFundsModal(props: {
             qrVisible
           />
           <div class="text-sm">
-            You can transfer or
-            <span class="font-bold">xDAI</span> or
-            <span class="font-bold">wxHOPR</span> on
+            You can transfer or <span class="font-bold">xDAI</span> or{" "}
+            <span class="font-bold">wxHOPR</span> on{" "}
             <span class="font-bold">Gnosis Chain</span>.
           </div>
         </div>
