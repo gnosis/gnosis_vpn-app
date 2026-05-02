@@ -6,7 +6,6 @@ export default function AddFundsModal(props: {
   open: boolean;
   onClose: () => void;
   nodeAddress: string;
-  safeAddress: string;
 }) {
   return (
     <Modal open={props.open} onClose={props.onClose}>
@@ -19,7 +18,7 @@ export default function AddFundsModal(props: {
             qrVisible
           />
           <div class="text-sm">
-            You can transfer or <span class="font-bold">xDAI</span> or{" "}
+            You can transfer <span class="font-bold">xDAI</span> or{" "}
             <span class="font-bold">wxHOPR</span> on{" "}
             <span class="font-bold">Gnosis Chain</span>.
           </div>
