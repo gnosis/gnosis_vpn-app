@@ -58,15 +58,23 @@ export default function Settings() {
       />
       <div class="grow" />
       <div class="space-y-1 text-sm text-text-secondary text-center">
-        <Show when={appState.serviceInfo}>
-          {(info) => (
+        <Show when={appState.serviceInfo?.package_version}>
+          {(pkgVersion) => (
             <div>
-              Service version:{" "}
-              <span class="text-text-primary">{info().version}</span>
+              Package version:{" "}
+              <span class="text-text-primary">{pkgVersion()}</span>
             </div>
           )}
         </Show>
-        <div>
+        <Show when={appState.serviceInfo?.version}>
+          {(version) => (
+            <div class="text-xs">
+              Service version:{" "}
+              <span class="text-text-primary">{version()}</span>
+            </div>
+          )}
+        </Show>
+        <div class="text-xs">
           App version:{" "}
           <span class="text-text-primary">{appState.appVersion ?? "—"}</span>
         </div>
