@@ -103,7 +103,7 @@ export default function Tooltip(
         <Portal mount={document.body}>
           <div
             ref={bubbleRef}
-            class="tooltip-bubble fixed z-50 max-w-52 rounded-lg bg-neutral-800 px-3 py-2 shadow-lg text-xs leading-relaxed text-gray-100"
+            class="tooltip-bubble fixed z-50 max-w-52 rounded-lg bg-text-primary px-3 py-2 shadow-lg text-xs leading-relaxed text-bg-primary"
             style={{
               ...(anchorY().bottom !== undefined
                 ? { bottom: `${anchorY().bottom}px` }
@@ -116,7 +116,7 @@ export default function Tooltip(
           >
             {props.content}
             <span
-              class={`absolute size-2 bg-neutral-800
+              class={`absolute size-2 bg-text-primary
                 ${pos() === "top" ? "top-full -mt-1" : "bottom-full -mb-1"}
               `}
               style={{

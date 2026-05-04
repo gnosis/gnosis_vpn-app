@@ -2,10 +2,14 @@ import { createStore, type Store as SolidStore } from "solid-js/store";
 import { Store as TauriStore } from "@tauri-apps/plugin-store";
 import { emit, listen } from "@tauri-apps/api/event";
 
+export type ThemePreference = "auto" | "light" | "dark";
+
 export interface SettingsState {
   preferredLocation: string | null;
   connectOnStartup: boolean;
   startMinimized: boolean;
+  updateCheck: boolean;
+  theme: ThemePreference;
   exitNodeSortOrder: "latency" | "alpha";
 }
 
@@ -13,6 +17,8 @@ const DEFAULT_SETTINGS: SettingsState = {
   preferredLocation: null,
   connectOnStartup: false,
   startMinimized: false,
+  updateCheck: false,
+  theme: "auto",
   exitNodeSortOrder: "latency",
 };
 
@@ -21,6 +27,8 @@ type SettingsActions = {
   setPreferredLocation: (id: string | null) => Promise<void>;
   setConnectOnStartup: (enabled: boolean) => Promise<void>;
   setStartMinimized: (enabled: boolean) => Promise<void>;
+  setUpdateCheck: (enabled: boolean) => Promise<void>;
+  setTheme: (theme: ThemePreference) => Promise<void>;
   setExitNodeSortOrder: (order: "latency" | "alpha") => Promise<void>;
   save: () => Promise<void>;
 };
@@ -45,6 +53,8 @@ async function saveAllToDisk(state: SettingsState): Promise<void> {
   await store.set("preferredLocation", state.preferredLocation);
   await store.set("connectOnStartup", state.connectOnStartup);
   await store.set("startMinimized", state.startMinimized);
+  await store.set("updateCheck", state.updateCheck);
+  await store.set("theme", state.theme);
   await store.set("exitNodeSortOrder", state.exitNodeSortOrder);
   await store.save();
 }
@@ -61,16 +71,22 @@ export function createSettingsStore(): SettingsStoreTuple {
         preferredLocation,
         connectOnStartup,
         startMinimized,
+        updateCheck,
+        theme,
         exitNodeSortOrder,
       ] = (await Promise.all([
         store.get("preferredLocation"),
         store.get("connectOnStartup"),
         store.get("startMinimized"),
+        store.get("updateCheck"),
+        store.get("theme"),
         store.get("exitNodeSortOrder"),
       ])) as [
         SettingsState["preferredLocation"] | undefined,
         boolean | undefined,
         boolean | undefined,
+        boolean | undefined,
+        ThemePreference | undefined,
         "latency" | "alpha" | undefined,
       ];
 
@@ -83,6 +99,14 @@ export function createSettingsStore(): SettingsStoreTuple {
       if (startMinimized !== undefined) {
         loaded.startMinimized = startMinimized;
       }
+      if (updateCheck !== undefined) {
+        loaded.updateCheck = updateCheck;
+      }
+      const isValidTheme = theme === "auto" || theme === "light" ||
+        theme === "dark";
+      if (isValidTheme) {
+        loaded.theme = theme;
+      }
       const isValidExitNodeSortOrder = exitNodeSortOrder === "latency" ||
         exitNodeSortOrder === "alpha";
       if (isValidExitNodeSortOrder) {
@@ -94,6 +118,8 @@ export function createSettingsStore(): SettingsStoreTuple {
       const missingAny = preferredLocation === undefined ||
         connectOnStartup === undefined ||
         startMinimized === undefined ||
+        updateCheck === undefined ||
+        !isValidTheme ||
         !isValidExitNodeSortOrder;
       if (missingAny) {
         await saveAllToDisk(loaded);
@@ -139,6 +165,42 @@ export function createSettingsStore(): SettingsStoreTuple {
       void emit("settings:update", { startMinimized: enabled });
     },
 
+    setUpdateCheck: async (enabled: boolean) => {
+      setState("updateCheck", enabled);
+      try {
+        const store = await getTauriStore();
+        await store.set("updateCheck", enabled);
+        await store.save();
+      } catch (e) {
+        console.error("Failed to save updateCheck", e);
+      }
+      void emit("settings:update", { updateCheck: enabled });
+    },
+
+    setTheme: async (theme: ThemePreference) => {
+      setState("theme", theme);
+
+      // Apply immediately to the current window without waiting for the event round-trip.
+      if (theme === "dark") {
+        document.documentElement.classList.add("dark");
+      } else if (theme === "light") {
+        document.documentElement.classList.remove("dark");
+      } else {
+        const mq = globalThis.matchMedia("(prefers-color-scheme: dark)");
+        document.documentElement.classList.toggle("dark", mq.matches);
+      }
+
+      // Notify other windows immediately, then persist to disk.
+      void emit("settings:update", { theme });
+      try {
+        const store = await getTauriStore();
+        await store.set("theme", theme);
+        await store.save();
+      } catch (e) {
+        console.error("Failed to save theme", e);
+      }
+    },
+
     setExitNodeSortOrder: async (order: "latency" | "alpha") => {
       setState("exitNodeSortOrder", order);
       try {
@@ -166,6 +228,15 @@ export function createSettingsStore(): SettingsStoreTuple {
     }
     if (payload.startMinimized !== undefined) {
       setState("startMinimized", payload.startMinimized);
+    }
+    if (payload.updateCheck !== undefined) {
+      setState("updateCheck", payload.updateCheck);
+    }
+    if (
+      payload.theme === "auto" || payload.theme === "light" ||
+      payload.theme === "dark"
+    ) {
+      setState("theme", payload.theme);
     }
     if (
       payload.exitNodeSortOrder === "latency" ||

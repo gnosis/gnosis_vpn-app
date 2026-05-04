@@ -1,13 +1,22 @@
+import { Show } from "solid-js";
 import type { JSX } from "solid-js";
 
 export default function Toggle(
-  props: JSX.InputHTMLAttributes<HTMLInputElement> & { label?: string },
+  props: JSX.InputHTMLAttributes<HTMLInputElement> & {
+    label?: string;
+    description?: string;
+  },
 ) {
   const { class: className, ...rest } = props;
 
   return (
     <label class="flex items-center justify-between">
-      <span class="text-text-primary">{props.label}</span>
+      <div class="flex flex-col">
+        <span class="text-text-primary">{props.label}</span>
+        <Show when={props.description}>
+          <span class="text-xs text-text-secondary">{props.description}</span>
+        </Show>
+      </div>
       <input
         {...rest}
         type="checkbox"
