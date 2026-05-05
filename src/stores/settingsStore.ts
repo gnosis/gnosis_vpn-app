@@ -5,7 +5,10 @@ import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
 // Global emit only reaches the current window. For cross-window delivery,
 // explicitly emit to all known windows by label.
-async function emitToAllWindows(event: string, payload: unknown): Promise<void> {
+async function emitToAllWindows(
+  event: string,
+  payload: unknown,
+): Promise<void> {
   void emit(event, payload);
   for (const label of ["main", "settings"] as const) {
     try {
@@ -76,7 +79,10 @@ type SettingsActions = {
   setUpdateCheck: (enabled: boolean) => Promise<void>;
   setTheme: (theme: ThemePreference) => Promise<void>;
   setExitNodeSortOrder: (order: "latency" | "alpha") => Promise<void>;
-  setUpdateCheckResult: (manifest: UpdateManifest, checkedAt: number) => Promise<void>;
+  setUpdateCheckResult: (
+    manifest: UpdateManifest,
+    checkedAt: number,
+  ) => Promise<void>;
   setChannel: (channel: UpdateChannel) => Promise<void>;
   setDismissedUpdateVersion: (version: string | null) => Promise<void>;
   setShowDetailedMetrics: (show: boolean) => Promise<void>;
@@ -310,7 +316,9 @@ export function createSettingsStore(): SettingsStoreTuple {
 
     setDismissedUpdateVersion: async (version: string | null) => {
       setState("dismissedUpdateVersion", version);
-      void emitToAllWindows("settings:update", { dismissedUpdateVersion: version });
+      void emitToAllWindows("settings:update", {
+        dismissedUpdateVersion: version,
+      });
       try {
         const store = await getTauriStore();
         await store.set("dismissedUpdateVersion", version);
@@ -320,7 +328,10 @@ export function createSettingsStore(): SettingsStoreTuple {
       }
     },
 
-    setUpdateCheckResult: async (manifest: UpdateManifest, checkedAt: number) => {
+    setUpdateCheckResult: async (
+      manifest: UpdateManifest,
+      checkedAt: number,
+    ) => {
       setState("lastCheckedAt", checkedAt);
       setState("updateManifest", manifest);
       void emitToAllWindows("settings:update", {
