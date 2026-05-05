@@ -81,7 +81,7 @@ export function MainScreen() {
           )}
         </Show>
         <StatusLine heightPx={connectorHeight()} />
-        <div class="grow z-10"></div>
+        <div class="grow min-h-4 z-10"></div>
         <ConnectButton />
         <ConnectionStatus />
       </main>
