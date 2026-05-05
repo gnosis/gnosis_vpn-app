@@ -86,7 +86,7 @@ export function MainScreen() {
 
       <main
         ref={mainRef}
-        class="flex w-full flex-1 flex-col items-center relative"
+        class="flex w-full flex-1 flex-col items-center relative min-h-0"
       >
         <StatusHero />
         <div ref={exitAnchorRef} class="w-full flex justify-center z-10">
@@ -100,10 +100,11 @@ export function MainScreen() {
           )}
         </Show>
         <StatusLine heightPx={connectorHeight()} />
-        <div class="grow z-10"></div>
-        <ConnectButton />
-        <ConnectionStatus />
       </main>
+      <div class="mt-4 w-full z-10">
+        <ConnectButton />
+      </div>
+      <ConnectionStatus />
     </div>
   );
 }

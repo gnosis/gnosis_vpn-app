@@ -18,7 +18,6 @@ import {
   sortAlphaDestinations,
   sortByHealthScore,
 } from "@src/utils/destinations.ts";
-import { formatLatency } from "@src/utils/exitHealth.ts";
 import ExitNodeCard from "./ExitNodeCard.tsx";
 import UnreachableDialog from "./UnreachableDialog.tsx";
 
@@ -247,21 +246,11 @@ export default function ExitNodeList(props: { onClose: () => void }) {
             <div class="flex flex-col">
               <span class="font-semibold text-sm text-text-primary">Auto</span>
               <Show when={resolvedAutoDestination()}>
-                {(dest) => {
-                  const ds = () => appState.destinations[dest().id];
-                  const latency = () => {
-                    const rh = ds()?.route_health;
-                    return rh ? formatLatency(rh) : null;
-                  };
-                  return (
-                    <span class="flex items-center gap-1.5 text-xs text-text-secondary break-all">
-                      {destinationLabel(dest())}
-                      <Show when={latency()}>
-                        <span class="tabular-nums">{latency()}</span>
-                      </Show>
-                    </span>
-                  );
-                }}
+                {(dest) => (
+                  <span class="text-xs text-text-secondary break-all">
+                    {destinationLabel(dest())}
+                  </span>
+                )}
               </Show>
             </div>
           </div>
