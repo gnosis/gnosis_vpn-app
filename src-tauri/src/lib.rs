@@ -30,7 +30,10 @@ use platform::{Platform, PlatformInterface};
 use theme::spawn_linux_theme_monitor;
 #[cfg_attr(target_os = "macos", allow(unused_imports))]
 use theme::{InitialTheme, get_initial_theme, system_theme};
-use tray::{create_tray_menu, handle_tray_event, show_settings, toggle_main_window_visibility};
+use tray::{
+    create_tray_menu, handle_tray_event, show_settings, show_settings_and_check,
+    toggle_main_window_visibility,
+};
 use types::ConnectionState;
 
 struct HeartbeatHandle(Mutex<Option<tauri::async_runtime::JoinHandle<()>>>);
@@ -124,6 +127,7 @@ pub fn run() {
                     "settings" => show_settings(app, "settings"),
                     "logs" => show_settings(app, "logs"),
                     "usage" => show_settings(app, "usage"),
+                    "check_update" => show_settings_and_check(app),
                     _ => {}
                 })
                 .on_tray_icon_event(|tray, event| {

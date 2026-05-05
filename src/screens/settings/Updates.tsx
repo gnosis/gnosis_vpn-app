@@ -1,5 +1,6 @@
-import { createEffect, createMemo, createSignal } from "solid-js";
+import { createEffect, createMemo, createSignal, onCleanup, onMount } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import Toggle from "@src/components/common/Toggle.tsx";
 import UpdateStatusCard from "@src/components/common/UpdateStatusCard.tsx";
 import ChannelSelector from "@src/components/common/ChannelSelector.tsx";
@@ -91,6 +92,15 @@ export default function Updates() {
 
   const handleCheck = () => void runCheck(false);
 
+  onMount(() => {
+    let disposed = false;
+    void listen("updates:check", () => handleCheck()).then((unlisten) => {
+      if (disposed) unlisten();
+      else onCleanup(unlisten);
+    });
+    onCleanup(() => { disposed = true; });
+  });
+
   const handleCheckAnyway = () => {
     setShowCheckModal(false);
     void runCheck(true);
@@ -109,6 +119,7 @@ export default function Updates() {
         loading={checking()}
         isUpToDate={isUpToDate()}
         latestVersion={latestVersion()}
+        releaseNotes={settings.updateManifest?.channels[effectiveChannel()]?.release_notes}
         lastChecked={settings.lastCheckedAt != null
           ? formatCheckedAt(settings.lastCheckedAt)
           : undefined}

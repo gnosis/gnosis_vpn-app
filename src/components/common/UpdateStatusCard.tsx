@@ -1,6 +1,8 @@
-import { Show } from "solid-js";
+import { createSignal, Show } from "solid-js";
 import syncIcon from "@assets/icons/sync.svg";
 import checkmarkIcon from "@assets/icons/checkmark.svg";
+import { Modal } from "./Modal.tsx";
+import { Markdown } from "./Markdown.tsx";
 
 interface UpdateStatusCardProps {
   lastChecked?: string;
@@ -8,14 +10,16 @@ interface UpdateStatusCardProps {
   loading?: boolean;
   isUpToDate?: boolean;
   latestVersion?: string;
+  releaseNotes?: string;
 }
 
 export default function UpdateStatusCard(props: UpdateStatusCardProps) {
+  const [showChangelog, setShowChangelog] = createSignal(false);
   const showCheckmark = () => !props.loading && props.isUpToDate !== false;
 
   const statusText = () => {
     if (props.isUpToDate === true) return "You're up to date";
-    if (props.isUpToDate === false) return `Update available${props.latestVersion ? ` (${props.latestVersion})` : ""}`;
+    if (props.isUpToDate === false) return "Update available";
     return "You're probably up to date";
   };
 
@@ -33,10 +37,41 @@ export default function UpdateStatusCard(props: UpdateStatusCardProps) {
           </div>
         </Show>
       </div>
-      <div class="flex flex-col">
-        <span class={`text-sm font-medium ${props.isUpToDate === false ? "text-orange-500" : "text-text-primary"}`}>
+      <div class="flex flex-col min-w-0 overflow-hidden">
+        <span class={`text-sm font-medium truncate ${props.isUpToDate === false ? "text-orange-500" : "text-text-primary"}`}>
           {statusText()}
         </span>
+        <Show when={props.isUpToDate === false && props.latestVersion}>
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="text-xs text-orange-500 truncate">{props.latestVersion}</span>
+            <Show when={props.releaseNotes}>
+              <button
+                type="button"
+                class="shrink-0 text-xs text-orange-500 underline hover:cursor-pointer"
+                onClick={() => setShowChangelog(true)}
+              >
+                (changelog)
+              </button>
+            </Show>
+          </div>
+        </Show>
+        <Modal open={showChangelog()} onClose={() => setShowChangelog(false)}>
+          <div class="flex flex-col gap-4">
+            <div class="text-base font-semibold text-text-primary">
+              What's new in {props.latestVersion}
+            </div>
+            <div class="max-h-64 overflow-y-auto pr-2">
+              <Markdown>{props.releaseNotes || ""}</Markdown>
+            </div>
+            <button
+              type="button"
+              class="h-10 px-4 text-sm rounded-lg font-bold border border-border bg-transparent text-text-primary hover:bg-darken hover:cursor-pointer transition-colors"
+              onClick={() => setShowChangelog(false)}
+            >
+              Close
+            </button>
+          </div>
+        </Modal>
         <span class="text-xs text-text-secondary">
           Last checked: {props.lastChecked ?? "Never"}
         </span>

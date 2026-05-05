@@ -17,6 +17,8 @@ pub fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Erro
     let settings_item = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
     let logs_item = MenuItem::with_id(app, "logs", "Logs", true, None::<&str>)?;
     let usage_item = MenuItem::with_id(app, "usage", "Usage", true, None::<&str>)?;
+    let check_update_item =
+        MenuItem::with_id(app, "check_update", "Check update", true, None::<&str>)?;
     let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
 
     app.manage(TrayStatusItem(Mutex::new(status_item.clone())));
@@ -28,6 +30,8 @@ pub fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Erro
         .item(&settings_item)
         .item(&logs_item)
         .item(&usage_item)
+        .item(&check_update_item)
+        .separator()
         .item(&quit_item)
         .build()
 }
@@ -89,6 +93,30 @@ pub fn show_settings(app: &AppHandle, target: &str) {
         tauri::async_runtime::spawn(async move {
             sleep(Duration::from_millis(120)).await;
             let _ = handle.emit("navigate", target_owned);
+        });
+    }
+}
+
+pub fn show_settings_and_check(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("settings") {
+        #[cfg(target_os = "macos")]
+        {
+            let main_visible = app
+                .get_webview_window("main")
+                .and_then(|w| w.is_visible().ok())
+                .unwrap_or(false);
+            if !main_visible {
+                let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+            }
+        }
+        let _ = window.show();
+        let _ = window.set_focus();
+        let handle = window.clone();
+        tauri::async_runtime::spawn(async move {
+            sleep(Duration::from_millis(120)).await;
+            let _ = handle.emit("navigate", "updates");
+            sleep(Duration::from_millis(80)).await;
+            let _ = handle.emit("updates:check", ());
         });
     }
 }
