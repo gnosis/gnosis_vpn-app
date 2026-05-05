@@ -115,7 +115,7 @@ export default function Tooltip(props: {
           >
             {props.content}
             <span
-              class={`absolute size-2 bg-text-primary
+              class={`absolute size-2 bg-neutral-800
                 ${pos() === "top" ? "top-full -mt-1" : "bottom-full -mb-1"}
               `}
               style={{
