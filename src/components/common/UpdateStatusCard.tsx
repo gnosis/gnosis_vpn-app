@@ -24,7 +24,7 @@ export default function UpdateStatusCard(props: UpdateStatusCardProps) {
   };
 
   return (
-    <div class="flex items-center gap-3 px-4 py-3 rounded-xl bg-bg-surface border border-border">
+    <div class="flex items-center gap-3 px-4 py-3 rounded-xl bg-bg-surface border border-border" style="height: 78px">
       <div class="relative shrink-0 w-10 h-10">
         <img
           src={syncIcon}
@@ -37,7 +37,7 @@ export default function UpdateStatusCard(props: UpdateStatusCardProps) {
           </div>
         </Show>
       </div>
-      <div class="flex flex-col min-w-0 overflow-hidden">
+      <div class="flex flex-col self-stretch min-w-0 overflow-hidden">
         <span class={`text-sm font-medium truncate ${props.isUpToDate === false ? "text-orange-500" : "text-text-primary"}`}>
           {statusText()}
         </span>
@@ -72,7 +72,7 @@ export default function UpdateStatusCard(props: UpdateStatusCardProps) {
             </button>
           </div>
         </Modal>
-        <span class="text-xs text-text-secondary">
+        <span class="mt-auto text-xs text-text-secondary">
           Last checked: {props.lastChecked ?? "Never"}
         </span>
       </div>

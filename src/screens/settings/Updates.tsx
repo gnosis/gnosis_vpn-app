@@ -1,4 +1,4 @@
-import { createEffect, createMemo, createSignal, onCleanup, onMount } from "solid-js";
+import { createEffect, createMemo, createSignal, on, onCleanup, onMount } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import Toggle from "@src/components/common/Toggle.tsx";
@@ -41,6 +41,36 @@ export default function Updates() {
       setPendingCheckAfterConnect(false);
       void runCheck(false);
     }
+  });
+
+  const AUTO_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
+  // Check immediately when auto-check is turned on
+  createEffect(on(() => settings.updateCheck, (enabled) => {
+    if (!enabled) return;
+    if (appState.vpnStatus === "Connected") {
+      void runCheck(false);
+    } else {
+      setPendingCheckAfterConnect(true);
+    }
+  }, { defer: true }));
+
+  // Reschedule 24h after each completed check
+  createEffect(() => {
+    if (!settings.updateCheck || settings.lastCheckedAt == null) return;
+
+    const delay = Math.max(0, settings.lastCheckedAt + AUTO_CHECK_INTERVAL_MS - Date.now());
+
+    const id = setTimeout(() => {
+      if (checking()) return;
+      if (appState.vpnStatus === "Connected") {
+        void runCheck(false);
+      } else {
+        setPendingCheckAfterConnect(true);
+      }
+    }, delay);
+
+    onCleanup(() => clearTimeout(id));
   });
 
   const runCheck = async (skipVpn: boolean) => {
