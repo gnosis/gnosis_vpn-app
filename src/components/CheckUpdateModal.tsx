@@ -16,8 +16,7 @@ export default function CheckUpdateModal(props: {
             Your connection is not private
           </div>
           <div class="text-sm text-text-secondary">
-            Checking for updates without VPN reveals your IP address to the
-            update server. Connect through Gnosis VPN first for a private check.
+            Checking for updates without VPN reveals your IP address. Connect through Gnosis VPN first for a private check.
           </div>
         </div>
         <div class="flex flex-row justify gap-2">
