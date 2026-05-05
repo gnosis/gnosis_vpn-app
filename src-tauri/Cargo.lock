@@ -4182,6 +4182,7 @@ dependencies = [
  "gnosis_vpn-lib",
  "liblzma",
  "objc",
+ "reqwest 0.13.2",
  "serde",
  "serde_json",
  "tauri",

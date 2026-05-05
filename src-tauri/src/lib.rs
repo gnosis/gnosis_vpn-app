@@ -21,8 +21,8 @@ pub mod tray;
 pub mod types;
 
 use commands::{
-    balance, compress_logs, connect, disconnect, info, refresh_node, set_app_icon, start_client,
-    start_status_polling, stop_client,
+    balance, check_update, compress_logs, connect, disconnect, info, refresh_node, set_app_icon,
+    start_client, start_status_polling, stop_client,
 };
 use icons::{AppIconState, TrayIconState, determine_tray_icon, start_app_icon_heartbeat};
 use platform::{Platform, PlatformInterface};
@@ -227,7 +227,8 @@ pub fn run() {
             compress_logs,
             set_app_icon,
             get_initial_theme,
-            start_status_polling
+            start_status_polling,
+            check_update
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

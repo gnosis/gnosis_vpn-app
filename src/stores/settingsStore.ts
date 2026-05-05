@@ -4,6 +4,27 @@ import { emit, listen } from "@tauri-apps/api/event";
 
 export type ThemePreference = "auto" | "light" | "dark";
 
+export interface ChannelRelease {
+  version: string;
+  published_at: string;
+  download_url: string;
+  size_bytes: number;
+  sha256: string;
+  artifact_signature: string;
+  release_notes: string;
+  min_os_version: string;
+  min_app_version: string;
+}
+
+export interface UpdateManifest {
+  schema_version: number;
+  generated_at: string;
+  channels: {
+    stable: ChannelRelease | null;
+    snapshot: ChannelRelease | null;
+  };
+}
+
 export interface SettingsState {
   preferredLocation: string | null;
   connectOnStartup: boolean;
@@ -11,6 +32,8 @@ export interface SettingsState {
   updateCheck: boolean;
   theme: ThemePreference;
   exitNodeSortOrder: "latency" | "alpha";
+  lastCheckedAt: number | null;
+  updateManifest: UpdateManifest | null;
 }
 
 const DEFAULT_SETTINGS: SettingsState = {
@@ -20,6 +43,8 @@ const DEFAULT_SETTINGS: SettingsState = {
   updateCheck: false,
   theme: "auto",
   exitNodeSortOrder: "latency",
+  lastCheckedAt: null,
+  updateManifest: null,
 };
 
 type SettingsActions = {
@@ -30,6 +55,7 @@ type SettingsActions = {
   setUpdateCheck: (enabled: boolean) => Promise<void>;
   setTheme: (theme: ThemePreference) => Promise<void>;
   setExitNodeSortOrder: (order: "latency" | "alpha") => Promise<void>;
+  setUpdateCheckResult: (manifest: UpdateManifest, checkedAt: number) => Promise<void>;
   save: () => Promise<void>;
 };
 
@@ -56,6 +82,8 @@ async function saveAllToDisk(state: SettingsState): Promise<void> {
   await store.set("updateCheck", state.updateCheck);
   await store.set("theme", state.theme);
   await store.set("exitNodeSortOrder", state.exitNodeSortOrder);
+  await store.set("lastCheckedAt", state.lastCheckedAt);
+  await store.set("updateManifest", state.updateManifest);
   await store.save();
 }
 
@@ -74,6 +102,8 @@ export function createSettingsStore(): SettingsStoreTuple {
         updateCheck,
         theme,
         exitNodeSortOrder,
+        lastCheckedAt,
+        updateManifest,
       ] = (await Promise.all([
         store.get("preferredLocation"),
         store.get("connectOnStartup"),
@@ -81,6 +111,8 @@ export function createSettingsStore(): SettingsStoreTuple {
         store.get("updateCheck"),
         store.get("theme"),
         store.get("exitNodeSortOrder"),
+        store.get("lastCheckedAt"),
+        store.get("updateManifest"),
       ])) as [
         SettingsState["preferredLocation"] | undefined,
         boolean | undefined,
@@ -88,6 +120,8 @@ export function createSettingsStore(): SettingsStoreTuple {
         boolean | undefined,
         ThemePreference | undefined,
         "latency" | "alpha" | undefined,
+        number | null | undefined,
+        UpdateManifest | null | undefined,
       ];
 
       if (preferredLocation) {
@@ -111,6 +145,12 @@ export function createSettingsStore(): SettingsStoreTuple {
         exitNodeSortOrder === "alpha";
       if (isValidExitNodeSortOrder) {
         loaded.exitNodeSortOrder = exitNodeSortOrder;
+      }
+      if (typeof lastCheckedAt === "number") {
+        loaded.lastCheckedAt = lastCheckedAt;
+      }
+      if (updateManifest != null) {
+        loaded.updateManifest = updateManifest;
       }
 
       setState({ ...loaded });
@@ -211,6 +251,19 @@ export function createSettingsStore(): SettingsStoreTuple {
         console.error("Failed to save exitNodeSortOrder", e);
       }
       void emit("settings:update", { exitNodeSortOrder: order });
+    },
+
+    setUpdateCheckResult: async (manifest: UpdateManifest, checkedAt: number) => {
+      setState("lastCheckedAt", checkedAt);
+      setState("updateManifest", manifest);
+      try {
+        const store = await getTauriStore();
+        await store.set("lastCheckedAt", checkedAt);
+        await store.set("updateManifest", manifest);
+        await store.save();
+      } catch (e) {
+        console.error("Failed to save update check result", e);
+      }
     },
 
     save: async () => {
