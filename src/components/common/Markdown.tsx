@@ -1,5 +1,5 @@
 import { marked } from "marked";
-import { JSX, onMount, onCleanup } from "solid-js";
+import { JSX, onCleanup, onMount } from "solid-js";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
 marked.setOptions({ async: false });

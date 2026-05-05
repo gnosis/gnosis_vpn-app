@@ -24,7 +24,10 @@ export default function UpdateStatusCard(props: UpdateStatusCardProps) {
   };
 
   return (
-    <div class="flex items-center gap-3 px-4 py-3 rounded-xl bg-bg-surface border border-border" style="height: 78px">
+    <div
+      class="flex items-center gap-3 px-4 py-3 rounded-xl bg-bg-surface border border-border"
+      style="height: 78px"
+    >
       <div class="relative shrink-0 w-10 h-10">
         <img
           src={syncIcon}
@@ -38,12 +41,18 @@ export default function UpdateStatusCard(props: UpdateStatusCardProps) {
         </Show>
       </div>
       <div class="flex flex-col self-stretch min-w-0 overflow-hidden">
-        <span class={`text-sm font-medium truncate ${props.isUpToDate === false ? "text-orange-500" : "text-text-primary"}`}>
+        <span
+          class={`text-sm font-medium truncate ${
+            props.isUpToDate === false ? "text-orange-500" : "text-text-primary"
+          }`}
+        >
           {statusText()}
         </span>
         <Show when={props.isUpToDate === false && props.latestVersion}>
           <div class="flex items-center gap-2 min-w-0">
-            <span class="text-xs text-orange-500 truncate">{props.latestVersion}</span>
+            <span class="text-xs text-orange-500 truncate">
+              {props.latestVersion}
+            </span>
             <Show when={props.releaseNotes}>
               <button
                 type="button"

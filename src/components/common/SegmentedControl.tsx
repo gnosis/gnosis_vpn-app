@@ -6,7 +6,9 @@ interface SegmentedControlProps<T extends string> {
   onChange: (value: T) => void;
 }
 
-export default function SegmentedControl<T extends string>(props: SegmentedControlProps<T>) {
+export default function SegmentedControl<T extends string>(
+  props: SegmentedControlProps<T>,
+) {
   return (
     <div class="flex gap-0.5 bg-bg-surface border border-border rounded-lg p-0.5">
       <For each={props.options}>

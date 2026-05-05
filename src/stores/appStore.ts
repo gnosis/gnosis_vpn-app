@@ -1,7 +1,7 @@
 import { createEffect } from "solid-js";
 import { createStore, reconcile, type Store } from "solid-js/store";
 import { emit, listen } from "@tauri-apps/api/event";
-import { detectChannel, compareVersions } from "@src/utils/version.ts";
+import { compareVersions, detectChannel } from "@src/utils/version.ts";
 
 import {
   type ConnectingInfo,
@@ -516,13 +516,16 @@ export function createAppStore(): AppStoreTuple {
     const effectiveChannel = settings.channel ?? detectChannel(pkgVer);
     const latest = manifest.channels[effectiveChannel]?.version ?? null;
     if (!latest) return;
-    const hasUpdate = detectChannel(pkgVer) !== effectiveChannel
-      || compareVersions(pkgVer, latest) < 0;
+    const hasUpdate = detectChannel(pkgVer) !== effectiveChannel ||
+      compareVersions(pkgVer, latest) < 0;
     const dismissed = settings.dismissedUpdateVersion === latest;
     const result = hasUpdate && !dismissed;
     setState("availableVersion", hasUpdate ? latest : null);
     setState("isUpdateAvailable", result);
-    void emit("app:update-available", { isUpdateAvailable: result, availableVersion: hasUpdate ? latest : null });
+    void emit("app:update-available", {
+      isUpdateAvailable: result,
+      availableVersion: hasUpdate ? latest : null,
+    });
   });
 
   void listen<{ isUpdateAvailable: boolean; availableVersion: string | null }>(

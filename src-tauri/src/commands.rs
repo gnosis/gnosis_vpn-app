@@ -32,10 +32,16 @@ const ALLOWED_APP_ICONS: &[&str] = &[
 ];
 
 #[tauri::command]
-pub async fn check_update(skip_vpn: bool) -> Result<gnosis_vpn_lib::check_update::Manifest, String> {
+pub async fn check_update(
+    skip_vpn: bool,
+) -> Result<gnosis_vpn_lib::check_update::Manifest, String> {
     let client = reqwest::Client::new();
     let socket_path = PathBuf::from(root_socket::DEFAULT_PATH);
-    let path_ref = if skip_vpn { None } else { Some(socket_path.as_path()) };
+    let path_ref = if skip_vpn {
+        None
+    } else {
+        Some(socket_path.as_path())
+    };
 
     gnosis_vpn_lib::check_update::download(&client, path_ref)
         .await

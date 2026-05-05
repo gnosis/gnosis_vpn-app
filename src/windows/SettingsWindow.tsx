@@ -23,7 +23,10 @@ export default function SettingsWindow() {
       const appVersion = await getVersion();
       const unlisten = await listen<string>("navigate", (event) => {
         const next = event.payload;
-        if (next === "settings" || next === "usage" || next === "logs" || next === "updates") {
+        if (
+          next === "settings" || next === "usage" || next === "logs" ||
+          next === "updates"
+        ) {
           setTab(next);
         }
       });

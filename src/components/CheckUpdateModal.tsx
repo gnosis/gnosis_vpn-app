@@ -1,6 +1,7 @@
 import { Modal } from "./common/Modal.tsx";
 
-const btn = "grow h-10 px-4 text-sm rounded-lg font-bold hover:bg-darken hover:cursor-pointer transition-colors select-none";
+const btn =
+  "grow h-10 px-4 text-sm rounded-lg font-bold hover:bg-darken hover:cursor-pointer transition-colors select-none";
 
 export default function CheckUpdateModal(props: {
   open: boolean;
@@ -16,7 +17,8 @@ export default function CheckUpdateModal(props: {
             Your connection is not private
           </div>
           <div class="text-sm text-text-secondary">
-            Checking for updates without VPN reveals your IP address. Connect through Gnosis VPN first for a private check.
+            Checking for updates without VPN reveals your IP address. Connect
+            through Gnosis VPN first for a private check.
           </div>
         </div>
         <div class="flex flex-row justify gap-2">

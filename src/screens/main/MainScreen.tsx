@@ -72,7 +72,10 @@ export function MainScreen() {
             <button
               type="button"
               class="hover:opacity-70 hover:cursor-pointer transition-opacity"
-              onClick={() => void settingsActions.setDismissedUpdateVersion(appState.availableVersion)}
+              onClick={() =>
+                void settingsActions.setDismissedUpdateVersion(
+                  appState.availableVersion,
+                )}
             >
               ✕
             </button>

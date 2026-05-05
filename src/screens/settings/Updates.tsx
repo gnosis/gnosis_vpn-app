@@ -1,4 +1,11 @@
-import { createEffect, createMemo, createSignal, on, onCleanup, onMount } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  on,
+  onCleanup,
+  onMount,
+} from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import Toggle from "@src/components/common/Toggle.tsx";
@@ -6,15 +13,21 @@ import UpdateStatusCard from "@src/components/common/UpdateStatusCard.tsx";
 import ChannelSelector from "@src/components/common/ChannelSelector.tsx";
 import CheckUpdateModal from "@src/components/CheckUpdateModal.tsx";
 import { useAppStore } from "@src/stores/appStore.ts";
-import { useSettingsStore, type UpdateChannel, type UpdateManifest } from "@src/stores/settingsStore.ts";
-import { detectChannel, compareVersions } from "@src/utils/version.ts";
+import {
+  type UpdateChannel,
+  type UpdateManifest,
+  useSettingsStore,
+} from "@src/stores/settingsStore.ts";
+import { compareVersions, detectChannel } from "@src/utils/version.ts";
 
 export default function Updates() {
   const [appState, appActions] = useAppStore();
   const [settings, settingsActions] = useSettingsStore();
   const [showCheckModal, setShowCheckModal] = createSignal(false);
   const [checking, setChecking] = createSignal(false);
-  const [pendingCheckAfterConnect, setPendingCheckAfterConnect] = createSignal(false);
+  const [pendingCheckAfterConnect, setPendingCheckAfterConnect] = createSignal(
+    false,
+  );
 
   createEffect(() => {
     if (pendingCheckAfterConnect() && appState.vpnStatus === "Connected") {
@@ -39,7 +52,10 @@ export default function Updates() {
   createEffect(() => {
     if (!settings.updateCheck || settings.lastCheckedAt == null) return;
 
-    const delay = Math.max(0, settings.lastCheckedAt + AUTO_CHECK_INTERVAL_MS - Date.now());
+    const delay = Math.max(
+      0,
+      settings.lastCheckedAt + AUTO_CHECK_INTERVAL_MS - Date.now(),
+    );
 
     const id = setTimeout(() => {
       if (checking()) return;
@@ -56,7 +72,9 @@ export default function Updates() {
   const runCheck = async (skipVpn: boolean) => {
     setChecking(true);
     try {
-      const manifest = await invoke<UpdateManifest>("check_update", { skipVpn });
+      const manifest = await invoke<UpdateManifest>("check_update", {
+        skipVpn,
+      });
       await settingsActions.setUpdateCheckResult(manifest, Date.now());
     } catch (e) {
       if (e === "VpnNotConnected") {
@@ -68,7 +86,9 @@ export default function Updates() {
     }
   };
 
-  const packageVersion = createMemo(() => appState.serviceInfo?.package_version ?? null);
+  const packageVersion = createMemo(() =>
+    appState.serviceInfo?.package_version ?? null
+  );
 
   const effectiveChannel = createMemo<UpdateChannel>(() => {
     if (settings.channel) return settings.channel;
@@ -97,7 +117,9 @@ export default function Updates() {
   const formatCheckedAt = (epoch: number) => {
     const d = new Date(epoch);
     const pad = (n: number) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${
+      pad(d.getHours())
+    }:${pad(d.getMinutes())}`;
   };
 
   const handleCheck = () => void runCheck(false);
@@ -108,7 +130,9 @@ export default function Updates() {
       if (disposed) unlisten();
       else onCleanup(unlisten);
     });
-    onCleanup(() => { disposed = true; });
+    onCleanup(() => {
+      disposed = true;
+    });
   });
 
   const handleCheckAnyway = () => {
@@ -129,7 +153,8 @@ export default function Updates() {
         loading={checking()}
         isUpToDate={isUpToDate()}
         latestVersion={latestVersion()}
-        releaseNotes={settings.updateManifest?.channels[effectiveChannel()]?.release_notes}
+        releaseNotes={settings.updateManifest?.channels[effectiveChannel()]
+          ?.release_notes}
         lastChecked={settings.lastCheckedAt != null
           ? formatCheckedAt(settings.lastCheckedAt)
           : undefined}
