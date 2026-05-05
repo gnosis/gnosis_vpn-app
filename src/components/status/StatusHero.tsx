@@ -15,7 +15,7 @@ export function StatusHero() {
     !appState.runMode;
 
   return (
-    <div class="w-full h-1/3 flex flex-col items-center justify-center gap-3">
+    <div class="w-full h-1/3 flex flex-col items-center justify-center gap-3 shrink-0">
       <div class="h-24 flex items-center justify-center">
         <Show when={isConnecting()}>
           <SpinnerBig />
