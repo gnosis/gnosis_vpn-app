@@ -122,10 +122,10 @@ export default function ExitHealthDetail(
           </div>
 
           <Show when={hasHealthContent(routeHealth())}>
-            <div class="pl-2 mb-2">
+            <div class="flex justify-end items-center gap-2 mb-1.5 text-text-secondary">
+              <span>Detailed stats</span>
               <Toggle
                 small
-                label="Advanced telemetry data"
                 checked={settings.showDetailedMetrics}
                 onChange={(e) =>
                   void settingsActions.setShowDetailedMetrics(

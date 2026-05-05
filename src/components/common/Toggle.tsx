@@ -15,8 +15,8 @@ export default function Toggle(
   const thumb = local.small ? "h-4 w-4" : "h-7 w-7";
 
   return (
-    <label class="flex items-center justify-between">
-      <span class="text-text-primary">{local.label}</span>
+    <label class={`flex items-center ${local.label ? "justify-between" : ""}`}>
+      {local.label && <span class="text-text-primary">{local.label}</span>}
       <input
         {...rest}
         type="checkbox"
