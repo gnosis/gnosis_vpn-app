@@ -260,8 +260,6 @@ export default function Usage() {
             onClose={() => setIsAddFundsOpen(false)}
             nodeAddress={preparingSafe()?.node_address ??
               balance()?.info.node_address ?? ""}
-            safeAddress={preparingSafe()?.node_address ??
-              balance()?.info.safe_address ?? ""}
           />
         </Match>
       </Switch>

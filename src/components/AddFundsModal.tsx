@@ -6,27 +6,22 @@ export default function AddFundsModal(props: {
   open: boolean;
   onClose: () => void;
   nodeAddress: string;
-  safeAddress: string;
 }) {
   return (
     <Modal open={props.open} onClose={props.onClose}>
       <div class="flex flex-col gap-8">
         <div class="text-base font-semibold">Add funds</div>
         <div class="flex flex-col gap-4 my-2">
-          <div class="text-xl font-bold">Transfer xDAI</div>
           <FundingAddress
             address={props.nodeAddress}
-            // full
-            title="Transfer xDAI"
+            full
+            qrVisible
           />
-        </div>
-        <div class="flex flex-col gap-4 my-2">
-          <div class="text-xl font-bold">Transfer wxHOPR</div>
-          <FundingAddress
-            address={props.safeAddress}
-            // full
-            title="Transfer wxHOPR"
-          />
+          <div class="text-sm">
+            You can transfer <span class="font-bold">xDAI</span> or{" "}
+            <span class="font-bold">wxHOPR</span> on{" "}
+            <span class="font-bold">Gnosis Chain</span>.
+          </div>
         </div>
         <div class="flex flex-row justify-end gap-2">
           <Button size="md" onClick={props.onClose}>
