@@ -25,6 +25,8 @@ export interface UpdateManifest {
   };
 }
 
+export type UpdateChannel = "stable" | "snapshot";
+
 export interface SettingsState {
   preferredLocation: string | null;
   connectOnStartup: boolean;
@@ -34,6 +36,7 @@ export interface SettingsState {
   exitNodeSortOrder: "latency" | "alpha";
   lastCheckedAt: number | null;
   updateManifest: UpdateManifest | null;
+  channel: UpdateChannel | null;
 }
 
 const DEFAULT_SETTINGS: SettingsState = {
@@ -45,6 +48,7 @@ const DEFAULT_SETTINGS: SettingsState = {
   exitNodeSortOrder: "latency",
   lastCheckedAt: null,
   updateManifest: null,
+  channel: null,
 };
 
 type SettingsActions = {
@@ -56,6 +60,7 @@ type SettingsActions = {
   setTheme: (theme: ThemePreference) => Promise<void>;
   setExitNodeSortOrder: (order: "latency" | "alpha") => Promise<void>;
   setUpdateCheckResult: (manifest: UpdateManifest, checkedAt: number) => Promise<void>;
+  setChannel: (channel: UpdateChannel) => Promise<void>;
   save: () => Promise<void>;
 };
 
@@ -84,6 +89,7 @@ async function saveAllToDisk(state: SettingsState): Promise<void> {
   await store.set("exitNodeSortOrder", state.exitNodeSortOrder);
   await store.set("lastCheckedAt", state.lastCheckedAt);
   await store.set("updateManifest", state.updateManifest);
+  await store.set("channel", state.channel);
   await store.save();
 }
 
@@ -104,6 +110,7 @@ export function createSettingsStore(): SettingsStoreTuple {
         exitNodeSortOrder,
         lastCheckedAt,
         updateManifest,
+        channel,
       ] = (await Promise.all([
         store.get("preferredLocation"),
         store.get("connectOnStartup"),
@@ -113,6 +120,7 @@ export function createSettingsStore(): SettingsStoreTuple {
         store.get("exitNodeSortOrder"),
         store.get("lastCheckedAt"),
         store.get("updateManifest"),
+        store.get("channel"),
       ])) as [
         SettingsState["preferredLocation"] | undefined,
         boolean | undefined,
@@ -122,6 +130,7 @@ export function createSettingsStore(): SettingsStoreTuple {
         "latency" | "alpha" | undefined,
         number | null | undefined,
         UpdateManifest | null | undefined,
+        UpdateChannel | null | undefined,
       ];
 
       if (preferredLocation) {
@@ -151,6 +160,9 @@ export function createSettingsStore(): SettingsStoreTuple {
       }
       if (updateManifest != null) {
         loaded.updateManifest = updateManifest;
+      }
+      if (channel === "stable" || channel === "snapshot") {
+        loaded.channel = channel;
       }
 
       setState({ ...loaded });
@@ -251,6 +263,17 @@ export function createSettingsStore(): SettingsStoreTuple {
         console.error("Failed to save exitNodeSortOrder", e);
       }
       void emit("settings:update", { exitNodeSortOrder: order });
+    },
+
+    setChannel: async (channel: UpdateChannel) => {
+      setState("channel", channel);
+      try {
+        const store = await getTauriStore();
+        await store.set("channel", channel);
+        await store.save();
+      } catch (e) {
+        console.error("Failed to save channel", e);
+      }
     },
 
     setUpdateCheckResult: async (manifest: UpdateManifest, checkedAt: number) => {

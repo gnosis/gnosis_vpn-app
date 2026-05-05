@@ -1,10 +1,24 @@
-import { createEffect, createSignal } from "solid-js";
+import { createEffect, createMemo, createSignal } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import Toggle from "@src/components/common/Toggle.tsx";
 import UpdateStatusCard from "@src/components/common/UpdateStatusCard.tsx";
 import CheckUpdateModal from "@src/components/CheckUpdateModal.tsx";
 import { useAppStore } from "@src/stores/appStore.ts";
-import { useSettingsStore, type UpdateManifest } from "@src/stores/settingsStore.ts";
+import { useSettingsStore, type UpdateChannel, type UpdateManifest } from "@src/stores/settingsStore.ts";
+
+function detectChannel(version: string): UpdateChannel {
+  return version.includes("-") ? "snapshot" : "stable";
+}
+
+function compareVersions(a: string, b: string): number {
+  const pa = a.split("-")[0].split(".").map(Number);
+  const pb = b.split("-")[0].split(".").map(Number);
+  for (let i = 0; i < 3; i++) {
+    const diff = (pa[i] ?? 0) - (pb[i] ?? 0);
+    if (diff !== 0) return diff;
+  }
+  return 0;
+}
 
 export default function Updates() {
   const [appState, appActions] = useAppStore();
@@ -35,6 +49,27 @@ export default function Updates() {
     }
   };
 
+  const effectiveChannel = createMemo<UpdateChannel>(() => {
+    if (settings.channel) return settings.channel;
+    const ver = appState.appVersion;
+    return ver ? detectChannel(ver) : "stable";
+  });
+
+  createEffect(() => {
+    if (!settings.channel && appState.appVersion) {
+      void settingsActions.setChannel(detectChannel(appState.appVersion));
+    }
+  });
+
+  const isUpToDate = createMemo<boolean | undefined>(() => {
+    const manifest = settings.updateManifest;
+    const appVer = appState.appVersion;
+    if (!manifest || !appVer) return undefined;
+    const latest = manifest.channels[effectiveChannel()]?.version;
+    if (!latest) return undefined;
+    return compareVersions(appVer, latest) >= 0;
+  });
+
   const formatCheckedAt = (epoch: number) => {
     const d = new Date(epoch);
     const pad = (n: number) => String(n).padStart(2, "0");
@@ -59,6 +94,7 @@ export default function Updates() {
       <UpdateStatusCard
         onCheck={handleCheck}
         loading={checking()}
+        isUpToDate={isUpToDate()}
         lastChecked={settings.lastCheckedAt != null
           ? formatCheckedAt(settings.lastCheckedAt)
           : undefined}
