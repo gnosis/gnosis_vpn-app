@@ -5,11 +5,14 @@ import type {
   RoutingOptions,
 } from "@src/services/vpnService.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
+import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import { destinationLabel } from "@src/utils/destinations.ts";
 import {
   formatLatency,
+  formatLoadAvg,
   formatRouting,
   formatSecondsAgo,
+  formatSlots,
   getConnectionState,
   getHopCount,
   getLastCheckedEpoch,
@@ -27,6 +30,7 @@ export default function ExitNodeCard(props: {
   onClick: () => void;
 }) {
   const [appState] = useAppStore();
+  const [settings] = useSettingsStore();
 
   const destId = () => props.destinationState().destination.id;
   const routeHealth = createMemo((): RouteHealthView | null =>
@@ -55,6 +59,16 @@ export default function ExitNodeCard(props: {
   const latency = () => {
     const rh = routeHealth();
     return rh ? formatLatency(rh) : null;
+  };
+
+  const slots = () => {
+    const rh = routeHealth();
+    return rh ? formatSlots(rh) : null;
+  };
+
+  const loadAvg = () => {
+    const rh = routeHealth();
+    return rh ? formatLoadAvg(rh) : null;
   };
 
   const route = () => formatRouting(routing());
@@ -130,7 +144,23 @@ export default function ExitNodeCard(props: {
                 </div>
               }
             />
-            <Stat label="Checked" value={lastChecked()} />
+            <Stat
+              label="Checked"
+              value={lastChecked()}
+              tooltip={<span>Time since last health check</span>}
+            />
+            <Show when={settings.showDetailedMetrics}>
+              <Stat
+                label="Capacity"
+                value={slots()}
+                tooltip={<span>Available / total connection slots</span>}
+              />
+              <Stat
+                label="Load"
+                value={loadAvg()}
+                tooltip={<span>Server load average. Lower is better.</span>}
+              />
+            </Show>
           </div>
         </Show>
       </div>
