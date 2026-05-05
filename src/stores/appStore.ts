@@ -515,7 +515,15 @@ export function createAppStore(): AppStoreTuple {
     if (!manifest || !pkgVer) return;
     const effectiveChannel = settings.channel ?? detectChannel(pkgVer);
     const latest = manifest.channels[effectiveChannel]?.version ?? null;
-    if (!latest) return;
+    if (!latest) {
+      setState("availableVersion", null);
+      setState("isUpdateAvailable", false);
+      void emit("app:update-available", {
+        isUpdateAvailable: false,
+        availableVersion: null,
+      });
+      return;
+    }
     const hasUpdate = detectChannel(pkgVer) !== effectiveChannel ||
       compareVersions(pkgVer, latest) < 0;
     const dismissed = settings.dismissedUpdateVersion === latest;
