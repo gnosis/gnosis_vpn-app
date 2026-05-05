@@ -1,6 +1,19 @@
 import { createStore, type Store as SolidStore } from "solid-js/store";
 import { Store as TauriStore } from "@tauri-apps/plugin-store";
 import { emit, listen } from "@tauri-apps/api/event";
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+
+// Global emit only reaches the current window. For cross-window delivery,
+// explicitly emit to all known windows by label.
+async function emitToAllWindows(event: string, payload: unknown): Promise<void> {
+  void emit(event, payload);
+  for (const label of ["main", "settings"] as const) {
+    try {
+      const win = await WebviewWindow.getByLabel(label);
+      if (win) void win.emit(event, payload);
+    } catch { /* window may not exist */ }
+  }
+}
 
 export type ThemePreference = "auto" | "light" | "dark";
 
@@ -37,6 +50,7 @@ export interface SettingsState {
   lastCheckedAt: number | null;
   updateManifest: UpdateManifest | null;
   channel: UpdateChannel | null;
+  dismissedUpdateVersion: string | null;
 }
 
 const DEFAULT_SETTINGS: SettingsState = {
@@ -49,6 +63,7 @@ const DEFAULT_SETTINGS: SettingsState = {
   lastCheckedAt: null,
   updateManifest: null,
   channel: null,
+  dismissedUpdateVersion: null,
 };
 
 type SettingsActions = {
@@ -61,6 +76,7 @@ type SettingsActions = {
   setExitNodeSortOrder: (order: "latency" | "alpha") => Promise<void>;
   setUpdateCheckResult: (manifest: UpdateManifest, checkedAt: number) => Promise<void>;
   setChannel: (channel: UpdateChannel) => Promise<void>;
+  setDismissedUpdateVersion: (version: string | null) => Promise<void>;
   save: () => Promise<void>;
 };
 
@@ -90,6 +106,7 @@ async function saveAllToDisk(state: SettingsState): Promise<void> {
   await store.set("lastCheckedAt", state.lastCheckedAt);
   await store.set("updateManifest", state.updateManifest);
   await store.set("channel", state.channel);
+  await store.set("dismissedUpdateVersion", state.dismissedUpdateVersion);
   await store.save();
 }
 
@@ -111,6 +128,7 @@ export function createSettingsStore(): SettingsStoreTuple {
         lastCheckedAt,
         updateManifest,
         channel,
+        dismissedUpdateVersion,
       ] = (await Promise.all([
         store.get("preferredLocation"),
         store.get("connectOnStartup"),
@@ -121,6 +139,7 @@ export function createSettingsStore(): SettingsStoreTuple {
         store.get("lastCheckedAt"),
         store.get("updateManifest"),
         store.get("channel"),
+        store.get("dismissedUpdateVersion"),
       ])) as [
         SettingsState["preferredLocation"] | undefined,
         boolean | undefined,
@@ -131,6 +150,7 @@ export function createSettingsStore(): SettingsStoreTuple {
         number | null | undefined,
         UpdateManifest | null | undefined,
         UpdateChannel | null | undefined,
+        string | null | undefined,
       ];
 
       if (preferredLocation !== undefined) {
@@ -163,6 +183,9 @@ export function createSettingsStore(): SettingsStoreTuple {
       }
       if (channel === "stable" || channel === "snapshot") {
         loaded.channel = channel;
+      }
+      if (typeof dismissedUpdateVersion === "string") {
+        loaded.dismissedUpdateVersion = dismissedUpdateVersion;
       }
 
       setState({ ...loaded });
@@ -264,6 +287,7 @@ export function createSettingsStore(): SettingsStoreTuple {
 
     setChannel: async (channel: UpdateChannel) => {
       setState("channel", channel);
+      void emitToAllWindows("settings:update", { channel });
       try {
         const store = await getTauriStore();
         await store.set("channel", channel);
@@ -273,9 +297,22 @@ export function createSettingsStore(): SettingsStoreTuple {
       }
     },
 
+    setDismissedUpdateVersion: async (version: string | null) => {
+      setState("dismissedUpdateVersion", version);
+      void emitToAllWindows("settings:update", { dismissedUpdateVersion: version });
+      try {
+        const store = await getTauriStore();
+        await store.set("dismissedUpdateVersion", version);
+        await store.save();
+      } catch (e) {
+        console.error("Failed to save dismissedUpdateVersion", e);
+      }
+    },
+
     setUpdateCheckResult: async (manifest: UpdateManifest, checkedAt: number) => {
       setState("lastCheckedAt", checkedAt);
       setState("updateManifest", manifest);
+      void emitToAllWindows("settings:update", { lastCheckedAt: checkedAt, updateManifest: manifest });
       try {
         const store = await getTauriStore();
         await store.set("lastCheckedAt", checkedAt);
@@ -316,6 +353,18 @@ export function createSettingsStore(): SettingsStoreTuple {
       payload.exitNodeSortOrder === "alpha"
     ) {
       setState("exitNodeSortOrder", payload.exitNodeSortOrder);
+    }
+    if (typeof payload.lastCheckedAt === "number") {
+      setState("lastCheckedAt", payload.lastCheckedAt);
+    }
+    if (payload.updateManifest != null) {
+      setState("updateManifest", payload.updateManifest);
+    }
+    if (payload.channel === "stable" || payload.channel === "snapshot") {
+      setState("channel", payload.channel);
+    }
+    if (payload.dismissedUpdateVersion !== undefined) {
+      setState("dismissedUpdateVersion", payload.dismissedUpdateVersion as string | null);
     }
   }).then((u) => {
     unlistenSettings = u;
