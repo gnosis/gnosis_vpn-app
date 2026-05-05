@@ -1,5 +1,7 @@
+import { createEffect } from "solid-js";
 import { createStore, reconcile, type Store } from "solid-js/store";
-import { listen } from "@tauri-apps/api/event";
+import { emit, listen } from "@tauri-apps/api/event";
+import { compareVersions, detectChannel } from "@src/utils/version.ts";
 
 import {
   type ConnectingInfo,
@@ -57,6 +59,8 @@ export interface AppState {
   warmupStatus: string;
   syncProgress: number;
   syncRecoveryDeadline: number | null;
+  isUpdateAvailable: boolean;
+  availableVersion: string | null;
 }
 
 type AppActions = {
@@ -94,6 +98,8 @@ function initialState(): AppState {
     warmupStatus: "",
     syncProgress: 0,
     syncRecoveryDeadline: null,
+    isUpdateAvailable: false,
+    availableVersion: null,
   };
 }
 
@@ -500,6 +506,43 @@ export function createAppStore(): AppStoreTuple {
       }
     },
   } as const;
+
+  // Mirrors the isUpToDate logic in Updates.tsx so both windows agree.
+  // Emits cross-window so the result is shared without needing manifest sync.
+  createEffect(() => {
+    const manifest = settings.updateManifest;
+    const pkgVer = state.serviceInfo?.package_version ?? null;
+    if (!manifest || !pkgVer) return;
+    const effectiveChannel = settings.channel ?? detectChannel(pkgVer);
+    const latest = manifest.channels[effectiveChannel]?.version ?? null;
+    if (!latest) {
+      setState("availableVersion", null);
+      setState("isUpdateAvailable", false);
+      void emit("app:update-available", {
+        isUpdateAvailable: false,
+        availableVersion: null,
+      });
+      return;
+    }
+    const hasUpdate = detectChannel(pkgVer) !== effectiveChannel ||
+      compareVersions(pkgVer, latest) < 0;
+    const dismissed = settings.dismissedUpdateVersion === latest;
+    const result = hasUpdate && !dismissed;
+    setState("availableVersion", hasUpdate ? latest : null);
+    setState("isUpdateAvailable", result);
+    void emit("app:update-available", {
+      isUpdateAvailable: result,
+      availableVersion: hasUpdate ? latest : null,
+    });
+  });
+
+  void listen<{ isUpdateAvailable: boolean; availableVersion: string | null }>(
+    "app:update-available",
+    ({ payload }) => {
+      setState("isUpdateAvailable", payload.isUpdateAvailable);
+      setState("availableVersion", payload.availableVersion);
+    },
+  );
 
   return [state, actions] as const;
 }

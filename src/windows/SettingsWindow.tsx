@@ -4,11 +4,12 @@ import { emit, listen } from "@tauri-apps/api/event";
 import Settings from "../screens/settings/Settings.tsx";
 import Usage from "../screens/settings/Usage.tsx";
 import Logs from "../screens/settings/Logs.tsx";
+import Updates from "../screens/settings/Updates.tsx";
 import Tabs from "@src/components/common/Tabs.tsx";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
 
-type GlobalTab = "settings" | "usage" | "logs";
+type GlobalTab = "settings" | "usage" | "logs" | "updates";
 
 export default function SettingsWindow() {
   const [tab, setTab] = createSignal<GlobalTab>("settings");
@@ -22,7 +23,10 @@ export default function SettingsWindow() {
       const appVersion = await getVersion();
       const unlisten = await listen<string>("navigate", (event) => {
         const next = event.payload;
-        if (next === "settings" || next === "usage" || next === "logs") {
+        if (
+          next === "settings" || next === "usage" || next === "logs" ||
+          next === "updates"
+        ) {
           setTab(next);
         }
       });
@@ -51,6 +55,7 @@ export default function SettingsWindow() {
           { id: "settings", label: "Settings" },
           { id: "usage", label: "Usage" },
           { id: "logs", label: "Logs" },
+          { id: "updates", label: "Updates" },
         ]}
         activeId={tab()}
         onChange={(id) => setTab(id as GlobalTab)}
@@ -59,7 +64,9 @@ export default function SettingsWindow() {
         ? <Settings />
         : tab() === "usage"
         ? <Usage />
-        : <Logs />}
+        : tab() === "logs"
+        ? <Logs />
+        : <Updates />}
     </div>
   );
 }

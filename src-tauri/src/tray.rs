@@ -1,7 +1,7 @@
 use std::sync::Mutex;
 use std::time::Duration;
 use tauri::{
-    AppHandle, Emitter, Manager,
+    AppHandle, Emitter, Listener, Manager,
     menu::{Menu, MenuBuilder, MenuItem},
     tray::TrayIconEvent,
 };
@@ -17,6 +17,8 @@ pub fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Erro
     let settings_item = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
     let logs_item = MenuItem::with_id(app, "logs", "Logs", true, None::<&str>)?;
     let usage_item = MenuItem::with_id(app, "usage", "Usage", true, None::<&str>)?;
+    let check_update_item =
+        MenuItem::with_id(app, "check_update", "Check update", true, None::<&str>)?;
     let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
 
     app.manage(TrayStatusItem(Mutex::new(status_item.clone())));
@@ -28,6 +30,8 @@ pub fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Erro
         .item(&settings_item)
         .item(&logs_item)
         .item(&usage_item)
+        .item(&check_update_item)
+        .separator()
         .item(&quit_item)
         .build()
 }
@@ -89,6 +93,45 @@ pub fn show_settings(app: &AppHandle, target: &str) {
         tauri::async_runtime::spawn(async move {
             sleep(Duration::from_millis(120)).await;
             let _ = handle.emit("navigate", target_owned);
+        });
+    }
+}
+
+pub fn show_settings_and_check(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("settings") {
+        #[cfg(target_os = "macos")]
+        {
+            let main_visible = app
+                .get_webview_window("main")
+                .and_then(|w| w.is_visible().ok())
+                .unwrap_or(false);
+            if !main_visible {
+                let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+            }
+        }
+        let _ = window.show();
+        let _ = window.set_focus();
+        let handle = window.clone();
+        let app_handle = app.clone();
+        tauri::async_runtime::spawn(async move {
+            // Register the ready listener before navigating so we cannot miss
+            // the ack even if the frontend mounts faster than expected.
+            let (tx, rx) = tokio::sync::oneshot::channel::<()>();
+            let tx = std::sync::Arc::new(Mutex::new(Some(tx)));
+            let tx2 = tx.clone();
+            let id = app_handle.listen("updates:ready", move |_| {
+                if let Ok(mut guard) = tx2.lock() {
+                    if let Some(s) = guard.take() {
+                        let _ = s.send(());
+                    }
+                }
+            });
+            sleep(Duration::from_millis(120)).await;
+            let _ = handle.emit("navigate", "updates");
+            // Wait until Updates.tsx signals its listener is attached (5 s fallback).
+            let _ = tokio::time::timeout(Duration::from_secs(5), rx).await;
+            app_handle.unlisten(id);
+            let _ = handle.emit("updates:check", ());
         });
     }
 }

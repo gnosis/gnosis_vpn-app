@@ -20,7 +20,7 @@ import ConnectionStatus from "../../components/status/ConnectionStatus.tsx";
 
 export function MainScreen() {
   const [appState] = useAppStore();
-  const [settings] = useSettingsStore();
+  const [settings, settingsActions] = useSettingsStore();
 
   const activeDestinationState = createMemo(() => {
     if (appState.selectedId) return appState.destinations[appState.selectedId];
@@ -63,6 +63,25 @@ export function MainScreen() {
       <div class="flex flex-row justify-between z-60">
         <StatusIndicator />
         <Navigation />
+      </div>
+
+      <div class="relative h-0 z-50">
+        <Show when={appState.isUpdateAvailable}>
+          <div class="absolute top-2 left-0 right-0 px-3 py-1.5 rounded-lg bg-orange-500/15 border border-orange-500/30 text-xs text-orange-400 flex items-center justify-between">
+            <span>Update available</span>
+            <button
+              type="button"
+              class="hover:opacity-70 hover:cursor-pointer transition-opacity"
+              onClick={() =>
+                void settingsActions.setDismissedUpdateVersion(
+                  appState.availableVersion,
+                )}
+              aria-label="Dismiss update notification"
+            >
+              ✕
+            </button>
+          </div>
+        </Show>
       </div>
 
       <main

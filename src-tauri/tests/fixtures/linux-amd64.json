@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-05-05T01:41:17Z",
+  "channels": {
+    "stable": {
+      "version": "0.78.0",
+      "published_at": "2026-04-21T12:24:58Z",
+      "download_url": "https://download.gnosisvpn.io/stable/gnosisvpn_amd64.deb",
+      "size_bytes": 28369426,
+      "sha256": "b839afa4f389249d969f9f2be98720e8d3a3cc6b4f085a1ff54ab312950116fa",
+      "artifact_signature": "LS0tLS1CRUdJTiBQR1AgU0lHTkFUVVJFLS0tLS0KCmlIVUVBQllLQUIwV0lRU2FNSUF4L1R2K2p0djFCMjJFOXovcVJ0RUpjZ1VDYWVkcm1RQUtDUkNFOXovcVJ0RUoKY3BiV0FRREJ6dG5ndUpLRnBCK0hVWURwbGF3cDFLZDRqNHVRSHphQStXYWNDRGo3THdEK0wwNEVPaTR5dzdNdQpiRmhUMEdWN1k0ekhPbXVxY05MZHZNYmIybURSZ2dVPQo9VUEvRgotLS0tLUVORCBQR1AgU0lHTkFUVVJFLS0tLS0K",
+      "release_notes": "Test fixture release.",
+      "min_os_version": "22.04",
+      "min_app_version": "0.77.0"
+    },
+    "snapshot": {
+      "version": "2026.05.05+build.014117",
+      "published_at": "2026-05-05T01:41:17Z",
+      "download_url": "https://download.gnosisvpn.io/latest/gnosisvpn_amd64.deb",
+      "size_bytes": 28372104,
+      "sha256": "b14678f38922549b0bead435c6c385a385bbfc95e0acfad10e04899040b3d96a",
+      "artifact_signature": "LS0tLS1CRUdJTiBQR1AgU0lHTkFUVVJFLS0tLS0KCmlIVUVBQllLQUIwV0lRU2FNSUF4L1R2K2p0djFCMjJFOXovcVJ0RUpjZ1VDYWVyZllnQUtDUkNFOXovcVJ0RUoKY2hVa0FRRGFJOGkwVDBXa0RaYjlmd3UrWHE3NkRBSUZlczRqajRpYnE2NUpKSm9yY3dEK01lNTB1KzA3Z0lPaQovS2RUdkM0ckFXWkVieHdIc3hZeHQ5Wk5YK2dGOUFJPQo9cmw2cQotLS0tLUVORCBQR1AgU0lHTkFUVVJFLS0tLS0K",
+      "release_notes": "Test fixture snapshot.",
+      "min_os_version": "22.04",
+      "min_app_version": "0.77.0"
+    }
+  }
+}
