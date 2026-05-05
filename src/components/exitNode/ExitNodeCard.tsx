@@ -71,7 +71,6 @@ export default function ExitNodeCard(props: {
     return rh ? formatLoadAvg(rh) : null;
   };
 
-
   const route = () => formatRouting(routing());
   const hopCount = () => getHopCount(routing());
 
