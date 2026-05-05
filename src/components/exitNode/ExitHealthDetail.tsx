@@ -20,10 +20,10 @@ import {
   hasHealthContent,
   type HealthColor,
 } from "@src/utils/exitHealth.ts";
-import ChevronIcon from "../common/ChevronIcon.tsx";
 import HopsIcon from "./HopsIcon.tsx";
 import Stat from "./Stat.tsx";
 import Tag from "../common/Tag.tsx";
+import Toggle from "../common/Toggle.tsx";
 
 const statusColorClass: Record<HealthColor, string> = {
   green: "text-vpn-light-green",
@@ -122,6 +122,16 @@ export default function ExitHealthDetail(
           </div>
 
           <Show when={hasHealthContent(routeHealth())}>
+            <div class="pl-2 mb-2">
+              <Toggle
+                label="Advanced telemetry data"
+                checked={settings.showDetailedMetrics}
+                onChange={(e) =>
+                  void settingsActions.setShowDetailedMetrics(
+                    e.currentTarget.checked,
+                  )}
+              />
+            </div>
             <div class="grid grid-cols-[3fr_2fr] gap-x-4 gap-y-2 pl-2 text-text-secondary">
               <Stat
                 label="Latency"
@@ -157,25 +167,6 @@ export default function ExitHealthDetail(
                   tooltip={<span>Server load average. Lower is better.</span>}
                 />
               </Show>
-            </div>
-            <div class="pl-2 mt-2">
-              <button
-                type="button"
-                class="flex items-center gap-1 text-text-muted hover:text-text-primary text-xs transition-colors"
-                onClick={() =>
-                  void settingsActions.setShowDetailedMetrics(
-                    !settings.showDetailedMetrics,
-                  )}
-              >
-                {settings.showDetailedMetrics
-                  ? "Hide detailed metrics"
-                  : "Show detailed metrics"}
-                <ChevronIcon
-                  class={`w-2.5 h-2.5 transition-transform duration-200 ${
-                    settings.showDetailedMetrics ? "-rotate-180" : ""
-                  }`}
-                />
-              </button>
             </div>
           </Show>
         </div>
