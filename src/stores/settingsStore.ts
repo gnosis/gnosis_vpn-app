@@ -133,7 +133,7 @@ export function createSettingsStore(): SettingsStoreTuple {
         UpdateChannel | null | undefined,
       ];
 
-      if (preferredLocation) {
+      if (preferredLocation !== undefined) {
         loaded.preferredLocation = preferredLocation;
       }
       if (connectOnStartup !== undefined) {
@@ -179,10 +179,8 @@ export function createSettingsStore(): SettingsStoreTuple {
     },
 
     setPreferredLocation: async (id: string | null) => {
-      if (!id) {
-        return;
-      }
       setState("preferredLocation", id);
+      void emit("settings:update", { preferredLocation: id });
       try {
         const store = await getTauriStore();
         await store.set("preferredLocation", id);
@@ -190,11 +188,11 @@ export function createSettingsStore(): SettingsStoreTuple {
       } catch (e) {
         console.error("Failed to save preferredLocation", e);
       }
-      void emit("settings:update", { preferredLocation: id });
     },
 
     setConnectOnStartup: async (enabled: boolean) => {
       setState("connectOnStartup", enabled);
+      void emit("settings:update", { connectOnStartup: enabled });
       try {
         const store = await getTauriStore();
         await store.set("connectOnStartup", enabled);
@@ -202,11 +200,11 @@ export function createSettingsStore(): SettingsStoreTuple {
       } catch (e) {
         console.error("Failed to save connectOnStartup", e);
       }
-      void emit("settings:update", { connectOnStartup: enabled });
     },
 
     setStartMinimized: async (enabled: boolean) => {
       setState("startMinimized", enabled);
+      void emit("settings:update", { startMinimized: enabled });
       try {
         const store = await getTauriStore();
         await store.set("startMinimized", enabled);
@@ -214,7 +212,6 @@ export function createSettingsStore(): SettingsStoreTuple {
       } catch (e) {
         console.error("Failed to save startMinimized", e);
       }
-      void emit("settings:update", { startMinimized: enabled });
     },
 
     setUpdateCheck: async (enabled: boolean) => {
@@ -255,6 +252,7 @@ export function createSettingsStore(): SettingsStoreTuple {
 
     setExitNodeSortOrder: async (order: "latency" | "alpha") => {
       setState("exitNodeSortOrder", order);
+      void emit("settings:update", { exitNodeSortOrder: order });
       try {
         const store = await getTauriStore();
         await store.set("exitNodeSortOrder", order);
@@ -262,7 +260,6 @@ export function createSettingsStore(): SettingsStoreTuple {
       } catch (e) {
         console.error("Failed to save exitNodeSortOrder", e);
       }
-      void emit("settings:update", { exitNodeSortOrder: order });
     },
 
     setChannel: async (channel: UpdateChannel) => {

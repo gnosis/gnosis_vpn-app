@@ -1,54 +1,8 @@
 import type {
   Destination,
   DestinationState,
-  RoutingOptions,
 } from "@src/services/vpnService.ts";
 import { getSortLatencyMs, isReadyToConnect } from "@src/utils/exitHealth.ts";
-
-export const canonicalizeMeta = (
-  meta: Record<string, string> | undefined,
-): string => {
-  if (!meta) return "";
-  const keys = Object.keys(meta).sort();
-  const ordered: Record<string, string> = {};
-  for (const key of keys) ordered[key] = meta[key];
-  return JSON.stringify(ordered);
-};
-
-export const canonicalizePath = (routing: RoutingOptions): string => {
-  if ("Hops" in routing) return `Hops:${routing.Hops}`;
-  return `IntermediatePath:${(routing.IntermediatePath || []).join(",")}`;
-};
-
-export const areDestinationsEqualUnordered = (
-  a: Destination[],
-  b: Destination[],
-): boolean => {
-  if (a.length !== b.length) return false;
-  if (a.length === 0) return true;
-  const setA = new Set(a.map((d) => d.id));
-  if (setA.size !== a.length) {
-    const countsA = new Map<string, number>();
-    for (const sig of a.map((d) => d.id)) {
-      countsA.set(sig, (countsA.get(sig) || 0) + 1);
-    }
-    const countsB = new Map<string, number>();
-    for (const sig of b.map((d) => d.id)) {
-      countsB.set(sig, (countsB.get(sig) || 0) + 1);
-    }
-    if (countsA.size !== countsB.size) return false;
-    for (const [sig, count] of countsA) {
-      if (countsB.get(sig) !== count) return false;
-    }
-    return true;
-  }
-  const setB = new Set(b.map((d) => d.id));
-  if (setB.size !== b.length) return false;
-  for (const sig of setA) {
-    if (!setB.has(sig)) return false;
-  }
-  return true;
-};
 
 export function getPreferredAvailabilityChangeMessage(
   previous: Destination[],
@@ -71,6 +25,13 @@ export function sortByHealthScore(
   destinations: Record<string, DestinationState>,
 ): Destination[] {
   return [...available].sort((a, b) => {
+    const aReady = isReadyToConnect(
+      destinations[a.id]?.route_health ?? undefined,
+    );
+    const bReady = isReadyToConnect(
+      destinations[b.id]?.route_health ?? undefined,
+    );
+    if (aReady !== bReady) return aReady ? -1 : 1;
     const msA = destinations[a.id]
       ? getSortLatencyMs(destinations[a.id])
       : null;
@@ -82,19 +43,6 @@ export function sortByHealthScore(
     if (msB !== null) return 1;
     return destinationLabel(a).localeCompare(destinationLabel(b));
   });
-}
-
-/**
- * List to pass to {@link selectTargetId}: preserves `available` order when the user
- * chose a specific exit; otherwise health-sorted (same ordering as connect’s auto path).
- */
-export function destinationsForTargetSelection(
-  explicitExitId: string | null | undefined,
-  available: Destination[],
-  destinations: Record<string, DestinationState>,
-): Destination[] {
-  if (explicitExitId) return available;
-  return sortByHealthScore(available, destinations);
 }
 
 /** Sort: ReadyToConnect/Connecting first (A–Z within tier), all others after (A–Z). */
@@ -114,26 +62,25 @@ export function sortAlphaDestinations(
   });
 }
 
-export function selectTargetId(
-  id: string | undefined,
-  preferredId: string | null,
+export function resolveAutoDestination(
   available: Destination[],
-): { id: string | undefined; reason: string } {
-  if (id) return { id, reason: "id parameter set" };
-  if (preferredId) {
-    const hasPreferred = available.some((d) => d.id === preferredId);
-    if (hasPreferred) {
-      return { id: preferredId, reason: "preferred location" };
+  destinations: Record<string, DestinationState>,
+  preferredLocation: string | null,
+): Destination | null {
+  const candidates = sortByHealthScore(available, destinations);
+  if (candidates.length === 0) return null;
+  if (preferredLocation) {
+    const preferred = candidates.find((d) => d.id === preferredLocation);
+    if (
+      preferred &&
+      isReadyToConnect(
+        destinations[preferredLocation]?.route_health ?? undefined,
+      )
+    ) {
+      return preferred;
     }
-    return {
-      id: available[0]?.id,
-      reason: "fallback: preferred not present",
-    };
   }
-  return {
-    id: available[0]?.id,
-    reason: "fallback: no preferred set",
-  };
+  return candidates[0] ?? null;
 }
 
 export function destinationLabel(d: Destination): string {

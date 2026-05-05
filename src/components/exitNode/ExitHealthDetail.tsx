@@ -1,10 +1,9 @@
-import { createMemo, createSignal, type JSX, onCleanup, Show } from "solid-js";
+import { createMemo, createSignal, onCleanup, Show } from "solid-js";
 import type {
   DestinationState,
   RouteHealthView,
   RoutingOptions,
 } from "@src/services/vpnService.ts";
-import { VPNService } from "@src/services/vpnService.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { destinationLabel } from "@src/utils/destinations.ts";
 import {
@@ -14,15 +13,16 @@ import {
   formatRouting,
   formatSecondsAgo,
   formatSlots,
+  getConnectionState,
   getExitHealthColor,
   getHopCount,
   getLastCheckedEpoch,
+  hasHealthContent,
   type HealthColor,
-  isReadyToConnect,
 } from "@src/utils/exitHealth.ts";
 import HopsIcon from "./HopsIcon.tsx";
-import Button from "../common/Button.tsx";
 import Stat from "./Stat.tsx";
+import Tag from "../common/Tag.tsx";
 
 const statusColorClass: Record<HealthColor, string> = {
   green: "text-vpn-light-green",
@@ -31,22 +31,6 @@ const statusColorClass: Record<HealthColor, string> = {
   gray: "text-text-muted",
 };
 
-function Tag(
-  props: { value?: string | null; class?: string; children?: JSX.Element },
-) {
-  return (
-    <Show when={props.value || props.children}>
-      <span
-        class={`font-bold inline-flex items-center rounded-full px-2 py-0.5 ${
-          props.class ?? "bg-bg-primary text-text-primary"
-        }`}
-      >
-        {props.children ?? props.value}
-      </span>
-    </Show>
-  );
-}
-
 /**
  * Expanded health detail panel shown below the ExitNode card.
  * Displays latency, capacity, load, routing, and error info.
@@ -54,7 +38,7 @@ function Tag(
 export default function ExitHealthDetail(
   props: { destinationState: DestinationState },
 ) {
-  const [appState, appActions] = useAppStore();
+  const [appState] = useAppStore();
 
   const routeHealth = createMemo((): RouteHealthView | null =>
     props.destinationState.route_health ?? null
@@ -65,16 +49,14 @@ export default function ExitHealthDetail(
   const destId = () => props.destinationState.destination.id;
 
   // Derive connection label from top-level app state instead of per-destination field
-  const connectionLabel = () => {
-    if (appState.connected === destId()) return "Connected";
-    if (appState.connecting?.destination_id === destId()) return "Connecting";
-    if (appState.disconnecting.some((d) => d.destination_id === destId())) {
-      return "Disconnecting";
-    }
-    return "None";
-  };
+  const connectionLabel = () =>
+    getConnectionState(
+      destId(),
+      appState.connected,
+      appState.connecting?.destination_id,
+      appState.disconnecting,
+    );
   const isConnected = () => connectionLabel() === "Connected";
-  const isConnecting = () => connectionLabel() === "Connecting";
 
   const color = (): HealthColor => {
     if (isConnected()) return "green";
@@ -102,6 +84,8 @@ export default function ExitHealthDetail(
   };
   const route = () => formatRouting(routing());
 
+  // Independent clock: ExitHealthDetail is mounted in MainScreen, outside ExitNodeList
+  // which runs its own clock. Both are intentionally separate mounts.
   const [nowSec, setNowSec] = createSignal(Date.now() / 1000);
   const tick = setInterval(() => setNowSec(Date.now() / 1000), 1000);
   onCleanup(() => clearInterval(tick));
@@ -115,79 +99,32 @@ export default function ExitHealthDetail(
     return formatSecondsAgo(diff);
   };
 
-  const latencyLabel = () => latency();
-
-  const hasContent = () => {
-    const rh = routeHealth();
-    if (!rh) return false;
-    const state = rh.state;
-    return state !== "NeedsFunding" &&
-      state !== "Routable" &&
-      !(typeof state === "object" && "NeedsPeering" in state) &&
-      !(typeof state === "object" && "Unrecoverable" in state);
-  };
-
-  const canSwitch = () =>
-    (appState.vpnStatus === "Connected" ||
-      appState.vpnStatus === "Connecting") &&
-    !isConnected() &&
-    !isConnecting() &&
-    isReadyToConnect(routeHealth() ?? undefined);
-
-  const handleSwitch = async () => {
-    const nodeId = props.destinationState.destination.id;
-    appActions.chooseDestination(nodeId);
-    try {
-      await VPNService.connect(nodeId);
-    } catch (error) {
-      console.error("Failed to switch node:", error);
-    }
-  };
-
   return (
     <Show when={destId()} keyed>
       {(_id: string) => (
         <div class="w-full bg-bg-surface-alt rounded-2xl px-4 py-2.5 text-xs fade-in-up">
-          <div class="flex justify-between">
-            <div>
-              <div class="flex flex-wrap items-center gap-1.5 mb-1">
-                <Tag
-                  value={destinationLabel(props.destinationState.destination)}
-                />
-                <Show when={route() && getHopCount(routing()) !== 1}>
-                  <Tag>
-                    <HopsIcon count={getHopCount(routing())} hideCount />
-                    <span class="ml-1">{route()}</span>
-                  </Tag>
-                </Show>
-              </div>
-
-              <div class="flex flex-wrap items-center gap-1.5 mb-1.5">
-                <Tag
-                  value={status()}
-                  class={`${statusColorClass[color()]} bg-bg-primary`}
-                />
-              </div>
-            </div>
-
-            <Show when={canSwitch()}>
-              <Button
-                size="sm"
-                variant="outline"
-                fullWidth={false}
-                class="bg-vpn-light-green text-white rounded-2xl h-10 w-16"
-                onClick={() => void handleSwitch()}
-              >
-                Switch
-              </Button>
+          <div class="flex flex-wrap items-center gap-1.5 mb-1">
+            <Tag value={destinationLabel(props.destinationState.destination)} />
+            <Show when={route() && getHopCount(routing()) !== 1}>
+              <Tag>
+                <HopsIcon count={getHopCount(routing())} hideCount />
+                <span class="ml-1">{route()}</span>
+              </Tag>
             </Show>
           </div>
 
-          <Show when={hasContent()}>
+          <div class="flex flex-wrap items-center gap-1.5 mb-1.5">
+            <Tag
+              value={status()}
+              class={`${statusColorClass[color()]} bg-bg-primary`}
+            />
+          </div>
+
+          <Show when={hasHealthContent(routeHealth())}>
             <div class="grid grid-cols-[3fr_2fr] gap-x-4 gap-y-2 pl-2 text-text-secondary">
               <Stat
                 label="Latency"
-                value={latencyLabel()}
+                value={latency()}
                 tooltip={
                   <div class="space-y-1">
                     <p class="text-white font-bold">Expected ~200ms</p>

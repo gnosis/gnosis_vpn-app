@@ -10,20 +10,19 @@ import { Portal } from "solid-js/web";
 const MARGIN = 8; // min gap from viewport edge
 const ARROW_INSET = 8; // min px from bubble edge to arrow center
 
-export default function Tooltip(
-  props: {
-    content: JSX.Element;
-    children: JSX.Element;
-    position?: "top" | "bottom";
-    tabIndex?: number;
-  },
-) {
+export default function Tooltip(props: {
+  content: JSX.Element;
+  children: JSX.Element;
+  position?: "top" | "bottom";
+  tabIndex?: number;
+}) {
   const [visible, setVisible] = createSignal(false);
   const [triggerX, setTriggerX] = createSignal(0);
   const [anchorY, setAnchorY] = createSignal<
-    | { bottom: number; top?: never }
-    | { top: number; bottom?: never }
-  >({ bottom: 0 });
+    { bottom: number; top?: never } | { top: number; bottom?: never }
+  >({
+    bottom: 0,
+  });
   const [left, setLeft] = createSignal(-9999); // off-screen until measured
   const [arrowOffset, setArrowOffset] = createSignal(0);
   const [remeasure, setRemeasure] = createSignal(0); // bumped to force re-measure on reposition
@@ -103,7 +102,7 @@ export default function Tooltip(
         <Portal mount={document.body}>
           <div
             ref={bubbleRef}
-            class="tooltip-bubble fixed z-50 max-w-52 rounded-lg bg-text-primary px-3 py-2 shadow-lg text-xs leading-relaxed text-bg-primary"
+            class="tooltip-bubble fixed z-200 max-w-52 rounded-lg bg-neutral-800 px-3 py-2 shadow-lg text-xs leading-relaxed text-gray-100"
             style={{
               ...(anchorY().bottom !== undefined
                 ? { bottom: `${anchorY().bottom}px` }
