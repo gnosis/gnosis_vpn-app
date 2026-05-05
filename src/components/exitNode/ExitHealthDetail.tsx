@@ -124,6 +124,7 @@ export default function ExitHealthDetail(
           <Show when={hasHealthContent(routeHealth())}>
             <div class="pl-2 mb-2">
               <Toggle
+                small
                 label="Advanced telemetry data"
                 checked={settings.showDetailedMetrics}
                 onChange={(e) =>
