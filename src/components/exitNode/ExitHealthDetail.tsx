@@ -145,18 +145,18 @@ export default function ExitHealthDetail(
                 value={lastChecked()}
                 tooltip={<span>Time since last health check</span>}
               />
-              <Show when={settings.showDetailedMetrics}>
-                <Stat
-                  label="Capacity"
-                  value={slots()}
-                  tooltip={<span>Available / total connection slots</span>}
-                />
-                <Stat
-                  label="Load"
-                  value={loadAvg()}
-                  tooltip={<span>Server load average. Lower is better.</span>}
-                />
-              </Show>
+              <Stat
+                label="Capacity"
+                value={slots()}
+                tooltip={<span>Available / total connection slots</span>}
+                class={settings.showDetailedMetrics ? undefined : "invisible"}
+              />
+              <Stat
+                label="Load"
+                value={loadAvg()}
+                tooltip={<span>Server load average. Lower is better.</span>}
+                class={settings.showDetailedMetrics ? undefined : "invisible"}
+              />
             </div>
             <div class="pl-2 mt-2">
               <button
