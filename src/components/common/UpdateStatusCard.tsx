@@ -69,8 +69,10 @@ export default function UpdateStatusCard(props: UpdateStatusCardProps) {
             <div class="text-base font-semibold text-text-primary">
               What's new in {props.latestVersion}
             </div>
-            <div class="max-h-64 overflow-y-auto pr-2">
-              <Markdown>{props.releaseNotes || ""}</Markdown>
+            <div class="max-h-64 overflow-y-auto">
+              <div class="pr-[18px]">
+                <Markdown>{props.releaseNotes || ""}</Markdown>
+              </div>
             </div>
             <button
               type="button"
