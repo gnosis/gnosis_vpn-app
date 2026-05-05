@@ -156,7 +156,10 @@ export default function ExitHealthDetail(
                 value={lastChecked()}
                 tooltip={<span>Time since last health check</span>}
               />
-              <Show when={settings.showDetailedMetrics}>
+              {/* Rendered always so the grid height stays constant; hidden when toggle is off */}
+              <div
+                class={`contents ${settings.showDetailedMetrics ? "" : "invisible"}`}
+              >
                 <Stat
                   label="Capacity"
                   value={slots()}
@@ -167,7 +170,7 @@ export default function ExitHealthDetail(
                   value={loadAvg()}
                   tooltip={<span>Server load average. Lower is better.</span>}
                 />
-              </Show>
+              </div>
             </div>
           </Show>
         </div>
