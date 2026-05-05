@@ -2,12 +2,11 @@ import {
   createEffect,
   createMemo,
   createSignal,
-  on,
   onCleanup,
   onMount,
 } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
+import { emit, listen } from "@tauri-apps/api/event";
 import Toggle from "@src/components/common/Toggle.tsx";
 import UpdateStatusCard from "@src/components/common/UpdateStatusCard.tsx";
 import ChannelSelector from "@src/components/common/ChannelSelector.tsx";
@@ -19,55 +18,13 @@ import {
   useSettingsStore,
 } from "@src/stores/settingsStore.ts";
 import { compareVersions, detectChannel } from "@src/utils/version.ts";
+import { setPendingCheckAfterConnect } from "@src/utils/updateChecker.ts";
 
 export default function Updates() {
   const [appState, appActions] = useAppStore();
   const [settings, settingsActions] = useSettingsStore();
   const [showCheckModal, setShowCheckModal] = createSignal(false);
   const [checking, setChecking] = createSignal(false);
-  const [pendingCheckAfterConnect, setPendingCheckAfterConnect] = createSignal(
-    false,
-  );
-
-  createEffect(() => {
-    if (pendingCheckAfterConnect() && appState.vpnStatus === "Connected") {
-      setPendingCheckAfterConnect(false);
-      void runCheck(false);
-    }
-  });
-
-  const AUTO_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
-
-  // Check immediately when auto-check is turned on
-  createEffect(on(() => settings.updateCheck, (enabled) => {
-    if (!enabled) return;
-    if (appState.vpnStatus === "Connected") {
-      void runCheck(false);
-    } else {
-      setPendingCheckAfterConnect(true);
-    }
-  }, { defer: true }));
-
-  // Reschedule 24h after each completed check
-  createEffect(() => {
-    if (!settings.updateCheck || settings.lastCheckedAt == null) return;
-
-    const delay = Math.max(
-      0,
-      settings.lastCheckedAt + AUTO_CHECK_INTERVAL_MS - Date.now(),
-    );
-
-    const id = setTimeout(() => {
-      if (checking()) return;
-      if (appState.vpnStatus === "Connected") {
-        void runCheck(false);
-      } else {
-        setPendingCheckAfterConnect(true);
-      }
-    }, delay);
-
-    onCleanup(() => clearTimeout(id));
-  });
 
   const runCheck = async (skipVpn: boolean) => {
     setChecking(true);
@@ -127,8 +84,12 @@ export default function Updates() {
   onMount(() => {
     let disposed = false;
     void listen("updates:check", () => handleCheck()).then((unlisten) => {
-      if (disposed) unlisten();
-      else onCleanup(unlisten);
+      if (disposed) {
+        unlisten();
+        return;
+      }
+      onCleanup(unlisten);
+      void emit("updates:ready", null);
     });
     onCleanup(() => {
       disposed = true;

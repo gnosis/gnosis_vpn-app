@@ -76,6 +76,7 @@ export function MainScreen() {
                 void settingsActions.setDismissedUpdateVersion(
                   appState.availableVersion,
                 )}
+              aria-label="Dimiss update notification"
             >
               ✕
             </button>

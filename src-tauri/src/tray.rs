@@ -1,7 +1,7 @@
 use std::sync::Mutex;
 use std::time::Duration;
 use tauri::{
-    AppHandle, Emitter, Manager,
+    AppHandle, Emitter, Listener, Manager,
     menu::{Menu, MenuBuilder, MenuItem},
     tray::TrayIconEvent,
 };
@@ -112,10 +112,25 @@ pub fn show_settings_and_check(app: &AppHandle) {
         let _ = window.show();
         let _ = window.set_focus();
         let handle = window.clone();
+        let app_handle = app.clone();
         tauri::async_runtime::spawn(async move {
+            // Register the ready listener before navigating so we cannot miss
+            // the ack even if the frontend mounts faster than expected.
+            let (tx, rx) = tokio::sync::oneshot::channel::<()>();
+            let tx = std::sync::Arc::new(Mutex::new(Some(tx)));
+            let tx2 = tx.clone();
+            let id = app_handle.listen("updates:ready", move |_| {
+                if let Ok(mut guard) = tx2.lock() {
+                    if let Some(s) = guard.take() {
+                        let _ = s.send(());
+                    }
+                }
+            });
             sleep(Duration::from_millis(120)).await;
             let _ = handle.emit("navigate", "updates");
-            sleep(Duration::from_millis(80)).await;
+            // Wait until Updates.tsx signals its listener is attached (5 s fallback).
+            let _ = tokio::time::timeout(Duration::from_secs(5), rx).await;
+            app_handle.unlisten(id);
             let _ = handle.emit("updates:check", ());
         });
     }
