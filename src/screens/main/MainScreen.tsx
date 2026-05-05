@@ -15,10 +15,7 @@ import ConnectButton from "../../components/ConnectButton.tsx";
 import StatusHero from "../../components/status/StatusHero.tsx";
 import StatusLine from "../../components/status/StatusLine.tsx";
 import ExitHealthDetail from "../../components/exitNode/ExitHealthDetail.tsx";
-import {
-  destinationsForTargetSelection,
-  selectTargetId,
-} from "../../utils/destinations.ts";
+import { resolveAutoDestination } from "../../utils/destinations.ts";
 import ConnectionStatus from "../../components/status/ConnectionStatus.tsx";
 
 export function MainScreen() {
@@ -26,20 +23,13 @@ export function MainScreen() {
   const [settings] = useSettingsStore();
 
   const activeDestinationState = createMemo(() => {
-    // Resolve the effective destination id (selected or random-fallback)
-    const effectiveId = appState.selectedId ??
-      appState.destination?.id ??
-      selectTargetId(
-        undefined,
-        settings.preferredLocation,
-        destinationsForTargetSelection(
-          undefined,
-          appState.availableDestinations,
-          appState.destinations,
-        ),
-      ).id;
-    if (!effectiveId) return undefined;
-    return appState.destinations[effectiveId];
+    if (appState.selectedId) return appState.destinations[appState.selectedId];
+    const resolved = resolveAutoDestination(
+      appState.availableDestinations,
+      appState.destinations,
+      settings.preferredLocation,
+    );
+    return resolved ? appState.destinations[resolved.id] : undefined;
   });
 
   let mainRef!: HTMLDivElement;
