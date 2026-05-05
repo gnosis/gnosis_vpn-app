@@ -21,7 +21,7 @@ export default function CheckUpdateModal(props: {
             through Gnosis VPN first for a private check.
           </div>
         </div>
-        <div class="flex flex-row justify gap-2">
+        <div class="flex flex-row justify-between gap-2">
           <button
             type="button"
             class={`${btn} bg-vpn-light-green text-white`}
