@@ -2,22 +2,30 @@ import { createEffect, createMemo, createSignal } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import Toggle from "@src/components/common/Toggle.tsx";
 import UpdateStatusCard from "@src/components/common/UpdateStatusCard.tsx";
+import ChannelSelector from "@src/components/common/ChannelSelector.tsx";
 import CheckUpdateModal from "@src/components/CheckUpdateModal.tsx";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { useSettingsStore, type UpdateChannel, type UpdateManifest } from "@src/stores/settingsStore.ts";
 
 function detectChannel(version: string): UpdateChannel {
-  return version.includes("-") ? "snapshot" : "stable";
+  return version.includes("-") || version.includes("+") ? "snapshot" : "stable";
 }
 
 function compareVersions(a: string, b: string): number {
-  const pa = a.split("-")[0].split(".").map(Number);
-  const pb = b.split("-")[0].split(".").map(Number);
-  for (let i = 0; i < 3; i++) {
-    const diff = (pa[i] ?? 0) - (pb[i] ?? 0);
+  const parse = (v: string) => {
+    const withoutPre = v.split("-")[0];
+    const [core, buildTag] = withoutPre.split("+");
+    const nums = core.split(".").map(Number);
+    const build = buildTag ? Number(buildTag.replace("build.", "")) : -1;
+    return { nums, build };
+  };
+  const pa = parse(a);
+  const pb = parse(b);
+  for (let i = 0; i < Math.max(pa.nums.length, pb.nums.length); i++) {
+    const diff = (pa.nums[i] ?? 0) - (pb.nums[i] ?? 0);
     if (diff !== 0) return diff;
   }
-  return 0;
+  return pa.build - pb.build;
 }
 
 export default function Updates() {
@@ -49,25 +57,30 @@ export default function Updates() {
     }
   };
 
+  const packageVersion = createMemo(() => appState.serviceInfo?.package_version ?? null);
+
   const effectiveChannel = createMemo<UpdateChannel>(() => {
     if (settings.channel) return settings.channel;
-    const ver = appState.appVersion;
+    const ver = packageVersion();
     return ver ? detectChannel(ver) : "stable";
   });
 
   createEffect(() => {
-    if (!settings.channel && appState.appVersion) {
-      void settingsActions.setChannel(detectChannel(appState.appVersion));
+    if (!settings.channel && packageVersion()) {
+      void settingsActions.setChannel(detectChannel(packageVersion()!));
     }
   });
 
+  const latestVersion = createMemo(() =>
+    settings.updateManifest?.channels[effectiveChannel()]?.version
+  );
+
   const isUpToDate = createMemo<boolean | undefined>(() => {
-    const manifest = settings.updateManifest;
-    const appVer = appState.appVersion;
-    if (!manifest || !appVer) return undefined;
-    const latest = manifest.channels[effectiveChannel()]?.version;
-    if (!latest) return undefined;
-    return compareVersions(appVer, latest) >= 0;
+    const pkgVer = packageVersion();
+    const latest = latestVersion();
+    if (!latest || !pkgVer) return undefined;
+    if (detectChannel(pkgVer) !== effectiveChannel()) return false;
+    return compareVersions(pkgVer, latest) >= 0;
   });
 
   const formatCheckedAt = (epoch: number) => {
@@ -95,6 +108,7 @@ export default function Updates() {
         onCheck={handleCheck}
         loading={checking()}
         isUpToDate={isUpToDate()}
+        latestVersion={latestVersion()}
         lastChecked={settings.lastCheckedAt != null
           ? formatCheckedAt(settings.lastCheckedAt)
           : undefined}
@@ -111,6 +125,10 @@ export default function Updates() {
         onChange={(e) =>
           void settingsActions.setUpdateCheck(e.currentTarget.checked)}
         description="Done only when connected through the Gnosis VPN"
+      />
+      <ChannelSelector
+        value={effectiveChannel()}
+        onChange={(ch) => void settingsActions.setChannel(ch)}
       />
       <div class="grow" />
       <div class="space-y-1 text-sm text-text-secondary text-center">

@@ -7,6 +7,7 @@ interface UpdateStatusCardProps {
   onCheck?: () => void;
   loading?: boolean;
   isUpToDate?: boolean;
+  latestVersion?: string;
 }
 
 export default function UpdateStatusCard(props: UpdateStatusCardProps) {
@@ -14,7 +15,7 @@ export default function UpdateStatusCard(props: UpdateStatusCardProps) {
 
   const statusText = () => {
     if (props.isUpToDate === true) return "You're up to date";
-    if (props.isUpToDate === false) return "Update available";
+    if (props.isUpToDate === false) return `Update available${props.latestVersion ? ` (${props.latestVersion})` : ""}`;
     return "You're probably up to date";
   };
 

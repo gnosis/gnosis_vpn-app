@@ -1,4 +1,4 @@
-import { For } from "solid-js";
+import SegmentedControl from "./SegmentedControl.tsx";
 
 type Theme = "auto" | "light" | "dark";
 
@@ -17,23 +17,11 @@ export default function ThemeSelector(props: ThemeSelectorProps) {
   return (
     <div class="flex items-center justify-between">
       <span class="text-text-primary">Theme</span>
-      <div class="flex gap-0.5 bg-bg-surface border border-border rounded-lg p-0.5">
-        <For each={OPTIONS}>
-          {(opt) => (
-            <button
-              type="button"
-              class={`px-3 py-1 text-sm rounded-md transition-colors hover:cursor-pointer ${
-                props.value === opt.value
-                  ? "bg-accent text-accent-text"
-                  : "text-text-secondary hover:text-text-primary"
-              }`}
-              onClick={() => props.onChange(opt.value)}
-            >
-              {opt.label}
-            </button>
-          )}
-        </For>
-      </div>
+      <SegmentedControl
+        options={OPTIONS}
+        value={props.value}
+        onChange={props.onChange}
+      />
     </div>
   );
 }
