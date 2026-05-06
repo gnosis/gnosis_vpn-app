@@ -30,6 +30,20 @@ const ALLOWED_TAGS = [
 ];
 const ALLOWED_ATTR = ["href", "title", "class"];
 
+export function isAllowedExternalUrl(href: string): boolean {
+  try {
+    const url = new URL(href);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return false;
+    // Reject userinfo (e.g. https://www.paypal.com@evil.com) — release notes
+    // never legitimately need user:pass@host syntax, and OS browsers don't
+    // consistently strip/warn on it.
+    if (url.username || url.password) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function Markdown(props: { children: string }): JSX.Element {
   let ref: HTMLDivElement | undefined;
 
@@ -39,6 +53,7 @@ export function Markdown(props: { children: string }): JSX.Element {
     const href = target.getAttribute("href");
     if (!href) return;
     e.preventDefault();
+    if (!isAllowedExternalUrl(href)) return;
     void openUrl(href);
   };
 
