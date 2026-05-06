@@ -61,7 +61,6 @@ type SettingsActions = {
   setConnectOnStartup: (enabled: boolean) => Promise<void>;
   setStartMinimized: (enabled: boolean) => Promise<void>;
   setUpdateCheck: (enabled: boolean) => Promise<void>;
-  setTheme: (theme: ThemePreference) => Promise<void>;
   setExitNodeSortOrder: (order: "latency" | "alpha") => Promise<void>;
   setUpdateCheckResult: (
     manifest: UpdateManifest,
@@ -248,30 +247,6 @@ export function createSettingsStore(): SettingsStoreTuple {
         console.error("Failed to save updateCheck", e);
       }
       void emit("settings:update", { updateCheck: enabled });
-    },
-
-    setTheme: async (theme: ThemePreference) => {
-      setState("theme", theme);
-
-      // Apply immediately to the current window without waiting for the event round-trip.
-      if (theme === "dark") {
-        document.documentElement.classList.add("dark");
-      } else if (theme === "light") {
-        document.documentElement.classList.remove("dark");
-      } else {
-        const mq = globalThis.matchMedia("(prefers-color-scheme: dark)");
-        document.documentElement.classList.toggle("dark", mq.matches);
-      }
-
-      // Notify other windows immediately, then persist to disk.
-      void emit("settings:update", { theme });
-      try {
-        const store = await getTauriStore();
-        await store.set("theme", theme);
-        await store.save();
-      } catch (e) {
-        console.error("Failed to save theme", e);
-      }
     },
 
     setExitNodeSortOrder: async (order: "latency" | "alpha") => {
