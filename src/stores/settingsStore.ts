@@ -1,22 +1,6 @@
 import { createStore, type Store as SolidStore } from "solid-js/store";
 import { Store as TauriStore } from "@tauri-apps/plugin-store";
 import { emit, listen } from "@tauri-apps/api/event";
-import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
-
-// Global emit only reaches the current window. For cross-window delivery,
-// explicitly emit to all known windows by label.
-async function emitToAllWindows(
-  event: string,
-  payload: unknown,
-): Promise<void> {
-  void emit(event, payload);
-  for (const label of ["main", "settings"] as const) {
-    try {
-      const win = await WebviewWindow.getByLabel(label);
-      if (win) void win.emit(event, payload);
-    } catch { /* window may not exist */ }
-  }
-}
 
 export type ThemePreference = "auto" | "light" | "dark";
 
@@ -263,7 +247,7 @@ export function createSettingsStore(): SettingsStoreTuple {
       } catch (e) {
         console.error("Failed to save updateCheck", e);
       }
-      void emitToAllWindows("settings:update", { updateCheck: enabled });
+      void emit("settings:update", { updateCheck: enabled });
     },
 
     setTheme: async (theme: ThemePreference) => {
@@ -304,7 +288,7 @@ export function createSettingsStore(): SettingsStoreTuple {
 
     setChannel: async (channel: UpdateChannel) => {
       setState("channel", channel);
-      void emitToAllWindows("settings:update", { channel });
+      void emit("settings:update", { channel });
       try {
         const store = await getTauriStore();
         await store.set("channel", channel);
@@ -316,7 +300,7 @@ export function createSettingsStore(): SettingsStoreTuple {
 
     setDismissedUpdateVersion: async (version: string | null) => {
       setState("dismissedUpdateVersion", version);
-      void emitToAllWindows("settings:update", {
+      void emit("settings:update", {
         dismissedUpdateVersion: version,
       });
       try {
@@ -334,7 +318,7 @@ export function createSettingsStore(): SettingsStoreTuple {
     ) => {
       setState("lastCheckedAt", checkedAt);
       setState("updateManifest", manifest);
-      void emitToAllWindows("settings:update", {
+      void emit("settings:update", {
         lastCheckedAt: checkedAt,
         updateManifest: manifest,
       });

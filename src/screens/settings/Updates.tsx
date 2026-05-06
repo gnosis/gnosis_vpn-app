@@ -17,7 +17,8 @@ import {
   type UpdateManifest,
   useSettingsStore,
 } from "@src/stores/settingsStore.ts";
-import { compareVersions, detectChannel } from "@src/utils/version.ts";
+import { detectChannel } from "@src/utils/version.ts";
+import { evaluateUpdate } from "@src/utils/updateAvailability.ts";
 import { setPendingCheckAfterConnect } from "@src/utils/updateChecker.ts";
 
 export default function Updates() {
@@ -63,13 +64,14 @@ export default function Updates() {
     settings.updateManifest?.channels[effectiveChannel()]?.version
   );
 
-  const isUpToDate = createMemo<boolean | undefined>(() => {
-    const pkgVer = packageVersion();
-    const latest = latestVersion();
-    if (!latest || !pkgVer) return undefined;
-    if (detectChannel(pkgVer) !== effectiveChannel()) return false;
-    return compareVersions(pkgVer, latest) >= 0;
-  });
+  const isUpToDate = createMemo<boolean | undefined>(() =>
+    evaluateUpdate({
+      packageVersion: packageVersion(),
+      manifest: settings.updateManifest ?? null,
+      channel: settings.channel,
+      dismissedVersion: settings.dismissedUpdateVersion,
+    }).isUpToDate
+  );
 
   const formatCheckedAt = (epoch: number) => {
     const d = new Date(epoch);
