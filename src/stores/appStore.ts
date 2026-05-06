@@ -508,7 +508,9 @@ export function createAppStore(): AppStoreTuple {
   } as const;
 
   // Both windows derive update state via the same helper. Emits cross-window
-  // so the result is shared without needing manifest sync.
+  // so the result is shared without needing manifest sync. Always applies the
+  // helper output (even when isUpToDate is undefined) so a channel switch
+  // that lands on a missing release clears any stale banner state.
   createEffect(() => {
     const d = evaluateUpdate({
       packageVersion: state.serviceInfo?.package_version ?? null,
@@ -516,7 +518,6 @@ export function createAppStore(): AppStoreTuple {
       channel: settings.channel,
       dismissedVersion: settings.dismissedUpdateVersion,
     });
-    if (d.isUpToDate === undefined) return;
     setState("availableVersion", d.availableVersion);
     setState("isUpdateAvailable", d.isUpdateAvailable);
     void emit("app:update-available", {

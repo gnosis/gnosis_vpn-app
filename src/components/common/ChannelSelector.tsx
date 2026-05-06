@@ -14,11 +14,14 @@ interface ChannelSelectorProps {
 export default function ChannelSelector(props: ChannelSelectorProps) {
   return (
     <div class="flex items-center justify-between">
-      <span class="text-text-primary">Update channel</span>
+      <span id="update-channel-selector-label" class="text-text-primary">
+        Update channel
+      </span>
       <SegmentedControl
         options={OPTIONS}
         value={props.value}
         onChange={props.onChange}
+        ariaLabelledBy="update-channel-selector-label"
       />
     </div>
   );

@@ -16,11 +16,12 @@ interface ThemeSelectorProps {
 export default function ThemeSelector(props: ThemeSelectorProps) {
   return (
     <div class="flex items-center justify-between">
-      <span class="text-text-primary">Theme</span>
+      <span id="theme-selector-label" class="text-text-primary">Theme</span>
       <SegmentedControl
         options={OPTIONS}
         value={props.value}
         onChange={props.onChange}
+        ariaLabelledBy="theme-selector-label"
       />
     </div>
   );
