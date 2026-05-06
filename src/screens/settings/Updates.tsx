@@ -19,13 +19,13 @@ import {
 } from "@src/stores/settingsStore.ts";
 import { detectChannel } from "@src/utils/version.ts";
 import { evaluateUpdate } from "@src/utils/updateAvailability.ts";
-import { setPendingCheckAfterConnect } from "@src/utils/updateChecker.ts";
 
 export default function Updates() {
   const [appState, appActions] = useAppStore();
   const [settings, settingsActions] = useSettingsStore();
   const [showCheckModal, setShowCheckModal] = createSignal(false);
   const [checking, setChecking] = createSignal(false);
+  const [pendingConnectCheck, setPendingConnectCheck] = createSignal(false);
 
   const runCheck = async (skipVpn: boolean) => {
     setChecking(true);
@@ -122,9 +122,18 @@ export default function Updates() {
 
   const handleConnectAndCheck = () => {
     setShowCheckModal(false);
-    setPendingCheckAfterConnect(true);
+    setPendingConnectCheck(true);
     void appActions.connect();
   };
+
+  // After "Connect and check": once VPN reaches Connected, fire the check.
+  // Local to this window — module-level signals don't cross Tauri webviews.
+  createEffect(() => {
+    if (pendingConnectCheck() && appState.vpnStatus === "Connected") {
+      setPendingConnectCheck(false);
+      void runCheck(false);
+    }
+  });
 
   return (
     <div class="space-y-4 w-full p-6 max-w-lg bg-bg-primary select-none flex flex-col h-full">

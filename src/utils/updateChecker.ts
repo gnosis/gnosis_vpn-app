@@ -7,7 +7,9 @@ import {
 
 export const AUTO_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
-// Shared between the scheduler (App.tsx) and the manual "connect and check" flow (Updates.tsx).
+// Main-window-only: drives the auto-update scheduler in App.tsx.
+// Module-level Solid signals don't cross Tauri webviews — the settings
+// window's "Connect and check" flow uses its own local signal in Updates.tsx.
 export const [pendingCheckAfterConnect, setPendingCheckAfterConnect] =
   createSignal(false);
 
