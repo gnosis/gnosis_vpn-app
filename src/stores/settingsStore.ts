@@ -263,7 +263,7 @@ export function createSettingsStore(): SettingsStoreTuple {
       } catch (e) {
         console.error("Failed to save updateCheck", e);
       }
-      void emit("settings:update", { updateCheck: enabled });
+      void emitToAllWindows("settings:update", { updateCheck: enabled });
     },
 
     setTheme: async (theme: ThemePreference) => {

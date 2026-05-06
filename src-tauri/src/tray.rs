@@ -128,6 +128,10 @@ pub fn show_settings_and_check(app: &AppHandle) {
             });
             sleep(Duration::from_millis(120)).await;
             let _ = handle.emit("navigate", "updates");
+            // Ping covers the case where Updates.tsx is already mounted (no
+            // remount, so its onMount-time ready emit won't fire again).
+            sleep(Duration::from_millis(80)).await;
+            let _ = handle.emit("updates:ping", ());
             // Wait until Updates.tsx signals its listener is attached (5 s fallback).
             let _ = tokio::time::timeout(Duration::from_secs(5), rx).await;
             app_handle.unlisten(id);

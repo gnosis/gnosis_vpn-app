@@ -81,19 +81,36 @@ export default function Updates() {
 
   const handleCheck = () => void runCheck(false);
 
+  let unlistenCheck: (() => void) | undefined;
+  let unlistenPing: (() => void) | undefined;
+  let disposed = false;
+
   onMount(() => {
-    let disposed = false;
     void listen("updates:check", () => handleCheck()).then((unlisten) => {
       if (disposed) {
         unlisten();
         return;
       }
-      onCleanup(unlisten);
+      unlistenCheck = unlisten;
       void emit("updates:ready", null);
     });
-    onCleanup(() => {
-      disposed = true;
+    // Respond to pings so Rust can detect a ready, already-mounted instance
+    // (the onMount-time ready emit only covers fresh mounts).
+    void listen("updates:ping", () => {
+      void emit("updates:ready", null);
+    }).then((unlisten) => {
+      if (disposed) {
+        unlisten();
+        return;
+      }
+      unlistenPing = unlisten;
     });
+  });
+
+  onCleanup(() => {
+    disposed = true;
+    unlistenCheck?.();
+    unlistenPing?.();
   });
 
   const handleCheckAnyway = () => {

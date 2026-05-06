@@ -8,6 +8,10 @@
 - **Format**: `nix fmt` (Deno + rustfmt via Treefmt)
 - **Lint**: `nix develop --command deno lint --fix` (Deno linter for TS/JS)
 - **Preview**: `vite preview` or `npm run serve`
+- **Rust toolchain (cargo, rustc)**: not on `PATH` directly — invoke through
+  `nix develop --command <cmd>`. Example:
+  `cd src-tauri && nix develop ..# --command cargo check`. Plain `cargo ...`
+  will fail with "command not found".
 
 ## Architecture & Codebase
 
