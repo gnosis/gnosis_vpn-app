@@ -35,13 +35,23 @@ export function MainScreen() {
   let mainRef!: HTMLDivElement;
   let exitAnchorRef!: HTMLDivElement;
   const [connectorHeight, setConnectorHeight] = createSignal(0);
+  const [connectorBottom, setConnectorBottom] = createSignal(0);
 
   const computeConnectorHeight = () => {
     if (!mainRef || !exitAnchorRef) return;
     const mainRect = mainRef.getBoundingClientRect();
     const exitRect = exitAnchorRef.getBoundingClientRect();
     const exitCenterY = exitRect.top + exitRect.height / 2;
-    const heightPx = Math.max(0, Math.round(mainRect.bottom - exitCenterY));
+    // Bar grows from the viewport bottom up to the exit node center,
+    // passing behind the button and ConnectionStatus text.
+    // bottomPx offsets the bar below main's bottom edge (positive when main
+    // overflows the viewport, negative when it falls short).
+    const bottomPx = Math.round(mainRect.bottom - globalThis.innerHeight);
+    const heightPx = Math.max(
+      0,
+      Math.round(globalThis.innerHeight - exitCenterY),
+    );
+    setConnectorBottom(bottomPx);
     setConnectorHeight(heightPx);
   };
 
@@ -80,7 +90,7 @@ export function MainScreen() {
             </div>
           )}
         </Show>
-        <StatusLine heightPx={connectorHeight()} />
+        <StatusLine heightPx={connectorHeight()} bottomPx={connectorBottom()} />
       </main>
       <div class="mt-4 w-full z-10">
         <ConnectButton />

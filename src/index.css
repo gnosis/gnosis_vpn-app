@@ -200,6 +200,14 @@ select {
   transform: translateX(-50%) scaleY(0);
   z-index: 0;
   overflow: hidden;
+  /* Fade to ~35% opacity at the bottom so ConnectionStatus text stays readable */
+  /* -webkit- prefix required for WebKit-based Tauri webviews (macOS/iOS) */
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    black 75%,
+    rgba(0, 0, 0, 0.35) 100%
+  );
+  mask-image: linear-gradient(to bottom, black 75%, rgba(0, 0, 0, 0.35) 100%);
   /* Base (connected) look; overlay will fade during connecting */
   background: linear-gradient(
     to top,

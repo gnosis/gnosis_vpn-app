@@ -8,7 +8,7 @@ import {
 import { useAppStore } from "../../stores/appStore.ts";
 
 export default function StatusLine(
-  props: { heightPx: number },
+  props: { heightPx: number; bottomPx: number },
 ): JSX.Element | null {
   const [appState] = useAppStore();
   const [wasDisconnecting, setWasDisconnecting] = createSignal(false);
@@ -34,29 +34,34 @@ export default function StatusLine(
     }
   });
 
+  const connectorClass = () => {
+    if (appState.vpnStatus === "Connecting") {
+      return "vpn-connector-line connecting";
+    }
+    if (appState.vpnStatus === "Connected") {
+      return "vpn-connector-line connected";
+    }
+    const isDisconnectingOrDisconnected =
+      appState.vpnStatus === "Disconnecting" ||
+      appState.vpnStatus === "Disconnected";
+    if (isDisconnectingOrDisconnected && wasDisconnecting()) {
+      return "vpn-connector-line disconnected-shrinking";
+    }
+    return null;
+  };
+
   return (
-    <>
-      <Show when={appState.vpnStatus === "Connecting"}>
+    <Show when={connectorClass()}>
+      {(cls) => (
         <div
-          class={`vpn-connector-line bottom-6 connecting`}
-          style={{ height: `${props.heightPx}px`, "pointer-events": "none" }}
+          class={cls()}
+          style={{
+            height: `${props.heightPx}px`,
+            bottom: `${props.bottomPx}px`,
+            "pointer-events": "none",
+          }}
         />
-      </Show>
-      <Show when={appState.vpnStatus === "Connected"}>
-        <div
-          class={`vpn-connector-line bottom-6 connected`}
-          style={{ height: `${props.heightPx}px`, "pointer-events": "none" }}
-        />
-      </Show>
-      <Show
-        when={(appState.vpnStatus === "Disconnecting" ||
-          appState.vpnStatus === "Disconnected") && wasDisconnecting()}
-      >
-        <div
-          class={`vpn-connector-line bottom-6 disconnected-shrinking`}
-          style={{ height: `${props.heightPx}px`, "pointer-events": "none" }}
-        />
-      </Show>
-    </>
+      )}
+    </Show>
   );
 }

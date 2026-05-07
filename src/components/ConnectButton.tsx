@@ -47,7 +47,7 @@ export default function ConnectButton() {
   };
 
   return (
-    <div class="relative z-20 w-full bg-bg-primary rounded-2xl">
+    <div class="relative z-20 w-full">
       <Button
         size="lg"
         onClick={() => void handleClick()}
