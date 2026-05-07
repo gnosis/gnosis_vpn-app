@@ -10,7 +10,9 @@ interface InitializationProps {
 export default function Initialization(props: InitializationProps) {
   return (
     <div class="flex h-full w-full flex-col items-center justify-center p-8 text-center">
-      <h1 class="mb-4 text-2xl font-bold text-text-primary">GnosisVPN</h1>
+      <h1 class="mb-4 text-2xl font-bold text-text-primary">
+        GnosisVPN
+      </h1>
 
       {props.error
         ? (
@@ -27,6 +29,7 @@ export default function Initialization(props: InitializationProps) {
               <div>
                 Package version:{" "}
                 <span class="text-text-primary">
+                  {import.meta.env.DEV ? "[DEV] " : ""}{" "}
                   {props.info?.package_version ?? "—"}
                 </span>
               </div>

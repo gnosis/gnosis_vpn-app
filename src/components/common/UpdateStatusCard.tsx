@@ -18,9 +18,13 @@ export default function UpdateStatusCard(props: UpdateStatusCardProps) {
   const showCheckmark = () => !props.loading && props.isUpToDate !== false;
 
   const statusText = () => {
-    if (props.isUpToDate === true) return "You're up to date";
-    if (props.isUpToDate === false) return "Update available";
-    return "You're probably up to date";
+    if (props.isUpToDate === true) {
+      return `${import.meta.env.DEV ? "[DEV] " : ""}You're up to date`;
+    }
+    if (props.isUpToDate === false) {
+      return `${import.meta.env.DEV ? "[DEV] " : ""}Update available`;
+    }
+    return `${import.meta.env.DEV ? "[DEV] " : ""}You're probably up to date`;
   };
 
   return (

@@ -170,6 +170,7 @@ export default function Updates() {
         <div>
           Package version:{" "}
           <span class="text-text-primary">
+            {import.meta.env.DEV ? "[DEV] " : ""}{" "}
             {appState.serviceInfo?.package_version ?? "—"}
           </span>
         </div>
