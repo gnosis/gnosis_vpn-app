@@ -20,7 +20,7 @@ name = "gnosis_vpn_app_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2.5.3", features = [] }
+tauri-build = { version = "2.5.6", features = [] }
 
 [dependencies]
 # gnosis_vpn-lib = { path = "../../gnosis_vpn-client/gnosis_vpn-lib" }
