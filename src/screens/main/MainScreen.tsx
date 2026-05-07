@@ -46,7 +46,10 @@ export function MainScreen() {
     // passing behind the button and ConnectionStatus text.
     // bottom is negative because the bar extends below main's bottom edge.
     const bottomPx = mainRect.bottom - globalThis.innerHeight;
-    const heightPx = Math.max(0, Math.round(globalThis.innerHeight - exitCenterY));
+    const heightPx = Math.max(
+      0,
+      Math.round(globalThis.innerHeight - exitCenterY),
+    );
     setConnectorBottom(bottomPx);
     setConnectorHeight(heightPx);
   };
