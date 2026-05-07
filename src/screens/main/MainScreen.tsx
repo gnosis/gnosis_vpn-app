@@ -46,7 +46,7 @@ export function MainScreen() {
     // passing behind the button and ConnectionStatus text.
     // bottomPx offsets the bar below main's bottom edge (positive when main
     // overflows the viewport, negative when it falls short).
-    const bottomPx = mainRect.bottom - globalThis.innerHeight;
+    const bottomPx = Math.round(mainRect.bottom - globalThis.innerHeight);
     const heightPx = Math.max(
       0,
       Math.round(globalThis.innerHeight - exitCenterY),
