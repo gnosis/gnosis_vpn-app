@@ -8,7 +8,7 @@ import {
 import { useAppStore } from "../../stores/appStore.ts";
 
 export default function StatusLine(
-  props: { heightPx: number },
+  props: { heightPx: number; bottomPx: number },
 ): JSX.Element | null {
   const [appState] = useAppStore();
   const [wasDisconnecting, setWasDisconnecting] = createSignal(false);
@@ -38,14 +38,14 @@ export default function StatusLine(
     <>
       <Show when={appState.vpnStatus === "Connecting"}>
         <div
-          class={`vpn-connector-line bottom-6 connecting`}
-          style={{ height: `${props.heightPx}px`, "pointer-events": "none" }}
+          class="vpn-connector-line connecting"
+          style={{ height: `${props.heightPx}px`, bottom: `${props.bottomPx}px`, "pointer-events": "none" }}
         />
       </Show>
       <Show when={appState.vpnStatus === "Connected"}>
         <div
-          class={`vpn-connector-line bottom-6 connected`}
-          style={{ height: `${props.heightPx}px`, "pointer-events": "none" }}
+          class="vpn-connector-line connected"
+          style={{ height: `${props.heightPx}px`, bottom: `${props.bottomPx}px`, "pointer-events": "none" }}
         />
       </Show>
       <Show
@@ -53,8 +53,8 @@ export default function StatusLine(
           appState.vpnStatus === "Disconnected") && wasDisconnecting()}
       >
         <div
-          class={`vpn-connector-line bottom-6 disconnected-shrinking`}
-          style={{ height: `${props.heightPx}px`, "pointer-events": "none" }}
+          class="vpn-connector-line disconnected-shrinking"
+          style={{ height: `${props.heightPx}px`, bottom: `${props.bottomPx}px`, "pointer-events": "none" }}
         />
       </Show>
     </>
