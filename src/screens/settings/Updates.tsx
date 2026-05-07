@@ -147,7 +147,7 @@ export default function Updates() {
           />
         </div>
         <span class="text-base font-medium text-red-500 text-center">
-          No version found, please reinstall
+          Package version not found — please reinstall
         </span>
       </div>
     );
