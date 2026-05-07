@@ -35,10 +35,15 @@ export default function StatusLine(
   });
 
   const connectorClass = () => {
-    if (appState.vpnStatus === "Connecting") return "vpn-connector-line connecting";
-    if (appState.vpnStatus === "Connected") return "vpn-connector-line connected";
+    if (appState.vpnStatus === "Connecting") {
+      return "vpn-connector-line connecting";
+    }
+    if (appState.vpnStatus === "Connected") {
+      return "vpn-connector-line connected";
+    }
     const isDisconnectingOrDisconnected =
-      appState.vpnStatus === "Disconnecting" || appState.vpnStatus === "Disconnected";
+      appState.vpnStatus === "Disconnecting" ||
+      appState.vpnStatus === "Disconnected";
     if (isDisconnectingOrDisconnected && wasDisconnecting()) {
       return "vpn-connector-line disconnected-shrinking";
     }
