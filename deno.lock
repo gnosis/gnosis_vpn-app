@@ -7,7 +7,6 @@
     "npm:@tauri-apps/plugin-dialog@2.7.1": "2.7.1",
     "npm:@tauri-apps/plugin-opener@^2.5.4": "2.5.4",
     "npm:@tauri-apps/plugin-store@^2.4.3": "2.4.3",
-    "npm:@types/dompurify@^3.2.0": "3.2.0",
     "npm:@types/qrcode@^1.5.6": "1.5.6",
     "npm:dompurify@^3.4.2": "3.4.2",
     "npm:eslint@^10.1.0": "10.2.0",
@@ -589,13 +588,6 @@
     },
     "@types/deep-eql@4.0.2": {
       "integrity": "sha512-c9h9dVVMigMPc4bwTvC5dxqtqJZwQPePsWjPlpSOnojbor6pGqdk541lfA7AqFQr5pB1BRdq0juY9db81BwyFw=="
-    },
-    "@types/dompurify@3.2.0": {
-      "integrity": "sha512-Fgg31wv9QbLDA0SpTOXO3MaxySc4DKGLi8sna4/Utjo4r3ZRPdCt4UQee8BWr+Q5z21yifghREPJGYaEOEIACg==",
-      "dependencies": [
-        "dompurify"
-      ],
-      "deprecated": true
     },
     "@types/esrecurse@4.3.1": {
       "integrity": "sha512-xJBAbDifo5hpffDBuHl0Y8ywswbiAp/Wi7Y/GtAgSlZyIABppyurxVueOPE8LUQOxdlgi6Zqce7uoEpqNTeiUw=="
@@ -1568,7 +1560,6 @@
         "npm:@tauri-apps/plugin-dialog@2.7.1",
         "npm:@tauri-apps/plugin-opener@^2.5.4",
         "npm:@tauri-apps/plugin-store@^2.4.3",
-        "npm:@types/dompurify@^3.2.0",
         "npm:@types/qrcode@^1.5.6",
         "npm:dompurify@^3.4.2",
         "npm:eslint@^10.1.0",
