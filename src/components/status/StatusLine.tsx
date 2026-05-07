@@ -34,41 +34,29 @@ export default function StatusLine(
     }
   });
 
+  const connectorClass = () => {
+    if (appState.vpnStatus === "Connecting") return "vpn-connector-line connecting";
+    if (appState.vpnStatus === "Connected") return "vpn-connector-line connected";
+    const isDisconnectingOrDisconnected =
+      appState.vpnStatus === "Disconnecting" || appState.vpnStatus === "Disconnected";
+    if (isDisconnectingOrDisconnected && wasDisconnecting()) {
+      return "vpn-connector-line disconnected-shrinking";
+    }
+    return null;
+  };
+
   return (
-    <>
-      <Show when={appState.vpnStatus === "Connecting"}>
+    <Show when={connectorClass()}>
+      {(cls) => (
         <div
-          class="vpn-connector-line connecting"
+          class={cls()}
           style={{
             height: `${props.heightPx}px`,
             bottom: `${props.bottomPx}px`,
             "pointer-events": "none",
           }}
         />
-      </Show>
-      <Show when={appState.vpnStatus === "Connected"}>
-        <div
-          class="vpn-connector-line connected"
-          style={{
-            height: `${props.heightPx}px`,
-            bottom: `${props.bottomPx}px`,
-            "pointer-events": "none",
-          }}
-        />
-      </Show>
-      <Show
-        when={(appState.vpnStatus === "Disconnecting" ||
-          appState.vpnStatus === "Disconnected") && wasDisconnecting()}
-      >
-        <div
-          class="vpn-connector-line disconnected-shrinking"
-          style={{
-            height: `${props.heightPx}px`,
-            bottom: `${props.bottomPx}px`,
-            "pointer-events": "none",
-          }}
-        />
-      </Show>
-    </>
+      )}
+    </Show>
   );
 }
