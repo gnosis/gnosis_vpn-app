@@ -44,7 +44,8 @@ export function MainScreen() {
     const exitCenterY = exitRect.top + exitRect.height / 2;
     // Bar grows from the viewport bottom up to the exit node center,
     // passing behind the button and ConnectionStatus text.
-    // bottom is negative because the bar extends below main's bottom edge.
+    // bottomPx offsets the bar below main's bottom edge (positive when main
+    // overflows the viewport, negative when it falls short).
     const bottomPx = mainRect.bottom - globalThis.innerHeight;
     const heightPx = Math.max(
       0,
