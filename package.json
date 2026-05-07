@@ -28,7 +28,7 @@
     "@tailwindcss/vite": "^4.2.2",
     "eslint": "^10.1.0",
     "prettier": "^3.8.1",
-    "typescript": "^6.0.2",
+    "typescript": "^6.0.3",
     "vite-plugin-solid": "^2.11.11",
     "@tauri-apps/cli": "^2.10.1",
     "vitest": "^4.1.2"
