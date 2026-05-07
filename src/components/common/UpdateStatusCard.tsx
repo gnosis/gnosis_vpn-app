@@ -95,6 +95,7 @@ export default function UpdateStatusCard(props: UpdateStatusCardProps) {
       <button
         type="button"
         class="shrink-0 h-8 px-3 text-sm rounded-md border border-border bg-transparent text-text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-darken hover:enabled:cursor-pointer"
+        disabled={props.loading}
         onClick={props.onCheck}
       >
         {props.loading ? "Checking…" : "Check now"}

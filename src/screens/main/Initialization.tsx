@@ -29,19 +29,19 @@ export default function Initialization(props: InitializationProps) {
               <div>
                 Package version:{" "}
                 <span class="text-text-primary">
-                  {props.info?.package_version ?? "Something went wrong"}
+                  {props.info?.package_version ?? "—"}
                 </span>
               </div>
               <div class="text-xs">
                 Service version:{" "}
                 <span class="text-text-primary">
-                  {props.info?.version ?? "Something went wrong"}
+                  {props.info?.version ?? "—"}
                 </span>
               </div>
               <div class="text-xs">
                 App version:{" "}
                 <span class="text-text-primary">
-                  {props.appVersion ?? "Something went wrong"}
+                  {props.appVersion ?? "—"}
                 </span>
               </div>
             </div>
