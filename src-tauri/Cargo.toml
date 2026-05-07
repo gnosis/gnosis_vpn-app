@@ -43,6 +43,6 @@ ashpd = { version = "0.10", default-features = false }
 futures-core = { version = "0.3", default-features = false }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-cocoa = "0.26"
+cocoa = "0.26.1"
 objc = "0.2"
 dispatch = "0.2"
