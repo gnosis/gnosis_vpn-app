@@ -20,7 +20,8 @@ export default function SettingsWindow() {
 
   onMount(() => {
     void (async () => {
-      const appVersion = await getVersion();
+      // Attach navigate listener first so we don't miss events emitted by
+      // the tray/Navigation while getVersion / store init is still pending.
       const unlisten = await listen<string>("navigate", (event) => {
         const next = event.payload;
         if (
@@ -32,6 +33,8 @@ export default function SettingsWindow() {
       });
       if (disposed) unlisten();
       else unlistenNavigate = unlisten;
+
+      const appVersion = await getVersion();
 
       // NOTE: tauri apps use separate JS contexts between windows,
       // so this one needs to populate its own app state

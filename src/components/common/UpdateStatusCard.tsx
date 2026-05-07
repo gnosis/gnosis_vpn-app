@@ -3,6 +3,7 @@ import syncIcon from "@assets/icons/sync.svg";
 import checkmarkIcon from "@assets/icons/checkmark.svg";
 import { Modal } from "./Modal.tsx";
 import { Markdown } from "./Markdown.tsx";
+import { useAppStore } from "@src/stores/appStore.ts";
 
 interface UpdateStatusCardProps {
   lastChecked?: string;
@@ -14,17 +15,16 @@ interface UpdateStatusCardProps {
 }
 
 export default function UpdateStatusCard(props: UpdateStatusCardProps) {
+  const [appState] = useAppStore();
   const [showChangelog, setShowChangelog] = createSignal(false);
   const showCheckmark = () => !props.loading && props.isUpToDate !== false;
 
   const statusText = () => {
     if (props.isUpToDate === true) {
-      return `${import.meta.env.DEV ? "[DEV] " : ""}You're up to date`;
+      return `${import.meta.env.DEV ?? "[DEV] "}You're up to date`;
     }
-    if (props.isUpToDate === false) {
-      return `${import.meta.env.DEV ? "[DEV] " : ""}Update available`;
-    }
-    return `${import.meta.env.DEV ? "[DEV] " : ""}You're probably up to date`;
+    if (props.isUpToDate === false) return `Update available`;
+    return `You're probably up to date`;
   };
 
   return (
@@ -38,7 +38,7 @@ export default function UpdateStatusCard(props: UpdateStatusCardProps) {
           alt=""
           class={`w-10 h-10 tab-icon${props.loading ? " animate-spin" : ""}`}
         />
-        <Show when={showCheckmark()}>
+        <Show when={appState.serviceInfo?.package_version && showCheckmark()}>
           <div class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-bg-surface flex items-center justify-center">
             <img src={checkmarkIcon} alt="" class="w-4 h-4" />
           </div>
@@ -95,7 +95,6 @@ export default function UpdateStatusCard(props: UpdateStatusCardProps) {
       <button
         type="button"
         class="shrink-0 h-8 px-3 text-sm rounded-md border border-border bg-transparent text-text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-darken hover:enabled:cursor-pointer"
-        disabled={props.loading}
         onClick={props.onCheck}
       >
         {props.loading ? "Checking…" : "Check now"}

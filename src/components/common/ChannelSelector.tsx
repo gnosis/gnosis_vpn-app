@@ -9,11 +9,16 @@ const OPTIONS: { value: UpdateChannel; label: string }[] = [
 interface ChannelSelectorProps {
   value: UpdateChannel;
   onChange: (channel: UpdateChannel) => void;
+  disabled?: boolean;
 }
 
 export default function ChannelSelector(props: ChannelSelectorProps) {
   return (
-    <div class="flex items-center justify-between">
+    <div
+      class={`flex items-center justify-between ${
+        props.disabled ? "opacity-50 cursor-not-allowed" : ""
+      }`}
+    >
       <span id="update-channel-selector-label" class="text-text-primary">
         Update channel
       </span>
@@ -22,6 +27,7 @@ export default function ChannelSelector(props: ChannelSelectorProps) {
         value={props.value}
         onChange={props.onChange}
         ariaLabelledBy="update-channel-selector-label"
+        disabled={props.disabled}
       />
     </div>
   );

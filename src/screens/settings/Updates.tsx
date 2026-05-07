@@ -7,6 +7,7 @@ import {
 } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
+import brokenDeviceIcon from "@assets/icons/broken-device.svg";
 import Toggle from "@src/components/common/Toggle.tsx";
 import UpdateStatusCard from "@src/components/common/UpdateStatusCard.tsx";
 import ChannelSelector from "@src/components/common/ChannelSelector.tsx";
@@ -135,6 +136,23 @@ export default function Updates() {
     }
   });
 
+  if (!appState.serviceInfo?.package_version) {
+    return (
+      <div class="flex flex-col items-center justify-center gap-4 w-full h-full p-6 bg-bg-primary select-none">
+        <div class="relative shrink-0 w-[120px] h-[120px]">
+          <img
+            src={brokenDeviceIcon}
+            alt=""
+            class="w-[120px] h-[120px]"
+          />
+        </div>
+        <span class="text-base font-medium text-red-500 text-center">
+          No version found, please reinstall
+        </span>
+      </div>
+    );
+  }
+
   return (
     <div class="space-y-4 w-full p-6 max-w-lg bg-bg-primary select-none flex flex-col h-full">
       <UpdateStatusCard
@@ -170,19 +188,20 @@ export default function Updates() {
         <div>
           Package version:{" "}
           <span class="text-text-primary">
-            {import.meta.env.DEV ? "[DEV] " : ""}{" "}
-            {appState.serviceInfo?.package_version ?? "—"}
+            {appState.serviceInfo?.package_version ?? "Something went wrong"}
           </span>
         </div>
         <div class="text-xs">
           Service version:{" "}
           <span class="text-text-primary">
-            {appState.serviceInfo?.version ?? "—"}
+            {appState.serviceInfo?.version ?? "Something went wrong"}
           </span>
         </div>
         <div class="text-xs">
           App version:{" "}
-          <span class="text-text-primary">{appState.appVersion ?? "—"}</span>
+          <span class="text-text-primary">
+            {appState.appVersion ?? "Something went wrong"}
+          </span>
         </div>
       </div>
     </div>

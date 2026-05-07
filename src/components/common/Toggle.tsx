@@ -21,7 +21,11 @@ export default function Toggle(
   const thumb = local.small ? "h-4 w-4" : "h-7 w-7";
 
   return (
-    <label class={`flex items-center ${local.label ? "justify-between" : ""}`}>
+    <label
+      class={`flex items-center ${local.label ? "justify-between" : ""} ${
+        rest.disabled ? "opacity-50 cursor-not-allowed" : ""
+      }`}
+    >
       {local.label && (
         <div class="flex flex-col">
           <span class="text-text-primary">{local.label}</span>
