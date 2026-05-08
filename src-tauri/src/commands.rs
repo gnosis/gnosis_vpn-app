@@ -31,6 +31,27 @@ const ALLOWED_APP_ICONS: &[&str] = &[
     icons::APP_ICON_DISCONNECTED_LOW_FUNDS,
 ];
 
+#[tauri::command]
+pub async fn check_update(
+    skip_vpn: bool,
+) -> Result<gnosis_vpn_lib::check_update::Manifest, String> {
+    let client = reqwest::Client::new();
+    let socket_path = PathBuf::from(root_socket::DEFAULT_PATH);
+    let path_ref = if skip_vpn {
+        None
+    } else {
+        Some(socket_path.as_path())
+    };
+
+    gnosis_vpn_lib::check_update::download(&client, path_ref)
+        .await
+        .map_err(|e| match e {
+            gnosis_vpn_lib::check_update::Error::VpnNotConnected => "VpnNotConnected".to_string(),
+            gnosis_vpn_lib::check_update::Error::Integrity(msg) => format!("Integrity: {msg}"),
+            gnosis_vpn_lib::check_update::Error::Other(msg) => msg,
+        })
+}
+
 fn validate_icon_name(icon_name: &str) -> Result<(), String> {
     if ALLOWED_APP_ICONS.contains(&icon_name) {
         Ok(())

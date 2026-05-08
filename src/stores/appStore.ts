@@ -1,5 +1,7 @@
+import { createEffect } from "solid-js";
 import { createStore, reconcile, type Store } from "solid-js/store";
-import { listen } from "@tauri-apps/api/event";
+import { emit, listen } from "@tauri-apps/api/event";
+import { evaluateUpdate } from "@src/utils/updateAvailability.ts";
 
 import {
   type ConnectingInfo,
@@ -57,6 +59,8 @@ export interface AppState {
   warmupStatus: string;
   syncProgress: number;
   syncRecoveryDeadline: number | null;
+  isUpdateAvailable: boolean;
+  availableVersion: string | null;
 }
 
 type AppActions = {
@@ -94,6 +98,8 @@ function initialState(): AppState {
     warmupStatus: "",
     syncProgress: 0,
     syncRecoveryDeadline: null,
+    isUpdateAvailable: false,
+    availableVersion: null,
   };
 }
 
@@ -500,6 +506,33 @@ export function createAppStore(): AppStoreTuple {
       }
     },
   } as const;
+
+  // Both windows derive update state via the same helper. Emits cross-window
+  // so the result is shared without needing manifest sync. Always applies the
+  // helper output (even when isUpToDate is undefined) so a channel switch
+  // that lands on a missing release clears any stale banner state.
+  createEffect(() => {
+    const d = evaluateUpdate({
+      packageVersion: state.serviceInfo?.package_version ?? null,
+      manifest: settings.updateManifest ?? null,
+      channel: settings.channel,
+      dismissedVersion: settings.dismissedUpdateVersion,
+    });
+    setState("availableVersion", d.availableVersion);
+    setState("isUpdateAvailable", d.isUpdateAvailable);
+    void emit("app:update-available", {
+      isUpdateAvailable: d.isUpdateAvailable,
+      availableVersion: d.availableVersion,
+    });
+  });
+
+  void listen<{ isUpdateAvailable: boolean; availableVersion: string | null }>(
+    "app:update-available",
+    ({ payload }) => {
+      setState("isUpdateAvailable", payload.isUpdateAvailable);
+      setState("availableVersion", payload.availableVersion);
+    },
+  );
 
   return [state, actions] as const;
 }

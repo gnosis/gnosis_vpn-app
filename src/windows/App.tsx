@@ -2,12 +2,18 @@ import { MainScreen } from "../screens/main/MainScreen.tsx";
 import { getVersion } from "@tauri-apps/api/app";
 import { Dynamic } from "solid-js/web";
 import { AppScreen, AppState, useAppStore } from "@src/stores/appStore.ts";
-import { createEffect, createSignal, onCleanup, onMount } from "solid-js";
+import { createEffect, createSignal, on, onCleanup, onMount } from "solid-js";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import Onboarding from "../screens/main/Onboarding.tsx";
 import Synchronization from "../screens/main/Synchronization.tsx";
 import Initialization from "../screens/main/Initialization.tsx";
 import { emit, listen } from "@tauri-apps/api/event";
+import {
+  AUTO_CHECK_INTERVAL_MS,
+  pendingCheckAfterConnect,
+  runBackgroundCheck,
+  setPendingCheckAfterConnect,
+} from "@src/utils/updateChecker.ts";
 
 const validScreens = [
   "main",
@@ -78,6 +84,42 @@ function App() {
   const [settings, settingsActions] = useSettingsStore();
   let unlistenNavigate: (() => void) | undefined;
   let disposed = false;
+
+  // Auto-update scheduling lives here so it stays active regardless of which tab is open.
+  createEffect(() => {
+    if (pendingCheckAfterConnect() && appState.vpnStatus === "Connected") {
+      setPendingCheckAfterConnect(false);
+      void runBackgroundCheck();
+    }
+  });
+
+  createEffect(on(() => settings.updateCheck, (enabled) => {
+    if (!enabled) {
+      setPendingCheckAfterConnect(false);
+      return;
+    }
+    if (appState.vpnStatus === "Connected") {
+      void runBackgroundCheck();
+    } else {
+      setPendingCheckAfterConnect(true);
+    }
+  }, { defer: true }));
+
+  createEffect(() => {
+    if (!settings.updateCheck || settings.lastCheckedAt == null) return;
+    const delay = Math.max(
+      0,
+      settings.lastCheckedAt + AUTO_CHECK_INTERVAL_MS - Date.now(),
+    );
+    const id = setTimeout(() => {
+      if (appState.vpnStatus === "Connected") {
+        void runBackgroundCheck();
+      } else {
+        setPendingCheckAfterConnect(true);
+      }
+    }, delay);
+    onCleanup(() => clearTimeout(id));
+  });
 
   const [displayedScreen, setDisplayedScreen] = createSignal<ValidScreen>(
     appState.currentScreen as ValidScreen,

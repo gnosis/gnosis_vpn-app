@@ -1,13 +1,19 @@
+import { Show, splitProps } from "solid-js";
 import type { JSX } from "solid-js";
-import { splitProps } from "solid-js";
 
 export default function Toggle(
   props: JSX.InputHTMLAttributes<HTMLInputElement> & {
     label?: string;
+    description?: string;
     small?: boolean;
   },
 ) {
-  const [local, rest] = splitProps(props, ["class", "label", "small"]);
+  const [local, rest] = splitProps(props, [
+    "class",
+    "label",
+    "small",
+    "description",
+  ]);
 
   const track = local.small
     ? "w-9 h-5 peer-checked:[&>div]:translate-x-4"
@@ -15,8 +21,19 @@ export default function Toggle(
   const thumb = local.small ? "h-4 w-4" : "h-7 w-7";
 
   return (
-    <label class={`flex items-center ${local.label ? "justify-between" : ""}`}>
-      {local.label && <span class="text-text-primary">{local.label}</span>}
+    <label
+      class={`flex items-center ${local.label ? "justify-between" : ""} ${
+        rest.disabled ? "opacity-50 cursor-not-allowed" : ""
+      }`}
+    >
+      {local.label && (
+        <div class="flex flex-col">
+          <span class="text-text-primary">{local.label}</span>
+          <Show when={local.description}>
+            <span class="text-xs text-text-secondary">{local.description}</span>
+          </Show>
+        </div>
+      )}
       <input
         {...rest}
         type="checkbox"

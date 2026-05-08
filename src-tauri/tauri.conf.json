@@ -24,7 +24,8 @@
       },
       {
         "label": "settings",
-        "title": "Gnosis VPN settings",
+        "title": "Gnosis VPN Settings",
+        "minWidth": 430,
         "width": 640,
         "height": 480,
         "visible": false,

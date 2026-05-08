@@ -2,11 +2,42 @@ import { createStore, type Store as SolidStore } from "solid-js/store";
 import { Store as TauriStore } from "@tauri-apps/plugin-store";
 import { emit, listen } from "@tauri-apps/api/event";
 
+export type ThemePreference = "auto" | "light" | "dark";
+
+export interface ChannelRelease {
+  version: string;
+  published_at: string;
+  download_url: string;
+  size_bytes: number;
+  sha256: string;
+  artifact_signature: string;
+  release_notes: string;
+  min_os_version: string;
+  min_app_version: string;
+}
+
+export interface UpdateManifest {
+  schema_version: number;
+  generated_at: string;
+  channels: {
+    stable: ChannelRelease | null;
+    snapshot: ChannelRelease | null;
+  };
+}
+
+export type UpdateChannel = "stable" | "snapshot";
+
 export interface SettingsState {
   preferredLocation: string | null;
   connectOnStartup: boolean;
   startMinimized: boolean;
+  updateCheck: boolean;
+  theme: ThemePreference;
   exitNodeSortOrder: "latency" | "alpha";
+  lastCheckedAt: number | null;
+  updateManifest: UpdateManifest | null;
+  channel: UpdateChannel | null;
+  dismissedUpdateVersion: string | null;
   showDetailedMetrics: boolean;
 }
 
@@ -14,7 +45,13 @@ const DEFAULT_SETTINGS: SettingsState = {
   preferredLocation: null,
   connectOnStartup: false,
   startMinimized: false,
+  updateCheck: false,
+  theme: "auto",
   exitNodeSortOrder: "latency",
+  lastCheckedAt: null,
+  updateManifest: null,
+  channel: null,
+  dismissedUpdateVersion: null,
   showDetailedMetrics: false,
 };
 
@@ -23,7 +60,14 @@ type SettingsActions = {
   setPreferredLocation: (id: string | null) => Promise<void>;
   setConnectOnStartup: (enabled: boolean) => Promise<void>;
   setStartMinimized: (enabled: boolean) => Promise<void>;
+  setUpdateCheck: (enabled: boolean) => Promise<void>;
   setExitNodeSortOrder: (order: "latency" | "alpha") => Promise<void>;
+  setUpdateCheckResult: (
+    manifest: UpdateManifest,
+    checkedAt: number,
+  ) => Promise<void>;
+  setChannel: (channel: UpdateChannel) => Promise<void>;
+  setDismissedUpdateVersion: (version: string | null) => Promise<void>;
   setShowDetailedMetrics: (show: boolean) => Promise<void>;
   save: () => Promise<void>;
 };
@@ -48,7 +92,13 @@ async function saveAllToDisk(state: SettingsState): Promise<void> {
   await store.set("preferredLocation", state.preferredLocation);
   await store.set("connectOnStartup", state.connectOnStartup);
   await store.set("startMinimized", state.startMinimized);
+  await store.set("updateCheck", state.updateCheck);
+  await store.set("theme", state.theme);
   await store.set("exitNodeSortOrder", state.exitNodeSortOrder);
+  await store.set("lastCheckedAt", state.lastCheckedAt);
+  await store.set("updateManifest", state.updateManifest);
+  await store.set("channel", state.channel);
+  await store.set("dismissedUpdateVersion", state.dismissedUpdateVersion);
   await store.set("showDetailedMetrics", state.showDetailedMetrics);
   await store.save();
 }
@@ -65,19 +115,37 @@ export function createSettingsStore(): SettingsStoreTuple {
         preferredLocation,
         connectOnStartup,
         startMinimized,
+        updateCheck,
+        theme,
         exitNodeSortOrder,
+        lastCheckedAt,
+        updateManifest,
+        channel,
+        dismissedUpdateVersion,
         showDetailedMetrics,
       ] = (await Promise.all([
         store.get("preferredLocation"),
         store.get("connectOnStartup"),
         store.get("startMinimized"),
+        store.get("updateCheck"),
+        store.get("theme"),
         store.get("exitNodeSortOrder"),
+        store.get("lastCheckedAt"),
+        store.get("updateManifest"),
+        store.get("channel"),
+        store.get("dismissedUpdateVersion"),
         store.get("showDetailedMetrics"),
       ])) as [
         SettingsState["preferredLocation"] | undefined,
         boolean | undefined,
         boolean | undefined,
+        boolean | undefined,
+        ThemePreference | undefined,
         "latency" | "alpha" | undefined,
+        number | null | undefined,
+        UpdateManifest | null | undefined,
+        UpdateChannel | null | undefined,
+        string | null | undefined,
         boolean | undefined,
       ];
 
@@ -90,10 +158,30 @@ export function createSettingsStore(): SettingsStoreTuple {
       if (startMinimized !== undefined) {
         loaded.startMinimized = startMinimized;
       }
+      if (updateCheck !== undefined) {
+        loaded.updateCheck = updateCheck;
+      }
+      const isValidTheme = theme === "auto" || theme === "light" ||
+        theme === "dark";
+      if (isValidTheme) {
+        loaded.theme = theme;
+      }
       const isValidExitNodeSortOrder = exitNodeSortOrder === "latency" ||
         exitNodeSortOrder === "alpha";
       if (isValidExitNodeSortOrder) {
         loaded.exitNodeSortOrder = exitNodeSortOrder;
+      }
+      if (typeof lastCheckedAt === "number") {
+        loaded.lastCheckedAt = lastCheckedAt;
+      }
+      if (updateManifest != null) {
+        loaded.updateManifest = updateManifest;
+      }
+      if (channel === "stable" || channel === "snapshot") {
+        loaded.channel = channel;
+      }
+      if (typeof dismissedUpdateVersion === "string") {
+        loaded.dismissedUpdateVersion = dismissedUpdateVersion;
       }
       if (showDetailedMetrics !== undefined) {
         loaded.showDetailedMetrics = showDetailedMetrics;
@@ -104,6 +192,8 @@ export function createSettingsStore(): SettingsStoreTuple {
       const missingAny = preferredLocation === undefined ||
         connectOnStartup === undefined ||
         startMinimized === undefined ||
+        updateCheck === undefined ||
+        !isValidTheme ||
         !isValidExitNodeSortOrder ||
         showDetailedMetrics === undefined;
       if (missingAny) {
@@ -147,6 +237,18 @@ export function createSettingsStore(): SettingsStoreTuple {
       }
     },
 
+    setUpdateCheck: async (enabled: boolean) => {
+      setState("updateCheck", enabled);
+      try {
+        const store = await getTauriStore();
+        await store.set("updateCheck", enabled);
+        await store.save();
+      } catch (e) {
+        console.error("Failed to save updateCheck", e);
+      }
+      void emit("settings:update", { updateCheck: enabled });
+    },
+
     setExitNodeSortOrder: async (order: "latency" | "alpha") => {
       setState("exitNodeSortOrder", order);
       void emit("settings:update", { exitNodeSortOrder: order });
@@ -156,6 +258,52 @@ export function createSettingsStore(): SettingsStoreTuple {
         await store.save();
       } catch (e) {
         console.error("Failed to save exitNodeSortOrder", e);
+      }
+    },
+
+    setChannel: async (channel: UpdateChannel) => {
+      setState("channel", channel);
+      void emit("settings:update", { channel });
+      try {
+        const store = await getTauriStore();
+        await store.set("channel", channel);
+        await store.save();
+      } catch (e) {
+        console.error("Failed to save channel", e);
+      }
+    },
+
+    setDismissedUpdateVersion: async (version: string | null) => {
+      setState("dismissedUpdateVersion", version);
+      void emit("settings:update", {
+        dismissedUpdateVersion: version,
+      });
+      try {
+        const store = await getTauriStore();
+        await store.set("dismissedUpdateVersion", version);
+        await store.save();
+      } catch (e) {
+        console.error("Failed to save dismissedUpdateVersion", e);
+      }
+    },
+
+    setUpdateCheckResult: async (
+      manifest: UpdateManifest,
+      checkedAt: number,
+    ) => {
+      setState("lastCheckedAt", checkedAt);
+      setState("updateManifest", manifest);
+      void emit("settings:update", {
+        lastCheckedAt: checkedAt,
+        updateManifest: manifest,
+      });
+      try {
+        const store = await getTauriStore();
+        await store.set("lastCheckedAt", checkedAt);
+        await store.set("updateManifest", manifest);
+        await store.save();
+      } catch (e) {
+        console.error("Failed to save update check result", e);
       }
     },
 
@@ -187,19 +335,42 @@ export function createSettingsStore(): SettingsStoreTuple {
     if (payload.startMinimized !== undefined) {
       setState("startMinimized", payload.startMinimized);
     }
+    if (payload.updateCheck !== undefined) {
+      setState("updateCheck", payload.updateCheck);
+    }
+    if (
+      payload.theme === "auto" || payload.theme === "light" ||
+      payload.theme === "dark"
+    ) {
+      setState("theme", payload.theme);
+    }
     if (
       payload.exitNodeSortOrder === "latency" ||
       payload.exitNodeSortOrder === "alpha"
     ) {
       setState("exitNodeSortOrder", payload.exitNodeSortOrder);
     }
+    if (typeof payload.lastCheckedAt === "number") {
+      setState("lastCheckedAt", payload.lastCheckedAt);
+    }
+    if (payload.updateManifest != null) {
+      setState("updateManifest", payload.updateManifest);
+    }
+    if (payload.channel === "stable" || payload.channel === "snapshot") {
+      setState("channel", payload.channel);
+    }
+    if (payload.dismissedUpdateVersion !== undefined) {
+      setState(
+        "dismissedUpdateVersion",
+        payload.dismissedUpdateVersion as string | null,
+      );
+    }
     if (payload.showDetailedMetrics !== undefined) {
       setState("showDetailedMetrics", payload.showDetailedMetrics);
     }
+  }).then((u) => {
+    unlistenSettings = u;
   })
-    .then((u) => {
-      unlistenSettings = u;
-    })
     .catch((e) => console.error("settings:update listener failed", e));
 
   const dispose = () => {

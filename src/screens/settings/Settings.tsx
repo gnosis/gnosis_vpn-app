@@ -57,20 +57,6 @@ export default function Settings() {
           void settingsActions.setStartMinimized(e.currentTarget.checked)}
       />
       <div class="grow" />
-      <div class="space-y-1 text-sm text-text-secondary text-center">
-        <Show when={appState.serviceInfo}>
-          {(info) => (
-            <div>
-              Service version:{" "}
-              <span class="text-text-primary">{info().version}</span>
-            </div>
-          )}
-        </Show>
-        <div>
-          App version:{" "}
-          <span class="text-text-primary">{appState.appVersion ?? "—"}</span>
-        </div>
-      </div>
     </div>
   );
 }

@@ -21,8 +21,8 @@ pub mod tray;
 pub mod types;
 
 use commands::{
-    balance, compress_logs, connect, disconnect, info, refresh_node, set_app_icon, start_client,
-    start_status_polling, stop_client,
+    balance, check_update, compress_logs, connect, disconnect, info, refresh_node, set_app_icon,
+    start_client, start_status_polling, stop_client,
 };
 use icons::{AppIconState, TrayIconState, determine_tray_icon, start_app_icon_heartbeat};
 use platform::{Platform, PlatformInterface};
@@ -30,7 +30,10 @@ use platform::{Platform, PlatformInterface};
 use theme::spawn_linux_theme_monitor;
 #[cfg_attr(target_os = "macos", allow(unused_imports))]
 use theme::{InitialTheme, get_initial_theme, system_theme};
-use tray::{create_tray_menu, handle_tray_event, show_settings, toggle_main_window_visibility};
+use tray::{
+    create_tray_menu, handle_tray_event, show_settings, show_settings_and_check,
+    toggle_main_window_visibility,
+};
 use types::ConnectionState;
 
 struct HeartbeatHandle(Mutex<Option<tauri::async_runtime::JoinHandle<()>>>);
@@ -124,6 +127,7 @@ pub fn run() {
                     "settings" => show_settings(app, "settings"),
                     "logs" => show_settings(app, "logs"),
                     "usage" => show_settings(app, "usage"),
+                    "check_update" => show_settings_and_check(app),
                     _ => {}
                 })
                 .on_tray_icon_event(|tray, event| {
@@ -227,7 +231,8 @@ pub fn run() {
             compress_logs,
             set_app_icon,
             get_initial_theme,
-            start_status_polling
+            start_status_polling,
+            check_update
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
