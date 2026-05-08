@@ -21,7 +21,7 @@ export default function UpdateStatusCard(props: UpdateStatusCardProps) {
 
   const statusText = () => {
     if (props.isUpToDate === true) {
-      return `${import.meta.env.DEV ?? "[DEV] "}You're up to date`;
+      return `You're up to date`;
     }
     if (props.isUpToDate === false) return `Update available`;
     return `You're probably up to date`;
