@@ -32,18 +32,6 @@ export default function Initialization(props: InitializationProps) {
                   {props.info?.package_version ?? "—"}
                 </span>
               </div>
-              <div class="text-xs">
-                Service version:{" "}
-                <span class="text-text-primary">
-                  {props.info?.version ?? "—"}
-                </span>
-              </div>
-              <div class="text-xs">
-                App version:{" "}
-                <span class="text-text-primary">
-                  {props.appVersion ?? "—"}
-                </span>
-              </div>
             </div>
           </div>
         )}
