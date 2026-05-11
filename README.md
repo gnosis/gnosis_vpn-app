@@ -101,7 +101,7 @@ deno task tauri build
 sudo apt remove -y gnosisvpn gnosis-vpn 2>/dev/null || true   # removes any prior install that would conflict on /usr/bin/gnosis_vpn-app; no-op if neither is installed
 sudo dpkg -i src-tauri/target/release/bundle/deb/*.deb
 #optional: sudo apt -f install                         # only if dpkg reports missing dependencies
-gnosis_vpn-app 
+gnosis_vpn-app
 ```
 
 This `.deb` contains just the UI app — the
