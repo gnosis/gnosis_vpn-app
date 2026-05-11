@@ -42,7 +42,6 @@ export enum AppScreen {
 }
 
 export interface AppState {
-  appVersion: string;
   currentScreen: AppScreen;
   serviceInfo: ServiceInfo | null;
   availableDestinations: Destination[];
@@ -64,7 +63,7 @@ export interface AppState {
 }
 
 type AppActions = {
-  initializeApp: (appVersion: string) => Promise<void>;
+  initializeApp: () => Promise<void>;
   setScreen: (screen: AppScreen) => void;
   chooseDestination: (id: string | null) => void;
   connect: () => Promise<void>;
@@ -81,7 +80,6 @@ type StatusEvent = {
 
 function initialState(): AppState {
   return {
-    appVersion: "",
     availableDestinations: [],
     connected: null,
     connecting: null,
@@ -340,7 +338,7 @@ export function createAppStore(): AppStoreTuple {
      * Run initialization logic, will keep looping.
      * Reset upon calling it again.
      */
-    initializeApp: async (appVersion: string) => {
+    initializeApp: async () => {
       clearTimeout(redoTimeout);
       redoTimeout = undefined;
       connectedOnOpenDetected = false;
@@ -350,21 +348,19 @@ export function createAppStore(): AppStoreTuple {
         unlistenStatusUpdate();
         unlistenStatusUpdate = undefined;
       }
-      setState("appVersion", appVersion);
 
       const criticalError = (message: string) => {
         log(message);
         connectedOnOpenDetected = false;
         stopSyncProgress();
         setState(reconcile(initialState()));
-        setState("appVersion", appVersion);
         setState("error", message);
         if (unlistenStatusUpdate) {
           unlistenStatusUpdate();
           unlistenStatusUpdate = undefined;
         }
         redoTimeout = setTimeout(
-          () => actions.initializeApp(appVersion),
+          () => actions.initializeApp(),
           OFFLINE_TIMEOUT,
         );
       };
@@ -385,7 +381,7 @@ export function createAppStore(): AppStoreTuple {
           info.version +
           ". Supported versions: " +
           COMPATIBLE_VERSIONS.join(", ") +
-          `. If you just updated, please restart the app (App Version: ${appVersion}).`;
+          ". If you just updated, please restart the app.";
         criticalError(message);
         return;
       }

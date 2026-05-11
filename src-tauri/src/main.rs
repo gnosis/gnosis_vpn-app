@@ -7,7 +7,12 @@ fn main() {
     // permanently unresponsive after the tray "Show" action.
     #[cfg(target_os = "linux")]
     {
-        if std::env::var_os("GDK_BACKEND").is_none() {
+        // Native Wayland breaks the WM frame's input region after a hide()->show()
+        // cycle, making titlebar buttons unresponsive after the tray "Show" action.
+        // Prefer XWayland when an X display is available; otherwise let GDK fall
+        // back to native Wayland so the app can still launch on Wayland-only
+        // systems without XWayland. Users can always override via GDK_BACKEND.
+        if std::env::var_os("GDK_BACKEND").is_none() && std::env::var_os("DISPLAY").is_some() {
             std::env::set_var("GDK_BACKEND", "x11");
         }
     }

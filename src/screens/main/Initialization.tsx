@@ -3,7 +3,6 @@ import Spinner from "@src/components/common/Spinner.tsx";
 
 interface InitializationProps {
   info: ServiceInfo | null;
-  appVersion: string;
   error?: string;
 }
 
