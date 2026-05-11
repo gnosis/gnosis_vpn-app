@@ -84,8 +84,31 @@ deno add npm:<package-name> --dev     # dev dependency
 deno task tauri build
 ```
 
+On Linux this produces `.deb` and `.rpm` bundles (configured in
+`src-tauri/tauri.linux.conf.json`); on macOS it produces the default
+`.app`/`.dmg` bundles.
+
 You can add `--target` for `x86_64-apple-darwin`, `aarch64-apple-darwin`,
 `universal-apple-darwin`, `x86_64-linux`, `aarch64-linux`.
+
+#### Install the locally-built `.deb` (Linux)
+
+To test the release binary on Linux the same way users run it (instead of via
+`deno task tauri dev`):
+
+```bash
+deno task tauri build
+sudo apt remove gnosisvpn gnosis-vpn        # remove any prior install that conflicts on /usr/bin/gnosis_vpn-app
+sudo dpkg -i src-tauri/target/release/bundle/deb/*.deb
+sudo apt -f install                         # only if dpkg reports missing dependencies
+```
+
+This `.deb` contains just the UI app — the
+[`gnosis_vpn-client`](https://github.com/gnosis/gnosis_vpn-client) daemon must
+already be running on the default socket. It does not include the maintainer
+scripts (preinst/postinst) that the production package from
+[`gnosis/gnosis_vpn`](https://github.com/gnosis/gnosis_vpn) adds, but the
+installed binary is identical to the one shipped there.
 
 ### Code Signing (macOS)
 
