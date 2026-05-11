@@ -2,9 +2,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    // Force XWayland on Linux: native Wayland breaks the WM frame's input
-    // region after a hide()->show() cycle, making the titlebar buttons
-    // permanently unresponsive after the tray "Show" action.
     #[cfg(target_os = "linux")]
     {
         // Native Wayland breaks the WM frame's input region after a hide()->show()
