@@ -11,7 +11,7 @@ fn main() {
         // cleanly absent) GDK may print a confusing error before the wayland
         // fallback kicks in. Users can override via GDK_BACKEND.
         if std::env::var_os("GDK_BACKEND").is_none() {
-            std::env::set_var("GDK_BACKEND", "x11,wayland");
+            std::env::set_var("GDK_BACKEND", "x11");
         }
     }
 
