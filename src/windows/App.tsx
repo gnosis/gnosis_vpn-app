@@ -1,4 +1,5 @@
 import { MainScreen } from "../screens/main/MainScreen.tsx";
+import { getVersion } from "@tauri-apps/api/app";
 import { Dynamic } from "solid-js/web";
 import { AppScreen, AppState, useAppStore } from "@src/stores/appStore.ts";
 import { createEffect, createSignal, on, onCleanup, onMount } from "solid-js";
@@ -56,6 +57,7 @@ function mapStoreToScreenProps(screen: ValidScreen, state: AppState) {
     case "initialization":
       return {
         info: state.serviceInfo,
+        appVersion: state.appVersion,
         error: state.error,
       };
     case "synchronization":
@@ -153,8 +155,9 @@ function App() {
 
   onMount(() => {
     void (async () => {
+      const appVersion = await getVersion();
       await settingsActions.load();
-      await appActions.initializeApp();
+      await appActions.initializeApp(appVersion);
 
       if (
         settings.connectOnStartup &&
