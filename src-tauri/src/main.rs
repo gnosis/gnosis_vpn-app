@@ -6,11 +6,12 @@ fn main() {
     {
         // Native Wayland breaks the WM frame's input region after a hide()->show()
         // cycle, making titlebar buttons unresponsive after the tray "Show" action.
-        // Prefer XWayland when an X display is available; otherwise let GDK fall
-        // back to native Wayland so the app can still launch on Wayland-only
-        // systems without XWayland. Users can always override via GDK_BACKEND.
-        if std::env::var_os("GDK_BACKEND").is_none() && std::env::var_os("DISPLAY").is_some() {
-            std::env::set_var("GDK_BACKEND", "x11");
+        // Prefer XWayland and let GDK fall back to native Wayland when X is
+        // unavailable. Note: if x11 init fails partway (rather than being
+        // cleanly absent) GDK may print a confusing error before the wayland
+        // fallback kicks in. Users can override via GDK_BACKEND.
+        if std::env::var_os("GDK_BACKEND").is_none() {
+            std::env::set_var("GDK_BACKEND", "x11,wayland");
         }
     }
 
