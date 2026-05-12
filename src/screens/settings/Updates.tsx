@@ -191,6 +191,18 @@ export default function Updates() {
             {appState.serviceInfo?.package_version ?? "Something went wrong"}
           </span>
         </div>
+        <div class="text-xs">
+          Service version:{" "}
+          <span class="text-text-primary">
+            {appState.serviceInfo?.version ?? "Something went wrong"}
+          </span>
+        </div>
+        <div class="text-xs">
+          App version:{" "}
+          <span class="text-text-primary">
+            {appState.appVersion ?? "Something went wrong"}
+          </span>
+        </div>
       </div>
     </div>
   );

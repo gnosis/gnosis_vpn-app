@@ -98,7 +98,17 @@ export default function BalancePopup(props: Props) {
     onCleanup(() => clearInterval(interval));
   });
 
-  const getArrowLeftPosition = () => "0";
+  const getArrowLeftPosition = () => {
+    if (!props.buttonRect || !props.containerRect) return "50%";
+
+    const wrapperLeft = props.containerRect.left +
+      props.containerRect.width / 2;
+    const buttonCenter = props.buttonRect.left + props.buttonRect.width / 2;
+
+    const offset = buttonCenter - wrapperLeft;
+
+    return `${offset}px`;
+  };
 
   return (
     <Show
@@ -109,7 +119,9 @@ export default function BalancePopup(props: Props) {
           class="fixed z-100"
           style={{
             top: `${props.buttonRect!.bottom + 12}px`,
-            left: `${props.buttonRect!.left + props.buttonRect!.width / 2}px`,
+            left: `${
+              props.containerRect!.left + props.containerRect!.width / 2
+            }px`,
           }}
           onMouseEnter={props.onMouseEnter}
           onMouseLeave={props.onMouseLeave}
@@ -130,7 +142,7 @@ export default function BalancePopup(props: Props) {
           <div
             class="bg-accent text-accent-text rounded-lg shadow-2xl px-3 py-2.5 -translate-x-1/2"
             style={{
-              width: `${props.containerRect!.width + 60}px`,
+              width: `${props.containerRect!.width}px`,
             }}
           >
             <div class="text-xs font-medium mb-2 text-accent-text/70">

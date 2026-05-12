@@ -3,6 +3,7 @@ import Spinner from "@src/components/common/Spinner.tsx";
 
 interface InitializationProps {
   info: ServiceInfo | null;
+  appVersion: string;
   error?: string;
 }
 
@@ -29,6 +30,18 @@ export default function Initialization(props: InitializationProps) {
                 Package version:{" "}
                 <span class="text-text-primary">
                   {props.info?.package_version ?? "—"}
+                </span>
+              </div>
+              <div class="text-xs">
+                Service version:{" "}
+                <span class="text-text-primary">
+                  {props.info?.version ?? "—"}
+                </span>
+              </div>
+              <div class="text-xs">
+                App version:{" "}
+                <span class="text-text-primary">
+                  {props.appVersion ?? "—"}
                 </span>
               </div>
             </div>
