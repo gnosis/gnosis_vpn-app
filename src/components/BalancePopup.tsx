@@ -98,8 +98,6 @@ export default function BalancePopup(props: Props) {
     onCleanup(() => clearInterval(interval));
   });
 
-  const getArrowLeftPosition = () => "0";
-
   return (
     <Show
       when={props.show && balance() && props.buttonRect && props.containerRect}
@@ -118,7 +116,7 @@ export default function BalancePopup(props: Props) {
             class="absolute -translate-x-1/2"
             style={{
               top: "-6px",
-              left: getArrowLeftPosition(),
+              left: "0",
               width: "0",
               height: "0",
               "border-left": "6px solid transparent",
