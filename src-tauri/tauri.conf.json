@@ -15,11 +15,7 @@
         "title": "Gnosis VPN",
         "width": 360,
         "height": 640,
-        "minWidth": 360,
-        "maxWidth": 360,
-        "minHeight": 640,
-        "maxHeight": 640,
-        "resizable": true,
+        "resizable": false,
         "backgroundColor": "#111827"
       },
       {
