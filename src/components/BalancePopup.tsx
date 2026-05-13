@@ -109,7 +109,9 @@ export default function BalancePopup(props: Props) {
           class="fixed z-100"
           style={{
             top: `${props.buttonRect!.bottom + 12}px`,
-            left: `${props.buttonRect!.left + props.buttonRect!.width / 2}px`,
+            left: `${
+              props.buttonRect!.left + props.buttonRect!.width / 2
+            }px`,
           }}
           onMouseEnter={props.onMouseEnter}
           onMouseLeave={props.onMouseLeave}
@@ -129,9 +131,7 @@ export default function BalancePopup(props: Props) {
 
           <div
             class="bg-accent text-accent-text rounded-lg shadow-2xl px-3 py-2.5 -translate-x-1/2"
-            style={{
-              width: `${props.containerRect!.width + 60}px`,
-            }}
+            style={{width: `150px`}}
           >
             <div class="text-xs font-medium mb-2 text-accent-text/70">
               Funds remaining
@@ -155,13 +155,21 @@ export default function BalancePopup(props: Props) {
                 {(b) => (
                   <>
                     <div
-                      class={`text-sm font-bold font-mono text-right ${
+                      class={`flex items-baseline justify-end gap-1 text-sm font-bold font-mono ${
                         creditEmpty() ? "text-red-500" : ""
                       }`}
                     >
-                      {effectiveCredit()?.isEstimate
-                        ? fromWeiToFixed(b().safe)
-                        : fromWeiToFixed(b().channels_out)} wxHOPR
+                      <span>
+                        {fromWeiToFixed(
+                          BigInt(b().safe) + BigInt(b().channels_out),
+                        )}
+                      </span>
+                      <span
+                        class="text-[10px] inline-block text-left"
+                        style={{ width: "34px" }}
+                      >
+                        wxHOPR
+                      </span>
                     </div>
                     <Show
                       when={maxHops() === 1}
@@ -215,8 +223,14 @@ export default function BalancePopup(props: Props) {
                 }
               >
                 {(b) => (
-                  <div class="flex items-baseline gap-1 text-sm font-bold font-mono justify-end">
-                    {fromWeiToFixed(b().node)} xDAI
+                  <div class="flex items-baseline justify-end gap-1 text-sm font-bold font-mono">
+                    <span>{fromWeiToFixed(b().node)}</span>
+                    <span
+                      class="text-[10px] inline-block text-left"
+                      style={{ width: "34px" }}
+                    >
+                      xDAI
+                    </span>
                   </div>
                 )}
               </Show>
