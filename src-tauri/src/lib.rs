@@ -24,6 +24,8 @@ use commands::{
     balance, check_update, compress_logs, connect, disconnect, info, refresh_node, set_app_icon,
     start_client, start_status_polling, stop_client,
 };
+#[cfg(target_os = "macos")]
+use gnosis_vpn_lib::{command, socket::root as root_socket};
 use icons::{AppIconState, TrayIconState, determine_tray_icon, start_app_icon_heartbeat};
 use platform::{Platform, PlatformInterface};
 #[cfg(target_os = "linux")]
@@ -49,6 +51,80 @@ struct AppSettings {
     preferred_location: Option<String>,
     connect_on_startup: bool,
     start_minimized: bool,
+}
+
+#[cfg(target_os = "macos")]
+fn install_macos_about_panel_override(app: &tauri::AppHandle, package_version: String) {
+    use cocoa::base::{id, nil};
+    use cocoa::foundation::NSString;
+    use objc::declare::ClassDecl;
+    use objc::runtime::{Class, Object, Sel};
+    use std::sync::OnceLock;
+
+    static PACKAGE_VERSION: OnceLock<String> = OnceLock::new();
+    let _ = PACKAGE_VERSION.set(package_version);
+
+    static HANDLER_CLASS: OnceLock<&'static Class> = OnceLock::new();
+    let cls: &'static Class = HANDLER_CLASS.get_or_init(|| {
+        let superclass = class!(NSObject);
+        let mut decl = ClassDecl::new("GnosisVpnAboutHandler", superclass)
+            .expect("failed to declare GnosisVpnAboutHandler");
+        extern "C" fn show_about(_this: &Object, _cmd: Sel, _sender: id) {
+            unsafe {
+                let version_str = PACKAGE_VERSION.get().map(String::as_str).unwrap_or("");
+                let ns_version: id = NSString::alloc(nil).init_str(version_str);
+                // "Version" maps to NSAboutPanelOptionVersion — the main version
+                // shown as "Version X" on the standard About panel (overrides
+                // CFBundleShortVersionString from the bundle).
+                let ns_key: id = NSString::alloc(nil).init_str("Version");
+                let options: id = msg_send![
+                    class!(NSDictionary),
+                    dictionaryWithObject: ns_version forKey: ns_key
+                ];
+                let app: id = msg_send![class!(NSApplication), sharedApplication];
+                let _: () = msg_send![app, orderFrontStandardAboutPanelWithOptions: options];
+            }
+        }
+        unsafe {
+            decl.add_method(
+                sel!(showAbout:),
+                show_about as extern "C" fn(&Object, Sel, id),
+            );
+        }
+        decl.register()
+    });
+
+    let _ = app.run_on_main_thread(move || unsafe {
+        let app_ns: id = msg_send![class!(NSApplication), sharedApplication];
+        let main_menu: id = msg_send![app_ns, mainMenu];
+        if main_menu == nil {
+            return;
+        }
+        let count: i64 = msg_send![main_menu, numberOfItems];
+        if count < 1 {
+            return;
+        }
+        let app_menu_item: id = msg_send![main_menu, itemAtIndex: 0i64];
+        if app_menu_item == nil {
+            return;
+        }
+        let app_submenu: id = msg_send![app_menu_item, submenu];
+        if app_submenu == nil {
+            return;
+        }
+        let sub_count: i64 = msg_send![app_submenu, numberOfItems];
+        if sub_count < 1 {
+            return;
+        }
+        let about_item: id = msg_send![app_submenu, itemAtIndex: 0i64];
+        if about_item == nil {
+            return;
+        }
+
+        let handler: id = msg_send![cls, new];
+        let _: () = msg_send![about_item, setTarget: handler];
+        let _: () = msg_send![about_item, setAction: sel!(showAbout:)];
+    });
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -162,6 +238,28 @@ pub fn run() {
             // state keeps it until the application exits.
             #[cfg(target_os = "macos")]
             app.manage(platform::macos::disable_app_nap());
+
+            // macOS About menu: replace the default "About" (which shows the app
+            // bundle version) with one that shows the gnosis-vpn package version.
+            // The unix socket may not be ready immediately, so retry briefly.
+            #[cfg(target_os = "macos")]
+            {
+                let app_handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    let socket = PathBuf::from(root_socket::DEFAULT_PATH);
+                    for _ in 0..120 {
+                        if let Ok(command::Response::Info(info)) =
+                            root_socket::process_cmd(&socket, &command::Command::Info).await
+                        {
+                            if let Some(pkg) = info.package_version {
+                                install_macos_about_panel_override(&app_handle, pkg);
+                            }
+                            return;
+                        }
+                        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                    }
+                });
+            }
 
             // Intercept window close to hide to tray instead of exiting
             if let Some(window) = app.get_webview_window("main") {

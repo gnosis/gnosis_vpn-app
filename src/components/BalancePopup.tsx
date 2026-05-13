@@ -109,9 +109,7 @@ export default function BalancePopup(props: Props) {
           class="fixed z-100"
           style={{
             top: `${props.buttonRect!.bottom + 12}px`,
-            left: `${
-              props.buttonRect!.left + props.buttonRect!.width / 2
-            }px`,
+            left: `${props.buttonRect!.left + props.buttonRect!.width / 2}px`,
           }}
           onMouseEnter={props.onMouseEnter}
           onMouseLeave={props.onMouseLeave}
@@ -131,7 +129,7 @@ export default function BalancePopup(props: Props) {
 
           <div
             class="bg-accent text-accent-text rounded-lg shadow-2xl px-3 py-2.5 -translate-x-1/2"
-            style={{width: `150px`}}
+            style={{ width: `150px` }}
           >
             <div class="text-xs font-medium mb-2 text-accent-text/70">
               Funds remaining
