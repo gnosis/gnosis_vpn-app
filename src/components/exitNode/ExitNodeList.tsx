@@ -189,10 +189,10 @@ export default function ExitNodeList(props: { onClose: () => void }) {
 
       <div class="px-3 pt-2 pb-1 shrink-0">
         <input
-          ref={searchInputRef}
+          ref={InputRef}
           type="text"
           aria-label="Search exit nodes"
-          placeholder="Search for Location or Exit Node"
+          placeholder="Search for Exit Node"
           value={query()}
           onInput={(e) => setQuery(e.currentTarget.value)}
           class="w-full bg-bg-surface rounded-xl px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-1 focus:ring-text-secondary"
