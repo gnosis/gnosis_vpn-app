@@ -82,11 +82,7 @@ export default function Usage() {
   const totalWxhoprWei = createMemo(() => {
     const b = balance();
     if (!b) return undefined;
-    try {
-      return (BigInt(b.safe) + BigInt(b.channels_out)).toString();
-    } catch {
-      return b.safe;
-    }
+    return (BigInt(b.safe) + BigInt(b.channels_out)).toString();
   });
 
   async function loadBalance() {

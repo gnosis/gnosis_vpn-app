@@ -64,7 +64,15 @@ fn install_macos_about_panel_override(app: &tauri::AppHandle, package_version: S
     static PACKAGE_VERSION: OnceLock<String> = OnceLock::new();
     let _ = PACKAGE_VERSION.set(package_version);
 
+    // NSMenuItem stores its target as unsafe_unretained, so the handler must
+    // outlive the menu item (i.e. live for the process). Park it in a static
+    // OnceLock so it's a deliberate singleton instead of an orphaned pointer.
+    struct HandlerPtr(id);
+    unsafe impl Send for HandlerPtr {}
+    unsafe impl Sync for HandlerPtr {}
+
     static HANDLER_CLASS: OnceLock<&'static Class> = OnceLock::new();
+    static HANDLER: OnceLock<HandlerPtr> = OnceLock::new();
     let cls: &'static Class = HANDLER_CLASS.get_or_init(|| {
         let superclass = class!(NSObject);
         let mut decl = ClassDecl::new("GnosisVpnAboutHandler", superclass)
@@ -72,11 +80,15 @@ fn install_macos_about_panel_override(app: &tauri::AppHandle, package_version: S
         extern "C" fn show_about(_this: &Object, _cmd: Sel, _sender: id) {
             unsafe {
                 let version_str = PACKAGE_VERSION.get().map(String::as_str).unwrap_or("");
+                // NSString::alloc(...).init_str(...) returns a +1 retained object;
+                // balance with autorelease so the AppKit run loop pool drains it.
                 let ns_version: id = NSString::alloc(nil).init_str(version_str);
+                let ns_version: id = msg_send![ns_version, autorelease];
                 // "Version" maps to NSAboutPanelOptionVersion — the main version
                 // shown as "Version X" on the standard About panel (overrides
                 // CFBundleShortVersionString from the bundle).
                 let ns_key: id = NSString::alloc(nil).init_str("Version");
+                let ns_key: id = msg_send![ns_key, autorelease];
                 let options: id = msg_send![
                     class!(NSDictionary),
                     dictionaryWithObject: ns_version forKey: ns_key
@@ -121,7 +133,7 @@ fn install_macos_about_panel_override(app: &tauri::AppHandle, package_version: S
             return;
         }
 
-        let handler: id = msg_send![cls, new];
+        let handler: id = HANDLER.get_or_init(|| HandlerPtr(msg_send![cls, new])).0;
         let _: () = msg_send![about_item, setTarget: handler];
         let _: () = msg_send![about_item, setAction: sel!(showAbout:)];
     });
