@@ -54,7 +54,11 @@ struct AppSettings {
 }
 
 #[cfg(target_os = "macos")]
-fn install_macos_about_panel_override(app: &tauri::AppHandle, package_version: String) {
+fn install_macos_about_panel_override(
+    app: &tauri::AppHandle,
+    package_version: String,
+    icon_path: Option<String>,
+) {
     use cocoa::base::{id, nil};
     use cocoa::foundation::NSString;
     use objc::declare::ClassDecl;
@@ -62,7 +66,9 @@ fn install_macos_about_panel_override(app: &tauri::AppHandle, package_version: S
     use std::sync::OnceLock;
 
     static PACKAGE_VERSION: OnceLock<String> = OnceLock::new();
+    static ICON_PATH: OnceLock<Option<String>> = OnceLock::new();
     let _ = PACKAGE_VERSION.set(package_version);
+    let _ = ICON_PATH.set(icon_path);
 
     // NSMenuItem stores its target as unsafe_unretained, so the handler must
     // outlive the menu item (i.e. live for the process). Park it in a static
@@ -84,15 +90,31 @@ fn install_macos_about_panel_override(app: &tauri::AppHandle, package_version: S
                 // balance with autorelease so the AppKit run loop pool drains it.
                 let ns_version: id = NSString::alloc(nil).init_str(version_str);
                 let ns_version: id = msg_send![ns_version, autorelease];
-                // "Version" maps to NSAboutPanelOptionVersion — the main version
-                // shown as "Version X" on the standard About panel (overrides
-                // CFBundleShortVersionString from the bundle).
-                let ns_key: id = NSString::alloc(nil).init_str("Version");
-                let ns_key: id = msg_send![ns_key, autorelease];
-                let options: id = msg_send![
-                    class!(NSDictionary),
-                    dictionaryWithObject: ns_version forKey: ns_key
-                ];
+                // "ApplicationVersion" maps to NSAboutPanelOptionApplicationVersion —
+                // the main "Version X" line on the standard About panel (overrides
+                // CFBundleShortVersionString). The "Version" key, by contrast,
+                // controls the parenthesized build number.
+                let ns_app_version_key: id = NSString::alloc(nil).init_str("ApplicationVersion");
+                let ns_app_version_key: id = msg_send![ns_app_version_key, autorelease];
+
+                // Build a mutable dictionary so we can also add the icon when available.
+                let options: id = msg_send![class!(NSMutableDictionary), dictionary];
+                let _: () = msg_send![options, setObject: ns_version forKey: ns_app_version_key];
+
+                if let Some(Some(path)) = ICON_PATH.get() {
+                    let ns_path: id = NSString::alloc(nil).init_str(path.as_str());
+                    let ns_path: id = msg_send![ns_path, autorelease];
+                    let image: id = msg_send![class!(NSImage), alloc];
+                    let image: id = msg_send![image, initWithContentsOfFile: ns_path];
+                    if image != nil {
+                        let image: id = msg_send![image, autorelease];
+                        let ns_icon_key: id =
+                            NSString::alloc(nil).init_str("ApplicationIcon");
+                        let ns_icon_key: id = msg_send![ns_icon_key, autorelease];
+                        let _: () = msg_send![options, setObject: image forKey: ns_icon_key];
+                    }
+                }
+
                 let app: id = msg_send![class!(NSApplication), sharedApplication];
                 let _: () = msg_send![app, orderFrontStandardAboutPanelWithOptions: options];
             }
@@ -256,15 +278,42 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             {
                 let app_handle = app.handle().clone();
+                let icon_path: Option<String> = app
+                    .path()
+                    .resource_dir()
+                    .ok()
+                    .map(|d| {
+                        d.join("icons")
+                            .join("app-icons")
+                            .join(icons::APP_ICON_DISCONNECTED)
+                    })
+                    .and_then(|p| p.to_str().map(String::from));
                 tauri::async_runtime::spawn(async move {
                     let socket = PathBuf::from(root_socket::DEFAULT_PATH);
-                    if let Ok(command::Response::Info(info)) =
-                        root_socket::process_cmd(&socket, &command::Command::Info).await
+                    let fallback = "Version: Something is wrong".to_string();
+                    let pkg: String = match root_socket::process_cmd(
+                        &socket,
+                        &command::Command::Info,
+                    )
+                    .await
                     {
-                        if let Some(pkg) = info.package_version {
-                            install_macos_about_panel_override(&app_handle, pkg);
+                        Ok(command::Response::Info(info)) => {
+                            eprintln!(
+                                "[about-panel] daemon Info.package_version = {:?}",
+                                info.package_version
+                            );
+                            info.package_version.unwrap_or_else(|| fallback.clone())
                         }
-                    }
+                        Ok(other) => {
+                            eprintln!("[about-panel] unexpected daemon response: {:?}", other);
+                            fallback.clone()
+                        }
+                        Err(e) => {
+                            eprintln!("[about-panel] daemon call failed: {:?}", e);
+                            fallback.clone()
+                        }
+                    };
+                    install_macos_about_panel_override(&app_handle, pkg, icon_path);
                 });
             }
 
