@@ -79,6 +79,12 @@ export default function Usage() {
     );
   });
 
+  const totalWxhoprWei = createMemo(() => {
+    const b = balance();
+    if (!b) return undefined;
+    return (BigInt(b.safe) + BigInt(b.channels_out)).toString();
+  });
+
   async function loadBalance() {
     try {
       const result = await VPNService.balance();
@@ -176,7 +182,7 @@ export default function Usage() {
               <FundsInfo
                 name="Safe"
                 subtitle="For traffic"
-                balance={preparingSafe()?.node_wxhopr ?? balance()?.safe}
+                balance={preparingSafe()?.node_wxhopr ?? totalWxhoprWei()}
                 ticker="wxHOPR"
                 address={preparingSafe()?.node_address ??
                   balance()?.info.safe_address}

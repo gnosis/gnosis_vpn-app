@@ -2,7 +2,6 @@ import IconButton from "./common/IconButton.tsx";
 import BalancePopup from "./BalancePopup.tsx";
 import { Portal } from "solid-js/web";
 import settingsIcon from "../assets/icons/settings.svg";
-import logsIcon from "../assets/icons/logs.svg";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { isRunningRunMode } from "../services/vpnService.ts";
 import fundsFullIcon from "../assets/icons/funds-full.svg";
@@ -84,13 +83,6 @@ function Navigation() {
           ref={(el) => (containerRef = el)}
           class="fixed top-6 right-4 z-60 flex items-center gap-2 justify-center"
         >
-          <Tooltip content="Settings" position="bottom">
-            <IconButton
-              icon={settingsIcon}
-              alt="Settings"
-              onClick={() => openSettingsWindow("settings")}
-            />
-          </Tooltip>
           <IconButton
             ref={(el) => (buttonRef = el)}
             icon={getFundsIcon()}
@@ -99,11 +91,11 @@ function Navigation() {
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
           />
-          <Tooltip content="Logs" position="bottom">
+          <Tooltip content="Settings" position="bottom">
             <IconButton
-              icon={logsIcon}
-              alt="Logs"
-              onClick={() => openSettingsWindow("logs")}
+              icon={settingsIcon}
+              alt="Settings"
+              onClick={() => openSettingsWindow("settings")}
             />
           </Tooltip>
         </div>

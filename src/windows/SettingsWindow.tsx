@@ -1,5 +1,4 @@
 import { createSignal, onCleanup, onMount } from "solid-js";
-import { getVersion } from "@tauri-apps/api/app";
 import { emit, listen } from "@tauri-apps/api/event";
 import Settings from "../screens/settings/Settings.tsx";
 import Usage from "../screens/settings/Usage.tsx";
@@ -21,7 +20,7 @@ export default function SettingsWindow() {
   onMount(() => {
     void (async () => {
       // Attach navigate listener first so we don't miss events emitted by
-      // the tray/Navigation while getVersion / store init is still pending.
+      // the tray/Navigation while store init is still pending.
       const unlisten = await listen<string>("navigate", (event) => {
         const next = event.payload;
         if (
@@ -34,12 +33,10 @@ export default function SettingsWindow() {
       if (disposed) unlisten();
       else unlistenNavigate = unlisten;
 
-      const appVersion = await getVersion();
-
       // NOTE: tauri apps use separate JS contexts between windows,
       // so this one needs to populate its own app state
       await Promise.all([
-        appActions.initializeApp(appVersion),
+        appActions.initializeApp(),
         settingsActions.load(),
       ]);
       void emit("logs:request-snapshot");

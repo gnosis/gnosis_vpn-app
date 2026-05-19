@@ -3230,8 +3230,8 @@ dependencies = [
 
 [[package]]
 name = "edgli"
-version = "2.3.0"
-source = "git+https://github.com/hoprnet/edge-client.git?rev=06b7837d232d9041211c3279d0ad6a6a3d682180#06b7837d232d9041211c3279d0ad6a6a3d682180"
+version = "2.3.1"
+source = "git+https://github.com/hoprnet/edge-client.git?rev=a8f684b7294af9382a6958a6aeefb5f74aee7a0d#a8f684b7294af9382a6958a6aeefb5f74aee7a0d"
 dependencies = [
  "anyhow",
  "async-signal",
@@ -4231,7 +4231,6 @@ dependencies = [
 [[package]]
 name = "gnosis_vpn-lib"
 version = "0.85.1"
-source = "git+https://github.com/gnosis/gnosis_vpn-client.git?rev=85b50ba074a3ff8623a1a983166a7c7ca763630c#85b50ba074a3ff8623a1a983166a7c7ca763630c"
 dependencies = [
  "anyhow",
  "backon",
