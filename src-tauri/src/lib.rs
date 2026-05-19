@@ -108,8 +108,7 @@ fn install_macos_about_panel_override(
                     let image: id = msg_send![image, initWithContentsOfFile: ns_path];
                     if image != nil {
                         let image: id = msg_send![image, autorelease];
-                        let ns_icon_key: id =
-                            NSString::alloc(nil).init_str("ApplicationIcon");
+                        let ns_icon_key: id = NSString::alloc(nil).init_str("ApplicationIcon");
                         let ns_icon_key: id = msg_send![ns_icon_key, autorelease];
                         let _: () = msg_send![options, setObject: image forKey: ns_icon_key];
                     }
@@ -291,28 +290,24 @@ pub fn run() {
                 tauri::async_runtime::spawn(async move {
                     let socket = PathBuf::from(root_socket::DEFAULT_PATH);
                     let fallback = "Version: Something is wrong".to_string();
-                    let pkg: String = match root_socket::process_cmd(
-                        &socket,
-                        &command::Command::Info,
-                    )
-                    .await
-                    {
-                        Ok(command::Response::Info(info)) => {
-                            eprintln!(
-                                "[about-panel] daemon Info.package_version = {:?}",
-                                info.package_version
-                            );
-                            info.package_version.unwrap_or_else(|| fallback.clone())
-                        }
-                        Ok(other) => {
-                            eprintln!("[about-panel] unexpected daemon response: {:?}", other);
-                            fallback.clone()
-                        }
-                        Err(e) => {
-                            eprintln!("[about-panel] daemon call failed: {:?}", e);
-                            fallback.clone()
-                        }
-                    };
+                    let pkg: String =
+                        match root_socket::process_cmd(&socket, &command::Command::Info).await {
+                            Ok(command::Response::Info(info)) => {
+                                eprintln!(
+                                    "[about-panel] daemon Info.package_version = {:?}",
+                                    info.package_version
+                                );
+                                info.package_version.unwrap_or_else(|| fallback.clone())
+                            }
+                            Ok(other) => {
+                                eprintln!("[about-panel] unexpected daemon response: {:?}", other);
+                                fallback.clone()
+                            }
+                            Err(e) => {
+                                eprintln!("[about-panel] daemon call failed: {:?}", e);
+                                fallback.clone()
+                            }
+                        };
                     install_macos_about_panel_override(&app_handle, pkg, icon_path);
                 });
             }
