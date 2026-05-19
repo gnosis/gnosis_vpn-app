@@ -1,11 +1,14 @@
 import {
   createEffect,
   createMemo,
+  createResource,
   createSignal,
   onCleanup,
   onMount,
+  Show,
 } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
+import { getVersion } from "@tauri-apps/api/app";
 import { emit, listen } from "@tauri-apps/api/event";
 import brokenDeviceIcon from "@assets/icons/broken-device.svg";
 import Toggle from "@src/components/common/Toggle.tsx";
@@ -21,12 +24,31 @@ import {
 import { detectChannel } from "@src/utils/version.ts";
 import { evaluateUpdate } from "@src/utils/updateAvailability.ts";
 
+const REVEAL_CLICKS = 7;
+const REVEAL_WINDOW_MS = 2000;
+
 export default function Updates() {
   const [appState, appActions] = useAppStore();
   const [settings, settingsActions] = useSettingsStore();
   const [showCheckModal, setShowCheckModal] = createSignal(false);
   const [checking, setChecking] = createSignal(false);
   const [pendingConnectCheck, setPendingConnectCheck] = createSignal(false);
+  const [appVersion] = createResource(() => getVersion());
+  const [showVersionDetails, setShowVersionDetails] = createSignal(false);
+  let versionClickCount = 0;
+  let lastVersionClickAt = 0;
+
+  const handleVersionClick = () => {
+    const now = Date.now();
+    versionClickCount = now - lastVersionClickAt > REVEAL_WINDOW_MS
+      ? 1
+      : versionClickCount + 1;
+    lastVersionClickAt = now;
+    if (versionClickCount >= REVEAL_CLICKS) {
+      setShowVersionDetails(true);
+      versionClickCount = 0;
+    }
+  };
 
   const runCheck = async (skipVpn: boolean) => {
     setChecking(true);
@@ -185,12 +207,26 @@ export default function Updates() {
       />
       <div class="grow" />
       <div class="space-y-1 text-sm text-text-secondary text-center">
-        <div>
-          Package version:{" "}
+        <div onClick={handleVersionClick} class="cursor-default select-none">
+          Version:{" "}
           <span class="text-text-primary">
             {appState.serviceInfo?.package_version ?? "Something went wrong"}
           </span>
         </div>
+        <Show when={showVersionDetails()}>
+          <div class="text-xs">
+            Service version:{" "}
+            <span class="text-text-primary">
+              {appState.serviceInfo?.version ?? "—"}
+            </span>
+          </div>
+          <div class="text-xs">
+            App version:{" "}
+            <span class="text-text-primary">
+              {appVersion() ?? "—"}
+            </span>
+          </div>
+        </Show>
       </div>
     </div>
   );

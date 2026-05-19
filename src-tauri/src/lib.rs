@@ -253,22 +253,17 @@ pub fn run() {
 
             // macOS About menu: replace the default "About" (which shows the app
             // bundle version) with one that shows the gnosis-vpn package version.
-            // The unix socket may not be ready immediately, so retry briefly.
             #[cfg(target_os = "macos")]
             {
                 let app_handle = app.handle().clone();
                 tauri::async_runtime::spawn(async move {
                     let socket = PathBuf::from(root_socket::DEFAULT_PATH);
-                    for _ in 0..120 {
-                        if let Ok(command::Response::Info(info)) =
-                            root_socket::process_cmd(&socket, &command::Command::Info).await
-                        {
-                            if let Some(pkg) = info.package_version {
-                                install_macos_about_panel_override(&app_handle, pkg);
-                            }
-                            return;
+                    if let Ok(command::Response::Info(info)) =
+                        root_socket::process_cmd(&socket, &command::Command::Info).await
+                    {
+                        if let Some(pkg) = info.package_version {
+                            install_macos_about_panel_override(&app_handle, pkg);
                         }
-                        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
                     }
                 });
             }
