@@ -19,13 +19,15 @@ export type SerializedTime = z.infer<typeof SerializedTimeSchema>;
 
 export const UpPhaseSchema = z.enum([
   "Init",
+  "ResolvingBlokliIps",
   "GeneratingWg",
   "OpeningBridge",
   "RegisterWg",
   "ClosingBridge",
   "OpeningPing",
-  "EstablishDynamicWgTunnel",
   "FallbackGatherPeerIps",
+  "KillswitchLockdown",
+  "EstablishDynamicWgTunnel",
   "FallbackToStaticWgTunnel",
   "VerifyPing",
   "AdjustToMain",
