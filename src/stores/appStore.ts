@@ -60,6 +60,9 @@ export interface AppState {
   syncRecoveryDeadline: number | null;
   isUpdateAvailable: boolean;
   availableVersion: string | null;
+  // True when the user explicitly clicked Disconnect (not switching destinations).
+  // Prevents destination clicks from triggering connect() during the Disconnecting phase.
+  intentionalDisconnect: boolean;
 }
 
 type AppActions = {
@@ -98,6 +101,7 @@ function initialState(): AppState {
     syncRecoveryDeadline: null,
     isUpdateAvailable: false,
     availableVersion: null,
+    intentionalDisconnect: false,
   };
 }
 
@@ -448,6 +452,7 @@ export function createAppStore(): AppStoreTuple {
 
     connect: async () => {
       setState("isLoading", true);
+      setState("intentionalDisconnect", false);
       const requestedId = state.selectedId;
       const { id: targetId, reason: selectionReason } = requestedId
         ? { id: requestedId, reason: "selected exit node" }
@@ -491,6 +496,7 @@ export function createAppStore(): AppStoreTuple {
 
     disconnect: async () => {
       setState("isLoading", true);
+      setState("intentionalDisconnect", true);
       try {
         await VPNService.disconnect();
       } catch (error) {
