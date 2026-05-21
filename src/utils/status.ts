@@ -1,11 +1,11 @@
 import {
   type Destination,
   type DownPhase,
-  type UpPhase,
   isDeployingSafeRunMode,
   isPreparingSafeRunMode,
   isWarmupRunMode,
   StatusResponse,
+  type UpPhase,
 } from "@src/services/vpnService.ts";
 import type { AppState } from "@src/stores/appStore.ts";
 
