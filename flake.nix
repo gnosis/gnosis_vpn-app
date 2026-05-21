@@ -148,11 +148,13 @@
               pkgs.glib
               pkgs.gtk3
               pkgs.harfbuzz
+              pkgs.libayatana-appindicator
+              pkgs.libmnl
+              pkgs.libnftnl
               pkgs.librsvg
               pkgs.libsoup_3
               pkgs.pango
               pkgs.webkitgtk_4_1
-              pkgs.libayatana-appindicator
               pkgs.patchelf
             ]
             ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
