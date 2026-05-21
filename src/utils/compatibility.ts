@@ -1,4 +1,4 @@
-export const COMPATIBLE_VERSIONS: string[] = ["0.85"];
+export const COMPATIBLE_VERSIONS: string[] = ["0.86"];
 
 /**
  * Checks if the provided service version string is compatible
