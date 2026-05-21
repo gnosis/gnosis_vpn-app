@@ -98,12 +98,12 @@ export default function ExitNodeList(props: { onClose: () => void }) {
   });
 
   // Includes Disconnecting so that switching destinations while tearing down
-  // the old tunnel still triggers connect(). Excluded when the user explicitly
-  // clicked Disconnect — in that case destination clicks should only select.
+  // the old tunnel still triggers connect(). When target_destination is null
+  // the backend has no connect intent (explicit disconnect) — just select.
   const vpnActive = () =>
     appState.vpnStatus === "Connected" ||
     appState.vpnStatus === "Connecting" ||
-    (appState.vpnStatus === "Disconnecting" && !appState.intentionalDisconnect);
+    (appState.vpnStatus === "Disconnecting" && appState.target_destination !== null);
 
   const isAvailable = (id: string) =>
     appState.availableDestinations.some((d) => d.id === id);
