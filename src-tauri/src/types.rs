@@ -1,4 +1,5 @@
 use gnosis_vpn_lib::command::{self, HoprInitStatus, HoprStatus};
+use gnosis_vpn_lib::connection::destination::HopRouting;
 use gnosis_vpn_lib::route_health::RouteHealthState;
 use gnosis_vpn_lib::{balance, connection, info};
 
@@ -104,7 +105,6 @@ pub enum CombinedHoprStatus {
     // Hopr init states
     ValidatingConfig,
     IdentifyingNode,
-    InitializingDatabase,
     ConnectingBlockchain,
     CreatingNode,
     StartingNode,
@@ -114,13 +114,15 @@ pub enum CombinedHoprStatus {
     WaitingForFunds,
     CheckingBalance,
     ValidatingNetworkConfig,
-    SubscribingToAnnouncements,
+    CheckingOnchainAddress,
     RegisteringSafe,
     AnnouncingNode,
     AwaitingKeyBinding,
     InitializingServices,
     Running,
     Terminated,
+    Degraded,
+    Failed,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -132,7 +134,6 @@ pub struct DestinationState {
 #[derive(Clone, Debug, Serialize)]
 pub enum RoutingOptions {
     Hops(usize),
-    IntermediatePath(Vec<String>),
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -146,22 +147,14 @@ pub struct Destination {
 #[derive(Debug, Serialize)]
 pub struct Info {
     pub node_address: String,
-    pub node_peer_id: String,
     pub safe_address: String,
 }
 
 // Conversions from library types to sanitized types
 
-impl From<connection::destination::RoutingOptions> for RoutingOptions {
-    fn from(ro: connection::destination::RoutingOptions) -> Self {
-        match ro {
-            connection::destination::RoutingOptions::Hops(hops) => {
-                RoutingOptions::Hops(hops.into())
-            }
-            connection::destination::RoutingOptions::IntermediatePath(path) => {
-                RoutingOptions::IntermediatePath(path.into_iter().map(|a| a.to_string()).collect())
-            }
-        }
+impl From<HopRouting> for RoutingOptions {
+    fn from(hr: HopRouting) -> Self {
+        RoutingOptions::Hops(hr.hop_count())
     }
 }
 
@@ -192,15 +185,15 @@ impl From<HoprStatus> for CombinedHoprStatus {
             HoprStatus::WaitingForFunds => CombinedHoprStatus::WaitingForFunds,
             HoprStatus::CheckingBalance => CombinedHoprStatus::CheckingBalance,
             HoprStatus::ValidatingNetworkConfig => CombinedHoprStatus::ValidatingNetworkConfig,
-            HoprStatus::SubscribingToAnnouncements => {
-                CombinedHoprStatus::SubscribingToAnnouncements
-            }
+            HoprStatus::CheckingOnchainAddress => CombinedHoprStatus::CheckingOnchainAddress,
             HoprStatus::RegisteringSafe => CombinedHoprStatus::RegisteringSafe,
             HoprStatus::AnnouncingNode => CombinedHoprStatus::AnnouncingNode,
             HoprStatus::AwaitingKeyBinding => CombinedHoprStatus::AwaitingKeyBinding,
             HoprStatus::InitializingServices => CombinedHoprStatus::InitializingServices,
             HoprStatus::Running => CombinedHoprStatus::Running,
             HoprStatus::Terminated => CombinedHoprStatus::Terminated,
+            HoprStatus::Degraded => CombinedHoprStatus::Degraded,
+            HoprStatus::Failed => CombinedHoprStatus::Failed,
         }
     }
 }
@@ -210,7 +203,6 @@ impl From<HoprInitStatus> for CombinedHoprStatus {
         match status {
             HoprInitStatus::ValidatingConfig => CombinedHoprStatus::ValidatingConfig,
             HoprInitStatus::IdentifyingNode => CombinedHoprStatus::IdentifyingNode,
-            HoprInitStatus::InitializingDatabase => CombinedHoprStatus::InitializingDatabase,
             HoprInitStatus::ConnectingBlockchain => CombinedHoprStatus::ConnectingBlockchain,
             HoprInitStatus::CreatingNode => CombinedHoprStatus::CreatingNode,
             HoprInitStatus::StartingNode => CombinedHoprStatus::StartingNode,
@@ -307,7 +299,6 @@ impl From<info::Info> for Info {
     fn from(i: info::Info) -> Self {
         Info {
             node_address: i.node_address.to_string(),
-            node_peer_id: i.node_peer_id,
             safe_address: i.safe_address.to_string(),
         }
     }
