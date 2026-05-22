@@ -41,7 +41,6 @@ function balancesEqual(
     a.ticket_stats.ticket_price === b.ticket_stats.ticket_price &&
     a.ticket_stats.winning_probability === b.ticket_stats.winning_probability &&
     a.info.node_address === b.info.node_address &&
-    a.info.node_peer_id === b.info.node_peer_id &&
     a.info.safe_address === b.info.safe_address &&
     JSON.stringify(a.issues) === JSON.stringify(b.issues)
   );

@@ -24,7 +24,7 @@ tauri-build = { version = "2.6.0", features = [] }
 
 [dependencies]
 # gnosis_vpn-lib = { path = "../../gnosis_vpn-client/gnosis_vpn-lib" }
-gnosis_vpn-lib = { git = "https://github.com/gnosis/gnosis_vpn-client.git", rev = "015f216eb787aac644904ab84fe44163e8cfeb35" }
+gnosis_vpn-lib = { git = "https://github.com/gnosis/gnosis_vpn-client.git", rev = "adf9403a22075945008123f82f6a9708d8c484c0" }
 liblzma = { version = "0.4.5", default-features = false, features = ["static"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
@@ -35,7 +35,7 @@ tauri-plugin-store = "2.4.3"
 tauri-plugin-dialog = "2.7.1"
 dark-light = "2.0"
 reqwest = { version = "0.13", features = ["json"] }
-tokio = { version = "1.50.0", features = ["time", "rt", "sync"] }
+tokio = { version = "1.52.3", features = ["time", "rt", "sync"] }
 tokio-util = { version = "0.7.17", features = ["rt"] }
 zstd = "0.13.3"
 
