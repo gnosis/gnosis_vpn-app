@@ -12,6 +12,7 @@ use std::fmt::{self, Display};
 pub struct StatusResponse {
     pub run_mode: RunMode,
     pub destinations: Vec<DestinationState>,
+    pub target_destination: Option<String>,
     pub connected: Option<String>,
     pub connecting: Option<ConnectingInfo>,
     pub disconnecting: Vec<DisconnectingInfo>,

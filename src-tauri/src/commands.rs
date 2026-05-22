@@ -425,6 +425,7 @@ async fn query_status() -> (Duration, Result<Option<StatusResponse>, String>) {
                     .into_iter()
                     .map(Into::into)
                     .collect(),
+                target_destination: status_resp.target_destination,
                 connected: status_resp.connected.map(|c| c.destination_id),
                 connecting: status_resp.connecting.map(|c| ConnectingInfo {
                     destination_id: c.destination_id,
