@@ -174,8 +174,7 @@ export function isReadyToConnect(rhv: RouteHealthView | undefined): boolean {
 
 /** Get the raw hop count from routing options. */
 export function getHopCount(routing: RoutingOptions): number {
-  if ("Hops" in routing) return routing.Hops;
-  return routing.IntermediatePath.length;
+  return routing.Hops;
 }
 
 /** Format routing as e.g. "1-hop" */

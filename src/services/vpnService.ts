@@ -19,13 +19,15 @@ export type SerializedTime = z.infer<typeof SerializedTimeSchema>;
 
 export const UpPhaseSchema = z.enum([
   "Init",
+  "ResolvingBlokliIps",
   "GeneratingWg",
   "OpeningBridge",
   "RegisterWg",
   "ClosingBridge",
   "OpeningPing",
-  "EstablishDynamicWgTunnel",
   "FallbackGatherPeerIps",
+  "KillswitchLockdown",
+  "EstablishDynamicWgTunnel",
   "FallbackToStaticWgTunnel",
   "VerifyPing",
   "AdjustToMain",
@@ -54,10 +56,7 @@ export const DisconnectingInfoSchema = z.object({
 });
 export type DisconnectingInfo = z.infer<typeof DisconnectingInfoSchema>;
 
-export const RoutingOptionsSchema = z.union([
-  z.object({ Hops: z.number() }),
-  z.object({ IntermediatePath: z.array(z.string()) }),
-]);
+export const RoutingOptionsSchema = z.object({ Hops: z.number() });
 export type RoutingOptions = z.infer<typeof RoutingOptionsSchema>;
 
 export const DestinationSchema = z.object({
@@ -196,7 +195,6 @@ export const WarmupStatusSchema = z.enum([
   "Initializing",
   "ValidatingConfig",
   "IdentifyingNode",
-  "InitializingDatabase",
   "ConnectingBlockchain",
   "CreatingNode",
   "StartingNode",
@@ -205,13 +203,15 @@ export const WarmupStatusSchema = z.enum([
   "WaitingForFunds",
   "CheckingBalance",
   "ValidatingNetworkConfig",
-  "SubscribingToAnnouncements",
+  "CheckingOnchainAddress",
   "RegisteringSafe",
   "AnnouncingNode",
   "AwaitingKeyBinding",
   "InitializingServices",
   "Running",
   "Terminated",
+  "Degraded",
+  "Failed",
 ]);
 export type WarmupStatus = z.infer<typeof WarmupStatusSchema>;
 
@@ -238,7 +238,6 @@ export type RunMode = z.infer<typeof RunModeSchema>;
 
 export const InfoSchema = z.object({
   node_address: z.string(),
-  node_peer_id: z.string(),
   safe_address: z.string(),
 });
 export type Info = z.infer<typeof InfoSchema>;
@@ -246,6 +245,7 @@ export type Info = z.infer<typeof InfoSchema>;
 export const StatusResponseSchema = z.object({
   run_mode: RunModeSchema,
   destinations: z.array(DestinationStateSchema),
+  target_destination: z.string().nullable(),
   connected: z.string().nullable(),
   connecting: ConnectingInfoSchema.nullable(),
   disconnecting: z.array(DisconnectingInfoSchema),
@@ -281,8 +281,6 @@ export function formatWarmupStatus(status: WarmupStatus): string {
       return "Validating edge client configuration";
     case "IdentifyingNode":
       return "Identifying ourselves";
-    case "InitializingDatabase":
-      return "Initializing local storage";
     case "ConnectingBlockchain":
       return "Querying ledger";
     case "CreatingNode":
@@ -299,8 +297,8 @@ export function formatWarmupStatus(status: WarmupStatus): string {
       return "Checking funding state";
     case "ValidatingNetworkConfig":
       return "Validating network configuration";
-    case "SubscribingToAnnouncements":
-      return "Subscribing to ledger updates";
+    case "CheckingOnchainAddress":
+      return "Checking onchain address";
     case "RegisteringSafe":
       return "Registering safe identity";
     case "AnnouncingNode":
@@ -313,6 +311,10 @@ export function formatWarmupStatus(status: WarmupStatus): string {
       return "Running";
     case "Terminated":
       return "Terminated";
+    case "Degraded":
+      return "Degraded";
+    case "Failed":
+      return "Failed";
   }
 }
 

@@ -140,20 +140,22 @@
             ]
             ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
               # Linux-specific packages
-              pkgs.gobject-introspection
               pkgs.at-spi2-atk
               pkgs.atkmm
               pkgs.cairo
               pkgs.gdk-pixbuf
               pkgs.glib
+              pkgs.gobject-introspection
               pkgs.gtk3
               pkgs.harfbuzz
+              pkgs.libayatana-appindicator
+              pkgs.libmnl
+              pkgs.libnftnl
               pkgs.librsvg
               pkgs.libsoup_3
               pkgs.pango
-              pkgs.webkitgtk_4_1
-              pkgs.libayatana-appindicator
               pkgs.patchelf
+              pkgs.webkitgtk_4_1
             ]
             ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
               # macOS-specific packages

@@ -60,6 +60,7 @@ export interface AppState {
   syncRecoveryDeadline: number | null;
   isUpdateAvailable: boolean;
   availableVersion: string | null;
+  targetDestination: string | null;
 }
 
 type AppActions = {
@@ -98,6 +99,7 @@ function initialState(): AppState {
     syncRecoveryDeadline: null,
     isUpdateAvailable: false,
     availableVersion: null,
+    targetDestination: null,
   };
 }
 
@@ -271,6 +273,7 @@ export function createAppStore(): AppStoreTuple {
     );
     setState("runMode", reconcile(response.run_mode));
     setState("destinations", reconcile(destinations));
+    setState("targetDestination", response.target_destination);
     setState("connected", response.connected);
     setState("connecting", reconcile(response.connecting));
     setState("disconnecting", reconcile(response.disconnecting));

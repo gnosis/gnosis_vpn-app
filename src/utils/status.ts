@@ -1,9 +1,11 @@
 import {
   type Destination,
+  type DownPhase,
   isDeployingSafeRunMode,
   isPreparingSafeRunMode,
   isWarmupRunMode,
   StatusResponse,
+  type UpPhase,
 } from "@src/services/vpnService.ts";
 import type { AppState } from "@src/stores/appStore.ts";
 
@@ -97,11 +99,13 @@ export function getPreparingSafeNodeAddress(
   return undefined;
 }
 
-export function formatConnectionPhase(phase: string): string {
+export function formatConnectionPhase(phase: UpPhase | DownPhase): string {
   switch (phase) {
     // UpPhase
     case "Init":
       return "Initializing";
+    case "ResolvingBlokliIps":
+      return "Resolving server IPs";
     case "GeneratingWg":
       return "Generating WireGuard public key";
     case "OpeningBridge":
@@ -116,6 +120,8 @@ export function formatConnectionPhase(phase: string): string {
       return "Establishing WireGuard tunnel";
     case "FallbackGatherPeerIps":
       return "Gathering peer IPs";
+    case "KillswitchLockdown":
+      return "Activating kill switch";
     case "FallbackToStaticWgTunnel":
       return "Setting up static routing";
     case "VerifyPing":
@@ -131,7 +137,5 @@ export function formatConnectionPhase(phase: string): string {
       return "Disconnecting WireGuard tunnel";
     case "UnregisterWg":
       return "Unregistering WireGuard public key";
-    default:
-      return phase;
   }
 }
