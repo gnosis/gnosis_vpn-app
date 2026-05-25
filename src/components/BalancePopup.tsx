@@ -9,6 +9,7 @@ import {
 import { Portal } from "solid-js/web";
 import { type BalanceResponse, VPNService } from "@src/services/vpnService.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
+import { useLogsStore } from "@src/stores/logsStore.ts";
 import { getMaxHopCount } from "@src/utils/exitHealth.ts";
 import { fromWeiToFixed } from "@src/utils/wei.ts";
 import {
@@ -47,7 +48,7 @@ export default function BalancePopup(props: Props) {
   const [balance, setBalance] = createSignal<BalanceResponse | null>(null);
   const [fundingStatus, setFundingStatus] = createSignal<GlobalFundingStatus>({
     overall: "Sufficient",
-    safeStatus: "Sufficient",
+    wxhoprStatus: "Sufficient",
     nodeStatus: "Sufficient",
   });
 
@@ -62,10 +63,11 @@ export default function BalancePopup(props: Props) {
   });
   const creditEmpty = createMemo(() => {
     const ec = effectiveCredit();
-    return ec !== null && isCreditEmpty(ec.bytes);
+    return ec !== null && isCreditEmpty(ec);
   });
 
   const [appState] = useAppStore();
+  const [, logActions] = useLogsStore();
   const maxHops = createMemo(() =>
     getMaxHopCount(appState.availableDestinations)
   );
@@ -78,8 +80,10 @@ export default function BalancePopup(props: Props) {
       const result = await VPNService.balance();
       setBalance(result);
       if (result) {
+        logActions.appendBalance(result);
         const status = calculateGlobalFundingStatus(result.issues, {
-          safe: result.safe,
+          wxhopr: (BigInt(result.safe) + BigInt(result.channels_out))
+            .toString(),
           node: result.node,
         });
         setFundingStatus(status);
@@ -136,7 +140,9 @@ export default function BalancePopup(props: Props) {
             <div class="mb-2">
               <div class="flex items-center gap-1 mb-0.5">
                 <StatusDot
-                  status={creditEmpty() ? "Empty" : fundingStatus().safeStatus}
+                  status={creditEmpty()
+                    ? "Empty"
+                    : fundingStatus().wxhoprStatus}
                 />
                 <div class="text-[9px] text-accent-text/70 uppercase tracking-wide">
                   TRAFFIC
@@ -184,8 +190,7 @@ export default function BalancePopup(props: Props) {
                                   {hops === 1 ? "1-hop" : `${hops}-hops`}
                                 </span>
                                 <span class="font-mono">
-                                  {credit.isEstimate ? "≈" : ""}
-                                  {formatCredit(credit.bytes)}
+                                  {formatCredit(credit)}
                                 </span>
                               </div>
                             );
@@ -194,9 +199,8 @@ export default function BalancePopup(props: Props) {
                       }
                     >
                       <div class="text-[10px] text-accent-text/50 font-mono text-right">
-                        {effectiveCredit()?.isEstimate ? "≈" : ""}
                         {effectiveCredit() !== null
-                          ? formatCredit(effectiveCredit()!.bytes)
+                          ? formatCredit(effectiveCredit()!)
                           : "—"}
                       </div>
                     </Show>

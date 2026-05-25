@@ -146,24 +146,22 @@ export function isCreditEmpty(creditBytes: bigint): boolean {
 }
 
 /**
- * Compute effective credit: channel credit when meaningful (≥ 1 MB), safe
- * balance as potential fallback when channels are empty or below display threshold.
- * Returns { bytes, isEstimate } — isEstimate=true means the value is based
- * on the safe (not yet in channels) and should be shown as approximate ("~").
+ * Compute effective credit from the combined wxHOPR pool (safe + channels).
+ * Mirrors the wxHOPR total shown alongside, so the GB figure represents the
+ * full privacy budget — funds already in channels plus funds in the safe that
+ * will be moved to channels over time.
  */
 export function computeEffectiveCredit(
   channelsOut: string,
   safe: string,
   ticketPrice: string,
   hops = 1,
-): { bytes: bigint; isEstimate: boolean } {
-  const channelBytes = computeCreditBytes(channelsOut, ticketPrice, hops);
-  if (channelBytes >= BYTES_PER_MB) {
-    return { bytes: channelBytes, isEstimate: false };
+): bigint {
+  try {
+    const total = (BigInt(channelsOut.trim() || "0") +
+      BigInt(safe.trim() || "0")).toString();
+    return computeCreditBytes(total, ticketPrice, hops);
+  } catch {
+    return 0n;
   }
-  const safeBytes = computeCreditBytes(safe, ticketPrice, hops);
-  if (channelBytes > 0n && safeBytes === 0n) {
-    return { bytes: channelBytes, isEstimate: false };
-  }
-  return { bytes: safeBytes, isEstimate: safeBytes > 0n };
 }

@@ -89,11 +89,14 @@ export default function Usage() {
       const result = await VPNService.balance();
       const currentBalance = balance();
 
+      if (result) logActions.appendBalance(result);
+
       if (!balancesEqual(result, currentBalance)) {
         setBalance(result);
         if (result) {
           const status = calculateGlobalFundingStatus(result.issues, {
-            safe: result.safe,
+            wxhopr: (BigInt(result.safe) + BigInt(result.channels_out))
+              .toString(),
             node: result.node,
           });
           setFundingStatus(status);
@@ -185,7 +188,7 @@ export default function Usage() {
                 ticker="wxHOPR"
                 address={preparingSafe()?.node_address ??
                   balance()?.info.safe_address}
-                status={fundingStatus()?.safeStatus}
+                status={fundingStatus()?.wxhoprStatus}
                 isLoading={isBalanceLoading()}
               />
               <Show
@@ -206,12 +209,11 @@ export default function Usage() {
                     return (
                       <div class="text-xs mt-1 pr-1 text-right">
                         <div
-                          class={isCreditEmpty(credit.bytes)
+                          class={isCreditEmpty(credit)
                             ? "text-vpn-red"
                             : "text-text-secondary"}
                         >
-                          {credit.isEstimate ? "≈" : ""}
-                          {formatCredit(credit.bytes)}
+                          {formatCredit(credit)}
                           <Show when={maxHops() > 1}>
                             <span class="opacity-40">/ {hopLabel}</span>
                           </Show>

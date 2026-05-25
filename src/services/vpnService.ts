@@ -252,10 +252,24 @@ export const StatusResponseSchema = z.object({
 });
 export type StatusResponse = z.infer<typeof StatusResponseSchema>;
 
+export const ChannelBalanceSchema = z.discriminatedUnion("state", [
+  z.object({ state: z.literal("Unknown") }),
+  z.object({ state: z.literal("FundingOngoing") }),
+  z.object({ state: z.literal("Completed"), wei: z.string() }),
+]);
+export type ChannelBalance = z.infer<typeof ChannelBalanceSchema>;
+
+export const ChannelOutSchema = z.object({
+  address: z.string(),
+  balance: ChannelBalanceSchema,
+});
+export type ChannelOut = z.infer<typeof ChannelOutSchema>;
+
 export const BalanceResponseSchema = z.object({
   node: z.string(),
   safe: z.string(),
   channels_out: z.string(),
+  channels: z.array(ChannelOutSchema),
   info: InfoSchema,
   issues: z.array(FundingIssueSchema),
   ticket_stats: TicketStatsSchema,

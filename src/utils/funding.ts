@@ -11,24 +11,31 @@ export type StatusText = "Sufficient" | "Low" | "Empty" | string;
  *                           Affects BOTH Safe & EOA: Safe empty (no wxHOPR) OR EOA empty (can't pay for chain ops)
  *
  * Warning (Degraded):
- *   3. SafeOutOfFunds     - Cannot top up channels (< 10 wxHOPR in Safe)
- *   4. NodeUnderfunded    - Cannot open/top up channels (< 0.0075 xDai)
+ *   3. SafeOutOfFunds     - Cannot top up channels (Safe wxHOPR < 4 × ticket_value)
+ *   4. NodeUnderfunded    - Cannot open/top up channels (node xDai < 0.00075)
  *
  * Low (Preventive):
  *   5. SafeLowOnFunds     - Warning before SafeOutOfFunds
  *   6. NodeLowOnFunds     - Warning before NodeUnderfunded
+ *
+ * Empty vs Low rendering is driven by the user's *total* wxHOPR pool
+ * (safe + channels_out) and the node xDai balance — not by safe alone or
+ * channels alone. The backend issue flags still determine whether something
+ * is wrong; the balance check only decides if "Empty" or "Low" is shown.
  */
 
 export type GlobalFundingStatus = {
   overall: StatusText;
-  safeStatus: StatusText;
+  wxhoprStatus: StatusText;
   nodeStatus: StatusText;
   criticalIssue?: FundingIssue;
   description?: string;
 };
 
 export type BalanceAmounts = {
-  safe?: string;
+  /** Combined wxHOPR pool: `safe + channels_out` in wei (decimal string). */
+  wxhopr?: string;
+  /** Node EOA xDai in wei (decimal string). */
   node?: string;
 };
 
@@ -46,7 +53,7 @@ export function calculateGlobalFundingStatus(
   if (list.length === 0) {
     return {
       overall: "Sufficient",
-      safeStatus: "Sufficient",
+      wxhoprStatus: "Sufficient",
       nodeStatus: "Sufficient",
     };
   }
@@ -61,7 +68,7 @@ export function calculateGlobalFundingStatus(
     }
   };
 
-  const safeIsEmpty = isBalanceEmpty(balances?.safe);
+  const wxhoprIsEmpty = isBalanceEmpty(balances?.wxhopr);
   const nodeIsEmpty = isBalanceEmpty(balances?.node);
 
   const criticalIssues: FundingIssue[] = ["Unfunded", "ChannelsOutOfFunds"];
@@ -75,17 +82,17 @@ export function calculateGlobalFundingStatus(
   const hasUnfunded = list.includes("Unfunded");
   const hasChannelsOutOfFunds = list.includes("ChannelsOutOfFunds");
 
-  const safeHasIssues = hasUnfunded || list.includes("SafeOutOfFunds") ||
+  const wxhoprHasIssues = hasUnfunded || list.includes("SafeOutOfFunds") ||
     hasChannelsOutOfFunds;
-  const safeLow = list.includes("SafeLowOnFunds");
+  const wxhoprLow = list.includes("SafeLowOnFunds");
 
   const nodeHasIssues = hasUnfunded || list.includes("NodeUnderfunded") ||
     hasChannelsOutOfFunds;
   const nodeLow = list.includes("NodeLowOnFunds");
 
-  const safeStatus: StatusText = safeHasIssues
-    ? (safeIsEmpty ? "Empty" : "Low")
-    : safeLow
+  const wxhoprStatus: StatusText = wxhoprHasIssues
+    ? (wxhoprIsEmpty ? "Empty" : "Low")
+    : wxhoprLow
     ? "Low"
     : "Sufficient";
 
@@ -99,7 +106,7 @@ export function calculateGlobalFundingStatus(
   let criticalIssue: FundingIssue | undefined;
   let description: string | undefined;
 
-  const hasAnyBalance = !safeIsEmpty || !nodeIsEmpty;
+  const hasAnyBalance = !wxhoprIsEmpty || !nodeIsEmpty;
 
   if (critical) {
     overall = hasAnyBalance ? "Low" : "Empty";
@@ -119,7 +126,7 @@ export function calculateGlobalFundingStatus(
 
   return {
     overall,
-    safeStatus,
+    wxhoprStatus,
     nodeStatus,
     criticalIssue,
     description,
@@ -131,11 +138,11 @@ function getIssueDescription(issue: FundingIssue): string {
     case "Unfunded":
       return "System not funded - cannot work at all";
     case "ChannelsOutOfFunds":
-      return "Channels out of funds - no traffic possible (Safe or EOA empty)";
+      return "Channels out of funds - no traffic possible";
     case "SafeOutOfFunds":
-      return "Safe out of funds - cannot top up channels";
+      return "Out of funds - cannot top up channels";
     case "SafeLowOnFunds":
-      return "Safe low on funds - top up soon";
+      return "Low on funds - top up soon";
     case "NodeUnderfunded":
       return "Node underfunded - cannot manage channels";
     case "NodeLowOnFunds":

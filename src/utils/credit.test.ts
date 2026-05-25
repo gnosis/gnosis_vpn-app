@@ -6,20 +6,9 @@ import {
   formatCredit,
 } from "./credit.ts";
 
-/** Must match `credit.ts` (`PAYLOAD_BYTES_PER_MESSAGE`, `BYTES_PER_MB`, `WEI_PER_TOKEN`). */
-const PAYLOAD_BYTES_PER_MESSAGE = 650n;
+/** Must match `credit.ts` (`BYTES_PER_MB`). */
 const BYTES_PER_MB = 1_048_576n;
-const WEI_PER_TOKEN = 10n ** 18n;
 const BYTES_PER_TB = BYTES_PER_MB * 1024n * 1024n;
-
-/**
- * Smallest integer message count where
- * `messageCount * PAYLOAD_BYTES_PER_MESSAGE >= BYTES_PER_MB`
- * (same 1 MiB cutoff as `computeEffectiveCredit`).
- * ceil(BYTES_PER_MB / PAYLOAD_BYTES_PER_MESSAGE) → 1614.
- */
-const MIN_MESSAGES_AT_OR_ABOVE_1MIB =
-  (BYTES_PER_MB + PAYLOAD_BYTES_PER_MESSAGE - 1n) / PAYLOAD_BYTES_PER_MESSAGE;
 
 describe("computeCreditBytes", () => {
   it("returns 0 when ticket value is zero", () => {
@@ -42,45 +31,28 @@ describe("computeCreditBytes", () => {
 });
 
 describe("computeEffectiveCredit", () => {
-  it("uses channel bytes when at or above 1 MB", () => {
-    const ticketValueWei = "1000000000000000000"; // 1 * WEI_PER_TOKEN wei per message
-    const channelsOutWei = (MIN_MESSAGES_AT_OR_ABOVE_1MIB * WEI_PER_TOKEN)
-      .toString();
-    const effectiveCredit = computeEffectiveCredit(
-      channelsOutWei,
-      "0",
-      ticketValueWei,
-    );
-    expect(effectiveCredit.isEstimate).toBe(false);
-    expect(effectiveCredit.bytes).toBe(
-      MIN_MESSAGES_AT_OR_ABOVE_1MIB * PAYLOAD_BYTES_PER_MESSAGE,
-    );
-    expect(effectiveCredit.bytes >= BYTES_PER_MB).toBe(true);
+  it("sums channels and safe before computing bytes", () => {
+    const ticketValueWei = "650000000000000000000"; // 650 * 1e18 wei per message
+    const channelsOutWei = "1300000000000000000000"; // 2 messages worth
+    const safeWei = "1950000000000000000000"; // 3 messages worth
+    // total = 5 messages * 650 bytes = 3250
+    expect(
+      computeEffectiveCredit(channelsOutWei, safeWei, ticketValueWei),
+    ).toBe(3250n);
   });
 
-  it("keeps non-zero channel credit below 1 MB when safe is zero", () => {
-    const ticketValueWei = "650000000000000000000";
-    const channelsOutWei = "1300000000000000000000"; // 2 messages → 1300 bytes
-    const effectiveCredit = computeEffectiveCredit(
-      channelsOutWei,
-      "0",
-      ticketValueWei,
-    );
-    expect(effectiveCredit.bytes).toBe(1300n);
-    expect(effectiveCredit.isEstimate).toBe(false);
+  it("returns 0 when both balances are zero", () => {
+    expect(computeEffectiveCredit("0", "0", "1000000000000000000")).toBe(0n);
   });
 
-  it("uses safe as estimate when channel is below threshold and safe has credit", () => {
+  it("uses safe alone when channels are empty", () => {
     const ticketValueWei = "650000000000000000000";
-    const channelsOut = "0";
-    const safe = "1300000000000000000000";
-    const effectiveCredit = computeEffectiveCredit(
-      channelsOut,
-      safe,
-      ticketValueWei,
-    );
-    expect(effectiveCredit.bytes).toBe(1300n);
-    expect(effectiveCredit.isEstimate).toBe(true);
+    const safeWei = "1300000000000000000000"; // 2 messages → 1300 bytes
+    expect(computeEffectiveCredit("0", safeWei, ticketValueWei)).toBe(1300n);
+  });
+
+  it("returns 0 on invalid input", () => {
+    expect(computeEffectiveCredit("not-a-number", "0", "1")).toBe(0n);
   });
 });
 
@@ -152,6 +124,6 @@ describe("hop-aware credit", () => {
       ticketValueWei,
       1,
     );
-    expect(ec1.bytes).toBe(ec1explicit.bytes);
+    expect(ec1).toBe(ec1explicit);
   });
 });

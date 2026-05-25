@@ -64,9 +64,25 @@ pub struct BalanceResponse {
     pub node: String,
     pub safe: String,
     pub channels_out: String,
+    pub channels: Vec<ChannelOut>,
     pub info: Info,
     pub issues: Vec<balance::FundingIssue>,
     pub ticket_stats: TicketStats,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ChannelOut {
+    /// EIP-55 checksummed address of the peer at the other end of the channel.
+    pub address: String,
+    pub balance: ChannelBalance,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(tag = "state", content = "wei")]
+pub enum ChannelBalance {
+    Unknown,
+    FundingOngoing,
+    Completed(String),
 }
 
 // Sanitized library structs
@@ -317,10 +333,25 @@ impl From<command::BalanceResponse> for BalanceResponse {
             .sum::<balance::Balance<balance::WxHOPR>>()
             .amount()
             .to_string();
+        let channels = br
+            .channels_out
+            .iter()
+            .map(|chout| ChannelOut {
+                address: chout.address.to_checksum(),
+                balance: match chout.balance {
+                    command::ChannelBalance::Unknown => ChannelBalance::Unknown,
+                    command::ChannelBalance::FundingOngoing => ChannelBalance::FundingOngoing,
+                    command::ChannelBalance::Completed(b) => {
+                        ChannelBalance::Completed(b.amount().to_string())
+                    }
+                },
+            })
+            .collect();
         BalanceResponse {
             node: br.node.amount().to_string(),
             safe: br.safe.amount().to_string(),
             channels_out,
+            channels,
             info: br.info.into(),
             issues: br.issues,
             ticket_stats: TicketStats {

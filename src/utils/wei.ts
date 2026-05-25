@@ -37,6 +37,16 @@ function formatWeiFixedFloor(
     : intPart.toString();
 }
 
+/**
+ * Format wei as a whole-token decimal string with a fixed number of
+ * fractional digits, truncating (floor) any extra precision — never rounds up.
+ *
+ * Examples (decimals=18):
+ *   fromWeiToFixed(12_345_678_901_234_567_890n)         → "12.34"
+ *   fromWeiToFixed(12_345_000_000_000_000_000n, 18, 18) → "12.345000000000000000"
+ *   fromWeiToFixed(999_999_999_999_999_999n, 18, 2)     → "0.99"
+ *   fromWeiToFixed(1n, 18, 18)                          → "0.000000000000000001"
+ */
 export function fromWeiToFixed(
   value: string | number | bigint,
   decimals = 18,

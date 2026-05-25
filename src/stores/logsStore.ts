@@ -1,5 +1,6 @@
 import { createStore, type Store } from "solid-js/store";
 import {
+  type BalanceResponse,
   formatWarmupStatus,
   isPreparingSafeRunMode,
   isWarmupRunMode,
@@ -7,6 +8,7 @@ import {
 } from "@src/services/vpnService.ts";
 import { destinationLabel } from "@src/utils/destinations.ts";
 import { shortAddress } from "../utils/shortAddress.ts";
+import { fromWeiToFixed } from "@src/utils/wei.ts";
 import { emit, listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
@@ -17,6 +19,7 @@ interface LogsState {
 type LogsActions = {
   append: (message: string) => void;
   appendStatus: (response: StatusResponse) => void;
+  appendBalance: (balance: BalanceResponse) => void;
   clear: () => void;
 };
 
@@ -129,6 +132,41 @@ export function createLogsStore(): LogsStoreTuple {
     appendStatus: (response: StatusResponse) => {
       const maybe = buildStatusLog({ response });
       if (maybe) actions.append(maybe);
+    },
+
+    // Replicate how the balances look at the ctl
+    appendBalance: (balance: BalanceResponse) => {
+      const winProb = balance.ticket_stats.winning_probability.toFixed(4);
+      const lines: string[] = [
+        "Balances:",
+        `Node Balance: ${fromWeiToFixed(balance.node, 18, 18)} xDai`,
+        `Safe Balance: ${fromWeiToFixed(balance.safe, 18, 18)} wxHOPR`,
+        `Ticket Price: ${
+          fromWeiToFixed(balance.ticket_stats.ticket_price, 18, 18)
+        } wxHOPR`,
+        `Winning Probability: ${winProb}`,
+      ];
+      if (balance.channels.length === 0) {
+        lines.push("---", "No outgoing channels.");
+      } else {
+        lines.push("---");
+        for (const ch of balance.channels) {
+          let balanceText: string;
+          switch (ch.balance.state) {
+            case "Unknown":
+              balanceText = "unknown balance";
+              break;
+            case "FundingOngoing":
+              balanceText = "funding ongoing";
+              break;
+            case "Completed":
+              balanceText = `${fromWeiToFixed(ch.balance.wei, 18, 18)} wxHOPR`;
+              break;
+          }
+          lines.push(`Channel to ${ch.address}: ${balanceText}`);
+        }
+      }
+      actions.append(lines.join("\n"));
     },
 
     clear: () => setState("logs", []),
