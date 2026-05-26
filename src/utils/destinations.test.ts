@@ -24,15 +24,14 @@ function makeReadyToConnect(
     destination: { ...BASE_DESTINATION, id },
     route_health: {
       state: {
-        ReadyToConnect: {
-          exit: {
-            checked_at: { secs_since_epoch: 0, nanos_since_epoch: 0 },
-            versions: { versions: [], latest: "" },
-            ping_rtt: { secs: 0, nanos: pingNanos },
-            health: {
-              slots: { available: 5, connected: 2 },
-              load_avg: { one: 0.5, five: 0.5, fifteen: 0.5, nproc: 4 },
-            },
+        state: "ReadyToConnect",
+        exit: {
+          checked_at: 0,
+          versions: { versions: [], latest: "" },
+          ping_rtt: pingNanos / 1_000_000,
+          health: {
+            slots: { available: 5, connected: 2 },
+            load_avg: { one: 0.5, five: 0.5, fifteen: 0.5, nproc: 4 },
           },
         },
       },
@@ -117,7 +116,7 @@ describe("resolveAutoDestination", () => {
         preferred: {
           destination: preferred,
           route_health: {
-            state: { Unrecoverable: { reason: "NotAllowed" } },
+            state: { state: "Unrecoverable", reason: "NotAllowed" },
             last_error: null,
             checking_since: null,
             consecutive_failures: 0,
@@ -250,7 +249,7 @@ describe("sortByHealthScore", () => {
       unreachable: {
         destination: destB,
         route_health: {
-          state: { Unrecoverable: { reason: "NotAllowed" } },
+          state: { state: "Unrecoverable", reason: "NotAllowed" },
           last_error: null,
           checking_since: null,
           consecutive_failures: 0,

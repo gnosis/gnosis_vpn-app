@@ -10,6 +10,7 @@ import {
 const BASE: StatusResponse = {
   run_mode: "NotRunning",
   destinations: [],
+  target_destination: null,
   connected: null,
   connecting: null,
   disconnecting: [],
