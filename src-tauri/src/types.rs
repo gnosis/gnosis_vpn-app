@@ -311,7 +311,7 @@ impl From<command::BalanceResponse> for BalanceResponse {
             .channels_out
             .iter()
             .filter_map(|chout| match chout.balance {
-                command::ChannelBalance::Completed(b) => Some(b),
+                command::ChannelBalance::Completed { amount } => Some(amount),
                 _ => None,
             })
             .sum::<balance::Balance<balance::WxHOPR>>()

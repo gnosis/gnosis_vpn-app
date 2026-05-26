@@ -5,18 +5,6 @@ import { z } from "zod";
 // Zod Schemas & Inferred Types
 // ==========================================
 
-export const SerializedSinceTimeSchema = z.object({
-  secs_since_epoch: z.number(),
-  nanos_since_epoch: z.number(),
-});
-export type SerializedSinceTime = z.infer<typeof SerializedSinceTimeSchema>;
-
-export const SerializedTimeSchema = z.object({
-  nanos: z.number(),
-  secs: z.number(),
-});
-export type SerializedTime = z.infer<typeof SerializedTimeSchema>;
-
 export const UpPhaseSchema = z.enum([
   "Init",
   "ResolvingBlokliIps",
@@ -88,9 +76,9 @@ export const ExitHealthSchema = z.object({
 export type ExitHealth = z.infer<typeof ExitHealthSchema>;
 
 export const ExitHealthDataSchema = z.object({
-  checked_at: SerializedSinceTimeSchema,
+  checked_at: z.number(),
   versions: z.object({ versions: z.array(z.string()), latest: z.string() }),
-  ping_rtt: SerializedTimeSchema,
+  ping_rtt: z.number(),
   health: ExitHealthSchema,
 });
 export type ExitHealthData = z.infer<typeof ExitHealthDataSchema>;
@@ -105,17 +93,19 @@ export const UnrecoverableReasonSchema = z.union([
 ]);
 export type UnrecoverableReason = z.infer<typeof UnrecoverableReasonSchema>;
 
-export const RouteHealthStateSchema = z.union([
-  z.object({ Unrecoverable: z.object({ reason: UnrecoverableReasonSchema }) }),
-  z.object({ NeedsPeering: z.object({ funded: z.boolean() }) }),
-  z.literal("NeedsFunding"),
-  z.literal("Routable"),
-  z.object({ ReadyToConnect: z.object({ exit: ExitHealthDataSchema }) }),
+export const RouteHealthStateSchema = z.discriminatedUnion("state", [
   z.object({
-    Connecting: z.object({
-      exit: ExitHealthDataSchema,
-      tunnel_ping_rtt: SerializedTimeSchema.nullable(),
-    }),
+    state: z.literal("Unrecoverable"),
+    reason: UnrecoverableReasonSchema,
+  }),
+  z.object({ state: z.literal("NeedsPeering"), funded: z.boolean() }),
+  z.object({ state: z.literal("NeedsFunding") }),
+  z.object({ state: z.literal("Routable") }),
+  z.object({ state: z.literal("ReadyToConnect"), exit: ExitHealthDataSchema }),
+  z.object({
+    state: z.literal("Connecting"),
+    exit: ExitHealthDataSchema,
+    tunnel_ping_rtt: z.number().nullable(),
   }),
 ]);
 export type RouteHealthState = z.infer<typeof RouteHealthStateSchema>;
@@ -123,7 +113,7 @@ export type RouteHealthState = z.infer<typeof RouteHealthStateSchema>;
 export const RouteHealthViewSchema = z.object({
   state: RouteHealthStateSchema,
   last_error: z.string().nullable(),
-  checking_since: SerializedSinceTimeSchema.nullable(),
+  checking_since: z.number().nullable(),
   consecutive_failures: z.number(),
 });
 export type RouteHealthView = z.infer<typeof RouteHealthViewSchema>;
