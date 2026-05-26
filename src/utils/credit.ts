@@ -82,21 +82,63 @@ function formatWeiPerGbBelowPointZeroOneToPrecision3(valueWei: bigint): string {
 }
 
 /**
+ * Scale used to convert the `winning_probability` f64 to a bigint that we can
+ * use in exact integer arithmetic. 10^15 stays inside Number.MAX_SAFE_INTEGER
+ * (≈9.007 × 10^15) so `Math.round(p * 1e15)` is loss-free for any p ∈ (0, 1].
+ */
+const WIN_PROB_SCALE = 10n ** 15n;
+
+/**
+ * Effective per-hop cost in wei = `ticket_price / winning_probability`.
+ *
+ * The backend (since the `TicketStats` rename) reports `ticket_price` as the
+ * *expected* per-hop value (= face_value × win_prob), not the face value. The
+ * credit math here treats one message as costing one face-value ticket, so we
+ * undo the `× win_prob` scaling before dividing the channel balance.
+ */
+function effectiveTicketCostWei(
+  ticketPriceWei: bigint,
+  winningProbability: number,
+): bigint {
+  if (
+    !Number.isFinite(winningProbability) ||
+    winningProbability <= 0 ||
+    ticketPriceWei <= 0n
+  ) {
+    return 0n;
+  }
+  if (winningProbability >= 1) return ticketPriceWei;
+  const winProbScaled = BigInt(
+    Math.round(winningProbability * Number(WIN_PROB_SCALE)),
+  );
+  if (winProbScaled === 0n) return 0n;
+  return (ticketPriceWei * WIN_PROB_SCALE) / winProbScaled;
+}
+
+/**
  * Compute remaining credit in bytes from channel balance and ticket price.
  * Both inputs are wei amounts as decimal strings (18 decimals).
+ * `winningProbability` is the f64 from `ticket_stats.winning_probability`;
+ * the cost per message is `ticket_price / winning_probability`.
  * Returns 0n if ticketPrice is zero or inputs are invalid.
  */
 export function computeCreditBytes(
   channelsOut: string,
   ticketPrice: string,
+  winningProbability: number,
   hops = 1,
 ): bigint {
   try {
     const channelsOutWei = BigInt(channelsOut.trim() || "0");
     const ticketPriceWei = BigInt(ticketPrice.trim() || "0");
-    if (ticketPriceWei === 0n || channelsOutWei === 0n) return 0n;
+    if (channelsOutWei === 0n) return 0n;
+    const costPerMessageWei = effectiveTicketCostWei(
+      ticketPriceWei,
+      winningProbability,
+    );
+    if (costPerMessageWei === 0n) return 0n;
     const h = BigInt(Math.max(1, Math.floor(hops)));
-    const maxMessages = channelsOutWei / (ticketPriceWei * h);
+    const maxMessages = channelsOutWei / (costPerMessageWei * h);
     return maxMessages * PAYLOAD_BYTES_PER_MESSAGE;
   } catch {
     return 0n;
@@ -118,17 +160,26 @@ export function formatCredit(creditBytes: bigint): string {
 }
 
 /**
- * Compute the wxHOPR-per-GB rate from ticketPrice (wei string).
+ * Compute the wxHOPR-per-GB rate from ticketPrice (wei string) and winning
+ * probability. The cost per message is `ticket_price / winning_probability`.
  * Exact rate is rational wei; we round to nearest integer wei (half-up) before formatting.
  * Returns a human-readable string like "110.00".
  */
-export function computeHoprPerGb(ticketPrice: string, hops = 1): string {
+export function computeHoprPerGb(
+  ticketPrice: string,
+  winningProbability: number,
+  hops = 1,
+): string {
   try {
     const ticketPriceWei = BigInt(ticketPrice.trim() || "0");
-    if (ticketPriceWei === 0n) return "—";
+    const costPerMessageWei = effectiveTicketCostWei(
+      ticketPriceWei,
+      winningProbability,
+    );
+    if (costPerMessageWei === 0n) return "—";
     const h = BigInt(Math.max(1, hops));
     const perGbWei =
-      (BYTES_PER_GB * ticketPriceWei * h + PAYLOAD_BYTES_PER_MESSAGE / 2n) /
+      (BYTES_PER_GB * costPerMessageWei * h + PAYLOAD_BYTES_PER_MESSAGE / 2n) /
       PAYLOAD_BYTES_PER_MESSAGE;
     const weiThreshold = WEI_PER_TOKEN / 100n;
     if (perGbWei < weiThreshold) {
@@ -155,12 +206,13 @@ export function computeEffectiveCredit(
   channelsOut: string,
   safe: string,
   ticketPrice: string,
+  winningProbability: number,
   hops = 1,
 ): bigint {
   try {
     const total = (BigInt(channelsOut.trim() || "0") +
       BigInt(safe.trim() || "0")).toString();
-    return computeCreditBytes(total, ticketPrice, hops);
+    return computeCreditBytes(total, ticketPrice, winningProbability, hops);
   } catch {
     return 0n;
   }

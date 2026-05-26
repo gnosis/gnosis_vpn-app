@@ -75,6 +75,7 @@ export default function Usage() {
       b.channels_out,
       b.safe,
       b.ticket_stats.ticket_price,
+      b.ticket_stats.winning_probability,
     );
   });
 
@@ -203,6 +204,7 @@ export default function Usage() {
                       b.channels_out,
                       b.safe,
                       b.ticket_stats.ticket_price,
+                      b.ticket_stats.winning_probability,
                       hops,
                     );
                     const hopLabel = hops === 1 ? "1-hop" : `${hops}-hops`;

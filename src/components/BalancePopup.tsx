@@ -59,6 +59,7 @@ export default function BalancePopup(props: Props) {
       b.channels_out,
       b.safe,
       b.ticket_stats.ticket_price,
+      b.ticket_stats.winning_probability,
     );
   });
   const creditEmpty = createMemo(() => {
@@ -182,6 +183,7 @@ export default function BalancePopup(props: Props) {
                               b().channels_out,
                               b().safe,
                               b().ticket_stats.ticket_price,
+                              b().ticket_stats.winning_probability,
                               hops,
                             );
                             return (

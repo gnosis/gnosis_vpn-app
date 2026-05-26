@@ -46,7 +46,7 @@ export default function Manually() {
     if (!isPreparingSafeRunMode(appState.runMode)) return null;
     const ts = appState.runMode.PreparingSafe.ticket_stats;
     if (!ts) return null;
-    return computeHoprPerGb(ts.ticket_price);
+    return computeHoprPerGb(ts.ticket_price, ts.winning_probability);
   });
 
   return (
