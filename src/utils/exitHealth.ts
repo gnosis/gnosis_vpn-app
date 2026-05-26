@@ -18,7 +18,9 @@ export function isExitHealthRunning(rhv: RouteHealthView): boolean {
 /** Derive a simple color from route health state. */
 export function getExitHealthColor(rhv: RouteHealthView): HealthColor {
   const { state } = rhv;
-  if (state.state === "NeedsFunding" || state.state === "Routable") return "yellow";
+  if (state.state === "NeedsFunding" || state.state === "Routable") {
+    return "yellow";
+  }
   if (state.state === "Unrecoverable") return "red";
   if (state.state === "NeedsPeering") return "yellow";
   if (state.state === "ReadyToConnect") {
@@ -131,7 +133,8 @@ export function formatExitHealthStatus(rhv: RouteHealthView): string {
 export function hasHealthContent(rhv: RouteHealthView | null): boolean {
   if (!rhv) return false;
   const s = rhv.state.state;
-  return s !== "NeedsFunding" && s !== "Routable" && s !== "NeedsPeering" && s !== "Unrecoverable";
+  return s !== "NeedsFunding" && s !== "Routable" && s !== "NeedsPeering" &&
+    s !== "Unrecoverable";
 }
 
 /** Whether the route is ready to connect (exit health confirmed). */

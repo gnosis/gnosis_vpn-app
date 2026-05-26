@@ -94,7 +94,10 @@ export const UnrecoverableReasonSchema = z.union([
 export type UnrecoverableReason = z.infer<typeof UnrecoverableReasonSchema>;
 
 export const RouteHealthStateSchema = z.discriminatedUnion("state", [
-  z.object({ state: z.literal("Unrecoverable"), reason: UnrecoverableReasonSchema }),
+  z.object({
+    state: z.literal("Unrecoverable"),
+    reason: UnrecoverableReasonSchema,
+  }),
   z.object({ state: z.literal("NeedsPeering"), funded: z.boolean() }),
   z.object({ state: z.literal("NeedsFunding") }),
   z.object({ state: z.literal("Routable") }),
