@@ -88,9 +88,9 @@ export function formatLoadAvg(rhv: RouteHealthView): string | null {
 /** Extract the checked-at epoch seconds, if available. */
 export function getLastCheckedEpoch(rhv: RouteHealthView): number | null {
   const exit = getExitData(rhv.state);
-  if (exit) return exit.checked_at / 1000;
+  if (exit) return Math.floor(exit.checked_at / 1000);
 
-  return rhv.checking_since !== null ? rhv.checking_since / 1000 : null;
+  return rhv.checking_since !== null ? Math.floor(rhv.checking_since / 1000) : null;
 }
 
 /** Format a seconds-ago diff as a human-readable relative time, e.g. "17 s ago". */
