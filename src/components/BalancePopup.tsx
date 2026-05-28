@@ -2,17 +2,25 @@ import {
   createEffect,
   createMemo,
   createSignal,
+  For,
   onCleanup,
   Show,
 } from "solid-js";
 import { Portal } from "solid-js/web";
 import { type BalanceResponse, VPNService } from "@src/services/vpnService.ts";
+import { useAppStore } from "@src/stores/appStore.ts";
+import { getMaxHopCount } from "@src/utils/exitHealth.ts";
 import { fromWeiToFixed } from "@src/utils/wei.ts";
 import {
   calculateGlobalFundingStatus,
   type GlobalFundingStatus,
   type StatusText,
 } from "@src/utils/funding.ts";
+import {
+  computeEffectiveCredit,
+  formatCredit,
+  isCreditEmpty,
+} from "@src/utils/credit.ts";
 
 const BALANCE_REFRESH_INTERVAL_MS = 60000;
 
@@ -42,6 +50,28 @@ export default function BalancePopup(props: Props) {
     safeStatus: "Sufficient",
     nodeStatus: "Sufficient",
   });
+
+  const effectiveCredit = createMemo(() => {
+    const b = balance();
+    if (!b) return null;
+    return computeEffectiveCredit(
+      b.channels_out,
+      b.safe,
+      b.ticket_stats.ticket_price,
+    );
+  });
+  const creditEmpty = createMemo(() => {
+    const ec = effectiveCredit();
+    return ec !== null && isCreditEmpty(ec.bytes);
+  });
+
+  const [appState] = useAppStore();
+  const maxHops = createMemo(() =>
+    getMaxHopCount(appState.availableDestinations)
+  );
+  const hopRange = createMemo(() =>
+    Array.from({ length: maxHops() }, (_, i) => i + 1)
+  );
 
   const loadBalance = async () => {
     try {
@@ -137,6 +167,39 @@ export default function BalancePopup(props: Props) {
                         wxHOPR
                       </span>
                     </div>
+                    <Show
+                      when={maxHops() === 1}
+                      fallback={
+                        <For each={hopRange()}>
+                          {(hops) => {
+                            const credit = computeEffectiveCredit(
+                              b().channels_out,
+                              b().safe,
+                              b().ticket_stats.ticket_price,
+                              hops,
+                            );
+                            return (
+                              <div class="flex justify-between text-[10px] text-accent-text/50">
+                                <span class="text-accent-text/40">
+                                  {hops === 1 ? "1-hop" : `${hops}-hops`}
+                                </span>
+                                <span class="font-mono">
+                                  {credit.isEstimate ? "≈" : ""}
+                                  {formatCredit(credit.bytes)}
+                                </span>
+                              </div>
+                            );
+                          }}
+                        </For>
+                      }
+                    >
+                      <div class="text-[10px] text-accent-text/50 font-mono text-right">
+                        {effectiveCredit()?.isEstimate ? "≈" : ""}
+                        {effectiveCredit() !== null
+                          ? formatCredit(effectiveCredit()!.bytes)
+                          : "—"}
+                      </div>
+                    </Show>
                   </>
                 )}
               </Show>

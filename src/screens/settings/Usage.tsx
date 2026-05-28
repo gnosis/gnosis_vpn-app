@@ -1,4 +1,4 @@
-import { createMemo, createSignal, Match, Switch } from "solid-js";
+import { createMemo, createSignal, For, Match, Switch } from "solid-js";
 import {
   type BalanceResponse,
   isPreparingSafeRunMode,
@@ -7,6 +7,11 @@ import {
   VPNService,
 } from "../../services/vpnService.ts";
 import { onCleanup, onMount } from "solid-js";
+import {
+  computeEffectiveCredit,
+  formatCredit,
+  isCreditEmpty,
+} from "../../utils/credit.ts";
 import FundsInfo from "../../components/FundsInfo.tsx";
 import { Show } from "solid-js";
 import {
@@ -18,6 +23,7 @@ import { useLogsStore } from "../../stores/logsStore.ts";
 import refreshIcon from "../../assets/icons/refresh.svg";
 import Button from "../../components/common/Button.tsx";
 import { useAppStore } from "../../stores/appStore.ts";
+import { getMaxHopCount } from "../../utils/exitHealth.ts";
 import AddFundsModal from "@src/components/AddFundsModal.tsx";
 
 const BALANCE_REFRESH_INTERVAL_MS = 5_000;
@@ -52,6 +58,23 @@ export default function Usage() {
     () => (isPreparingSafeRunMode(appState.runMode)
       ? appState.runMode.PreparingSafe
       : null);
+
+  const maxHops = createMemo(() =>
+    getMaxHopCount(appState.availableDestinations)
+  );
+  const hopRange = createMemo(() =>
+    Array.from({ length: maxHops() }, (_, i) => i + 1)
+  );
+
+  const effectiveCredit = createMemo(() => {
+    const b = balance();
+    if (!b) return null;
+    return computeEffectiveCredit(
+      b.channels_out,
+      b.safe,
+      b.ticket_stats.ticket_price,
+    );
+  });
 
   const totalWxhoprWei = createMemo(() => {
     const b = balance();
@@ -156,6 +179,39 @@ export default function Usage() {
                 status={fundingStatus()?.safeStatus}
                 isLoading={isBalanceLoading()}
               />
+              <Show
+                when={effectiveCredit() !== null &&
+                  isRunningRunMode(appState.runMode)}
+              >
+                <For each={hopRange()}>
+                  {(hops) => {
+                    const b = balance();
+                    if (!b) return null;
+                    const credit = computeEffectiveCredit(
+                      b.channels_out,
+                      b.safe,
+                      b.ticket_stats.ticket_price,
+                      hops,
+                    );
+                    const hopLabel = hops === 1 ? "1-hop" : `${hops}-hops`;
+                    return (
+                      <div class="text-xs mt-1 pr-1 text-right">
+                        <div
+                          class={isCreditEmpty(credit.bytes)
+                            ? "text-vpn-red"
+                            : "text-text-secondary"}
+                        >
+                          {credit.isEstimate ? "≈" : ""}
+                          {formatCredit(credit.bytes)}
+                          <Show when={maxHops() > 1}>
+                            <span class="opacity-40">/ {hopLabel}</span>
+                          </Show>
+                        </div>
+                      </div>
+                    );
+                  }}
+                </For>
+              </Show>
             </div>
             <FundsInfo
               name="EOA"

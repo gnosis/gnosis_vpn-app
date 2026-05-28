@@ -159,6 +159,12 @@ export const BalanceRecommendationSchema = z.object({
 });
 export type BalanceRecommendation = z.infer<typeof BalanceRecommendationSchema>;
 
+export const TicketStatsSchema = z.object({
+  ticket_price: z.string(),
+  winning_probability: z.number(),
+});
+export type TicketStats = z.infer<typeof TicketStatsSchema>;
+
 export const PreparingSafeSchema = z.object({
   node_address: z.string(),
   node_xdai: z.string(),

@@ -33,26 +33,22 @@ function Navigation() {
   };
 
   const getFundsIcon = () => {
-    const status = isRunningRunMode(appState.runMode)
-      ? appState.runMode.Running.funding
-      : undefined;
-    if (status === "WellFunded") {
-      return fundsFullIcon;
+    if (!isRunningRunMode(appState.runMode)) return fundsEmptyIcon;
+    const issues = appState.runMode.Running.funding_issues;
+    if (!issues || issues.length === 0) return fundsFullIcon;
+    switch (issues[0]) {
+      case "Unfunded":
+      case "ChannelsOutOfFunds":
+        return fundsEmptyIcon;
+      case "SafeLowOnFunds":
+      case "NodeLowOnFunds":
+        return fundsLowIcon;
+      case "NodeUnderfunded":
+      case "SafeOutOfFunds":
+        return fundsOutIcon;
+      default:
+        return fundsEmptyIcon;
     }
-    if (typeof status === "object" && "TopIssue" in status) {
-      switch (status.TopIssue) {
-        case "Unfunded":
-        case "ChannelsOutOfFunds":
-          return fundsEmptyIcon;
-        case "SafeLowOnFunds":
-        case "NodeLowOnFunds":
-          return fundsLowIcon;
-        case "NodeUnderfunded":
-        case "SafeOutOfFunds":
-          return fundsOutIcon;
-      }
-    }
-    return fundsEmptyIcon;
   };
 
   const handleMouseEnter = () => {
