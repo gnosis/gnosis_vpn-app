@@ -153,18 +153,11 @@ export const FundingIssueSchema = z.enum([
 ]);
 export type FundingIssue = z.infer<typeof FundingIssueSchema>;
 
-export const FundingStateSchema = z.union([
-  z.literal("Querying"),
-  z.object({ TopIssue: FundingIssueSchema }),
-  z.literal("WellFunded"),
-]);
-export type FundingState = z.infer<typeof FundingStateSchema>;
-
-export const TicketStatsSchema = z.object({
-  ticket_price: z.string(),
-  winning_probability: z.number(),
+export const BalanceRecommendationSchema = z.object({
+  wxhopr: z.string(),
+  xdai: z.string(),
 });
-export type TicketStats = z.infer<typeof TicketStatsSchema>;
+export type BalanceRecommendation = z.infer<typeof BalanceRecommendationSchema>;
 
 export const PreparingSafeSchema = z.object({
   node_address: z.string(),
@@ -172,7 +165,7 @@ export const PreparingSafeSchema = z.object({
   node_wxhopr: z.string(),
   funding_tool: z.string().nullable(),
   error: z.string().nullable(),
-  ticket_stats: TicketStatsSchema.nullable(),
+  balance_recommendation: BalanceRecommendationSchema.nullable(),
 });
 export type PreparingSafe = z.infer<typeof PreparingSafeSchema>;
 
@@ -207,11 +200,12 @@ export type WarmupStatus = z.infer<typeof WarmupStatusSchema>;
 
 export const WarmupSchema = z.object({
   status: WarmupStatusSchema,
+  last_error: z.string().nullable(),
 });
 export type Warmup = z.infer<typeof WarmupSchema>;
 
 export const RunningSchema = z.object({
-  funding: FundingStateSchema,
+  funding_issues: z.array(FundingIssueSchema).nullable(),
   hopr_status: WarmupStatusSchema.nullable(),
 });
 export type Running = z.infer<typeof RunningSchema>;
@@ -247,8 +241,9 @@ export const BalanceResponseSchema = z.object({
   safe: z.string(),
   channels_out: z.string(),
   info: InfoSchema,
-  issues: z.array(FundingIssueSchema),
-  ticket_stats: TicketStatsSchema,
+  funding_issues: z.array(FundingIssueSchema).nullable(),
+  ideal_balance: BalanceRecommendationSchema.nullable(),
+  capacity_allocations: z.array(z.unknown()).nullable(),
 });
 export type BalanceResponse = z.infer<typeof BalanceResponseSchema>;
 
@@ -429,15 +424,6 @@ export class VPNService {
         console.error("Balance error:", error);
       }
       throw new Error(`Balance error: ${error}`);
-    }
-  }
-
-  static async refreshNode(): Promise<void> {
-    try {
-      await invoke("refresh_node");
-    } catch (error) {
-      console.error("Failed to request VPN node balance update", error);
-      throw new Error(`Refresh Node Error: ${error}`);
     }
   }
 

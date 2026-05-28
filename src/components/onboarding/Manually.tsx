@@ -16,7 +16,7 @@ import {
   isXDAITransferred,
 } from "@src/utils/status.ts";
 import { isPreparingSafeRunMode } from "../../services/vpnService.ts";
-import { computeHoprPerGb } from "../../utils/credit.ts";
+import { fromWeiToFixed } from "../../utils/wei.ts";
 import FundingAddress from "../address/FundingAddress.tsx";
 import StatusIndicator from "../status/StatusIndicator.tsx";
 
@@ -42,11 +42,21 @@ export default function Manually() {
     return getPreparingSafeNodeAddress(appState);
   });
 
-  const ratePerGb = createMemo(() => {
+  const balanceRec = createMemo(() => {
     if (!isPreparingSafeRunMode(appState.runMode)) return null;
-    const ts = appState.runMode.PreparingSafe.ticket_stats;
-    if (!ts) return null;
-    return computeHoprPerGb(ts.ticket_price);
+    return appState.runMode.PreparingSafe.balance_recommendation;
+  });
+
+  const recommendedWxHOPR = createMemo(() => {
+    const rec = balanceRec();
+    if (!rec) return null;
+    return `${fromWeiToFixed(rec.wxhopr, 18, 2)} wxHOPR`;
+  });
+
+  const recommendedXDAI = createMemo(() => {
+    const rec = balanceRec();
+    if (!rec) return null;
+    return `${fromWeiToFixed(rec.xdai, 18, 4)} xDAI`;
   });
 
   return (
@@ -71,16 +81,15 @@ export default function Manually() {
           <div class="flex flex-col">
             <div class="font-bold">Transfer wxHOPR (Gnosis Chain)</div>
             <Show
-              when={ratePerGb() !== null && ratePerGb() !== "—"}
+              when={recommendedWxHOPR() !== null}
               fallback={
                 <div class="text-sm text-text-secondary">
-                  The amount you fund determines your privacy budget (GB of
-                  traffic).
+                  The amount you fund determines your privacy budget.
                 </div>
               }
             >
               <div class="text-sm text-text-secondary">
-                1 GB ≈ {ratePerGb()} wxHOPR
+                Recommended minimum: {recommendedWxHOPR()}
               </div>
             </Show>
           </div>
@@ -96,11 +105,18 @@ export default function Manually() {
           />
           <div class="flex flex-col">
             <div class="font-bold">Transfer xDAI (Gnosis Chain)</div>
-            <div class="text-sm text-text-secondary">
-              1 xDAI is enough for one year
-              <br />
-              switching exit nodes.
-            </div>
+            <Show
+              when={recommendedXDAI() !== null}
+              fallback={
+                <div class="text-sm text-text-secondary">
+                  Needed for on-chain operations (channel management).
+                </div>
+              }
+            >
+              <div class="text-sm text-text-secondary">
+                Recommended minimum: {recommendedXDAI()}
+              </div>
+            </Show>
           </div>
         </div>
       </div>

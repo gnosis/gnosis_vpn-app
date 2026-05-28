@@ -1,4 +1,4 @@
-import { createMemo, createSignal, For, Match, Switch } from "solid-js";
+import { createMemo, createSignal, Match, Switch } from "solid-js";
 import {
   type BalanceResponse,
   isPreparingSafeRunMode,
@@ -7,11 +7,6 @@ import {
   VPNService,
 } from "../../services/vpnService.ts";
 import { onCleanup, onMount } from "solid-js";
-import {
-  computeEffectiveCredit,
-  formatCredit,
-  isCreditEmpty,
-} from "../../utils/credit.ts";
 import FundsInfo from "../../components/FundsInfo.tsx";
 import { Show } from "solid-js";
 import {
@@ -23,7 +18,6 @@ import { useLogsStore } from "../../stores/logsStore.ts";
 import refreshIcon from "../../assets/icons/refresh.svg";
 import Button from "../../components/common/Button.tsx";
 import { useAppStore } from "../../stores/appStore.ts";
-import { getMaxHopCount } from "../../utils/exitHealth.ts";
 import AddFundsModal from "@src/components/AddFundsModal.tsx";
 
 const BALANCE_REFRESH_INTERVAL_MS = 5_000;
@@ -38,11 +32,9 @@ function balancesEqual(
     a.node === b.node &&
     a.safe === b.safe &&
     a.channels_out === b.channels_out &&
-    a.ticket_stats.ticket_price === b.ticket_stats.ticket_price &&
-    a.ticket_stats.winning_probability === b.ticket_stats.winning_probability &&
     a.info.node_address === b.info.node_address &&
     a.info.safe_address === b.info.safe_address &&
-    JSON.stringify(a.issues) === JSON.stringify(b.issues)
+    JSON.stringify(a.funding_issues) === JSON.stringify(b.funding_issues)
   );
 }
 
@@ -56,27 +48,10 @@ export default function Usage() {
   const [, logActions] = useLogsStore();
   const [appState] = useAppStore();
 
-  const maxHops = createMemo(() =>
-    getMaxHopCount(appState.availableDestinations)
-  );
-  const hopRange = createMemo(() =>
-    Array.from({ length: maxHops() }, (_, i) => i + 1)
-  );
-
   const preparingSafe =
     () => (isPreparingSafeRunMode(appState.runMode)
       ? appState.runMode.PreparingSafe
       : null);
-
-  const effectiveCredit = createMemo(() => {
-    const b = balance();
-    if (!b) return null;
-    return computeEffectiveCredit(
-      b.channels_out,
-      b.safe,
-      b.ticket_stats.ticket_price,
-    );
-  });
 
   const totalWxhoprWei = createMemo(() => {
     const b = balance();
@@ -92,10 +67,10 @@ export default function Usage() {
       if (!balancesEqual(result, currentBalance)) {
         setBalance(result);
         if (result) {
-          const status = calculateGlobalFundingStatus(result.issues, {
-            safe: result.safe,
-            node: result.node,
-          });
+          const status = calculateGlobalFundingStatus(
+            result.funding_issues ?? [],
+            { safe: result.safe, node: result.node },
+          );
           setFundingStatus(status);
         } else {
           setFundingStatus(null);
@@ -110,15 +85,8 @@ export default function Usage() {
   }
 
   async function handleRefresh() {
-    try {
-      await VPNService.refreshNode();
-      setIsBalanceLoading(true);
-      await loadBalance();
-    } catch (error) {
-      logActions.append(`Error refreshing node: ${String(error)}`);
-    } finally {
-      setIsBalanceLoading(false);
-    }
+    setIsBalanceLoading(true);
+    await loadBalance();
   }
 
   let intervalId: ReturnType<typeof setInterval> | undefined;
@@ -188,39 +156,6 @@ export default function Usage() {
                 status={fundingStatus()?.safeStatus}
                 isLoading={isBalanceLoading()}
               />
-              <Show
-                when={effectiveCredit() !== null &&
-                  isRunningRunMode(appState.runMode)}
-              >
-                <For each={hopRange()}>
-                  {(hops) => {
-                    const b = balance();
-                    if (!b) return null;
-                    const credit = computeEffectiveCredit(
-                      b.channels_out,
-                      b.safe,
-                      b.ticket_stats.ticket_price,
-                      hops,
-                    );
-                    const hopLabel = hops === 1 ? "1-hop" : `${hops}-hops`;
-                    return (
-                      <div class="text-xs mt-1 pr-1 text-right">
-                        <div
-                          class={isCreditEmpty(credit.bytes)
-                            ? "text-vpn-red"
-                            : "text-text-secondary"}
-                        >
-                          {credit.isEstimate ? "≈" : ""}
-                          {formatCredit(credit.bytes)}
-                          <Show when={maxHops() > 1}>
-                            <span class="opacity-40">/ {hopLabel}</span>
-                          </Show>
-                        </div>
-                      </div>
-                    );
-                  }}
-                </For>
-              </Show>
             </div>
             <FundsInfo
               name="EOA"
