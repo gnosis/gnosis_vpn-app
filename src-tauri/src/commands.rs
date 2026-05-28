@@ -139,7 +139,7 @@ pub async fn balance() -> Result<Option<BalanceResponse>, String> {
         .await
         .map_err(|e| e.to_string())?;
     match resp {
-        command::Response::Balance(resp) => Ok(resp.map(|b| b.into())),
+        command::Response::Balance(resp) => Ok(resp.ok().map(|b| b.into())),
         unexpected => {
             eprintln!("Unexpected balance response: {:?}", unexpected);
             Err("Unexpected response type".to_string())
@@ -147,18 +147,6 @@ pub async fn balance() -> Result<Option<BalanceResponse>, String> {
     }
 }
 
-#[tauri::command]
-pub async fn refresh_node() -> Result<(), String> {
-    let p = PathBuf::from(root_socket::DEFAULT_PATH);
-    let cmd = command::Command::RefreshNode;
-    let resp = root_socket::process_cmd(&p, &cmd)
-        .await
-        .map_err(|e| e.to_string())?;
-    match resp {
-        command::Response::RefreshNodeTriggered => Ok(()),
-        _ => Err("Unexpected response type".to_string()),
-    }
-}
 
 #[cfg(target_os = "macos")]
 #[allow(unexpected_cfgs)]

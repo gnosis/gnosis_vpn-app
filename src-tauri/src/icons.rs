@@ -9,7 +9,7 @@ use tokio::time::sleep;
 
 use crate::commands::set_app_icon;
 use crate::types::{ConnectionState, RunMode};
-use gnosis_vpn_lib::{balance, command};
+use gnosis_vpn_lib::balance;
 
 // App icon constants
 pub const APP_ICON_CONNECTED: &str = "app-icon-connected.png";
@@ -64,24 +64,13 @@ pub fn update_icon_name_if_changed(current: &Mutex<String>, next: &str) -> bool 
 
 pub fn determine_app_icon(connection_state: &ConnectionState, run_mode: &RunMode) -> String {
     // Check for low funds in Running mode
-    let has_low_funds = if let RunMode::Running {
-        funding: command::FundingState::TopIssue(issue),
-        hopr_status: _,
-    } = run_mode
-    {
-        use balance::FundingIssue;
-        matches!(
-            issue,
-            FundingIssue::Unfunded
-                | FundingIssue::ChannelsOutOfFunds
-                | FundingIssue::SafeOutOfFunds
-                | FundingIssue::SafeLowOnFunds
-                | FundingIssue::NodeUnderfunded
-                | FundingIssue::NodeLowOnFunds
-        )
-    } else {
-        false
-    };
+    let has_low_funds = matches!(
+        run_mode,
+        RunMode::Running {
+            funding_issues: Some(issues),
+            ..
+        } if !issues.is_empty()
+    );
 
     // Determine icon based on connection state and funding status
     match (connection_state, has_low_funds) {

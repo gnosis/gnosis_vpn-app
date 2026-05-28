@@ -21,7 +21,7 @@ pub mod tray;
 pub mod types;
 
 use commands::{
-    balance, check_update, compress_logs, connect, disconnect, info, refresh_node, set_app_icon,
+    balance, check_update, compress_logs, connect, disconnect, info, set_app_icon,
     start_client, start_status_polling, stop_client,
 };
 #[cfg(target_os = "macos")]
@@ -376,7 +376,6 @@ pub fn run() {
             connect,
             disconnect,
             balance,
-            refresh_node,
             compress_logs,
             set_app_icon,
             get_initial_theme,
