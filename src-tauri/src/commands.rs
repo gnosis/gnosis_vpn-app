@@ -136,16 +136,16 @@ async fn query_balance() -> (Duration, Result<Option<BalanceResponse>, String>) 
     let p = PathBuf::from(root_socket::DEFAULT_PATH);
     let resp = root_socket::process_cmd(&p, &command::Command::Balance).await;
     match resp {
-        Ok(command::Response::Balance(balance_resp)) => (
-            Duration::from_secs(30),
-            Ok(balance_resp.ok().map(|b| b.into())),
-        ),
+        Ok(command::Response::Balance(Ok(balance_resp))) => {
+            (Duration::from_secs(60), Ok(Some(balance_resp.into())))
+        }
+        Ok(command::Response::Balance(Err(_))) => (Duration::from_secs(5), Ok(None)),
         Ok(command::Response::WorkerOffline) => (Duration::from_secs(5), Ok(None)),
         Ok(unexpected) => (
-            Duration::from_secs(30),
+            Duration::from_secs(5),
             Err(format!("Unexpected balance response: {:?}", unexpected)),
         ),
-        Err(e) => (Duration::from_secs(30), Err(e.to_string())),
+        Err(e) => (Duration::from_secs(5), Err(e.to_string())),
     }
 }
 
@@ -319,15 +319,23 @@ pub async fn stop_client() -> Result<(), String> {
 
 #[derive(Serialize)]
 pub struct CachedState {
-    pub status: Option<Result<Option<StatusResponse>, String>>,
-    pub balance: Option<Result<Option<BalanceResponse>, String>>,
+    pub status: Result<StatusResponse, String>,
+    pub balance: Result<BalanceResponse, String>,
+}
+
+fn flatten_cached<T>(v: Option<Result<Option<T>, String>>) -> Result<T, String> {
+    match v {
+        None | Some(Ok(None)) => Err("not available".to_string()),
+        Some(Ok(Some(inner))) => Ok(inner),
+        Some(Err(e)) => Err(e),
+    }
 }
 
 #[tauri::command]
 pub fn get_cached_state(cache: State<'_, AppStateCache>) -> CachedState {
     CachedState {
-        status: cache.status.borrow().clone(),
-        balance: cache.balance.borrow().clone(),
+        status: flatten_cached(cache.status.borrow().clone()),
+        balance: flatten_cached(cache.balance.borrow().clone()),
     }
 }
 
