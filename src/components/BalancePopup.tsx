@@ -79,7 +79,7 @@ export default function BalancePopup(props: Props) {
 
   return (
     <Show
-      when={props.show && balance() && props.buttonRect && props.containerRect}
+      when={props.show && props.buttonRect && props.containerRect}
     >
       <Portal>
         <div
