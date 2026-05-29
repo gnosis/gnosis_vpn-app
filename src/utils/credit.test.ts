@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { computeEffectiveCredit, formatCredit } from "./credit.ts";
+import {
+  computeEffectiveCredit,
+  formatCredit,
+  sumCapacityStake,
+} from "./credit.ts";
 import type { CapacityEntry } from "@src/services/vpnService.ts";
 
 const BYTES_PER_MB = 1_048_576n;
@@ -7,11 +11,12 @@ const BYTES_PER_TB = BYTES_PER_MB * 1024n * 1024n;
 
 function makeEntry(
   byte_capacity: number,
-  allocator: "Safe" | { Peer: string } = "Safe",
+  stake = "0",
+  allocator: CapacityEntry["allocator"] = { type: "safe" },
 ): CapacityEntry {
   return {
     allocator,
-    capacity: { stake: "0", expected_messages: 0, byte_capacity },
+    capacity: { stake, expected_messages: 0, byte_capacity },
   };
 }
 
@@ -25,18 +30,34 @@ describe("computeEffectiveCredit", () => {
   });
 
   it("sums bytes from a single peer allocation", () => {
-    expect(computeEffectiveCredit([makeEntry(500_000, { Peer: "0xabc" })])).toBe(
-      500_000n,
-    );
+    expect(
+      computeEffectiveCredit([
+        makeEntry(500_000, "0", { type: "peer", address: "0xabc" }),
+      ]),
+    ).toBe(500_000n);
   });
 
   it("sums bytes across mixed safe and peer allocations", () => {
     const entries = [
       makeEntry(1_000_000),
-      makeEntry(500_000, { Peer: "0xabc" }),
+      makeEntry(500_000, "0", { type: "peer", address: "0xabc" }),
       makeEntry(250_000),
     ];
     expect(computeEffectiveCredit(entries)).toBe(1_750_000n);
+  });
+});
+
+describe("sumCapacityStake", () => {
+  it("returns 0 for empty allocations", () => {
+    expect(sumCapacityStake([])).toBe(0n);
+  });
+
+  it("sums stake across safe and peer allocations", () => {
+    const entries = [
+      makeEntry(0, "1000000000000000000"),
+      makeEntry(0, "500000000000000000", { type: "peer", address: "0xabc" }),
+    ];
+    expect(sumCapacityStake(entries)).toBe(1_500_000_000_000_000_000n);
   });
 });
 
@@ -52,4 +73,3 @@ describe("formatCredit", () => {
     expect(formattedCredit).not.toContain("Infinity");
   });
 });
-

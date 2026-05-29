@@ -158,9 +158,9 @@ export const BalanceRecommendationSchema = z.object({
 });
 export type BalanceRecommendation = z.infer<typeof BalanceRecommendationSchema>;
 
-export const CapacityAllocatorSchema = z.union([
-  z.literal("Safe"),
-  z.object({ Peer: z.string() }),
+export const CapacityAllocatorSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("safe") }),
+  z.object({ type: z.literal("peer"), address: z.string() }),
 ]);
 export type CapacityAllocator = z.infer<typeof CapacityAllocatorSchema>;
 
