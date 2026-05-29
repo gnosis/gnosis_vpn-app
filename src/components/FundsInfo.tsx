@@ -1,5 +1,14 @@
-import { type JSX, Show } from "solid-js";
-import Tooltip from "./common/Tooltip.tsx";
+import {
+  createEffect,
+  createSignal,
+  type JSX,
+  onCleanup,
+  Show,
+} from "solid-js";
+import { Portal } from "solid-js/web";
+
+const MARGIN = 8;
+const ARROW_INSET = 8;
 
 type Props = {
   amount: string;
@@ -17,25 +26,114 @@ export default function FundsInfo(props: Props) {
       ? "text-red-600"
       : "text-amber-600";
 
+  const [visible, setVisible] = createSignal(false);
+  const [triggerX, setTriggerX] = createSignal(0);
+  const [anchorBottom, setAnchorBottom] = createSignal(0);
+  const [left, setLeft] = createSignal(-9999);
+  const [arrowOffset, setArrowOffset] = createSignal(0);
+  const [remeasure, setRemeasure] = createSignal(0);
+
+  let unitRef!: HTMLSpanElement;
+  let bubbleRef!: HTMLDivElement;
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  onCleanup(() => clearTimeout(timeout));
+
+  const updateAnchor = () => {
+    const rect = unitRef.getBoundingClientRect();
+    setTriggerX(rect.left + rect.width / 2);
+    setAnchorBottom(globalThis.innerHeight - rect.top + MARGIN);
+    setRemeasure((n) => n + 1);
+  };
+
+  createEffect(() => {
+    if (!visible() || !bubbleRef) return;
+    remeasure();
+    const half = bubbleRef.offsetWidth / 2;
+    const cx = triggerX();
+    const clamped = Math.max(
+      half + MARGIN,
+      Math.min(cx, globalThis.innerWidth - half - MARGIN),
+    );
+    setLeft(clamped);
+    const rawOffset = cx - clamped;
+    setArrowOffset(
+      Math.max(-(half - ARROW_INSET), Math.min(rawOffset, half - ARROW_INSET)),
+    );
+  });
+
+  createEffect(() => {
+    if (!visible()) return;
+    globalThis.addEventListener("resize", updateAnchor);
+    globalThis.addEventListener("scroll", updateAnchor, true);
+    onCleanup(() => {
+      globalThis.removeEventListener("resize", updateAnchor);
+      globalThis.removeEventListener("scroll", updateAnchor, true);
+    });
+  });
+
+  const show = () => {
+    clearTimeout(timeout);
+    updateAnchor();
+    timeout = setTimeout(() => setVisible(true), 120);
+  };
+
+  const hide = () => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => setVisible(false), 100);
+  };
+
+  const cellClass = (base: string) =>
+    props.tooltip ? `${base} cursor-help` : base;
+
   return (
     <>
-      <Show
-        when={props.tooltip}
-        fallback={
-          <span class="font-semibold font-mono text-right">{props.amount}</span>
-        }
+      <span
+        class={cellClass("font-semibold font-mono text-right")}
+        onMouseEnter={props.tooltip ? show : undefined}
+        onMouseLeave={props.tooltip ? hide : undefined}
       >
-        <Tooltip content={props.tooltip} position="top">
-          <span class="font-semibold font-mono text-right cursor-help">
-            {props.amount}
-          </span>
-        </Tooltip>
-      </Show>
-      <span class="font-semibold">{props.unit}</span>
+        {props.amount}
+      </span>
+      <span
+        ref={unitRef}
+        class={cellClass("font-semibold")}
+        onMouseEnter={props.tooltip ? show : undefined}
+        onMouseLeave={props.tooltip ? hide : undefined}
+      >
+        {props.unit}
+      </span>
       <Show when={props.status}>
-        <span class={`font-bold text-xs text-right ${statusColor()}`}>
+        <span
+          class={cellClass(`font-bold text-xs text-right ${statusColor()}`)}
+          onMouseEnter={props.tooltip ? show : undefined}
+          onMouseLeave={props.tooltip ? hide : undefined}
+        >
           {props.status}
         </span>
+      </Show>
+      <Show when={visible() && props.tooltip}>
+        <Portal mount={document.body}>
+          <div
+            ref={bubbleRef}
+            class="tooltip-bubble fixed z-200 max-w-52 rounded-lg bg-neutral-800 px-3 py-2 shadow-lg text-xs leading-relaxed text-gray-100"
+            style={{
+              bottom: `${anchorBottom()}px`,
+              left: `${left()}px`,
+              transform: "translateX(-50%)",
+            }}
+            onMouseEnter={show}
+            onMouseLeave={hide}
+          >
+            {props.tooltip}
+            <span
+              class="absolute size-2 bg-neutral-800 top-full -mt-1"
+              style={{
+                left: `calc(50% + ${arrowOffset()}px)`,
+                transform: "translateX(-50%) rotate(45deg)",
+              }}
+            />
+          </div>
+        </Portal>
       </Show>
     </>
   );
