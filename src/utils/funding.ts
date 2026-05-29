@@ -19,111 +19,30 @@ export type StatusText = "Sufficient" | "Low" | "Empty" | string;
  *   6. NodeLowOnFunds     - Warning before NodeUnderfunded
  */
 
-export type GlobalFundingStatus = {
-  overall: StatusText;
-  safeStatus: StatusText;
-  nodeStatus: StatusText;
-  criticalIssue?: FundingIssue;
-  description?: string;
-};
+export function deriveSafeStatus(issues: FundingIssue[]): StatusText {
+  if (
+    issues.includes("Unfunded") ||
+    issues.includes("ChannelsOutOfFunds") ||
+    issues.includes("SafeOutOfFunds")
+  ) return "Empty";
+  if (issues.includes("SafeLowOnFunds")) return "Low";
+  return "Sufficient";
+}
 
-export type BalanceAmounts = {
-  safe?: string;
-  node?: string;
-};
+export function deriveNodeStatus(issues: FundingIssue[]): StatusText {
+  if (
+    issues.includes("Unfunded") ||
+    issues.includes("ChannelsOutOfFunds") ||
+    issues.includes("NodeUnderfunded")
+  ) return "Empty";
+  if (issues.includes("NodeLowOnFunds")) return "Low";
+  return "Sufficient";
+}
 
-/**
- * @param issues
- * @param balances
- */
-export function calculateGlobalFundingStatus(
-  issues: FundingIssue[] | undefined,
-  balances?: BalanceAmounts,
-): GlobalFundingStatus {
-  const list = issues ?? [];
-
-  // No issues = well funded
-  if (list.length === 0) {
-    return {
-      overall: "Sufficient",
-      safeStatus: "Sufficient",
-      nodeStatus: "Sufficient",
-    };
-  }
-
-  const isBalanceEmpty = (balance?: string): boolean => {
-    if (!balance) return true;
-    try {
-      const threshold = 1000000000000000n; // 0.001 threshold
-      return BigInt(balance) < threshold;
-    } catch {
-      return true;
-    }
-  };
-
-  const safeIsEmpty = isBalanceEmpty(balances?.safe);
-  const nodeIsEmpty = isBalanceEmpty(balances?.node);
-
-  const criticalIssues: FundingIssue[] = ["Unfunded", "ChannelsOutOfFunds"];
-  const warningIssues: FundingIssue[] = ["SafeOutOfFunds", "NodeUnderfunded"];
-  const lowIssues: FundingIssue[] = ["SafeLowOnFunds", "NodeLowOnFunds"];
-
-  const critical = list.find((issue) => criticalIssues.includes(issue));
-  const warning = list.find((issue) => warningIssues.includes(issue));
-  const low = list.find((issue) => lowIssues.includes(issue));
-
-  const hasUnfunded = list.includes("Unfunded");
-  const hasChannelsOutOfFunds = list.includes("ChannelsOutOfFunds");
-
-  const safeHasIssues = hasUnfunded || list.includes("SafeOutOfFunds") ||
-    hasChannelsOutOfFunds;
-  const safeLow = list.includes("SafeLowOnFunds");
-
-  const nodeHasIssues = hasUnfunded || list.includes("NodeUnderfunded") ||
-    hasChannelsOutOfFunds;
-  const nodeLow = list.includes("NodeLowOnFunds");
-
-  const safeStatus: StatusText = safeHasIssues
-    ? (safeIsEmpty ? "Empty" : "Low")
-    : safeLow
-    ? "Low"
-    : "Sufficient";
-
-  const nodeStatus: StatusText = nodeHasIssues
-    ? (nodeIsEmpty ? "Empty" : "Low")
-    : nodeLow
-    ? "Low"
-    : "Sufficient";
-
-  let overall: StatusText;
-  let criticalIssue: FundingIssue | undefined;
-  let description: string | undefined;
-
-  const hasAnyBalance = !safeIsEmpty || !nodeIsEmpty;
-
-  if (critical) {
-    overall = hasAnyBalance ? "Low" : "Empty";
-    criticalIssue = critical;
-    description = getIssueDescription(critical);
-  } else if (warning) {
-    overall = hasAnyBalance ? "Low" : "Empty";
-    criticalIssue = warning;
-    description = getIssueDescription(warning);
-  } else if (low) {
-    overall = "Low";
-    criticalIssue = low;
-    description = getIssueDescription(low);
-  } else {
-    overall = "Sufficient";
-  }
-
-  return {
-    overall,
-    safeStatus,
-    nodeStatus,
-    criticalIssue,
-    description,
-  };
+// Backend orders issues by priority, so issues[0] is always the most critical.
+export function describeCriticalIssue(issues: FundingIssue[]): string | null {
+  if (issues.length === 0) return null;
+  return getIssueDescription(issues[0]);
 }
 
 function getIssueDescription(issue: FundingIssue): string {

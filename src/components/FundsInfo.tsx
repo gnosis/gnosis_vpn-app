@@ -1,52 +1,140 @@
-import { Show } from "solid-js";
-import { fromWeiToFixed } from "../utils/wei.ts";
+import {
+  createEffect,
+  createSignal,
+  type JSX,
+  onCleanup,
+  Show,
+} from "solid-js";
+import { Portal } from "solid-js/web";
+
+const MARGIN = 8;
+const ARROW_INSET = 8;
 
 type Props = {
-  name?: string;
-  subtitle?: string;
-  balance?: string;
-  ticker?: string;
-  address?: string;
+  amount: string;
+  unit: string;
   status?: "Sufficient" | "Low" | "Empty" | string | null;
-  isLoading?: boolean;
+  tooltip?: JSX.Element;
 };
 
+// Returns 3 bare grid cells — must be placed inside a grid-cols-3 parent.
 export default function FundsInfo(props: Props) {
+  const statusColor = () =>
+    props.status === "Sufficient"
+      ? "text-emerald-600"
+      : props.status === "Empty"
+      ? "text-red-600"
+      : "text-amber-600";
+
+  const [visible, setVisible] = createSignal(false);
+  const [triggerX, setTriggerX] = createSignal(0);
+  const [anchorBottom, setAnchorBottom] = createSignal(0);
+  const [left, setLeft] = createSignal(-9999);
+  const [arrowOffset, setArrowOffset] = createSignal(0);
+  const [remeasure, setRemeasure] = createSignal(0);
+
+  let unitRef!: HTMLSpanElement;
+  let bubbleRef!: HTMLDivElement;
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  onCleanup(() => clearTimeout(timeout));
+
+  const updateAnchor = () => {
+    const rect = unitRef.getBoundingClientRect();
+    setTriggerX(rect.left + rect.width / 2);
+    setAnchorBottom(globalThis.innerHeight - rect.top + MARGIN);
+    setRemeasure((n) => n + 1);
+  };
+
+  createEffect(() => {
+    if (!visible() || !bubbleRef) return;
+    remeasure();
+    const half = bubbleRef.offsetWidth / 2;
+    const cx = triggerX();
+    const clamped = Math.max(
+      half + MARGIN,
+      Math.min(cx, globalThis.innerWidth - half - MARGIN),
+    );
+    setLeft(clamped);
+    const rawOffset = cx - clamped;
+    setArrowOffset(
+      Math.max(-(half - ARROW_INSET), Math.min(rawOffset, half - ARROW_INSET)),
+    );
+  });
+
+  createEffect(() => {
+    if (!visible()) return;
+    globalThis.addEventListener("resize", updateAnchor);
+    globalThis.addEventListener("scroll", updateAnchor, true);
+    onCleanup(() => {
+      globalThis.removeEventListener("resize", updateAnchor);
+      globalThis.removeEventListener("scroll", updateAnchor, true);
+    });
+  });
+
+  const show = () => {
+    clearTimeout(timeout);
+    updateAnchor();
+    timeout = setTimeout(() => setVisible(true), 120);
+  };
+
+  const hide = () => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => setVisible(false), 100);
+  };
+
+  const cellClass = (base: string) =>
+    props.tooltip ? `${base} cursor-help` : base;
+
   return (
-    <div class="flex h-6 flex-row gap-1 w-full items-center">
-      <Show
-        when={!props.isLoading}
-        fallback={
-          <span class="h-6 w-1/3 rounded bg-sky-600/15 animate-pulse" />
-        }
+    <>
+      <span
+        class={cellClass("font-semibold font-mono text-right")}
+        onMouseEnter={props.tooltip ? show : undefined}
+        onMouseLeave={props.tooltip ? hide : undefined}
       >
-        <span class="font-semibold font-mono w-1/3 text-right">
-          {fromWeiToFixed(props.balance ?? "0")}
+        {props.amount}
+      </span>
+      <span
+        ref={unitRef}
+        class={cellClass("font-semibold")}
+        onMouseEnter={props.tooltip ? show : undefined}
+        onMouseLeave={props.tooltip ? hide : undefined}
+      >
+        {props.unit}
+      </span>
+      <Show when={props.status}>
+        <span
+          class={cellClass(`font-bold text-xs text-right ${statusColor()}`)}
+          onMouseEnter={props.tooltip ? show : undefined}
+          onMouseLeave={props.tooltip ? hide : undefined}
+        >
+          {props.status}
         </span>
       </Show>
-
-      <div class="flex flex-row items-center gap-2 w-2/3 justify-between px-2">
-        <span class="text-text-secondary">{props.ticker}</span>
-        <Show
-          when={!props.isLoading && props.status}
-          fallback={props.isLoading
-            ? <span class="h-6 w-20 rounded bg-slate-200 animate-pulse" />
-            : null}
-        >
-          <span
-            class={`font-bold text-xs ${
-              props.status === "Sufficient"
-                ? "text-emerald-600"
-                : props.status === "Empty"
-                ? "text-red-600"
-                : "text-amber-600"
-            }
-              `}
+      <Show when={visible() && props.tooltip}>
+        <Portal mount={document.body}>
+          <div
+            ref={bubbleRef}
+            class="tooltip-bubble fixed z-200 max-w-52 rounded-lg bg-neutral-800 px-3 py-2 shadow-lg text-xs leading-relaxed text-gray-100"
+            style={{
+              bottom: `${anchorBottom()}px`,
+              left: `${left()}px`,
+              transform: "translateX(-50%)",
+            }}
+            onMouseEnter={show}
+            onMouseLeave={hide}
           >
-            {props.status}
-          </span>
-        </Show>
-      </div>
-    </div>
+            {props.tooltip}
+            <span
+              class="absolute size-2 bg-neutral-800 top-full -mt-1"
+              style={{
+                left: `calc(50% + ${arrowOffset()}px)`,
+                transform: "translateX(-50%) rotate(45deg)",
+              }}
+            />
+          </div>
+        </Portal>
+      </Show>
+    </>
   );
 }

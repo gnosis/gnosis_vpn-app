@@ -1,139 +1,87 @@
-import { createMemo, createSignal, For, Match, Switch } from "solid-js";
+import { createMemo, createSignal, Match, Switch } from "solid-js";
 import {
-  type BalanceResponse,
   isPreparingSafeRunMode,
   isRunningRunMode,
   isWarmupRunMode,
-  VPNService,
 } from "../../services/vpnService.ts";
-import { onCleanup, onMount } from "solid-js";
 import {
   computeEffectiveCredit,
   formatCredit,
-  isCreditEmpty,
+  sumCapacityStake,
 } from "../../utils/credit.ts";
 import FundsInfo from "../../components/FundsInfo.tsx";
 import { Show } from "solid-js";
 import {
-  calculateGlobalFundingStatus,
-  type GlobalFundingStatus,
+  deriveNodeStatus,
+  deriveSafeStatus,
+  describeCriticalIssue,
 } from "../../utils/funding.ts";
+import {
+  formatXdai,
+  humanWxhoprParts,
+  wxhoprDecimal,
+} from "../../utils/hopli.ts";
 import WarningIcon from "../../components/common/WarningIcon.tsx";
-import { useLogsStore } from "../../stores/logsStore.ts";
-import refreshIcon from "../../assets/icons/refresh.svg";
 import Button from "../../components/common/Button.tsx";
 import { useAppStore } from "../../stores/appStore.ts";
-import { getMaxHopCount } from "../../utils/exitHealth.ts";
 import AddFundsModal from "@src/components/AddFundsModal.tsx";
 
-const BALANCE_REFRESH_INTERVAL_MS = 5_000;
-
-function balancesEqual(
-  a: BalanceResponse | null,
-  b: BalanceResponse | null,
-): boolean {
-  if (a === null && b === null) return true;
-  if (a === null || b === null) return false;
-  return (
-    a.node === b.node &&
-    a.safe === b.safe &&
-    a.channels_out === b.channels_out &&
-    a.ticket_stats.ticket_price === b.ticket_stats.ticket_price &&
-    a.ticket_stats.winning_probability === b.ticket_stats.winning_probability &&
-    a.info.node_address === b.info.node_address &&
-    a.info.safe_address === b.info.safe_address &&
-    JSON.stringify(a.issues) === JSON.stringify(b.issues)
-  );
-}
-
 export default function Usage() {
-  const [balance, setBalance] = createSignal<BalanceResponse | null>(null);
-  const [isBalanceLoading, setIsBalanceLoading] = createSignal(true);
-  const [fundingStatus, setFundingStatus] = createSignal<
-    GlobalFundingStatus | null
-  >(null);
   const [isAddFundsOpen, setIsAddFundsOpen] = createSignal(false);
-  const [, logActions] = useLogsStore();
   const [appState] = useAppStore();
-
-  const maxHops = createMemo(() =>
-    getMaxHopCount(appState.availableDestinations)
-  );
-  const hopRange = createMemo(() =>
-    Array.from({ length: maxHops() }, (_, i) => i + 1)
-  );
 
   const preparingSafe =
     () => (isPreparingSafeRunMode(appState.runMode)
       ? appState.runMode.PreparingSafe
       : null);
 
+  const fundingIssues = createMemo(() =>
+    isRunningRunMode(appState.runMode)
+      ? (appState.runMode.Running.funding_issues ?? [])
+      : []
+  );
+
   const effectiveCredit = createMemo(() => {
-    const b = balance();
+    const b = appState.balance;
     if (!b) return null;
-    return computeEffectiveCredit(
-      b.channels_out,
-      b.safe,
-      b.ticket_stats.ticket_price,
-    );
+    return computeEffectiveCredit(b.capacity_allocations ?? []);
   });
 
-  const totalWxhoprWei = createMemo(() => {
-    const b = balance();
-    if (!b) return undefined;
-    return (BigInt(b.safe) + BigInt(b.channels_out)).toString();
+  const totalWxhoprHopli = createMemo(() => {
+    const b = appState.balance;
+    if (!b?.capacity_allocations) return undefined;
+    return sumCapacityStake(b.capacity_allocations).toString();
   });
 
-  async function loadBalance() {
-    try {
-      const result = await VPNService.balance();
-      const currentBalance = balance();
+  const wxhoprRaw = () =>
+    preparingSafe()?.node_wxhopr ?? totalWxhoprHopli() ?? "0";
+  const xdaiRaw = () =>
+    preparingSafe()?.node_xdai ?? appState.balance?.node ?? "0";
 
-      if (!balancesEqual(result, currentBalance)) {
-        setBalance(result);
-        if (result) {
-          const status = calculateGlobalFundingStatus(result.issues, {
-            safe: result.safe,
-            node: result.node,
-          });
-          setFundingStatus(status);
-        } else {
-          setFundingStatus(null);
-        }
-      }
-    } catch (error) {
-      logActions.append(`Error loading balance: ${String(error)}`);
-      setFundingStatus(null);
-    } finally {
-      setIsBalanceLoading(false);
-    }
-  }
+  const isBalanceLoading = () => appState.balance === null;
 
-  async function handleRefresh() {
-    try {
-      await VPNService.refreshNode();
-      setIsBalanceLoading(true);
-      await loadBalance();
-    } catch (error) {
-      logActions.append(`Error refreshing node: ${String(error)}`);
-    } finally {
-      setIsBalanceLoading(false);
-    }
-  }
-
-  let intervalId: ReturnType<typeof setInterval> | undefined;
-
-  onMount(() => {
-    setIsBalanceLoading(true);
-    void loadBalance().finally(() => setIsBalanceLoading(false));
-    intervalId = setInterval(() => {
-      void loadBalance();
-    }, BALANCE_REFRESH_INTERVAL_MS);
+  const wxhoprDeficit = createMemo(() => {
+    if (fundingIssues().length === 0) return null;
+    const ideal = appState.balance?.ideal_balance?.wxhopr;
+    const current = totalWxhoprHopli();
+    if (!ideal || !current) return null;
+    const diff = BigInt(ideal) - BigInt(current);
+    return diff > 0n ? diff : null;
   });
 
-  onCleanup(() => {
-    clearInterval(intervalId);
+  const xdaiDeficit = createMemo(() => {
+    if (fundingIssues().length === 0) return null;
+    const ideal = appState.balance?.ideal_balance?.xdai;
+    const current = appState.balance?.node;
+    if (!ideal || !current) return null;
+    const diff = BigInt(ideal) - BigInt(current);
+    return diff > 0n ? diff : null;
   });
+
+  const criticalIssue = createMemo(() => fundingIssues()[0]);
+  const isCriticalLevel = createMemo(() =>
+    criticalIssue() === "Unfunded" || criticalIssue() === "ChannelsOutOfFunds"
+  );
 
   return (
     <div class="p-4 w-full flex flex-col gap-2 items-center">
@@ -154,21 +102,21 @@ export default function Usage() {
           </div>
         </Match>
         <Match when={isRunningRunMode(appState.runMode) || preparingSafe()}>
-          <Show when={fundingStatus()?.description}>
-            <div
-              class={`px-4 py-2 rounded-lg text-sm font-medium ${
-                fundingStatus()?.overall === "Empty"
-                  ? "bg-red-100 text-red-800"
-                  : fundingStatus()?.overall === "Low"
-                  ? "bg-amber-100 text-amber-800"
-                  : "bg-emerald-100 text-emerald-800"
-              }`}
-            >
-              <div class="flex items-center gap-2">
-                <WarningIcon />
-                <span>{fundingStatus()?.description}</span>
+          <Show when={describeCriticalIssue(fundingIssues())}>
+            {(description) => (
+              <div
+                class={`px-4 py-2 rounded-lg text-sm font-medium ${
+                  isCriticalLevel()
+                    ? "bg-red-100 text-red-800"
+                    : "bg-amber-100 text-amber-800"
+                }`}
+              >
+                <div class="flex items-center gap-2">
+                  <WarningIcon />
+                  <span>{description()}</span>
+                </div>
               </div>
-            </div>
+            )}
           </Show>
           <Show when={preparingSafe()}>
             <div class="px-4 py-2 rounded-lg text-sm font-medium bg-amber-100 text-amber-800">
@@ -176,62 +124,41 @@ export default function Usage() {
             </div>
           </Show>
 
-          <div class="flex flex-col py-4 my-4 w-64">
-            <div class="flex flex-col pb-3 mb-3">
-              <FundsInfo
-                name="Safe"
-                subtitle="For traffic"
-                balance={preparingSafe()?.node_wxhopr ?? totalWxhoprWei()}
-                ticker="wxHOPR"
-                address={preparingSafe()?.node_address ??
-                  balance()?.info.safe_address}
-                status={fundingStatus()?.safeStatus}
-                isLoading={isBalanceLoading()}
-              />
-              <Show
-                when={effectiveCredit() !== null &&
-                  isRunningRunMode(appState.runMode)}
-              >
-                <For each={hopRange()}>
-                  {(hops) => {
-                    const b = balance();
-                    if (!b) return null;
-                    const credit = computeEffectiveCredit(
-                      b.channels_out,
-                      b.safe,
-                      b.ticket_stats.ticket_price,
-                      hops,
-                    );
-                    const hopLabel = hops === 1 ? "1-hop" : `${hops}-hops`;
-                    return (
-                      <div class="text-xs mt-1 pr-1 text-right">
-                        <div
-                          class={isCreditEmpty(credit.bytes)
-                            ? "text-vpn-red"
-                            : "text-text-secondary"}
-                        >
-                          {credit.isEstimate ? "≈" : ""}
-                          {formatCredit(credit.bytes)}
-                          <Show when={maxHops() > 1}>
-                            <span class="opacity-40">/ {hopLabel}</span>
-                          </Show>
-                        </div>
-                      </div>
-                    );
-                  }}
-                </For>
-              </Show>
-            </div>
-            <FundsInfo
-              name="EOA"
-              subtitle="For channels"
-              balance={preparingSafe()?.node_xdai ?? balance()?.node}
-              ticker="xDAI"
-              address={preparingSafe()?.node_address ??
-                balance()?.info.node_address}
-              status={fundingStatus()?.nodeStatus}
-              isLoading={isBalanceLoading()}
-            />
+          <div class="flex flex-col py-4 my-4 w-64 gap-1">
+            <Show
+              when={!isBalanceLoading()}
+              fallback={
+                <div class="h-14 w-full rounded bg-sky-600/15 animate-pulse" />
+              }
+            >
+              <div class="grid grid-cols-[auto_auto_1fr] gap-x-3 items-baseline gap-y-3">
+                <FundsInfo
+                  {...humanWxhoprParts(wxhoprRaw())}
+                  tooltip={<>{wxhoprDecimal(wxhoprRaw())} wxHOPR</>}
+                  status={deriveSafeStatus(fundingIssues())}
+                />
+                <Show
+                  when={effectiveCredit() !== null &&
+                    isRunningRunMode(appState.runMode)}
+                >
+                  <div
+                    class={`col-span-3 text-xs text-right -mt-2 ${
+                      deriveSafeStatus(fundingIssues()) === "Empty"
+                        ? "text-vpn-red"
+                        : "text-text-secondary"
+                    }`}
+                  >
+                    ≈{formatCredit(effectiveCredit()!)}
+                  </div>
+                </Show>
+                <FundsInfo
+                  amount={formatXdai(xdaiRaw())}
+                  unit="xDAI"
+                  tooltip={<>{formatXdai(xdaiRaw(), 18)} xDAI</>}
+                  status={deriveNodeStatus(fundingIssues())}
+                />
+              </div>
+            </Show>
           </div>
 
           <div class="w-64 flex flex-col gap-2">
@@ -242,19 +169,6 @@ export default function Usage() {
                 It may take up to 2 minutes until your funds have been
                 registered after transaction.
               </div>
-              <div class="w-8 h-8">
-                <button
-                  type="button"
-                  class="h-8 w-8 hover:cursor-pointer"
-                  onClick={handleRefresh}
-                >
-                  <img
-                    src={refreshIcon}
-                    alt="Refresh"
-                    class="h-8 w-8 dark:invert"
-                  />
-                </button>
-              </div>
             </div>
           </div>
 
@@ -264,7 +178,9 @@ export default function Usage() {
             open={isAddFundsOpen()}
             onClose={() => setIsAddFundsOpen(false)}
             nodeAddress={preparingSafe()?.node_address ??
-              balance()?.info.node_address ?? ""}
+              appState.balance?.info.node_address ?? ""}
+            wxhoprDeficit={wxhoprDeficit()}
+            xdaiDeficit={xdaiDeficit()}
           />
         </Match>
       </Switch>

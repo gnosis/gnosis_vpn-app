@@ -1,28 +1,18 @@
-import {
-  createEffect,
-  createMemo,
-  createSignal,
-  For,
-  onCleanup,
-  Show,
-} from "solid-js";
+import { createMemo, Show } from "solid-js";
 import { Portal } from "solid-js/web";
-import { type BalanceResponse, VPNService } from "@src/services/vpnService.ts";
-import { useAppStore } from "@src/stores/appStore.ts";
-import { getMaxHopCount } from "@src/utils/exitHealth.ts";
-import { fromWeiToFixed } from "@src/utils/wei.ts";
+import { isRunningRunMode } from "@src/services/vpnService.ts";
+import { formatXdai, humanWxhopr } from "@src/utils/hopli.ts";
 import {
-  calculateGlobalFundingStatus,
-  type GlobalFundingStatus,
+  deriveNodeStatus,
+  deriveSafeStatus,
   type StatusText,
 } from "@src/utils/funding.ts";
 import {
   computeEffectiveCredit,
   formatCredit,
-  isCreditEmpty,
+  sumCapacityStake,
 } from "@src/utils/credit.ts";
-
-const BALANCE_REFRESH_INTERVAL_MS = 60000;
+import { useAppStore } from "@src/stores/appStore.ts";
 
 type Props = {
   show: boolean;
@@ -44,63 +34,29 @@ function StatusDot(props: { status: StatusText }) {
 }
 
 export default function BalancePopup(props: Props) {
-  const [balance, setBalance] = createSignal<BalanceResponse | null>(null);
-  const [fundingStatus, setFundingStatus] = createSignal<GlobalFundingStatus>({
-    overall: "Sufficient",
-    safeStatus: "Sufficient",
-    nodeStatus: "Sufficient",
-  });
+  const [appState] = useAppStore();
+
+  const fundingIssues = createMemo(() =>
+    isRunningRunMode(appState.runMode)
+      ? (appState.runMode.Running.funding_issues ?? [])
+      : []
+  );
 
   const effectiveCredit = createMemo(() => {
-    const b = balance();
+    const b = appState.balance;
     if (!b) return null;
-    return computeEffectiveCredit(
-      b.channels_out,
-      b.safe,
-      b.ticket_stats.ticket_price,
-    );
-  });
-  const creditEmpty = createMemo(() => {
-    const ec = effectiveCredit();
-    return ec !== null && isCreditEmpty(ec.bytes);
+    return computeEffectiveCredit(b.capacity_allocations ?? []);
   });
 
-  const [appState] = useAppStore();
-  const maxHops = createMemo(() =>
-    getMaxHopCount(appState.availableDestinations)
-  );
-  const hopRange = createMemo(() =>
-    Array.from({ length: maxHops() }, (_, i) => i + 1)
-  );
-
-  const loadBalance = async () => {
-    try {
-      const result = await VPNService.balance();
-      setBalance(result);
-      if (result) {
-        const status = calculateGlobalFundingStatus(result.issues, {
-          safe: result.safe,
-          node: result.node,
-        });
-        setFundingStatus(status);
-      }
-    } catch (error) {
-      console.error("Error loading balance:", error);
-    }
-  };
-
-  createEffect(() => {
-    if (!props.show) return;
-    void loadBalance();
-    const interval = setInterval(() => {
-      void loadBalance();
-    }, BALANCE_REFRESH_INTERVAL_MS);
-    onCleanup(() => clearInterval(interval));
+  const totalWxhopr = createMemo(() => {
+    const b = appState.balance;
+    if (!b?.capacity_allocations) return 0n;
+    return sumCapacityStake(b.capacity_allocations);
   });
 
   return (
     <Show
-      when={props.show && balance() && props.buttonRect && props.containerRect}
+      when={props.show && props.buttonRect && props.containerRect}
     >
       <Portal>
         <div
@@ -135,92 +91,50 @@ export default function BalancePopup(props: Props) {
 
             <div class="mb-2">
               <div class="flex items-center gap-1 mb-0.5">
-                <StatusDot
-                  status={creditEmpty() ? "Empty" : fundingStatus().safeStatus}
-                />
+                <StatusDot status={deriveSafeStatus(fundingIssues())} />
                 <div class="text-[9px] text-accent-text/70 uppercase tracking-wide">
                   TRAFFIC
                 </div>
               </div>
               <Show
-                when={balance()}
+                when={appState.balance}
                 fallback={
                   <div class="text-[10px] text-accent-text/70">Loading...</div>
                 }
               >
-                {(b) => (
-                  <>
-                    <div
-                      class={`flex items-baseline justify-end gap-1 text-sm font-bold font-mono ${
-                        creditEmpty() ? "text-red-500" : ""
-                      }`}
-                    >
-                      <span>
-                        {fromWeiToFixed(
-                          BigInt(b().safe) + BigInt(b().channels_out),
-                        )}
-                      </span>
-                      <span
-                        class="text-[10px] inline-block text-left"
-                        style={{ width: "34px" }}
-                      >
-                        wxHOPR
-                      </span>
-                    </div>
-                    <Show
-                      when={maxHops() === 1}
-                      fallback={
-                        <For each={hopRange()}>
-                          {(hops) => {
-                            const credit = computeEffectiveCredit(
-                              b().channels_out,
-                              b().safe,
-                              b().ticket_stats.ticket_price,
-                              hops,
-                            );
-                            return (
-                              <div class="flex justify-between text-[10px] text-accent-text/50">
-                                <span class="text-accent-text/40">
-                                  {hops === 1 ? "1-hop" : `${hops}-hops`}
-                                </span>
-                                <span class="font-mono">
-                                  {credit.isEstimate ? "≈" : ""}
-                                  {formatCredit(credit.bytes)}
-                                </span>
-                              </div>
-                            );
-                          }}
-                        </For>
-                      }
-                    >
-                      <div class="text-[10px] text-accent-text/50 font-mono text-right">
-                        {effectiveCredit()?.isEstimate ? "≈" : ""}
-                        {effectiveCredit() !== null
-                          ? formatCredit(effectiveCredit()!.bytes)
-                          : "—"}
-                      </div>
-                    </Show>
-                  </>
-                )}
+                <div
+                  class={`text-sm font-bold font-mono text-right ${
+                    deriveSafeStatus(fundingIssues()) === "Empty"
+                      ? "text-red-500"
+                      : ""
+                  }`}
+                >
+                  {humanWxhopr(totalWxhopr())}
+                </div>
+                <div class="text-[10px] text-accent-text/50 font-mono text-right">
+                  {effectiveCredit() !== null
+                    ? `≈${formatCredit(effectiveCredit()!)}`
+                    : "—"}
+                </div>
               </Show>
             </div>
 
             <div>
               <div class="flex items-center gap-1 mb-0.5">
-                <StatusDot status={fundingStatus().nodeStatus} />
+                <StatusDot status={deriveNodeStatus(fundingIssues())} />
                 <div class="text-[9px] text-accent-text/70 uppercase tracking-wide">
                   CUSTOM EXIT NODES
                 </div>
               </div>
               <Show
-                when={balance()}
+                when={appState.balance}
                 fallback={
                   <div class="text-[10px] text-accent-text/70">Loading...</div>
                 }
               >
                 {(b) => (
                   <div class="flex items-baseline justify-end gap-1 text-sm font-bold font-mono">
-                    <span>{fromWeiToFixed(b().node)}</span>
+                    <span>{formatXdai(b().node)}</span>
                     <span
                       class="text-[10px] inline-block text-left"
                       style={{ width: "34px" }}

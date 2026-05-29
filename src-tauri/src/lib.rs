@@ -7,6 +7,7 @@ use tauri::Manager;
 use tauri::tray::TrayIconBuilder;
 use tauri_plugin_store::StoreExt;
 use tokio::sync::Notify;
+use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
 
 use std::path::PathBuf;
@@ -21,8 +22,8 @@ pub mod tray;
 pub mod types;
 
 use commands::{
-    balance, check_update, compress_logs, connect, disconnect, info, refresh_node, set_app_icon,
-    start_client, start_status_polling, stop_client,
+    check_update, compress_logs, connect, disconnect, get_cached_state, run_initialization_loop,
+    set_app_icon, stop_client,
 };
 #[cfg(target_os = "macos")]
 use gnosis_vpn_lib::{command, socket::root as root_socket};
@@ -37,6 +38,7 @@ use tray::{
     toggle_main_window_visibility,
 };
 use types::ConnectionState;
+use types::{BalanceResponse, StatusResponse};
 
 struct HeartbeatHandle(Mutex<Option<tauri::async_runtime::JoinHandle<()>>>);
 
@@ -44,6 +46,16 @@ pub struct StatusPollingHandle {
     pub cancel: CancellationToken,
     pub handle: Option<tauri::async_runtime::JoinHandle<()>>,
     pub trigger: Arc<Notify>,
+}
+
+pub struct BalancePollingHandle {
+    pub cancel: CancellationToken,
+    pub handle: Option<tauri::async_runtime::JoinHandle<()>>,
+}
+
+pub struct AppStateCache {
+    pub status: watch::Sender<Option<Result<Option<StatusResponse>, String>>>,
+    pub balance: watch::Sender<Option<Result<Option<BalanceResponse>, String>>>,
 }
 
 #[derive(Clone, Serialize, Default)]
@@ -368,20 +380,34 @@ pub fn run() {
                 trigger: Arc::new(Notify::new()),
             }));
 
+            // balance polling handle — started alongside status polling
+            app.manage(Mutex::new(BalancePollingHandle {
+                cancel: CancellationToken::new(),
+                handle: None,
+            }));
+
+            let (status_tx, _) = watch::channel(None);
+            let (balance_tx, _) = watch::channel(None);
+            app.manage(AppStateCache {
+                status: status_tx,
+                balance: balance_tx,
+            });
+
+            let app_handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                run_initialization_loop(app_handle).await;
+            });
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            info,
-            start_client,
             connect,
             disconnect,
-            balance,
-            refresh_node,
             compress_logs,
             set_app_icon,
             get_initial_theme,
-            start_status_polling,
-            check_update
+            check_update,
+            get_cached_state
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
@@ -397,6 +423,17 @@ pub fn run() {
                     None
                 };
                 if let Some(handle) = handle_opt {
+                    let _ = tauri::async_runtime::block_on(handle);
+                }
+
+                let bal_state = app_handle.state::<Mutex<BalancePollingHandle>>();
+                let bal_handle_opt = if let Ok(mut guard) = bal_state.lock() {
+                    guard.cancel.cancel();
+                    guard.handle.take()
+                } else {
+                    None
+                };
+                if let Some(handle) = bal_handle_opt {
                     let _ = tauri::async_runtime::block_on(handle);
                 }
 

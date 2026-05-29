@@ -18,13 +18,13 @@
 }
 
 * {
-  cursor: default !important;
+  cursor: default;
 }
 
 input,
 textarea,
 select {
-  cursor: text !important;
+  cursor: text;
 }
 
 :root {

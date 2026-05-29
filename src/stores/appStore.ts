@@ -1,9 +1,12 @@
-import { createEffect } from "solid-js";
+import { createEffect, createRoot } from "solid-js";
 import { createStore, reconcile, type Store } from "solid-js/store";
 import { emit, listen } from "@tauri-apps/api/event";
+import { invoke } from "@tauri-apps/api/core";
 import { evaluateUpdate } from "@src/utils/updateAvailability.ts";
 
 import {
+  type BalanceResponse,
+  BalanceResponseSchema,
   type ConnectingInfo,
   type Destination,
   type DestinationState,
@@ -14,6 +17,7 @@ import {
   isWarmupRunMode,
   type RunMode,
   type ServiceInfo,
+  ServiceInfoSchema,
   type StatusResponse,
   StatusResponseSchema,
   VPNService,
@@ -24,11 +28,6 @@ import {
   getPreferredAvailabilityChangeMessage,
   resolveAutoDestination,
 } from "@src/utils/destinations.ts";
-
-import {
-  COMPATIBLE_VERSIONS,
-  isServiceVersionCompatible,
-} from "@src/utils/compatibility.ts";
 
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import { deriveVPNStatus } from "@src/utils/status.ts";
@@ -61,6 +60,7 @@ export interface AppState {
   isUpdateAvailable: boolean;
   availableVersion: string | null;
   targetDestination: string | null;
+  balance: BalanceResponse | null;
 }
 
 type AppActions = {
@@ -75,6 +75,12 @@ type AppStoreTuple = readonly [Store<AppState>, AppActions];
 
 type StatusEvent = {
   payload: { Ok: StatusResponse | null } | { Err: string };
+  id: number;
+  event: string;
+};
+
+type BalanceEvent = {
+  payload: { Ok: BalanceResponse | null } | { Err: string };
   id: number;
   event: string;
 };
@@ -100,6 +106,7 @@ function initialState(): AppState {
     isUpdateAvailable: false,
     availableVersion: null,
     targetDestination: null,
+    balance: null,
   };
 }
 
@@ -116,7 +123,9 @@ type SyncPhaseIndex = 0 | 1 | 2;
 export function createAppStore(): AppStoreTuple {
   const [state, setState] = createStore<AppState>(initialState());
 
+  let unlistenServiceInfo: (() => void) | undefined;
   let unlistenStatusUpdate: (() => void) | undefined;
+  let unlistenBalanceUpdate: (() => void) | undefined;
   let connectedOnOpenDetected = false;
   let activeSyncPhase: SyncPhaseIndex | null = null;
   let syncPhaseStartTime = 0;
@@ -193,6 +202,16 @@ export function createAppStore(): AppStoreTuple {
   const logStatus = (response: StatusResponse) =>
     logActions.appendStatus(response);
 
+  const criticalError = (message: string) => {
+    log(message);
+    connectedOnOpenDetected = false;
+    stopSyncProgress();
+    const savedServiceInfo = state.serviceInfo;
+    setState(reconcile(initialState()));
+    setState("serviceInfo", savedServiceInfo);
+    setState("error", message);
+  };
+
   const applyDestinationSelection = () => {
     // 1. Explicit user selection
     if (state.selectedId) {
@@ -240,6 +259,14 @@ export function createAppStore(): AppStoreTuple {
   };
 
   const processStatusResponse = (response: StatusResponse) => {
+    if (isWarmupRunMode(response.run_mode)) {
+      const lastError = response.run_mode.Warmup.last_error;
+      if (lastError) {
+        criticalError(lastError);
+        return;
+      }
+    }
+
     const [screen, warmupStatus, stuckSince] = determineScreenAndStatus(
       response,
     );
@@ -333,96 +360,52 @@ export function createAppStore(): AppStoreTuple {
     if (prefMsg) log(prefMsg);
   };
 
-  const OFFLINE_TIMEOUT = 5000; // ms
-  let redoTimeout: ReturnType<typeof setTimeout> | undefined;
-
   const actions = {
-    /**
-     * Run initialization logic, will keep looping.
-     * Reset upon calling it again.
-     */
     initializeApp: async () => {
-      clearTimeout(redoTimeout);
-      redoTimeout = undefined;
       connectedOnOpenDetected = false;
       stopSyncProgress();
       setState("syncProgress", 0);
+      if (unlistenServiceInfo) {
+        unlistenServiceInfo();
+        unlistenServiceInfo = undefined;
+      }
       if (unlistenStatusUpdate) {
         unlistenStatusUpdate();
         unlistenStatusUpdate = undefined;
       }
-
-      const criticalError = (message: string) => {
-        log(message);
-        connectedOnOpenDetected = false;
-        stopSyncProgress();
-        setState(reconcile(initialState()));
-        setState("error", message);
-        if (unlistenStatusUpdate) {
-          unlistenStatusUpdate();
-          unlistenStatusUpdate = undefined;
-        }
-        redoTimeout = setTimeout(
-          () => actions.initializeApp(),
-          OFFLINE_TIMEOUT,
-        );
-      };
-
-      let info;
-      try {
-        info = await VPNService.info();
-      } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        const message = "Failed to get service info: " + errorMsg;
-        criticalError(message);
-        return;
-      }
-
-      setState("serviceInfo", info);
-      if (!isServiceVersionCompatible(info.version)) {
-        const message = "Incompatible service version: " +
-          info.version +
-          ". Supported versions: " +
-          COMPATIBLE_VERSIONS.join(", ") +
-          ". If you just updated, please restart the app.";
-        criticalError(message);
-        return;
+      if (unlistenBalanceUpdate) {
+        unlistenBalanceUpdate();
+        unlistenBalanceUpdate = undefined;
       }
 
       try {
-        await VPNService.startClient(10);
+        unlistenServiceInfo = await listen<unknown>("service_info", (event) => {
+          const parsed = ServiceInfoSchema.safeParse(
+            (event as { payload: unknown }).payload,
+          );
+          if (parsed.success) {
+            setState("serviceInfo", parsed.data);
+          } else {
+            console.error("Invalid service_info payload", parsed.error);
+          }
+        });
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
-        const message = "Failed to start client worker: " + errorMsg;
-        criticalError(message);
-        return;
+        criticalError("Failed to listen for service_info updates: " + errorMsg);
       }
 
-      try {
-        await VPNService.startStatusPolling();
-      } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        const message = "Failed to start status polling: " + errorMsg;
-        criticalError(message);
-        return;
-      }
-
-      // for some reason the expected TS type here is wrong
-      // thats why we cast the type (3 lines below) to the expected one, even if it is not correct according to the event emitter
       const listenCb = (event: unknown) => {
         let statusResp: StatusResponse | void;
         try {
           statusResp = incomingStatusEvent(event as StatusEvent);
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : String(err);
-          const message = "Error processing status update: " + errorMsg;
-          criticalError(message);
+          criticalError("Error processing status update: " + errorMsg);
           return;
         }
 
         if (!statusResp) {
-          const errorMsg = "Received empty status response";
-          criticalError(errorMsg);
+          criticalError("Received empty status response");
           return;
         }
 
@@ -436,9 +419,61 @@ export function createAppStore(): AppStoreTuple {
         );
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
-        const message = "Failed to listen for status updates: " + errorMsg;
-        criticalError(message);
+        criticalError("Failed to listen for status updates: " + errorMsg);
         return;
+      }
+
+      const balanceListenCb = (event: unknown) => {
+        const balEvent = event as BalanceEvent;
+        if ("Ok" in balEvent.payload) {
+          const parsed = balEvent.payload.Ok === null
+            ? null
+            : BalanceResponseSchema.safeParse(balEvent.payload.Ok);
+          if (parsed === null) {
+            setState("balance", null);
+          } else if (parsed && parsed.success) {
+            setState("balance", parsed.data);
+          } else if (parsed) {
+            console.error("Invalid balance response", balEvent.payload.Ok);
+          }
+        } else {
+          console.error("Balance polling error", balEvent.payload.Err);
+        }
+      };
+
+      try {
+        unlistenBalanceUpdate = await listen<unknown>(
+          "balance",
+          balanceListenCb,
+        );
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        console.error("Failed to listen for balance updates: " + errorMsg);
+      }
+
+      try {
+        const cached = await invoke<{
+          status: { Ok: StatusResponse } | { Err: string };
+          balance: { Ok: BalanceResponse } | { Err: string };
+        }>("get_cached_state");
+
+        try {
+          listenCb({ payload: cached.status, id: -1, event: "status" });
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          criticalError("Failed to hydrate status: " + msg);
+        }
+        try {
+          balanceListenCb({
+            payload: cached.balance,
+            id: -1,
+            event: "balance",
+          });
+        } catch (err) {
+          console.warn("Failed to hydrate balance:", err);
+        }
+      } catch (err) {
+        console.warn("get_cached_state unavailable:", err);
       }
     },
 
@@ -536,7 +571,7 @@ export function createAppStore(): AppStoreTuple {
   return [state, actions] as const;
 }
 
-const appStore = createAppStore();
+const appStore = createRoot(() => createAppStore());
 
 export function useAppStore(): AppStoreTuple {
   return appStore;
@@ -608,10 +643,10 @@ function findDelayReason(destinations: DestinationState[]): string | null {
     const s = ds.route_health.state;
 
     if (s.state === "ReadyToConnect" || s.state === "Connecting") return null;
-    if (s.state === "NeedsFunding") missingChannels++;
+    if (s.state === "NeedsChannel") missingChannels++;
     else if (s.state === "NeedsPeering") {
       missingPeers++;
-      if (!s.funded) missingChannels++;
+      if (!s.has_channel) missingChannels++;
     }
   }
   if (missingPeers > 0 && missingPeers >= missingChannels) {

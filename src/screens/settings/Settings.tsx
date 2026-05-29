@@ -13,7 +13,7 @@ export default function Settings() {
   const [settings, settingsActions] = useSettingsStore();
 
   return (
-    <div class="space-y-4 w-full p-6 max-w-lg bg-bg-primary select-none flex flex-col h-full">
+    <div class="space-y-4 w-full p-6 max-w-lg bg-bg-primary flex flex-col h-full">
       <label class="flex items-center justify-between gap-2 text-text-primary">
         Preferred server location
         <Show

@@ -16,7 +16,7 @@ import {
   isXDAITransferred,
 } from "@src/utils/status.ts";
 import { isPreparingSafeRunMode } from "../../services/vpnService.ts";
-import { computeHoprPerGb } from "../../utils/credit.ts";
+import { formatXdai, humanWxhopr, wxhoprDecimal } from "../../utils/hopli.ts";
 import FundingAddress from "../address/FundingAddress.tsx";
 import StatusIndicator from "../status/StatusIndicator.tsx";
 
@@ -42,15 +42,13 @@ export default function Manually() {
     return getPreparingSafeNodeAddress(appState);
   });
 
-  const ratePerGb = createMemo(() => {
+  const balanceRec = createMemo(() => {
     if (!isPreparingSafeRunMode(appState.runMode)) return null;
-    const ts = appState.runMode.PreparingSafe.ticket_stats;
-    if (!ts) return null;
-    return computeHoprPerGb(ts.ticket_price);
+    return appState.runMode.PreparingSafe.balance_recommendation;
   });
 
   return (
-    <div class="h-full w-full flex flex-col items-stretch p-6 pb-0 gap-4 select-none">
+    <div class="h-full w-full flex flex-col items-stretch p-6 pb-0 gap-4">
       <h1 class="w-full text-3xl font-bold text-center mt-6 mb-3 flex flex-row">
         Fund your VPN
       </h1>
@@ -71,17 +69,22 @@ export default function Manually() {
           <div class="flex flex-col">
             <div class="font-bold">Transfer wxHOPR (Gnosis Chain)</div>
             <Show
-              when={ratePerGb() !== null && ratePerGb() !== "—"}
+              when={balanceRec()}
               fallback={
                 <div class="text-sm text-text-secondary">
-                  The amount you fund determines your privacy budget (GB of
-                  traffic).
+                  The amount you fund determines your privacy budget.
                 </div>
               }
             >
-              <div class="text-sm text-text-secondary">
-                1 GB ≈ {ratePerGb()} wxHOPR
-              </div>
+              {(rec) => (
+                <div class="text-sm text-text-secondary">
+                  Send at least {humanWxhopr(rec().wxhopr)}{" "}
+                  (<span class="select-text cursor-text">
+                    {wxhoprDecimal(rec().wxhopr)}
+                  </span>{" "}
+                  wxHOPR)
+                </div>
+              )}
             </Show>
           </div>
         </div>
@@ -96,11 +99,24 @@ export default function Manually() {
           />
           <div class="flex flex-col">
             <div class="font-bold">Transfer xDAI (Gnosis Chain)</div>
-            <div class="text-sm text-text-secondary">
-              1 xDAI is enough for one year
-              <br />
-              switching exit nodes.
-            </div>
+            <Show
+              when={balanceRec()}
+              fallback={
+                <div class="text-sm text-text-secondary">
+                  Needed for on-chain operations (channel management).
+                </div>
+              }
+            >
+              {(rec) => (
+                <div class="text-sm text-text-secondary">
+                  Send at least{" "}
+                  <span class="select-text cursor-text">
+                    {formatXdai(rec().xdai, 4)}
+                  </span>{" "}
+                  xDAI
+                </div>
+              )}
+            </Show>
           </div>
         </div>
       </div>

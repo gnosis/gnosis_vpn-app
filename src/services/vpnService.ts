@@ -85,7 +85,6 @@ export type ExitHealthData = z.infer<typeof ExitHealthDataSchema>;
 
 export const UnrecoverableReasonSchema = z.union([
   z.literal("NotAllowed"),
-  z.literal("InvalidId"),
   z.literal("InvalidPath"),
   z.object({
     IncompatibleApiVersion: z.object({ server_versions: z.array(z.string()) }),
@@ -98,8 +97,8 @@ export const RouteHealthStateSchema = z.discriminatedUnion("state", [
     state: z.literal("Unrecoverable"),
     reason: UnrecoverableReasonSchema,
   }),
-  z.object({ state: z.literal("NeedsPeering"), funded: z.boolean() }),
-  z.object({ state: z.literal("NeedsFunding") }),
+  z.object({ state: z.literal("NeedsPeering"), has_channel: z.boolean() }),
+  z.object({ state: z.literal("NeedsChannel") }),
   z.object({ state: z.literal("Routable") }),
   z.object({ state: z.literal("ReadyToConnect"), exit: ExitHealthDataSchema }),
   z.object({
@@ -153,18 +152,31 @@ export const FundingIssueSchema = z.enum([
 ]);
 export type FundingIssue = z.infer<typeof FundingIssueSchema>;
 
-export const FundingStateSchema = z.union([
-  z.literal("Querying"),
-  z.object({ TopIssue: FundingIssueSchema }),
-  z.literal("WellFunded"),
-]);
-export type FundingState = z.infer<typeof FundingStateSchema>;
-
-export const TicketStatsSchema = z.object({
-  ticket_price: z.string(),
-  winning_probability: z.number(),
+export const BalanceRecommendationSchema = z.object({
+  wxhopr: z.string(),
+  xdai: z.string(),
 });
-export type TicketStats = z.infer<typeof TicketStatsSchema>;
+export type BalanceRecommendation = z.infer<typeof BalanceRecommendationSchema>;
+
+export const CapacityAllocatorSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("safe") }),
+  z.object({ type: z.literal("peer"), address: z.string() }),
+]);
+export type CapacityAllocator = z.infer<typeof CapacityAllocatorSchema>;
+
+export const CapacitySchema = z.object({
+  stake: z.string(),
+  expected_messages: z.number(),
+  min_guaranteed_messages: z.number(),
+  byte_capacity: z.number(),
+});
+export type Capacity = z.infer<typeof CapacitySchema>;
+
+export const CapacityEntrySchema = z.object({
+  allocator: CapacityAllocatorSchema,
+  capacity: CapacitySchema,
+});
+export type CapacityEntry = z.infer<typeof CapacityEntrySchema>;
 
 export const PreparingSafeSchema = z.object({
   node_address: z.string(),
@@ -172,7 +184,7 @@ export const PreparingSafeSchema = z.object({
   node_wxhopr: z.string(),
   funding_tool: z.string().nullable(),
   error: z.string().nullable(),
-  ticket_stats: TicketStatsSchema.nullable(),
+  balance_recommendation: BalanceRecommendationSchema.nullable(),
 });
 export type PreparingSafe = z.infer<typeof PreparingSafeSchema>;
 
@@ -207,11 +219,12 @@ export type WarmupStatus = z.infer<typeof WarmupStatusSchema>;
 
 export const WarmupSchema = z.object({
   status: WarmupStatusSchema,
+  last_error: z.string().nullable(),
 });
 export type Warmup = z.infer<typeof WarmupSchema>;
 
 export const RunningSchema = z.object({
-  funding: FundingStateSchema,
+  funding_issues: z.array(FundingIssueSchema).nullable(),
   hopr_status: WarmupStatusSchema.nullable(),
 });
 export type Running = z.infer<typeof RunningSchema>;
@@ -247,8 +260,9 @@ export const BalanceResponseSchema = z.object({
   safe: z.string(),
   channels_out: z.string(),
   info: InfoSchema,
-  issues: z.array(FundingIssueSchema),
-  ticket_stats: TicketStatsSchema,
+  funding_issues: z.array(FundingIssueSchema).nullable(),
+  ideal_balance: BalanceRecommendationSchema.nullable(),
+  capacity_allocations: z.array(CapacityEntrySchema).nullable(),
 });
 export type BalanceResponse = z.infer<typeof BalanceResponseSchema>;
 
@@ -337,46 +351,6 @@ export function isRunningRunMode(
 // ==========================================
 
 export class VPNService {
-  static async startClient(keepAliveSecs: number): Promise<void> {
-    try {
-      const keepAlive = {
-        secs: keepAliveSecs,
-        nanos: 0,
-      };
-      await invoke("start_client", { keepAlive });
-    } catch (error) {
-      console.error("Failed to start VPN client:", error);
-      throw new Error(`Start Client Error: ${error}`);
-    }
-  }
-
-  static async info(): Promise<ServiceInfo> {
-    let rawRes;
-    try {
-      rawRes = await invoke("info");
-      return ServiceInfoSchema.parse(rawRes);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        console.error(`Issues with ServiceInfoSchema`, rawRes);
-        for (const i of error.issues) {
-          console.error("Type error:", i);
-        }
-      } else {
-        console.error(`Info error:`, error);
-      }
-      throw new Error(`Info error: ${error}`);
-    }
-  }
-
-  static async startStatusPolling(): Promise<void> {
-    try {
-      await invoke("start_status_polling");
-    } catch (error) {
-      console.error("Failed to start status polling", error);
-      throw new Error(`StartStatusPolling Error: ${error}`);
-    }
-  }
-
   static async connect(id: string): Promise<ConnectResponse> {
     let rawRes;
     try {
@@ -410,34 +384,6 @@ export class VPNService {
         console.error("Disconnect error:", error);
       }
       throw new Error(`Disconnect error: ${error}`);
-    }
-  }
-
-  static async balance(): Promise<BalanceResponse | null> {
-    let rawRes;
-    try {
-      rawRes = await invoke("balance");
-      if (!rawRes) return null;
-      return BalanceResponseSchema.parse(rawRes);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        console.error("Issues with BalanceResponseSchema", rawRes);
-        for (const i of error.issues) {
-          console.error("Type error:", i);
-        }
-      } else {
-        console.error("Balance error:", error);
-      }
-      throw new Error(`Balance error: ${error}`);
-    }
-  }
-
-  static async refreshNode(): Promise<void> {
-    try {
-      await invoke("refresh_node");
-    } catch (error) {
-      console.error("Failed to request VPN node balance update", error);
-      throw new Error(`Refresh Node Error: ${error}`);
     }
   }
 

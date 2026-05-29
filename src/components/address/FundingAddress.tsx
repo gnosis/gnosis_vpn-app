@@ -108,7 +108,7 @@ export default function FundingAddress(
         <div class="text-sm min-w-0">
           <div class="font-bold">Gnosis VPN address</div>
           <div
-            class={`font-mono ${
+            class={`font-mono select-text ${
               props.full ? "text-[10px] break-all" : "text-lg break-all"
             }`}
           >

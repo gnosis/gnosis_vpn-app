@@ -69,7 +69,7 @@ export default function Synchronization(props: SynchronizationProps) {
   });
 
   return (
-    <div class="h-full w-full flex flex-col p-6 select-none bg-bg-primary text-text-primary">
+    <div class="h-full w-full flex flex-col p-6 bg-bg-primary text-text-primary">
       <h1 class="text-4xl font-bold">Syncing</h1>
 
       {/* Progress Section */}

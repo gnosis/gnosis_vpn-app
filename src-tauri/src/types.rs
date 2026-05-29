@@ -54,19 +54,34 @@ pub enum DisconnectResponse {
 }
 
 #[derive(Clone, Debug, Serialize)]
-pub struct TicketStats {
-    pub ticket_price: String,
-    pub winning_probability: f64,
+pub struct BalanceRecommendation {
+    pub wxhopr: String,
+    pub xdai: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
+pub struct Capacity {
+    pub stake: String,
+    pub expected_messages: u64,
+    pub min_guaranteed_messages: u64,
+    pub byte_capacity: u64,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct CapacityEntry {
+    pub allocator: balance::CapacityAllocator,
+    pub capacity: Capacity,
+}
+
+#[derive(Clone, Debug, Serialize)]
 pub struct BalanceResponse {
     pub node: String,
     pub safe: String,
     pub channels_out: String,
     pub info: Info,
-    pub issues: Vec<balance::FundingIssue>,
-    pub ticket_stats: TicketStats,
+    pub funding_issues: Option<Vec<balance::FundingIssue>>,
+    pub ideal_balance: Option<BalanceRecommendation>,
+    pub capacity_allocations: Option<Vec<CapacityEntry>>,
 }
 
 // Sanitized library structs
@@ -82,15 +97,18 @@ pub enum RunMode {
         funding_tool: Option<String>,
         // came back from safe deployment with an error
         error: Option<String>,
-        ticket_stats: Option<TicketStats>,
+        balance_recommendation: Option<BalanceRecommendation>,
     },
     /// Safe deployment ongoing, enough funds, no existing safe
     DeployingSafe { node_address: String },
     /// Subsequent service start up in this state and after preparing safe
-    Warmup { status: CombinedHoprStatus },
+    Warmup {
+        status: CombinedHoprStatus,
+        last_error: Option<String>,
+    },
     /// Normal operation where connections can be made
     Running {
-        funding: command::FundingState,
+        funding_issues: Option<Vec<balance::FundingIssue>>,
         hopr_status: Option<CombinedHoprStatus>,
     },
     /// Shutdown service
@@ -145,7 +163,7 @@ pub struct Destination {
     pub routing: RoutingOptions,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct Info {
     pub node_address: String,
     pub safe_address: String,
@@ -215,8 +233,9 @@ impl From<HoprInitStatus> for CombinedHoprStatus {
 impl From<command::RunMode> for RunMode {
     fn from(rm: command::RunMode) -> Self {
         match rm {
-            command::RunMode::Init => RunMode::Warmup {
+            command::RunMode::Init { last_error } => RunMode::Warmup {
                 status: CombinedHoprStatus::Initializing,
+                last_error,
             },
             command::RunMode::PreparingSafe {
                 node_address,
@@ -224,16 +243,16 @@ impl From<command::RunMode> for RunMode {
                 node_wxhopr,
                 funding_tool,
                 error,
-                ticket_stats,
+                balance_recommendation,
             } => RunMode::PreparingSafe {
                 node_address: node_address.to_string(),
                 node_xdai: node_xdai.amount().to_string(),
                 node_wxhopr: node_wxhopr.amount().to_string(),
                 funding_tool,
                 error,
-                ticket_stats: ticket_stats.map(|ts| TicketStats {
-                    ticket_price: ts.ticket_price.amount().to_string(),
-                    winning_probability: ts.winning_probability,
+                balance_recommendation: balance_recommendation.map(|rec| BalanceRecommendation {
+                    wxhopr: rec.wxhopr.amount().to_string(),
+                    xdai: rec.xdai.amount().to_string(),
                 }),
             },
 
@@ -246,19 +265,22 @@ impl From<command::RunMode> for RunMode {
             } => match (hopr_init_status, hopr_status) {
                 (None, None) => RunMode::Warmup {
                     status: CombinedHoprStatus::Initializing,
+                    last_error: None,
                 },
                 (_, Some(hopr_status)) => RunMode::Warmup {
                     status: hopr_status.into(),
+                    last_error: None,
                 },
                 (Some(hopr_init_status), _) => RunMode::Warmup {
                     status: hopr_init_status.into(),
+                    last_error: None,
                 },
             },
             command::RunMode::Running {
-                funding,
+                funding_issues,
                 hopr_status,
             } => RunMode::Running {
-                funding,
+                funding_issues,
                 hopr_status: hopr_status.map(|s| s.into()),
             },
             command::RunMode::Shutdown => RunMode::Shutdown,
@@ -305,6 +327,20 @@ impl From<info::Info> for Info {
     }
 }
 
+impl From<balance::CapacityEntry> for CapacityEntry {
+    fn from(e: balance::CapacityEntry) -> Self {
+        CapacityEntry {
+            allocator: e.allocator,
+            capacity: Capacity {
+                stake: e.capacity.stake.amount().to_string(),
+                expected_messages: e.capacity.expected_messages,
+                min_guaranteed_messages: e.capacity.min_guaranteed_messages,
+                byte_capacity: e.capacity.byte_capacity,
+            },
+        }
+    }
+}
+
 impl From<command::BalanceResponse> for BalanceResponse {
     fn from(br: command::BalanceResponse) -> Self {
         let channels_out = br
@@ -322,11 +358,14 @@ impl From<command::BalanceResponse> for BalanceResponse {
             safe: br.safe.amount().to_string(),
             channels_out,
             info: br.info.into(),
-            issues: br.issues,
-            ticket_stats: TicketStats {
-                ticket_price: br.ticket_price.amount().to_string(),
-                winning_probability: br.winning_probability,
-            },
+            funding_issues: br.funding_issues,
+            ideal_balance: br.ideal_balance.map(|rec| BalanceRecommendation {
+                wxhopr: rec.wxhopr.amount().to_string(),
+                xdai: rec.xdai.amount().to_string(),
+            }),
+            capacity_allocations: br
+                .capacity_allocations
+                .map(|entries| entries.into_iter().map(Into::into).collect()),
         }
     }
 }

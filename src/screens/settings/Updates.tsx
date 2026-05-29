@@ -160,7 +160,7 @@ export default function Updates() {
 
   if (!appState.serviceInfo?.package_version) {
     return (
-      <div class="flex flex-col items-center justify-center gap-4 w-full h-full p-6 bg-bg-primary select-none">
+      <div class="flex flex-col items-center justify-center gap-4 w-full h-full p-6 bg-bg-primary">
         <div class="relative shrink-0 w-[120px] h-[120px]">
           <img
             src={brokenDeviceIcon}
@@ -176,7 +176,7 @@ export default function Updates() {
   }
 
   return (
-    <div class="space-y-4 w-full p-6 max-w-lg bg-bg-primary select-none flex flex-col h-full">
+    <div class="space-y-4 w-full p-6 max-w-lg bg-bg-primary flex flex-col h-full">
       <UpdateStatusCard
         onCheck={handleCheck}
         loading={checking()}
@@ -207,7 +207,7 @@ export default function Updates() {
       />
       <div class="grow" />
       <div class="space-y-1 text-sm text-text-secondary text-center">
-        <div onClick={handleVersionClick} class="cursor-default select-none">
+        <div onClick={handleVersionClick} class="cursor-default">
           Version:{" "}
           <span class="text-text-primary">
             {appState.serviceInfo?.package_version ?? "Something went wrong"}

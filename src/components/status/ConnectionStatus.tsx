@@ -53,7 +53,7 @@ export default function ConnectionStatus() {
   return (
     <Show when={status()}>
       {(s) => (
-        <p class="w-full text-center text-xs text-text-secondary animate-fade-in select-none fixed bottom-1 text-ellipsis truncate px-2">
+        <p class="w-full text-center text-xs text-text-secondary animate-fade-in fixed bottom-1 text-ellipsis truncate px-2">
           {s()}
         </p>
       )}
