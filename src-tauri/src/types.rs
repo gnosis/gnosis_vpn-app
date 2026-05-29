@@ -60,6 +60,19 @@ pub struct BalanceRecommendation {
 }
 
 #[derive(Clone, Debug, Serialize)]
+pub struct Capacity {
+    pub stake: String,
+    pub expected_messages: u64,
+    pub byte_capacity: u64,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct CapacityEntry {
+    pub allocator: balance::CapacityAllocator,
+    pub capacity: Capacity,
+}
+
+#[derive(Clone, Debug, Serialize)]
 pub struct BalanceResponse {
     pub node: String,
     pub safe: String,
@@ -67,7 +80,7 @@ pub struct BalanceResponse {
     pub info: Info,
     pub funding_issues: Option<Vec<balance::FundingIssue>>,
     pub ideal_balance: Option<BalanceRecommendation>,
-    pub capacity_allocations: Option<Vec<balance::CapacityEntry>>,
+    pub capacity_allocations: Option<Vec<CapacityEntry>>,
 }
 
 // Sanitized library structs
@@ -313,6 +326,19 @@ impl From<info::Info> for Info {
     }
 }
 
+impl From<balance::CapacityEntry> for CapacityEntry {
+    fn from(e: balance::CapacityEntry) -> Self {
+        CapacityEntry {
+            allocator: e.allocator,
+            capacity: Capacity {
+                stake: e.capacity.stake.amount().to_string(),
+                expected_messages: e.capacity.expected_messages,
+                byte_capacity: e.capacity.byte_capacity,
+            },
+        }
+    }
+}
+
 impl From<command::BalanceResponse> for BalanceResponse {
     fn from(br: command::BalanceResponse) -> Self {
         let channels_out = br
@@ -335,7 +361,9 @@ impl From<command::BalanceResponse> for BalanceResponse {
                 wxhopr: rec.wxhopr.amount().to_string(),
                 xdai: rec.xdai.amount().to_string(),
             }),
-            capacity_allocations: br.capacity_allocations,
+            capacity_allocations: br.capacity_allocations.map(|entries| {
+                entries.into_iter().map(Into::into).collect()
+            }),
         }
     }
 }
