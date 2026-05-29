@@ -137,6 +137,20 @@ export default function Usage() {
                   tooltip={<>{wxhoprDecimal(wxhoprRaw())} wxHOPR</>}
                   status={deriveSafeStatus(fundingIssues())}
                 />
+                <Show
+                  when={effectiveCredit() !== null &&
+                    isRunningRunMode(appState.runMode)}
+                >
+                  <div
+                    class={`col-span-3 text-xs text-right -mt-2 ${
+                      deriveSafeStatus(fundingIssues()) === "Empty"
+                        ? "text-vpn-red"
+                        : "text-text-secondary"
+                    }`}
+                  >
+                    ≈{formatCredit(effectiveCredit()!)}
+                  </div>
+                </Show>
                 <FundsInfo
                   amount={formatXdai(xdaiRaw())}
                   unit="xDAI"
@@ -144,20 +158,6 @@ export default function Usage() {
                   status={deriveNodeStatus(fundingIssues())}
                 />
               </div>
-              <Show
-                when={effectiveCredit() !== null &&
-                  isRunningRunMode(appState.runMode)}
-              >
-                <div
-                  class={`text-xs text-right ${
-                    deriveSafeStatus(fundingIssues()) === "Empty"
-                      ? "text-vpn-red"
-                      : "text-text-secondary"
-                  }`}
-                >
-                  ≈{formatCredit(effectiveCredit()!)}
-                </div>
-              </Show>
             </Show>
           </div>
 
