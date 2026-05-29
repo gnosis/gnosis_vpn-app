@@ -361,9 +361,9 @@ impl From<command::BalanceResponse> for BalanceResponse {
                 wxhopr: rec.wxhopr.amount().to_string(),
                 xdai: rec.xdai.amount().to_string(),
             }),
-            capacity_allocations: br.capacity_allocations.map(|entries| {
-                entries.into_iter().map(Into::into).collect()
-            }),
+            capacity_allocations: br
+                .capacity_allocations
+                .map(|entries| entries.into_iter().map(Into::into).collect()),
         }
     }
 }
