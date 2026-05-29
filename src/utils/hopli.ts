@@ -49,7 +49,11 @@ function toHopli(value: string | number | bigint): bigint | undefined {
   }
 }
 
-/** Format an xDAI amount (18-decimal base unit) as a fixed-point decimal string. */
+function stripTrailingZeros(s: string): string {
+  return s.includes(".") ? s.replace(/\.?0+$/, "") : s;
+}
+
+/** Format an xDAI amount (18-decimal base unit) as a decimal string without trailing zeros. */
 export function formatXdai(
   value: string | number | bigint,
   fractionDigits = 2,
@@ -57,12 +61,21 @@ export function formatXdai(
   assertNonNegativeParams(18, fractionDigits);
   const hopli = toHopli(value);
   if (hopli !== undefined) {
-    return fixedFloor(hopli, 18, fractionDigits);
+    return stripTrailingZeros(fixedFloor(hopli, 18, fractionDigits));
   }
   const num = Number(value);
-  if (!Number.isFinite(num)) return (0).toFixed(fractionDigits);
+  if (!Number.isFinite(num)) return "0";
   const scale = 10 ** fractionDigits;
-  return (Math.floor((num / 1e18) * scale) / scale).toFixed(fractionDigits);
+  return stripTrailingZeros(
+    (Math.floor((num / 1e18) * scale) / scale).toFixed(fractionDigits),
+  );
+}
+
+/** Format a wxHOPR hopli amount as a full decimal wxHOPR value without trailing zeros. */
+export function wxhoprDecimal(hopli: string | bigint): string {
+  const raw =
+    typeof hopli === "bigint" ? hopli : BigInt(String(hopli).trim() || "0");
+  return stripTrailingZeros(fixedFloor(raw, 18, 18));
 }
 
 // Mirrors gnosis_vpn-client/gnosis_vpn-lib/src/balance.rs `human_wxhopr` — keep unit thresholds in sync.

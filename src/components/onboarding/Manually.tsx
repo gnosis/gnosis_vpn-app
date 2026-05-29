@@ -16,7 +16,7 @@ import {
   isXDAITransferred,
 } from "@src/utils/status.ts";
 import { isPreparingSafeRunMode } from "../../services/vpnService.ts";
-import { formatXdai, humanWxhopr } from "../../utils/hopli.ts";
+import { formatXdai, humanWxhopr, wxhoprDecimal } from "../../utils/hopli.ts";
 import FundingAddress from "../address/FundingAddress.tsx";
 import StatusIndicator from "../status/StatusIndicator.tsx";
 
@@ -50,7 +50,7 @@ export default function Manually() {
   const recommendedWxHOPR = createMemo(() => {
     const rec = balanceRec();
     if (!rec) return null;
-    return humanWxhopr(rec.wxhopr);
+    return `${humanWxhopr(rec.wxhopr)} (${wxhoprDecimal(rec.wxhopr)} wxHOPR)`;
   });
 
   const recommendedXDAI = createMemo(() => {
@@ -89,7 +89,7 @@ export default function Manually() {
               }
             >
               <div class="text-sm text-text-secondary">
-                Recommended minimum: {recommendedWxHOPR()}
+                Send at least {recommendedWxHOPR()}
               </div>
             </Show>
           </div>
@@ -114,7 +114,7 @@ export default function Manually() {
               }
             >
               <div class="text-sm text-text-secondary">
-                Recommended minimum: {recommendedXDAI()}
+                Send at least {recommendedXDAI()}
               </div>
             </Show>
           </div>
