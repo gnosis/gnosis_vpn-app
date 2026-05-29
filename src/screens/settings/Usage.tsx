@@ -97,40 +97,37 @@ export default function Usage() {
             </div>
           </Show>
 
-          <div class="flex flex-col py-4 my-4 w-64 gap-3">
+          <div class="flex flex-col py-4 my-4 w-64 gap-1">
             <Show
               when={!isBalanceLoading()}
               fallback={
                 <div class="h-14 w-full rounded bg-sky-600/15 animate-pulse" />
               }
             >
-              <div class="flex flex-col gap-3">
-                <div class="flex flex-col gap-1">
-                  <FundsInfo
-                    {...humanWxhoprParts(preparingSafe()?.node_wxhopr ?? totalWxhoprHopli() ?? "0")}
-                    status={deriveSafeStatus(fundingIssues())}
-                  />
-                  <Show
-                    when={effectiveCredit() !== null &&
-                      isRunningRunMode(appState.runMode)}
-                  >
-                    <div
-                      class={`text-xs text-right ${
-                        deriveSafeStatus(fundingIssues()) === "Empty"
-                          ? "text-vpn-red"
-                          : "text-text-secondary"
-                      }`}
-                    >
-                      ≈{formatCredit(effectiveCredit()!)}
-                    </div>
-                  </Show>
-                </div>
+              <div class="grid grid-cols-[auto_auto_1fr] gap-x-3 items-baseline gap-y-3">
+                <FundsInfo
+                  {...humanWxhoprParts(preparingSafe()?.node_wxhopr ?? totalWxhoprHopli() ?? "0")}
+                  status={deriveSafeStatus(fundingIssues())}
+                />
                 <FundsInfo
                   amount={formatXdai(preparingSafe()?.node_xdai ?? appState.balance?.node ?? "0")}
                   unit="xDAI"
                   status={deriveNodeStatus(fundingIssues())}
                 />
               </div>
+              <Show
+                when={effectiveCredit() !== null && isRunningRunMode(appState.runMode)}
+              >
+                <div
+                  class={`text-xs text-right ${
+                    deriveSafeStatus(fundingIssues()) === "Empty"
+                      ? "text-vpn-red"
+                      : "text-text-secondary"
+                  }`}
+                >
+                  ≈{formatCredit(effectiveCredit()!)}
+                </div>
+              </Show>
             </Show>
           </div>
 

@@ -6,6 +6,7 @@ type Props = {
   status?: "Sufficient" | "Low" | "Empty" | string | null;
 };
 
+// Returns 3 bare grid cells — must be placed inside a grid-cols-3 parent.
 export default function FundsInfo(props: Props) {
   const statusColor = () =>
     props.status === "Sufficient"
@@ -15,14 +16,14 @@ export default function FundsInfo(props: Props) {
       : "text-amber-600";
 
   return (
-    <div class="flex flex-row items-baseline justify-between w-full">
-      <div class="flex items-baseline gap-2">
-        <span class="font-semibold font-mono">{props.amount}</span>
-        <span class="font-semibold">{props.unit}</span>
-      </div>
+    <>
+      <span class="font-semibold font-mono text-right">{props.amount}</span>
+      <span class="font-semibold">{props.unit}</span>
       <Show when={props.status}>
-        <span class={`font-bold text-xs ${statusColor()}`}>{props.status}</span>
+        <span class={`font-bold text-xs text-right ${statusColor()}`}>
+          {props.status}
+        </span>
       </Show>
-    </div>
+    </>
   );
 }
