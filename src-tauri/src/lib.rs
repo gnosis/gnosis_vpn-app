@@ -22,7 +22,7 @@ pub mod types;
 
 use commands::{
     check_update, compress_logs, connect, disconnect, info, set_app_icon, start_client,
-    start_status_polling, stop_client, trigger_balance_refresh,
+    start_status_polling, stop_client,
 };
 #[cfg(target_os = "macos")]
 use gnosis_vpn_lib::{command, socket::root as root_socket};
@@ -49,7 +49,6 @@ pub struct StatusPollingHandle {
 pub struct BalancePollingHandle {
     pub cancel: CancellationToken,
     pub handle: Option<tauri::async_runtime::JoinHandle<()>>,
-    pub trigger: Arc<Notify>,
 }
 
 #[derive(Clone, Serialize, Default)]
@@ -378,7 +377,6 @@ pub fn run() {
             app.manage(Mutex::new(BalancePollingHandle {
                 cancel: CancellationToken::new(),
                 handle: None,
-                trigger: Arc::new(Notify::new()),
             }));
 
             Ok(())
@@ -392,7 +390,6 @@ pub fn run() {
             set_app_icon,
             get_initial_theme,
             start_status_polling,
-            trigger_balance_refresh,
             check_update
         ])
         .build(tauri::generate_context!())

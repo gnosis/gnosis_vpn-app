@@ -3,7 +3,6 @@ import {
   isPreparingSafeRunMode,
   isRunningRunMode,
   isWarmupRunMode,
-  VPNService,
 } from "../../services/vpnService.ts";
 import {
   computeEffectiveCredit,
@@ -18,15 +17,12 @@ import {
   describeCriticalIssue,
 } from "../../utils/funding.ts";
 import WarningIcon from "../../components/common/WarningIcon.tsx";
-import { useLogsStore } from "../../stores/logsStore.ts";
-import refreshIcon from "../../assets/icons/refresh.svg";
 import Button from "../../components/common/Button.tsx";
 import { useAppStore } from "../../stores/appStore.ts";
 import AddFundsModal from "@src/components/AddFundsModal.tsx";
 
 export default function Usage() {
   const [isAddFundsOpen, setIsAddFundsOpen] = createSignal(false);
-  const [, logActions] = useLogsStore();
   const [appState] = useAppStore();
 
   const preparingSafe =
@@ -53,14 +49,6 @@ export default function Usage() {
   });
 
   const isBalanceLoading = () => appState.balance === null;
-
-  async function handleRefresh() {
-    try {
-      await VPNService.triggerBalanceRefresh();
-    } catch (error) {
-      logActions.append(`Error triggering balance refresh: ${String(error)}`);
-    }
-  }
 
   const criticalIssue = createMemo(() => fundingIssues()[0]);
   const isCriticalLevel = createMemo(() =>
@@ -154,19 +142,6 @@ export default function Usage() {
                 <WarningIcon />
                 It may take up to 2 minutes until your funds have been
                 registered after transaction.
-              </div>
-              <div class="w-8 h-8">
-                <button
-                  type="button"
-                  class="h-8 w-8 hover:cursor-pointer"
-                  onClick={handleRefresh}
-                >
-                  <img
-                    src={refreshIcon}
-                    alt="Refresh"
-                    class="h-8 w-8 dark:invert"
-                  />
-                </button>
               </div>
             </div>
           </div>

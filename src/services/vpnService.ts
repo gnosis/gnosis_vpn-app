@@ -427,13 +427,6 @@ export class VPNService {
     }
   }
 
-  static async triggerBalanceRefresh(): Promise<void> {
-    try {
-      await invoke("trigger_balance_refresh");
-    } catch (error) {
-      console.error("Failed to trigger balance refresh:", error);
-    }
-  }
 
   static async compressLogs(logPath: string, destPath: string): Promise<void> {
     try {

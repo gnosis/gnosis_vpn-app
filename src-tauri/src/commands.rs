@@ -147,15 +147,6 @@ async fn query_balance() -> (Duration, Result<Option<BalanceResponse>, String>) 
     }
 }
 
-#[tauri::command]
-pub async fn trigger_balance_refresh(
-    bal_polling_state: State<'_, Mutex<BalancePollingHandle>>,
-) -> Result<(), String> {
-    if let Ok(guard) = bal_polling_state.lock() {
-        guard.trigger.notify_one();
-    }
-    Ok(())
-}
 
 
 #[cfg(target_os = "macos")]
@@ -419,9 +410,9 @@ pub async fn start_status_polling(
         guard.handle = Some(join_handle);
     }
 
-    let (bal_cancel, bal_trigger) = {
+    let bal_cancel = {
         let guard = bal_polling_state.lock().map_err(|e| e.to_string())?;
-        (guard.cancel.clone(), guard.trigger.clone())
+        guard.cancel.clone()
     };
 
     let app_bal = app_handle.clone();
@@ -432,9 +423,6 @@ pub async fn start_status_polling(
             tokio::select! {
                 _ = bal_cancel.cancelled() => {
                     break;
-                }
-                _ = bal_trigger.notified() => {
-                    tick_timeout.as_mut().reset(Instant::now());
                 }
                 _ = tick_timeout.as_mut() => {
                     let (delay, result) = query_balance().await;
