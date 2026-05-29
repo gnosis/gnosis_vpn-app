@@ -16,7 +16,11 @@ import {
   deriveSafeStatus,
   describeCriticalIssue,
 } from "../../utils/funding.ts";
-import { formatXdai, humanWxhoprParts } from "../../utils/hopli.ts";
+import {
+  formatXdai,
+  humanWxhoprParts,
+  wxhoprDecimal,
+} from "../../utils/hopli.ts";
 import WarningIcon from "../../components/common/WarningIcon.tsx";
 import Button from "../../components/common/Button.tsx";
 import { useAppStore } from "../../stores/appStore.ts";
@@ -48,6 +52,11 @@ export default function Usage() {
     if (!b?.capacity_allocations) return undefined;
     return sumCapacityStake(b.capacity_allocations).toString();
   });
+
+  const wxhoprRaw = () =>
+    preparingSafe()?.node_wxhopr ?? totalWxhoprHopli() ?? "0";
+  const xdaiRaw = () =>
+    preparingSafe()?.node_xdai ?? appState.balance?.node ?? "0";
 
   const isBalanceLoading = () => appState.balance === null;
 
@@ -124,16 +133,14 @@ export default function Usage() {
             >
               <div class="grid grid-cols-[auto_auto_1fr] gap-x-3 items-baseline gap-y-3">
                 <FundsInfo
-                  {...humanWxhoprParts(
-                    preparingSafe()?.node_wxhopr ?? totalWxhoprHopli() ?? "0",
-                  )}
+                  {...humanWxhoprParts(wxhoprRaw())}
+                  tooltip={<>{wxhoprDecimal(wxhoprRaw())} wxHOPR</>}
                   status={deriveSafeStatus(fundingIssues())}
                 />
                 <FundsInfo
-                  amount={formatXdai(
-                    preparingSafe()?.node_xdai ?? appState.balance?.node ?? "0",
-                  )}
+                  amount={formatXdai(xdaiRaw())}
                   unit="xDAI"
+                  tooltip={<>{formatXdai(xdaiRaw(), 18)} xDAI</>}
                   status={deriveNodeStatus(fundingIssues())}
                 />
               </div>
