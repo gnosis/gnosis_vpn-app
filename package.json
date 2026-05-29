@@ -9,7 +9,8 @@
     "build": "vite build",
     "serve": "vite preview",
     "tauri": "tauri",
-    "test": "vitest run"
+    "typecheck": "tsc --noEmit",
+    "test": "tsc --noEmit && vitest run"
   },
   "license": "MIT",
   "dependencies": {
