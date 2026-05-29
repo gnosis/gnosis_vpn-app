@@ -6,8 +6,8 @@ use serde::Serialize;
 use tauri::Manager;
 use tauri::tray::TrayIconBuilder;
 use tauri_plugin_store::StoreExt;
-use tokio::sync::watch;
 use tokio::sync::Notify;
+use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
 
 use std::path::PathBuf;
@@ -25,7 +25,6 @@ use commands::{
     check_update, compress_logs, connect, disconnect, get_cached_state, run_initialization_loop,
     set_app_icon, stop_client,
 };
-use types::{BalanceResponse, StatusResponse};
 #[cfg(target_os = "macos")]
 use gnosis_vpn_lib::{command, socket::root as root_socket};
 use icons::{AppIconState, TrayIconState, determine_tray_icon, start_app_icon_heartbeat};
@@ -39,6 +38,7 @@ use tray::{
     toggle_main_window_visibility,
 };
 use types::ConnectionState;
+use types::{BalanceResponse, StatusResponse};
 
 struct HeartbeatHandle(Mutex<Option<tauri::async_runtime::JoinHandle<()>>>);
 

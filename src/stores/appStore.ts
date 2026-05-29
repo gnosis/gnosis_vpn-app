@@ -442,7 +442,10 @@ export function createAppStore(): AppStoreTuple {
       };
 
       try {
-        unlistenBalanceUpdate = await listen<unknown>("balance", balanceListenCb);
+        unlistenBalanceUpdate = await listen<unknown>(
+          "balance",
+          balanceListenCb,
+        );
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
         console.error("Failed to listen for balance updates: " + errorMsg);
@@ -461,7 +464,11 @@ export function createAppStore(): AppStoreTuple {
           criticalError("Failed to hydrate status: " + msg);
         }
         try {
-          balanceListenCb({ payload: cached.balance, id: -1, event: "balance" });
+          balanceListenCb({
+            payload: cached.balance,
+            id: -1,
+            event: "balance",
+          });
         } catch (err) {
           console.warn("Failed to hydrate balance:", err);
         }
