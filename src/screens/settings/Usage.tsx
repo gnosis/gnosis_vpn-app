@@ -10,12 +10,14 @@ import { onCleanup, onMount } from "solid-js";
 import {
   computeEffectiveCredit,
   formatCredit,
+  sumCapacityStake,
 } from "../../utils/credit.ts";
 import FundsInfo from "../../components/FundsInfo.tsx";
 import { Show } from "solid-js";
 import {
-  calculateGlobalFundingStatus,
-  type GlobalFundingStatus,
+  deriveSafeStatus,
+  deriveNodeStatus,
+  describeCriticalIssue,
 } from "../../utils/funding.ts";
 import WarningIcon from "../../components/common/WarningIcon.tsx";
 import { useLogsStore } from "../../stores/logsStore.ts";
@@ -34,20 +36,15 @@ function balancesEqual(
   if (a === null || b === null) return false;
   return (
     a.node === b.node &&
-    a.safe === b.safe &&
-    a.channels_out === b.channels_out &&
     a.info.node_address === b.info.node_address &&
     a.info.safe_address === b.info.safe_address &&
-    JSON.stringify(a.funding_issues) === JSON.stringify(b.funding_issues)
+    JSON.stringify(a.capacity_allocations) === JSON.stringify(b.capacity_allocations)
   );
 }
 
 export default function Usage() {
   const [balance, setBalance] = createSignal<BalanceResponse | null>(null);
   const [isBalanceLoading, setIsBalanceLoading] = createSignal(true);
-  const [fundingStatus, setFundingStatus] = createSignal<
-    GlobalFundingStatus | null
-  >(null);
   const [isAddFundsOpen, setIsAddFundsOpen] = createSignal(false);
   const [, logActions] = useLogsStore();
   const [appState] = useAppStore();
@@ -57,6 +54,12 @@ export default function Usage() {
       ? appState.runMode.PreparingSafe
       : null);
 
+  const fundingIssues = createMemo(() =>
+    isRunningRunMode(appState.runMode)
+      ? (appState.runMode.Running.funding_issues ?? [])
+      : []
+  );
+
   const effectiveCredit = createMemo(() => {
     const b = balance();
     if (!b) return null;
@@ -65,8 +68,8 @@ export default function Usage() {
 
   const totalWxhoprWei = createMemo(() => {
     const b = balance();
-    if (!b) return undefined;
-    return (BigInt(b.safe) + BigInt(b.channels_out)).toString();
+    if (!b?.capacity_allocations) return undefined;
+    return sumCapacityStake(b.capacity_allocations).toString();
   });
 
   async function loadBalance() {
@@ -76,19 +79,9 @@ export default function Usage() {
 
       if (!balancesEqual(result, currentBalance)) {
         setBalance(result);
-        if (result) {
-          const status = calculateGlobalFundingStatus(
-            result.funding_issues ?? [],
-            { safe: result.safe, node: result.node },
-          );
-          setFundingStatus(status);
-        } else {
-          setFundingStatus(null);
-        }
       }
     } catch (error) {
       logActions.append(`Error loading balance: ${String(error)}`);
-      setFundingStatus(null);
     } finally {
       setIsBalanceLoading(false);
     }
@@ -113,6 +106,11 @@ export default function Usage() {
     clearInterval(intervalId);
   });
 
+  const criticalIssue = createMemo(() => fundingIssues()[0]);
+  const isCriticalLevel = createMemo(() =>
+    criticalIssue() === "Unfunded" || criticalIssue() === "ChannelsOutOfFunds"
+  );
+
   return (
     <div class="p-4 w-full flex flex-col gap-2 items-center">
       <Switch>
@@ -132,21 +130,21 @@ export default function Usage() {
           </div>
         </Match>
         <Match when={isRunningRunMode(appState.runMode) || preparingSafe()}>
-          <Show when={fundingStatus()?.description}>
-            <div
-              class={`px-4 py-2 rounded-lg text-sm font-medium ${
-                fundingStatus()?.overall === "Empty"
-                  ? "bg-red-100 text-red-800"
-                  : fundingStatus()?.overall === "Low"
-                  ? "bg-amber-100 text-amber-800"
-                  : "bg-emerald-100 text-emerald-800"
-              }`}
-            >
-              <div class="flex items-center gap-2">
-                <WarningIcon />
-                <span>{fundingStatus()?.description}</span>
+          <Show when={describeCriticalIssue(fundingIssues())}>
+            {(description) => (
+              <div
+                class={`px-4 py-2 rounded-lg text-sm font-medium ${
+                  isCriticalLevel()
+                    ? "bg-red-100 text-red-800"
+                    : "bg-amber-100 text-amber-800"
+                }`}
+              >
+                <div class="flex items-center gap-2">
+                  <WarningIcon />
+                  <span>{description()}</span>
+                </div>
               </div>
-            </div>
+            )}
           </Show>
           <Show when={preparingSafe()}>
             <div class="px-4 py-2 rounded-lg text-sm font-medium bg-amber-100 text-amber-800">
@@ -163,7 +161,7 @@ export default function Usage() {
                 ticker="wxHOPR"
                 address={preparingSafe()?.node_address ??
                   balance()?.info.safe_address}
-                status={fundingStatus()?.safeStatus}
+                status={deriveSafeStatus(fundingIssues())}
                 isLoading={isBalanceLoading()}
               />
               <Show
@@ -172,7 +170,7 @@ export default function Usage() {
               >
                 <div class="text-xs mt-1 pr-1 text-right">
                   <div
-                    class={fundingStatus()?.safeStatus === "Empty"
+                    class={deriveSafeStatus(fundingIssues()) === "Empty"
                       ? "text-vpn-red"
                       : "text-text-secondary"}
                   >
@@ -188,7 +186,7 @@ export default function Usage() {
               ticker="xDAI"
               address={preparingSafe()?.node_address ??
                 balance()?.info.node_address}
-              status={fundingStatus()?.nodeStatus}
+              status={deriveNodeStatus(fundingIssues())}
               isLoading={isBalanceLoading()}
             />
           </div>

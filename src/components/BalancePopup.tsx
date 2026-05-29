@@ -6,17 +6,15 @@ import {
   Show,
 } from "solid-js";
 import { Portal } from "solid-js/web";
-import { type BalanceResponse, VPNService } from "@src/services/vpnService.ts";
+import { type BalanceResponse, isRunningRunMode, VPNService } from "@src/services/vpnService.ts";
 import { fromWeiToFixed } from "@src/utils/wei.ts";
-import {
-  calculateGlobalFundingStatus,
-  type GlobalFundingStatus,
-  type StatusText,
-} from "@src/utils/funding.ts";
+import { deriveSafeStatus, deriveNodeStatus, type StatusText } from "@src/utils/funding.ts";
 import {
   computeEffectiveCredit,
   formatCredit,
+  sumCapacityStake,
 } from "@src/utils/credit.ts";
+import { useAppStore } from "@src/stores/appStore.ts";
 
 const BALANCE_REFRESH_INTERVAL_MS = 60000;
 
@@ -40,12 +38,14 @@ function StatusDot(props: { status: StatusText }) {
 }
 
 export default function BalancePopup(props: Props) {
+  const [appState] = useAppStore();
   const [balance, setBalance] = createSignal<BalanceResponse | null>(null);
-  const [fundingStatus, setFundingStatus] = createSignal<GlobalFundingStatus>({
-    overall: "Sufficient",
-    safeStatus: "Sufficient",
-    nodeStatus: "Sufficient",
-  });
+
+  const fundingIssues = createMemo(() =>
+    isRunningRunMode(appState.runMode)
+      ? (appState.runMode.Running.funding_issues ?? [])
+      : []
+  );
 
   const effectiveCredit = createMemo(() => {
     const b = balance();
@@ -53,17 +53,16 @@ export default function BalancePopup(props: Props) {
     return computeEffectiveCredit(b.capacity_allocations ?? []);
   });
 
+  const totalWxhopr = createMemo(() => {
+    const b = balance();
+    if (!b?.capacity_allocations) return 0n;
+    return sumCapacityStake(b.capacity_allocations);
+  });
+
   const loadBalance = async () => {
     try {
       const result = await VPNService.balance();
       setBalance(result);
-      if (result) {
-        const status = calculateGlobalFundingStatus(
-          result.funding_issues ?? [],
-          { safe: result.safe, node: result.node },
-        );
-        setFundingStatus(status);
-      }
     } catch (error) {
       console.error("Error loading balance:", error);
     }
@@ -115,7 +114,7 @@ export default function BalancePopup(props: Props) {
 
             <div class="mb-2">
               <div class="flex items-center gap-1 mb-0.5">
-                <StatusDot status={fundingStatus().safeStatus} />
+                <StatusDot status={deriveSafeStatus(fundingIssues())} />
                 <div class="text-[9px] text-accent-text/70 uppercase tracking-wide">
                   TRAFFIC
                 </div>
@@ -126,38 +125,32 @@ export default function BalancePopup(props: Props) {
                   <div class="text-[10px] text-accent-text/70">Loading...</div>
                 }
               >
-                {(b) => (
-                  <>
-                    <div
-                      class={`flex items-baseline justify-end gap-1 text-sm font-bold font-mono ${
-                        fundingStatus().safeStatus === "Empty" ? "text-red-500" : ""
-                      }`}
-                    >
-                      <span>
-                        {fromWeiToFixed(
-                          BigInt(b().safe) + BigInt(b().channels_out),
-                        )}
-                      </span>
-                      <span
-                        class="text-[10px] inline-block text-left"
-                        style={{ width: "34px" }}
-                      >
-                        wxHOPR
-                      </span>
-                    </div>
-                    <div class="text-[10px] text-accent-text/50 font-mono text-right">
-                      {effectiveCredit() !== null
-                        ? `≈${formatCredit(effectiveCredit()!)}`
-                        : "—"}
-                    </div>
-                  </>
-                )}
+                <div
+                  class={`flex items-baseline justify-end gap-1 text-sm font-bold font-mono ${
+                    deriveSafeStatus(fundingIssues()) === "Empty" ? "text-red-500" : ""
+                  }`}
+                >
+                  <span>
+                    {fromWeiToFixed(totalWxhopr())}
+                  </span>
+                  <span
+                    class="text-[10px] inline-block text-left"
+                    style={{ width: "34px" }}
+                  >
+                    wxHOPR
+                  </span>
+                </div>
+                <div class="text-[10px] text-accent-text/50 font-mono text-right">
+                  {effectiveCredit() !== null
+                    ? `≈${formatCredit(effectiveCredit()!)}`
+                    : "—"}
+                </div>
               </Show>
             </div>
 
             <div>
               <div class="flex items-center gap-1 mb-0.5">
-                <StatusDot status={fundingStatus().nodeStatus} />
+                <StatusDot status={deriveNodeStatus(fundingIssues())} />
                 <div class="text-[9px] text-accent-text/70 uppercase tracking-wide">
                   CUSTOM EXIT NODES
                 </div>
