@@ -608,10 +608,10 @@ function findDelayReason(destinations: DestinationState[]): string | null {
     const s = ds.route_health.state;
 
     if (s.state === "ReadyToConnect" || s.state === "Connecting") return null;
-    if (s.state === "NeedsFunding") missingChannels++;
+    if (s.state === "NeedsChannel") missingChannels++;
     else if (s.state === "NeedsPeering") {
       missingPeers++;
-      if (!s.funded) missingChannels++;
+      if (!s.has_channel) missingChannels++;
     }
   }
   if (missingPeers > 0 && missingPeers >= missingChannels) {

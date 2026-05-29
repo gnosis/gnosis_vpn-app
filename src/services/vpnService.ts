@@ -85,7 +85,6 @@ export type ExitHealthData = z.infer<typeof ExitHealthDataSchema>;
 
 export const UnrecoverableReasonSchema = z.union([
   z.literal("NotAllowed"),
-  z.literal("InvalidId"),
   z.literal("InvalidPath"),
   z.object({
     IncompatibleApiVersion: z.object({ server_versions: z.array(z.string()) }),
@@ -98,8 +97,8 @@ export const RouteHealthStateSchema = z.discriminatedUnion("state", [
     state: z.literal("Unrecoverable"),
     reason: UnrecoverableReasonSchema,
   }),
-  z.object({ state: z.literal("NeedsPeering"), funded: z.boolean() }),
-  z.object({ state: z.literal("NeedsFunding") }),
+  z.object({ state: z.literal("NeedsPeering"), has_channel: z.boolean() }),
+  z.object({ state: z.literal("NeedsChannel") }),
   z.object({ state: z.literal("Routable") }),
   z.object({ state: z.literal("ReadyToConnect"), exit: ExitHealthDataSchema }),
   z.object({
@@ -158,6 +157,25 @@ export const BalanceRecommendationSchema = z.object({
   xdai: z.string(),
 });
 export type BalanceRecommendation = z.infer<typeof BalanceRecommendationSchema>;
+
+export const CapacityAllocatorSchema = z.union([
+  z.literal("Safe"),
+  z.object({ Peer: z.string() }),
+]);
+export type CapacityAllocator = z.infer<typeof CapacityAllocatorSchema>;
+
+export const CapacitySchema = z.object({
+  stake: z.string(),
+  expected_messages: z.number(),
+  byte_capacity: z.number(),
+});
+export type Capacity = z.infer<typeof CapacitySchema>;
+
+export const CapacityEntrySchema = z.object({
+  allocator: CapacityAllocatorSchema,
+  capacity: CapacitySchema,
+});
+export type CapacityEntry = z.infer<typeof CapacityEntrySchema>;
 
 export const TicketStatsSchema = z.object({
   ticket_price: z.string(),
@@ -249,7 +267,7 @@ export const BalanceResponseSchema = z.object({
   info: InfoSchema,
   funding_issues: z.array(FundingIssueSchema).nullable(),
   ideal_balance: BalanceRecommendationSchema.nullable(),
-  capacity_allocations: z.array(z.unknown()).nullable(),
+  capacity_allocations: z.array(CapacityEntrySchema).nullable(),
 });
 export type BalanceResponse = z.infer<typeof BalanceResponseSchema>;
 
