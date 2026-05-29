@@ -16,6 +16,7 @@ import {
   isWarmupRunMode,
   type RunMode,
   type ServiceInfo,
+  ServiceInfoSchema,
   type StatusResponse,
   StatusResponseSchema,
   VPNService,
@@ -26,11 +27,6 @@ import {
   getPreferredAvailabilityChangeMessage,
   resolveAutoDestination,
 } from "@src/utils/destinations.ts";
-
-import {
-  COMPATIBLE_VERSIONS,
-  isServiceVersionCompatible,
-} from "@src/utils/compatibility.ts";
 
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import { deriveVPNStatus } from "@src/utils/status.ts";
@@ -126,6 +122,7 @@ type SyncPhaseIndex = 0 | 1 | 2;
 export function createAppStore(): AppStoreTuple {
   const [state, setState] = createStore<AppState>(initialState());
 
+  let unlistenServiceInfo: (() => void) | undefined;
   let unlistenStatusUpdate: (() => void) | undefined;
   let unlistenBalanceUpdate: (() => void) | undefined;
   let connectedOnOpenDetected = false;
@@ -344,20 +341,15 @@ export function createAppStore(): AppStoreTuple {
     if (prefMsg) log(prefMsg);
   };
 
-  const OFFLINE_TIMEOUT = 5000; // ms
-  let redoTimeout: ReturnType<typeof setTimeout> | undefined;
-
   const actions = {
-    /**
-     * Run initialization logic, will keep looping.
-     * Reset upon calling it again.
-     */
     initializeApp: async () => {
-      clearTimeout(redoTimeout);
-      redoTimeout = undefined;
       connectedOnOpenDetected = false;
       stopSyncProgress();
       setState("syncProgress", 0);
+      if (unlistenServiceInfo) {
+        unlistenServiceInfo();
+        unlistenServiceInfo = undefined;
+      }
       if (unlistenStatusUpdate) {
         unlistenStatusUpdate();
         unlistenStatusUpdate = undefined;
@@ -371,77 +363,40 @@ export function createAppStore(): AppStoreTuple {
         log(message);
         connectedOnOpenDetected = false;
         stopSyncProgress();
+        const savedServiceInfo = state.serviceInfo;
         setState(reconcile(initialState()));
+        setState("serviceInfo", savedServiceInfo);
         setState("error", message);
-        if (unlistenStatusUpdate) {
-          unlistenStatusUpdate();
-          unlistenStatusUpdate = undefined;
-        }
-        if (unlistenBalanceUpdate) {
-          unlistenBalanceUpdate();
-          unlistenBalanceUpdate = undefined;
-        }
-        redoTimeout = setTimeout(
-          () => actions.initializeApp(),
-          OFFLINE_TIMEOUT,
-        );
       };
 
-      let info;
       try {
-        info = await VPNService.info();
+        unlistenServiceInfo = await listen<unknown>("service_info", (event) => {
+          const parsed = ServiceInfoSchema.safeParse(
+            (event as { payload: unknown }).payload,
+          );
+          if (parsed.success) {
+            setState("serviceInfo", parsed.data);
+          } else {
+            console.error("Invalid service_info payload", parsed.error);
+          }
+        });
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
-        const message = "Failed to get service info: " + errorMsg;
-        criticalError(message);
-        return;
+        console.error("Failed to listen for service_info updates: " + errorMsg);
       }
 
-      setState("serviceInfo", info);
-      if (!isServiceVersionCompatible(info.version)) {
-        const message = "Incompatible service version: " +
-          info.version +
-          ". Supported versions: " +
-          COMPATIBLE_VERSIONS.join(", ") +
-          ". If you just updated, please restart the app.";
-        criticalError(message);
-        return;
-      }
-
-      try {
-        await VPNService.startClient(10);
-      } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        const message = "Failed to start client worker: " + errorMsg;
-        criticalError(message);
-        return;
-      }
-
-      try {
-        await VPNService.startStatusPolling();
-      } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        const message = "Failed to start status polling: " + errorMsg;
-        criticalError(message);
-        return;
-      }
-
-      // for some reason the expected TS type here is wrong
-      // thats why we cast the type (3 lines below) to the expected one, even if it is not correct according to the event emitter
       const listenCb = (event: unknown) => {
         let statusResp: StatusResponse | void;
         try {
           statusResp = incomingStatusEvent(event as StatusEvent);
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : String(err);
-          const message = "Error processing status update: " + errorMsg;
-          criticalError(message);
+          criticalError("Error processing status update: " + errorMsg);
           return;
         }
 
         if (!statusResp) {
-          const errorMsg = "Received empty status response";
-          criticalError(errorMsg);
+          criticalError("Received empty status response");
           return;
         }
 
@@ -455,8 +410,7 @@ export function createAppStore(): AppStoreTuple {
         );
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
-        const message = "Failed to listen for status updates: " + errorMsg;
-        criticalError(message);
+        criticalError("Failed to listen for status updates: " + errorMsg);
         return;
       }
 

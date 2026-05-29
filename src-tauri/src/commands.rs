@@ -22,6 +22,14 @@ use crate::types::{
 };
 use crate::{BalancePollingHandle, StatusPollingHandle};
 
+const COMPATIBLE_VERSIONS: &[&str] = &["0.86"];
+
+fn is_version_compatible(version: &str) -> bool {
+    COMPATIBLE_VERSIONS
+        .iter()
+        .any(|c| version.trim().starts_with(c))
+}
+
 const ALLOWED_APP_ICONS: &[&str] = &[
     icons::APP_ICON_CONNECTED,
     icons::APP_ICON_CONNECTED_LOW_FUNDS,
@@ -60,32 +68,24 @@ fn validate_icon_name(icon_name: &str) -> Result<(), String> {
     }
 }
 
-#[tauri::command]
-pub async fn info() -> Result<command::InfoResponse, String> {
+async fn query_info() -> Result<command::InfoResponse, String> {
     let p = PathBuf::from(root_socket::DEFAULT_PATH);
-    let cmd = command::Command::Info;
-
-    let resp = root_socket::process_cmd(&p, &cmd)
+    let resp = root_socket::process_cmd(&p, &command::Command::Info)
         .await
         .map_err(|e| e.to_string())?;
-
     match resp {
         command::Response::Info(info) => Ok(info),
         _ => Err("Unexpected response type".to_string()),
     }
 }
 
-#[tauri::command]
-pub async fn start_client(keep_alive: Duration) -> Result<(), String> {
+async fn start_client_worker(keep_alive: Duration) -> Result<(), String> {
     let p = PathBuf::from(root_socket::DEFAULT_PATH);
-    let cmd = command::Command::StartClient(keep_alive);
-
-    let resp = root_socket::process_cmd(&p, &cmd)
+    let resp = root_socket::process_cmd(&p, &command::Command::StartClient(keep_alive))
         .await
         .map_err(|e| e.to_string())?;
-
     match resp {
-        command::Response::StartClient(_resp) => Ok(()),
+        command::Response::StartClient(_) => Ok(()),
         _ => Err("Unexpected response type".to_string()),
     }
 }
@@ -316,14 +316,10 @@ pub async fn stop_client() -> Result<(), String> {
     }
 }
 
-#[tauri::command]
-pub async fn start_status_polling(
-    app_handle: AppHandle,
-    polling_state: State<'_, Mutex<StatusPollingHandle>>,
-    bal_polling_state: State<'_, Mutex<BalancePollingHandle>>,
-) -> Result<(), String> {
-    println!("Starting status polling...");
-    // cancel previous polling and wait for it to finish
+async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
+    let polling_state = app_handle.state::<Mutex<StatusPollingHandle>>();
+    let bal_polling_state = app_handle.state::<Mutex<BalancePollingHandle>>();
+
     let prev_handle = {
         let mut guard = polling_state.lock().map_err(|e| e.to_string())?;
         guard.cancel.cancel();
@@ -355,42 +351,34 @@ pub async fn start_status_polling(
         tokio::pin!(tick_timeout);
         loop {
             tokio::select! {
-
                 _ = cancel.cancelled() => {
                     println!("Status tick received cancellation signal, exiting...");
                     break;
                 }
-
                 _ = trigger.notified() => {
-                    // immediate status query triggered by connect/disconnect
                     tick_timeout.as_mut().reset(Instant::now());
                 }
-
                 _ = tick_timeout.as_mut() => {
                     let (status_delay, result) = query_status().await;
                     tick_timeout.as_mut().reset(Instant::now() + status_delay);
                     if let Ok(Some(ref status)) = result {
-                        // derive tray icon
                         let conn_state = status.into();
                         icons::update_tray_icon(&app, &app.state::<TrayIconState>(), &conn_state);
 
-                        // animate icon
                         let should_animate = matches!(conn_state, ConnectionState::Connecting(_) | ConnectionState::Disconnecting);
                         let app_icon_state = app.state::<Arc<AppIconState>>();
                         app_icon_state.is_animating.store(should_animate, Ordering::Relaxed);
 
-                        // derive app_icon only when not animating; during animation, the heartbeat
-                        // logic owns app icon changes to avoid fighting with it
+                        // during animation, the heartbeat logic owns app icon changes
                         if !should_animate {
-                        let icon_name = icons::determine_app_icon(&conn_state, &status.run_mode);
-                        if icons::update_icon_name_if_changed(&app_icon_state.current_icon, &icon_name) {
-                            if let Err(e) = set_app_icon(app.clone(), icon_name.to_string()).await {
-                                eprintln!("Failed to update app icon: {}", e);
+                            let icon_name = icons::determine_app_icon(&conn_state, &status.run_mode);
+                            if icons::update_icon_name_if_changed(&app_icon_state.current_icon, &icon_name) {
+                                if let Err(e) = set_app_icon(app.clone(), icon_name.to_string()).await {
+                                    eprintln!("Failed to update app icon: {}", e);
+                                }
                             }
                         }
-                        }
 
-                        // set status text
                         let status_item = app.state::<tray::TrayStatusItem>();
                         if let Ok(guard) = status_item.0.lock() {
                             let _ = guard.set_text(conn_state.to_string());
@@ -398,12 +386,10 @@ pub async fn start_status_polling(
                     }
                     let _ = app.emit("status", result);
                 }
-
             }
         }
     });
 
-    // Store the join handle so it can be awaited on shutdown
     {
         let mut guard = polling_state.lock().map_err(|e| e.to_string())?;
         guard.handle = Some(join_handle);
@@ -440,6 +426,62 @@ pub async fn start_status_polling(
     Ok(())
 }
 
+pub async fn run_initialization_loop(app: AppHandle) {
+    const RETRY_DELAY: Duration = Duration::from_secs(5);
+    loop {
+        let info = match query_info().await {
+            Ok(i) => i,
+            Err(e) => {
+                let _ = app.emit(
+                    "status",
+                    Err::<Option<StatusResponse>, String>(format!(
+                        "Failed to get service info: {e}"
+                    )),
+                );
+                time::sleep(RETRY_DELAY).await;
+                continue;
+            }
+        };
+
+        if !is_version_compatible(&info.version) {
+            let supported = COMPATIBLE_VERSIONS.join(", ");
+            let _ = app.emit(
+                "status",
+                Err::<Option<StatusResponse>, String>(format!(
+                    "Incompatible service version: {}. Supported versions: {supported}. \
+                     If you just updated, please restart the app.",
+                    info.version
+                )),
+            );
+            time::sleep(RETRY_DELAY).await;
+            continue;
+        }
+
+        if let Err(e) = start_client_worker(Duration::from_secs(10)).await {
+            let _ = app.emit(
+                "status",
+                Err::<Option<StatusResponse>, String>(format!(
+                    "Failed to start client worker: {e}"
+                )),
+            );
+            time::sleep(RETRY_DELAY).await;
+            continue;
+        }
+
+        if let Err(e) = spawn_polling_tasks(app.clone()).await {
+            let _ = app.emit(
+                "status",
+                Err::<Option<StatusResponse>, String>(format!("Failed to start polling: {e}")),
+            );
+            time::sleep(RETRY_DELAY).await;
+            continue;
+        }
+
+        let _ = app.emit("service_info", &info);
+        break;
+    }
+}
+
 async fn query_status() -> (Duration, Result<Option<StatusResponse>, String>) {
     let p = PathBuf::from(root_socket::DEFAULT_PATH);
     let resp = root_socket::process_cmd(&p, &command::Command::Status).await;
@@ -474,7 +516,11 @@ async fn query_status() -> (Duration, Result<Option<StatusResponse>, String>) {
                 (Duration::from_secs(2), Ok(Some(resp)))
             }
         }
-        Ok(command::Response::WorkerOffline) => (Duration::from_secs(5), Ok(None)),
+        Ok(command::Response::WorkerOffline) => {
+            // daemon restarted but worker is not running — try to restart it
+            let _ = start_client_worker(Duration::from_secs(10)).await;
+            (Duration::from_secs(5), Ok(None))
+        }
         Ok(unexpected) => (
             Duration::from_secs(2),
             Err(format!("Unexpected response type: {:?}", unexpected).to_string()),

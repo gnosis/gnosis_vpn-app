@@ -350,46 +350,6 @@ export function isRunningRunMode(
 // ==========================================
 
 export class VPNService {
-  static async startClient(keepAliveSecs: number): Promise<void> {
-    try {
-      const keepAlive = {
-        secs: keepAliveSecs,
-        nanos: 0,
-      };
-      await invoke("start_client", { keepAlive });
-    } catch (error) {
-      console.error("Failed to start VPN client:", error);
-      throw new Error(`Start Client Error: ${error}`);
-    }
-  }
-
-  static async info(): Promise<ServiceInfo> {
-    let rawRes;
-    try {
-      rawRes = await invoke("info");
-      return ServiceInfoSchema.parse(rawRes);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        console.error(`Issues with ServiceInfoSchema`, rawRes);
-        for (const i of error.issues) {
-          console.error("Type error:", i);
-        }
-      } else {
-        console.error(`Info error:`, error);
-      }
-      throw new Error(`Info error: ${error}`);
-    }
-  }
-
-  static async startStatusPolling(): Promise<void> {
-    try {
-      await invoke("start_status_polling");
-    } catch (error) {
-      console.error("Failed to start status polling", error);
-      throw new Error(`StartStatusPolling Error: ${error}`);
-    }
-  }
-
   static async connect(id: string): Promise<ConnectResponse> {
     let rawRes;
     try {

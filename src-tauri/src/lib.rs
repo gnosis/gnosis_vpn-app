@@ -21,8 +21,8 @@ pub mod tray;
 pub mod types;
 
 use commands::{
-    check_update, compress_logs, connect, disconnect, info, set_app_icon, start_client,
-    start_status_polling, stop_client,
+    check_update, compress_logs, connect, disconnect, run_initialization_loop, set_app_icon,
+    stop_client,
 };
 #[cfg(target_os = "macos")]
 use gnosis_vpn_lib::{command, socket::root as root_socket};
@@ -379,17 +379,19 @@ pub fn run() {
                 handle: None,
             }));
 
+            let app_handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                run_initialization_loop(app_handle).await;
+            });
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            info,
-            start_client,
             connect,
             disconnect,
             compress_logs,
             set_app_icon,
             get_initial_theme,
-            start_status_polling,
             check_update
         ])
         .build(tauri::generate_context!())
