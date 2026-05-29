@@ -442,23 +442,19 @@ export function createAppStore(): AppStoreTuple {
 
       try {
         const cached = await invoke<{
-          status: StatusEvent["payload"] | null;
-          balance: BalanceEvent["payload"] | null;
+          status: { Ok: StatusResponse } | { Err: string };
+          balance: { Ok: BalanceResponse } | { Err: string };
         }>("get_cached_state");
 
-        if (cached.status) {
-          try {
-            listenCb({ payload: cached.status, id: -1, event: "status" });
-          } catch (err) {
-            console.warn("Failed to hydrate status:", err);
-          }
+        try {
+          listenCb({ payload: cached.status, id: -1, event: "status" });
+        } catch (err) {
+          console.warn("Failed to hydrate status:", err);
         }
-        if (cached.balance) {
-          try {
-            balanceListenCb({ payload: cached.balance, id: -1, event: "balance" });
-          } catch (err) {
-            console.warn("Failed to hydrate balance:", err);
-          }
+        try {
+          balanceListenCb({ payload: cached.balance, id: -1, event: "balance" });
+        } catch (err) {
+          console.warn("Failed to hydrate balance:", err);
         }
       } catch (err) {
         console.warn("get_cached_state unavailable:", err);
