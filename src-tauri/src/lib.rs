@@ -6,6 +6,7 @@ use serde::Serialize;
 use tauri::Manager;
 use tauri::tray::TrayIconBuilder;
 use tauri_plugin_store::StoreExt;
+use tokio::sync::watch;
 use tokio::sync::Notify;
 use tokio_util::sync::CancellationToken;
 
@@ -21,9 +22,10 @@ pub mod tray;
 pub mod types;
 
 use commands::{
-    check_update, compress_logs, connect, disconnect, run_initialization_loop, set_app_icon,
-    stop_client,
+    check_update, compress_logs, connect, disconnect, get_cached_state, run_initialization_loop,
+    set_app_icon, stop_client,
 };
+use types::{BalanceResponse, StatusResponse};
 #[cfg(target_os = "macos")]
 use gnosis_vpn_lib::{command, socket::root as root_socket};
 use icons::{AppIconState, TrayIconState, determine_tray_icon, start_app_icon_heartbeat};
@@ -49,6 +51,11 @@ pub struct StatusPollingHandle {
 pub struct BalancePollingHandle {
     pub cancel: CancellationToken,
     pub handle: Option<tauri::async_runtime::JoinHandle<()>>,
+}
+
+pub struct AppStateCache {
+    pub status: watch::Sender<Option<Result<Option<StatusResponse>, String>>>,
+    pub balance: watch::Sender<Option<Result<Option<BalanceResponse>, String>>>,
 }
 
 #[derive(Clone, Serialize, Default)]
@@ -379,6 +386,13 @@ pub fn run() {
                 handle: None,
             }));
 
+            let (status_tx, _) = watch::channel(None);
+            let (balance_tx, _) = watch::channel(None);
+            app.manage(AppStateCache {
+                status: status_tx,
+                balance: balance_tx,
+            });
+
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 run_initialization_loop(app_handle).await;
@@ -392,7 +406,8 @@ pub fn run() {
             compress_logs,
             set_app_icon,
             get_initial_theme,
-            check_update
+            check_update,
+            get_cached_state
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

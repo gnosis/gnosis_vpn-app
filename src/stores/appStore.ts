@@ -1,6 +1,7 @@
 import { createEffect, createRoot } from "solid-js";
 import { createStore, reconcile, type Store } from "solid-js/store";
 import { emit, listen } from "@tauri-apps/api/event";
+import { invoke } from "@tauri-apps/api/core";
 import { evaluateUpdate } from "@src/utils/updateAvailability.ts";
 
 import {
@@ -414,30 +415,53 @@ export function createAppStore(): AppStoreTuple {
         return;
       }
 
+      const balanceListenCb = (event: unknown) => {
+        const balEvent = event as BalanceEvent;
+        if ("Ok" in balEvent.payload) {
+          const parsed = balEvent.payload.Ok === null
+            ? null
+            : BalanceResponseSchema.safeParse(balEvent.payload.Ok);
+          if (parsed === null) {
+            setState("balance", null);
+          } else if (parsed && parsed.success) {
+            setState("balance", parsed.data);
+          } else if (parsed) {
+            console.error("Invalid balance response", balEvent.payload.Ok);
+          }
+        } else {
+          console.error("Balance polling error", balEvent.payload.Err);
+        }
+      };
+
       try {
-        unlistenBalanceUpdate = await listen<unknown>(
-          "balance",
-          (event) => {
-            const balEvent = event as BalanceEvent;
-            if ("Ok" in balEvent.payload) {
-              const parsed = balEvent.payload.Ok === null
-                ? null
-                : BalanceResponseSchema.safeParse(balEvent.payload.Ok);
-              if (parsed === null) {
-                setState("balance", null);
-              } else if (parsed && parsed.success) {
-                setState("balance", parsed.data);
-              } else if (parsed) {
-                console.error("Invalid balance response", balEvent.payload.Ok);
-              }
-            } else {
-              console.error("Balance polling error", balEvent.payload.Err);
-            }
-          },
-        );
+        unlistenBalanceUpdate = await listen<unknown>("balance", balanceListenCb);
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
         console.error("Failed to listen for balance updates: " + errorMsg);
+      }
+
+      try {
+        const cached = await invoke<{
+          status: StatusEvent["payload"] | null;
+          balance: BalanceEvent["payload"] | null;
+        }>("get_cached_state");
+
+        if (cached.status) {
+          try {
+            listenCb({ payload: cached.status, id: -1, event: "status" });
+          } catch (err) {
+            console.warn("Failed to hydrate status:", err);
+          }
+        }
+        if (cached.balance) {
+          try {
+            balanceListenCb({ payload: cached.balance, id: -1, event: "balance" });
+          } catch (err) {
+            console.warn("Failed to hydrate balance:", err);
+          }
+        }
+      } catch (err) {
+        console.warn("get_cached_state unavailable:", err);
       }
     },
 

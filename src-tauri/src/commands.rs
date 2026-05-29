@@ -1,6 +1,7 @@
 use gnosis_vpn_lib::command;
 use gnosis_vpn_lib::socket::root as root_socket;
 
+use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State};
 use tokio_util::sync::CancellationToken;
 use zstd::stream::Encoder;
@@ -20,7 +21,7 @@ use crate::types::{
     BalanceResponse, ConnectResponse, ConnectingInfo, ConnectionState, DisconnectResponse,
     DisconnectingInfo, StatusResponse,
 };
-use crate::{BalancePollingHandle, StatusPollingHandle};
+use crate::{AppStateCache, BalancePollingHandle, StatusPollingHandle};
 
 const COMPATIBLE_VERSIONS: &[&str] = &["0.86"];
 
@@ -316,6 +317,20 @@ pub async fn stop_client() -> Result<(), String> {
     }
 }
 
+#[derive(Serialize)]
+pub struct CachedState {
+    pub status: Option<Result<Option<StatusResponse>, String>>,
+    pub balance: Option<Result<Option<BalanceResponse>, String>>,
+}
+
+#[tauri::command]
+pub fn get_cached_state(cache: State<'_, AppStateCache>) -> CachedState {
+    CachedState {
+        status: cache.status.borrow().clone(),
+        balance: cache.balance.borrow().clone(),
+    }
+}
+
 async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
     let polling_state = app_handle.state::<Mutex<StatusPollingHandle>>();
     let bal_polling_state = app_handle.state::<Mutex<BalancePollingHandle>>();
@@ -384,6 +399,7 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
                             let _ = guard.set_text(conn_state.to_string());
                         };
                     }
+                    app.state::<AppStateCache>().status.send_replace(Some(result.clone()));
                     let _ = app.emit("status", result);
                 }
             }
@@ -412,6 +428,7 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
                 _ = tick_timeout.as_mut() => {
                     let (delay, result) = query_balance().await;
                     tick_timeout.as_mut().reset(Instant::now() + delay);
+                    app_bal.state::<AppStateCache>().balance.send_replace(Some(result.clone()));
                     let _ = app_bal.emit("balance", result);
                 }
             }
