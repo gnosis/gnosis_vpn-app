@@ -89,15 +89,26 @@ export function humanWxhoprParts(
   const raw = typeof hopli === "bigint"
     ? hopli
     : BigInt(String(hopli).trim() || "0");
-  const v = Number(raw) / 1e18;
 
-  if (v >= 1) return { amount: v.toFixed(1), unit: "wxHOPR" };
-  if (v >= 1e-3) return { amount: (v * 1e3).toFixed(1), unit: "MilliwxHOPR" };
-  if (v >= 1e-6) return { amount: (v * 1e6).toFixed(1), unit: "MicrowxHOPR" };
-  if (v >= 1e-9) return { amount: (v * 1e9).toFixed(1), unit: "GwxHopli" };
-  if (v >= 1e-12) return { amount: (v * 1e12).toFixed(1), unit: "MwxHopli" };
-  if (v >= 1e-15) return { amount: (v * 1e15).toFixed(1), unit: "KwxHopli" };
-  return { amount: String(Math.round(v * 1e18)), unit: "wxHopli" };
+  if (raw >= 10n ** 18n) {
+    return { amount: fixedFloor(raw, 18, 1), unit: "wxHOPR" };
+  }
+  if (raw >= 10n ** 15n) {
+    return { amount: fixedFloor(raw, 15, 1), unit: "MilliwxHOPR" };
+  }
+  if (raw >= 10n ** 12n) {
+    return { amount: fixedFloor(raw, 12, 1), unit: "MicrowxHOPR" };
+  }
+  if (raw >= 10n ** 9n) {
+    return { amount: fixedFloor(raw, 9, 1), unit: "GwxHopli" };
+  }
+  if (raw >= 10n ** 6n) {
+    return { amount: fixedFloor(raw, 6, 1), unit: "MwxHopli" };
+  }
+  if (raw >= 10n ** 3n) {
+    return { amount: fixedFloor(raw, 3, 1), unit: "KwxHopli" };
+  }
+  return { amount: raw.toString(), unit: "wxHopli" };
 }
 
 export function humanWxhopr(hopli: string | bigint): string {

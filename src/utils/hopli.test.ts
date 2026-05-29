@@ -78,4 +78,10 @@ describe("humanWxhopr", () => {
   it("accepts string input", () => {
     expect(humanWxhopr("1000000000000000000")).toBe("1.0 wxHOPR");
   });
+
+  it("handles large balances without Number precision loss", () => {
+    // 10^18 - 1 hopli is just below the wxHOPR threshold. Number(10^18-1) rounds up to 10^18
+    // causing the old float path to wrongly pick wxHOPR ("1.0 wxHOPR") instead of MilliwxHOPR.
+    expect(humanWxhopr(10n ** 18n - 1n)).toBe("999.9 MilliwxHOPR");
+  });
 });
