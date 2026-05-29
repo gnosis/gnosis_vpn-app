@@ -177,11 +177,6 @@ export const CapacityEntrySchema = z.object({
 });
 export type CapacityEntry = z.infer<typeof CapacityEntrySchema>;
 
-export const TicketStatsSchema = z.object({
-  ticket_price: z.string(),
-  winning_probability: z.number(),
-});
-export type TicketStats = z.infer<typeof TicketStatsSchema>;
 
 export const PreparingSafeSchema = z.object({
   node_address: z.string(),
