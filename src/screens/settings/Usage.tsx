@@ -16,6 +16,7 @@ import {
   deriveSafeStatus,
   describeCriticalIssue,
 } from "../../utils/funding.ts";
+import { humanWxhopr } from "../../utils/hopli.ts";
 import WarningIcon from "../../components/common/WarningIcon.tsx";
 import Button from "../../components/common/Button.tsx";
 import { useAppStore } from "../../stores/appStore.ts";
@@ -102,6 +103,7 @@ export default function Usage() {
                 name="Safe"
                 subtitle="For traffic"
                 balance={preparingSafe()?.node_wxhopr ?? totalWxhoprHopli()}
+                format={humanWxhopr}
                 ticker="wxHOPR"
                 address={preparingSafe()?.node_address ??
                   appState.balance?.info.safe_address}

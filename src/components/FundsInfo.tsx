@@ -5,6 +5,7 @@ type Props = {
   name?: string;
   subtitle?: string;
   balance?: string;
+  format?: (value: string) => string;
   ticker?: string;
   address?: string;
   status?: "Sufficient" | "Low" | "Empty" | string | null;
@@ -21,7 +22,7 @@ export default function FundsInfo(props: Props) {
         }
       >
         <span class="font-semibold font-mono w-1/3 text-right">
-          {formatXdai(props.balance ?? "0")}
+          {(props.format ?? formatXdai)(props.balance ?? "0")}
         </span>
       </Show>
 
