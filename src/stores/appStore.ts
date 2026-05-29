@@ -202,6 +202,16 @@ export function createAppStore(): AppStoreTuple {
   const logStatus = (response: StatusResponse) =>
     logActions.appendStatus(response);
 
+  const criticalError = (message: string) => {
+    log(message);
+    connectedOnOpenDetected = false;
+    stopSyncProgress();
+    const savedServiceInfo = state.serviceInfo;
+    setState(reconcile(initialState()));
+    setState("serviceInfo", savedServiceInfo);
+    setState("error", message);
+  };
+
   const applyDestinationSelection = () => {
     // 1. Explicit user selection
     if (state.selectedId) {
@@ -249,6 +259,14 @@ export function createAppStore(): AppStoreTuple {
   };
 
   const processStatusResponse = (response: StatusResponse) => {
+    if (isWarmupRunMode(response.run_mode)) {
+      const lastError = response.run_mode.Warmup.last_error;
+      if (lastError) {
+        criticalError(lastError);
+        return;
+      }
+    }
+
     const [screen, warmupStatus, stuckSince] = determineScreenAndStatus(
       response,
     );
@@ -360,16 +378,6 @@ export function createAppStore(): AppStoreTuple {
         unlistenBalanceUpdate = undefined;
       }
 
-      const criticalError = (message: string) => {
-        log(message);
-        connectedOnOpenDetected = false;
-        stopSyncProgress();
-        const savedServiceInfo = state.serviceInfo;
-        setState(reconcile(initialState()));
-        setState("serviceInfo", savedServiceInfo);
-        setState("error", message);
-      };
-
       try {
         unlistenServiceInfo = await listen<unknown>("service_info", (event) => {
           const parsed = ServiceInfoSchema.safeParse(
@@ -383,7 +391,7 @@ export function createAppStore(): AppStoreTuple {
         });
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
-        console.error("Failed to listen for service_info updates: " + errorMsg);
+        criticalError("Failed to listen for service_info updates: " + errorMsg);
       }
 
       const listenCb = (event: unknown) => {
@@ -449,7 +457,8 @@ export function createAppStore(): AppStoreTuple {
         try {
           listenCb({ payload: cached.status, id: -1, event: "status" });
         } catch (err) {
-          console.warn("Failed to hydrate status:", err);
+          const msg = err instanceof Error ? err.message : String(err);
+          criticalError("Failed to hydrate status: " + msg);
         }
         try {
           balanceListenCb({ payload: cached.balance, id: -1, event: "balance" });
