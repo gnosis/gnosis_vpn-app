@@ -63,6 +63,7 @@ pub struct BalanceRecommendation {
 pub struct Capacity {
     pub stake: String,
     pub expected_messages: u64,
+    pub min_guaranteed_messages: u64,
     pub byte_capacity: u64,
 }
 
@@ -333,6 +334,7 @@ impl From<balance::CapacityEntry> for CapacityEntry {
             capacity: Capacity {
                 stake: e.capacity.stake.amount().to_string(),
                 expected_messages: e.capacity.expected_messages,
+                min_guaranteed_messages: e.capacity.min_guaranteed_messages,
                 byte_capacity: e.capacity.byte_capacity,
             },
         }

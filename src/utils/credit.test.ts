@@ -16,7 +16,7 @@ function makeEntry(
 ): CapacityEntry {
   return {
     allocator,
-    capacity: { stake, expected_messages: 0, byte_capacity },
+    capacity: { stake, expected_messages: 0, min_guaranteed_messages: 0, byte_capacity },
   };
 }
 

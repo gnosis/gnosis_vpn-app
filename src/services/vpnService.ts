@@ -167,6 +167,7 @@ export type CapacityAllocator = z.infer<typeof CapacityAllocatorSchema>;
 export const CapacitySchema = z.object({
   stake: z.string(),
   expected_messages: z.number(),
+  min_guaranteed_messages: z.number(),
   byte_capacity: z.number(),
 });
 export type Capacity = z.infer<typeof CapacitySchema>;
