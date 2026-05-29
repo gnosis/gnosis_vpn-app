@@ -345,8 +345,11 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
         (guard.cancel.clone(), guard.trigger.clone())
     };
 
+    let (worker_online_tx, worker_online_rx) = tokio::sync::oneshot::channel::<()>();
+
     let app = app_handle.clone();
     let join_handle = tauri::async_runtime::spawn(async move {
+        let mut worker_online_tx = Some(worker_online_tx);
         let tick_timeout = time::sleep(Duration::ZERO);
         tokio::pin!(tick_timeout);
         loop {
@@ -362,6 +365,10 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
                     let (status_delay, result) = query_status().await;
                     tick_timeout.as_mut().reset(Instant::now() + status_delay);
                     if let Ok(Some(ref status)) = result {
+                        if let Some(tx) = worker_online_tx.take() {
+                            let _ = tx.send(());
+                        }
+
                         let conn_state = status.into();
                         icons::update_tray_icon(&app, &app.state::<TrayIconState>(), &conn_state);
 
@@ -402,6 +409,11 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
 
     let app_bal = app_handle.clone();
     let bal_join_handle = tauri::async_runtime::spawn(async move {
+        tokio::select! {
+            _ = bal_cancel.cancelled() => return,
+            _ = worker_online_rx => {}
+        }
+
         let tick_timeout = time::sleep(Duration::ZERO);
         tokio::pin!(tick_timeout);
         loop {
