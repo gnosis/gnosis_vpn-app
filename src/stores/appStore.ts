@@ -1,4 +1,4 @@
-import { createEffect } from "solid-js";
+import { createEffect, createRoot } from "solid-js";
 import { createStore, reconcile, type Store } from "solid-js/store";
 import { emit, listen } from "@tauri-apps/api/event";
 import { evaluateUpdate } from "@src/utils/updateAvailability.ts";
@@ -535,7 +535,7 @@ export function createAppStore(): AppStoreTuple {
   return [state, actions] as const;
 }
 
-const appStore = createAppStore();
+const appStore = createRoot(() => createAppStore());
 
 export function useAppStore(): AppStoreTuple {
   return appStore;
