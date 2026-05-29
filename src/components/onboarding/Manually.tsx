@@ -88,7 +88,7 @@ export default function Manually() {
                 </div>
               }
             >
-              <div class="text-sm text-text-secondary">
+              <div class="text-sm text-text-secondary select-text">
                 Send at least {recommendedWxHOPR()}
               </div>
             </Show>
@@ -113,7 +113,7 @@ export default function Manually() {
                 </div>
               }
             >
-              <div class="text-sm text-text-secondary">
+              <div class="text-sm text-text-secondary select-text">
                 Send at least {recommendedXDAI()}
               </div>
             </Show>
