@@ -1,5 +1,5 @@
 import { Show } from "solid-js";
-import { formatXdai, humanWxhopr } from "../utils/hopli.ts";
+import { formatXdai, humanWxhopr, wxhoprDecimal } from "../utils/hopli.ts";
 import FundingAddress from "./address/FundingAddress.tsx";
 import Button from "./common/Button.tsx";
 import { Modal } from "./common/Modal.tsx";
@@ -31,7 +31,13 @@ export default function AddFundsModal(props: {
               <span class="font-medium">Recommended to send:</span>
               <Show when={props.wxhoprDeficit}>
                 {(deficit) => (
-                  <div class="font-mono">+{humanWxhopr(deficit())}</div>
+                  <div class="font-mono">
+                    +{humanWxhopr(deficit())}{" "}
+                    (<span class="select-text cursor-text">
+                      {wxhoprDecimal(deficit())}
+                    </span>{" "}
+                    wxHOPR)
+                  </div>
                 )}
               </Show>
               <Show when={props.xdaiDeficit}>
