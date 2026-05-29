@@ -47,17 +47,6 @@ export default function Manually() {
     return appState.runMode.PreparingSafe.balance_recommendation;
   });
 
-  const recommendedWxHOPR = createMemo(() => {
-    const rec = balanceRec();
-    if (!rec) return null;
-    return `${humanWxhopr(rec.wxhopr)} (${wxhoprDecimal(rec.wxhopr)} wxHOPR)`;
-  });
-
-  const recommendedXDAI = createMemo(() => {
-    const rec = balanceRec();
-    if (!rec) return null;
-    return `${formatXdai(rec.xdai, 4)} xDAI`;
-  });
 
   return (
     <div class="h-full w-full flex flex-col items-stretch p-6 pb-0 gap-4 select-none">
@@ -81,16 +70,19 @@ export default function Manually() {
           <div class="flex flex-col">
             <div class="font-bold">Transfer wxHOPR (Gnosis Chain)</div>
             <Show
-              when={recommendedWxHOPR() !== null}
+              when={balanceRec()}
               fallback={
                 <div class="text-sm text-text-secondary">
                   The amount you fund determines your privacy budget.
                 </div>
               }
             >
-              <div class="text-sm text-text-secondary select-text">
-                Send at least {recommendedWxHOPR()}
-              </div>
+              {(rec) => (
+                <div class="text-sm text-text-secondary">
+                  Send at least {humanWxhopr(rec().wxhopr)}{" "}
+                  (<span class="select-text cursor-text">{wxhoprDecimal(rec().wxhopr)}</span> wxHOPR)
+                </div>
+              )}
             </Show>
           </div>
         </div>
@@ -106,16 +98,19 @@ export default function Manually() {
           <div class="flex flex-col">
             <div class="font-bold">Transfer xDAI (Gnosis Chain)</div>
             <Show
-              when={recommendedXDAI() !== null}
+              when={balanceRec()}
               fallback={
                 <div class="text-sm text-text-secondary">
                   Needed for on-chain operations (channel management).
                 </div>
               }
             >
-              <div class="text-sm text-text-secondary select-text">
-                Send at least {recommendedXDAI()}
-              </div>
+              {(rec) => (
+                <div class="text-sm text-text-secondary">
+                  Send at least{" "}
+                  <span class="select-text cursor-text">{formatXdai(rec().xdai, 4)}</span> xDAI
+                </div>
+              )}
             </Show>
           </div>
         </div>
