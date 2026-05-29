@@ -51,6 +51,24 @@ export default function Usage() {
 
   const isBalanceLoading = () => appState.balance === null;
 
+  const wxhoprDeficit = createMemo(() => {
+    if (fundingIssues().length === 0) return null;
+    const ideal = appState.balance?.ideal_balance?.wxhopr;
+    const current = totalWxhoprHopli();
+    if (!ideal || !current) return null;
+    const diff = BigInt(ideal) - BigInt(current);
+    return diff > 0n ? diff : null;
+  });
+
+  const xdaiDeficit = createMemo(() => {
+    if (fundingIssues().length === 0) return null;
+    const ideal = appState.balance?.ideal_balance?.xdai;
+    const current = appState.balance?.node;
+    if (!ideal || !current) return null;
+    const diff = BigInt(ideal) - BigInt(current);
+    return diff > 0n ? diff : null;
+  });
+
   const criticalIssue = createMemo(() => fundingIssues()[0]);
   const isCriticalLevel = createMemo(() =>
     criticalIssue() === "Unfunded" || criticalIssue() === "ChannelsOutOfFunds"
@@ -154,6 +172,8 @@ export default function Usage() {
             onClose={() => setIsAddFundsOpen(false)}
             nodeAddress={preparingSafe()?.node_address ??
               appState.balance?.info.node_address ?? ""}
+            wxhoprDeficit={wxhoprDeficit()}
+            xdaiDeficit={xdaiDeficit()}
           />
         </Match>
       </Switch>

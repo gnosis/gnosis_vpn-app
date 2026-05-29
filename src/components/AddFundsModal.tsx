@@ -1,3 +1,5 @@
+import { Show } from "solid-js";
+import { formatXdai, humanWxhopr } from "../utils/hopli.ts";
 import FundingAddress from "./address/FundingAddress.tsx";
 import Button from "./common/Button.tsx";
 import { Modal } from "./common/Modal.tsx";
@@ -6,6 +8,8 @@ export default function AddFundsModal(props: {
   open: boolean;
   onClose: () => void;
   nodeAddress: string;
+  wxhoprDeficit?: bigint | null;
+  xdaiDeficit?: bigint | null;
 }) {
   return (
     <Modal open={props.open} onClose={props.onClose}>
@@ -22,6 +26,21 @@ export default function AddFundsModal(props: {
             <span class="font-bold">wxHOPR</span> on{" "}
             <span class="font-bold">Gnosis Chain</span>.
           </div>
+          <Show when={props.wxhoprDeficit || props.xdaiDeficit}>
+            <div class="text-sm text-text-secondary">
+              <span class="font-medium">Recommended to send:</span>
+              <Show when={props.wxhoprDeficit}>
+                {(deficit) => (
+                  <div class="font-mono">+{humanWxhopr(deficit())}</div>
+                )}
+              </Show>
+              <Show when={props.xdaiDeficit}>
+                {(deficit) => (
+                  <div class="font-mono">+{formatXdai(deficit())} xDAI</div>
+                )}
+              </Show>
+            </div>
+          </Show>
         </div>
         <div class="flex flex-row justify-end gap-2">
           <Button size="md" onClick={props.onClose}>
