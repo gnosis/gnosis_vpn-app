@@ -1,5 +1,5 @@
 import { Show } from "solid-js";
-import { fromWeiToFixed } from "../utils/wei.ts";
+import { formatXdai } from "../utils/hopli.ts";
 
 type Props = {
   name?: string;
@@ -21,7 +21,7 @@ export default function FundsInfo(props: Props) {
         }
       >
         <span class="font-semibold font-mono w-1/3 text-right">
-          {fromWeiToFixed(props.balance ?? "0")}
+          {formatXdai(props.balance ?? "0")}
         </span>
       </Show>
 

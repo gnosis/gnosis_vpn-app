@@ -42,7 +42,7 @@ export default function Usage() {
     return computeEffectiveCredit(b.capacity_allocations ?? []);
   });
 
-  const totalWxhoprWei = createMemo(() => {
+  const totalWxhoprHopli = createMemo(() => {
     const b = appState.balance;
     if (!b?.capacity_allocations) return undefined;
     return sumCapacityStake(b.capacity_allocations).toString();
@@ -101,7 +101,7 @@ export default function Usage() {
               <FundsInfo
                 name="Safe"
                 subtitle="For traffic"
-                balance={preparingSafe()?.node_wxhopr ?? totalWxhoprWei()}
+                balance={preparingSafe()?.node_wxhopr ?? totalWxhoprHopli()}
                 ticker="wxHOPR"
                 address={preparingSafe()?.node_address ??
                   appState.balance?.info.safe_address}

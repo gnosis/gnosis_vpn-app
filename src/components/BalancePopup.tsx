@@ -1,7 +1,7 @@
 import { createMemo, Show } from "solid-js";
 import { Portal } from "solid-js/web";
 import { isRunningRunMode } from "@src/services/vpnService.ts";
-import { fromWeiToFixed } from "@src/utils/wei.ts";
+import { formatXdai, humanWxhopr } from "@src/utils/hopli.ts";
 import {
   deriveNodeStatus,
   deriveSafeStatus,
@@ -103,21 +103,13 @@ export default function BalancePopup(props: Props) {
                 }
               >
                 <div
-                  class={`flex items-baseline justify-end gap-1 text-sm font-bold font-mono ${
+                  class={`text-sm font-bold font-mono text-right ${
                     deriveSafeStatus(fundingIssues()) === "Empty"
                       ? "text-red-500"
                       : ""
                   }`}
                 >
-                  <span>
-                    {fromWeiToFixed(totalWxhopr())}
-                  </span>
-                  <span
-                    class="text-[10px] inline-block text-left"
-                    style={{ width: "34px" }}
-                  >
-                    wxHOPR
-                  </span>
+                  {humanWxhopr(totalWxhopr())}
                 </div>
                 <div class="text-[10px] text-accent-text/50 font-mono text-right">
                   {effectiveCredit() !== null
@@ -142,7 +134,7 @@ export default function BalancePopup(props: Props) {
               >
                 {(b) => (
                   <div class="flex items-baseline justify-end gap-1 text-sm font-bold font-mono">
-                    <span>{fromWeiToFixed(b().node)}</span>
+                    <span>{formatXdai(b().node)}</span>
                     <span
                       class="text-[10px] inline-block text-left"
                       style={{ width: "34px" }}

@@ -16,7 +16,7 @@ import {
   isXDAITransferred,
 } from "@src/utils/status.ts";
 import { isPreparingSafeRunMode } from "../../services/vpnService.ts";
-import { fromWeiToFixed } from "../../utils/wei.ts";
+import { formatXdai, humanWxhopr } from "../../utils/hopli.ts";
 import FundingAddress from "../address/FundingAddress.tsx";
 import StatusIndicator from "../status/StatusIndicator.tsx";
 
@@ -50,13 +50,13 @@ export default function Manually() {
   const recommendedWxHOPR = createMemo(() => {
     const rec = balanceRec();
     if (!rec) return null;
-    return `${fromWeiToFixed(rec.wxhopr, 18, 2)} wxHOPR`;
+    return humanWxhopr(rec.wxhopr);
   });
 
   const recommendedXDAI = createMemo(() => {
     const rec = balanceRec();
     if (!rec) return null;
-    return `${fromWeiToFixed(rec.xdai, 18, 4)} xDAI`;
+    return `${formatXdai(rec.xdai, 4)} xDAI`;
   });
 
   return (
