@@ -9,7 +9,6 @@ use tokio::time::sleep;
 
 use crate::commands::set_app_icon;
 use crate::types::{ConnectionState, RunMode};
-use gnosis_vpn_lib::balance;
 
 // App icon constants
 pub const APP_ICON_CONNECTED: &str = "app-icon-connected.png";

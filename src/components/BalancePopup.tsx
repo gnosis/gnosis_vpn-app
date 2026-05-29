@@ -1,12 +1,9 @@
 import {
-  createEffect,
   createMemo,
-  createSignal,
-  onCleanup,
   Show,
 } from "solid-js";
 import { Portal } from "solid-js/web";
-import { type BalanceResponse, isRunningRunMode, VPNService } from "@src/services/vpnService.ts";
+import { isRunningRunMode } from "@src/services/vpnService.ts";
 import { fromWeiToFixed } from "@src/utils/wei.ts";
 import { deriveSafeStatus, deriveNodeStatus, type StatusText } from "@src/utils/funding.ts";
 import {
@@ -15,8 +12,6 @@ import {
   sumCapacityStake,
 } from "@src/utils/credit.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
-
-const BALANCE_REFRESH_INTERVAL_MS = 60000;
 
 type Props = {
   show: boolean;
@@ -39,7 +34,6 @@ function StatusDot(props: { status: StatusText }) {
 
 export default function BalancePopup(props: Props) {
   const [appState] = useAppStore();
-  const [balance, setBalance] = createSignal<BalanceResponse | null>(null);
 
   const fundingIssues = createMemo(() =>
     isRunningRunMode(appState.runMode)
@@ -48,33 +42,15 @@ export default function BalancePopup(props: Props) {
   );
 
   const effectiveCredit = createMemo(() => {
-    const b = balance();
+    const b = appState.balance;
     if (!b) return null;
     return computeEffectiveCredit(b.capacity_allocations ?? []);
   });
 
   const totalWxhopr = createMemo(() => {
-    const b = balance();
+    const b = appState.balance;
     if (!b?.capacity_allocations) return 0n;
     return sumCapacityStake(b.capacity_allocations);
-  });
-
-  const loadBalance = async () => {
-    try {
-      const result = await VPNService.balance();
-      setBalance(result);
-    } catch (error) {
-      console.error("Error loading balance:", error);
-    }
-  };
-
-  createEffect(() => {
-    if (!props.show) return;
-    void loadBalance();
-    const interval = setInterval(() => {
-      void loadBalance();
-    }, BALANCE_REFRESH_INTERVAL_MS);
-    onCleanup(() => clearInterval(interval));
   });
 
   return (
@@ -120,7 +96,7 @@ export default function BalancePopup(props: Props) {
                 </div>
               </div>
               <Show
-                when={balance()}
+                when={appState.balance}
                 fallback={
                   <div class="text-[10px] text-accent-text/70">Loading...</div>
                 }
@@ -156,7 +132,7 @@ export default function BalancePopup(props: Props) {
                 </div>
               </div>
               <Show
-                when={balance()}
+                when={appState.balance}
                 fallback={
                   <div class="text-[10px] text-accent-text/70">Loading...</div>
                 }

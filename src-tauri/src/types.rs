@@ -59,7 +59,7 @@ pub struct BalanceRecommendation {
     pub xdai: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct BalanceResponse {
     pub node: String,
     pub safe: String,
@@ -146,7 +146,7 @@ pub struct Destination {
     pub routing: RoutingOptions,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct Info {
     pub node_address: String,
     pub safe_address: String,

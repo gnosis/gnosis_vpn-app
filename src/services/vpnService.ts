@@ -427,22 +427,11 @@ export class VPNService {
     }
   }
 
-  static async balance(): Promise<BalanceResponse | null> {
-    let rawRes;
+  static async triggerBalanceRefresh(): Promise<void> {
     try {
-      rawRes = await invoke("balance");
-      if (!rawRes) return null;
-      return BalanceResponseSchema.parse(rawRes);
+      await invoke("trigger_balance_refresh");
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        console.error("Issues with BalanceResponseSchema", rawRes);
-        for (const i of error.issues) {
-          console.error("Type error:", i);
-        }
-      } else {
-        console.error("Balance error:", error);
-      }
-      throw new Error(`Balance error: ${error}`);
+      console.error("Failed to trigger balance refresh:", error);
     }
   }
 

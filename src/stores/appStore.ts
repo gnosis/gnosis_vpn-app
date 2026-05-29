@@ -4,6 +4,8 @@ import { emit, listen } from "@tauri-apps/api/event";
 import { evaluateUpdate } from "@src/utils/updateAvailability.ts";
 
 import {
+  type BalanceResponse,
+  BalanceResponseSchema,
   type ConnectingInfo,
   type Destination,
   type DestinationState,
@@ -61,6 +63,7 @@ export interface AppState {
   isUpdateAvailable: boolean;
   availableVersion: string | null;
   targetDestination: string | null;
+  balance: BalanceResponse | null;
 }
 
 type AppActions = {
@@ -75,6 +78,12 @@ type AppStoreTuple = readonly [Store<AppState>, AppActions];
 
 type StatusEvent = {
   payload: { Ok: StatusResponse | null } | { Err: string };
+  id: number;
+  event: string;
+};
+
+type BalanceEvent = {
+  payload: { Ok: BalanceResponse | null } | { Err: string };
   id: number;
   event: string;
 };
@@ -100,6 +109,7 @@ function initialState(): AppState {
     isUpdateAvailable: false,
     availableVersion: null,
     targetDestination: null,
+    balance: null,
   };
 }
 
@@ -117,6 +127,7 @@ export function createAppStore(): AppStoreTuple {
   const [state, setState] = createStore<AppState>(initialState());
 
   let unlistenStatusUpdate: (() => void) | undefined;
+  let unlistenBalanceUpdate: (() => void) | undefined;
   let connectedOnOpenDetected = false;
   let activeSyncPhase: SyncPhaseIndex | null = null;
   let syncPhaseStartTime = 0;
@@ -351,6 +362,10 @@ export function createAppStore(): AppStoreTuple {
         unlistenStatusUpdate();
         unlistenStatusUpdate = undefined;
       }
+      if (unlistenBalanceUpdate) {
+        unlistenBalanceUpdate();
+        unlistenBalanceUpdate = undefined;
+      }
 
       const criticalError = (message: string) => {
         log(message);
@@ -361,6 +376,10 @@ export function createAppStore(): AppStoreTuple {
         if (unlistenStatusUpdate) {
           unlistenStatusUpdate();
           unlistenStatusUpdate = undefined;
+        }
+        if (unlistenBalanceUpdate) {
+          unlistenBalanceUpdate();
+          unlistenBalanceUpdate = undefined;
         }
         redoTimeout = setTimeout(
           () => actions.initializeApp(),
@@ -439,6 +458,32 @@ export function createAppStore(): AppStoreTuple {
         const message = "Failed to listen for status updates: " + errorMsg;
         criticalError(message);
         return;
+      }
+
+      try {
+        unlistenBalanceUpdate = await listen<unknown>(
+          "balance",
+          (event) => {
+            const balEvent = event as BalanceEvent;
+            if ("Ok" in balEvent.payload) {
+              const parsed = balEvent.payload.Ok === null
+                ? null
+                : BalanceResponseSchema.safeParse(balEvent.payload.Ok);
+              if (parsed === null) {
+                setState("balance", null);
+              } else if (parsed && parsed.success) {
+                setState("balance", parsed.data);
+              } else if (parsed) {
+                console.error("Invalid balance response", balEvent.payload.Ok);
+              }
+            } else {
+              console.error("Balance polling error", balEvent.payload.Err);
+            }
+          },
+        );
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        console.error("Failed to listen for balance updates: " + errorMsg);
       }
     },
 

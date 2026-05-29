@@ -21,8 +21,8 @@ pub mod tray;
 pub mod types;
 
 use commands::{
-    balance, check_update, compress_logs, connect, disconnect, info, set_app_icon,
-    start_client, start_status_polling, stop_client,
+    check_update, compress_logs, connect, disconnect, info, set_app_icon, start_client,
+    start_status_polling, stop_client, trigger_balance_refresh,
 };
 #[cfg(target_os = "macos")]
 use gnosis_vpn_lib::{command, socket::root as root_socket};
@@ -41,6 +41,12 @@ use types::ConnectionState;
 struct HeartbeatHandle(Mutex<Option<tauri::async_runtime::JoinHandle<()>>>);
 
 pub struct StatusPollingHandle {
+    pub cancel: CancellationToken,
+    pub handle: Option<tauri::async_runtime::JoinHandle<()>>,
+    pub trigger: Arc<Notify>,
+}
+
+pub struct BalancePollingHandle {
     pub cancel: CancellationToken,
     pub handle: Option<tauri::async_runtime::JoinHandle<()>>,
     pub trigger: Arc<Notify>,
@@ -368,6 +374,13 @@ pub fn run() {
                 trigger: Arc::new(Notify::new()),
             }));
 
+            // balance polling handle — started alongside status polling
+            app.manage(Mutex::new(BalancePollingHandle {
+                cancel: CancellationToken::new(),
+                handle: None,
+                trigger: Arc::new(Notify::new()),
+            }));
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -375,11 +388,11 @@ pub fn run() {
             start_client,
             connect,
             disconnect,
-            balance,
             compress_logs,
             set_app_icon,
             get_initial_theme,
             start_status_polling,
+            trigger_balance_refresh,
             check_update
         ])
         .build(tauri::generate_context!())
@@ -396,6 +409,17 @@ pub fn run() {
                     None
                 };
                 if let Some(handle) = handle_opt {
+                    let _ = tauri::async_runtime::block_on(handle);
+                }
+
+                let bal_state = app_handle.state::<Mutex<BalancePollingHandle>>();
+                let bal_handle_opt = if let Ok(mut guard) = bal_state.lock() {
+                    guard.cancel.cancel();
+                    guard.handle.take()
+                } else {
+                    None
+                };
+                if let Some(handle) = bal_handle_opt {
                     let _ = tauri::async_runtime::block_on(handle);
                 }
 

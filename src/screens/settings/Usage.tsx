@@ -1,12 +1,10 @@
 import { createMemo, createSignal, Match, Switch } from "solid-js";
 import {
-  type BalanceResponse,
   isPreparingSafeRunMode,
   isRunningRunMode,
   isWarmupRunMode,
   VPNService,
 } from "../../services/vpnService.ts";
-import { onCleanup, onMount } from "solid-js";
 import {
   computeEffectiveCredit,
   formatCredit,
@@ -26,25 +24,7 @@ import Button from "../../components/common/Button.tsx";
 import { useAppStore } from "../../stores/appStore.ts";
 import AddFundsModal from "@src/components/AddFundsModal.tsx";
 
-const BALANCE_REFRESH_INTERVAL_MS = 5_000;
-
-function balancesEqual(
-  a: BalanceResponse | null,
-  b: BalanceResponse | null,
-): boolean {
-  if (a === null && b === null) return true;
-  if (a === null || b === null) return false;
-  return (
-    a.node === b.node &&
-    a.info.node_address === b.info.node_address &&
-    a.info.safe_address === b.info.safe_address &&
-    JSON.stringify(a.capacity_allocations) === JSON.stringify(b.capacity_allocations)
-  );
-}
-
 export default function Usage() {
-  const [balance, setBalance] = createSignal<BalanceResponse | null>(null);
-  const [isBalanceLoading, setIsBalanceLoading] = createSignal(true);
   const [isAddFundsOpen, setIsAddFundsOpen] = createSignal(false);
   const [, logActions] = useLogsStore();
   const [appState] = useAppStore();
@@ -61,50 +41,26 @@ export default function Usage() {
   );
 
   const effectiveCredit = createMemo(() => {
-    const b = balance();
+    const b = appState.balance;
     if (!b) return null;
     return computeEffectiveCredit(b.capacity_allocations ?? []);
   });
 
   const totalWxhoprWei = createMemo(() => {
-    const b = balance();
+    const b = appState.balance;
     if (!b?.capacity_allocations) return undefined;
     return sumCapacityStake(b.capacity_allocations).toString();
   });
 
-  async function loadBalance() {
-    try {
-      const result = await VPNService.balance();
-      const currentBalance = balance();
-
-      if (!balancesEqual(result, currentBalance)) {
-        setBalance(result);
-      }
-    } catch (error) {
-      logActions.append(`Error loading balance: ${String(error)}`);
-    } finally {
-      setIsBalanceLoading(false);
-    }
-  }
+  const isBalanceLoading = () => appState.balance === null;
 
   async function handleRefresh() {
-    setIsBalanceLoading(true);
-    await loadBalance();
+    try {
+      await VPNService.triggerBalanceRefresh();
+    } catch (error) {
+      logActions.append(`Error triggering balance refresh: ${String(error)}`);
+    }
   }
-
-  let intervalId: ReturnType<typeof setInterval> | undefined;
-
-  onMount(() => {
-    setIsBalanceLoading(true);
-    void loadBalance().finally(() => setIsBalanceLoading(false));
-    intervalId = setInterval(() => {
-      void loadBalance();
-    }, BALANCE_REFRESH_INTERVAL_MS);
-  });
-
-  onCleanup(() => {
-    clearInterval(intervalId);
-  });
 
   const criticalIssue = createMemo(() => fundingIssues()[0]);
   const isCriticalLevel = createMemo(() =>
@@ -160,7 +116,7 @@ export default function Usage() {
                 balance={preparingSafe()?.node_wxhopr ?? totalWxhoprWei()}
                 ticker="wxHOPR"
                 address={preparingSafe()?.node_address ??
-                  balance()?.info.safe_address}
+                  appState.balance?.info.safe_address}
                 status={deriveSafeStatus(fundingIssues())}
                 isLoading={isBalanceLoading()}
               />
@@ -182,10 +138,10 @@ export default function Usage() {
             <FundsInfo
               name="EOA"
               subtitle="For channels"
-              balance={preparingSafe()?.node_xdai ?? balance()?.node}
+              balance={preparingSafe()?.node_xdai ?? appState.balance?.node}
               ticker="xDAI"
               address={preparingSafe()?.node_address ??
-                balance()?.info.node_address}
+                appState.balance?.info.node_address}
               status={deriveNodeStatus(fundingIssues())}
               isLoading={isBalanceLoading()}
             />
@@ -221,7 +177,7 @@ export default function Usage() {
             open={isAddFundsOpen()}
             onClose={() => setIsAddFundsOpen(false)}
             nodeAddress={preparingSafe()?.node_address ??
-              balance()?.info.node_address ?? ""}
+              appState.balance?.info.node_address ?? ""}
           />
         </Match>
       </Switch>

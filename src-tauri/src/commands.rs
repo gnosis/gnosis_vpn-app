@@ -14,7 +14,7 @@ use std::time::Duration;
 use tokio::task::spawn_blocking;
 use tokio::time::{self, Instant};
 
-use crate::StatusPollingHandle;
+use crate::{BalancePollingHandle, StatusPollingHandle};
 use crate::icons::{self, AppIconState, TrayIconState};
 use crate::tray;
 use crate::types::{
@@ -131,20 +131,30 @@ pub async fn disconnect(
     }
 }
 
-#[tauri::command]
-pub async fn balance() -> Result<Option<BalanceResponse>, String> {
+async fn query_balance() -> (Duration, Result<Option<BalanceResponse>, String>) {
     let p = PathBuf::from(root_socket::DEFAULT_PATH);
-    let cmd = command::Command::Balance;
-    let resp = root_socket::process_cmd(&p, &cmd)
-        .await
-        .map_err(|e| e.to_string())?;
+    let resp = root_socket::process_cmd(&p, &command::Command::Balance).await;
     match resp {
-        command::Response::Balance(resp) => Ok(resp.ok().map(|b| b.into())),
-        unexpected => {
-            eprintln!("Unexpected balance response: {:?}", unexpected);
-            Err("Unexpected response type".to_string())
+        Ok(command::Response::Balance(balance_resp)) => {
+            (Duration::from_secs(30), Ok(balance_resp.ok().map(|b| b.into())))
         }
+        Ok(command::Response::WorkerOffline) => (Duration::from_secs(60), Ok(None)),
+        Ok(unexpected) => (
+            Duration::from_secs(30),
+            Err(format!("Unexpected balance response: {:?}", unexpected)),
+        ),
+        Err(e) => (Duration::from_secs(30), Err(e.to_string())),
     }
+}
+
+#[tauri::command]
+pub async fn trigger_balance_refresh(
+    bal_polling_state: State<'_, Mutex<BalancePollingHandle>>,
+) -> Result<(), String> {
+    if let Ok(guard) = bal_polling_state.lock() {
+        guard.trigger.notify_one();
+    }
+    Ok(())
 }
 
 
@@ -320,6 +330,7 @@ pub async fn stop_client() -> Result<(), String> {
 pub async fn start_status_polling(
     app_handle: AppHandle,
     polling_state: State<'_, Mutex<StatusPollingHandle>>,
+    bal_polling_state: State<'_, Mutex<BalancePollingHandle>>,
 ) -> Result<(), String> {
     println!("Starting status polling...");
     // cancel previous polling and wait for it to finish
@@ -330,6 +341,16 @@ pub async fn start_status_polling(
         guard.handle.take()
     };
     if let Some(handle) = prev_handle {
+        let _ = handle.await;
+    }
+
+    let prev_bal_handle = {
+        let mut guard = bal_polling_state.lock().map_err(|e| e.to_string())?;
+        guard.cancel.cancel();
+        guard.cancel = CancellationToken::new();
+        guard.handle.take()
+    };
+    if let Some(handle) = prev_bal_handle {
         let _ = handle.await;
     }
 
@@ -396,6 +417,37 @@ pub async fn start_status_polling(
     {
         let mut guard = polling_state.lock().map_err(|e| e.to_string())?;
         guard.handle = Some(join_handle);
+    }
+
+    let (bal_cancel, bal_trigger) = {
+        let guard = bal_polling_state.lock().map_err(|e| e.to_string())?;
+        (guard.cancel.clone(), guard.trigger.clone())
+    };
+
+    let app_bal = app_handle.clone();
+    let bal_join_handle = tauri::async_runtime::spawn(async move {
+        let tick_timeout = time::sleep(Duration::ZERO);
+        tokio::pin!(tick_timeout);
+        loop {
+            tokio::select! {
+                _ = bal_cancel.cancelled() => {
+                    break;
+                }
+                _ = bal_trigger.notified() => {
+                    tick_timeout.as_mut().reset(Instant::now());
+                }
+                _ = tick_timeout.as_mut() => {
+                    let (delay, result) = query_balance().await;
+                    tick_timeout.as_mut().reset(Instant::now() + delay);
+                    let _ = app_bal.emit("balance", result);
+                }
+            }
+        }
+    });
+
+    {
+        let mut guard = bal_polling_state.lock().map_err(|e| e.to_string())?;
+        guard.handle = Some(bal_join_handle);
     }
 
     Ok(())
