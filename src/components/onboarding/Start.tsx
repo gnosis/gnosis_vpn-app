@@ -10,7 +10,7 @@ export default function Start(
     appState.vpnStatus === "ServiceUnavailable";
 
   return (
-    <div class="h-full w-full flex flex-col items-center p-6 pb-0 select-none">
+    <div class="h-full w-full flex flex-col items-center p-6 pb-0">
       <svg
         width="321"
         height="49"

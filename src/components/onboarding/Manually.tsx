@@ -49,7 +49,7 @@ export default function Manually() {
 
 
   return (
-    <div class="h-full w-full flex flex-col items-stretch p-6 pb-0 gap-4 select-none">
+    <div class="h-full w-full flex flex-col items-stretch p-6 pb-0 gap-4">
       <h1 class="w-full text-3xl font-bold text-center mt-6 mb-3 flex flex-row">
         Fund your VPN
       </h1>

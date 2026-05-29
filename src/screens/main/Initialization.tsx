@@ -47,7 +47,7 @@ export default function Initialization(props: InitializationProps) {
             <div class="mt-4 space-y-1 text-sm text-text-secondary text-center">
               <div
                 onClick={handleVersionClick}
-                class="cursor-default select-none"
+                class="cursor-default"
               >
                 Version:{" "}
                 <span class="text-text-primary">
