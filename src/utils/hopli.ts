@@ -79,16 +79,23 @@ export function wxhoprDecimal(hopli: string | bigint): string {
 }
 
 // Mirrors gnosis_vpn-client/gnosis_vpn-lib/src/balance.rs `human_wxhopr` — keep unit thresholds in sync.
-export function humanWxhopr(hopli: string | bigint): string {
+export function humanWxhoprParts(
+  hopli: string | bigint,
+): { value: string; unit: string } {
   const raw =
     typeof hopli === "bigint" ? hopli : BigInt(String(hopli).trim() || "0");
   const v = Number(raw) / 1e18;
 
-  if (v >= 1) return `${v.toFixed(1)} wxHOPR`;
-  if (v >= 1e-3) return `${(v * 1e3).toFixed(1)} MilliwxHOPR`;
-  if (v >= 1e-6) return `${(v * 1e6).toFixed(1)} MicrowxHOPR`;
-  if (v >= 1e-9) return `${(v * 1e9).toFixed(1)} GwxHopli`;
-  if (v >= 1e-12) return `${(v * 1e12).toFixed(1)} MwxHopli`;
-  if (v >= 1e-15) return `${(v * 1e15).toFixed(1)} KwxHopli`;
-  return `${Math.round(v * 1e18)} wxHopli`;
+  if (v >= 1) return { value: v.toFixed(1), unit: "wxHOPR" };
+  if (v >= 1e-3) return { value: (v * 1e3).toFixed(1), unit: "MilliwxHOPR" };
+  if (v >= 1e-6) return { value: (v * 1e6).toFixed(1), unit: "MicrowxHOPR" };
+  if (v >= 1e-9) return { value: (v * 1e9).toFixed(1), unit: "GwxHopli" };
+  if (v >= 1e-12) return { value: (v * 1e12).toFixed(1), unit: "MwxHopli" };
+  if (v >= 1e-15) return { value: (v * 1e15).toFixed(1), unit: "KwxHopli" };
+  return { value: String(Math.round(v * 1e18)), unit: "wxHopli" };
+}
+
+export function humanWxhopr(hopli: string | bigint): string {
+  const { value, unit } = humanWxhoprParts(hopli);
+  return `${value} ${unit}`;
 }

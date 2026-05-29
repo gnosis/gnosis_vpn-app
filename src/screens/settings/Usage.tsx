@@ -16,7 +16,7 @@ import {
   deriveSafeStatus,
   describeCriticalIssue,
 } from "../../utils/funding.ts";
-import { humanWxhopr } from "../../utils/hopli.ts";
+import { formatXdai, humanWxhoprParts } from "../../utils/hopli.ts";
 import WarningIcon from "../../components/common/WarningIcon.tsx";
 import Button from "../../components/common/Button.tsx";
 import { useAppStore } from "../../stores/appStore.ts";
@@ -97,44 +97,41 @@ export default function Usage() {
             </div>
           </Show>
 
-          <div class="flex flex-col py-4 my-4 w-64">
-            <div class="flex flex-col pb-3 mb-3">
-              <FundsInfo
-                name="Safe"
-                subtitle="For traffic"
-                balance={preparingSafe()?.node_wxhopr ?? totalWxhoprHopli()}
-                format={humanWxhopr}
-                ticker="wxHOPR"
-                address={preparingSafe()?.node_address ??
-                  appState.balance?.info.safe_address}
-                status={deriveSafeStatus(fundingIssues())}
-                isLoading={isBalanceLoading()}
-              />
-              <Show
-                when={effectiveCredit() !== null &&
-                  isRunningRunMode(appState.runMode)}
-              >
-                <div class="text-xs mt-1 pr-1 text-right">
-                  <div
-                    class={deriveSafeStatus(fundingIssues()) === "Empty"
-                      ? "text-vpn-red"
-                      : "text-text-secondary"}
+          <div class="flex flex-col py-4 my-4 w-64 gap-3">
+            <Show
+              when={!isBalanceLoading()}
+              fallback={
+                <div class="h-14 w-full rounded bg-sky-600/15 animate-pulse" />
+              }
+            >
+              <div class="flex flex-col gap-3">
+                <div class="flex flex-col gap-1">
+                  <FundsInfo
+                    {...humanWxhoprParts(preparingSafe()?.node_wxhopr ?? totalWxhoprHopli() ?? "0")}
+                    status={deriveSafeStatus(fundingIssues())}
+                  />
+                  <Show
+                    when={effectiveCredit() !== null &&
+                      isRunningRunMode(appState.runMode)}
                   >
-                    ≈{formatCredit(effectiveCredit()!)}
-                  </div>
+                    <div
+                      class={`text-xs text-right ${
+                        deriveSafeStatus(fundingIssues()) === "Empty"
+                          ? "text-vpn-red"
+                          : "text-text-secondary"
+                      }`}
+                    >
+                      ≈{formatCredit(effectiveCredit()!)}
+                    </div>
+                  </Show>
                 </div>
-              </Show>
-            </div>
-            <FundsInfo
-              name="EOA"
-              subtitle="For channels"
-              balance={preparingSafe()?.node_xdai ?? appState.balance?.node}
-              ticker="xDAI"
-              address={preparingSafe()?.node_address ??
-                appState.balance?.info.node_address}
-              status={deriveNodeStatus(fundingIssues())}
-              isLoading={isBalanceLoading()}
-            />
+                <FundsInfo
+                  amount={formatXdai(preparingSafe()?.node_xdai ?? appState.balance?.node ?? "0")}
+                  unit="xDAI"
+                  status={deriveNodeStatus(fundingIssues())}
+                />
+              </div>
+            </Show>
           </div>
 
           <div class="w-64 flex flex-col gap-2">
