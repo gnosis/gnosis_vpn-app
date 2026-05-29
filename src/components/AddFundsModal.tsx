@@ -1,5 +1,10 @@
 import { Show } from "solid-js";
-import { formatXdai, humanWxhopr, wxhoprDecimal } from "../utils/hopli.ts";
+import {
+  formatXdai,
+  humanWxhopr,
+  MIN_DISPLAYABLE_XDAI_WEI,
+  wxhoprDecimal,
+} from "../utils/hopli.ts";
 import FundingAddress from "./address/FundingAddress.tsx";
 import Button from "./common/Button.tsx";
 import { Modal } from "./common/Modal.tsx";
@@ -41,9 +46,16 @@ export default function AddFundsModal(props: {
                 )}
               </Show>
               <Show when={props.xdaiDeficit}>
-                {(deficit) => (
-                  <div class="font-mono">+{formatXdai(deficit())} xDAI</div>
-                )}
+                {(deficit) => {
+                  const displayDeficit = deficit() < MIN_DISPLAYABLE_XDAI_WEI
+                    ? MIN_DISPLAYABLE_XDAI_WEI
+                    : deficit();
+                  return (
+                    <div class="font-mono">
+                      +{formatXdai(displayDeficit)} xDAI
+                    </div>
+                  );
+                }}
               </Show>
             </div>
           </Show>

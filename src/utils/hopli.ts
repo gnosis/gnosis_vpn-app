@@ -53,6 +53,9 @@ function stripTrailingZeros(s: string): string {
   return s.includes(".") ? s.replace(/\.?0+$/, "") : s;
 }
 
+/** Minimum wei value that formatXdai renders as non-zero (0.01 xDAI, matches default fractionDigits=2). */
+export const MIN_DISPLAYABLE_XDAI_WEI = 10n ** 16n;
+
 /** Format an xDAI amount (18-decimal base unit) as a decimal string without trailing zeros. */
 export function formatXdai(
   value: string | number | bigint,
