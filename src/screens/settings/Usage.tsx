@@ -12,8 +12,8 @@ import {
 import FundsInfo from "../../components/FundsInfo.tsx";
 import { Show } from "solid-js";
 import {
-  deriveSafeStatus,
   deriveNodeStatus,
+  deriveSafeStatus,
   describeCriticalIssue,
 } from "../../utils/funding.ts";
 import WarningIcon from "../../components/common/WarningIcon.tsx";

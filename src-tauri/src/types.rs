@@ -88,7 +88,10 @@ pub enum RunMode {
     /// Safe deployment ongoing, enough funds, no existing safe
     DeployingSafe { node_address: String },
     /// Subsequent service start up in this state and after preparing safe
-    Warmup { status: CombinedHoprStatus, last_error: Option<String> },
+    Warmup {
+        status: CombinedHoprStatus,
+        last_error: Option<String>,
+    },
     /// Normal operation where connections can be made
     Running {
         funding_issues: Option<Vec<balance::FundingIssue>>,

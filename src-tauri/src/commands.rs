@@ -14,13 +14,13 @@ use std::time::Duration;
 use tokio::task::spawn_blocking;
 use tokio::time::{self, Instant};
 
-use crate::{BalancePollingHandle, StatusPollingHandle};
 use crate::icons::{self, AppIconState, TrayIconState};
 use crate::tray;
 use crate::types::{
     BalanceResponse, ConnectResponse, ConnectingInfo, ConnectionState, DisconnectResponse,
     DisconnectingInfo, StatusResponse,
 };
+use crate::{BalancePollingHandle, StatusPollingHandle};
 
 const ALLOWED_APP_ICONS: &[&str] = &[
     icons::APP_ICON_CONNECTED,
@@ -135,9 +135,10 @@ async fn query_balance() -> (Duration, Result<Option<BalanceResponse>, String>) 
     let p = PathBuf::from(root_socket::DEFAULT_PATH);
     let resp = root_socket::process_cmd(&p, &command::Command::Balance).await;
     match resp {
-        Ok(command::Response::Balance(balance_resp)) => {
-            (Duration::from_secs(30), Ok(balance_resp.ok().map(|b| b.into())))
-        }
+        Ok(command::Response::Balance(balance_resp)) => (
+            Duration::from_secs(30),
+            Ok(balance_resp.ok().map(|b| b.into())),
+        ),
         Ok(command::Response::WorkerOffline) => (Duration::from_secs(60), Ok(None)),
         Ok(unexpected) => (
             Duration::from_secs(30),
@@ -146,8 +147,6 @@ async fn query_balance() -> (Duration, Result<Option<BalanceResponse>, String>) 
         Err(e) => (Duration::from_secs(30), Err(e.to_string())),
     }
 }
-
-
 
 #[cfg(target_os = "macos")]
 #[allow(unexpected_cfgs)]

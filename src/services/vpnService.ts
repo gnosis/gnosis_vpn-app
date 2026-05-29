@@ -177,7 +177,6 @@ export const CapacityEntrySchema = z.object({
 });
 export type CapacityEntry = z.infer<typeof CapacityEntrySchema>;
 
-
 export const PreparingSafeSchema = z.object({
   node_address: z.string(),
   node_xdai: z.string(),
@@ -426,7 +425,6 @@ export class VPNService {
       throw new Error(`Disconnect error: ${error}`);
     }
   }
-
 
   static async compressLogs(logPath: string, destPath: string): Promise<void> {
     try {
