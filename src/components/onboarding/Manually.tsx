@@ -47,7 +47,6 @@ export default function Manually() {
     return appState.runMode.PreparingSafe.balance_recommendation;
   });
 
-
   return (
     <div class="h-full w-full flex flex-col items-stretch p-6 pb-0 gap-4">
       <h1 class="w-full text-3xl font-bold text-center mt-6 mb-3 flex flex-row">
@@ -80,7 +79,10 @@ export default function Manually() {
               {(rec) => (
                 <div class="text-sm text-text-secondary">
                   Send at least {humanWxhopr(rec().wxhopr)}{" "}
-                  (<span class="select-text cursor-text">{wxhoprDecimal(rec().wxhopr)}</span> wxHOPR)
+                  (<span class="select-text cursor-text">
+                    {wxhoprDecimal(rec().wxhopr)}
+                  </span>{" "}
+                  wxHOPR)
                 </div>
               )}
             </Show>
@@ -108,7 +110,10 @@ export default function Manually() {
               {(rec) => (
                 <div class="text-sm text-text-secondary">
                   Send at least{" "}
-                  <span class="select-text cursor-text">{formatXdai(rec().xdai, 4)}</span> xDAI
+                  <span class="select-text cursor-text">
+                    {formatXdai(rec().xdai, 4)}
+                  </span>{" "}
+                  xDAI
                 </div>
               )}
             </Show>

@@ -106,17 +106,22 @@ export default function Usage() {
             >
               <div class="grid grid-cols-[auto_auto_1fr] gap-x-3 items-baseline gap-y-3">
                 <FundsInfo
-                  {...humanWxhoprParts(preparingSafe()?.node_wxhopr ?? totalWxhoprHopli() ?? "0")}
+                  {...humanWxhoprParts(
+                    preparingSafe()?.node_wxhopr ?? totalWxhoprHopli() ?? "0",
+                  )}
                   status={deriveSafeStatus(fundingIssues())}
                 />
                 <FundsInfo
-                  amount={formatXdai(preparingSafe()?.node_xdai ?? appState.balance?.node ?? "0")}
+                  amount={formatXdai(
+                    preparingSafe()?.node_xdai ?? appState.balance?.node ?? "0",
+                  )}
                   unit="xDAI"
                   status={deriveNodeStatus(fundingIssues())}
                 />
               </div>
               <Show
-                when={effectiveCredit() !== null && isRunningRunMode(appState.runMode)}
+                when={effectiveCredit() !== null &&
+                  isRunningRunMode(appState.runMode)}
               >
                 <div
                   class={`text-xs text-right ${

@@ -73,8 +73,9 @@ export function formatXdai(
 
 /** Format a wxHOPR hopli amount as a full decimal wxHOPR value without trailing zeros. */
 export function wxhoprDecimal(hopli: string | bigint): string {
-  const raw =
-    typeof hopli === "bigint" ? hopli : BigInt(String(hopli).trim() || "0");
+  const raw = typeof hopli === "bigint"
+    ? hopli
+    : BigInt(String(hopli).trim() || "0");
   return stripTrailingZeros(fixedFloor(raw, 18, 18));
 }
 
@@ -82,8 +83,9 @@ export function wxhoprDecimal(hopli: string | bigint): string {
 export function humanWxhoprParts(
   hopli: string | bigint,
 ): { amount: string; unit: string } {
-  const raw =
-    typeof hopli === "bigint" ? hopli : BigInt(String(hopli).trim() || "0");
+  const raw = typeof hopli === "bigint"
+    ? hopli
+    : BigInt(String(hopli).trim() || "0");
   const v = Number(raw) / 1e18;
 
   if (v >= 1) return { amount: v.toFixed(1), unit: "wxHOPR" };
