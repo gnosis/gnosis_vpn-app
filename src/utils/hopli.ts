@@ -82,7 +82,26 @@ export function wxhoprDecimal(hopli: string | bigint): string {
   return stripTrailingZeros(fixedFloor(raw, 18, 18));
 }
 
-// Mirrors gnosis_vpn-client/gnosis_vpn-lib/src/balance.rs `human_wxhopr` — keep unit thresholds in sync.
+const SUBSCRIPT_DIGITS = ["₀", "₁", "₂", "₃", "₄", "₅", "₆", "₇", "₈", "₉"];
+
+function toSubscript(n: number): string {
+  return String(n)
+    .split("")
+    .map((d) => SUBSCRIPT_DIGITS[Number(d)])
+    .join("");
+}
+
+/** Number of significant digits shown for the wxHOPR amount. */
+const WXHOPR_SIG_FIGS = 3;
+
+/**
+ * Format a wxHOPR hopli amount (18-decimal base unit) as a compact wxHOPR value.
+ *
+ * The unit is always "wxHOPR" — we never switch to Milli/Micro/etc. Values below
+ * 0.0001 (which would otherwise render with 4+ leading zeros) use subscript-zero
+ * notation: e.g. 0.00000349 → `0.0₅349`, where the subscript counts the leading
+ * zeros after the decimal point.
+ */
 export function humanWxhoprParts(
   hopli: string | bigint,
 ): { amount: string; unit: string } {
@@ -90,25 +109,33 @@ export function humanWxhoprParts(
     ? hopli
     : BigInt(String(hopli).trim() || "0");
 
-  if (raw >= 10n ** 18n) {
-    return { amount: fixedFloor(raw, 18, 1), unit: "wxHOPR" };
+  return { amount: formatWxhoprAmount(raw), unit: "wxHOPR" };
+}
+
+function formatWxhoprAmount(raw: bigint): string {
+  if (raw <= 0n) return "0";
+
+  const denom = 10n ** 18n;
+  const intPart = raw / denom;
+  const fracStr = (raw % denom).toString().padStart(18, "0");
+
+  if (intPart > 0n) {
+    // Value >= 1: show up to 2 decimals, trailing zeros stripped.
+    return stripTrailingZeros(`${intPart.toString()}.${fracStr.slice(0, 2)}`);
   }
-  if (raw >= 10n ** 15n) {
-    return { amount: fixedFloor(raw, 15, 1), unit: "MilliwxHOPR" };
+
+  // Value < 1: locate the first significant digit after the decimal point.
+  const firstNonZero = fracStr.search(/[1-9]/);
+  const leadingZeros = firstNonZero;
+  const sig = stripTrailingZeros(
+    `0.${fracStr.slice(firstNonZero, firstNonZero + WXHOPR_SIG_FIGS)}`,
+  ).slice(2);
+
+  // < 0.0001 means 4+ leading zeros — use compact subscript-zero notation.
+  if (leadingZeros >= 4) {
+    return `0.0${toSubscript(leadingZeros)}${sig}`;
   }
-  if (raw >= 10n ** 12n) {
-    return { amount: fixedFloor(raw, 12, 1), unit: "MicrowxHOPR" };
-  }
-  if (raw >= 10n ** 9n) {
-    return { amount: fixedFloor(raw, 9, 1), unit: "GwxHopli" };
-  }
-  if (raw >= 10n ** 6n) {
-    return { amount: fixedFloor(raw, 6, 1), unit: "MwxHopli" };
-  }
-  if (raw >= 10n ** 3n) {
-    return { amount: fixedFloor(raw, 3, 1), unit: "KwxHopli" };
-  }
-  return { amount: raw.toString(), unit: "wxHopli" };
+  return `0.${"0".repeat(leadingZeros)}${sig}`;
 }
 
 export function humanWxhopr(hopli: string | bigint): string {

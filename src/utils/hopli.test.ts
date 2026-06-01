@@ -54,34 +54,46 @@ describe("wxhoprDecimal", () => {
 });
 
 describe("humanWxhopr", () => {
-  it("formats whole wxHOPR amounts", () => {
-    expect(humanWxhopr(1n * 10n ** 18n)).toBe("1.0 wxHOPR");
-    expect(humanWxhopr(5n * 10n ** 18n)).toBe("5.0 wxHOPR");
+  it("always uses wxHOPR as the unit", () => {
+    expect(humanWxhopr(1n * 10n ** 18n)).toBe("1 wxHOPR");
+    expect(humanWxhopr(5n * 10n ** 18n)).toBe("5 wxHOPR");
   });
 
-  it("formats milli range", () => {
-    expect(humanWxhopr(1n * 10n ** 15n)).toBe("1.0 MilliwxHOPR");
+  it("shows up to 2 decimals for values >= 1", () => {
+    expect(humanWxhopr(15n * 10n ** 17n)).toBe("1.5 wxHOPR");
+    expect(humanWxhopr(123456n * 10n ** 13n)).toBe("1.23 wxHOPR");
   });
 
-  it("formats micro range", () => {
-    expect(humanWxhopr(1n * 10n ** 12n)).toBe("1.0 MicrowxHOPR");
+  it("renders the milli range as a plain wxHOPR decimal", () => {
+    expect(humanWxhopr(1n * 10n ** 15n)).toBe("0.001 wxHOPR");
+    // 34.9 MilliwxHOPR — the reported case — stays a plain decimal (>= 0.0001).
+    expect(humanWxhopr(349n * 10n ** 14n)).toBe("0.0349 wxHOPR");
   });
 
-  it("formats sub-micro as GwxHopli", () => {
-    expect(humanWxhopr(1n * 10n ** 9n)).toBe("1.0 GwxHopli");
+  it("uses subscript-zero notation below 0.0001", () => {
+    expect(humanWxhopr(1n * 10n ** 12n)).toBe("0.0₅1 wxHOPR");
+    expect(humanWxhopr(1n * 10n ** 9n)).toBe("0.0₈1 wxHOPR");
+    expect(humanWxhopr(42n)).toBe("0.0₁₆42 wxHOPR");
   });
 
-  it("formats raw hopli for tiny amounts", () => {
-    expect(humanWxhopr(42n)).toBe("42 wxHopli");
+  it("keeps 0.0001 as a plain decimal (the threshold)", () => {
+    expect(humanWxhopr(1n * 10n ** 14n)).toBe("0.0001 wxHOPR");
+  });
+
+  it("truncates to 3 significant figures", () => {
+    expect(humanWxhopr(123456n * 10n ** 8n)).toBe("0.0₄123 wxHOPR");
+  });
+
+  it("renders zero", () => {
+    expect(humanWxhopr(0n)).toBe("0 wxHOPR");
   });
 
   it("accepts string input", () => {
-    expect(humanWxhopr("1000000000000000000")).toBe("1.0 wxHOPR");
+    expect(humanWxhopr("1000000000000000000")).toBe("1 wxHOPR");
   });
 
   it("handles large balances without Number precision loss", () => {
-    // 10^18 - 1 hopli is just below the wxHOPR threshold. Number(10^18-1) rounds up to 10^18
-    // causing the old float path to wrongly pick wxHOPR ("1.0 wxHOPR") instead of MilliwxHOPR.
-    expect(humanWxhopr(10n ** 18n - 1n)).toBe("999.9 MilliwxHOPR");
+    // 10^18 - 1 hopli is just below 1 wxHOPR; bigint math keeps full precision.
+    expect(humanWxhopr(10n ** 18n - 1n)).toBe("0.999 wxHOPR");
   });
 });
