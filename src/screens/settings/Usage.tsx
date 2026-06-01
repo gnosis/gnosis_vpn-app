@@ -19,7 +19,6 @@ import {
 import {
   formatXdai,
   humanWxhoprParts,
-  humanXdai,
   wxhoprDecimal,
 } from "../../utils/hopli.ts";
 import WarningIcon from "../../components/common/WarningIcon.tsx";
@@ -153,7 +152,7 @@ export default function Usage() {
                   </div>
                 </Show>
                 <FundsInfo
-                  amount={humanXdai(xdaiRaw())}
+                  amount={formatXdai(xdaiRaw())}
                   unit="xDAI"
                   tooltip={<>{formatXdai(xdaiRaw(), 18)} xDAI</>}
                   status={deriveNodeStatus(fundingIssues())}
