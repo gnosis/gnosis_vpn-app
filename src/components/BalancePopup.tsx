@@ -1,7 +1,7 @@
 import { createMemo, Show } from "solid-js";
 import { Portal } from "solid-js/web";
 import { isRunningRunMode } from "@src/services/vpnService.ts";
-import { formatXdai, humanWxhopr } from "@src/utils/hopli.ts";
+import { humanWxhopr, humanXdai } from "@src/utils/hopli.ts";
 import {
   deriveNodeStatus,
   deriveSafeStatus,
@@ -134,7 +134,7 @@ export default function BalancePopup(props: Props) {
               >
                 {(b) => (
                   <div class="flex items-baseline justify-end gap-1 text-sm font-bold font-mono">
-                    <span>{formatXdai(b().node)}</span>
+                    <span>{humanXdai(b().node)}</span>
                     <span
                       class="text-[10px] inline-block text-left"
                       style={{ width: "34px" }}
