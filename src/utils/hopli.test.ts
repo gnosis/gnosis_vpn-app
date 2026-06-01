@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatXdai, humanWxhopr, wxhoprDecimal } from "./hopli.ts";
+import { formatXdai, humanWxhopr, humanXdai, wxhoprDecimal } from "./hopli.ts";
 
 describe("formatXdai", () => {
   it("truncates extra precision without rounding up", () => {
@@ -95,5 +95,35 @@ describe("humanWxhopr", () => {
   it("handles large balances without Number precision loss", () => {
     // 10^18 - 1 hopli is just below 1 wxHOPR; bigint math keeps full precision.
     expect(humanWxhopr(10n ** 18n - 1n)).toBe("0.999 wxHOPR");
+  });
+});
+
+describe("humanXdai", () => {
+  it("floors to 2 decimals above 0.1", () => {
+    expect(humanXdai(5n * 10n ** 18n)).toBe("5");
+    expect(humanXdai(199n * 10n ** 16n)).toBe("1.99");
+    expect(humanXdai(5n * 10n ** 17n)).toBe("0.5");
+    // 0.123456 floors (does not round) to 0.12.
+    expect(humanXdai(123456n * 10n ** 12n)).toBe("0.12");
+  });
+
+  it("treats 0.1 as the floor boundary", () => {
+    expect(humanXdai(1n * 10n ** 17n)).toBe("0.1");
+  });
+
+  it("uses significant figures between 0.0001 and 0.1", () => {
+    expect(humanXdai(5n * 10n ** 16n)).toBe("0.05");
+    expect(humanXdai(34n * 10n ** 15n)).toBe("0.034");
+    expect(humanXdai(1n * 10n ** 14n)).toBe("0.0001");
+  });
+
+  it("uses subscript-zero notation below 0.0001", () => {
+    expect(humanXdai(1n * 10n ** 13n)).toBe("0.0₄1");
+    expect(humanXdai(349n * 10n ** 11n)).toBe("0.0₄349");
+  });
+
+  it("renders zero and accepts string input", () => {
+    expect(humanXdai(0n)).toBe("0");
+    expect(humanXdai("500000000000000000")).toBe("0.5");
   });
 });

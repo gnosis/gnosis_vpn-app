@@ -95,12 +95,44 @@ function toSubscript(n: number): string {
 const WXHOPR_SIG_FIGS = 3;
 
 /**
+ * Format an 18-decimal base-unit amount as a compact decimal string.
+ *
+ * At/above `flooredThreshold` (a raw hopli value) the result is floored to 2
+ * decimals. Below it, the value is shown with `WXHOPR_SIG_FIGS` significant
+ * figures; once that would need 4+ leading zeros (i.e. value < 0.0001) it
+ * switches to subscript-zero notation: e.g. 0.00000349 → `0.0₅349`, where the
+ * subscript counts the leading zeros after the decimal point.
+ */
+function formatCompactAmount(raw: bigint, flooredThreshold: bigint): string {
+  if (raw <= 0n) return "0";
+
+  const denom = 10n ** 18n;
+  const intPart = raw / denom;
+  const fracStr = (raw % denom).toString().padStart(18, "0");
+
+  if (raw >= flooredThreshold) {
+    return stripTrailingZeros(`${intPart.toString()}.${fracStr.slice(0, 2)}`);
+  }
+
+  // Below the threshold: locate the first significant digit after the decimal.
+  const leadingZeros = fracStr.search(/[1-9]/);
+  const sig = stripTrailingZeros(
+    `0.${fracStr.slice(leadingZeros, leadingZeros + WXHOPR_SIG_FIGS)}`,
+  ).slice(2);
+
+  // 4+ leading zeros (value < 0.0001) — use compact subscript-zero notation.
+  if (leadingZeros >= 4) {
+    return `0.0${toSubscript(leadingZeros)}${sig}`;
+  }
+  return `0.${"0".repeat(leadingZeros)}${sig}`;
+}
+
+/**
  * Format a wxHOPR hopli amount (18-decimal base unit) as a compact wxHOPR value.
  *
- * The unit is always "wxHOPR" — we never switch to Milli/Micro/etc. Values below
- * 0.0001 (which would otherwise render with 4+ leading zeros) use subscript-zero
- * notation: e.g. 0.00000349 → `0.0₅349`, where the subscript counts the leading
- * zeros after the decimal point.
+ * The unit is always "wxHOPR" — we never switch to Milli/Micro/etc. Values >= 1
+ * are floored to 2 decimals; smaller values use significant figures, dropping to
+ * subscript-zero notation below 0.0001.
  */
 export function humanWxhoprParts(
   hopli: string | bigint,
@@ -109,36 +141,24 @@ export function humanWxhoprParts(
     ? hopli
     : BigInt(String(hopli).trim() || "0");
 
-  return { amount: formatWxhoprAmount(raw), unit: "wxHOPR" };
-}
-
-function formatWxhoprAmount(raw: bigint): string {
-  if (raw <= 0n) return "0";
-
-  const denom = 10n ** 18n;
-  const intPart = raw / denom;
-  const fracStr = (raw % denom).toString().padStart(18, "0");
-
-  if (intPart > 0n) {
-    // Value >= 1: show up to 2 decimals, trailing zeros stripped.
-    return stripTrailingZeros(`${intPart.toString()}.${fracStr.slice(0, 2)}`);
-  }
-
-  // Value < 1: locate the first significant digit after the decimal point.
-  const firstNonZero = fracStr.search(/[1-9]/);
-  const leadingZeros = firstNonZero;
-  const sig = stripTrailingZeros(
-    `0.${fracStr.slice(firstNonZero, firstNonZero + WXHOPR_SIG_FIGS)}`,
-  ).slice(2);
-
-  // < 0.0001 means 4+ leading zeros — use compact subscript-zero notation.
-  if (leadingZeros >= 4) {
-    return `0.0${toSubscript(leadingZeros)}${sig}`;
-  }
-  return `0.${"0".repeat(leadingZeros)}${sig}`;
+  return { amount: formatCompactAmount(raw, 10n ** 18n), unit: "wxHOPR" };
 }
 
 export function humanWxhopr(hopli: string | bigint): string {
   const { amount, unit } = humanWxhoprParts(hopli);
   return `${amount} ${unit}`;
+}
+
+/**
+ * Format an xDAI amount (18-decimal base unit) as a compact value, mirroring
+ * the wxHOPR display: floored to 2 decimals above 0.1, significant figures
+ * below it, and subscript-zero notation below 0.0001. Returns the number only —
+ * callers render the "xDAI" unit separately.
+ */
+export function humanXdai(value: string | bigint): string {
+  const raw = typeof value === "bigint"
+    ? value
+    : BigInt(String(value).trim() || "0");
+
+  return formatCompactAmount(raw, 10n ** 17n);
 }
