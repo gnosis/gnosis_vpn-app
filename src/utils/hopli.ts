@@ -36,21 +36,34 @@ function fixedFloor(
     : intPart.toString();
 }
 
-function toHopli(value: string | number | bigint): bigint | undefined {
-  if (typeof value === "bigint") return value;
-  if (typeof value === "number") {
-    return Number.isFinite(value) ? BigInt(Math.trunc(value)) : undefined;
-  }
-  const clean = value.trim();
-  try {
-    return BigInt(clean.length > 0 ? clean : "0");
-  } catch {
-    return undefined;
-  }
-}
-
 function stripTrailingZeros(s: string): string {
   return s.includes(".") ? s.replace(/\.?0+$/, "") : s;
+}
+
+/** Placeholder shown when an amount can't be parsed (null/undefined/malformed). */
+export const NO_VALUE = "-";
+
+/**
+ * Convert a hopli value to bigint without throwing. Returns null for null,
+ * undefined, empty/whitespace, non-finite numbers, or any malformed input
+ * (e.g. "1.5", "abc", "1e18") so callers can render {@link NO_VALUE} or fall
+ * back instead of crashing. Whole numbers are truncated toward zero.
+ */
+export function toBigIntSafe(
+  value: string | number | bigint | null | undefined,
+): bigint | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "bigint") return value;
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? BigInt(Math.trunc(value)) : null;
+  }
+  const clean = value.trim();
+  if (clean === "") return null;
+  try {
+    return BigInt(clean);
+  } catch {
+    return null;
+  }
 }
 
 /** Minimum wei value that formatXdai renders as non-zero (0.01 xDAI, matches default fractionDigits=2). */
@@ -62,8 +75,8 @@ export function formatXdai(
   fractionDigits = 2,
 ): string {
   assertNonNegativeParams(18, fractionDigits);
-  const hopli = toHopli(value);
-  if (hopli !== undefined) {
+  const hopli = toBigIntSafe(value);
+  if (hopli !== null) {
     return stripTrailingZeros(fixedFloor(hopli, 18, fractionDigits));
   }
   const num = Number(value);
@@ -75,10 +88,11 @@ export function formatXdai(
 }
 
 /** Format a wxHOPR hopli amount as a full decimal wxHOPR value without trailing zeros. */
-export function wxhoprDecimal(hopli: string | bigint): string {
-  const raw = typeof hopli === "bigint"
-    ? hopli
-    : BigInt(String(hopli).trim() || "0");
+export function wxhoprDecimal(
+  hopli: string | bigint | null | undefined,
+): string {
+  const raw = toBigIntSafe(hopli);
+  if (raw === null) return NO_VALUE;
   return stripTrailingZeros(fixedFloor(raw, 18, 18));
 }
 
@@ -91,14 +105,14 @@ function toSubscript(n: number): string {
     .join("");
 }
 
-/** Number of significant digits shown for the wxHOPR amount. */
-const WXHOPR_SIG_FIGS = 3;
+/** Significant digits shown for a compact token amount (wxHOPR and xDAI alike). */
+const COMPACT_SIG_FIGS = 3;
 
 /**
  * Format an 18-decimal base-unit amount as a compact decimal string.
  *
  * At/above `flooredThreshold` (a raw hopli value) the result is floored to 2
- * decimals. Below it, the value is shown with `WXHOPR_SIG_FIGS` significant
+ * decimals. Below it, the value is shown with `COMPACT_SIG_FIGS` significant
  * figures; once that would need 4+ leading zeros (i.e. value < 0.0001) it
  * switches to subscript-zero notation: e.g. 0.00000349 → `0.0₅349`, where the
  * subscript counts the leading zeros after the decimal point.
@@ -117,7 +131,7 @@ function formatCompactAmount(raw: bigint, flooredThreshold: bigint): string {
   // Below the threshold: locate the first significant digit after the decimal.
   const leadingZeros = fracStr.search(/[1-9]/);
   const sig = stripTrailingZeros(
-    `0.${fracStr.slice(leadingZeros, leadingZeros + WXHOPR_SIG_FIGS)}`,
+    `0.${fracStr.slice(leadingZeros, leadingZeros + COMPACT_SIG_FIGS)}`,
   ).slice(2);
 
   // 4+ leading zeros (value < 0.0001) — use compact subscript-zero notation.
@@ -135,18 +149,16 @@ function formatCompactAmount(raw: bigint, flooredThreshold: bigint): string {
  * subscript-zero notation below 0.0001.
  */
 export function humanWxhoprParts(
-  hopli: string | bigint,
+  hopli: string | bigint | null | undefined,
 ): { amount: string; unit: string } {
-  const raw = typeof hopli === "bigint"
-    ? hopli
-    : BigInt(String(hopli).trim() || "0");
-
-  return { amount: formatCompactAmount(raw, 10n ** 18n), unit: "wxHOPR" };
+  const raw = toBigIntSafe(hopli);
+  const amount = raw === null ? NO_VALUE : formatCompactAmount(raw, 10n ** 18n);
+  return { amount, unit: "wxHOPR" };
 }
 
-export function humanWxhopr(hopli: string | bigint): string {
+export function humanWxhopr(hopli: string | bigint | null | undefined): string {
   const { amount, unit } = humanWxhoprParts(hopli);
-  return `${amount} ${unit}`;
+  return amount === NO_VALUE ? amount : `${amount} ${unit}`;
 }
 
 /**
@@ -155,10 +167,7 @@ export function humanWxhopr(hopli: string | bigint): string {
  * below it, and subscript-zero notation below 0.0001. Returns the number only —
  * callers render the "xDAI" unit separately.
  */
-export function humanXdai(value: string | bigint): string {
-  const raw = typeof value === "bigint"
-    ? value
-    : BigInt(String(value).trim() || "0");
-
-  return formatCompactAmount(raw, 10n ** 17n);
+export function humanXdai(value: string | bigint | null | undefined): string {
+  const raw = toBigIntSafe(value);
+  return raw === null ? NO_VALUE : formatCompactAmount(raw, 10n ** 17n);
 }

@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { formatXdai, humanWxhopr, humanXdai, wxhoprDecimal } from "./hopli.ts";
+import {
+  formatXdai,
+  humanWxhopr,
+  humanWxhoprParts,
+  humanXdai,
+  NO_VALUE,
+  toBigIntSafe,
+  wxhoprDecimal,
+} from "./hopli.ts";
 
 describe("formatXdai", () => {
   it("truncates extra precision without rounding up", () => {
@@ -125,5 +133,50 @@ describe("humanXdai", () => {
   it("renders zero and accepts string input", () => {
     expect(humanXdai(0n)).toBe("0");
     expect(humanXdai("500000000000000000")).toBe("0.5");
+  });
+});
+
+describe("toBigIntSafe", () => {
+  it("passes through valid bigint and integer-string input", () => {
+    expect(toBigIntSafe(42n)).toBe(42n);
+    expect(toBigIntSafe("1000000000000000000")).toBe(10n ** 18n);
+    expect(toBigIntSafe("  123  ")).toBe(123n);
+    expect(toBigIntSafe("0")).toBe(0n);
+  });
+
+  it("returns null for null and undefined instead of throwing", () => {
+    expect(toBigIntSafe(null)).toBeNull();
+    expect(toBigIntSafe(undefined)).toBeNull();
+  });
+
+  it("returns null for empty and malformed strings", () => {
+    expect(toBigIntSafe("")).toBeNull();
+    expect(toBigIntSafe("   ")).toBeNull();
+    expect(toBigIntSafe("abc")).toBeNull();
+    expect(toBigIntSafe("1.5")).toBeNull();
+    expect(toBigIntSafe("0xdeadbeef")).toBe(0xdeadbeefn); // valid hex literal
+  });
+});
+
+describe("placeholder fallback for invalid input", () => {
+  it("renders NO_VALUE instead of crashing on null/undefined", () => {
+    expect(humanWxhopr(null)).toBe(NO_VALUE);
+    expect(humanWxhopr(undefined)).toBe(NO_VALUE);
+    expect(humanWxhoprParts(null)).toEqual({
+      amount: NO_VALUE,
+      unit: "wxHOPR",
+    });
+    expect(humanXdai(null)).toBe(NO_VALUE);
+    expect(wxhoprDecimal(undefined)).toBe(NO_VALUE);
+  });
+
+  it("renders NO_VALUE on malformed strings", () => {
+    expect(humanWxhopr("not-a-number")).toBe(NO_VALUE);
+    expect(humanXdai("1.5")).toBe(NO_VALUE);
+  });
+
+  it("still renders a real zero balance as 0, not the placeholder", () => {
+    expect(humanWxhopr("0")).toBe("0 wxHOPR");
+    expect(humanXdai("0")).toBe("0");
   });
 });
