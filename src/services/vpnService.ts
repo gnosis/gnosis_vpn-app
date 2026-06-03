@@ -44,7 +44,10 @@ export const DisconnectingInfoSchema = z.object({
 });
 export type DisconnectingInfo = z.infer<typeof DisconnectingInfoSchema>;
 
-export const RoutingOptionsSchema = z.object({ Hops: z.number() });
+export const RoutingOptionsSchema = z.union([
+  z.object({ HopBased: z.number() }),
+  z.object({ ExplicitPath: z.array(z.string()) }),
+]);
 export type RoutingOptions = z.infer<typeof RoutingOptionsSchema>;
 
 export const DestinationSchema = z.object({

@@ -1,5 +1,5 @@
 use gnosis_vpn_lib::command::{self, HoprInitStatus, HoprStatus};
-use gnosis_vpn_lib::connection::destination::HopRouting;
+use gnosis_vpn_lib::connection::destination::RoutingMode;
 use gnosis_vpn_lib::route_health::RouteHealthState;
 use gnosis_vpn_lib::{balance, connection, info};
 
@@ -152,7 +152,8 @@ pub struct DestinationState {
 
 #[derive(Clone, Debug, Serialize)]
 pub enum RoutingOptions {
-    Hops(usize),
+    HopBased(usize),
+    ExplicitPath(Vec<String>),
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -171,9 +172,14 @@ pub struct Info {
 
 // Conversions from library types to sanitized types
 
-impl From<HopRouting> for RoutingOptions {
-    fn from(hr: HopRouting) -> Self {
-        RoutingOptions::Hops(hr.hop_count())
+impl From<RoutingMode> for RoutingOptions {
+    fn from(rm: RoutingMode) -> Self {
+        match rm {
+            RoutingMode::HopBased(hr) => RoutingOptions::HopBased(hr.hop_count()),
+            RoutingMode::ExplicitPath(addrs) => {
+                RoutingOptions::ExplicitPath(addrs.iter().map(|a| a.to_string()).collect())
+            }
+        }
     }
 }
 

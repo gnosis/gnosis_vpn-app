@@ -148,12 +148,13 @@ export function isReadyToConnect(rhv: RouteHealthView | undefined): boolean {
 
 /** Get the raw hop count from routing options. */
 export function getHopCount(routing: RoutingOptions): number {
-  return routing.Hops;
+  return "HopBased" in routing ? routing.HopBased : routing.ExplicitPath.length;
 }
 
 /** Format routing as e.g. "1-hop" */
 export function formatRouting(routing: RoutingOptions): string {
-  const n = getHopCount(routing);
+  if ("ExplicitPath" in routing) return `${routing.ExplicitPath.length}-hop path`;
+  const n = routing.HopBased;
   return n === 1 ? "1-hop" : `${n}-hops`;
 }
 
