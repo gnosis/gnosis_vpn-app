@@ -153,7 +153,9 @@ export function getHopCount(routing: RoutingOptions): number {
 
 /** Format routing as e.g. "1-hop" */
 export function formatRouting(routing: RoutingOptions): string {
-  if ("ExplicitPath" in routing) return `${routing.ExplicitPath.length}-hop path`;
+  if ("ExplicitPath" in routing) {
+    return `${routing.ExplicitPath.length}-hop path`;
+  }
   const n = routing.HopBased;
   return n === 1 ? "1-hop" : `${n}-hops`;
 }
