@@ -1,5 +1,4 @@
 use gnosis_vpn_lib::command::{self, HoprInitStatus, HoprStatus};
-use gnosis_vpn_lib::connection::destination::HopRouting;
 use gnosis_vpn_lib::route_health::RouteHealthState;
 use gnosis_vpn_lib::{balance, connection, info};
 
@@ -7,6 +6,10 @@ use serde::Serialize;
 
 use std::collections::HashMap;
 use std::fmt::{self, Display};
+
+const RECOMMENDED_XDAI: &str = "10000000000000000"; // 0.01 xDAI
+const RECOMMENDED_WXHOPR: &str = "100000000000000000000"; // 100 wxHOPR
+
 // Sanitized library responses
 #[derive(Clone, Debug, Serialize)]
 pub struct StatusResponse {
@@ -67,9 +70,19 @@ pub struct Capacity {
     pub byte_capacity: u64,
 }
 
+// Defined locally because balance::CapacityAllocator does not exist in release-v0.90.
+// capacity_allocations is always None for this client version; this type is kept only
+// so the frontend schema and Tauri serialization remain unchanged.
+#[derive(Clone, Debug, Serialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum CapacityAllocator {
+    Safe,
+    Peer { address: String },
+}
+
 #[derive(Clone, Debug, Serialize)]
 pub struct CapacityEntry {
-    pub allocator: balance::CapacityAllocator,
+    pub allocator: CapacityAllocator,
     pub capacity: Capacity,
 }
 
@@ -124,6 +137,7 @@ pub enum CombinedHoprStatus {
     // Hopr init states
     ValidatingConfig,
     IdentifyingNode,
+    InitializingDatabase,
     ConnectingBlockchain,
     CreatingNode,
     StartingNode,
@@ -140,8 +154,6 @@ pub enum CombinedHoprStatus {
     InitializingServices,
     Running,
     Terminated,
-    Degraded,
-    Failed,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -171,9 +183,14 @@ pub struct Info {
 
 // Conversions from library types to sanitized types
 
-impl From<HopRouting> for RoutingOptions {
-    fn from(hr: HopRouting) -> Self {
-        RoutingOptions::Hops(hr.hop_count())
+impl From<connection::destination::RoutingOptions> for RoutingOptions {
+    fn from(ro: connection::destination::RoutingOptions) -> Self {
+        match ro {
+            connection::destination::RoutingOptions::Hops(hops) => RoutingOptions::Hops(hops.into()),
+            connection::destination::RoutingOptions::IntermediatePath(nodes) => {
+                RoutingOptions::Hops(nodes.as_ref().len())
+            }
+        }
     }
 }
 
@@ -204,15 +221,14 @@ impl From<HoprStatus> for CombinedHoprStatus {
             HoprStatus::WaitingForFunds => CombinedHoprStatus::WaitingForFunds,
             HoprStatus::CheckingBalance => CombinedHoprStatus::CheckingBalance,
             HoprStatus::ValidatingNetworkConfig => CombinedHoprStatus::ValidatingNetworkConfig,
-            HoprStatus::CheckingOnchainAddress => CombinedHoprStatus::CheckingOnchainAddress,
+            // renamed upstream; semantics are equivalent
+            HoprStatus::SubscribingToAnnouncements => CombinedHoprStatus::CheckingOnchainAddress,
             HoprStatus::RegisteringSafe => CombinedHoprStatus::RegisteringSafe,
             HoprStatus::AnnouncingNode => CombinedHoprStatus::AnnouncingNode,
             HoprStatus::AwaitingKeyBinding => CombinedHoprStatus::AwaitingKeyBinding,
             HoprStatus::InitializingServices => CombinedHoprStatus::InitializingServices,
             HoprStatus::Running => CombinedHoprStatus::Running,
             HoprStatus::Terminated => CombinedHoprStatus::Terminated,
-            HoprStatus::Degraded => CombinedHoprStatus::Degraded,
-            HoprStatus::Failed => CombinedHoprStatus::Failed,
         }
     }
 }
@@ -222,6 +238,7 @@ impl From<HoprInitStatus> for CombinedHoprStatus {
         match status {
             HoprInitStatus::ValidatingConfig => CombinedHoprStatus::ValidatingConfig,
             HoprInitStatus::IdentifyingNode => CombinedHoprStatus::IdentifyingNode,
+            HoprInitStatus::InitializingDatabase => CombinedHoprStatus::InitializingDatabase,
             HoprInitStatus::ConnectingBlockchain => CombinedHoprStatus::ConnectingBlockchain,
             HoprInitStatus::CreatingNode => CombinedHoprStatus::CreatingNode,
             HoprInitStatus::StartingNode => CombinedHoprStatus::StartingNode,
@@ -243,16 +260,16 @@ impl From<command::RunMode> for RunMode {
                 node_wxhopr,
                 funding_tool,
                 error,
-                balance_recommendation,
+                ticket_stats: _,
             } => RunMode::PreparingSafe {
                 node_address: node_address.to_string(),
                 node_xdai: node_xdai.amount().to_string(),
                 node_wxhopr: node_wxhopr.amount().to_string(),
                 funding_tool,
                 error,
-                balance_recommendation: balance_recommendation.map(|rec| BalanceRecommendation {
-                    wxhopr: rec.wxhopr.amount().to_string(),
-                    xdai: rec.xdai.amount().to_string(),
+                balance_recommendation: Some(BalanceRecommendation {
+                    xdai: RECOMMENDED_XDAI.to_string(),
+                    wxhopr: RECOMMENDED_WXHOPR.to_string(),
                 }),
             },
 
@@ -276,11 +293,12 @@ impl From<command::RunMode> for RunMode {
                     last_error: None,
                 },
             },
-            command::RunMode::Running {
-                funding_issues,
-                hopr_status,
-            } => RunMode::Running {
-                funding_issues,
+            command::RunMode::Running { funding, hopr_status } => RunMode::Running {
+                funding_issues: match funding {
+                    command::FundingState::Querying => None,
+                    command::FundingState::TopIssue(i) => Some(vec![i]),
+                    command::FundingState::WellFunded => Some(vec![]),
+                },
                 hopr_status: hopr_status.map(|s| s.into()),
             },
             command::RunMode::Shutdown => RunMode::Shutdown,
@@ -327,20 +345,6 @@ impl From<info::Info> for Info {
     }
 }
 
-impl From<balance::CapacityEntry> for CapacityEntry {
-    fn from(e: balance::CapacityEntry) -> Self {
-        CapacityEntry {
-            allocator: e.allocator,
-            capacity: Capacity {
-                stake: e.capacity.stake.amount().to_string(),
-                expected_messages: e.capacity.expected_messages,
-                min_guaranteed_messages: e.capacity.min_guaranteed_messages,
-                byte_capacity: e.capacity.byte_capacity,
-            },
-        }
-    }
-}
-
 impl From<command::BalanceResponse> for BalanceResponse {
     fn from(br: command::BalanceResponse) -> Self {
         let channels_out = br
@@ -358,14 +362,12 @@ impl From<command::BalanceResponse> for BalanceResponse {
             safe: br.safe.amount().to_string(),
             channels_out,
             info: br.info.into(),
-            funding_issues: br.funding_issues,
-            ideal_balance: br.ideal_balance.map(|rec| BalanceRecommendation {
-                wxhopr: rec.wxhopr.amount().to_string(),
-                xdai: rec.xdai.amount().to_string(),
+            funding_issues: Some(br.issues),
+            ideal_balance: Some(BalanceRecommendation {
+                xdai: RECOMMENDED_XDAI.to_string(),
+                wxhopr: RECOMMENDED_WXHOPR.to_string(),
             }),
-            capacity_allocations: br
-                .capacity_allocations
-                .map(|entries| entries.into_iter().map(Into::into).collect()),
+            capacity_allocations: None,
         }
     }
 }

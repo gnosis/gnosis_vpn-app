@@ -23,7 +23,7 @@ use crate::types::{
 };
 use crate::{AppStateCache, BalancePollingHandle, StatusPollingHandle};
 
-const COMPATIBLE_VERSIONS: &[&str] = &["0.86"];
+const COMPATIBLE_VERSIONS: &[&str] = &["0.90"];
 
 fn is_version_compatible(version: &str) -> bool {
     COMPATIBLE_VERSIONS
@@ -136,10 +136,10 @@ async fn query_balance() -> (Duration, Result<Option<BalanceResponse>, String>) 
     let p = PathBuf::from(root_socket::DEFAULT_PATH);
     let resp = root_socket::process_cmd(&p, &command::Command::Balance).await;
     match resp {
-        Ok(command::Response::Balance(Ok(balance_resp))) => {
+        Ok(command::Response::Balance(Some(balance_resp))) => {
             (Duration::from_secs(60), Ok(Some(balance_resp.into())))
         }
-        Ok(command::Response::Balance(Err(_))) => (Duration::from_secs(5), Ok(None)),
+        Ok(command::Response::Balance(None)) => (Duration::from_secs(5), Ok(None)),
         Ok(command::Response::WorkerOffline) => (Duration::from_secs(5), Ok(None)),
         Ok(unexpected) => (
             Duration::from_secs(5),

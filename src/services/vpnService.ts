@@ -197,6 +197,7 @@ export const WarmupStatusSchema = z.enum([
   "Initializing",
   "ValidatingConfig",
   "IdentifyingNode",
+  "InitializingDatabase",
   "ConnectingBlockchain",
   "CreatingNode",
   "StartingNode",
@@ -212,8 +213,6 @@ export const WarmupStatusSchema = z.enum([
   "InitializingServices",
   "Running",
   "Terminated",
-  "Degraded",
-  "Failed",
 ]);
 export type WarmupStatus = z.infer<typeof WarmupStatusSchema>;
 
@@ -285,6 +284,8 @@ export function formatWarmupStatus(status: WarmupStatus): string {
       return "Validating edge client configuration";
     case "IdentifyingNode":
       return "Identifying ourselves";
+    case "InitializingDatabase":
+      return "Initializing database";
     case "ConnectingBlockchain":
       return "Querying ledger";
     case "CreatingNode":
@@ -315,10 +316,6 @@ export function formatWarmupStatus(status: WarmupStatus): string {
       return "Running";
     case "Terminated":
       return "Terminated";
-    case "Degraded":
-      return "Degraded";
-    case "Failed":
-      return "Failed";
   }
 }
 
