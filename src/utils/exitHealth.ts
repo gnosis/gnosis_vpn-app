@@ -109,7 +109,7 @@ export function formatSecondsAgo(diffSec: number): string {
 export function formatExitHealthStatus(rhv: RouteHealthView): string {
   const { state } = rhv;
   if (state.state === "Routable") return "Checking…";
-  if (state.state === "NeedsFunding") return "Needs channel";
+  if (state.state === "NeedsFunding") return "Needs funding";
   if (state.state === "NeedsPeering") return "Looking for peer";
   if (state.state === "Unrecoverable") {
     const { reason } = state;
