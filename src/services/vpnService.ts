@@ -85,6 +85,7 @@ export type ExitHealthData = z.infer<typeof ExitHealthDataSchema>;
 
 export const UnrecoverableReasonSchema = z.union([
   z.literal("NotAllowed"),
+  z.literal("InvalidId"),
   z.literal("InvalidPath"),
   z.object({
     IncompatibleApiVersion: z.object({ server_versions: z.array(z.string()) }),
@@ -97,8 +98,8 @@ export const RouteHealthStateSchema = z.discriminatedUnion("state", [
     state: z.literal("Unrecoverable"),
     reason: UnrecoverableReasonSchema,
   }),
-  z.object({ state: z.literal("NeedsPeering"), has_channel: z.boolean() }),
-  z.object({ state: z.literal("NeedsChannel") }),
+  z.object({ state: z.literal("NeedsPeering"), funded: z.boolean() }),
+  z.object({ state: z.literal("NeedsFunding") }),
   z.object({ state: z.literal("Routable") }),
   z.object({ state: z.literal("ReadyToConnect"), exit: ExitHealthDataSchema }),
   z.object({

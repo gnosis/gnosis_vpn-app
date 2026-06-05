@@ -18,7 +18,7 @@ export function isExitHealthRunning(rhv: RouteHealthView): boolean {
 /** Derive a simple color from route health state. */
 export function getExitHealthColor(rhv: RouteHealthView): HealthColor {
   const { state } = rhv;
-  if (state.state === "NeedsChannel" || state.state === "Routable") {
+  if (state.state === "NeedsFunding" || state.state === "Routable") {
     return "yellow";
   }
   if (state.state === "Unrecoverable") return "red";
@@ -109,12 +109,12 @@ export function formatSecondsAgo(diffSec: number): string {
 export function formatExitHealthStatus(rhv: RouteHealthView): string {
   const { state } = rhv;
   if (state.state === "Routable") return "Checking…";
-  if (state.state === "NeedsChannel") return "Needs channel";
+  if (state.state === "NeedsFunding") return "Needs channel";
   if (state.state === "NeedsPeering") return "Looking for peer";
   if (state.state === "Unrecoverable") {
     const { reason } = state;
     if (reason === "NotAllowed") return "Connection not allowed";
-    if (reason === "InvalidPath") {
+    if (reason === "InvalidId" || reason === "InvalidPath") {
       return "Connection impossible";
     }
     if (typeof reason === "object" && "IncompatibleApiVersion" in reason) {
@@ -135,7 +135,7 @@ export function formatExitHealthStatus(rhv: RouteHealthView): string {
 export function hasHealthContent(rhv: RouteHealthView | null): boolean {
   if (!rhv) return false;
   const s = rhv.state.state;
-  return s !== "NeedsChannel" && s !== "Routable" && s !== "NeedsPeering" &&
+  return s !== "NeedsFunding" && s !== "Routable" && s !== "NeedsPeering" &&
     s !== "Unrecoverable";
 }
 
