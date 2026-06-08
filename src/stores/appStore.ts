@@ -386,7 +386,10 @@ export function createAppStore(): AppStoreTuple {
           if (parsed.success) {
             setState("serviceInfo", parsed.data);
           } else {
-            console.error("Invalid service_info payload", parsed.error);
+            const issues = parsed.error.issues
+              .map((i) => `${i.path.join(".") || "root"}: ${i.message}`)
+              .join("; ");
+            criticalError(`Invalid service_info event: ${issues}`);
           }
         });
       } catch (error) {
@@ -434,7 +437,10 @@ export function createAppStore(): AppStoreTuple {
           } else if (parsed && parsed.success) {
             setState("balance", parsed.data);
           } else if (parsed) {
-            console.error("Invalid balance response", balEvent.payload.Ok);
+            const issues = parsed.error.issues
+              .map((i) => `${i.path.join(".") || "root"}: ${i.message}`)
+              .join("; ");
+            criticalError(`Invalid balance response: ${issues}`);
           }
         } else {
           console.error("Balance polling error", balEvent.payload.Err);
@@ -455,6 +461,7 @@ export function createAppStore(): AppStoreTuple {
         const cached = await invoke<{
           status: { Ok: StatusResponse } | { Err: string };
           balance: { Ok: BalanceResponse } | { Err: string };
+          service_info: unknown;
         }>("get_cached_state");
 
         try {
@@ -471,6 +478,17 @@ export function createAppStore(): AppStoreTuple {
           });
         } catch (err) {
           console.warn("Failed to hydrate balance:", err);
+        }
+        if (cached.service_info) {
+          const parsed = ServiceInfoSchema.safeParse(cached.service_info);
+          if (parsed.success) {
+            setState("serviceInfo", parsed.data);
+          } else {
+            const issues = parsed.error.issues
+              .map((i) => `${i.path.join(".") || "root"}: ${i.message}`)
+              .join("; ");
+            criticalError(`Invalid service_info cache: ${issues}`);
+          }
         }
       } catch (err) {
         console.warn("get_cached_state unavailable:", err);
@@ -680,13 +698,10 @@ function incomingStatusEvent(event: StatusEvent): StatusResponse | void {
     if (res.success) {
       return res.data;
     } else {
-      console.error("Issues with StatusResponseSchema", rawRes.Ok);
-      for (const i of res.error.issues) {
-        console.error("Type error:", i);
-      }
-      const message = `Received invalid status response`;
-      console.error(message);
-      throw new Error(message);
+      const issues = res.error.issues
+        .map((i) => `${i.path.join(".") || "root"}: ${i.message}`)
+        .join("; ");
+      throw new Error(`Invalid status response: ${issues}`);
     }
   } else {
     console.error("Error processing status update", rawRes.Err);
