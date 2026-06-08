@@ -186,9 +186,7 @@ pub struct Info {
 impl From<connection::destination::RoutingOptions> for RoutingOptions {
     fn from(ro: connection::destination::RoutingOptions) -> Self {
         match ro {
-            connection::destination::RoutingOptions::Hops(hops) => {
-                RoutingOptions::Hops(hops.into())
-            }
+            connection::destination::RoutingOptions::Hops(hops) => RoutingOptions::Hops(hops.into()),
             connection::destination::RoutingOptions::IntermediatePath(nodes) => {
                 RoutingOptions::Hops(nodes.as_ref().len())
             }
@@ -295,10 +293,7 @@ impl From<command::RunMode> for RunMode {
                     last_error: None,
                 },
             },
-            command::RunMode::Running {
-                funding,
-                hopr_status,
-            } => RunMode::Running {
+            command::RunMode::Running { funding, hopr_status } => RunMode::Running {
                 funding_issues: match funding {
                     command::FundingState::Querying => None,
                     command::FundingState::TopIssue(i) => Some(vec![i]),
