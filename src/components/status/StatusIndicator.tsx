@@ -8,8 +8,9 @@ export function StatusIndicator(
   },
 ) {
   const [appState] = useAppStore();
-  const isServiceUnavailable = () =>
-    appState.vpnStatus === "ServiceUnavailable";
+  const isOffline = () =>
+    appState.vpnStatus === "ServiceUnavailable" ||
+    appState.vpnStatus === "WorkerRestarting";
 
   const containerClass = size === "sm"
     ? ""
@@ -23,6 +24,9 @@ export function StatusIndicator(
     }
     if (appState.vpnStatus === "Disconnecting") {
       return { text: "Disconnecting", color: "bg-vpn-yellow" };
+    }
+    if (appState.vpnStatus === "WorkerRestarting") {
+      return { text: "Restarting...", color: "bg-vpn-yellow" };
     }
     if (appState.vpnStatus === "ServiceUnavailable") {
       return {
@@ -38,7 +42,7 @@ export function StatusIndicator(
   };
 
   return (
-    <Show when={!whenOfflineOnly || isServiceUnavailable()}>
+    <Show when={!whenOfflineOnly || isOffline()}>
       <div
         class={`flex flex-row gap-2 items-center justify-between py-2 ${containerClass}`}
       >
