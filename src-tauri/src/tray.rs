@@ -19,7 +19,7 @@ pub fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Erro
     let usage_item = MenuItem::with_id(app, "usage", "Usage", true, None::<&str>)?;
     let check_update_item =
         MenuItem::with_id(app, "check_update", "Check update", true, None::<&str>)?;
-    let quit_item = MenuItem::with_id(app, "quit", "Disconnect && Quit", true, None::<&str>)?;
+    let quit_item = MenuItem::with_id(app, "quit", "Disconnect and Quit", true, None::<&str>)?;
 
     app.manage(TrayStatusItem(Mutex::new(status_item.clone())));
 
