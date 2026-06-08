@@ -25,6 +25,7 @@ use commands::{
     check_update, compress_logs, connect, disconnect, get_cached_state, run_initialization_loop,
     set_app_icon, stop_client,
 };
+use gnosis_vpn_lib::command::InfoResponse;
 #[cfg(target_os = "macos")]
 use gnosis_vpn_lib::{command, socket::root as root_socket};
 use icons::{AppIconState, TrayIconState, determine_tray_icon, start_app_icon_heartbeat};
@@ -56,6 +57,7 @@ pub struct BalancePollingHandle {
 pub struct AppStateCache {
     pub status: watch::Sender<Option<Result<Option<StatusResponse>, String>>>,
     pub balance: watch::Sender<Option<Result<Option<BalanceResponse>, String>>>,
+    pub service_info: watch::Sender<Option<InfoResponse>>,
 }
 
 #[derive(Clone, Serialize, Default)]
@@ -309,6 +311,10 @@ pub fn run() {
                                     "[about-panel] daemon Info.package_version = {:?}",
                                     info.package_version
                                 );
+                                println!(
+                                    "[about-panel] daemon Info: {:?}",
+                                    info.package_version.as_deref().unwrap_or("<none>")
+                                );
                                 info.package_version.unwrap_or_else(|| fallback.clone())
                             }
                             Ok(other) => {
@@ -388,9 +394,11 @@ pub fn run() {
 
             let (status_tx, _) = watch::channel(None);
             let (balance_tx, _) = watch::channel(None);
+            let (service_info_tx, _) = watch::channel(None);
             app.manage(AppStateCache {
                 status: status_tx,
                 balance: balance_tx,
+                service_info: service_info_tx,
             });
 
             let app_handle = app.handle().clone();
