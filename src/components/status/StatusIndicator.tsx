@@ -8,7 +8,7 @@ export function StatusIndicator(
   },
 ) {
   const [appState] = useAppStore();
-  const isServiceUnavailable = () =>
+  const isOffline = () =>
     appState.vpnStatus === "ServiceUnavailable" ||
     appState.vpnStatus === "WorkerRestarting";
 
@@ -42,7 +42,7 @@ export function StatusIndicator(
   };
 
   return (
-    <Show when={!whenOfflineOnly || isServiceUnavailable()}>
+    <Show when={!whenOfflineOnly || isOffline()}>
       <div
         class={`flex flex-row gap-2 items-center justify-between py-2 ${containerClass}`}
       >

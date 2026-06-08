@@ -52,9 +52,8 @@ export default function ConnectButton() {
         size="lg"
         onClick={() => void handleClick()}
         disabled={appState.isLoading ||
-          (appState.vpnStatus === "ServiceUnavailable" ||
-            appState.vpnStatus === "WorkerRestarting") ||
-          (!isActive() && !isTargetReady())}
+          !(isActive() ||
+            (appState.vpnStatus === "Disconnected" && isTargetReady()))}
       >
         {label()}
       </Button>
