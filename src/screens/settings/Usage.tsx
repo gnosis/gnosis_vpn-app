@@ -48,10 +48,11 @@ export default function Usage() {
     return computeEffectiveCredit(b.capacity_allocations ?? []);
   });
 
-  const totalWxhoprHopli = createMemo(() => {
+  const totalWxhoprHopli = createMemo((): string | undefined => {
     const b = appState.balance;
-    if (!b?.capacity_allocations) return undefined;
-    return sumCapacityStake(b.capacity_allocations).toString();
+    if (!b) return undefined;
+    if (b.capacity_allocations) return sumCapacityStake(b.capacity_allocations).toString();
+    return b.safe;
   });
 
   const wxhoprRaw = () =>

@@ -48,10 +48,11 @@ export default function BalancePopup(props: Props) {
     return computeEffectiveCredit(b.capacity_allocations ?? []);
   });
 
-  const totalWxhopr = createMemo(() => {
+  const totalWxhopr = createMemo((): string | bigint => {
     const b = appState.balance;
-    if (!b?.capacity_allocations) return 0n;
-    return sumCapacityStake(b.capacity_allocations);
+    if (!b) return 0n;
+    if (b.capacity_allocations) return sumCapacityStake(b.capacity_allocations);
+    return b.safe;
   });
 
   return (
