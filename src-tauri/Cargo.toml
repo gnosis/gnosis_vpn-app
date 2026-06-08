@@ -44,5 +44,5 @@ futures-core = { version = "0.3", default-features = false }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 cocoa = "0.26"
-objc = "0.2"
+objc = "0.2.7"
 dispatch = "0.2"
