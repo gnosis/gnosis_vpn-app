@@ -51,7 +51,9 @@ export default function Usage() {
   const totalWxhoprHopli = createMemo((): string | undefined => {
     const b = appState.balance;
     if (!b) return undefined;
-    if (b.capacity_allocations) return sumCapacityStake(b.capacity_allocations).toString();
+    if (b.capacity_allocations) {
+      return sumCapacityStake(b.capacity_allocations).toString();
+    }
     return b.safe;
   });
 
@@ -88,6 +90,11 @@ export default function Usage() {
   return (
     <div class="p-4 w-full flex flex-col gap-2 items-center">
       <Switch>
+        <Match when={appState.vpnStatus === "WorkerRestarting"}>
+          <div class="px-4 py-2 rounded-lg text-sm font-medium bg-amber-100 text-amber-800">
+            Service restarting
+          </div>
+        </Match>
         <Match when={appState.vpnStatus === "ServiceUnavailable"}>
           <div class="px-4 py-2 rounded-lg text-sm font-medium bg-red-100 text-red-800">
             Service unavailable
