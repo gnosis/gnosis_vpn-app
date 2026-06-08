@@ -321,6 +321,7 @@ pub async fn stop_client() -> Result<(), String> {
 pub struct CachedState {
     pub status: Result<StatusResponse, String>,
     pub balance: Result<BalanceResponse, String>,
+    pub service_info: Option<command::InfoResponse>,
 }
 
 fn flatten_cached<T>(v: Option<Result<Option<T>, String>>) -> Result<T, String> {
@@ -336,6 +337,7 @@ pub fn get_cached_state(cache: State<'_, AppStateCache>) -> CachedState {
     CachedState {
         status: flatten_cached(cache.status.borrow().clone()),
         balance: flatten_cached(cache.balance.borrow().clone()),
+        service_info: cache.service_info.borrow().clone(),
     }
 }
 
@@ -503,6 +505,9 @@ pub async fn run_initialization_loop(app: AppHandle) {
         }
 
         let _ = app.emit("service_info", &info);
+        app.state::<AppStateCache>()
+            .service_info
+            .send_replace(Some(info));
         break;
     }
 }

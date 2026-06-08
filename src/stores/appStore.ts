@@ -455,6 +455,7 @@ export function createAppStore(): AppStoreTuple {
         const cached = await invoke<{
           status: { Ok: StatusResponse } | { Err: string };
           balance: { Ok: BalanceResponse } | { Err: string };
+          service_info: unknown;
         }>("get_cached_state");
 
         try {
@@ -471,6 +472,12 @@ export function createAppStore(): AppStoreTuple {
           });
         } catch (err) {
           console.warn("Failed to hydrate balance:", err);
+        }
+        if (cached.service_info) {
+          const parsed = ServiceInfoSchema.safeParse(cached.service_info);
+          if (parsed.success) {
+            setState("serviceInfo", parsed.data);
+          }
         }
       } catch (err) {
         console.warn("get_cached_state unavailable:", err);
