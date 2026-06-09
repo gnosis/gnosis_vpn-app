@@ -6,7 +6,6 @@ import {
   onMount,
   Show,
 } from "solid-js";
-import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { useAppStore } from "../../stores/appStore.ts";
 import { useSettingsStore } from "../../stores/settingsStore.ts";
 import { StatusIndicator } from "../../components/status/StatusIndicator.tsx";
@@ -18,15 +17,7 @@ import StatusLine from "../../components/status/StatusLine.tsx";
 import ExitHealthDetail from "../../components/exitNode/ExitHealthDetail.tsx";
 import { resolveAutoDestination } from "../../utils/destinations.ts";
 import ConnectionStatus from "../../components/status/ConnectionStatus.tsx";
-
-const openUpdatesSettings = async () => {
-  const settingsWin = await WebviewWindow.getByLabel("settings");
-  if (settingsWin) {
-    await settingsWin.show();
-    await settingsWin.setFocus();
-    await settingsWin.emit("navigate", "updates");
-  }
-};
+import { openSettingsWindow } from "../../utils/settingsWindow.ts";
 
 export function MainScreen() {
   const [appState] = useAppStore();
@@ -91,7 +82,7 @@ export function MainScreen() {
             <button
               type="button"
               class="hover:opacity-70 hover:cursor-pointer transition-opacity"
-              onClick={() => openUpdatesSettings()}
+              onClick={() => openSettingsWindow("updates")}
             >
               Update available
             </button>

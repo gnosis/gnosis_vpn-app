@@ -2,7 +2,7 @@ import IconButton from "./common/IconButton.tsx";
 import BalancePopup from "./BalancePopup.tsx";
 import { Portal } from "solid-js/web";
 import settingsIcon from "../assets/icons/settings.svg";
-import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { openSettingsWindow } from "../utils/settingsWindow.ts";
 import { isRunningRunMode } from "../services/vpnService.ts";
 import fundsFullIcon from "../assets/icons/funds-full.svg";
 import fundsLowIcon from "../assets/icons/funds-low.svg";
@@ -20,19 +20,6 @@ function Navigation() {
   let buttonRef: HTMLButtonElement | undefined;
   let containerRef: HTMLDivElement | undefined;
   let hoverTimeout: ReturnType<typeof globalThis.setTimeout> | undefined;
-
-  const openSettingsWindow = async (
-    target?: "settings" | "usage" | "logs" | "updates",
-  ) => {
-    const settingsWin = await WebviewWindow.getByLabel("settings");
-    if (settingsWin) {
-      await settingsWin.show();
-      await settingsWin.setFocus();
-      if (target) {
-        await settingsWin.emit("navigate", target);
-      }
-    }
-  };
 
   const getFundsIcon = () => {
     if (!isRunningRunMode(appState.runMode)) return fundsEmptyIcon;
