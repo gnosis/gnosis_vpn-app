@@ -21,7 +21,9 @@ function Navigation() {
   let containerRef: HTMLDivElement | undefined;
   let hoverTimeout: ReturnType<typeof globalThis.setTimeout> | undefined;
 
-  const openSettingsWindow = async (target?: "settings" | "usage" | "logs") => {
+  const openSettingsWindow = async (
+    target?: "settings" | "usage" | "logs" | "updates",
+  ) => {
     const settingsWin = await WebviewWindow.getByLabel("settings");
     if (settingsWin) {
       await settingsWin.show();
