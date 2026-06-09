@@ -55,7 +55,8 @@ export default function Usage() {
   });
 
   const wxhoprRaw = () =>
-    preparingSafe()?.node_wxhopr ?? totalWxhoprHopli() ?? "0";
+    preparingSafe()?.node_wxhopr ?? totalWxhoprHopli() ??
+      appState.balance?.safe ?? "0";
   const xdaiRaw = () =>
     preparingSafe()?.node_xdai ?? appState.balance?.node ?? "0";
 
