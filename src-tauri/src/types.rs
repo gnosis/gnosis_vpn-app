@@ -262,18 +262,19 @@ impl From<command::RunMode> for RunMode {
             command::RunMode::Warmup {
                 hopr_init_status,
                 hopr_status,
+                last_error,
             } => match (hopr_init_status, hopr_status) {
                 (None, None) => RunMode::Warmup {
                     status: CombinedHoprStatus::Initializing,
-                    last_error: None,
+                    last_error,
                 },
                 (_, Some(hopr_status)) => RunMode::Warmup {
                     status: hopr_status.into(),
-                    last_error: None,
+                    last_error,
                 },
                 (Some(hopr_init_status), _) => RunMode::Warmup {
                     status: hopr_init_status.into(),
-                    last_error: None,
+                    last_error,
                 },
             },
             command::RunMode::Running {
