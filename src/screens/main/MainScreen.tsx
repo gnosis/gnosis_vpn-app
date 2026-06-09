@@ -17,6 +17,7 @@ import StatusLine from "../../components/status/StatusLine.tsx";
 import ExitHealthDetail from "../../components/exitNode/ExitHealthDetail.tsx";
 import { resolveAutoDestination } from "../../utils/destinations.ts";
 import ConnectionStatus from "../../components/status/ConnectionStatus.tsx";
+import { openSettingsWindow } from "../../utils/settingsWindow.ts";
 
 export function MainScreen() {
   const [appState] = useAppStore();
@@ -78,7 +79,13 @@ export function MainScreen() {
       <div class="relative h-0 z-50">
         <Show when={appState.isUpdateAvailable}>
           <div class="absolute top-2 left-0 right-0 px-3 py-1.5 rounded-lg bg-orange-500/15 border border-orange-500/30 text-xs text-orange-400 flex items-center justify-between">
-            <span>Update available</span>
+            <button
+              type="button"
+              class="hover:opacity-70 hover:cursor-pointer transition-opacity"
+              onClick={() => openSettingsWindow("updates")}
+            >
+              Update available
+            </button>
             <button
               type="button"
               class="hover:opacity-70 hover:cursor-pointer transition-opacity"
