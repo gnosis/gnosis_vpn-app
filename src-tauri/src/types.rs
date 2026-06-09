@@ -262,20 +262,15 @@ impl From<command::RunMode> for RunMode {
             command::RunMode::Warmup {
                 hopr_init_status,
                 hopr_status,
-            } => match (hopr_init_status, hopr_status) {
-                (None, None) => RunMode::Warmup {
-                    status: CombinedHoprStatus::Initializing,
-                    last_error: None,
-                },
-                (_, Some(hopr_status)) => RunMode::Warmup {
-                    status: hopr_status.into(),
-                    last_error: None,
-                },
-                (Some(hopr_init_status), _) => RunMode::Warmup {
-                    status: hopr_init_status.into(),
-                    last_error: None,
-                },
-            },
+                last_error,
+            } => {
+                let status = match (hopr_init_status, hopr_status) {
+                    (None, None) => CombinedHoprStatus::Initializing,
+                    (_, Some(hopr_status)) => hopr_status.into(),
+                    (Some(hopr_init_status), _) => hopr_init_status.into(),
+                };
+                RunMode::Warmup { status, last_error }
+            }
             command::RunMode::Running {
                 funding_issues,
                 hopr_status,
