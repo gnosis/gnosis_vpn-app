@@ -6,6 +6,7 @@ import {
 } from "../../services/vpnService.ts";
 import {
   computeEffectiveCredit,
+  estimateCreditFromWxHopli,
   formatCredit,
   sumCapacityStake,
 } from "../../utils/credit.ts";
@@ -45,7 +46,11 @@ export default function Usage() {
   const effectiveCredit = createMemo(() => {
     const b = appState.balance;
     if (!b) return null;
-    return computeEffectiveCredit(b.capacity_allocations ?? []);
+    const fromAllocations = computeEffectiveCredit(
+      b.capacity_allocations ?? [],
+    );
+    if (fromAllocations > 0n) return fromAllocations;
+    return estimateCreditFromWxHopli(BigInt(b.safe));
   });
 
   const totalWxhoprHopli = createMemo(() => {

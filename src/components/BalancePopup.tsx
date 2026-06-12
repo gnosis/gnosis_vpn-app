@@ -9,6 +9,7 @@ import {
 } from "@src/utils/funding.ts";
 import {
   computeEffectiveCredit,
+  estimateCreditFromWxHopli,
   formatCredit,
   sumCapacityStake,
 } from "@src/utils/credit.ts";
@@ -45,7 +46,11 @@ export default function BalancePopup(props: Props) {
   const effectiveCredit = createMemo(() => {
     const b = appState.balance;
     if (!b) return null;
-    return computeEffectiveCredit(b.capacity_allocations ?? []);
+    const fromAllocations = computeEffectiveCredit(
+      b.capacity_allocations ?? [],
+    );
+    if (fromAllocations > 0n) return fromAllocations;
+    return estimateCreditFromWxHopli(BigInt(b.safe));
   });
 
   const totalWxhopr = createMemo((): string | bigint => {

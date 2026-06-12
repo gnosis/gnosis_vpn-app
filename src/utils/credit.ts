@@ -35,6 +35,16 @@ export function formatCredit(creditBytes: bigint): string {
   return formatCreditUnit(creditBytes, BYTES_PER_MB, 0, "MB");
 }
 
+// 1 wxHOPR = 0.095 GB = 19/200 * BYTES_PER_GB bytes (temporary conversion rate)
+// Balances are denominated in wxHopli: 1 wxHOPR = 1e18 wxHopli
+const WXHOPLI_PER_WXHOPR = 10n ** 18n;
+const BYTES_PER_WXHOPR = (19n * BYTES_PER_GB) / 200n;
+
+/** Temporary workaround: estimate traffic bytes from a wxHopli balance at 1 wxHOPR = 0.095 GB. */
+export function estimateCreditFromWxHopli(wxHopli: bigint): bigint {
+  return (wxHopli * BYTES_PER_WXHOPR) / WXHOPLI_PER_WXHOPR;
+}
+
 /** Sum byte_capacity across all capacity allocations. */
 export function computeEffectiveCredit(entries: CapacityEntry[]): bigint {
   return entries.reduce(
