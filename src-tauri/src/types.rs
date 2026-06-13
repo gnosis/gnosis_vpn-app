@@ -18,12 +18,20 @@ pub struct StatusResponse {
     pub target_destination: Option<String>,
     pub connected: Option<String>,
     pub connecting: Option<ConnectingInfo>,
+    pub reconnecting: Option<ReconnectingInfo>,
     pub disconnecting: Vec<DisconnectingInfo>,
 }
 
 #[derive(Clone, Debug, Serialize)]
 pub struct ConnectingInfo {
     pub destination_id: String,
+    pub phase: connection::up::Phase,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct ReconnectingInfo {
+    pub destination_id: String,
+    pub since: u64,
     pub phase: connection::up::Phase,
 }
 
@@ -382,6 +390,8 @@ impl From<&StatusResponse> for ConnectionState {
         if let Some(ref dest) = sr.connected {
             ConnectionState::Connected(dest.clone())
         } else if let Some(ref info) = sr.connecting {
+            ConnectionState::Connecting(info.destination_id.clone())
+        } else if let Some(ref info) = sr.reconnecting {
             ConnectionState::Connecting(info.destination_id.clone())
         } else if !sr.disconnecting.is_empty() {
             ConnectionState::Disconnecting

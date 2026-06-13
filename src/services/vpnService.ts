@@ -38,6 +38,13 @@ export const ConnectingInfoSchema = z.object({
 });
 export type ConnectingInfo = z.infer<typeof ConnectingInfoSchema>;
 
+export const ReconnectingInfoSchema = z.object({
+  destination_id: z.string(),
+  since: z.number(),
+  phase: UpPhaseSchema,
+});
+export type ReconnectingInfo = z.infer<typeof ReconnectingInfoSchema>;
+
 export const DisconnectingInfoSchema = z.object({
   destination_id: z.string(),
   phase: DownPhaseSchema,
@@ -251,6 +258,7 @@ export const StatusResponseSchema = z.object({
   target_destination: z.string().nullable(),
   connected: z.string().nullable(),
   connecting: ConnectingInfoSchema.nullable(),
+  reconnecting: ReconnectingInfoSchema.nullable(),
   disconnecting: z.array(DisconnectingInfoSchema),
 });
 export type StatusResponse = z.infer<typeof StatusResponseSchema>;

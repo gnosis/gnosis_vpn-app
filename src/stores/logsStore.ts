@@ -49,7 +49,8 @@ export function createLogsStore(): LogsStoreTuple {
     if (args.response) {
       const rm = args.response.run_mode;
       const dests = args.response.destinations;
-      const { connected, connecting, disconnecting } = args.response;
+      const { connected, connecting, reconnecting, disconnecting } =
+        args.response;
       // Build a keyed map for ID-based lookups
       const destMap = Object.fromEntries(
         dests.map((ds) => [ds.destination.id, ds]),
@@ -67,6 +68,14 @@ export function createLogsStore(): LogsStoreTuple {
         const addr = dest ? shortAddress(dest.address) : "";
         const connDisplay = addr ? `${where} - ${addr}` : where;
         content = `Connecting: ${connDisplay} - ${connecting.phase}`;
+      } else if (reconnecting) {
+        const dest = destMap[reconnecting.destination_id]?.destination;
+        const where = dest
+          ? destinationLabel(dest)
+          : reconnecting.destination_id;
+        const addr = dest ? shortAddress(dest.address) : "";
+        const connDisplay = addr ? `${where} - ${addr}` : where;
+        content = `Reconnecting: ${connDisplay} - ${reconnecting.phase}`;
       } else if (disconnecting.length > 0) {
         const d = disconnecting[0];
         const dest = destMap[d.destination_id]?.destination;

@@ -13,11 +13,18 @@ const BASE: StatusResponse = {
   target_destination: null,
   connected: null,
   connecting: null,
+  reconnecting: null,
   disconnecting: [],
 };
 
 const CONNECTING_INFO = {
   destination_id: "dest-1",
+  phase: "Init" as const,
+};
+
+const RECONNECTING_INFO = {
+  destination_id: "dest-1",
+  since: 0,
   phase: "Init" as const,
 };
 
@@ -39,6 +46,12 @@ describe("isConnected", () => {
 describe("isConnecting", () => {
   it("returns true when connecting info is present", () => {
     expect(isConnecting({ ...BASE, connecting: CONNECTING_INFO })).toBe(true);
+  });
+
+  it("returns true when reconnecting info is present", () => {
+    expect(isConnecting({ ...BASE, reconnecting: RECONNECTING_INFO })).toBe(
+      true,
+    );
   });
 
   it("returns false when connecting is null", () => {
@@ -69,6 +82,12 @@ describe("isDisconnected", () => {
 
   it("returns false when connecting", () => {
     expect(isDisconnected({ ...BASE, connecting: CONNECTING_INFO })).toBe(
+      false,
+    );
+  });
+
+  it("returns false when reconnecting", () => {
+    expect(isDisconnected({ ...BASE, reconnecting: RECONNECTING_INFO })).toBe(
       false,
     );
   });

@@ -19,7 +19,7 @@ use crate::icons::{self, AppIconState, TrayIconState};
 use crate::tray;
 use crate::types::{
     BalanceResponse, ConnectResponse, ConnectingInfo, ConnectionState, DisconnectResponse,
-    DisconnectingInfo, StatusResponse,
+    DisconnectingInfo, ReconnectingInfo, StatusResponse,
 };
 use crate::{AppStateCache, BalancePollingHandle, StatusPollingHandle};
 
@@ -517,6 +517,19 @@ async fn query_status() -> (Duration, Result<Option<StatusResponse>, String>) {
     let resp = root_socket::process_cmd(&p, &command::Command::Status).await;
     match resp {
         Ok(command::Response::Status(status_resp)) => {
+            let reconnecting = status_resp.reconnecting.map(|r| {
+                use std::time::UNIX_EPOCH;
+                let since = r
+                    .since
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_millis() as u64;
+                ReconnectingInfo {
+                    destination_id: r.destination_id,
+                    since,
+                    phase: r.phase,
+                }
+            });
             let resp = StatusResponse {
                 run_mode: status_resp.run_mode.into(),
                 destinations: status_resp
@@ -530,6 +543,7 @@ async fn query_status() -> (Duration, Result<Option<StatusResponse>, String>) {
                     destination_id: c.destination_id,
                     phase: c.phase,
                 }),
+                reconnecting,
                 disconnecting: status_resp
                     .disconnecting
                     .into_iter()
@@ -540,7 +554,8 @@ async fn query_status() -> (Duration, Result<Option<StatusResponse>, String>) {
                     .collect(),
             };
 
-            if resp.connecting.is_some() {
+            let is_in_transition = resp.connecting.is_some() || resp.reconnecting.is_some();
+            if is_in_transition {
                 (Duration::from_millis(222), Ok(Some(resp)))
             } else {
                 (Duration::from_secs(2), Ok(Some(resp)))
@@ -551,6 +566,8 @@ async fn query_status() -> (Duration, Result<Option<StatusResponse>, String>) {
             let _ = start_client_worker(Duration::from_secs(10)).await;
             (Duration::from_secs(5), Ok(None))
         }
+        // Internal response sent by the root process to itself; never forwarded to the app.
+        Ok(command::Response::ForceReconnectAcknowledged) => (Duration::from_secs(2), Ok(None)),
         Ok(unexpected) => (
             Duration::from_secs(2),
             Err(format!("Unexpected response type: {:?}", unexpected).to_string()),

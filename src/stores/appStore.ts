@@ -15,6 +15,7 @@ import {
   isDeployingSafeRunMode,
   isPreparingSafeRunMode,
   isWarmupRunMode,
+  type ReconnectingInfo,
   type RunMode,
   type ServiceInfo,
   ServiceInfoSchema,
@@ -47,6 +48,7 @@ export interface AppState {
   destinations: Record<string, DestinationState>;
   connected: string | null;
   connecting: ConnectingInfo | null;
+  reconnecting: ReconnectingInfo | null;
   disconnecting: DisconnectingInfo[];
   isLoading: boolean;
   error?: string;
@@ -90,6 +92,7 @@ function initialState(): AppState {
     availableDestinations: [],
     connected: null,
     connecting: null,
+    reconnecting: null,
     currentScreen: AppScreen.Initialization,
     destination: null,
     destinations: {},
@@ -303,6 +306,7 @@ export function createAppStore(): AppStoreTuple {
     setState("targetDestination", response.target_destination);
     setState("connected", response.connected);
     setState("connecting", reconcile(response.connecting));
+    setState("reconnecting", reconcile(response.reconnecting));
     setState("disconnecting", reconcile(response.disconnecting));
     setState("vpnStatus", deriveVPNStatus(response));
     setState("availableDestinations", availableDestinations);

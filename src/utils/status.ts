@@ -14,7 +14,7 @@ export function isConnected(response: StatusResponse): boolean {
 }
 
 export function isConnecting(response: StatusResponse): boolean {
-  return response.connecting !== null;
+  return response.connecting !== null || response.reconnecting !== null;
 }
 
 export function isDisconnecting(response: StatusResponse): boolean {
@@ -25,6 +25,7 @@ export function isDisconnected(response: StatusResponse): boolean {
   return (
     response.connected === null &&
     response.connecting === null &&
+    response.reconnecting === null &&
     response.disconnecting.length === 0
   );
 }
@@ -66,7 +67,7 @@ export function deriveVPNStatus(
   }
   if ("Running" in response.run_mode) {
     if (response.connected) return "Connected";
-    if (response.connecting) return "Connecting";
+    if (response.connecting || response.reconnecting) return "Connecting";
     if (response.disconnecting.length > 0) return "Disconnecting";
     return "Disconnected";
   }
