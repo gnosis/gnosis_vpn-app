@@ -408,6 +408,15 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
                         if let Ok(guard) = status_item.0.lock() {
                             let _ = guard.set_text(conn_state.to_string());
                         };
+
+                        let quit_label = match conn_state {
+                            ConnectionState::Connected(_) | ConnectionState::Connecting(_) => "Disconnect && Quit",
+                            _ => "Quit",
+                        };
+                        let quit_item = app.state::<tray::TrayQuitItem>();
+                        if let Ok(guard) = quit_item.0.lock() {
+                            let _ = guard.set_text(quit_label);
+                        };
                     }
                     app.state::<AppStateCache>().status.send_replace(Some(result.clone()));
                     let _ = app.emit("status", result);
