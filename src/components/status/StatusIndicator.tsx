@@ -22,6 +22,9 @@ export function StatusIndicator(
     if (appState.vpnStatus === "Connecting") {
       return { text: "Connecting", color: "bg-vpn-yellow" };
     }
+    if (appState.vpnStatus === "Reconnecting") {
+      return { text: "Reconnecting", color: "bg-vpn-yellow" };
+    }
     if (appState.vpnStatus === "Disconnecting") {
       return { text: "Disconnecting", color: "bg-vpn-yellow" };
     }

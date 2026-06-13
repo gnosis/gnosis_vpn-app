@@ -13,6 +13,18 @@ import { destinationLabel } from "../../utils/destinations.ts";
  *  3. Disconnecting (only when nothing is connecting) → "{phase}" or "Disconnecting from {location}"
  */
 function deriveStatus(appState: AppState): string | undefined {
+  if (appState.reconnecting) {
+    const dest = appState.destinations[appState.reconnecting.destination_id]
+      ?.destination;
+    const label = dest
+      ? destinationLabel(dest)
+      : appState.reconnecting.destination_id;
+    const phaseLabel = formatConnectionPhase(appState.reconnecting.phase);
+    return phaseLabel !== appState.reconnecting.phase
+      ? phaseLabel
+      : `Reconnecting to ${label}`;
+  }
+
   if (appState.connecting) {
     const dest = appState.destinations[appState.connecting.destination_id]
       ?.destination;

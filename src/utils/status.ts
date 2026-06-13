@@ -67,7 +67,8 @@ export function deriveVPNStatus(
   }
   if ("Running" in response.run_mode) {
     if (response.connected) return "Connected";
-    if (response.connecting || response.reconnecting) return "Connecting";
+    if (response.reconnecting) return "Reconnecting";
+    if (response.connecting) return "Connecting";
     if (response.disconnecting.length > 0) return "Disconnecting";
     return "Disconnected";
   }
