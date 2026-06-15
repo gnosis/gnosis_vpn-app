@@ -548,17 +548,19 @@ async fn query_status() -> (Duration, Result<Option<StatusResponse>, String>) {
                     .collect(),
                 target_destination: status_resp.target_destination,
                 connected: status_resp.connected.map(|c| c.destination_id),
-                connecting: status_resp.connecting.map(|c| ConnectingInfo {
-                    destination_id: c.destination_id,
-                    phase: c.phase,
+                connecting: status_resp.connecting.map(|c| {
+                    use std::time::UNIX_EPOCH;
+                    let since = c.since.duration_since(UNIX_EPOCH).unwrap_or_default().as_millis() as u64;
+                    ConnectingInfo { destination_id: c.destination_id, since, phase: c.phase }
                 }),
                 reconnecting,
                 disconnecting: status_resp
                     .disconnecting
                     .into_iter()
-                    .map(|d| DisconnectingInfo {
-                        destination_id: d.destination_id,
-                        phase: d.phase,
+                    .map(|d| {
+                        use std::time::UNIX_EPOCH;
+                        let since = d.since.duration_since(UNIX_EPOCH).unwrap_or_default().as_millis() as u64;
+                        DisconnectingInfo { destination_id: d.destination_id, since, phase: d.phase }
                     })
                     .collect(),
             };

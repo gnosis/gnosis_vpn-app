@@ -25,6 +25,7 @@ pub struct StatusResponse {
 #[derive(Clone, Debug, Serialize)]
 pub struct ConnectingInfo {
     pub destination_id: String,
+    pub since: u64,
     pub phase: connection::up::Phase,
 }
 
@@ -38,6 +39,7 @@ pub struct ReconnectingInfo {
 #[derive(Clone, Debug, Serialize)]
 pub struct DisconnectingInfo {
     pub destination_id: String,
+    pub since: u64,
     pub phase: connection::down::Phase,
 }
 
@@ -186,6 +188,7 @@ pub struct Destination {
 #[derive(Clone, Debug, Serialize)]
 pub struct Info {
     pub node_address: String,
+    pub node_peer_id: String,
     pub safe_address: String,
 }
 
@@ -209,7 +212,7 @@ impl From<connection::destination::Destination> for Destination {
         Destination {
             id: d.id.clone(),
             meta: d.meta.clone(),
-            address: d.address.to_string(),
+            address: d.address.to_checksum(),
             routing: d.routing.into(),
         }
     }
@@ -352,8 +355,9 @@ impl From<command::DisconnectResponse> for DisconnectResponse {
 impl From<info::Info> for Info {
     fn from(i: info::Info) -> Self {
         Info {
-            node_address: i.node_address.to_string(),
-            safe_address: i.safe_address.to_string(),
+            node_address: i.node_address.to_checksum(),
+            node_peer_id: i.node_peer_id,
+            safe_address: i.safe_address.to_checksum(),
         }
     }
 }
