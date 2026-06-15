@@ -114,18 +114,14 @@ export function formatConnectionPhase(phase: UpPhase | DownPhase): string {
       return "Opening bridge session";
     case "RegisterWg":
       return "Registering WireGuard public key";
-    case "ClosingBridge":
-      return "Closing bridge session";
     case "OpeningPing":
       return "Opening ping session";
-    case "EstablishDynamicWgTunnel":
-      return "Establishing WireGuard tunnel";
-    case "FallbackGatherPeerIps":
+    case "GatherPeerIps":
       return "Gathering peer IPs";
     case "KillswitchLockdown":
       return "Activating kill switch";
-    case "FallbackToStaticWgTunnel":
-      return "Setting up static routing";
+    case "EstablishWgTunnel":
+      return "Establishing WireGuard tunnel";
     case "VerifyPing":
       return "Verifying destination ping";
     case "AdjustToMain":
@@ -137,6 +133,8 @@ export function formatConnectionPhase(phase: UpPhase | DownPhase): string {
       return "Disconnecting";
     case "DisconnectingWg":
       return "Disconnecting WireGuard tunnel";
+    case "ClosingBridge":
+      return "Closing bridge session";
     case "UnregisterWg":
       return "Unregistering WireGuard public key";
   }

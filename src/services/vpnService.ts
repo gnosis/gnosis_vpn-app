@@ -11,12 +11,10 @@ export const UpPhaseSchema = z.enum([
   "GeneratingWg",
   "OpeningBridge",
   "RegisterWg",
-  "ClosingBridge",
   "OpeningPing",
-  "FallbackGatherPeerIps",
+  "GatherPeerIps",
   "KillswitchLockdown",
-  "EstablishDynamicWgTunnel",
-  "FallbackToStaticWgTunnel",
+  "EstablishWgTunnel",
   "VerifyPing",
   "AdjustToMain",
   "ConnectionEstablished",
@@ -34,6 +32,7 @@ export type DownPhase = z.infer<typeof DownPhaseSchema>;
 
 export const ConnectingInfoSchema = z.object({
   destination_id: z.string(),
+  since: z.number(),
   phase: UpPhaseSchema,
 });
 export type ConnectingInfo = z.infer<typeof ConnectingInfoSchema>;
@@ -47,6 +46,7 @@ export type ReconnectingInfo = z.infer<typeof ReconnectingInfoSchema>;
 
 export const DisconnectingInfoSchema = z.object({
   destination_id: z.string(),
+  since: z.number(),
   phase: DownPhaseSchema,
 });
 export type DisconnectingInfo = z.infer<typeof DisconnectingInfoSchema>;
@@ -248,6 +248,7 @@ export type RunMode = z.infer<typeof RunModeSchema>;
 
 export const InfoSchema = z.object({
   node_address: z.string(),
+  node_peer_id: z.string(),
   safe_address: z.string(),
 });
 export type Info = z.infer<typeof InfoSchema>;
