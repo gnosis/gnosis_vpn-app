@@ -275,7 +275,7 @@ impl From<command::RunMode> for RunMode {
                 error,
                 ticket_stats: _,
             } => RunMode::PreparingSafe {
-                node_address: node_address.to_string(),
+                node_address: node_address.to_checksum(),
                 node_xdai: node_xdai.amount().to_string(),
                 node_wxhopr: node_wxhopr.amount().to_string(),
                 funding_tool,
@@ -287,7 +287,7 @@ impl From<command::RunMode> for RunMode {
             },
 
             command::RunMode::DeployingSafe { node_address } => RunMode::DeployingSafe {
-                node_address: node_address.to_string(),
+                node_address: node_address.to_checksum(),
             },
             command::RunMode::Warmup {
                 hopr_init_status,
