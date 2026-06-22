@@ -34,7 +34,7 @@
     "typescript": "^6.0.3",
     "vite-plugin-solid": "^2.11.12",
     "@tauri-apps/cli": "^2.11.2",
-    "vitest": "^4.1.7"
+    "vitest": "^4.1.8"
   },
   "overrides": {
     "eslint": {
