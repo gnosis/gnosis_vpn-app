@@ -71,7 +71,7 @@ jobs:
           bump_version=$(grep -E '^version\s*=' src-tauri/Cargo.toml | awk -F\" '{print $2}')
           jq --arg v "$bump_version" '.version = $v' package.json > package-tmp.json && mv package-tmp.json package.json
           echo "bump_version=${bump_version}" | tee -a $GITHUB_OUTPUT
-      - uses: EndBug/add-and-commit@a94899bca583c204427a224a7af87c02f9b325d5 # v9
+      - uses: EndBug/add-and-commit@290ea2c423ad77ca9c62ae0f5b224379612c0321 # v10
         with:
           add: '["package.json"]'
           new_branch: ${{ github.ref_name }}
