@@ -50,7 +50,7 @@ jobs:
       contents: write
     steps:
       - name: Release version
-        uses: hoprnet/hopr-workflows/actions/release-version@release-version-v3
+        uses: hoprnet/hopr-workflows/actions/release-version@2cae201c4f92e86cf40480704bdc5c2d53bce772 # release-version-v3
         with:
           source_branch: ${{ github.ref_name }}
           file: src-tauri/Cargo.toml
