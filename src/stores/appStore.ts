@@ -11,6 +11,7 @@ import {
   type Destination,
   type DestinationState,
   type DisconnectingInfo,
+  type ReconnectingInfo,
   formatWarmupStatus,
   isDeployingSafeRunMode,
   isPreparingSafeRunMode,
@@ -47,6 +48,7 @@ export interface AppState {
   destinations: Record<string, DestinationState>;
   connected: string | null;
   connecting: ConnectingInfo | null;
+  reconnecting: ReconnectingInfo | null;
   disconnecting: DisconnectingInfo[];
   isLoading: boolean;
   error?: string;
@@ -90,6 +92,7 @@ function initialState(): AppState {
     availableDestinations: [],
     connected: null,
     connecting: null,
+    reconnecting: null,
     currentScreen: AppScreen.Initialization,
     destination: null,
     destinations: {},
@@ -303,6 +306,7 @@ export function createAppStore(): AppStoreTuple {
     setState("targetDestination", response.target_destination);
     setState("connected", response.connected);
     setState("connecting", reconcile(response.connecting));
+    setState("reconnecting", reconcile(response.reconnecting));
     setState("disconnecting", reconcile(response.disconnecting));
     setState("vpnStatus", deriveVPNStatus(response));
     setState("availableDestinations", availableDestinations);
@@ -326,6 +330,22 @@ export function createAppStore(): AppStoreTuple {
       const short = dest ? shortAddress(dest.address) : "";
       const display = short ? `${label} - ${short}` : label;
       log(`Connecting: ${display} - ${nextConnecting.phase}`);
+    }
+
+    const nextReconnecting = response.reconnecting;
+    const reconnectingIdChanged =
+      state.reconnecting?.destination_id !== nextReconnecting?.destination_id;
+    const reconnectingPhaseChanged =
+      state.reconnecting?.phase !== nextReconnecting?.phase;
+    if (nextReconnecting && (reconnectingIdChanged || reconnectingPhaseChanged)) {
+      const dest =
+        destinations[nextReconnecting.destination_id]?.destination;
+      const label = dest
+        ? destinationLabel(dest)
+        : nextReconnecting.destination_id;
+      const short = dest ? shortAddress(dest.address) : "";
+      const display = short ? `${label} - ${short}` : label;
+      log(`Reconnecting: ${display} - ${nextReconnecting.phase}`);
     }
 
     if (response.connected && response.connected !== state.connected) {
