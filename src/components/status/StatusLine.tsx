@@ -35,7 +35,10 @@ export default function StatusLine(
   });
 
   const connectorClass = () => {
-    if (appState.vpnStatus === "Connecting") {
+    if (
+      appState.vpnStatus === "Connecting" ||
+      appState.vpnStatus === "Reconnecting"
+    ) {
       return "vpn-connector-line connecting";
     }
     if (appState.vpnStatus === "Connected") {

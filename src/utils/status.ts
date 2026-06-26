@@ -37,7 +37,7 @@ export function isConnectedTo(
   state: AppState,
   destination: Destination,
 ): boolean {
-  return state.connected === destination.id;
+  return state.connected?.destination_id === destination.id;
 }
 
 export function isConnectingTo(
@@ -65,6 +65,7 @@ export function deriveVPNStatus(
     return response.run_mode.Warmup.status;
   }
   if ("Running" in response.run_mode) {
+    if (response.reconnecting) return "Reconnecting";
     if (response.connected) return "Connected";
     if (response.connecting) return "Connecting";
     if (response.disconnecting.length > 0) return "Disconnecting";
@@ -112,18 +113,14 @@ export function formatConnectionPhase(phase: UpPhase | DownPhase): string {
       return "Opening bridge session";
     case "RegisterWg":
       return "Registering WireGuard public key";
-    case "ClosingBridge":
-      return "Closing bridge session";
     case "OpeningPing":
       return "Opening ping session";
-    case "EstablishDynamicWgTunnel":
-      return "Establishing WireGuard tunnel";
-    case "FallbackGatherPeerIps":
+    case "GatherPeerIps":
       return "Gathering peer IPs";
     case "KillswitchLockdown":
       return "Activating kill switch";
-    case "FallbackToStaticWgTunnel":
-      return "Setting up static routing";
+    case "EstablishWgTunnel":
+      return "Establishing WireGuard tunnel";
     case "VerifyPing":
       return "Verifying destination ping";
     case "AdjustToMain":
@@ -133,9 +130,9 @@ export function formatConnectionPhase(phase: UpPhase | DownPhase): string {
     // DownPhase
     case "Disconnecting":
       return "Disconnecting";
-    case "DisconnectingWg":
-      return "Disconnecting WireGuard tunnel";
     case "UnregisterWg":
       return "Unregistering WireGuard public key";
+    case "ClosingBridge":
+      return "Closing bridge session";
   }
 }

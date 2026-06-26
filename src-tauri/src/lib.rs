@@ -26,7 +26,6 @@ use commands::{
     set_app_icon, stop_client,
 };
 use gnosis_vpn_lib::command::InfoResponse;
-#[cfg(target_os = "macos")]
 use gnosis_vpn_lib::{command, socket::root as root_socket};
 use icons::{AppIconState, TrayIconState, determine_tray_icon, start_app_icon_heartbeat};
 use platform::{Platform, PlatformInterface};
@@ -242,7 +241,14 @@ pub fn run() {
             let tray = builder
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "quit" => {
-                        app.exit(0);
+                        let app_clone = app.clone();
+                        tauri::async_runtime::spawn(async move {
+                            let socket = PathBuf::from(root_socket::DEFAULT_PATH);
+                            let _ =
+                                root_socket::process_cmd(&socket, &command::Command::Disconnect)
+                                    .await;
+                            app_clone.exit(0);
+                        });
                     }
                     "show" => {
                         toggle_main_window_visibility(app);

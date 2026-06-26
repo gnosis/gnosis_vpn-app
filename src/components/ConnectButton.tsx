@@ -10,7 +10,9 @@ export default function ConnectButton() {
   const [settings] = useSettingsStore();
 
   const isActive = createMemo(() =>
-    appState.vpnStatus === "Connected" || appState.vpnStatus === "Connecting"
+    appState.vpnStatus === "Connected" ||
+    appState.vpnStatus === "Connecting" ||
+    appState.vpnStatus === "Reconnecting"
   );
   const label = createMemo(() => (isActive() ? "Disconnect" : "Connect"));
 

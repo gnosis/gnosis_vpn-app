@@ -13,6 +13,18 @@ import { destinationLabel } from "../../utils/destinations.ts";
  *  3. Disconnecting (only when nothing is connecting) → "{phase}" or "Disconnecting from {location}"
  */
 function deriveStatus(appState: AppState): string | undefined {
+  if (appState.reconnecting) {
+    const dest = appState.destinations[appState.reconnecting.destination_id]
+      ?.destination;
+    const label = dest
+      ? destinationLabel(dest)
+      : appState.reconnecting.destination_id;
+    const phaseLabel = formatConnectionPhase(appState.reconnecting.phase);
+    return phaseLabel !== appState.reconnecting.phase
+      ? phaseLabel
+      : `Reconnecting to ${label}`;
+  }
+
   if (appState.connecting) {
     const dest = appState.destinations[appState.connecting.destination_id]
       ?.destination;
@@ -26,8 +38,9 @@ function deriveStatus(appState: AppState): string | undefined {
   }
 
   if (appState.connected) {
-    const dest = appState.destinations[appState.connected]?.destination;
-    const label = dest ? destinationLabel(dest) : appState.connected;
+    const connectedId = appState.connected.destination_id;
+    const dest = appState.destinations[connectedId]?.destination;
+    const label = dest ? destinationLabel(dest) : connectedId;
     return `Connected to ${label}`;
   }
 
@@ -53,7 +66,7 @@ export default function ConnectionStatus() {
   return (
     <Show when={status()}>
       {(s) => (
-        <p class="w-full text-center text-xs text-text-secondary animate-fade-in fixed bottom-1 text-ellipsis truncate px-2">
+        <p class="w-full text-center text-xs text-text-secondary animate-fade-in fixed bottom-1 left-0 text-ellipsis truncate px-2">
           {s()}
         </p>
       )}

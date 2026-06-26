@@ -1,0 +1,176 @@
+{
+  "run_mode": "NotRunning",
+  "destinations": [
+    {
+      "destination": {
+        "id": "test-exit",
+        "meta": {
+          "location": "EU"
+        },
+        "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
+        "routing": 1
+      },
+      "route_health": {
+        "state": {
+          "state": "Routable"
+        },
+        "last_error": null,
+        "checking_since": null,
+        "consecutive_failures": 0
+      }
+    },
+    {
+      "destination": {
+        "id": "test-exit",
+        "meta": {
+          "location": "EU"
+        },
+        "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
+        "routing": 1
+      },
+      "route_health": {
+        "state": {
+          "state": "NeedsChannel"
+        },
+        "last_error": null,
+        "checking_since": null,
+        "consecutive_failures": 0
+      }
+    },
+    {
+      "destination": {
+        "id": "test-exit",
+        "meta": {
+          "location": "EU"
+        },
+        "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
+        "routing": 1
+      },
+      "route_health": {
+        "state": {
+          "state": "NeedsPeering",
+          "has_channel": false
+        },
+        "last_error": null,
+        "checking_since": null,
+        "consecutive_failures": 0
+      }
+    },
+    {
+      "destination": {
+        "id": "test-exit",
+        "meta": {
+          "location": "EU"
+        },
+        "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
+        "routing": 1
+      },
+      "route_health": {
+        "state": {
+          "state": "Unrecoverable",
+          "reason": "NotAllowed"
+        },
+        "last_error": null,
+        "checking_since": null,
+        "consecutive_failures": 0
+      }
+    },
+    {
+      "destination": {
+        "id": "test-exit",
+        "meta": {
+          "location": "EU"
+        },
+        "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
+        "routing": 1
+      },
+      "route_health": {
+        "state": {
+          "state": "ReadyToConnect",
+          "exit": {
+            "checked_at": 0,
+            "versions": {
+              "versions": [
+                "v1"
+              ],
+              "latest": "v1"
+            },
+            "ping_rtt": 42.0,
+            "health": {
+              "slots": {
+                "available": 10,
+                "connected": 1
+              },
+              "load_avg": {
+                "one": 0.1,
+                "five": 0.2,
+                "fifteen": 0.3,
+                "nproc": 4
+              }
+            }
+          }
+        },
+        "last_error": null,
+        "checking_since": null,
+        "consecutive_failures": 0
+      }
+    },
+    {
+      "destination": {
+        "id": "test-exit",
+        "meta": {
+          "location": "EU"
+        },
+        "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
+        "routing": 1
+      },
+      "route_health": {
+        "state": {
+          "state": "Connecting",
+          "exit": {
+            "checked_at": 0,
+            "versions": {
+              "versions": [
+                "v1"
+              ],
+              "latest": "v1"
+            },
+            "ping_rtt": 42.0,
+            "health": {
+              "slots": {
+                "available": 10,
+                "connected": 1
+              },
+              "load_avg": {
+                "one": 0.1,
+                "five": 0.2,
+                "fifteen": 0.3,
+                "nproc": 4
+              }
+            }
+          },
+          "tunnel_ping_rtt": 12.0
+        },
+        "last_error": null,
+        "checking_since": null,
+        "consecutive_failures": 0
+      }
+    },
+    {
+      "destination": {
+        "id": "test-exit",
+        "meta": {
+          "location": "EU"
+        },
+        "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
+        "routing": 1
+      },
+      "route_health": null
+    }
+  ],
+  "target_destination": null,
+  "connected": null,
+  "connecting": null,
+  "reconnecting": null,
+  "disconnecting": []
+}
