@@ -242,7 +242,12 @@ pub fn run() {
             let tray = builder
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "quit" => {
-                        app.exit(0);
+                        let app_clone = app.clone();
+                        tauri::async_runtime::spawn(async move {
+                            let socket = PathBuf::from(root_socket::DEFAULT_PATH);
+                            let _ = root_socket::process_cmd(&socket, &command::Command::Disconnect).await;
+                            app_clone.exit(0);
+                        });
                     }
                     "show" => {
                         toggle_main_window_visibility(app);
