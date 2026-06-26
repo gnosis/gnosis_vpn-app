@@ -11,11 +11,11 @@ import {
   type Destination,
   type DestinationState,
   type DisconnectingInfo,
-  type ReconnectingInfo,
   formatWarmupStatus,
   isDeployingSafeRunMode,
   isPreparingSafeRunMode,
   isWarmupRunMode,
+  type ReconnectingInfo,
   type RunMode,
   type ServiceInfo,
   ServiceInfoSchema,
@@ -337,9 +337,10 @@ export function createAppStore(): AppStoreTuple {
       state.reconnecting?.destination_id !== nextReconnecting?.destination_id;
     const reconnectingPhaseChanged =
       state.reconnecting?.phase !== nextReconnecting?.phase;
-    if (nextReconnecting && (reconnectingIdChanged || reconnectingPhaseChanged)) {
-      const dest =
-        destinations[nextReconnecting.destination_id]?.destination;
+    if (
+      nextReconnecting && (reconnectingIdChanged || reconnectingPhaseChanged)
+    ) {
+      const dest = destinations[nextReconnecting.destination_id]?.destination;
       const label = dest
         ? destinationLabel(dest)
         : nextReconnecting.destination_id;

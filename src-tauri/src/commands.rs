@@ -17,10 +17,7 @@ use tokio::time::{self, Instant};
 
 use crate::icons::{self, AppIconState, TrayIconState};
 use crate::tray;
-use crate::types::{
-    BalanceResponse, ConnectResponse, ConnectingInfo, ConnectionState, DisconnectResponse,
-    DisconnectingInfo, ReconnectingInfo, StatusResponse,
-};
+use crate::types::{BalanceResponse, ConnectionState, StatusResponse};
 use crate::{AppStateCache, BalancePollingHandle, StatusPollingHandle};
 
 const COMPATIBLE_VERSIONS: &[&str] = &["0.91"];
@@ -95,7 +92,7 @@ async fn start_client_worker(keep_alive: Duration) -> Result<(), String> {
 pub async fn connect(
     id: String,
     polling_state: State<'_, Mutex<StatusPollingHandle>>,
-) -> Result<ConnectResponse, String> {
+) -> Result<command::ConnectResponse, String> {
     let p = PathBuf::from(root_socket::DEFAULT_PATH);
     let cmd = command::Command::Connect(id);
     let resp = root_socket::process_cmd(&p, &cmd)
@@ -106,7 +103,7 @@ pub async fn connect(
             if let Ok(guard) = polling_state.lock() {
                 guard.trigger.notify_one();
             }
-            Ok(resp.into())
+            Ok(resp)
         }
         _ => Err("Unexpected response type".to_string()),
     }
@@ -115,7 +112,7 @@ pub async fn connect(
 #[tauri::command]
 pub async fn disconnect(
     polling_state: State<'_, Mutex<StatusPollingHandle>>,
-) -> Result<DisconnectResponse, String> {
+) -> Result<command::DisconnectResponse, String> {
     let p = PathBuf::from(root_socket::DEFAULT_PATH);
     let cmd = command::Command::Disconnect;
     let resp = root_socket::process_cmd(&p, &cmd)
@@ -126,7 +123,7 @@ pub async fn disconnect(
             if let Ok(guard) = polling_state.lock() {
                 guard.trigger.notify_one();
             }
-            Ok(resp.into())
+            Ok(resp)
         }
         _ => Err("Unexpected response type".to_string()),
     }
@@ -526,57 +523,14 @@ async fn query_status() -> (Duration, Result<Option<StatusResponse>, String>) {
     let resp = root_socket::process_cmd(&p, &command::Command::Status).await;
     match resp {
         Ok(command::Response::Status(status_resp)) => {
-            use std::time::UNIX_EPOCH;
-            let reconnecting = status_resp.reconnecting.map(|r| {
-                let since = r
-                    .since
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap_or_default()
-                    .as_millis() as u64;
-                ReconnectingInfo {
-                    destination_id: r.destination_id,
-                    since,
-                    phase: r.phase,
-                }
-            });
             let resp = StatusResponse {
                 run_mode: status_resp.run_mode.into(),
-                destinations: status_resp
-                    .destinations
-                    .into_iter()
-                    .map(Into::into)
-                    .collect(),
+                destinations: status_resp.destinations,
                 target_destination: status_resp.target_destination,
-                connected: status_resp.connected.map(|c| c.destination_id),
-                connecting: status_resp.connecting.map(|c| {
-                    let since = c
-                        .since
-                        .duration_since(UNIX_EPOCH)
-                        .unwrap_or_default()
-                        .as_millis() as u64;
-                    ConnectingInfo {
-                        destination_id: c.destination_id,
-                        since,
-                        phase: c.phase,
-                    }
-                }),
-                reconnecting,
-                disconnecting: status_resp
-                    .disconnecting
-                    .into_iter()
-                    .map(|d| {
-                        let since = d
-                            .since
-                            .duration_since(UNIX_EPOCH)
-                            .unwrap_or_default()
-                            .as_millis() as u64;
-                        DisconnectingInfo {
-                            destination_id: d.destination_id,
-                            since,
-                            phase: d.phase,
-                        }
-                    })
-                    .collect(),
+                connected: status_resp.connected,
+                connecting: status_resp.connecting,
+                reconnecting: status_resp.reconnecting,
+                disconnecting: status_resp.disconnecting,
             };
 
             let is_in_transition = resp.connecting.is_some() || resp.reconnecting.is_some();

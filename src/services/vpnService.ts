@@ -29,6 +29,12 @@ export const DownPhaseSchema = z.enum([
 ]);
 export type DownPhase = z.infer<typeof DownPhaseSchema>;
 
+export const ConnectedInfoSchema = z.object({
+  destination_id: z.string(),
+  since: z.number(),
+});
+export type ConnectedInfo = z.infer<typeof ConnectedInfoSchema>;
+
 export const ConnectingInfoSchema = z.object({
   destination_id: z.string(),
   since: z.number(),
@@ -50,14 +56,11 @@ export const DisconnectingInfoSchema = z.object({
 });
 export type DisconnectingInfo = z.infer<typeof DisconnectingInfoSchema>;
 
-export const RoutingOptionsSchema = z.object({ Hops: z.number() });
-export type RoutingOptions = z.infer<typeof RoutingOptionsSchema>;
-
 export const DestinationSchema = z.object({
   id: z.string(),
   meta: z.object({ location: z.string() }).catchall(z.string()),
   address: z.string(),
-  routing: RoutingOptionsSchema,
+  routing: z.number(),
 });
 export type Destination = z.infer<typeof DestinationSchema>;
 
@@ -256,7 +259,7 @@ export const StatusResponseSchema = z.object({
   run_mode: RunModeSchema,
   destinations: z.array(DestinationStateSchema),
   target_destination: z.string().nullable(),
-  connected: z.string().nullable(),
+  connected: ConnectedInfoSchema.nullable(),
   connecting: ConnectingInfoSchema.nullable(),
   reconnecting: ReconnectingInfoSchema.nullable(),
   disconnecting: z.array(DisconnectingInfoSchema),

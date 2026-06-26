@@ -1,43 +1,23 @@
+use gnosis_vpn_lib::balance;
 use gnosis_vpn_lib::command::{self, HoprInitStatus, HoprStatus};
-use gnosis_vpn_lib::connection::destination::HopRouting;
-use gnosis_vpn_lib::route_health::RouteHealthState;
-use gnosis_vpn_lib::{balance, connection, info};
 
 use serde::Serialize;
 
-use std::collections::HashMap;
 use std::fmt::{self, Display};
-// Sanitized library responses
+
+// Sanitized library responses — only types that need reshaping for the UI layer live here.
+// For everything else, library types are used directly since their serde output already
+// matches what the TypeScript Zod layer expects.
+
 #[derive(Clone, Debug, Serialize)]
 pub struct StatusResponse {
     pub run_mode: RunMode,
-    pub destinations: Vec<DestinationState>,
+    pub destinations: Vec<command::DestinationState>,
     pub target_destination: Option<String>,
-    pub connected: Option<String>,
-    pub connecting: Option<ConnectingInfo>,
-    pub reconnecting: Option<ReconnectingInfo>,
-    pub disconnecting: Vec<DisconnectingInfo>,
-}
-
-#[derive(Clone, Debug, Serialize)]
-pub struct ConnectingInfo {
-    pub destination_id: String,
-    pub since: u64,
-    pub phase: connection::up::Phase,
-}
-
-#[derive(Clone, Debug, Serialize)]
-pub struct ReconnectingInfo {
-    pub destination_id: String,
-    pub since: u64,
-    pub phase: connection::up::Phase,
-}
-
-#[derive(Clone, Debug, Serialize)]
-pub struct DisconnectingInfo {
-    pub destination_id: String,
-    pub since: u64,
-    pub phase: connection::down::Phase,
+    pub connected: Option<command::ConnectedInfo>,
+    pub connecting: Option<command::ConnectingInfo>,
+    pub reconnecting: Option<command::ReconnectingInfo>,
+    pub disconnecting: Vec<command::DisconnectingInfo>,
 }
 
 #[derive(Debug, Clone)]
@@ -48,97 +28,54 @@ pub enum ConnectionState {
     Disconnected,
 }
 
-#[derive(Debug, Serialize)]
-pub enum ConnectResponse {
-    AlreadyConnected(Destination),
-    Connecting(Destination),
-    WaitingToConnect(Destination, RouteHealthState),
-    UnableToConnect(Destination, RouteHealthState),
-    DestinationNotFound,
-}
-
-#[derive(Debug, Serialize)]
-pub enum DisconnectResponse {
-    Disconnecting(Destination),
-    NotConnected,
-}
-
-#[derive(Clone, Debug, Serialize)]
-pub struct BalanceRecommendation {
-    pub wxhopr: String,
-    pub xdai: String,
-}
-
-#[derive(Clone, Debug, Serialize)]
-pub struct Capacity {
-    pub stake: String,
-    pub expected_messages: u64,
-    pub min_guaranteed_messages: u64,
-    pub byte_capacity: u64,
-}
-
-#[derive(Clone, Debug, Serialize)]
-pub struct CapacityEntry {
-    pub allocator: balance::CapacityAllocator,
-    pub capacity: Capacity,
-}
-
 #[derive(Clone, Debug, Serialize)]
 pub struct BalanceResponse {
     pub node: String,
     pub safe: String,
     pub channels_out: String,
-    pub info: Info,
+    pub info: command::Info,
     pub funding_issues: Option<Vec<balance::FundingIssue>>,
-    pub ideal_balance: Option<BalanceRecommendation>,
-    pub capacity_allocations: Option<Vec<CapacityEntry>>,
+    pub ideal_balance: Option<balance::BalanceRecommendation>,
+    pub capacity_allocations: Option<Vec<balance::CapacityEntry>>,
 }
 
-// Sanitized library structs
+// RunMode merges the library's Init+Warmup variants and flattens two optional
+// status enums into a single CombinedHoprStatus for simpler UI consumption.
 
 #[derive(Clone, Debug, Serialize)]
 pub enum RunMode {
-    /// Initial start, checking funds to run safe creation or find existing safe
-    /// can jump to Warmup or DeployingSafe
     PreparingSafe {
         node_address: String,
         node_xdai: String,
         node_wxhopr: String,
         funding_tool: Option<String>,
-        // came back from safe deployment with an error
         error: Option<String>,
-        balance_recommendation: Option<BalanceRecommendation>,
+        balance_recommendation: Option<balance::BalanceRecommendation>,
     },
-    /// Safe deployment ongoing, enough funds, no existing safe
-    DeployingSafe { node_address: String },
-    /// Subsequent service start up in this state and after preparing safe
+    DeployingSafe {
+        node_address: String,
+    },
     Warmup {
         status: CombinedHoprStatus,
         last_error: Option<String>,
     },
-    /// Normal operation where connections can be made
     Running {
         funding_issues: Option<Vec<balance::FundingIssue>>,
         hopr_status: Option<CombinedHoprStatus>,
     },
-    /// Shutdown service
     Shutdown,
-    /// Service not running (worker offline)
     NotRunning,
 }
 
 #[derive(Clone, Debug, Serialize)]
 pub enum CombinedHoprStatus {
-    // hopr construction not yet started
     Initializing,
-    // Hopr init states
     ValidatingConfig,
     IdentifyingNode,
     ConnectingBlockchain,
     CreatingNode,
     StartingNode,
     Ready,
-    // Hopr running states
     Uninitialized,
     WaitingForFunds,
     CheckingBalance,
@@ -154,59 +91,7 @@ pub enum CombinedHoprStatus {
     Failed,
 }
 
-#[derive(Clone, Debug, Serialize)]
-pub struct DestinationState {
-    pub destination: Destination,
-    pub route_health: Option<command::RouteHealthView>,
-}
-
-#[derive(Clone, Debug, Serialize)]
-pub enum RoutingOptions {
-    Hops(usize),
-}
-
-#[derive(Clone, Debug, Serialize)]
-pub struct Destination {
-    pub id: String,
-    pub meta: HashMap<String, String>,
-    pub address: String,
-    pub routing: RoutingOptions,
-}
-
-#[derive(Clone, Debug, Serialize)]
-pub struct Info {
-    pub node_address: String,
-    pub node_peer_id: String,
-    pub safe_address: String,
-}
-
 // Conversions from library types to sanitized types
-
-impl From<HopRouting> for RoutingOptions {
-    fn from(hr: HopRouting) -> Self {
-        RoutingOptions::Hops(hr.hop_count())
-    }
-}
-
-impl From<connection::destination::Destination> for Destination {
-    fn from(d: connection::destination::Destination) -> Self {
-        Destination {
-            id: d.id.clone(),
-            meta: d.meta.clone(),
-            address: d.address.to_checksum(),
-            routing: d.routing.into(),
-        }
-    }
-}
-
-impl From<command::DestinationState> for DestinationState {
-    fn from(ds: command::DestinationState) -> Self {
-        DestinationState {
-            destination: ds.destination.into(),
-            route_health: ds.route_health,
-        }
-    }
-}
 
 impl From<HoprStatus> for CombinedHoprStatus {
     fn from(status: HoprStatus) -> Self {
@@ -261,12 +146,8 @@ impl From<command::RunMode> for RunMode {
                 node_wxhopr: node_wxhopr.amount().to_string(),
                 funding_tool,
                 error,
-                balance_recommendation: balance_recommendation.map(|rec| BalanceRecommendation {
-                    wxhopr: rec.wxhopr.amount().to_string(),
-                    xdai: rec.xdai.amount().to_string(),
-                }),
+                balance_recommendation,
             },
-
             command::RunMode::DeployingSafe { node_address } => RunMode::DeployingSafe {
                 node_address: node_address.to_checksum(),
             },
@@ -295,59 +176,6 @@ impl From<command::RunMode> for RunMode {
     }
 }
 
-impl From<command::ConnectResponse> for ConnectResponse {
-    fn from(cr: command::ConnectResponse) -> Self {
-        match cr {
-            command::ConnectResponse::AlreadyConnected(dest) => {
-                ConnectResponse::AlreadyConnected(dest.into())
-            }
-            command::ConnectResponse::Connecting(dest) => ConnectResponse::Connecting(dest.into()),
-            command::ConnectResponse::WaitingToConnect(dest, health_state) => {
-                ConnectResponse::WaitingToConnect(dest.into(), health_state)
-            }
-            command::ConnectResponse::UnableToConnect(dest, health_state) => {
-                ConnectResponse::UnableToConnect(dest.into(), health_state)
-            }
-            command::ConnectResponse::DestinationNotFound => ConnectResponse::DestinationNotFound,
-        }
-    }
-}
-
-impl From<command::DisconnectResponse> for DisconnectResponse {
-    fn from(dr: command::DisconnectResponse) -> Self {
-        match dr {
-            command::DisconnectResponse::Disconnecting(dest) => {
-                DisconnectResponse::Disconnecting(dest.into())
-            }
-            command::DisconnectResponse::NotConnected => DisconnectResponse::NotConnected,
-        }
-    }
-}
-
-impl From<info::Info> for Info {
-    fn from(i: info::Info) -> Self {
-        Info {
-            node_address: i.node_address.to_checksum(),
-            node_peer_id: i.node_peer_id,
-            safe_address: i.safe_address.to_checksum(),
-        }
-    }
-}
-
-impl From<balance::CapacityEntry> for CapacityEntry {
-    fn from(e: balance::CapacityEntry) -> Self {
-        CapacityEntry {
-            allocator: e.allocator,
-            capacity: Capacity {
-                stake: e.capacity.stake.amount().to_string(),
-                expected_messages: e.capacity.expected_messages,
-                min_guaranteed_messages: e.capacity.min_guaranteed_messages,
-                byte_capacity: e.capacity.byte_capacity,
-            },
-        }
-    }
-}
-
 impl From<command::BalanceResponse> for BalanceResponse {
     fn from(br: command::BalanceResponse) -> Self {
         let channels_out = br
@@ -364,23 +192,18 @@ impl From<command::BalanceResponse> for BalanceResponse {
             node: br.node.amount().to_string(),
             safe: br.safe.amount().to_string(),
             channels_out,
-            info: br.info.into(),
+            info: br.info,
             funding_issues: br.funding_issues,
-            ideal_balance: br.ideal_balance.map(|rec| BalanceRecommendation {
-                wxhopr: rec.wxhopr.amount().to_string(),
-                xdai: rec.xdai.amount().to_string(),
-            }),
-            capacity_allocations: br
-                .capacity_allocations
-                .map(|entries| entries.into_iter().map(Into::into).collect()),
+            ideal_balance: br.ideal_balance,
+            capacity_allocations: br.capacity_allocations,
         }
     }
 }
 
 impl From<&StatusResponse> for ConnectionState {
     fn from(sr: &StatusResponse) -> Self {
-        if let Some(ref dest) = sr.connected {
-            ConnectionState::Connected(dest.clone())
+        if let Some(ref info) = sr.connected {
+            ConnectionState::Connected(info.destination_id.clone())
         } else if let Some(ref info) = sr.connecting {
             ConnectionState::Connecting(info.destination_id.clone())
         } else if let Some(ref info) = sr.reconnecting {
