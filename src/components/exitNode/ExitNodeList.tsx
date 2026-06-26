@@ -103,6 +103,7 @@ export default function ExitNodeList(props: { onClose: () => void }) {
   const vpnActive = () =>
     appState.vpnStatus === "Connected" ||
     appState.vpnStatus === "Connecting" ||
+    appState.vpnStatus === "Reconnecting" ||
     (appState.vpnStatus === "Disconnecting" &&
       appState.targetDestination !== null);
 
