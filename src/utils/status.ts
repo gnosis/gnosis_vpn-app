@@ -65,6 +65,7 @@ export function deriveVPNStatus(
     return response.run_mode.Warmup.status;
   }
   if ("Running" in response.run_mode) {
+    if (response.reconnecting) return "Reconnecting";
     if (response.connected) return "Connected";
     if (response.connecting) return "Connecting";
     if (response.disconnecting.length > 0) return "Disconnecting";
