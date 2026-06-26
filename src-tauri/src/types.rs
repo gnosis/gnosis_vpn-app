@@ -28,6 +28,23 @@ pub enum ConnectionState {
     Disconnected,
 }
 
+// Mirrors balance::Capacity but serializes stake as a raw hopli integer string,
+// consistent with `node`, `safe`, and `channels_out`. The lib type uses
+// serde_utils::balance which produces "1 wxHOPR" — unparseable by BigInt().
+#[derive(Clone, Debug, Serialize)]
+pub struct TauriCapacity {
+    pub stake: String,
+    pub expected_messages: u64,
+    pub min_guaranteed_messages: u64,
+    pub byte_capacity: u64,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct TauriCapacityEntry {
+    pub allocator: balance::CapacityAllocator,
+    pub capacity: TauriCapacity,
+}
+
 #[derive(Clone, Debug, Serialize)]
 pub struct BalanceResponse {
     pub node: String,
@@ -36,7 +53,7 @@ pub struct BalanceResponse {
     pub info: command::Info,
     pub funding_issues: Option<Vec<balance::FundingIssue>>,
     pub ideal_balance: Option<balance::BalanceRecommendation>,
-    pub capacity_allocations: Option<Vec<balance::CapacityEntry>>,
+    pub capacity_allocations: Option<Vec<TauriCapacityEntry>>,
 }
 
 // RunMode merges the library's Init+Warmup variants and flattens two optional
@@ -188,6 +205,20 @@ impl From<command::BalanceResponse> for BalanceResponse {
             .sum::<balance::Balance<balance::WxHOPR>>()
             .amount()
             .to_string();
+        let capacity_allocations = br.capacity_allocations.map(|entries| {
+            entries
+                .into_iter()
+                .map(|e| TauriCapacityEntry {
+                    allocator: e.allocator,
+                    capacity: TauriCapacity {
+                        stake: e.capacity.stake.amount().to_string(),
+                        expected_messages: e.capacity.expected_messages,
+                        min_guaranteed_messages: e.capacity.min_guaranteed_messages,
+                        byte_capacity: e.capacity.byte_capacity,
+                    },
+                })
+                .collect()
+        });
         BalanceResponse {
             node: br.node.amount().to_string(),
             safe: br.safe.amount().to_string(),
@@ -195,7 +226,7 @@ impl From<command::BalanceResponse> for BalanceResponse {
             info: br.info,
             funding_issues: br.funding_issues,
             ideal_balance: br.ideal_balance,
-            capacity_allocations: br.capacity_allocations,
+            capacity_allocations,
         }
     }
 }
