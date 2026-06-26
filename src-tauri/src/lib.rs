@@ -26,7 +26,6 @@ use commands::{
     set_app_icon, stop_client,
 };
 use gnosis_vpn_lib::command::InfoResponse;
-#[cfg(target_os = "macos")]
 use gnosis_vpn_lib::{command, socket::root as root_socket};
 use icons::{AppIconState, TrayIconState, determine_tray_icon, start_app_icon_heartbeat};
 use platform::{Platform, PlatformInterface};
