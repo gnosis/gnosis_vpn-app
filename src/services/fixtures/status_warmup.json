@@ -1,0 +1,14 @@
+{
+  "run_mode": {
+    "Warmup": {
+      "status": "Initializing",
+      "last_error": null
+    }
+  },
+  "destinations": [],
+  "target_destination": null,
+  "connected": null,
+  "connecting": null,
+  "reconnecting": null,
+  "disconnecting": []
+}

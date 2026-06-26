@@ -13,7 +13,7 @@ const BASE_DESTINATION: Destination = {
   id: "a",
   meta: { location: "EU" },
   address: "0x1234",
-  routing: { Hops: 1 },
+  routing: 1,
 };
 
 function makeReadyToConnect(

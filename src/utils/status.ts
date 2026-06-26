@@ -37,7 +37,7 @@ export function isConnectedTo(
   state: AppState,
   destination: Destination,
 ): boolean {
-  return state.connected === destination.id;
+  return state.connected?.destination_id === destination.id;
 }
 
 export function isConnectingTo(

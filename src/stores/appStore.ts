@@ -7,6 +7,7 @@ import { evaluateUpdate } from "@src/utils/updateAvailability.ts";
 import {
   type BalanceResponse,
   BalanceResponseSchema,
+  type ConnectedInfo,
   type ConnectingInfo,
   type Destination,
   type DestinationState,
@@ -46,7 +47,7 @@ export interface AppState {
   serviceInfo: ServiceInfo | null;
   availableDestinations: Destination[];
   destinations: Record<string, DestinationState>;
-  connected: string | null;
+  connected: ConnectedInfo | null;
   connecting: ConnectingInfo | null;
   reconnecting: ReconnectingInfo | null;
   disconnecting: DisconnectingInfo[];
@@ -229,7 +230,8 @@ export function createAppStore(): AppStoreTuple {
     // Only runs until we've detected it once — avoids locking out "Random" mode
     // after the user later chooses it and a connection succeeds.
     if (!connectedOnOpenDetected) {
-      const activeId = state.connected ?? state.connecting?.destination_id;
+      const activeId = state.connected?.destination_id ??
+        state.connecting?.destination_id;
       const connectedEntry = activeId
         ? state.destinations[activeId]
         : undefined;
@@ -349,9 +351,10 @@ export function createAppStore(): AppStoreTuple {
       log(`Reconnecting: ${display} - ${nextReconnecting.phase}`);
     }
 
-    if (response.connected && response.connected !== state.connected) {
-      const dest = destinations[response.connected]?.destination;
-      const label = dest ? destinationLabel(dest) : response.connected;
+    const connectedId = response.connected?.destination_id;
+    if (connectedId && connectedId !== state.connected?.destination_id) {
+      const dest = destinations[connectedId]?.destination;
+      const label = dest ? destinationLabel(dest) : connectedId;
       const short = dest ? shortAddress(dest.address) : "";
       const display = short ? `${label} - ${short}` : label;
       log(`Connected: ${display}`);

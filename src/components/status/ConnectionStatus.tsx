@@ -38,8 +38,9 @@ function deriveStatus(appState: AppState): string | undefined {
   }
 
   if (appState.connected) {
-    const dest = appState.destinations[appState.connected]?.destination;
-    const label = dest ? destinationLabel(dest) : appState.connected;
+    const connectedId = appState.connected.destination_id;
+    const dest = appState.destinations[connectedId]?.destination;
+    const label = dest ? destinationLabel(dest) : connectedId;
     return `Connected to ${label}`;
   }
 

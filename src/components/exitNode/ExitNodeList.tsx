@@ -140,7 +140,7 @@ export default function ExitNodeList(props: { onClose: () => void }) {
 
   const handleCardClick = (id: string) => {
     if (
-      appState.connected === id ||
+      appState.connected?.destination_id === id ||
       appState.connecting?.destination_id === id ||
       appState.disconnecting.some((d) => d.destination_id === id)
     ) {

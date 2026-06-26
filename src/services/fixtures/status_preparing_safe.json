@@ -1,0 +1,18 @@
+{
+  "run_mode": {
+    "PreparingSafe": {
+      "node_address": "0x0000000000000000000000000000000000000000",
+      "node_xdai": "0.0",
+      "node_wxhopr": "0.0",
+      "funding_tool": null,
+      "error": null,
+      "balance_recommendation": null
+    }
+  },
+  "destinations": [],
+  "target_destination": null,
+  "connected": null,
+  "connecting": null,
+  "reconnecting": null,
+  "disconnecting": []
+}

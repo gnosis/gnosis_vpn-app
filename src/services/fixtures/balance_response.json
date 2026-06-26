@@ -1,0 +1,13 @@
+{
+  "node": "0.0",
+  "safe": "0.0",
+  "channels_out": "0.0",
+  "info": {
+    "node_address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
+    "node_peer_id": "16Uiu2HAmTest",
+    "safe_address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa"
+  },
+  "funding_issues": null,
+  "ideal_balance": null,
+  "capacity_allocations": null
+}

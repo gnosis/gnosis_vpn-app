@@ -56,8 +56,8 @@ export function createLogsStore(): LogsStoreTuple {
       );
 
       if (connected) {
-        const dest = destMap[connected]?.destination;
-        const where = dest ? destinationLabel(dest) : connected;
+        const dest = destMap[connected.destination_id]?.destination;
+        const where = dest ? destinationLabel(dest) : connected.destination_id;
         const addr = dest ? shortAddress(dest.address) : "";
         const connDisplay = addr ? `${where} - ${addr}` : where;
         content = `Connected: ${connDisplay}`;
