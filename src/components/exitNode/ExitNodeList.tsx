@@ -142,6 +142,7 @@ export default function ExitNodeList(props: { onClose: () => void }) {
     if (
       appState.connected?.destination_id === id ||
       appState.connecting?.destination_id === id ||
+      appState.reconnecting?.destination_id === id ||
       appState.disconnecting.some((d) => d.destination_id === id)
     ) {
       if (appState.selectedId !== id) appActions.chooseDestination(id);
