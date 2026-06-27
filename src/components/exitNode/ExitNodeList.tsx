@@ -124,7 +124,8 @@ export default function ExitNodeList(props: { onClose: () => void }) {
     if (
       vpnActive() &&
       (resolvedAutoDestination()?.id ===
-          (appState.connected ?? appState.connecting?.destination_id ??
+          (appState.connected?.destination_id ??
+            appState.connecting?.destination_id ??
             appState.reconnecting?.destination_id) ||
         appState.disconnecting.some(
           (d) => d.destination_id === resolvedAutoDestination()?.id,

@@ -30,7 +30,7 @@ const DISCONNECTING_INFO = {
 };
 
 describe("isConnected", () => {
-  it("returns true when connected is a destination id", () => {
+  it("returns true when connected info is present", () => {
     expect(
       isConnected({
         ...BASE,

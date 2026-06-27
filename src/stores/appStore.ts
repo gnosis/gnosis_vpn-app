@@ -231,7 +231,8 @@ export function createAppStore(): AppStoreTuple {
     // after the user later chooses it and a connection succeeds.
     if (!connectedOnOpenDetected) {
       const activeId = state.connected?.destination_id ??
-        state.connecting?.destination_id;
+        state.connecting?.destination_id ??
+        state.reconnecting?.destination_id;
       const connectedEntry = activeId
         ? state.destinations[activeId]
         : undefined;

@@ -8,9 +8,10 @@ import { destinationLabel } from "../../utils/destinations.ts";
  * Derives a single-line connection status message from the top-level state.
  *
  * Priority:
- *  1. Connecting  → "{phase}" or "Connecting to {location}"
- *  2. Connected   → "Connected to {location}"
- *  3. Disconnecting (only when nothing is connecting) → "{phase}" or "Disconnecting from {location}"
+ *  1. Reconnecting → "{phase}" or "Reconnecting to {location}"
+ *  2. Connecting   → "{phase}" or "Connecting to {location}"
+ *  3. Connected    → "Connected to {location}"
+ *  4. Disconnecting (only when nothing is connecting) → "{phase}" or "Disconnecting from {location}"
  */
 function deriveStatus(appState: AppState): string | undefined {
   if (appState.reconnecting) {
