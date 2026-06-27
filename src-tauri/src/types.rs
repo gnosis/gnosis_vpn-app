@@ -24,6 +24,7 @@ pub struct StatusResponse {
 pub enum ConnectionState {
     Connected(String),
     Connecting(String),
+    Reconnecting(String),
     Disconnecting,
     Disconnected,
 }
@@ -238,7 +239,7 @@ impl From<&StatusResponse> for ConnectionState {
         } else if let Some(ref info) = sr.connecting {
             ConnectionState::Connecting(info.destination_id.clone())
         } else if let Some(ref info) = sr.reconnecting {
-            ConnectionState::Connecting(info.destination_id.clone())
+            ConnectionState::Reconnecting(info.destination_id.clone())
         } else if !sr.disconnecting.is_empty() {
             ConnectionState::Disconnecting
         } else {
@@ -252,6 +253,7 @@ impl Display for ConnectionState {
         match self {
             ConnectionState::Connected(dest) => write!(f, "Connected to {}", dest),
             ConnectionState::Connecting(dest) => write!(f, "Connecting to {}", dest),
+            ConnectionState::Reconnecting(dest) => write!(f, "Reconnecting to {}", dest),
             ConnectionState::Disconnecting => write!(f, "Disconnecting"),
             ConnectionState::Disconnected => write!(f, "Disconnected"),
         }

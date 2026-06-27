@@ -387,7 +387,7 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
                         let conn_state = status.into();
                         icons::update_tray_icon(&app, &app.state::<TrayIconState>(), &conn_state);
 
-                        let should_animate = matches!(conn_state, ConnectionState::Connecting(_) | ConnectionState::Disconnecting);
+                        let should_animate = matches!(conn_state, ConnectionState::Connecting(_) | ConnectionState::Reconnecting(_) | ConnectionState::Disconnecting);
                         let app_icon_state = app.state::<Arc<AppIconState>>();
                         app_icon_state.is_animating.store(should_animate, Ordering::Relaxed);
 
@@ -407,7 +407,7 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
                         };
 
                         let quit_label = match conn_state {
-                            ConnectionState::Connected(_) | ConnectionState::Connecting(_) => "Disconnect and Quit",
+                            ConnectionState::Connected(_) | ConnectionState::Connecting(_) | ConnectionState::Reconnecting(_) => "Disconnect and Quit",
                             _ => "Quit",
                         };
                         let quit_item = app.state::<tray::TrayQuitItem>();
