@@ -54,6 +54,7 @@ export default function ExitHealthDetail(
       destId(),
       appState.connected?.destination_id,
       appState.connecting?.destination_id,
+      appState.reconnecting?.destination_id,
       appState.disconnecting,
     );
   const isConnected = () => connectionLabel() === "Connected";

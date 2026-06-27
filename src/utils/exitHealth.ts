@@ -179,6 +179,7 @@ export function getSortLatencyMs(ds: DestinationState): number | null {
 export type ConnectionState =
   | "Connected"
   | "Connecting"
+  | "Reconnecting"
   | "Disconnecting"
   | "None";
 
@@ -186,10 +187,12 @@ export function getConnectionState(
   destId: string,
   connected: string | null | undefined,
   connectingId: string | undefined,
+  reconnectingId: string | undefined,
   disconnecting: { destination_id: string }[],
 ): ConnectionState {
   if (connected === destId) return "Connected";
   if (connectingId === destId) return "Connecting";
+  if (reconnectingId === destId) return "Reconnecting";
   if (disconnecting.some((d) => d.destination_id === destId)) {
     return "Disconnecting";
   }

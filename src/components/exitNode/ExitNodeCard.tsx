@@ -42,14 +42,16 @@ export default function ExitNodeCard(props: {
       destId(),
       appState.connected?.destination_id,
       appState.connecting?.destination_id,
+      appState.reconnecting?.destination_id,
       appState.disconnecting,
     )
   );
   const isConnected = () => connectionLabel() === "Connected";
   const isConnecting = () => connectionLabel() === "Connecting";
+  const isReconnecting = () => connectionLabel() === "Reconnecting";
   const isDisconnecting = () => connectionLabel() === "Disconnecting";
   const leftBarColor = () => {
-    if (isConnected() || isConnecting()) return "bg-vpn-light-green";
+    if (isConnected() || isConnecting() || isReconnecting()) return "bg-vpn-light-green";
     if (props.isSelected) return "bg-text-muted";
     return null;
   };
@@ -85,7 +87,7 @@ export default function ExitNodeCard(props: {
   // bypassing the health check since the tunnel is already established.
   const isClickable = () =>
     isReadyToConnect(routeHealth() ?? undefined) || isConnected() ||
-    isConnecting() || isDisconnecting();
+    isConnecting() || isReconnecting() || isDisconnecting();
 
   return (
     <div
@@ -105,7 +107,7 @@ export default function ExitNodeCard(props: {
         {(color) => (
           <div
             class={`absolute inset-y-0 left-0 w-1 ${color()}`}
-            classList={{ "animate-pulse": isConnecting() }}
+            classList={{ "animate-pulse": isConnecting() || isReconnecting() }}
             aria-hidden
           />
         )}
