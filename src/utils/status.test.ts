@@ -91,4 +91,10 @@ describe("isDisconnected", () => {
       isDisconnected({ ...BASE, disconnecting: [DISCONNECTING_INFO] }),
     ).toBe(false);
   });
+
+  it("returns false when reconnecting", () => {
+    expect(isDisconnected({ ...BASE, reconnecting: CONNECTING_INFO })).toBe(
+      false,
+    );
+  });
 });

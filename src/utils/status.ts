@@ -25,6 +25,7 @@ export function isDisconnected(response: StatusResponse): boolean {
   return (
     response.connected === null &&
     response.connecting === null &&
+    response.reconnecting === null &&
     response.disconnecting.length === 0
   );
 }
