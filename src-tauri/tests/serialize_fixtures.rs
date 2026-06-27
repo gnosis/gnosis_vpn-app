@@ -72,7 +72,7 @@ fn route_health_view(state: RouteHealthState) -> RouteHealthView {
 fn write(dir: &PathBuf, name: &str, val: &impl serde::Serialize) {
     let path = dir.join(name);
     let json = serde_json::to_string_pretty(val).expect("serialization failed");
-    std::fs::write(&path, json).expect("failed to write fixture");
+    std::fs::write(&path, format!("{json}\n")).expect("failed to write fixture");
 }
 
 // Generates JSON fixture files from real Rust serde output so TypeScript Zod tests
