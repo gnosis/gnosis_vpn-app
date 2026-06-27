@@ -51,7 +51,9 @@ export default function ExitNodeCard(props: {
   const isReconnecting = () => connectionLabel() === "Reconnecting";
   const isDisconnecting = () => connectionLabel() === "Disconnecting";
   const leftBarColor = () => {
-    if (isConnected() || isConnecting() || isReconnecting()) return "bg-vpn-light-green";
+    if (isConnected() || isConnecting() || isReconnecting()) {
+      return "bg-vpn-light-green";
+    }
     if (props.isSelected) return "bg-text-muted";
     return null;
   };
