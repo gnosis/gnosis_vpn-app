@@ -7,6 +7,7 @@ import { evaluateUpdate } from "@src/utils/updateAvailability.ts";
 import {
   type BalanceResponse,
   BalanceResponseSchema,
+  type ConnectedInfo,
   type ConnectingInfo,
   type Destination,
   type DestinationState,
@@ -15,6 +16,7 @@ import {
   isDeployingSafeRunMode,
   isPreparingSafeRunMode,
   isWarmupRunMode,
+  type ReconnectingInfo,
   type RunMode,
   type ServiceInfo,
   ServiceInfoSchema,
@@ -45,8 +47,9 @@ export interface AppState {
   serviceInfo: ServiceInfo | null;
   availableDestinations: Destination[];
   destinations: Record<string, DestinationState>;
-  connected: string | null;
+  connected: ConnectedInfo | null;
   connecting: ConnectingInfo | null;
+  reconnecting: ReconnectingInfo | null;
   disconnecting: DisconnectingInfo[];
   isLoading: boolean;
   error?: string;
@@ -90,6 +93,7 @@ function initialState(): AppState {
     availableDestinations: [],
     connected: null,
     connecting: null,
+    reconnecting: null,
     currentScreen: AppScreen.Initialization,
     destination: null,
     destinations: {},
@@ -226,7 +230,9 @@ export function createAppStore(): AppStoreTuple {
     // Only runs until we've detected it once — avoids locking out "Random" mode
     // after the user later chooses it and a connection succeeds.
     if (!connectedOnOpenDetected) {
-      const activeId = state.connected ?? state.connecting?.destination_id;
+      const activeId = state.connected?.destination_id ??
+        state.connecting?.destination_id ??
+        state.reconnecting?.destination_id;
       const connectedEntry = activeId
         ? state.destinations[activeId]
         : undefined;
@@ -303,6 +309,7 @@ export function createAppStore(): AppStoreTuple {
     setState("targetDestination", response.target_destination);
     setState("connected", response.connected);
     setState("connecting", reconcile(response.connecting));
+    setState("reconnecting", reconcile(response.reconnecting));
     setState("disconnecting", reconcile(response.disconnecting));
     setState("vpnStatus", deriveVPNStatus(response));
     setState("availableDestinations", availableDestinations);
@@ -328,9 +335,27 @@ export function createAppStore(): AppStoreTuple {
       log(`Connecting: ${display} - ${nextConnecting.phase}`);
     }
 
-    if (response.connected && response.connected !== state.connected) {
-      const dest = destinations[response.connected]?.destination;
-      const label = dest ? destinationLabel(dest) : response.connected;
+    const nextReconnecting = response.reconnecting;
+    const reconnectingIdChanged =
+      state.reconnecting?.destination_id !== nextReconnecting?.destination_id;
+    const reconnectingPhaseChanged =
+      state.reconnecting?.phase !== nextReconnecting?.phase;
+    if (
+      nextReconnecting && (reconnectingIdChanged || reconnectingPhaseChanged)
+    ) {
+      const dest = destinations[nextReconnecting.destination_id]?.destination;
+      const label = dest
+        ? destinationLabel(dest)
+        : nextReconnecting.destination_id;
+      const short = dest ? shortAddress(dest.address) : "";
+      const display = short ? `${label} - ${short}` : label;
+      log(`Reconnecting: ${display} - ${nextReconnecting.phase}`);
+    }
+
+    const connectedId = response.connected?.destination_id;
+    if (connectedId && connectedId !== state.connected?.destination_id) {
+      const dest = destinations[connectedId]?.destination;
+      const label = dest ? destinationLabel(dest) : connectedId;
       const short = dest ? shortAddress(dest.address) : "";
       const display = short ? `${label} - ${short}` : label;
       log(`Connected: ${display}`);

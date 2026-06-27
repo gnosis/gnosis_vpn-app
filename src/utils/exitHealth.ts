@@ -4,7 +4,6 @@ import type {
   ExitHealthData,
   RouteHealthState,
   RouteHealthView,
-  RoutingOptions,
 } from "@src/services/vpnService.ts";
 
 /** Visual health color for a destination. */
@@ -146,13 +145,13 @@ export function isReadyToConnect(rhv: RouteHealthView | undefined): boolean {
   return s === "ReadyToConnect" || s === "Connecting";
 }
 
-/** Get the raw hop count from routing options. */
-export function getHopCount(routing: RoutingOptions): number {
-  return routing.Hops;
+/** Get the raw hop count from routing. */
+export function getHopCount(routing: number): number {
+  return routing;
 }
 
 /** Format routing as e.g. "1-hop" */
-export function formatRouting(routing: RoutingOptions): string {
+export function formatRouting(routing: number): string {
   const n = getHopCount(routing);
   return n === 1 ? "1-hop" : `${n}-hops`;
 }
@@ -180,6 +179,7 @@ export function getSortLatencyMs(ds: DestinationState): number | null {
 export type ConnectionState =
   | "Connected"
   | "Connecting"
+  | "Reconnecting"
   | "Disconnecting"
   | "None";
 
@@ -187,10 +187,12 @@ export function getConnectionState(
   destId: string,
   connected: string | null | undefined,
   connectingId: string | undefined,
+  reconnectingId: string | undefined,
   disconnecting: { destination_id: string }[],
 ): ConnectionState {
   if (connected === destId) return "Connected";
   if (connectingId === destId) return "Connecting";
+  if (reconnectingId === destId) return "Reconnecting";
   if (disconnecting.some((d) => d.destination_id === destId)) {
     return "Disconnecting";
   }

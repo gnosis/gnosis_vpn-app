@@ -103,6 +103,7 @@ export default function ExitNodeList(props: { onClose: () => void }) {
   const vpnActive = () =>
     appState.vpnStatus === "Connected" ||
     appState.vpnStatus === "Connecting" ||
+    appState.vpnStatus === "Reconnecting" ||
     (appState.vpnStatus === "Disconnecting" &&
       appState.targetDestination !== null);
 
@@ -123,7 +124,9 @@ export default function ExitNodeList(props: { onClose: () => void }) {
     if (
       vpnActive() &&
       (resolvedAutoDestination()?.id ===
-          (appState.connected ?? appState.connecting?.destination_id) ||
+          (appState.connected?.destination_id ??
+            appState.connecting?.destination_id ??
+            appState.reconnecting?.destination_id) ||
         appState.disconnecting.some(
           (d) => d.destination_id === resolvedAutoDestination()?.id,
         ))
@@ -139,8 +142,9 @@ export default function ExitNodeList(props: { onClose: () => void }) {
 
   const handleCardClick = (id: string) => {
     if (
-      appState.connected === id ||
+      appState.connected?.destination_id === id ||
       appState.connecting?.destination_id === id ||
+      appState.reconnecting?.destination_id === id ||
       appState.disconnecting.some((d) => d.destination_id === id)
     ) {
       if (appState.selectedId !== id) appActions.chooseDestination(id);

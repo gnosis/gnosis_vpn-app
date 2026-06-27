@@ -75,9 +75,12 @@ pub fn determine_app_icon(connection_state: &ConnectionState, run_mode: &RunMode
     match (connection_state, has_low_funds) {
         (ConnectionState::Connected(_), true) => APP_ICON_CONNECTED_LOW_FUNDS.to_string(),
         (ConnectionState::Connected(_), false) => APP_ICON_CONNECTED.to_string(),
-        (ConnectionState::Connecting(_) | ConnectionState::Disconnecting, _) => {
-            APP_ICON_CONNECTING_1.to_string()
-        } // Will be animated by heartbeat
+        (
+            ConnectionState::Connecting(_)
+            | ConnectionState::Reconnecting(_)
+            | ConnectionState::Disconnecting,
+            _,
+        ) => APP_ICON_CONNECTING_1.to_string(), // Will be animated by heartbeat
         (_, true) => APP_ICON_DISCONNECTED_LOW_FUNDS.to_string(), // Disconnected with low funds
         (_, false) => APP_ICON_DISCONNECTED.to_string(),          // Disconnected
     }
@@ -87,15 +90,17 @@ pub fn determine_tray_icon(connection_state: &ConnectionState) -> &'static str {
     if cfg!(target_os = "linux") {
         match connection_state {
             ConnectionState::Connected(_) => TRAY_ICON_LINUX_CONNECTED,
-            ConnectionState::Connecting(_) | ConnectionState::Disconnecting => {
-                TRAY_ICON_LINUX_CONNECTING
-            }
+            ConnectionState::Connecting(_)
+            | ConnectionState::Reconnecting(_)
+            | ConnectionState::Disconnecting => TRAY_ICON_LINUX_CONNECTING,
             _ => TRAY_ICON_LINUX_DISCONNECTED,
         }
     } else {
         match connection_state {
             ConnectionState::Connected(_) => TRAY_ICON_CONNECTED,
-            ConnectionState::Connecting(_) | ConnectionState::Disconnecting => TRAY_ICON_CONNECTING,
+            ConnectionState::Connecting(_)
+            | ConnectionState::Reconnecting(_)
+            | ConnectionState::Disconnecting => TRAY_ICON_CONNECTING,
             _ => TRAY_ICON_DISCONNECTED,
         }
     }

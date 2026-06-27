@@ -17,13 +17,10 @@ use tokio::time::{self, Instant};
 
 use crate::icons::{self, AppIconState, TrayIconState};
 use crate::tray;
-use crate::types::{
-    BalanceResponse, ConnectResponse, ConnectingInfo, ConnectionState, DisconnectResponse,
-    DisconnectingInfo, StatusResponse,
-};
+use crate::types::{BalanceResponse, ConnectionState, StatusResponse};
 use crate::{AppStateCache, BalancePollingHandle, StatusPollingHandle};
 
-const COMPATIBLE_VERSIONS: &[&str] = &["0.86"];
+const COMPATIBLE_VERSIONS: &[&str] = &["0.91"];
 
 fn is_version_compatible(version: &str) -> bool {
     COMPATIBLE_VERSIONS
@@ -95,7 +92,7 @@ async fn start_client_worker(keep_alive: Duration) -> Result<(), String> {
 pub async fn connect(
     id: String,
     polling_state: State<'_, Mutex<StatusPollingHandle>>,
-) -> Result<ConnectResponse, String> {
+) -> Result<command::ConnectResponse, String> {
     let p = PathBuf::from(root_socket::DEFAULT_PATH);
     let cmd = command::Command::Connect(id);
     let resp = root_socket::process_cmd(&p, &cmd)
@@ -106,7 +103,7 @@ pub async fn connect(
             if let Ok(guard) = polling_state.lock() {
                 guard.trigger.notify_one();
             }
-            Ok(resp.into())
+            Ok(resp)
         }
         _ => Err("Unexpected response type".to_string()),
     }
@@ -115,7 +112,7 @@ pub async fn connect(
 #[tauri::command]
 pub async fn disconnect(
     polling_state: State<'_, Mutex<StatusPollingHandle>>,
-) -> Result<DisconnectResponse, String> {
+) -> Result<command::DisconnectResponse, String> {
     let p = PathBuf::from(root_socket::DEFAULT_PATH);
     let cmd = command::Command::Disconnect;
     let resp = root_socket::process_cmd(&p, &cmd)
@@ -126,7 +123,7 @@ pub async fn disconnect(
             if let Ok(guard) = polling_state.lock() {
                 guard.trigger.notify_one();
             }
-            Ok(resp.into())
+            Ok(resp)
         }
         _ => Err("Unexpected response type".to_string()),
     }
@@ -390,7 +387,7 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
                         let conn_state = status.into();
                         icons::update_tray_icon(&app, &app.state::<TrayIconState>(), &conn_state);
 
-                        let should_animate = matches!(conn_state, ConnectionState::Connecting(_) | ConnectionState::Disconnecting);
+                        let should_animate = matches!(conn_state, ConnectionState::Connecting(_) | ConnectionState::Reconnecting(_) | ConnectionState::Disconnecting);
                         let app_icon_state = app.state::<Arc<AppIconState>>();
                         app_icon_state.is_animating.store(should_animate, Ordering::Relaxed);
 
@@ -407,6 +404,15 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
                         let status_item = app.state::<tray::TrayStatusItem>();
                         if let Ok(guard) = status_item.0.lock() {
                             let _ = guard.set_text(conn_state.to_string());
+                        };
+
+                        let quit_label = match conn_state {
+                            ConnectionState::Connected(_) | ConnectionState::Connecting(_) | ConnectionState::Reconnecting(_) => "Disconnect and Quit",
+                            _ => "Quit",
+                        };
+                        let quit_item = app.state::<tray::TrayQuitItem>();
+                        if let Ok(guard) = quit_item.0.lock() {
+                            let _ = guard.set_text(quit_label);
                         };
                     }
                     app.state::<AppStateCache>().status.send_replace(Some(result.clone()));
@@ -519,28 +525,16 @@ async fn query_status() -> (Duration, Result<Option<StatusResponse>, String>) {
         Ok(command::Response::Status(status_resp)) => {
             let resp = StatusResponse {
                 run_mode: status_resp.run_mode.into(),
-                destinations: status_resp
-                    .destinations
-                    .into_iter()
-                    .map(Into::into)
-                    .collect(),
+                destinations: status_resp.destinations,
                 target_destination: status_resp.target_destination,
-                connected: status_resp.connected.map(|c| c.destination_id),
-                connecting: status_resp.connecting.map(|c| ConnectingInfo {
-                    destination_id: c.destination_id,
-                    phase: c.phase,
-                }),
-                disconnecting: status_resp
-                    .disconnecting
-                    .into_iter()
-                    .map(|d| DisconnectingInfo {
-                        destination_id: d.destination_id,
-                        phase: d.phase,
-                    })
-                    .collect(),
+                connected: status_resp.connected,
+                connecting: status_resp.connecting,
+                reconnecting: status_resp.reconnecting,
+                disconnecting: status_resp.disconnecting,
             };
 
-            if resp.connecting.is_some() {
+            let is_in_transition = resp.connecting.is_some() || resp.reconnecting.is_some();
+            if is_in_transition {
                 (Duration::from_millis(222), Ok(Some(resp)))
             } else {
                 (Duration::from_secs(2), Ok(Some(resp)))
@@ -551,6 +545,8 @@ async fn query_status() -> (Duration, Result<Option<StatusResponse>, String>) {
             let _ = start_client_worker(Duration::from_secs(10)).await;
             (Duration::from_secs(5), Ok(None))
         }
+        // Internal response sent by the root process to itself; never forwarded to the app.
+        Ok(command::Response::ForceReconnectAcknowledged) => (Duration::from_secs(2), Ok(None)),
         Ok(unexpected) => (
             Duration::from_secs(2),
             Err(format!("Unexpected response type: {:?}", unexpected).to_string()),

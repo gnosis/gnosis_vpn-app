@@ -57,6 +57,9 @@ describe("sumCapacityStake", () => {
     expect(sumCapacityStake([])).toBe(0n);
   });
 
+  // Stake arrives as a raw hopli integer string (e.g. "1000000000000000000"),
+  // not the human-readable "1 wxHOPR" the lib emits — the Tauri layer strips
+  // the unit in types.rs before forwarding to the frontend.
   it("sums stake across safe and peer allocations", () => {
     const entries = [
       makeEntry(0, "1000000000000000000"),

@@ -10,6 +10,9 @@ use tokio::time::sleep;
 /// State to hold a reference to the tray "status" menu item so commands can update it.
 pub struct TrayStatusItem(pub Mutex<MenuItem<tauri::Wry>>);
 
+/// State to hold a reference to the tray "quit" menu item so commands can update its label.
+pub struct TrayQuitItem(pub Mutex<MenuItem<tauri::Wry>>);
+
 pub fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error> {
     let status_item =
         MenuItem::with_id(app, "status", "Status: Disconnected", false, None::<&str>)?;
@@ -19,9 +22,10 @@ pub fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Erro
     let usage_item = MenuItem::with_id(app, "usage", "Usage", true, None::<&str>)?;
     let check_update_item =
         MenuItem::with_id(app, "check_update", "Check update", true, None::<&str>)?;
-    let quit_item = MenuItem::with_id(app, "quit", "Disconnect and Quit", true, None::<&str>)?;
+    let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
 
     app.manage(TrayStatusItem(Mutex::new(status_item.clone())));
+    app.manage(TrayQuitItem(Mutex::new(quit_item.clone())));
 
     MenuBuilder::new(app)
         .item(&status_item)

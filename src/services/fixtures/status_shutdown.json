@@ -1,0 +1,9 @@
+{
+  "run_mode": "Shutdown",
+  "destinations": [],
+  "target_destination": null,
+  "connected": null,
+  "connecting": null,
+  "reconnecting": null,
+  "disconnecting": []
+}

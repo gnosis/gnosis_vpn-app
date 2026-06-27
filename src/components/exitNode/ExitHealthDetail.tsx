@@ -2,7 +2,6 @@ import { createMemo, createSignal, onCleanup, Show } from "solid-js";
 import type {
   DestinationState,
   RouteHealthView,
-  RoutingOptions,
 } from "@src/services/vpnService.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
@@ -45,8 +44,7 @@ export default function ExitHealthDetail(
   const routeHealth = createMemo((): RouteHealthView | null =>
     props.destinationState.route_health ?? null
   );
-  const routing = (): RoutingOptions =>
-    props.destinationState.destination.routing;
+  const routing = (): number => props.destinationState.destination.routing;
 
   const destId = () => props.destinationState.destination.id;
 
@@ -54,8 +52,9 @@ export default function ExitHealthDetail(
   const connectionLabel = () =>
     getConnectionState(
       destId(),
-      appState.connected,
+      appState.connected?.destination_id,
       appState.connecting?.destination_id,
+      appState.reconnecting?.destination_id,
       appState.disconnecting,
     );
   const isConnected = () => connectionLabel() === "Connected";

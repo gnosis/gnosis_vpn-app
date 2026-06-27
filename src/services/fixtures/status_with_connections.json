@@ -1,0 +1,26 @@
+{
+  "run_mode": "NotRunning",
+  "destinations": [],
+  "target_destination": "test-exit",
+  "connected": {
+    "destination_id": "test-exit",
+    "since": 0
+  },
+  "connecting": {
+    "destination_id": "test-exit",
+    "since": 0,
+    "phase": "Init"
+  },
+  "reconnecting": {
+    "destination_id": "test-exit",
+    "since": 0,
+    "phase": "Init"
+  },
+  "disconnecting": [
+    {
+      "destination_id": "test-exit",
+      "since": 0,
+      "phase": "Disconnecting"
+    }
+  ]
+}

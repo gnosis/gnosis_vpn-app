@@ -1,7 +1,21 @@
-<svg width="80" height="80" viewBox="0 0 80 80" fill="#9A0000" xmlns="http://www.w3.org/2000/svg">
-  <path fill-rule="evenodd" clip-rule="evenodd" d="M10 10 a4 4 0 0 1 4-4 h52 a4 4 0 0 1 4 4 v44 h-60 z M16 12 v40 h48 v-40 z"/>
-  <path d="M2 56 h76 a0 0 0 0 1 0 0 v3 a4 4 0 0 1 -4 4 h-68 a4 4 0 0 1 -4 -4 z M34 60 h12 v1.6 h-12 z" fill-rule="evenodd"/>
-  <path d="M40 32
+<svg
+  width="80"
+  height="80"
+  viewBox="0 0 80 80"
+  fill="#9A0000"
+  xmlns="http://www.w3.org/2000/svg"
+>
+  <path
+    fill-rule="evenodd"
+    clip-rule="evenodd"
+    d="M10 10 a4 4 0 0 1 4-4 h52 a4 4 0 0 1 4 4 v44 h-60 z M16 12 v40 h48 v-40 z"
+  />
+  <path
+    d="M2 56 h76 a0 0 0 0 1 0 0 v3 a4 4 0 0 1 -4 4 h-68 a4 4 0 0 1 -4 -4 z M34 60 h12 v1.6 h-12 z"
+    fill-rule="evenodd"
+  />
+  <path
+    d="M40 32
            L26 14 L31 24 L20 22 L33 30
            L18 32 L31 35 L22 46 L34 38
            L33 50 L40 42
@@ -9,7 +23,14 @@
            L56 48 L46 36
            L60 32 L48 31
            L58 18 L46 28
-           L50 14 L42 26 Z">
-    <animate attributeName="opacity" values="1;0" dur="2s" calcMode="discrete" repeatCount="indefinite"/>
+           L50 14 L42 26 Z"
+  >
+    <animate
+      attributeName="opacity"
+      values="1;0"
+      dur="2s"
+      calcMode="discrete"
+      repeatCount="indefinite"
+    />
   </path>
 </svg>
