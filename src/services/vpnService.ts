@@ -161,9 +161,14 @@ export const FundingIssueSchema = z.enum([
 ]);
 export type FundingIssue = z.infer<typeof FundingIssueSchema>;
 
+// Hopli amounts arrive as raw wei integer strings (e.g. "1000000000000000000").
+// Transforming to bigint at the boundary catches malformed values early and
+// removes the need for BigInt() calls throughout the codebase.
+const BigIntStringSchema = z.string().transform((s) => BigInt(s));
+
 export const BalanceRecommendationSchema = z.object({
-  wxhopr: z.string(),
-  xdai: z.string(),
+  wxhopr: BigIntStringSchema,
+  xdai: BigIntStringSchema,
 });
 export type BalanceRecommendation = z.infer<typeof BalanceRecommendationSchema>;
 
@@ -174,7 +179,7 @@ export const CapacityAllocatorSchema = z.discriminatedUnion("type", [
 export type CapacityAllocator = z.infer<typeof CapacityAllocatorSchema>;
 
 export const CapacitySchema = z.object({
-  stake: z.string(),
+  stake: BigIntStringSchema,
   expected_messages: z.number(),
   min_guaranteed_messages: z.number(),
   byte_capacity: z.number(),
@@ -189,8 +194,8 @@ export type CapacityEntry = z.infer<typeof CapacityEntrySchema>;
 
 export const PreparingSafeSchema = z.object({
   node_address: z.string(),
-  node_xdai: z.string(),
-  node_wxhopr: z.string(),
+  node_xdai: BigIntStringSchema,
+  node_wxhopr: BigIntStringSchema,
   funding_tool: z.string().nullable(),
   error: z.string().nullable(),
   balance_recommendation: BalanceRecommendationSchema.nullable(),
@@ -267,9 +272,9 @@ export const StatusResponseSchema = z.object({
 export type StatusResponse = z.infer<typeof StatusResponseSchema>;
 
 export const BalanceResponseSchema = z.object({
-  node: z.string(),
-  safe: z.string(),
-  channels_out: z.string(),
+  node: BigIntStringSchema,
+  safe: BigIntStringSchema,
+  channels_out: BigIntStringSchema,
   info: InfoSchema,
   funding_issues: z.array(FundingIssueSchema).nullable(),
   ideal_balance: BalanceRecommendationSchema.nullable(),

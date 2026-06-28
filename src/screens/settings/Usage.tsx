@@ -51,13 +51,13 @@ export default function Usage() {
   const totalWxhoprHopli = createMemo(() => {
     const b = appState.balance;
     if (!b?.capacity_allocations) return undefined;
-    return sumCapacityStake(b.capacity_allocations).toString();
+    return sumCapacityStake(b.capacity_allocations);
   });
 
   const wxhoprRaw = () =>
-    preparingSafe()?.node_wxhopr ?? totalWxhoprHopli() ?? "0";
+    preparingSafe()?.node_wxhopr ?? totalWxhoprHopli() ?? 0n;
   const xdaiRaw = () =>
-    preparingSafe()?.node_xdai ?? appState.balance?.node ?? "0";
+    preparingSafe()?.node_xdai ?? appState.balance?.node ?? 0n;
 
   const isBalanceLoading = () => appState.balance === null;
 
@@ -65,8 +65,8 @@ export default function Usage() {
     if (fundingIssues().length === 0) return null;
     const ideal = appState.balance?.ideal_balance?.wxhopr;
     const current = totalWxhoprHopli();
-    if (!ideal || !current) return null;
-    const diff = BigInt(ideal) - BigInt(current);
+    if (ideal === undefined || current === undefined) return null;
+    const diff = ideal - current;
     return diff > 0n ? diff : null;
   });
 
@@ -74,8 +74,8 @@ export default function Usage() {
     if (fundingIssues().length === 0) return null;
     const ideal = appState.balance?.ideal_balance?.xdai;
     const current = appState.balance?.node;
-    if (!ideal || !current) return null;
-    const diff = BigInt(ideal) - BigInt(current);
+    if (ideal === undefined || current === undefined) return null;
+    const diff = ideal - current;
     return diff > 0n ? diff : null;
   });
 

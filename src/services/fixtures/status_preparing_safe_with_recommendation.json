@@ -2,11 +2,14 @@
   "run_mode": {
     "PreparingSafe": {
       "node_address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
-      "node_xdai": "0",
-      "node_wxhopr": "0",
+      "node_xdai": "10000000000000000",
+      "node_wxhopr": "500000000000000000",
       "funding_tool": null,
       "error": null,
-      "balance_recommendation": null
+      "balance_recommendation": {
+        "wxhopr": "10000000000000000000",
+        "xdai": "100000000000000000"
+      }
     }
   },
   "destinations": [],

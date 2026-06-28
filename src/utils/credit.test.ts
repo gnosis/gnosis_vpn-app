@@ -11,7 +11,7 @@ const BYTES_PER_TB = BYTES_PER_MB * 1024n * 1024n;
 
 function makeEntry(
   byte_capacity: number,
-  stake = "0",
+  stake = 0n,
   allocator: CapacityEntry["allocator"] = { type: "safe" },
 ): CapacityEntry {
   return {
@@ -37,7 +37,7 @@ describe("computeEffectiveCredit", () => {
   it("sums bytes from a single peer allocation", () => {
     expect(
       computeEffectiveCredit([
-        makeEntry(500_000, "0", { type: "peer", address: "0xabc" }),
+        makeEntry(500_000, 0n, { type: "peer", address: "0xabc" }),
       ]),
     ).toBe(500_000n);
   });
@@ -45,7 +45,7 @@ describe("computeEffectiveCredit", () => {
   it("sums bytes across mixed safe and peer allocations", () => {
     const entries = [
       makeEntry(1_000_000),
-      makeEntry(500_000, "0", { type: "peer", address: "0xabc" }),
+      makeEntry(500_000, 0n, { type: "peer", address: "0xabc" }),
       makeEntry(250_000),
     ];
     expect(computeEffectiveCredit(entries)).toBe(1_750_000n);
@@ -57,13 +57,13 @@ describe("sumCapacityStake", () => {
     expect(sumCapacityStake([])).toBe(0n);
   });
 
-  // Stake arrives as a raw hopli integer string (e.g. "1000000000000000000"),
-  // not the human-readable "1 wxHOPR" the lib emits — the Tauri layer strips
-  // the unit in types.rs before forwarding to the frontend.
   it("sums stake across safe and peer allocations", () => {
     const entries = [
-      makeEntry(0, "1000000000000000000"),
-      makeEntry(0, "500000000000000000", { type: "peer", address: "0xabc" }),
+      makeEntry(0, 1_000_000_000_000_000_000n),
+      makeEntry(0, 500_000_000_000_000_000n, {
+        type: "peer",
+        address: "0xabc",
+      }),
     ];
     expect(sumCapacityStake(entries)).toBe(1_500_000_000_000_000_000n);
   });

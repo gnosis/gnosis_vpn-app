@@ -15,6 +15,7 @@ import statusShutdown from "./fixtures/status_shutdown.json";
 import statusWarmup from "./fixtures/status_warmup.json";
 import statusRunning from "./fixtures/status_running.json";
 import statusPreparingSafe from "./fixtures/status_preparing_safe.json";
+import statusPreparingSafeWithRecommendation from "./fixtures/status_preparing_safe_with_recommendation.json";
 import statusDeployingSafe from "./fixtures/status_deploying_safe.json";
 import statusWithConnections from "./fixtures/status_with_connections.json";
 import statusRouteHealthVariants from "./fixtures/status_route_health_variants.json";
@@ -26,6 +27,8 @@ import connectUnable from "./fixtures/connect_unable.json";
 import disconnectNotConnected from "./fixtures/disconnect_not_connected.json";
 import disconnectDisconnecting from "./fixtures/disconnect_disconnecting.json";
 import balanceResponse from "./fixtures/balance_response.json";
+import balanceResponseWithIssues from "./fixtures/balance_response_with_issues.json";
+import balanceResponseWithCapacity from "./fixtures/balance_response_with_capacity.json";
 import serviceInfo from "./fixtures/service_info.json";
 
 describe("StatusResponseSchema", () => {
@@ -49,6 +52,29 @@ describe("StatusResponseSchema", () => {
     expect(StatusResponseSchema.safeParse(statusPreparingSafe).success).toBe(
       true,
     );
+  });
+
+  it("parses PreparingSafe run_mode with balance_recommendation", () => {
+    const result = StatusResponseSchema.safeParse(
+      statusPreparingSafeWithRecommendation,
+    );
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    const mode = result.data.run_mode;
+    expect(typeof mode).toBe("object");
+    expect("PreparingSafe" in (mode as object)).toBe(true);
+    const ps = (mode as {
+      PreparingSafe: {
+        node_xdai: bigint;
+        node_wxhopr: bigint;
+        balance_recommendation: { wxhopr: bigint; xdai: bigint } | null;
+      };
+    }).PreparingSafe;
+    expect(typeof ps.node_xdai).toBe("bigint");
+    expect(typeof ps.node_wxhopr).toBe("bigint");
+    expect(ps.balance_recommendation).not.toBeNull();
+    expect(typeof ps.balance_recommendation!.wxhopr).toBe("bigint");
+    expect(typeof ps.balance_recommendation!.xdai).toBe("bigint");
   });
 
   it("parses DeployingSafe run_mode", () => {
@@ -112,8 +138,36 @@ describe("DisconnectResponseSchema", () => {
 });
 
 describe("BalanceResponseSchema", () => {
-  it("parses balance response", () => {
-    expect(BalanceResponseSchema.safeParse(balanceResponse).success).toBe(true);
+  it("parses zero balance response", () => {
+    const result = BalanceResponseSchema.safeParse(balanceResponse);
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.node).toBe(0n);
+    expect(result.data.safe).toBe(0n);
+    expect(result.data.channels_out).toBe(0n);
+  });
+
+  it("parses balance response with ideal_balance and funding_issues", () => {
+    const result = BalanceResponseSchema.safeParse(balanceResponseWithIssues);
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(typeof result.data.node).toBe("bigint");
+    expect(result.data.ideal_balance).not.toBeNull();
+    expect(typeof result.data.ideal_balance!.wxhopr).toBe("bigint");
+    expect(typeof result.data.ideal_balance!.xdai).toBe("bigint");
+    expect(result.data.ideal_balance!.wxhopr - result.data.safe)
+      .toBeGreaterThan(0n);
+  });
+
+  it("parses balance response with capacity_allocations", () => {
+    const result = BalanceResponseSchema.safeParse(balanceResponseWithCapacity);
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.capacity_allocations).not.toBeNull();
+    expect(result.data.capacity_allocations!.length).toBeGreaterThan(0);
+    expect(typeof result.data.capacity_allocations![0].capacity.stake).toBe(
+      "bigint",
+    );
   });
 });
 

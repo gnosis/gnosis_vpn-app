@@ -1,4 +1,8 @@
 use gnosis_vpn_app_lib::types;
+use gnosis_vpn_lib::balance::{
+    Balance, BalanceRecommendation, Balances, Capacity, CapacityAllocator, FundingIssue, WxHOPR,
+    XDai,
+};
 use gnosis_vpn_lib::command::RouteHealthView;
 use gnosis_vpn_lib::connection::destination::{Destination, HopRouting};
 use gnosis_vpn_lib::prelude::Address;
@@ -45,6 +49,22 @@ fn exit_health() -> ExitHealth {
                 nproc: 4,
             },
         },
+    }
+}
+
+fn balance_info() -> command::Info {
+    command::Info {
+        node_address: address(),
+        node_peer_id: "16Uiu2HAmTest".to_string(),
+        safe_address: address(),
+    }
+}
+
+fn zero_balances() -> Balances {
+    Balances {
+        node_xdai: Balance::<XDai>::zero(),
+        safe_wxhopr: Balance::<WxHOPR>::zero(),
+        channels_out: HashMap::new(),
     }
 }
 
@@ -111,18 +131,41 @@ fn generate_fixtures() {
             hopr_status: None,
         }),
     );
+
+    // PreparingSafe — no balance_recommendation
+    let preparing_safe_zero = types::RunMode::from(command::RunMode::PreparingSafe {
+        node_address: address(),
+        node_xdai: Balance::<XDai>::zero(),
+        node_wxhopr: Balance::<WxHOPR>::zero(),
+        funding_tool: None,
+        error: None,
+        balance_recommendation: None,
+    });
     write(
         &fixtures_dir,
         "status_preparing_safe.json",
-        &status_base(types::RunMode::PreparingSafe {
-            node_address: "0x0000000000000000000000000000000000000000".to_string(),
-            node_xdai: "0.0".to_string(),
-            node_wxhopr: "0.0".to_string(),
-            funding_tool: None,
-            error: None,
-            balance_recommendation: None,
-        }),
+        &status_base(preparing_safe_zero),
     );
+
+    // PreparingSafe — with a non-zero balance_recommendation
+    // 10 wxHOPR = 10 * 10^18 wei, 0.1 xDAI = 10^17 wei
+    let preparing_safe_with_rec = types::RunMode::from(command::RunMode::PreparingSafe {
+        node_address: address(),
+        node_xdai: Balance::<XDai>::from(10_000_000_000_000_000u64), // 0.01 xDAI
+        node_wxhopr: Balance::<WxHOPR>::from(500_000_000_000_000_000u64), // 0.5 wxHOPR
+        funding_tool: None,
+        error: None,
+        balance_recommendation: Some(BalanceRecommendation {
+            wxhopr: Balance::<WxHOPR>::from(10_000_000_000_000_000_000u64), // 10 wxHOPR
+            xdai: Balance::<XDai>::from(100_000_000_000_000_000u64),        // 0.1 xDAI
+        }),
+    });
+    write(
+        &fixtures_dir,
+        "status_preparing_safe_with_recommendation.json",
+        &status_base(preparing_safe_with_rec),
+    );
+
     write(
         &fixtures_dir,
         "status_deploying_safe.json",
@@ -252,23 +295,77 @@ fn generate_fixtures() {
         &command::DisconnectResponse::Disconnecting(destination()),
     );
 
-    let balance_info = command::Info {
-        node_address: address(),
-        node_peer_id: "16Uiu2HAmTest".to_string(),
-        safe_address: address(),
+    // balance_response — all nulls, zero balances
+    let balance_zero = types::BalanceResponse::from(command::BalanceResponse::build(
+        &balance_info(),
+        &zero_balances(),
+        &HashMap::new(),
+        None,
+        None,
+        None,
+    ));
+    write(&fixtures_dir, "balance_response.json", &balance_zero);
+
+    // balance_response — with ideal_balance and a funding issue
+    // 1 wxHOPR = 10^18 wei, 0.05 xDAI = 5 * 10^16 wei
+    let balances_with_funds = Balances {
+        node_xdai: Balance::<XDai>::from(30_000_000_000_000_000u64), // 0.03 xDAI
+        safe_wxhopr: Balance::<WxHOPR>::from(1_000_000_000_000_000_000u64), // 1 wxHOPR
+        channels_out: HashMap::new(),
     };
+    let ideal = BalanceRecommendation {
+        wxhopr: Balance::<WxHOPR>::from(2_000_000_000_000_000_000u64), // 2 wxHOPR
+        xdai: Balance::<XDai>::from(50_000_000_000_000_000u64),        // 0.05 xDAI
+    };
+    let balance_with_issues = types::BalanceResponse::from(command::BalanceResponse::build(
+        &balance_info(),
+        &balances_with_funds,
+        &HashMap::new(),
+        None,
+        Some(ideal),
+        Some(vec![
+            FundingIssue::NodeLowOnFunds,
+            FundingIssue::SafeLowOnFunds,
+        ]),
+    ));
     write(
         &fixtures_dir,
-        "balance_response.json",
-        &types::BalanceResponse {
-            node: "0.0".to_string(),
-            safe: "0.0".to_string(),
-            channels_out: "0.0".to_string(),
-            info: balance_info,
-            funding_issues: None,
-            ideal_balance: None,
-            capacity_allocations: None,
+        "balance_response_with_issues.json",
+        &balance_with_issues,
+    );
+
+    // balance_response — with capacity_allocations (Safe + Peer)
+    let mut capacity_map = HashMap::new();
+    capacity_map.insert(
+        CapacityAllocator::Safe,
+        Capacity {
+            stake: Balance::<WxHOPR>::from(2_000_000_000_000_000_000u64), // 2 wxHOPR
+            expected_messages: 1000,
+            min_guaranteed_messages: 100,
+            byte_capacity: 1_048_576,
         },
+    );
+    capacity_map.insert(
+        CapacityAllocator::Peer(address()),
+        Capacity {
+            stake: Balance::<WxHOPR>::from(500_000_000_000_000_000u64), // 0.5 wxHOPR
+            expected_messages: 250,
+            min_guaranteed_messages: 25,
+            byte_capacity: 262_144,
+        },
+    );
+    let balance_with_capacity = types::BalanceResponse::from(command::BalanceResponse::build(
+        &balance_info(),
+        &balances_with_funds,
+        &HashMap::new(),
+        Some(&capacity_map),
+        None,
+        None,
+    ));
+    write(
+        &fixtures_dir,
+        "balance_response_with_capacity.json",
+        &balance_with_capacity,
     );
 
     write(

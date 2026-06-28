@@ -45,8 +45,5 @@ export function computeEffectiveCredit(entries: CapacityEntry[]): bigint {
 
 /** Sum stake across all capacity allocations (Safe + Peer = total wxHOPR in wxHopli). */
 export function sumCapacityStake(entries: CapacityEntry[]): bigint {
-  return entries.reduce(
-    (sum, e) => sum + BigInt(e.capacity.stake),
-    0n,
-  );
+  return entries.reduce((sum, e) => sum + e.capacity.stake, 0n);
 }

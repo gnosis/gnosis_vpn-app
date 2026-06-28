@@ -29,6 +29,24 @@ pub enum ConnectionState {
     Disconnected,
 }
 
+// Mirrors balance::BalanceRecommendation but serializes amounts as raw hopli
+// integer strings via .amount().to_string(). The lib type uses serde_utils::balance
+// which produces "1 wxHOPR" — unparseable by BigInt().
+#[derive(Clone, Debug, Serialize)]
+pub struct TauriBalanceRecommendation {
+    pub wxhopr: String,
+    pub xdai: String,
+}
+
+impl From<balance::BalanceRecommendation> for TauriBalanceRecommendation {
+    fn from(r: balance::BalanceRecommendation) -> Self {
+        TauriBalanceRecommendation {
+            wxhopr: r.wxhopr.amount().to_string(),
+            xdai: r.xdai.amount().to_string(),
+        }
+    }
+}
+
 // Mirrors balance::Capacity but serializes stake as a raw hopli integer string,
 // consistent with `node`, `safe`, and `channels_out`. The lib type uses
 // serde_utils::balance which produces "1 wxHOPR" — unparseable by BigInt().
@@ -53,7 +71,7 @@ pub struct BalanceResponse {
     pub channels_out: String,
     pub info: command::Info,
     pub funding_issues: Option<Vec<balance::FundingIssue>>,
-    pub ideal_balance: Option<balance::BalanceRecommendation>,
+    pub ideal_balance: Option<TauriBalanceRecommendation>,
     pub capacity_allocations: Option<Vec<TauriCapacityEntry>>,
 }
 
@@ -68,7 +86,7 @@ pub enum RunMode {
         node_wxhopr: String,
         funding_tool: Option<String>,
         error: Option<String>,
-        balance_recommendation: Option<balance::BalanceRecommendation>,
+        balance_recommendation: Option<TauriBalanceRecommendation>,
     },
     DeployingSafe {
         node_address: String,
@@ -164,7 +182,7 @@ impl From<command::RunMode> for RunMode {
                 node_wxhopr: node_wxhopr.amount().to_string(),
                 funding_tool,
                 error,
-                balance_recommendation,
+                balance_recommendation: balance_recommendation.map(Into::into),
             },
             command::RunMode::DeployingSafe { node_address } => RunMode::DeployingSafe {
                 node_address: node_address.to_checksum(),
@@ -226,7 +244,7 @@ impl From<command::BalanceResponse> for BalanceResponse {
             channels_out,
             info: br.info,
             funding_issues: br.funding_issues,
-            ideal_balance: br.ideal_balance,
+            ideal_balance: br.ideal_balance.map(Into::into),
             capacity_allocations,
         }
     }
