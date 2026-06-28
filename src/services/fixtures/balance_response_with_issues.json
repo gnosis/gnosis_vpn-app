@@ -1,13 +1,19 @@
 {
-  "node": "0",
-  "safe": "0",
+  "node": "30000000000000000",
+  "safe": "1000000000000000000",
   "channels_out": "0",
   "info": {
     "node_address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
     "node_peer_id": "16Uiu2HAmTest",
     "safe_address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa"
   },
-  "funding_issues": null,
-  "ideal_balance": null,
+  "funding_issues": [
+    "NodeLowOnFunds",
+    "SafeLowOnFunds"
+  ],
+  "ideal_balance": {
+    "wxhopr": "2000000000000000000",
+    "xdai": "50000000000000000"
+  },
   "capacity_allocations": null
 }

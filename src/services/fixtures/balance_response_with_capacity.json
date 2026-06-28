@@ -1,0 +1,37 @@
+{
+  "node": "30000000000000000",
+  "safe": "1000000000000000000",
+  "channels_out": "0",
+  "info": {
+    "node_address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
+    "node_peer_id": "16Uiu2HAmTest",
+    "safe_address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa"
+  },
+  "funding_issues": null,
+  "ideal_balance": null,
+  "capacity_allocations": [
+    {
+      "allocator": {
+        "type": "safe"
+      },
+      "capacity": {
+        "stake": "2000000000000000000",
+        "expected_messages": 1000,
+        "min_guaranteed_messages": 100,
+        "byte_capacity": 1048576
+      }
+    },
+    {
+      "allocator": {
+        "type": "peer",
+        "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa"
+      },
+      "capacity": {
+        "stake": "500000000000000000",
+        "expected_messages": 250,
+        "min_guaranteed_messages": 25,
+        "byte_capacity": 262144
+      }
+    }
+  ]
+}
