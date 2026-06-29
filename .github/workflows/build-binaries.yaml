@@ -30,7 +30,11 @@ jobs:
     runs-on: ${{ inputs.runner }}
     timeout-minutes: 90
     steps:
+      # harden-runner does not support non-Linux on third-party runners (e.g. Depot macOS).
+      # GitHub-hosted macOS is supported, so only skip on depot-macos-* labels.
+      # https://github.com/step-security/harden-runner/blob/9af89fc71515a100421586dfdb3dc9c984fbf411/src/setup.ts#L305-L308
       - name: Harden Runner
+        if: "!startsWith(inputs.runner, 'depot-macos')"
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           disable-sudo: false
