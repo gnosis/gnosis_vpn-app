@@ -30,16 +30,22 @@ jobs:
     runs-on: ${{ inputs.runner }}
     timeout-minutes: 90
     steps:
-      # harden-runner does not support non-Linux on third-party runners (e.g. Depot macOS).
-      # see https://github.com/step-security/harden-runner/blob/9af89fc71515a100421586dfdb3dc9c984fbf411/src/setup.ts#L305-L308
-      # we use runner.os instead of inputs.runner because the `inputs` context is not
-      # reliably resolved in step-level `if` conditions inside reusable workflows
       - name: Harden Runner
-        if: runner.os == 'Linux'
+        if: startsWith(inputs.runner, 'depot-ubuntu')
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           disable-sudo: false
           egress-policy: audit
+      - name: Harden Runner (skipped — not supported on macOS Depot runners)
+        if: startsWith(inputs.runner, 'depot-macos')
+        run: |
+          sudo mkdir -p /opt/step-security
+          echo "Skipping Harden Runner on Depot macOS (see https://github.com/step-security/harden-runner/blob/9af89fc71515a100421586dfdb3dc9c984fbf411/src/setup.ts#L305-L308)"
+      - name: Harden Runner (hard fail — unrecognized runner)
+        if: "!startsWith(inputs.runner, 'depot-ubuntu') && !startsWith(inputs.runner, 'depot-macos')"
+        run: |
+          echo "ERROR: No Harden Runner policy defined for runner '${{ inputs.runner }}'"
+          exit 1
       - name: Checkout repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
