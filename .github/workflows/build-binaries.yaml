@@ -33,7 +33,7 @@ jobs:
       # On macOS, harden-runner detects Depot as a third-party provider and skips
       # the agent install (Bravo is Linux-only). The post-step then crashes trying
       # to write /opt/step-security/post_event.json which was never created.
-      # See: step-security/harden-runner src/setup.ts — `Bravo agent is Linux-only, skipping install`
+      # https://github.com/step-security/harden-runner/blob/9af89fc71515a100421586dfdb3dc9c984fbf411/src/setup.ts#L305-L308
       - name: Harden Runner
         if: runner.os != 'macOS'
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
