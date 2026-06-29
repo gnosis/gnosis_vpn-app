@@ -40,7 +40,7 @@ jobs:
         if: startsWith(inputs.runner, 'depot-macos')
         run: |
           sudo mkdir -p /opt/step-security
-          sudo chown "$(whoami)" /opt/step-security
+          sudo chown -h "$(whoami)" /opt/step-security
           echo "Skipping Harden Runner on Depot macOS (see https://github.com/step-security/harden-runner/blob/9af89fc71515a100421586dfdb3dc9c984fbf411/src/setup.ts#L305-L308)"
       - name: Harden Runner (hard fail — unrecognized runner)
         if: "!startsWith(inputs.runner, 'depot-ubuntu') && !startsWith(inputs.runner, 'depot-macos')"
