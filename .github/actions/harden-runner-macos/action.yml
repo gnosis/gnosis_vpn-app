@@ -1,7 +1,0 @@
-name: Harden Runner (macOS skip)
-description: No-op placeholder — harden-runner is not supported on macOS Depot runners
-runs:
-  using: composite
-  steps:
-    - shell: bash
-      run: echo "Skipping Harden Runner on Depot macOS (see https://github.com/step-security/harden-runner/blob/9af89fc71515a100421586dfdb3dc9c984fbf411/src/setup.ts#L305-L308)"
