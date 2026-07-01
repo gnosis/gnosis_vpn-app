@@ -26,7 +26,6 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
-      id-token: write
     if: inputs.enabled
     runs-on: ${{ inputs.runner }}
     timeout-minutes: 90
@@ -175,8 +174,7 @@ jobs:
         if: steps.version.outputs.publish_artifact_registry == 'true'
         uses: hoprnet/hopr-workflows/actions/setup-gcp@eedb4b7701714299852ca5243f1544b817653f33 # setup-gcp-v3
         with:
-          workload_identity_provider: projects/656686060169/locations/global/workloadIdentityPools/gnosisvpn-gh-pool/providers/github-provider
-          service_account: artifact-upload-gnosisvpn-app-gh-sa@gnosisvpn-production.iam.gserviceaccount.com
+          google_credentials: ${{ secrets.GCP_SA_GITHUB_ACTIONS }}
           install_sdk: "true"
       - name: Publish ${{ inputs.architecture }} into Google Artifact registry
         if: steps.version.outputs.publish_artifact_registry == 'true'
