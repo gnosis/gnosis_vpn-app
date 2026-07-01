@@ -18,6 +18,7 @@ env:
   CARGO_TERM_COLOR: always
 jobs:
   build-binaries:
+    if: ${{ github.event.pull_request.head.repo.fork == false }}
     strategy:
       matrix:
         include:
@@ -41,10 +42,11 @@ jobs:
     secrets: inherit
   checks:
     name: Checks
+    if: ${{ github.event.pull_request.head.repo.fork == false }}
     runs-on: depot-ubuntu-22.04-4
     steps:
       - name: Run checks
-        uses: hoprnet/hopr-workflows/actions/nix-action@9c452ef512e6a7d5119125af9fc1aa45591a632f # 0.10.2
+        uses: hoprnet/hopr-workflows/actions/nix-action@eedb4b7701714299852ca5243f1544b817653f33 # nix-action-v1
         with:
           source_branch: ${{ github.event.pull_request.head.ref || github.ref }}
           cachix_cache_name: gnosis-vpn-app
