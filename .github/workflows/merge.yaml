@@ -55,3 +55,29 @@ jobs:
           token: ${{ steps.bot-token.outputs.token }}
           repository: gnosis/gnosis_vpn
           event-type: snapshot_build
+  update-latest-version:
+    name: Update app version in gnosis_vpn repo
+    if: github.event.pull_request.merged == true && needs.build-binaries.outputs.publish_artifact_registry == 'true'
+    runs-on: depot-ubuntu-22.04-4
+    needs:
+      - build-binaries
+    permissions:
+      contents: read
+    steps:
+      - name: Generate GitHub App token
+        id: bot-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ secrets.GH_APP_GNOSISVPN_CLIENT_ID }}
+          private-key: ${{ secrets.GH_APP_GNOSISVPN_BOT_PRIVATE_KEY }}
+          owner: gnosis
+          repositories: gnosis_vpn
+      - name: Set GNOSISVPN_APP_LATEST_VERSION in gnosis/gnosis_vpn
+        env:
+          GH_TOKEN: ${{ steps.bot-token.outputs.token }}
+          NEW_VERSION: ${{ needs.build-binaries.outputs.build_version }}
+        run: |
+          echo "Setting GNOSISVPN_APP_LATEST_VERSION=${NEW_VERSION} in gnosis/gnosis_vpn"
+          gh variable set GNOSISVPN_APP_LATEST_VERSION \
+            --repo gnosis/gnosis_vpn \
+            --body "${NEW_VERSION}"

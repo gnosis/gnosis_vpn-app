@@ -21,6 +21,13 @@ on:
         required: false
         type: boolean
         default: true
+    outputs:
+      build_version:
+        description: "Version that was built (and published to the artifact registry when publish_artifact_registry is true)"
+        value: ${{ jobs.binary.outputs.build_version }}
+      publish_artifact_registry:
+        description: "Whether the binary was published to the Google Artifact registry"
+        value: ${{ jobs.binary.outputs.publish_artifact_registry }}
 jobs:
   binary:
     permissions:
@@ -29,6 +36,9 @@ jobs:
     if: inputs.enabled
     runs-on: ${{ inputs.runner }}
     timeout-minutes: 90
+    outputs:
+      build_version: ${{ steps.version.outputs.build_version }}
+      publish_artifact_registry: ${{ steps.version.outputs.publish_artifact_registry }}
     steps:
       - name: Harden Runner
         if: startsWith(inputs.runner, 'depot-ubuntu')
@@ -53,7 +63,7 @@ jobs:
           persist-credentials: false
           ref: ${{ inputs.source_branch }}
       - name: Setup Nix
-        uses: hoprnet/hopr-workflows/actions/setup-nix@eedb4b7701714299852ca5243f1544b817653f33 # setup-nix-v2
+        uses: hoprnet/hopr-workflows/actions/setup-nix@eedb4b7701714299852ca5243f1544b817653f33 # hoprnet/hopr-workflows 0.11.1
         with:
           cachix_cache_name: gnosis-vpn-app
           cachix_auth_token: "${{ secrets.CACHIX_AUTH_TOKEN }}"
@@ -172,13 +182,13 @@ jobs:
           fi
       - name: Setup GCP
         if: steps.version.outputs.publish_artifact_registry == 'true'
-        uses: hoprnet/hopr-workflows/actions/setup-gcp@eedb4b7701714299852ca5243f1544b817653f33 # setup-gcp-v3
+        uses: hoprnet/hopr-workflows/actions/setup-gcp@eedb4b7701714299852ca5243f1544b817653f33 # hoprnet/hopr-workflows 0.11.1
         with:
           google_credentials: ${{ secrets.GCP_SA_GITHUB_ACTIONS }}
           install_sdk: "true"
       - name: Publish ${{ inputs.architecture }} into Google Artifact registry
         if: steps.version.outputs.publish_artifact_registry == 'true'
-        uses: hoprnet/hopr-workflows/actions/upload-artifact-registry@9c452ef512e6a7d5119125af9fc1aa45591a632f # 0.10.2
+        uses: hoprnet/hopr-workflows/actions/upload-artifact-registry@9c452ef512e6a7d5119125af9fc1aa45591a632f # hoprnet/hopr-workflows 0.10.2
         with:
           source: ${{ github.workspace }}/artifacts
           package: gnosis_vpn-app

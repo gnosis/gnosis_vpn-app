@@ -41,6 +41,33 @@ jobs:
       version_type: "release"
     secrets: inherit
 
+  update-latest-version:
+    name: Update app version in gnosis_vpn repo
+    needs:
+      - build-binaries
+    if: needs.build-binaries.outputs.publish_artifact_registry == 'true'
+    runs-on: depot-ubuntu-22.04-4
+    permissions:
+      contents: read
+    steps:
+      - name: Generate GitHub App token
+        id: bot-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ secrets.GH_APP_GNOSISVPN_CLIENT_ID }}
+          private-key: ${{ secrets.GH_APP_GNOSISVPN_BOT_PRIVATE_KEY }}
+          owner: gnosis
+          repositories: gnosis_vpn
+      - name: Set GNOSISVPN_APP_LATEST_VERSION in gnosis/gnosis_vpn
+        env:
+          GH_TOKEN: ${{ steps.bot-token.outputs.token }}
+          NEW_VERSION: ${{ needs.build-binaries.outputs.build_version }}
+        run: |
+          echo "Setting GNOSISVPN_APP_LATEST_VERSION=${NEW_VERSION} in gnosis/gnosis_vpn"
+          gh variable set GNOSISVPN_APP_LATEST_VERSION \
+            --repo gnosis/gnosis_vpn \
+            --body "${NEW_VERSION}"
+
   release:
     name: Close release
     needs:
@@ -50,7 +77,7 @@ jobs:
       contents: write
     steps:
       - name: Release version
-        uses: hoprnet/hopr-workflows/actions/release-version@eedb4b7701714299852ca5243f1544b817653f33 # release-version-v5
+        uses: hoprnet/hopr-workflows/actions/release-version@eedb4b7701714299852ca5243f1544b817653f33 # hoprnet/hopr-workflows 0.11.1
         with:
           source_branch: ${{ github.ref_name }}
           file: src-tauri/Cargo.toml
