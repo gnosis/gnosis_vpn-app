@@ -137,9 +137,8 @@ export default function Usage() {
                 <div class="h-14 w-full rounded bg-sky-600/15 animate-pulse" />
               }
             >
-              <div class="grid grid-cols-[auto_auto_auto_1fr] gap-x-3 items-baseline gap-y-3">
+              <div class="grid grid-cols-[auto_auto_1fr] gap-x-3 items-baseline gap-y-3">
                 <FundsInfo
-                  label="Traffic"
                   {...humanWxhoprParts(wxhoprRaw())}
                   tooltip={<>{wxhoprDecimal(wxhoprRaw())} wxHOPR</>}
                   status={deriveSafeStatus(fundingIssues())}
@@ -149,7 +148,7 @@ export default function Usage() {
                     isRunningRunMode(appState.runMode)}
                 >
                   <div
-                    class={`col-start-4 col-span-1 text-xs text-right -mt-2 ${
+                    class={`col-span-3 text-xs text-right -mt-2 ${
                       deriveSafeStatus(fundingIssues()) === "Empty"
                         ? "text-vpn-red"
                         : "text-text-secondary"
@@ -159,7 +158,6 @@ export default function Usage() {
                   </div>
                 </Show>
                 <FundsInfo
-                  label="Gas Fees"
                   amount={humanXdai(xdaiRaw())}
                   unit="xDAI"
                   tooltip={<>{formatXdai(xdaiRaw(), 18)} xDAI</>}

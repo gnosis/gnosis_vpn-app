@@ -11,7 +11,6 @@ const MARGIN = 8;
 const ARROW_INSET = 8;
 
 type Props = {
-  label: string;
   amount: string;
   unit: string;
   status?: "Sufficient" | "Low" | "Empty" | string | null;
@@ -88,7 +87,6 @@ export default function FundsInfo(props: Props) {
 
   return (
     <>
-      <span class="font-semibold">{props.label}</span>
       <span
         class={cellClass("font-semibold font-mono text-right")}
         onMouseEnter={props.tooltip ? show : undefined}
