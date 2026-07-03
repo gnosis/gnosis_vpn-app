@@ -104,10 +104,12 @@ export default function ExitNodeCard(props: {
       }}
       onKeyDown={(e) => {
         if (!isClickable()) return;
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          props.onClick();
-        }
+        if (e.key === "Enter" && !e.repeat) props.onClick();
+        if (e.key === " ") e.preventDefault(); // prevent scroll; activate on keyup
+      }}
+      onKeyUp={(e) => {
+        if (!isClickable()) return;
+        if (e.key === " ") props.onClick();
       }}
       role="button"
       tabIndex={isClickable() ? 0 : -1}
