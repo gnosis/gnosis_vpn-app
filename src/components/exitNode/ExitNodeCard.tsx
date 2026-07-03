@@ -98,12 +98,11 @@ export default function ExitNodeCard(props: {
           ? "opacity-40 pointer-events-none"
           : "cursor-pointer hover:bg-bg-surface"
       }`}
-      onClick={isClickable() ? () => props.onClick() : undefined}
-      onKeyDown={isClickable()
-        ? (e) => e.key === "Enter" && props.onClick()
-        : undefined}
-      role={isClickable() ? "button" : undefined}
-      tabIndex={isClickable() ? 0 : undefined}
+      onClick={() => props.onClick()}
+      onKeyDown={(e) => e.key === "Enter" && props.onClick()}
+      role="button"
+      tabIndex={isClickable() ? 0 : -1}
+      aria-disabled={!isClickable()}
     >
       <Show when={leftBarColor()}>
         {(color) => (
