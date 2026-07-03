@@ -144,20 +144,26 @@ export default function Usage() {
                   tooltip={<>{wxhoprDecimal(wxhoprRaw())} wxHOPR</>}
                   status={deriveSafeStatus(fundingIssues())}
                   subline={
-                    <Show
-                      when={effectiveCredit() !== null &&
-                        isRunningRunMode(appState.runMode)}
-                    >
-                      <span
-                        class={`text-xs font-normal ${
-                          deriveSafeStatus(fundingIssues()) === "Empty"
-                            ? "text-vpn-red"
-                            : "text-text-secondary"
-                        }`}
+                    // Explicit null check + assertion instead of Show's
+                    // narrowing callback: credit can be 0n, which is falsy
+                    // and would wrongly hide the hint.
+
+
+                      <Show
+                        when={effectiveCredit() !== null &&
+                          isRunningRunMode(appState.runMode)}
                       >
-                        ≈{formatCredit(effectiveCredit()!)}
-                      </span>
-                    </Show>
+                        <span
+                          class={`text-xs font-normal ${
+                            deriveSafeStatus(fundingIssues()) === "Empty"
+                              ? "text-vpn-red"
+                              : "text-text-secondary"
+                          }`}
+                        >
+                          ≈{formatCredit(effectiveCredit()!)}
+                        </span>
+                      </Show>
+
                   }
                 />
                 <FundsInfo
