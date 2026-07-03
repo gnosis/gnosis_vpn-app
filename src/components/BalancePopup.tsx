@@ -22,15 +22,16 @@ type Props = {
   onMouseLeave: () => void;
 };
 
+// Same status → color mapping as the Usage screen, brighter shades for
+// visibility on the accent background.
 function StatusDot(props: { status: StatusText }) {
-  return (
-    <div
-      class={`w-2 h-2 rounded-full ${
-        props.status === "Sufficient" ? "bg-emerald-500" : "bg-red-500"
-      }`}
-    >
-    </div>
-  );
+  const color = () =>
+    props.status === "Sufficient"
+      ? "bg-emerald-500"
+      : props.status === "Empty"
+      ? "bg-red-500"
+      : "bg-amber-500";
+  return <div class={`w-2 h-2 rounded-full ${color()}`}></div>;
 }
 
 export default function BalancePopup(props: Props) {
@@ -123,7 +124,7 @@ export default function BalancePopup(props: Props) {
               <div class="flex items-center gap-1 mb-0.5">
                 <StatusDot status={deriveNodeStatus(fundingIssues())} />
                 <div class="text-[9px] text-accent-text/70 uppercase tracking-wide">
-                  CUSTOM EXIT NODES
+                  GAS FEES
                 </div>
               </div>
               <Show

@@ -130,34 +130,44 @@ export default function Usage() {
             </div>
           </Show>
 
-          <div class="flex flex-col py-4 my-4 w-64 gap-1">
+          <div class="flex flex-col py-4 my-4 w-full max-w-md gap-1">
             <Show
               when={!isBalanceLoading()}
               fallback={
-                <div class="h-14 w-full rounded bg-sky-600/15 animate-pulse" />
+                <div class="h-24 w-full rounded bg-sky-600/15 animate-pulse" />
               }
             >
-              <div class="grid grid-cols-[auto_auto_1fr] gap-x-3 items-baseline gap-y-3">
+              <div class="grid grid-cols-[1fr_auto_auto_auto] gap-x-3 items-baseline gap-y-8">
                 <FundsInfo
+                  label="Traffic"
                   {...humanWxhoprParts(wxhoprRaw())}
                   tooltip={<>{wxhoprDecimal(wxhoprRaw())} wxHOPR</>}
                   status={deriveSafeStatus(fundingIssues())}
+                  subline={
+                    // Explicit null check + assertion instead of Show's
+                    // narrowing callback: credit can be 0n, which is falsy
+                    // and would wrongly hide the hint.
+
+
+                      <Show
+                        when={effectiveCredit() !== null &&
+                          isRunningRunMode(appState.runMode)}
+                      >
+                        <span
+                          class={`text-xs font-normal ${
+                            deriveSafeStatus(fundingIssues()) === "Empty"
+                              ? "text-vpn-red"
+                              : "text-text-secondary"
+                          }`}
+                        >
+                          ≈{formatCredit(effectiveCredit()!)}
+                        </span>
+                      </Show>
+
+                  }
                 />
-                <Show
-                  when={effectiveCredit() !== null &&
-                    isRunningRunMode(appState.runMode)}
-                >
-                  <div
-                    class={`col-span-3 text-xs text-right -mt-2 ${
-                      deriveSafeStatus(fundingIssues()) === "Empty"
-                        ? "text-vpn-red"
-                        : "text-text-secondary"
-                    }`}
-                  >
-                    ≈{formatCredit(effectiveCredit()!)}
-                  </div>
-                </Show>
                 <FundsInfo
+                  label="Gas Fees"
                   amount={humanXdai(xdaiRaw())}
                   unit="xDAI"
                   tooltip={<>{formatXdai(xdaiRaw(), 18)} xDAI</>}
@@ -167,7 +177,7 @@ export default function Usage() {
             </Show>
           </div>
 
-          <div class="w-64 flex flex-col gap-2">
+          <div class="w-full max-w-md flex flex-col gap-2">
             <Button onClick={() => setIsAddFundsOpen(true)}>Add funds</Button>
             <div class="flex flex-row items-center gap-2 max-w-md">
               <div class="text-xs text-text-secondary px-2">
