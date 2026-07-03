@@ -7,7 +7,7 @@ import { isRunningRunMode } from "../services/vpnService.ts";
 import fundsFullIcon from "../assets/icons/funds-full.svg";
 import fundsOutIcon from "../assets/icons/funds-out.svg";
 import fundsEmptyIcon from "../assets/icons/funds-empty.svg";
-import { deriveSafeStatus } from "../utils/funding.ts";
+import { deriveOverallStatus } from "../utils/funding.ts";
 import { createSignal, onCleanup } from "solid-js";
 import { useAppStore } from "../stores/appStore.ts";
 import Tooltip from "./common/Tooltip.tsx";
@@ -21,11 +21,11 @@ function Navigation() {
   let containerRef: HTMLDivElement | undefined;
   let hoverTimeout: ReturnType<typeof globalThis.setTimeout> | undefined;
 
-  // Icon follows the Safe (traffic) status only, mirroring the
-  // TRAFFIC status dot colors in the balance popup.
+  // Icon reflects the worst of Safe (traffic) and Node (gas) status,
+  // matching the two status dots in the balance popup.
   const getFundsIcon = () => {
     if (!isRunningRunMode(appState.runMode)) return fundsEmptyIcon;
-    const status = deriveSafeStatus(
+    const status = deriveOverallStatus(
       appState.runMode.Running.funding_issues ?? [],
     );
     if (status === "Empty") return fundsEmptyIcon;
