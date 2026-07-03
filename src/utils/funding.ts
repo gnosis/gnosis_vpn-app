@@ -29,6 +29,15 @@ export function deriveSafeStatus(issues: FundingIssue[]): StatusText {
   return "Sufficient";
 }
 
+// Worst of Safe and Node status — the wallet icon must flag either problem.
+export function deriveOverallStatus(issues: FundingIssue[]): StatusText {
+  const safe = deriveSafeStatus(issues);
+  const node = deriveNodeStatus(issues);
+  if (safe === "Empty" || node === "Empty") return "Empty";
+  if (safe === "Low" || node === "Low") return "Low";
+  return "Sufficient";
+}
+
 export function deriveNodeStatus(issues: FundingIssue[]): StatusText {
   if (
     issues.includes("Unfunded") ||
