@@ -5,9 +5,9 @@ import settingsIcon from "../assets/icons/settings.svg";
 import { openSettingsWindow } from "../utils/settingsWindow.ts";
 import { isRunningRunMode } from "../services/vpnService.ts";
 import fundsFullIcon from "../assets/icons/funds-full.svg";
-import fundsLowIcon from "../assets/icons/funds-low.svg";
 import fundsOutIcon from "../assets/icons/funds-out.svg";
 import fundsEmptyIcon from "../assets/icons/funds-empty.svg";
+import { deriveSafeStatus } from "../utils/funding.ts";
 import { createSignal, onCleanup } from "solid-js";
 import { useAppStore } from "../stores/appStore.ts";
 import Tooltip from "./common/Tooltip.tsx";
@@ -21,23 +21,16 @@ function Navigation() {
   let containerRef: HTMLDivElement | undefined;
   let hoverTimeout: ReturnType<typeof globalThis.setTimeout> | undefined;
 
+  // Icon follows the Safe (traffic) status only, mirroring the
+  // TRAFFIC status dot colors in the balance popup.
   const getFundsIcon = () => {
     if (!isRunningRunMode(appState.runMode)) return fundsEmptyIcon;
-    const issues = appState.runMode.Running.funding_issues;
-    if (!issues || issues.length === 0) return fundsFullIcon;
-    switch (issues[0]) {
-      case "Unfunded":
-      case "ChannelsOutOfFunds":
-        return fundsEmptyIcon;
-      case "SafeLowOnFunds":
-      case "NodeLowOnFunds":
-        return fundsLowIcon;
-      case "NodeUnderfunded":
-      case "SafeOutOfFunds":
-        return fundsOutIcon;
-      default:
-        return fundsEmptyIcon;
-    }
+    const status = deriveSafeStatus(
+      appState.runMode.Running.funding_issues ?? [],
+    );
+    if (status === "Empty") return fundsEmptyIcon;
+    if (status === "Low") return fundsOutIcon;
+    return fundsFullIcon;
   };
 
   const handleMouseEnter = () => {
