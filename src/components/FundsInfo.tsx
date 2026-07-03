@@ -11,13 +11,17 @@ const MARGIN = 8;
 const ARROW_INSET = 8;
 
 type Props = {
+  label: string;
   amount: string;
   unit: string;
   status?: "Sufficient" | "Low" | "Empty" | string | null;
   tooltip?: JSX.Element;
+  // Rendered right below the status label, e.g. a traffic estimate.
+  subline?: JSX.Element;
 };
 
-// Returns 3 bare grid cells — must be placed inside a grid-cols-3 parent.
+// Returns 4 bare grid cells (label, amount, unit, status) — must be placed
+// inside a 4-column grid parent.
 export default function FundsInfo(props: Props) {
   const statusColor = () =>
     props.status === "Sufficient"
@@ -87,8 +91,9 @@ export default function FundsInfo(props: Props) {
 
   return (
     <>
+      <span class="text-2xl font-bold">{props.label}</span>
       <span
-        class={cellClass("font-semibold font-mono text-right")}
+        class={cellClass("text-xl font-semibold font-mono text-right")}
         onMouseEnter={props.tooltip ? show : undefined}
         onMouseLeave={props.tooltip ? hide : undefined}
       >
@@ -96,7 +101,7 @@ export default function FundsInfo(props: Props) {
       </span>
       <span
         ref={unitRef}
-        class={cellClass("font-semibold")}
+        class={cellClass("text-xl font-semibold")}
         onMouseEnter={props.tooltip ? show : undefined}
         onMouseLeave={props.tooltip ? hide : undefined}
       >
@@ -104,11 +109,14 @@ export default function FundsInfo(props: Props) {
       </span>
       <Show when={props.status}>
         <span
-          class={cellClass(`font-bold text-xs text-right ${statusColor()}`)}
+          class={cellClass("flex flex-col items-end text-right")}
           onMouseEnter={props.tooltip ? show : undefined}
           onMouseLeave={props.tooltip ? hide : undefined}
         >
-          {props.status}
+          <span class={`font-bold text-xs ${statusColor()}`}>
+            {props.status}
+          </span>
+          {props.subline}
         </span>
       </Show>
       <Show when={visible() && props.tooltip}>
