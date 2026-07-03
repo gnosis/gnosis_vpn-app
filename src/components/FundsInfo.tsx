@@ -93,7 +93,7 @@ export default function FundsInfo(props: Props) {
     <>
       <span class="text-2xl font-bold">{props.label}</span>
       <span
-        class={cellClass("text-xl font-semibold font-mono text-right")}
+        class={cellClass("text-xl font-normal font-mono text-right")}
         onMouseEnter={props.tooltip ? show : undefined}
         onMouseLeave={props.tooltip ? hide : undefined}
       >
