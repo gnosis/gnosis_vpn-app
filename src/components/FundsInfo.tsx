@@ -6,6 +6,7 @@ import {
   Show,
 } from "solid-js";
 import { Portal } from "solid-js/web";
+import type { StatusText } from "../utils/funding.ts";
 
 const MARGIN = 8;
 const ARROW_INSET = 8;
@@ -14,7 +15,9 @@ type Props = {
   label: string;
   amount: string;
   unit: string;
-  status?: "Sufficient" | "Low" | "Empty" | string | null;
+  // Required: the status cell must always render, or the 4-column
+  // grid contract below breaks.
+  status: StatusText;
   tooltip?: JSX.Element;
   // Rendered right below the status label, e.g. a traffic estimate.
   subline?: JSX.Element;
@@ -107,18 +110,16 @@ export default function FundsInfo(props: Props) {
       >
         {props.unit}
       </span>
-      <Show when={props.status}>
-        <span
-          class={cellClass("flex flex-col items-end text-right")}
-          onMouseEnter={props.tooltip ? show : undefined}
-          onMouseLeave={props.tooltip ? hide : undefined}
-        >
-          <span class={`font-bold text-xs ${statusColor()}`}>
-            {props.status}
-          </span>
-          {props.subline}
+      <span
+        class={cellClass("flex flex-col items-end text-right")}
+        onMouseEnter={props.tooltip ? show : undefined}
+        onMouseLeave={props.tooltip ? hide : undefined}
+      >
+        <span class={`font-bold text-xs ${statusColor()}`}>
+          {props.status}
         </span>
-      </Show>
+        {props.subline}
+      </span>
       <Show when={visible() && props.tooltip}>
         <Portal mount={document.body}>
           <div
