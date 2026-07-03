@@ -98,12 +98,22 @@ export default function ExitNodeCard(props: {
           ? "opacity-40 pointer-events-none"
           : "cursor-pointer hover:bg-bg-surface"
       }`}
-      onClick={isClickable() ? () => props.onClick() : undefined}
-      onKeyDown={isClickable()
-        ? (e) => e.key === "Enter" && props.onClick()
-        : undefined}
-      role={isClickable() ? "button" : undefined}
-      tabIndex={isClickable() ? 0 : undefined}
+      onClick={() => {
+        if (!isClickable()) return;
+        props.onClick();
+      }}
+      onKeyDown={(e) => {
+        if (!isClickable()) return;
+        if (e.key === "Enter" && !e.repeat) props.onClick();
+        if (e.key === " ") e.preventDefault(); // prevent scroll; activate on keyup
+      }}
+      onKeyUp={(e) => {
+        if (!isClickable()) return;
+        if (e.key === " ") props.onClick();
+      }}
+      role="button"
+      tabIndex={isClickable() ? 0 : -1}
+      aria-disabled={!isClickable()}
     >
       <Show when={leftBarColor()}>
         {(color) => (
