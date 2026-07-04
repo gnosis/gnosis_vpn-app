@@ -38,7 +38,11 @@ export function MainScreen() {
       : []
   );
   const balanceStatus = createMemo(() => deriveOverallStatus(fundingIssues()));
-  // Dismissal is per status level so an escalation (Low → Empty) resurfaces the banner.
+  // Reset dismissal when balance recovers so the next drop resurfaces the banner.
+  createEffect(() => {
+    if (balanceStatus() === "Sufficient") setDismissedBalanceStatus(null);
+  });
+  // Dismissal is per status level so an escalation (Low → Empty) also resurfaces the banner.
   const showBalanceBanner = () =>
     balanceStatus() !== "Sufficient" &&
     dismissedBalanceStatus() !== balanceStatus();
