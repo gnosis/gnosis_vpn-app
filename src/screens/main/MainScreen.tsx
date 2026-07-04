@@ -44,7 +44,7 @@ export function MainScreen() {
     dismissedBalanceStatus() !== balanceStatus();
   const balanceBannerText = () =>
     balanceStatus() === "Empty"
-      ? "You are out of funds"
+      ? "Your balance is empty"
       : "Your balance is low";
 
   const activeDestinationState = createMemo(() => {
