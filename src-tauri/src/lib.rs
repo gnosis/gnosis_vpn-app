@@ -221,7 +221,10 @@ pub fn run() {
             // Create tray menu
             let menu = create_tray_menu(app.handle())?;
 
-            let icon_name: &str = determine_tray_icon(&ConnectionState::Disconnected);
+            let icon_name: &str = determine_tray_icon(
+                &ConnectionState::Disconnected,
+                icons::FundsLevel::Sufficient,
+            );
 
             let tray_icon_path: PathBuf = app
                 .path()

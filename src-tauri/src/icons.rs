@@ -26,18 +26,35 @@ pub const APP_ICON_DISCONNECTED: &str = "app-icon-disconnected.png";
 pub const APP_ICON_DISCONNECTED_LOW_FUNDS: &str = "app-icon-disconnected-low-funds.png";
 pub const APP_ICON_DISCONNECTED_OUT_OF_FUNDS: &str = "app-icon-disconnected-out-of-funds.png";
 
-// Tray icon constants
+// Tray icon constants (macOS/Windows, macOS renders them alpha-only via template mode)
 pub const TRAY_ICON_CONNECTED: &str = "tray-icons/tray-icon-connected.png";
-pub const _TRAY_ICON_CONNECTED_BLACK: &str = "tray-icons/tray-icon-connected-black.png";
+pub const TRAY_ICON_CONNECTED_LOW_FUNDS: &str = "tray-icons/tray-icon-connected-low-funds.png";
+pub const TRAY_ICON_CONNECTED_OUT_OF_FUNDS: &str =
+    "tray-icons/tray-icon-connected-out-of-funds.png";
 pub const TRAY_ICON_CONNECTING: &str = "tray-icons/tray-icon-connecting.png";
-pub const _TRAY_ICON_CONNECTING_BLACK: &str = "tray-icons/tray-icon-connecting-black.png";
+pub const TRAY_ICON_CONNECTING_LOW_FUNDS: &str = "tray-icons/tray-icon-connecting-low-funds.png";
+pub const TRAY_ICON_CONNECTING_OUT_OF_FUNDS: &str =
+    "tray-icons/tray-icon-connecting-out-of-funds.png";
 pub const TRAY_ICON_DISCONNECTED: &str = "tray-icons/tray-icon-disconnected.png";
-pub const _TRAY_ICON_DISCONNECTED_BLACK: &str = "tray-icons/tray-icon-disconnected-black.png";
+pub const TRAY_ICON_DISCONNECTED_LOW_FUNDS: &str =
+    "tray-icons/tray-icon-disconnected-low-funds.png";
+pub const TRAY_ICON_DISCONNECTED_OUT_OF_FUNDS: &str =
+    "tray-icons/tray-icon-disconnected-out-of-funds.png";
 
-// Linux tray icon constants (theme-independent)
+// Linux tray icon constants (theme-independent, full-color app icon design)
 pub const TRAY_ICON_LINUX_CONNECTED: &str = "tray-icons/linux/connected.png";
+pub const TRAY_ICON_LINUX_CONNECTED_LOW_FUNDS: &str = "tray-icons/linux/connected-low-funds.png";
+pub const TRAY_ICON_LINUX_CONNECTED_OUT_OF_FUNDS: &str =
+    "tray-icons/linux/connected-out-of-funds.png";
 pub const TRAY_ICON_LINUX_CONNECTING: &str = "tray-icons/linux/connecting.png";
+pub const TRAY_ICON_LINUX_CONNECTING_LOW_FUNDS: &str = "tray-icons/linux/connecting-low-funds.png";
+pub const TRAY_ICON_LINUX_CONNECTING_OUT_OF_FUNDS: &str =
+    "tray-icons/linux/connecting-out-of-funds.png";
 pub const TRAY_ICON_LINUX_DISCONNECTED: &str = "tray-icons/linux/disconnected.png";
+pub const TRAY_ICON_LINUX_DISCONNECTED_LOW_FUNDS: &str =
+    "tray-icons/linux/disconnected-low-funds.png";
+pub const TRAY_ICON_LINUX_DISCONNECTED_OUT_OF_FUNDS: &str =
+    "tray-icons/linux/disconnected-out-of-funds.png";
 
 // State to hold a reference to the tray icon so we can update it
 pub struct TrayIconState {
@@ -148,22 +165,46 @@ pub fn determine_app_icon(connection_state: &ConnectionState, run_mode: &RunMode
     icon.to_string()
 }
 
-pub fn determine_tray_icon(connection_state: &ConnectionState) -> &'static str {
+pub fn determine_tray_icon(connection_state: &ConnectionState, level: FundsLevel) -> &'static str {
     if cfg!(target_os = "linux") {
         match connection_state {
-            ConnectionState::Connected(_) => TRAY_ICON_LINUX_CONNECTED,
+            ConnectionState::Connected(_) => match level {
+                FundsLevel::Sufficient => TRAY_ICON_LINUX_CONNECTED,
+                FundsLevel::Low => TRAY_ICON_LINUX_CONNECTED_LOW_FUNDS,
+                FundsLevel::Empty => TRAY_ICON_LINUX_CONNECTED_OUT_OF_FUNDS,
+            },
             ConnectionState::Connecting(_)
             | ConnectionState::Reconnecting(_)
-            | ConnectionState::Disconnecting => TRAY_ICON_LINUX_CONNECTING,
-            _ => TRAY_ICON_LINUX_DISCONNECTED,
+            | ConnectionState::Disconnecting => match level {
+                FundsLevel::Sufficient => TRAY_ICON_LINUX_CONNECTING,
+                FundsLevel::Low => TRAY_ICON_LINUX_CONNECTING_LOW_FUNDS,
+                FundsLevel::Empty => TRAY_ICON_LINUX_CONNECTING_OUT_OF_FUNDS,
+            },
+            ConnectionState::Disconnected => match level {
+                FundsLevel::Sufficient => TRAY_ICON_LINUX_DISCONNECTED,
+                FundsLevel::Low => TRAY_ICON_LINUX_DISCONNECTED_LOW_FUNDS,
+                FundsLevel::Empty => TRAY_ICON_LINUX_DISCONNECTED_OUT_OF_FUNDS,
+            },
         }
     } else {
         match connection_state {
-            ConnectionState::Connected(_) => TRAY_ICON_CONNECTED,
+            ConnectionState::Connected(_) => match level {
+                FundsLevel::Sufficient => TRAY_ICON_CONNECTED,
+                FundsLevel::Low => TRAY_ICON_CONNECTED_LOW_FUNDS,
+                FundsLevel::Empty => TRAY_ICON_CONNECTED_OUT_OF_FUNDS,
+            },
             ConnectionState::Connecting(_)
             | ConnectionState::Reconnecting(_)
-            | ConnectionState::Disconnecting => TRAY_ICON_CONNECTING,
-            _ => TRAY_ICON_DISCONNECTED,
+            | ConnectionState::Disconnecting => match level {
+                FundsLevel::Sufficient => TRAY_ICON_CONNECTING,
+                FundsLevel::Low => TRAY_ICON_CONNECTING_LOW_FUNDS,
+                FundsLevel::Empty => TRAY_ICON_CONNECTING_OUT_OF_FUNDS,
+            },
+            ConnectionState::Disconnected => match level {
+                FundsLevel::Sufficient => TRAY_ICON_DISCONNECTED,
+                FundsLevel::Low => TRAY_ICON_DISCONNECTED_LOW_FUNDS,
+                FundsLevel::Empty => TRAY_ICON_DISCONNECTED_OUT_OF_FUNDS,
+            },
         }
     }
 }
@@ -172,8 +213,9 @@ pub fn update_tray_icon(
     app: &AppHandle,
     tray_icon_state: &TrayIconState,
     conn_state: &ConnectionState,
+    level: FundsLevel,
 ) {
-    let tray_icon_name = determine_tray_icon(conn_state);
+    let tray_icon_name = determine_tray_icon(conn_state, level);
     if update_icon_name_if_changed(&tray_icon_state.current_icon, tray_icon_name) {
         if let Ok(tray_icon_path) = Manager::path(app)
             .resource_dir()
@@ -331,5 +373,65 @@ mod tests {
             determine_app_icon(&disconnected, &empty),
             APP_ICON_DISCONNECTED_OUT_OF_FUNDS
         );
+    }
+
+    #[test]
+    fn tray_icon_matrix() {
+        // determine_tray_icon branches on the host OS, so assert on the
+        // state-derived name parts shared by both platform sets.
+        let cases = [
+            (
+                ConnectionState::Connected("x".into()),
+                FundsLevel::Sufficient,
+                "connected.png",
+            ),
+            (
+                ConnectionState::Connected("x".into()),
+                FundsLevel::Low,
+                "connected-low-funds.png",
+            ),
+            (
+                ConnectionState::Connected("x".into()),
+                FundsLevel::Empty,
+                "connected-out-of-funds.png",
+            ),
+            (
+                ConnectionState::Reconnecting("x".into()),
+                FundsLevel::Sufficient,
+                "connecting.png",
+            ),
+            (
+                ConnectionState::Connecting("x".into()),
+                FundsLevel::Low,
+                "connecting-low-funds.png",
+            ),
+            (
+                ConnectionState::Disconnecting,
+                FundsLevel::Empty,
+                "connecting-out-of-funds.png",
+            ),
+            (
+                ConnectionState::Disconnected,
+                FundsLevel::Sufficient,
+                "disconnected.png",
+            ),
+            (
+                ConnectionState::Disconnected,
+                FundsLevel::Low,
+                "disconnected-low-funds.png",
+            ),
+            (
+                ConnectionState::Disconnected,
+                FundsLevel::Empty,
+                "disconnected-out-of-funds.png",
+            ),
+        ];
+        for (conn, level, expected_suffix) in cases {
+            let icon = determine_tray_icon(&conn, level);
+            assert!(
+                icon.ends_with(expected_suffix),
+                "{icon} should end with {expected_suffix}"
+            );
+        }
     }
 }

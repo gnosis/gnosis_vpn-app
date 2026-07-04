@@ -385,12 +385,13 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
                     tick_timeout.as_mut().reset(Instant::now() + status_delay);
                     if let Ok(Some(ref status)) = result {
                         let conn_state = status.into();
-                        icons::update_tray_icon(&app, &app.state::<TrayIconState>(), &conn_state);
+                        let funds_level = icons::funds_level(&status.run_mode);
+                        icons::update_tray_icon(&app, &app.state::<TrayIconState>(), &conn_state, funds_level);
 
                         let should_animate = matches!(conn_state, ConnectionState::Connecting(_) | ConnectionState::Reconnecting(_) | ConnectionState::Disconnecting);
                         let app_icon_state = app.state::<Arc<AppIconState>>();
                         if let Ok(mut level) = app_icon_state.funds_level.lock() {
-                            *level = icons::funds_level(&status.run_mode);
+                            *level = funds_level;
                         }
                         app_icon_state.is_animating.store(should_animate, Ordering::Relaxed);
 
