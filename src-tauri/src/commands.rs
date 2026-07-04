@@ -386,7 +386,6 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
                     if let Ok(Some(ref status)) = result {
                         let conn_state = status.into();
                         let funds_level = icons::funds_level(&status.run_mode);
-                        icons::update_tray_icon(&app, &app.state::<TrayIconState>(), &conn_state, funds_level);
 
                         let should_animate = matches!(conn_state, ConnectionState::Connecting(_) | ConnectionState::Reconnecting(_) | ConnectionState::Disconnecting);
                         let app_icon_state = app.state::<Arc<AppIconState>>();
@@ -395,8 +394,10 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
                         }
                         app_icon_state.is_animating.store(should_animate, Ordering::Relaxed);
 
-                        // during animation, the heartbeat logic owns app icon changes
+                        // during animation, the heartbeat logic owns app and tray icon changes
                         if !should_animate {
+                            icons::update_tray_icon(&app, &app.state::<TrayIconState>(), &conn_state, funds_level);
+
                             let icon_name = icons::determine_app_icon(&conn_state, &status.run_mode);
                             if icons::update_icon_name_if_changed(&app_icon_state.current_icon, &icon_name) {
                                 if let Err(e) = set_app_icon(app.clone(), icon_name.to_string()).await {

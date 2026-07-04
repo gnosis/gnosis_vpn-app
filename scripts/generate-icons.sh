@@ -39,6 +39,8 @@ for state in disconnected connected; do
     done
 done
 for suffix in "" "-low-funds" "-out-of-funds"; do
-    rsvg-convert -w 201 -h 201 "$app_svg_dir/app-icon-connecting$suffix-1.svg" -o "$linux_png_dir/connecting$suffix.png"
-    echo "rendered $linux_png_dir/connecting$suffix.png"
+    for frame in 1 2; do
+        rsvg-convert -w 201 -h 201 "$app_svg_dir/app-icon-connecting$suffix-$frame.svg" -o "$linux_png_dir/connecting$suffix-$frame.png"
+        echo "rendered $linux_png_dir/connecting$suffix-$frame.png"
+    done
 done

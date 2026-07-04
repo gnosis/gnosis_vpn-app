@@ -9,14 +9,17 @@ APP = REPO / "src-tauri/icons/app-icons/svg"
 TRAY = REPO / "src-tauri/icons/tray-icons/svg"
 TRAY.mkdir(exist_ok=True)
 
-# tray name -> app svg source (connecting uses frame 1)
+# tray name -> app svg source
 MAPPING = {
     "tray-icon-disconnected": "app-icon-disconnected",
     "tray-icon-disconnected-low-funds": "app-icon-disconnected-low-funds",
     "tray-icon-disconnected-out-of-funds": "app-icon-disconnected-out-of-funds",
-    "tray-icon-connecting": "app-icon-connecting-1",
-    "tray-icon-connecting-low-funds": "app-icon-connecting-low-funds-1",
-    "tray-icon-connecting-out-of-funds": "app-icon-connecting-out-of-funds-1",
+    "tray-icon-connecting-1": "app-icon-connecting-1",
+    "tray-icon-connecting-2": "app-icon-connecting-2",
+    "tray-icon-connecting-low-funds-1": "app-icon-connecting-low-funds-1",
+    "tray-icon-connecting-low-funds-2": "app-icon-connecting-low-funds-2",
+    "tray-icon-connecting-out-of-funds-1": "app-icon-connecting-out-of-funds-1",
+    "tray-icon-connecting-out-of-funds-2": "app-icon-connecting-out-of-funds-2",
     "tray-icon-connected": "app-icon-connected",
     "tray-icon-connected-low-funds": "app-icon-connected-low-funds",
     "tray-icon-connected-out-of-funds": "app-icon-connected-out-of-funds",

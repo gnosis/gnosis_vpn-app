@@ -27,7 +27,7 @@ use commands::{
 };
 use gnosis_vpn_lib::command::InfoResponse;
 use gnosis_vpn_lib::{command, socket::root as root_socket};
-use icons::{AppIconState, TrayIconState, determine_tray_icon, start_app_icon_heartbeat};
+use icons::{AppIconState, TrayIconState, determine_tray_icon, start_icon_heartbeat};
 use platform::{Platform, PlatformInterface};
 #[cfg(target_os = "linux")]
 use theme::spawn_linux_theme_monitor;
@@ -281,7 +281,7 @@ pub fn run() {
             });
             app.manage(app_icon_state.clone());
 
-            let heartbeat_handle = start_app_icon_heartbeat(app.handle().clone(), app_icon_state);
+            let heartbeat_handle = start_icon_heartbeat(app.handle().clone(), app_icon_state);
             app.manage(HeartbeatHandle(Mutex::new(Some(heartbeat_handle))));
 
             #[cfg(target_os = "linux")]

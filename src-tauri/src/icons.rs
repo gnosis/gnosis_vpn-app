@@ -31,10 +31,16 @@ pub const TRAY_ICON_CONNECTED: &str = "tray-icons/tray-icon-connected.png";
 pub const TRAY_ICON_CONNECTED_LOW_FUNDS: &str = "tray-icons/tray-icon-connected-low-funds.png";
 pub const TRAY_ICON_CONNECTED_OUT_OF_FUNDS: &str =
     "tray-icons/tray-icon-connected-out-of-funds.png";
-pub const TRAY_ICON_CONNECTING: &str = "tray-icons/tray-icon-connecting.png";
-pub const TRAY_ICON_CONNECTING_LOW_FUNDS: &str = "tray-icons/tray-icon-connecting-low-funds.png";
-pub const TRAY_ICON_CONNECTING_OUT_OF_FUNDS: &str =
-    "tray-icons/tray-icon-connecting-out-of-funds.png";
+pub const TRAY_ICON_CONNECTING_1: &str = "tray-icons/tray-icon-connecting-1.png";
+pub const TRAY_ICON_CONNECTING_2: &str = "tray-icons/tray-icon-connecting-2.png";
+pub const TRAY_ICON_CONNECTING_LOW_FUNDS_1: &str =
+    "tray-icons/tray-icon-connecting-low-funds-1.png";
+pub const TRAY_ICON_CONNECTING_LOW_FUNDS_2: &str =
+    "tray-icons/tray-icon-connecting-low-funds-2.png";
+pub const TRAY_ICON_CONNECTING_OUT_OF_FUNDS_1: &str =
+    "tray-icons/tray-icon-connecting-out-of-funds-1.png";
+pub const TRAY_ICON_CONNECTING_OUT_OF_FUNDS_2: &str =
+    "tray-icons/tray-icon-connecting-out-of-funds-2.png";
 pub const TRAY_ICON_DISCONNECTED: &str = "tray-icons/tray-icon-disconnected.png";
 pub const TRAY_ICON_DISCONNECTED_LOW_FUNDS: &str =
     "tray-icons/tray-icon-disconnected-low-funds.png";
@@ -46,10 +52,16 @@ pub const TRAY_ICON_LINUX_CONNECTED: &str = "tray-icons/linux/connected.png";
 pub const TRAY_ICON_LINUX_CONNECTED_LOW_FUNDS: &str = "tray-icons/linux/connected-low-funds.png";
 pub const TRAY_ICON_LINUX_CONNECTED_OUT_OF_FUNDS: &str =
     "tray-icons/linux/connected-out-of-funds.png";
-pub const TRAY_ICON_LINUX_CONNECTING: &str = "tray-icons/linux/connecting.png";
-pub const TRAY_ICON_LINUX_CONNECTING_LOW_FUNDS: &str = "tray-icons/linux/connecting-low-funds.png";
-pub const TRAY_ICON_LINUX_CONNECTING_OUT_OF_FUNDS: &str =
-    "tray-icons/linux/connecting-out-of-funds.png";
+pub const TRAY_ICON_LINUX_CONNECTING_1: &str = "tray-icons/linux/connecting-1.png";
+pub const TRAY_ICON_LINUX_CONNECTING_2: &str = "tray-icons/linux/connecting-2.png";
+pub const TRAY_ICON_LINUX_CONNECTING_LOW_FUNDS_1: &str =
+    "tray-icons/linux/connecting-low-funds-1.png";
+pub const TRAY_ICON_LINUX_CONNECTING_LOW_FUNDS_2: &str =
+    "tray-icons/linux/connecting-low-funds-2.png";
+pub const TRAY_ICON_LINUX_CONNECTING_OUT_OF_FUNDS_1: &str =
+    "tray-icons/linux/connecting-out-of-funds-1.png";
+pub const TRAY_ICON_LINUX_CONNECTING_OUT_OF_FUNDS_2: &str =
+    "tray-icons/linux/connecting-out-of-funds-2.png";
 pub const TRAY_ICON_LINUX_DISCONNECTED: &str = "tray-icons/linux/disconnected.png";
 pub const TRAY_ICON_LINUX_DISCONNECTED_LOW_FUNDS: &str =
     "tray-icons/linux/disconnected-low-funds.png";
@@ -128,6 +140,35 @@ pub fn connecting_frames(level: FundsLevel) -> (&'static str, &'static str) {
     }
 }
 
+// Tray twin of connecting_frames.
+pub fn connecting_tray_frames(level: FundsLevel) -> (&'static str, &'static str) {
+    if cfg!(target_os = "linux") {
+        match level {
+            FundsLevel::Sufficient => (TRAY_ICON_LINUX_CONNECTING_1, TRAY_ICON_LINUX_CONNECTING_2),
+            FundsLevel::Low => (
+                TRAY_ICON_LINUX_CONNECTING_LOW_FUNDS_1,
+                TRAY_ICON_LINUX_CONNECTING_LOW_FUNDS_2,
+            ),
+            FundsLevel::Empty => (
+                TRAY_ICON_LINUX_CONNECTING_OUT_OF_FUNDS_1,
+                TRAY_ICON_LINUX_CONNECTING_OUT_OF_FUNDS_2,
+            ),
+        }
+    } else {
+        match level {
+            FundsLevel::Sufficient => (TRAY_ICON_CONNECTING_1, TRAY_ICON_CONNECTING_2),
+            FundsLevel::Low => (
+                TRAY_ICON_CONNECTING_LOW_FUNDS_1,
+                TRAY_ICON_CONNECTING_LOW_FUNDS_2,
+            ),
+            FundsLevel::Empty => (
+                TRAY_ICON_CONNECTING_OUT_OF_FUNDS_1,
+                TRAY_ICON_CONNECTING_OUT_OF_FUNDS_2,
+            ),
+        }
+    }
+}
+
 pub fn update_icon_name_if_changed(current: &Mutex<String>, next: &str) -> bool {
     match current.lock() {
         Ok(mut guard) => {
@@ -175,11 +216,7 @@ pub fn determine_tray_icon(connection_state: &ConnectionState, level: FundsLevel
             },
             ConnectionState::Connecting(_)
             | ConnectionState::Reconnecting(_)
-            | ConnectionState::Disconnecting => match level {
-                FundsLevel::Sufficient => TRAY_ICON_LINUX_CONNECTING,
-                FundsLevel::Low => TRAY_ICON_LINUX_CONNECTING_LOW_FUNDS,
-                FundsLevel::Empty => TRAY_ICON_LINUX_CONNECTING_OUT_OF_FUNDS,
-            },
+            | ConnectionState::Disconnecting => connecting_tray_frames(level).0, // Will be animated by heartbeat
             ConnectionState::Disconnected => match level {
                 FundsLevel::Sufficient => TRAY_ICON_LINUX_DISCONNECTED,
                 FundsLevel::Low => TRAY_ICON_LINUX_DISCONNECTED_LOW_FUNDS,
@@ -195,11 +232,7 @@ pub fn determine_tray_icon(connection_state: &ConnectionState, level: FundsLevel
             },
             ConnectionState::Connecting(_)
             | ConnectionState::Reconnecting(_)
-            | ConnectionState::Disconnecting => match level {
-                FundsLevel::Sufficient => TRAY_ICON_CONNECTING,
-                FundsLevel::Low => TRAY_ICON_CONNECTING_LOW_FUNDS,
-                FundsLevel::Empty => TRAY_ICON_CONNECTING_OUT_OF_FUNDS,
-            },
+            | ConnectionState::Disconnecting => connecting_tray_frames(level).0, // Will be animated by heartbeat
             ConnectionState::Disconnected => match level {
                 FundsLevel::Sufficient => TRAY_ICON_DISCONNECTED,
                 FundsLevel::Low => TRAY_ICON_DISCONNECTED_LOW_FUNDS,
@@ -216,23 +249,29 @@ pub fn update_tray_icon(
     level: FundsLevel,
 ) {
     let tray_icon_name = determine_tray_icon(conn_state, level);
-    if update_icon_name_if_changed(&tray_icon_state.current_icon, tray_icon_name) {
-        if let Ok(tray_icon_path) = Manager::path(app)
-            .resource_dir()
-            .map(|p| p.join("icons").join(tray_icon_name))
-        {
-            if let Ok(tray_image) = tauri::image::Image::from_path(&tray_icon_path) {
-                if let Ok(guard) = tray_icon_state.tray.lock() {
-                    let _ = guard.set_icon(Some(tray_image));
-                    // this function only affects macOS and is a noop on other platforms
-                    let _ = guard.set_icon_as_template(true);
-                }
+    set_tray_icon_file(app, tray_icon_state, tray_icon_name);
+}
+
+pub fn set_tray_icon_file(app: &AppHandle, tray_icon_state: &TrayIconState, icon_name: &str) {
+    if !update_icon_name_if_changed(&tray_icon_state.current_icon, icon_name) {
+        return;
+    }
+    if let Ok(tray_icon_path) = Manager::path(app)
+        .resource_dir()
+        .map(|p| p.join("icons").join(icon_name))
+    {
+        if let Ok(tray_image) = tauri::image::Image::from_path(&tray_icon_path) {
+            if let Ok(guard) = tray_icon_state.tray.lock() {
+                let _ = guard.set_icon(Some(tray_image));
+                // this function only affects macOS and is a noop on other platforms
+                let _ = guard.set_icon_as_template(true);
             }
         }
     }
 }
 
-pub fn start_app_icon_heartbeat(
+// Animates both the app (dock) icon and the tray icon while connecting.
+pub fn start_icon_heartbeat(
     app: AppHandle,
     app_icon_state: Arc<AppIconState>,
 ) -> tauri::async_runtime::JoinHandle<()> {
@@ -248,10 +287,11 @@ pub fn start_app_icon_heartbeat(
                     .map(|guard| *guard)
                     .unwrap_or(FundsLevel::Sufficient);
                 let (frame_1, frame_2) = connecting_frames(level);
-                let (icon_name, sleep_duration) = if current {
-                    (frame_2, Duration::from_millis(600))
+                let (tray_frame_1, tray_frame_2) = connecting_tray_frames(level);
+                let (icon_name, tray_icon_name, sleep_duration) = if current {
+                    (frame_2, tray_frame_2, Duration::from_millis(600))
                 } else {
-                    (frame_1, Duration::from_millis(200))
+                    (frame_1, tray_frame_1, Duration::from_millis(200))
                 };
 
                 if let Ok(mut current_icon) = app_icon_state.current_icon.lock() {
@@ -261,6 +301,8 @@ pub fn start_app_icon_heartbeat(
                 if let Err(e) = set_app_icon(app.clone(), icon_name.to_string()).await {
                     eprintln!("Failed to update dock icon in heartbeat: {}", e);
                 }
+
+                set_tray_icon_file(&app, &app.state::<TrayIconState>(), tray_icon_name);
 
                 sleep(sleep_duration).await;
             } else {
@@ -398,17 +440,17 @@ mod tests {
             (
                 ConnectionState::Reconnecting("x".into()),
                 FundsLevel::Sufficient,
-                "connecting.png",
+                "connecting-1.png",
             ),
             (
                 ConnectionState::Connecting("x".into()),
                 FundsLevel::Low,
-                "connecting-low-funds.png",
+                "connecting-low-funds-1.png",
             ),
             (
                 ConnectionState::Disconnecting,
                 FundsLevel::Empty,
-                "connecting-out-of-funds.png",
+                "connecting-out-of-funds-1.png",
             ),
             (
                 ConnectionState::Disconnected,
@@ -431,6 +473,38 @@ mod tests {
             assert!(
                 icon.ends_with(expected_suffix),
                 "{icon} should end with {expected_suffix}"
+            );
+        }
+    }
+
+    #[test]
+    fn connecting_tray_frames_per_level() {
+        let cases = [
+            (
+                FundsLevel::Sufficient,
+                "connecting-1.png",
+                "connecting-2.png",
+            ),
+            (
+                FundsLevel::Low,
+                "connecting-low-funds-1.png",
+                "connecting-low-funds-2.png",
+            ),
+            (
+                FundsLevel::Empty,
+                "connecting-out-of-funds-1.png",
+                "connecting-out-of-funds-2.png",
+            ),
+        ];
+        for (level, suffix_1, suffix_2) in cases {
+            let (frame_1, frame_2) = connecting_tray_frames(level);
+            assert!(
+                frame_1.ends_with(suffix_1),
+                "{frame_1} should end with {suffix_1}"
+            );
+            assert!(
+                frame_2.ends_with(suffix_2),
+                "{frame_2} should end with {suffix_2}"
             );
         }
     }
