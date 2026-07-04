@@ -125,10 +125,10 @@ export function MainScreen() {
             </div>
           </Show>
           <Show when={showBalanceBanner()}>
-            <div class="px-3 py-2 rounded-lg bg-bg-surface text-xs flex flex-col items-start gap-2">
+            <div class="px-3 py-2 rounded-lg bg-bg-surface text-sm flex flex-col items-start gap-2">
               <div class="w-full flex items-center justify-between">
-                <div class="flex items-center gap-1 text-text-primary">
-                  <WarningIcon class="text-amber-500" />
+                <div class="flex items-center gap-2 text-text-primary">
+                  <WarningIcon filled size={20} />
                   {balanceBannerText()}
                 </div>
                 <button
@@ -143,6 +143,7 @@ export function MainScreen() {
               <Button
                 size="sm"
                 fullWidth={false}
+                class="rounded-full ml-7"
                 onClick={() => openSettingsWindow("usage")}
               >
                 Open › Usage screen
