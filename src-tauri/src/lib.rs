@@ -274,6 +274,7 @@ pub fn run() {
                 animation_toggle: AtomicBool::new(false),
                 is_animating: AtomicBool::new(false),
                 current_icon: Mutex::new(icons::APP_ICON_DISCONNECTED.to_string()),
+                funds_level: Mutex::new(icons::FundsLevel::Sufficient),
             });
             app.manage(app_icon_state.clone());
 
