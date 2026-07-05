@@ -221,20 +221,18 @@ pub fn run() {
             // Create tray menu
             let menu = create_tray_menu(app.handle())?;
 
+            let icon_cache = icons::IconCache::load(&app.path().resource_dir()?)?;
+
             let icon_name: &str = determine_tray_icon(
                 &ConnectionState::Disconnected,
                 icons::FundsLevel::Sufficient,
             );
 
-            let tray_icon_path: PathBuf = app
-                .path()
-                .resource_dir()
-                .unwrap()
-                .join("icons")
-                .join(icon_name);
+            let icon = icon_cache
+                .tray_image(icon_name)
+                .ok_or_else(|| format!("Missing tray icon: {icon_name}"))?;
 
-            let icon = tauri::image::Image::from_path(&tray_icon_path)
-                .map_err(|e| format!("Failed to load tray icon: {e}"))?;
+            app.manage(icon_cache);
 
             // Create tray icon
             let builder = TrayIconBuilder::with_id("menu_extra")

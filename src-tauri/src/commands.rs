@@ -28,15 +28,6 @@ fn is_version_compatible(version: &str) -> bool {
         .any(|c| version.trim().starts_with(c))
 }
 
-const ALLOWED_APP_ICONS: &[&str] = &[
-    icons::APP_ICON_CONNECTED,
-    icons::APP_ICON_CONNECTED_LOW_FUNDS,
-    icons::APP_ICON_CONNECTING_1,
-    icons::APP_ICON_CONNECTING_2,
-    icons::APP_ICON_DISCONNECTED,
-    icons::APP_ICON_DISCONNECTED_LOW_FUNDS,
-];
-
 #[tauri::command]
 pub async fn check_update(
     skip_vpn: bool,
@@ -56,14 +47,6 @@ pub async fn check_update(
             gnosis_vpn_lib::check_update::Error::Integrity(msg) => format!("Integrity: {msg}"),
             gnosis_vpn_lib::check_update::Error::Other(msg) => msg,
         })
-}
-
-fn validate_icon_name(icon_name: &str) -> Result<(), String> {
-    if ALLOWED_APP_ICONS.contains(&icon_name) {
-        Ok(())
-    } else {
-        Err(format!("Invalid icon name: {icon_name}"))
-    }
 }
 
 async fn query_info() -> Result<command::InfoResponse, String> {
@@ -151,23 +134,14 @@ async fn query_balance() -> (Duration, Result<Option<BalanceResponse>, String>) 
 #[tauri::command]
 pub async fn set_app_icon(app: AppHandle, icon_name: String) -> Result<(), String> {
     use dispatch::Queue;
-    use std::fs;
     use std::sync::mpsc;
 
-    validate_icon_name(&icon_name)?;
-
-    let icon_path = app
-        .path()
-        .resource_dir()
-        .map_err(|e| format!("Failed to get resource dir: {}", e))?
-        .join("icons")
-        .join("app-icons")
-        .join(&icon_name);
+    let icon_data = app
+        .state::<icons::IconCache>()
+        .app_icon_bytes(&icon_name)
+        .ok_or_else(|| format!("Invalid icon name: {icon_name}"))?;
 
     spawn_blocking(move || {
-        let icon_data = fs::read(&icon_path)
-            .map_err(|e| format!("Failed to read icon file {}: {}", icon_path.display(), e))?;
-
         let (tx, rx) = mpsc::channel();
 
         Queue::main().exec_async(move || unsafe {
@@ -216,28 +190,10 @@ pub async fn set_app_icon(app: AppHandle, icon_name: String) -> Result<(), Strin
 #[cfg(target_os = "linux")]
 #[tauri::command]
 pub async fn set_app_icon(app: AppHandle, icon_name: String) -> Result<(), String> {
-    use std::fs;
-    use tauri::image::Image;
-
-    validate_icon_name(&icon_name)?;
-
-    let icon_path = app
-        .path()
-        .resource_dir()
-        .map_err(|e| format!("Failed to get resource dir: {}", e))?
-        .join("icons")
-        .join("app-icons")
-        .join(&icon_name);
-
-    let icon_data = spawn_blocking(move || {
-        fs::read(&icon_path)
-            .map_err(|e| format!("Failed to read icon file {}: {}", icon_path.display(), e))
-    })
-    .await
-    .map_err(|e| format!("set_app_icon: blocking task panicked: {e}"))??;
-
-    let image = Image::from_bytes(&icon_data)
-        .map_err(|e| format!("Failed to create image from icon data: {e}"))?;
+    let image = app
+        .state::<icons::IconCache>()
+        .app_icon_image(&icon_name)
+        .ok_or_else(|| format!("Invalid icon name: {icon_name}"))?;
 
     let mut errors = Vec::new();
 

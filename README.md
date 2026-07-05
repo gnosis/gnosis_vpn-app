@@ -73,12 +73,13 @@ In order to start development, run a local dev server via:
 
 #### App icons
 
-The source-of-truth icons live under `src-tauri/icons/` (SVGs in `app-icons/svg/`
-and `tray-icons/svg/`, with pre-rendered PNGs alongside them).
+The source-of-truth icons live under `src-tauri/icons/` (SVGs in
+`app-icons/svg/` and `tray-icons/svg/`, with pre-rendered PNGs alongside them).
 
-Running `tauri icon` regenerates the platform icons from `src-tauri/icons/icon.png`.
-It also writes mobile (Android/iOS) and Windows icon sets that we do not currently
-ship. Those paths are gitignored so re-running the command is safe:
+Running `tauri icon` regenerates the platform icons from
+`src-tauri/icons/icon.png`. It also writes mobile (Android/iOS) and Windows icon
+sets that we do not currently ship. Those paths are gitignored so re-running the
+command is safe:
 
 ```
 src-tauri/icons/android/

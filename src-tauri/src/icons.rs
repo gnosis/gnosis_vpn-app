@@ -1,8 +1,11 @@
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
+use tauri::image::Image;
 use tauri::{AppHandle, Manager, tray::TrayIcon};
 
 use tokio::time::sleep;
@@ -72,6 +75,95 @@ pub const TRAY_ICON_LINUX_DISCONNECTED_OUT_OF_FUNDS: &str =
 pub struct TrayIconState {
     pub tray: Mutex<TrayIcon<tauri::Wry>>,
     pub current_icon: Mutex<String>,
+}
+
+// Every icon, loaded once at startup. The connecting animation swaps icons
+// several times a second, so reading and decoding PNGs on demand would burn
+// CPU on every frame. Loading eagerly also keeps the maps immutable — no
+// locking needed.
+pub struct IconCache {
+    tray: HashMap<String, Image<'static>>,
+    // The dock icon needs a different payload per platform: macOS feeds raw
+    // PNG bytes to NSImage, Linux feeds decoded RGBA to window.set_icon.
+    #[cfg(target_os = "macos")]
+    app: HashMap<String, Arc<Vec<u8>>>,
+    #[cfg(target_os = "linux")]
+    app: HashMap<String, Image<'static>>,
+}
+
+impl IconCache {
+    pub fn load(resource_dir: &Path) -> Result<Self, String> {
+        let icons_dir = resource_dir.join("icons");
+        let tray_subdir = if cfg!(target_os = "linux") {
+            "tray-icons/linux"
+        } else {
+            "tray-icons"
+        };
+        Ok(Self {
+            tray: load_images(&icons_dir.join(tray_subdir), &format!("{tray_subdir}/"))?,
+            #[cfg(target_os = "macos")]
+            app: load_bytes(&icons_dir.join("app-icons"))?,
+            #[cfg(target_os = "linux")]
+            app: load_images(&icons_dir.join("app-icons"), "")?,
+        })
+    }
+
+    pub fn tray_image(&self, icon_name: &str) -> Option<Image<'static>> {
+        self.tray.get(icon_name).cloned()
+    }
+
+    // The app icon lookups double as the allowlist for the set_app_icon
+    // command: unknown names simply miss the cache.
+    #[cfg(target_os = "macos")]
+    pub fn app_icon_bytes(&self, icon_name: &str) -> Option<Arc<Vec<u8>>> {
+        self.app.get(icon_name).cloned()
+    }
+
+    #[cfg(target_os = "linux")]
+    pub fn app_icon_image(&self, icon_name: &str) -> Option<Image<'static>> {
+        self.app.get(icon_name).cloned()
+    }
+}
+
+// Decodes every PNG directly inside `dir`, keyed by `key_prefix` + file name.
+fn load_images(dir: &Path, key_prefix: &str) -> Result<HashMap<String, Image<'static>>, String> {
+    let mut images = HashMap::new();
+    for (name, path) in png_files(dir)? {
+        let image = Image::from_path(&path)
+            .map_err(|e| format!("Failed to decode {}: {e}", path.display()))?;
+        images.insert(format!("{key_prefix}{name}"), image);
+    }
+    Ok(images)
+}
+
+#[cfg(target_os = "macos")]
+fn load_bytes(dir: &Path) -> Result<HashMap<String, Arc<Vec<u8>>>, String> {
+    let mut bytes = HashMap::new();
+    for (name, path) in png_files(dir)? {
+        let data =
+            std::fs::read(&path).map_err(|e| format!("Failed to read {}: {e}", path.display()))?;
+        bytes.insert(name, Arc::new(data));
+    }
+    Ok(bytes)
+}
+
+// Lists the PNG files directly inside `dir` as (file name, full path) pairs.
+fn png_files(dir: &Path) -> Result<Vec<(String, PathBuf)>, String> {
+    let entries =
+        std::fs::read_dir(dir).map_err(|e| format!("Failed to read {}: {e}", dir.display()))?;
+    let mut files = Vec::new();
+    for entry in entries {
+        let path = entry.map_err(|e| e.to_string())?.path();
+        let is_png = path.extension().and_then(|e| e.to_str()) == Some("png");
+        let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+            continue;
+        };
+        if is_png {
+            let name = name.to_string();
+            files.push((name, path));
+        }
+    }
+    Ok(files)
 }
 
 // State to track which app icon to show (including animation state)
@@ -256,17 +348,14 @@ pub fn set_tray_icon_file(app: &AppHandle, tray_icon_state: &TrayIconState, icon
     if !update_icon_name_if_changed(&tray_icon_state.current_icon, icon_name) {
         return;
     }
-    if let Ok(tray_icon_path) = Manager::path(app)
-        .resource_dir()
-        .map(|p| p.join("icons").join(icon_name))
-    {
-        if let Ok(tray_image) = tauri::image::Image::from_path(&tray_icon_path) {
-            if let Ok(guard) = tray_icon_state.tray.lock() {
-                let _ = guard.set_icon(Some(tray_image));
-                // this function only affects macOS and is a noop on other platforms
-                let _ = guard.set_icon_as_template(true);
-            }
-        }
+    let Some(tray_image) = app.state::<IconCache>().tray_image(icon_name) else {
+        eprintln!("Tray icon not in cache: {icon_name}");
+        return;
+    };
+    if let Ok(guard) = tray_icon_state.tray.lock() {
+        let _ = guard.set_icon(Some(tray_image));
+        // this function only affects macOS and is a noop on other platforms
+        let _ = guard.set_icon_as_template(true);
     }
 }
 
