@@ -44,33 +44,34 @@ export default function Initialization(props: InitializationProps) {
           <div class="flex flex-col items-center">
             <Spinner class="mb-4 h-8 w-8 text-brand-primary" />
             <p class="text-text-secondary">Running startup tasks</p>
-            <div class="mt-4 space-y-1 text-sm text-text-secondary text-center">
-              <div
-                onClick={handleVersionClick}
-                class="cursor-default"
-              >
-                Version:{" "}
-                <span class="text-text-primary">
-                  {props.info?.package_version ?? "—"}
-                </span>
-              </div>
-              <Show when={showDetails()}>
-                <div class="text-xs">
-                  Service version:{" "}
-                  <span class="text-text-primary">
-                    {props.info?.version ?? "—"}
-                  </span>
-                </div>
-                <div class="text-xs">
-                  App version:{" "}
-                  <span class="text-text-primary">
-                    {appVersion() ?? "—"}
-                  </span>
-                </div>
-              </Show>
-            </div>
           </div>
         )}
+
+      <div class="mt-4 space-y-1 text-sm text-text-secondary text-center">
+        <div
+          onClick={handleVersionClick}
+          class="cursor-default"
+        >
+          Version:{" "}
+          <span class="text-text-primary">
+            {props.info?.package_version ?? appVersion() ?? "—"}
+          </span>
+        </div>
+        <Show when={showDetails()}>
+          <div class="text-xs">
+            Service version:{" "}
+            <span class="text-text-primary">
+              {props.info?.version ?? "—"}
+            </span>
+          </div>
+          <div class="text-xs">
+            App version:{" "}
+            <span class="text-text-primary">
+              {appVersion() ?? "—"}
+            </span>
+          </div>
+        </Show>
+      </div>
     </div>
   );
 }
