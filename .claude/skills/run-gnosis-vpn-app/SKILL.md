@@ -52,6 +52,11 @@ source:
   screen; `funding_issues: ["SafeLowOnFunds"]` shows the low-balance banner
   (`"Unfunded"` etc. → "empty" variant; see `FundingIssueSchema` in
   `src/services/vpnService.ts`).
+- `settings` — seeds the mock `plugin:store` (keys as persisted by
+  `src/stores/settingsStore.ts`), e.g.
+  `"settings": { "exitNodeSortOrder": "alpha", "showDetailedMetrics": true }`.
+  Unset keys fall back to the app's `DEFAULT_SETTINGS`; `plugin:store|set`
+  writes back to it in-memory, so toggles behave realistically.
 - `windowLabel: "settings"` renders the settings window instead (use
   `--size 640x480`). Switch tabs by clicking the nav buttons, e.g. Usage:
 
@@ -105,6 +110,21 @@ nix fmt
   lifecycle.
 - **`pkill -f vite` after killing `deno task dev`.** The vite child survives its
   parent; the driver does this sweep automatically.
+
+## Design notes (deliberate non-goals)
+
+For reviewers (human or bot) — these are intentional, not oversights:
+
+- **Linux/macOS only.** The driver hardcodes the `chromium` binary name,
+  `pkill`, and POSIX `URL.pathname` paths. Windows is not a target for this dev
+  tool.
+- **`--allow-all` is intentional.** The driver spawns processes, evals arbitrary
+  JS, and writes screenshots to arbitrary paths; a narrower Deno permission list
+  adds churn without containment.
+- **No CLI validation.** Flag/step values are consumed with `shift()!`; a
+  missing value fails fast on first use. Good enough for an agent-driven tool.
+- **CDP event params are cast, not parsed.** Their shapes are guaranteed by the
+  DevTools Protocol.
 
 ## Troubleshooting
 

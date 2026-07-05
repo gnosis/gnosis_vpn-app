@@ -16,6 +16,12 @@
 //   text <css>         print innerText of first match
 //   eval <js>          evaluate JS expression, print JSON result
 //   wait <ms>          sleep
+//
+// Linux/macOS only by design: relies on a `chromium` binary and `pkill` on
+// PATH and treats URL.pathname as a filesystem path. --allow-all is also
+// deliberate — a repo-local dev tool that spawns processes, evals arbitrary
+// JS, and writes screenshots to arbitrary paths gains nothing from a narrower
+// Deno permission list.
 
 const skillDir = new URL(".", import.meta.url);
 const repoRoot = new URL("../../../", skillDir);
@@ -26,6 +32,8 @@ function repoPath(rel: string): string {
 }
 
 // --- arg parsing ------------------------------------------------------------
+// Flag/step values are taken as-is (shift()!) — a missing value fails fast on
+// first use, which is enough for an agent-driven tool with a documented CLI.
 const args = [...Deno.args];
 let fixturePath = new URL("fixture.json", skillDir).pathname;
 let width = 360, height = 640;
@@ -64,7 +72,7 @@ const injected = indexHtml.replace(
 );
 await Deno.writeTextFile(repoPath("index.browser.html"), injected);
 
-// --- ensure dev server --------------------------------------------------------
+// --- helpers -------------------------------------------------------------------
 async function serving(): Promise<boolean> {
   try {
     const res = await fetch(DEV_URL, { signal: AbortSignal.timeout(1000) });
@@ -75,40 +83,8 @@ async function serving(): Promise<boolean> {
   }
 }
 
-let devServer: Deno.ChildProcess | undefined;
-if (!(await serving())) {
-  console.error("starting vite dev server…");
-  devServer = new Deno.Command("deno", {
-    args: ["task", "dev"],
-    cwd: repoPath("."),
-    stdout: "null",
-    stderr: "null",
-  }).spawn();
-  const deadline = Date.now() + 60_000;
-  while (!(await serving())) {
-    if (Date.now() > deadline) throw new Error("dev server did not come up");
-    await new Promise((r) => setTimeout(r, 500));
-  }
-}
-
-// --- launch chromium with CDP ---------------------------------------------------
-const profileDir = await Deno.makeTempDir({ prefix: "gvpn-chromium-" });
-const chromium = new Deno.Command("chromium", {
-  args: [
-    "--headless",
-    "--disable-gpu",
-    "--no-sandbox",
-    "--hide-scrollbars",
-    "--remote-debugging-port=0",
-    `--user-data-dir=${profileDir}`,
-    "about:blank",
-  ],
-  stdout: "null",
-  stderr: "piped",
-}).spawn();
-
-async function readWsUrl(): Promise<string> {
-  const reader = chromium.stderr.getReader();
+async function readWsUrl(proc: Deno.ChildProcess): Promise<string> {
+  const reader = proc.stderr.getReader();
   const decoder = new TextDecoder();
   let buf = "";
   while (true) {
@@ -203,9 +179,44 @@ class Cdp {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // --- drive -------------------------------------------------------------------------
+// All process/tempdir allocation happens inside the try so any failure — vite
+// not coming up, chromium missing, a CDP error — still hits the finally.
+let devServer: Deno.ChildProcess | undefined;
+let profileDir: string | undefined;
+let chromium: Deno.ChildProcess | undefined;
 let cdp: Cdp | undefined;
 try {
-  cdp = await Cdp.connect(await readWsUrl());
+  if (!(await serving())) {
+    console.error("starting vite dev server…");
+    devServer = new Deno.Command("deno", {
+      args: ["task", "dev"],
+      cwd: repoPath("."),
+      stdout: "null",
+      stderr: "null",
+    }).spawn();
+    const deadline = Date.now() + 60_000;
+    while (!(await serving())) {
+      if (Date.now() > deadline) throw new Error("dev server did not come up");
+      await sleep(500);
+    }
+  }
+
+  profileDir = await Deno.makeTempDir({ prefix: "gvpn-chromium-" });
+  chromium = new Deno.Command("chromium", {
+    args: [
+      "--headless",
+      "--disable-gpu",
+      "--no-sandbox",
+      "--hide-scrollbars",
+      "--remote-debugging-port=0",
+      `--user-data-dir=${profileDir}`,
+      "about:blank",
+    ],
+    stdout: "null",
+    stderr: "piped",
+  }).spawn();
+
+  cdp = await Cdp.connect(await readWsUrl(chromium));
 
   const { targetId } = (await cdp.send("Target.createTarget", {
     url: "about:blank",
@@ -220,6 +231,8 @@ try {
 
   // Surface browser console warnings/errors — the shim logs unhandled invoke
   // commands there, which is the usual reason a screen fails to render.
+  // Event param shapes are guaranteed by the DevTools Protocol, hence the
+  // plain casts instead of defensive parsing.
   cdp.onEvent("Runtime.consoleAPICalled", (params) => {
     const { type, args } = params as {
       type: string;
@@ -326,17 +339,23 @@ try {
   }
 } finally {
   cdp?.close();
-  try {
-    chromium.kill();
-    await chromium.status;
-  } catch { /* already gone */ }
+  if (chromium) {
+    try {
+      chromium.kill();
+      await chromium.status;
+    } catch { /* already gone */ }
+  }
   if (devServer) {
     try {
       devServer.kill();
       await devServer.status;
     } catch { /* already gone */ }
-    // deno task may leave the vite child running; sweep it
-    await new Deno.Command("pkill", { args: ["-f", "vite"] }).output();
+    // deno task may leave the vite child running; sweep it — best-effort, a
+    // rejection here would mask the real error
+    await new Deno.Command("pkill", { args: ["-f", "vite"] }).output()
+      .catch(() => {});
   }
-  await Deno.remove(profileDir, { recursive: true }).catch(() => {});
+  if (profileDir) {
+    await Deno.remove(profileDir, { recursive: true }).catch(() => {});
+  }
 }
