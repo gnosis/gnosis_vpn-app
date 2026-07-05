@@ -71,6 +71,26 @@ In order to start development, run a local dev server via:
    `deno install --allow-scripts`)
 4. `deno task tauri dev`
 
+#### App icons
+
+The source-of-truth icons live under `src-tauri/icons/` (SVGs in `app-icons/svg/`
+and `tray-icons/svg/`, with pre-rendered PNGs alongside them).
+
+Running `tauri icon` regenerates the platform icons from `src-tauri/icons/icon.png`.
+It also writes mobile (Android/iOS) and Windows icon sets that we do not currently
+ship. Those paths are gitignored so re-running the command is safe:
+
+```
+src-tauri/icons/android/
+src-tauri/icons/ios/
+src-tauri/icons/Square*.png   # Windows
+src-tauri/icons/StoreLogo.png # Windows Store
+src-tauri/icons/64x64.png
+```
+
+If you add Windows or mobile targets in the future, remove the relevant lines
+from `.gitignore` and commit the generated files.
+
 #### Adding npm packages
 
 ```bash
