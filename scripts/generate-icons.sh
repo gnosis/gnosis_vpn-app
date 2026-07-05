@@ -9,8 +9,9 @@ app_svg_dir=src-tauri/icons/app-icons/svg
 app_png_dir=src-tauri/icons/app-icons
 
 # The artwork fills the SVG viewBox edge to edge, but the dock icon needs the
-# Apple icon-grid margin (~9% per side, matching the bundle icon.png) or it
-# renders larger than the initial icon. Render at 420px centered on 512px.
+# Apple icon-grid margin (~9% per side) or it renders larger than the bundle
+# icon. Render at 420px centered on 512px. app-icon-disconnected.png doubles
+# as the input for `cargo tauri icon` (see README "App icons").
 for svg in "$app_svg_dir"/*.svg; do
     name=$(basename "$svg" .svg)
     rsvg-convert -w 420 -h 420 --page-width 512 --page-height 512 --top 46 --left 46 \

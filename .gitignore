@@ -17,10 +17,11 @@ gcp-sa-*.json
 
 settings.local.json
 
-# Tauri icon generation produces mobile (Android/iOS) and Windows icons that we
-# don't ship. Ignore them so `tauri icon` doesn't pollute the index.
+# Tauri icon generation produces mobile (Android/iOS), Windows and unreferenced
+# icons that we don't ship. Ignore them so `tauri icon` doesn't pollute the index.
 src-tauri/icons/android/
 src-tauri/icons/ios/
 src-tauri/icons/Square*.png
 src-tauri/icons/StoreLogo.png
 src-tauri/icons/64x64.png
+src-tauri/icons/icon.png
