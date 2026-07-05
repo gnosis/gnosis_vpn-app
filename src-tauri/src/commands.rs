@@ -9,13 +9,12 @@ use zstd::stream::Encoder;
 use std::fs::File;
 use std::io::{self, BufReader};
 use std::path::PathBuf;
-use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::task::spawn_blocking;
 use tokio::time::{self, Instant};
 
-use crate::icons::{self, AppIconState, TrayIconState};
+use crate::icons::{self, TrayIconState};
 use crate::tray;
 use crate::types::{BalanceResponse, ConnectionState, StatusResponse};
 use crate::{AppStateCache, BalancePollingHandle, StatusPollingHandle};
@@ -27,15 +26,6 @@ fn is_version_compatible(version: &str) -> bool {
         .iter()
         .any(|c| version.trim().starts_with(c))
 }
-
-const ALLOWED_APP_ICONS: &[&str] = &[
-    icons::APP_ICON_CONNECTED,
-    icons::APP_ICON_CONNECTED_LOW_FUNDS,
-    icons::APP_ICON_CONNECTING_1,
-    icons::APP_ICON_CONNECTING_2,
-    icons::APP_ICON_DISCONNECTED,
-    icons::APP_ICON_DISCONNECTED_LOW_FUNDS,
-];
 
 #[tauri::command]
 pub async fn check_update(
@@ -56,14 +46,6 @@ pub async fn check_update(
             gnosis_vpn_lib::check_update::Error::Integrity(msg) => format!("Integrity: {msg}"),
             gnosis_vpn_lib::check_update::Error::Other(msg) => msg,
         })
-}
-
-fn validate_icon_name(icon_name: &str) -> Result<(), String> {
-    if ALLOWED_APP_ICONS.contains(&icon_name) {
-        Ok(())
-    } else {
-        Err(format!("Invalid icon name: {icon_name}"))
-    }
 }
 
 async fn query_info() -> Result<command::InfoResponse, String> {
@@ -151,23 +133,14 @@ async fn query_balance() -> (Duration, Result<Option<BalanceResponse>, String>) 
 #[tauri::command]
 pub async fn set_app_icon(app: AppHandle, icon_name: String) -> Result<(), String> {
     use dispatch::Queue;
-    use std::fs;
     use std::sync::mpsc;
 
-    validate_icon_name(&icon_name)?;
-
-    let icon_path = app
-        .path()
-        .resource_dir()
-        .map_err(|e| format!("Failed to get resource dir: {}", e))?
-        .join("icons")
-        .join("app-icons")
-        .join(&icon_name);
+    let icon_data = app
+        .state::<icons::IconCache>()
+        .app_icon_bytes(&icon_name)
+        .ok_or_else(|| format!("Invalid icon name: {icon_name}"))?;
 
     spawn_blocking(move || {
-        let icon_data = fs::read(&icon_path)
-            .map_err(|e| format!("Failed to read icon file {}: {}", icon_path.display(), e))?;
-
         let (tx, rx) = mpsc::channel();
 
         Queue::main().exec_async(move || unsafe {
@@ -216,28 +189,10 @@ pub async fn set_app_icon(app: AppHandle, icon_name: String) -> Result<(), Strin
 #[cfg(target_os = "linux")]
 #[tauri::command]
 pub async fn set_app_icon(app: AppHandle, icon_name: String) -> Result<(), String> {
-    use std::fs;
-    use tauri::image::Image;
-
-    validate_icon_name(&icon_name)?;
-
-    let icon_path = app
-        .path()
-        .resource_dir()
-        .map_err(|e| format!("Failed to get resource dir: {}", e))?
-        .join("icons")
-        .join("app-icons")
-        .join(&icon_name);
-
-    let icon_data = spawn_blocking(move || {
-        fs::read(&icon_path)
-            .map_err(|e| format!("Failed to read icon file {}: {}", icon_path.display(), e))
-    })
-    .await
-    .map_err(|e| format!("set_app_icon: blocking task panicked: {e}"))??;
-
-    let image = Image::from_bytes(&icon_data)
-        .map_err(|e| format!("Failed to create image from icon data: {e}"))?;
+    let image = app
+        .state::<icons::IconCache>()
+        .app_icon_image(&icon_name)
+        .ok_or_else(|| format!("Invalid icon name: {icon_name}"))?;
 
     let mut errors = Vec::new();
 
@@ -385,17 +340,22 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
                     tick_timeout.as_mut().reset(Instant::now() + status_delay);
                     if let Ok(Some(ref status)) = result {
                         let conn_state = status.into();
-                        icons::update_tray_icon(&app, &app.state::<TrayIconState>(), &conn_state);
 
-                        let should_animate = matches!(conn_state, ConnectionState::Connecting(_) | ConnectionState::Reconnecting(_) | ConnectionState::Disconnecting);
-                        let app_icon_state = app.state::<Arc<AppIconState>>();
-                        app_icon_state.is_animating.store(should_animate, Ordering::Relaxed);
+                        let icon_state = app.state::<Arc<Mutex<icons::IconState>>>();
+                        let new_dock_icon = match icon_state.lock() {
+                            Ok(mut guard) => guard.apply_status(&conn_state, &status.run_mode),
+                            Err(e) => {
+                                eprintln!("Failed to lock icon state: {}", e);
+                                None
+                            }
+                        };
 
-                        // during animation, the heartbeat logic owns app icon changes
-                        if !should_animate {
-                            let icon_name = icons::determine_app_icon(&conn_state, &status.run_mode);
-                            if icons::update_icon_name_if_changed(&app_icon_state.current_icon, &icon_name) {
-                                if let Err(e) = set_app_icon(app.clone(), icon_name.to_string()).await {
+                        // during animation, the heartbeat logic owns app and tray icon changes
+                        if !icons::is_animating_state(&conn_state) {
+                            icons::update_tray_icon(&app, &app.state::<TrayIconState>(), &conn_state, icons::funds_level(&status.run_mode));
+
+                            if let Some(icon_name) = new_dock_icon {
+                                if let Err(e) = set_app_icon(app.clone(), icon_name).await {
                                     eprintln!("Failed to update app icon: {}", e);
                                 }
                             }

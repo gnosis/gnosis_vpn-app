@@ -71,6 +71,45 @@ In order to start development, run a local dev server via:
    `deno install --allow-scripts`)
 4. `deno task tauri dev`
 
+#### App icons
+
+The source-of-truth icons live under `src-tauri/icons/` (SVGs in
+`app-icons/svg/` and `tray-icons/svg/`, with pre-rendered PNGs alongside them).
+
+After editing a state SVG in `app-icons/svg/`, regenerate the derived tray SVGs
+and all PNGs, then commit the results:
+
+```bash
+python3 scripts/derive-tray-icons.py
+bash scripts/generate-icons.sh
+```
+
+The bundle icons referenced by `tauri.conf.json` (`icon.icns`, `icon.ico`,
+`32x32.png`, `128x128.png`, `128x128@2x.png`) are generated from the rendered
+disconnected app icon. Regenerate and commit them whenever
+`app-icon-disconnected.svg` changes (its output is not byte-deterministic, so
+skip this when the artwork is unchanged):
+
+```bash
+cargo tauri icon src-tauri/icons/app-icons/app-icon-disconnected.png
+```
+
+The command also writes mobile (Android/iOS) and Windows icon sets, plus an
+`icon.png`, that nothing references. Those paths are gitignored so re-running
+the command is safe:
+
+```
+src-tauri/icons/android/
+src-tauri/icons/ios/
+src-tauri/icons/Square*.png   # Windows
+src-tauri/icons/StoreLogo.png # Windows Store
+src-tauri/icons/64x64.png
+src-tauri/icons/icon.png
+```
+
+If you add Windows or mobile targets in the future, remove the relevant lines
+from `.gitignore` and commit the generated files.
+
 #### Adding npm packages
 
 ```bash
