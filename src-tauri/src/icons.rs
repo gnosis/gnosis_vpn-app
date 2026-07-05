@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use tauri::image::Image;
@@ -166,12 +165,46 @@ fn png_files(dir: &Path) -> Result<Vec<(String, PathBuf)>, String> {
     Ok(files)
 }
 
-// State to track which app icon to show (including animation state)
-pub struct AppIconState {
-    pub animation_toggle: AtomicBool,
-    pub is_animating: AtomicBool,
-    pub current_icon: Mutex<String>,
-    pub funds_level: Mutex<FundsLevel>,
+// App (dock) icon state shared between the status poll loop (writer) and the
+// heartbeat task (reader). One Mutex over all fields so a reader never
+// observes a mix of old and new state.
+pub struct IconState {
+    pub is_animating: bool,
+    // Last dock icon written, used to skip redundant repaints.
+    pub current_icon: String,
+    pub funds_level: FundsLevel,
+}
+
+impl IconState {
+    // Records a freshly polled status. Returns the dock icon to repaint, or
+    // None when it is unchanged or the heartbeat owns icon updates (animating).
+    pub fn apply_status(
+        &mut self,
+        conn_state: &ConnectionState,
+        run_mode: &RunMode,
+    ) -> Option<String> {
+        self.funds_level = funds_level(run_mode);
+        self.is_animating = is_animating_state(conn_state);
+        if self.is_animating {
+            return None;
+        }
+        let icon_name = determine_app_icon(conn_state, run_mode);
+        if self.current_icon == icon_name {
+            return None;
+        }
+        self.current_icon = icon_name.clone();
+        Some(icon_name)
+    }
+}
+
+// Connection states rendered as the two-frame connecting animation.
+pub fn is_animating_state(conn_state: &ConnectionState) -> bool {
+    matches!(
+        conn_state,
+        ConnectionState::Connecting(_)
+            | ConnectionState::Reconnecting(_)
+            | ConnectionState::Disconnecting
+    )
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -362,41 +395,42 @@ pub fn set_tray_icon_file(app: &AppHandle, tray_icon_state: &TrayIconState, icon
 // Animates both the app (dock) icon and the tray icon while connecting.
 pub fn start_icon_heartbeat(
     app: AppHandle,
-    app_icon_state: Arc<AppIconState>,
+    icon_state: Arc<Mutex<IconState>>,
 ) -> tauri::async_runtime::JoinHandle<()> {
     tauri::async_runtime::spawn(async move {
+        // Only this task alternates the frames, so the toggle lives here.
+        let mut show_second_frame = false;
         loop {
-            if app_icon_state.is_animating.load(Ordering::Relaxed) {
-                let current = app_icon_state
-                    .animation_toggle
-                    .fetch_xor(true, Ordering::Relaxed);
-                let level = app_icon_state
-                    .funds_level
-                    .lock()
-                    .map(|guard| *guard)
-                    .unwrap_or(FundsLevel::Sufficient);
-                let (frame_1, frame_2) = connecting_frames(level);
-                let (tray_frame_1, tray_frame_2) = connecting_tray_frames(level);
-                let (icon_name, tray_icon_name, sleep_duration) = if current {
-                    (frame_2, tray_frame_2, Duration::from_millis(600))
-                } else {
-                    (frame_1, tray_frame_1, Duration::from_millis(200))
-                };
-
-                if let Ok(mut current_icon) = app_icon_state.current_icon.lock() {
-                    *current_icon = icon_name.to_string();
-                }
-
-                if let Err(e) = set_app_icon(app.clone(), icon_name.to_string()).await {
-                    eprintln!("Failed to update dock icon in heartbeat: {}", e);
-                }
-
-                set_tray_icon_file(&app, &app.state::<TrayIconState>(), tray_icon_name);
-
-                sleep(sleep_duration).await;
-            } else {
+            // Snapshot under one lock; never hold it across an await.
+            let level = match icon_state.lock() {
+                Ok(guard) if guard.is_animating => Some(guard.funds_level),
+                _ => None,
+            };
+            let Some(level) = level else {
                 sleep(Duration::from_millis(500)).await;
+                continue;
+            };
+
+            let (frame_1, frame_2) = connecting_frames(level);
+            let (tray_frame_1, tray_frame_2) = connecting_tray_frames(level);
+            let (icon_name, tray_icon_name, sleep_duration) = if show_second_frame {
+                (frame_2, tray_frame_2, Duration::from_millis(600))
+            } else {
+                (frame_1, tray_frame_1, Duration::from_millis(200))
+            };
+            show_second_frame = !show_second_frame;
+
+            if let Ok(mut guard) = icon_state.lock() {
+                guard.current_icon = icon_name.to_string();
             }
+
+            if let Err(e) = set_app_icon(app.clone(), icon_name.to_string()).await {
+                eprintln!("Failed to update dock icon in heartbeat: {}", e);
+            }
+
+            set_tray_icon_file(&app, &app.state::<TrayIconState>(), tray_icon_name);
+
+            sleep(sleep_duration).await;
         }
     })
 }

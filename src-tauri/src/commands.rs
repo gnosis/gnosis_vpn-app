@@ -9,13 +9,12 @@ use zstd::stream::Encoder;
 use std::fs::File;
 use std::io::{self, BufReader};
 use std::path::PathBuf;
-use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::task::spawn_blocking;
 use tokio::time::{self, Instant};
 
-use crate::icons::{self, AppIconState, TrayIconState};
+use crate::icons::{self, TrayIconState};
 use crate::tray;
 use crate::types::{BalanceResponse, ConnectionState, StatusResponse};
 use crate::{AppStateCache, BalancePollingHandle, StatusPollingHandle};
@@ -341,22 +340,22 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
                     tick_timeout.as_mut().reset(Instant::now() + status_delay);
                     if let Ok(Some(ref status)) = result {
                         let conn_state = status.into();
-                        let funds_level = icons::funds_level(&status.run_mode);
 
-                        let should_animate = matches!(conn_state, ConnectionState::Connecting(_) | ConnectionState::Reconnecting(_) | ConnectionState::Disconnecting);
-                        let app_icon_state = app.state::<Arc<AppIconState>>();
-                        if let Ok(mut level) = app_icon_state.funds_level.lock() {
-                            *level = funds_level;
-                        }
-                        app_icon_state.is_animating.store(should_animate, Ordering::Relaxed);
+                        let icon_state = app.state::<Arc<Mutex<icons::IconState>>>();
+                        let new_dock_icon = match icon_state.lock() {
+                            Ok(mut guard) => guard.apply_status(&conn_state, &status.run_mode),
+                            Err(e) => {
+                                eprintln!("Failed to lock icon state: {}", e);
+                                None
+                            }
+                        };
 
                         // during animation, the heartbeat logic owns app and tray icon changes
-                        if !should_animate {
-                            icons::update_tray_icon(&app, &app.state::<TrayIconState>(), &conn_state, funds_level);
+                        if !icons::is_animating_state(&conn_state) {
+                            icons::update_tray_icon(&app, &app.state::<TrayIconState>(), &conn_state, icons::funds_level(&status.run_mode));
 
-                            let icon_name = icons::determine_app_icon(&conn_state, &status.run_mode);
-                            if icons::update_icon_name_if_changed(&app_icon_state.current_icon, &icon_name) {
-                                if let Err(e) = set_app_icon(app.clone(), icon_name.to_string()).await {
+                            if let Some(icon_name) = new_dock_icon {
+                                if let Err(e) = set_app_icon(app.clone(), icon_name).await {
                                     eprintln!("Failed to update app icon: {}", e);
                                 }
                             }

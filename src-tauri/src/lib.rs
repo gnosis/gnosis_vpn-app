@@ -11,7 +11,6 @@ use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
 
 use std::path::PathBuf;
-use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
 mod commands;
@@ -27,7 +26,7 @@ use commands::{
 };
 use gnosis_vpn_lib::command::InfoResponse;
 use gnosis_vpn_lib::{command, socket::root as root_socket};
-use icons::{AppIconState, TrayIconState, determine_tray_icon, start_icon_heartbeat};
+use icons::{IconState, TrayIconState, determine_tray_icon, start_icon_heartbeat};
 use platform::{Platform, PlatformInterface};
 #[cfg(target_os = "linux")]
 use theme::spawn_linux_theme_monitor;
@@ -271,15 +270,14 @@ pub fn run() {
                 current_icon: Mutex::new(icon_name.to_string()),
             });
 
-            let app_icon_state = Arc::new(AppIconState {
-                animation_toggle: AtomicBool::new(false),
-                is_animating: AtomicBool::new(false),
-                current_icon: Mutex::new(icons::APP_ICON_DISCONNECTED.to_string()),
-                funds_level: Mutex::new(icons::FundsLevel::Sufficient),
-            });
-            app.manage(app_icon_state.clone());
+            let icon_state = Arc::new(Mutex::new(IconState {
+                is_animating: false,
+                current_icon: icons::APP_ICON_DISCONNECTED.to_string(),
+                funds_level: icons::FundsLevel::Sufficient,
+            }));
+            app.manage(icon_state.clone());
 
-            let heartbeat_handle = start_icon_heartbeat(app.handle().clone(), app_icon_state);
+            let heartbeat_handle = start_icon_heartbeat(app.handle().clone(), icon_state);
             app.manage(HeartbeatHandle(Mutex::new(Some(heartbeat_handle))));
 
             #[cfg(target_os = "linux")]
