@@ -76,10 +76,31 @@ In order to start development, run a local dev server via:
 The source-of-truth icons live under `src-tauri/icons/` (SVGs in
 `app-icons/svg/` and `tray-icons/svg/`, with pre-rendered PNGs alongside them).
 
-Running `tauri icon` regenerates the platform icons from
-`src-tauri/icons/icon.png`. It also writes mobile (Android/iOS) and Windows icon
-sets that we do not currently ship. Those paths are gitignored so re-running the
-command is safe:
+After editing a state SVG in `app-icons/svg/`, regenerate the derived tray SVGs
+and all PNGs, then commit the results:
+
+```bash
+python3 scripts/derive-tray-icons.py
+bash scripts/generate-icons.sh
+```
+
+The bundle icons referenced by `tauri.conf.json` (`icon.icns`, `icon.ico`,
+`32x32.png`, `128x128.png`, `128x128@2x.png`) are generated separately from the
+master image `src-tauri/icons/icon.png`. Only regenerate them when that master
+image changes:
+
+```bash
+cargo tauri icon src-tauri/icons/icon.png
+```
+
+Beware: `tauri icon` also re-encodes `icon.png` itself (input and output share a
+path) and its output is not byte-deterministic — run
+`git restore src-tauri/icons/icon.png` afterwards to avoid generational quality
+loss of the master image.
+
+The command also writes mobile (Android/iOS) and Windows icon sets that we do
+not currently ship. Those paths are gitignored so re-running the command is
+safe:
 
 ```
 src-tauri/icons/android/
