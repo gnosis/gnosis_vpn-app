@@ -1,0 +1,71 @@
+{
+  "theme": "dark",
+  "windowLabel": "main",
+  "cached_state": {
+    "status": {
+      "Ok": {
+        "run_mode": {
+          "Running": {
+            "funding_issues": ["SafeLowOnFunds"],
+            "hopr_status": "Running"
+          }
+        },
+        "destinations": [
+          {
+            "destination": {
+              "id": "dest-berlin",
+              "meta": { "location": "Germany, Berlin" },
+              "address": "0x1111111111111111111111111111111111111111",
+              "routing": 1
+            },
+            "route_health": {
+              "state": { "state": "Routable" },
+              "last_error": null,
+              "checking_since": null,
+              "consecutive_failures": 0
+            }
+          },
+          {
+            "destination": {
+              "id": "dest-zurich",
+              "meta": { "location": "Switzerland, Zurich" },
+              "address": "0x2222222222222222222222222222222222222222",
+              "routing": 1
+            },
+            "route_health": {
+              "state": { "state": "Routable" },
+              "last_error": null,
+              "checking_since": null,
+              "consecutive_failures": 0
+            }
+          }
+        ],
+        "target_destination": null,
+        "connected": null,
+        "connecting": null,
+        "reconnecting": null,
+        "disconnecting": []
+      }
+    },
+    "balance": {
+      "Ok": {
+        "node": "50000000000000000",
+        "safe": "1000000000000000000",
+        "channels_out": "500000000000000000",
+        "info": {
+          "node_address": "0x3333333333333333333333333333333333333333",
+          "node_peer_id": "12D3KooWFixture000000000000000000000000000000000",
+          "safe_address": "0x4444444444444444444444444444444444444444"
+        },
+        "funding_issues": ["SafeLowOnFunds"],
+        "ideal_balance": null,
+        "capacity_allocations": null
+      }
+    },
+    "service_info": {
+      "version": "0.0.0-fixture",
+      "package_version": null,
+      "log_file": null
+    }
+  }
+}

@@ -82,13 +82,7 @@
               "*.html"
               "*.js"
               "*.json"
-              "*.jsonc"
-              "*.jsx"
-              "*.less"
-              "*.markdown"
               "*.md"
-              "*.sass"
-              "*.scss"
               "*.ts"
               "*.tsx"
               "*.yaml"
@@ -96,10 +90,12 @@
             ];
             programs.rustfmt.enable = true;
             programs.shellcheck.enable = true;
+            settings.formatter.shellcheck.includes = [ ".envrc" ];
             programs.shfmt = {
               enable = true;
               indent_size = 4;
             };
+            settings.formatter.shfmt.includes = [ ".envrc" ];
             programs.taplo.enable = true; # TOML formatter
           };
 
