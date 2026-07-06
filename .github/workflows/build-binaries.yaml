@@ -53,13 +53,13 @@ jobs:
           persist-credentials: false
           ref: ${{ inputs.source_branch }}
       - name: Setup Nix
-        uses: hoprnet/hopr-workflows/actions/setup-nix@eedb4b7701714299852ca5243f1544b817653f33 # setup-nix-v2
+        uses: hoprnet/hopr-workflows/actions/setup-nix@5477bd53d62ac15c4804b31fbd55966b29a43997 # setup-nix-v2
         with:
           cachix_cache_name: gnosis-vpn-app
           cachix_auth_token: "${{ secrets.CACHIX_AUTH_TOKEN }}"
       - name: Updates build version
         id: version
-        uses: hoprnet/hopr-workflows/actions/set-build-version@9c452ef512e6a7d5119125af9fc1aa45591a632f # 0.10.2
+        uses: hoprnet/hopr-workflows/actions/set-build-version@2855f448149188cd9c4da41f0a6cbdf4f3d664a1 # set-build-version-v2
         with:
           file: src-tauri/Cargo.toml
           version_type: ${{ inputs.version_type }}
@@ -172,13 +172,13 @@ jobs:
           fi
       - name: Setup GCP
         if: steps.version.outputs.publish_artifact_registry == 'true'
-        uses: hoprnet/hopr-workflows/actions/setup-gcp@eedb4b7701714299852ca5243f1544b817653f33 # setup-gcp-v3
+        uses: hoprnet/hopr-workflows/actions/setup-gcp@ac3e0b6137b0ba470a30c373aab2ceba9e0879e4 # setup-gcp-v4
         with:
           google_credentials: ${{ secrets.GCP_SA_GITHUB_ACTIONS }}
           install_sdk: "true"
       - name: Publish ${{ inputs.architecture }} into Google Artifact registry
         if: steps.version.outputs.publish_artifact_registry == 'true'
-        uses: hoprnet/hopr-workflows/actions/upload-artifact-registry@9c452ef512e6a7d5119125af9fc1aa45591a632f # 0.10.2
+        uses: hoprnet/hopr-workflows/actions/upload-artifact-registry@621619750f6772109d7840a7013135c212925d58 # upload-artifact-registry-v2
         with:
           source: ${{ github.workspace }}/artifacts
           package: gnosis_vpn-app
