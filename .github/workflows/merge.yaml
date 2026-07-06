@@ -26,6 +26,10 @@ jobs:
             runner: depot-macos-15 # Depot Apple Silicon M2, 8 CPUs, 24 GB RAM, 400 GB SSD (harden-runner skipped: Linux-only for third-party runners)
     name: Binary ${{ matrix.binary.architecture }}
     uses: ./.github/workflows/build-binaries.yaml
+    permissions:
+      contents: read
+      pull-requests: read
+      id-token: write
     with:
       source_branch: ${{ github.event.pull_request.base.ref }}
       architecture: ${{ matrix.binary.architecture }}
