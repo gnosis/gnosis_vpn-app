@@ -2,10 +2,8 @@
 #[macro_use]
 extern crate objc;
 
-use serde::Serialize;
 use tauri::Manager;
 use tauri::tray::TrayIconBuilder;
-use tauri_plugin_store::StoreExt;
 use tokio::sync::Notify;
 use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
@@ -16,6 +14,7 @@ use std::sync::{Arc, Mutex};
 mod commands;
 mod icons;
 mod platform;
+pub mod settings;
 mod theme;
 pub mod tray;
 pub mod types;
@@ -28,6 +27,7 @@ use gnosis_vpn_lib::command::InfoResponse;
 use gnosis_vpn_lib::{command, socket::root as root_socket};
 use icons::{IconState, TrayIconState, determine_tray_icon, start_icon_heartbeat};
 use platform::{Platform, PlatformInterface};
+use settings::{SettingsStore, get_settings, update_settings};
 #[cfg(target_os = "linux")]
 use theme::spawn_linux_theme_monitor;
 #[cfg_attr(target_os = "macos", allow(unused_imports))]
@@ -56,13 +56,6 @@ pub struct AppStateCache {
     pub status: watch::Sender<Option<Result<Option<StatusResponse>, String>>>,
     pub balance: watch::Sender<Option<Result<Option<BalanceResponse>, String>>>,
     pub service_info: watch::Sender<Option<InfoResponse>>,
-}
-
-#[derive(Clone, Serialize, Default)]
-struct AppSettings {
-    preferred_location: Option<String>,
-    connect_on_startup: bool,
-    start_minimized: bool,
 }
 
 #[cfg(target_os = "macos")]
@@ -192,26 +185,12 @@ pub fn run() {
                 let _ = window.set_focus();
             }
         }))
-        .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
-            // Load settings from the shared store (settings.json) before any UI decisions
-            let mut loaded: AppSettings = AppSettings::default();
-            if let Ok(store) = app.store("settings.json") {
-                if let Some(v) = store.get("preferredLocation") {
-                    loaded.preferred_location = v.as_str().map(String::from);
-                }
-                if let Some(v) = store.get("connectOnStartup") {
-                    loaded.connect_on_startup = v.as_bool().unwrap_or(false);
-                }
-                if let Some(v) = store.get("startMinimized") {
-                    loaded.start_minimized = v.as_bool().unwrap_or(false);
-                }
-            }
-
-            // Make settings available as managed state
-            app.manage(Mutex::new(loaded.clone()));
+            // Load settings (settings.json) before any UI decisions
+            let settings_path = app.path().app_data_dir()?.join("settings.json");
+            app.manage(SettingsStore::load(settings_path));
 
             // First step: OS theme for app windows (all OS) and tray icons (non-macOS only)
             let theme = system_theme();
@@ -367,8 +346,7 @@ pub fn run() {
 
             // Decide initial window visibility based on settings
             if let Some(window) = app.get_webview_window("main") {
-                let settings = app.state::<Mutex<AppSettings>>();
-                let start_minimized = settings.lock().map(|s| s.start_minimized).unwrap_or(false);
+                let start_minimized = app.state::<SettingsStore>().current().start_minimized;
                 #[cfg(target_os = "macos")]
                 {
                     let policy = if start_minimized {
@@ -421,7 +399,9 @@ pub fn run() {
             set_app_icon,
             get_initial_theme,
             check_update,
-            get_cached_state
+            get_cached_state,
+            get_settings,
+            update_settings
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
