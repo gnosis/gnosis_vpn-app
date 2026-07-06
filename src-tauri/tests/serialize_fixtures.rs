@@ -1,8 +1,10 @@
+use gnosis_vpn_app_lib::settings::{Settings, SortOrder, UpdateChannel};
 use gnosis_vpn_app_lib::types;
 use gnosis_vpn_lib::balance::{
     Balance, BalanceRecommendation, Balances, Capacity, CapacityAllocator, FundingIssue, WxHOPR,
     XDai,
 };
+use gnosis_vpn_lib::check_update;
 use gnosis_vpn_lib::command::RouteHealthView;
 use gnosis_vpn_lib::connection::destination::{Destination, HopRouting};
 use gnosis_vpn_lib::prelude::Address;
@@ -377,4 +379,45 @@ fn generate_fixtures() {
             package_version: None,
         },
     );
+
+    write(&fixtures_dir, "settings_default.json", &Settings::default());
+    write(&fixtures_dir, "settings_full.json", &full_settings());
+}
+
+fn full_settings() -> Settings {
+    // Built via deserialization so the manifest field types (Timestamp, Url,
+    // ByteSize, Hash) don't require their crates as test dependencies;
+    // from_value fails loudly if the wire format drifts.
+    let manifest: check_update::Manifest = serde_json::from_value(serde_json::json!({
+        "schema_version": 1,
+        "generated_at": "2026-07-06T00:00:00Z",
+        "channels": {
+            "stable": {
+                "version": "0.29.0",
+                "published_at": "2026-07-01T12:00:00Z",
+                "download_url": "https://download.gnosisvpn.io/app/0.29.0.AppImage",
+                "size_bytes": 123456789,
+                "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "artifact_signature": "sig",
+                "release_notes": "notes",
+                "min_os_version": "10.15",
+                "min_app_version": "0.28.0"
+            },
+            "snapshot": null
+        }
+    }))
+    .expect("valid manifest fixture");
+
+    Settings {
+        preferred_location: Some("exit-1".to_string()),
+        connect_on_startup: true,
+        start_minimized: true,
+        update_check: true,
+        exit_node_sort_order: SortOrder::Alpha,
+        last_checked_at: Some(1_720_000_000_000),
+        update_manifest: Some(manifest),
+        channel: Some(UpdateChannel::Snapshot),
+        dismissed_update_version: Some("0.28.0".to_string()),
+        show_detailed_metrics: true,
+    }
 }
