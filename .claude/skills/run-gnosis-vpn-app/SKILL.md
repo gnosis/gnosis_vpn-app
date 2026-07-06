@@ -55,9 +55,8 @@ source:
 - `settings` — seeds the shim's `get_settings` snapshot (camelCase keys as in
   `SettingsSchema` in `src/stores/settingsStore.ts`), e.g.
   `"settings": { "exitNodeSortOrder": "alpha", "showDetailedMetrics": true }`.
-  Unset keys fall back to the app's defaults; `update_settings` merges the
-  patch in-memory and fires `settings-changed`, so toggles behave
-  realistically.
+  Unset keys fall back to the app's defaults; `update_settings` merges the patch
+  in-memory and fires `settings-changed`, so toggles behave realistically.
 - `windowLabel: "settings"` renders the settings window instead (use
   `--size 640x480`). Switch tabs by clicking the nav buttons, e.g. Usage:
 
@@ -102,8 +101,8 @@ nix fmt
   light. `shim.js` patches `matchMedia` when the fixture says dark — answering
   `get_initial_theme` alone is not enough.
 - **`settingsStore.load()` must succeed.** `App.tsx` awaits it before
-  `initializeApp()` with no try/catch; if `get_settings` rejects,
-  no status is hydrated and no screen ever changes.
+  `initializeApp()` with no try/catch; if `get_settings` rejects, no status is
+  hydrated and no screen ever changes.
 - **Don't edit source files while the dev server runs.** Deno's fs watcher
   crashes the whole server (`NotFound ... .tmp...` from `fs.watch`) when files
   are replaced via atomic rename, which is how Claude's Edit tool writes. Stop
