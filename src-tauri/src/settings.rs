@@ -127,13 +127,17 @@ fn lenient_from_map(map: serde_json::Map<String, Value>) -> Settings {
     settings
 }
 
+// write-then-rename keeps the previous file intact if the app dies mid-write
 fn persist(path: &Path, settings: &Settings) -> Result<(), String> {
     let json = serde_json::to_string_pretty(settings)
         .map_err(|e| format!("cannot serialize settings: {e}"))?;
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| format!("cannot create settings dir: {e}"))?;
     }
-    std::fs::write(path, json).map_err(|e| format!("cannot write settings file: {e}"))
+    let tmp_path = path.with_extension("json.tmp");
+    std::fs::write(&tmp_path, json).map_err(|e| format!("cannot write settings file: {e}"))?;
+    std::fs::rename(&tmp_path, path)
+        .map_err(|e| format!("cannot move settings file into place: {e}"))
 }
 
 /// Single owner of the settings: loads/persists the file and hands out
@@ -148,7 +152,14 @@ impl SettingsStore {
     pub fn load(path: PathBuf) -> Self {
         let settings = match std::fs::read(&path) {
             // missing file is the regular first run — start from defaults
-            Err(_) => Settings::default(),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Settings::default(),
+            Err(e) => {
+                eprintln!(
+                    "settings: cannot read {}, using defaults: {e}",
+                    path.display()
+                );
+                Settings::default()
+            }
             Ok(bytes) => match serde_json::from_slice(&bytes) {
                 Ok(map) => lenient_from_map(map),
                 Err(e) => {
@@ -170,16 +181,18 @@ impl SettingsStore {
         self.lock().clone()
     }
 
-    /// Applies the patch and persists under the same lock, so concurrent
-    /// updates cannot write stale snapshots out of order. The snapshot is
-    /// returned even when the disk write failed — memory is the session
-    /// truth, disk catches up on the next successful save.
-    pub fn update(&self, patch: SettingsPatch) -> (Settings, Result<(), String>) {
+    /// Applies the patch to a copy, persists it, and only then commits it
+    /// to memory — all under one lock, so concurrent updates cannot write
+    /// stale snapshots out of order and memory never diverges from disk.
+    /// On failure the update is rejected wholesale; the mirrors receive no
+    /// event, so their controls visibly snap back.
+    pub fn update(&self, patch: SettingsPatch) -> Result<Settings, String> {
         let mut guard = self.lock();
-        guard.apply(patch);
-        let snapshot = guard.clone();
-        let persisted = persist(&self.path, &snapshot);
-        (snapshot, persisted)
+        let mut updated = guard.clone();
+        updated.apply(patch);
+        persist(&self.path, &updated)?;
+        *guard = updated.clone();
+        Ok(updated)
     }
 
     fn lock(&self) -> MutexGuard<'_, Settings> {
@@ -202,12 +215,11 @@ pub fn update_settings(
     store: State<'_, SettingsStore>,
     patch: SettingsPatch,
 ) -> Result<Settings, String> {
-    let (snapshot, persisted) = store.update(patch);
-    let _ = app.emit("settings-changed", &snapshot);
-    persisted.map_err(|e| {
+    let snapshot = store.update(patch).map_err(|e| {
         eprintln!("settings: failed to persist: {e}");
         e
     })?;
+    let _ = app.emit("settings-changed", &snapshot);
     Ok(snapshot)
 }
 
@@ -268,17 +280,23 @@ mod tests {
     #[test]
     fn patch_distinguishes_null_from_absent() {
         let store = SettingsStore::load(temp_settings_path());
-        let _ = store.update(patch(
-            json!({ "preferredLocation": "exit-1", "channel": "stable" }),
-        ));
+        store
+            .update(patch(
+                json!({ "preferredLocation": "exit-1", "channel": "stable" }),
+            ))
+            .expect("update should succeed");
 
         // absent fields stay untouched
-        let (snapshot, _) = store.update(patch(json!({ "connectOnStartup": true })));
+        let snapshot = store
+            .update(patch(json!({ "connectOnStartup": true })))
+            .expect("update should succeed");
         assert_eq!(snapshot.preferred_location, Some("exit-1".to_string()));
         assert_eq!(snapshot.channel, Some(UpdateChannel::Stable));
 
         // explicit null clears
-        let (snapshot, _) = store.update(patch(json!({ "preferredLocation": null })));
+        let snapshot = store
+            .update(patch(json!({ "preferredLocation": null })))
+            .expect("update should succeed");
         assert_eq!(snapshot.preferred_location, None);
         assert_eq!(snapshot.channel, Some(UpdateChannel::Stable));
     }
@@ -287,17 +305,34 @@ mod tests {
     fn update_persists_and_reloads() {
         let path = temp_settings_path();
         let store = SettingsStore::load(path.clone());
-        let (_, persisted) = store.update(patch(json!({
-            "updateCheck": true,
-            "exitNodeSortOrder": "alpha",
-            "lastCheckedAt": 1720000000000i64
-        })));
-        persisted.expect("persist should succeed");
+        store
+            .update(patch(json!({
+                "updateCheck": true,
+                "exitNodeSortOrder": "alpha",
+                "lastCheckedAt": 1720000000000i64
+            })))
+            .expect("update should succeed");
 
         let reloaded = SettingsStore::load(path).current();
         assert!(reloaded.update_check);
         assert_eq!(reloaded.exit_node_sort_order, SortOrder::Alpha);
         assert_eq!(reloaded.last_checked_at, Some(1720000000000));
+    }
+
+    #[test]
+    fn failed_persist_rejects_the_update() {
+        // make the settings "directory" a file so persisting must fail
+        let path = temp_settings_path();
+        let parent = path.parent().unwrap();
+        std::fs::create_dir_all(parent.parent().unwrap()).unwrap();
+        std::fs::write(parent, b"not a directory").unwrap();
+
+        let store = SettingsStore::load(path);
+        let result = store.update(patch(json!({ "connectOnStartup": true })));
+
+        assert!(result.is_err());
+        // the rejected patch must not leak into memory
+        assert!(!store.current().connect_on_startup);
     }
 
     #[test]
@@ -316,8 +351,7 @@ mod tests {
         })
         .collect();
         for handle in handles {
-            let (_, persisted) = handle.join().unwrap();
-            persisted.expect("persist should succeed");
+            handle.join().unwrap().expect("update should succeed");
         }
 
         let reloaded = SettingsStore::load(path).current();
