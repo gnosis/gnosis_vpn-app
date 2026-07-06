@@ -9,7 +9,7 @@ const release = (version: string): ChannelRelease => ({
   version,
   published_at: "2026-01-01T00:00:00Z",
   download_url: "https://example.com/x",
-  size_bytes: 0,
+  size_bytes: "0 B",
   sha256: "x",
   artifact_signature: "x",
   release_notes: "",
