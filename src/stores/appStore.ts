@@ -1,6 +1,6 @@
 import { createEffect, createRoot } from "solid-js";
 import { createStore, reconcile, type Store } from "solid-js/store";
-import { emit, listen } from "@tauri-apps/api/event";
+import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { evaluateUpdate } from "@src/utils/updateAvailability.ts";
 
@@ -584,10 +584,11 @@ export function createAppStore(): AppStoreTuple {
     },
   } as const;
 
-  // Both windows derive update state via the same helper. Emits cross-window
-  // so the result is shared without needing manifest sync. Always applies the
-  // helper output (even when isUpToDate is undefined) so a channel switch
-  // that lands on a missing release clears any stale banner state.
+  // Both windows derive update state locally via the same helper — settings
+  // sync through the rust-owned settings store, so both compute identical
+  // results. Always applies the helper output (even when isUpToDate is
+  // undefined) so a channel switch that lands on a missing release clears
+  // any stale banner state.
   createEffect(() => {
     const d = evaluateUpdate({
       packageVersion: state.serviceInfo?.package_version ?? null,
@@ -597,19 +598,7 @@ export function createAppStore(): AppStoreTuple {
     });
     setState("availableVersion", d.availableVersion);
     setState("isUpdateAvailable", d.isUpdateAvailable);
-    void emit("app:update-available", {
-      isUpdateAvailable: d.isUpdateAvailable,
-      availableVersion: d.availableVersion,
-    });
   });
-
-  void listen<{ isUpdateAvailable: boolean; availableVersion: string | null }>(
-    "app:update-available",
-    ({ payload }) => {
-      setState("isUpdateAvailable", payload.isUpdateAvailable);
-      setState("availableVersion", payload.availableVersion);
-    },
-  );
 
   return [state, actions] as const;
 }
