@@ -29,7 +29,6 @@ import {
   destinationLabel,
   getPreferredAvailabilityChangeMessage,
   resolveAutoDestination,
-  sortByStartupLatency,
 } from "@src/utils/destinations.ts";
 
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
@@ -73,7 +72,6 @@ type AppActions = {
   chooseDestination: (id: string | null) => void;
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
-  connectOnStartup: () => Promise<void>;
 };
 
 type AppStoreTuple = readonly [Store<AppState>, AppActions];
@@ -582,36 +580,6 @@ export function createAppStore(): AppStoreTuple {
         setState("error", message);
       } finally {
         setState("isLoading", false);
-      }
-    },
-
-    connectOnStartup: async () => {
-      if (settings.preferredLocation) {
-        try {
-          await VPNService.connect(settings.preferredLocation);
-        } catch (error) {
-          log(
-            `Connect on startup failed: ${
-              error instanceof Error ? error.message : String(error)
-            }`,
-          );
-        }
-        return;
-      }
-
-      const sorted = sortByStartupLatency(
-        state.availableDestinations,
-        state.destinations,
-      );
-      if (sorted.length === 0) return;
-      try {
-        await VPNService.connect(sorted[0].id);
-      } catch (error) {
-        log(
-          `Connect on startup failed: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        );
       }
     },
   } as const;
