@@ -590,17 +590,28 @@ export function createAppStore(): AppStoreTuple {
         try {
           await VPNService.connect(settings.preferredLocation);
         } catch (error) {
-          log(`Connect on startup failed: ${error instanceof Error ? error.message : String(error)}`);
+          log(
+            `Connect on startup failed: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          );
         }
         return;
       }
 
-      const sorted = sortByStartupLatency(state.availableDestinations, state.destinations);
+      const sorted = sortByStartupLatency(
+        state.availableDestinations,
+        state.destinations,
+      );
       if (sorted.length === 0) return;
       try {
         await VPNService.connect(sorted[0].id);
       } catch (error) {
-        log(`Connect on startup failed: ${error instanceof Error ? error.message : String(error)}`);
+        log(
+          `Connect on startup failed: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
       }
     },
   } as const;
