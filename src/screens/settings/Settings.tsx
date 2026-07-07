@@ -23,12 +23,13 @@ export default function Settings() {
           }
         >
           <Dropdown
-            options={appState.availableDestinations.map((e) => {
-              return {
-                id: e.id,
+            options={[
+              { id: null as string | null, label: "No preference" },
+              ...appState.availableDestinations.map((e) => ({
+                id: e.id as string | null,
                 label: destinationLabel(e),
-              };
-            })}
+              })),
+            ]}
             value={settings.preferredLocation
               ? {
                 id: settings.preferredLocation,
@@ -37,7 +38,7 @@ export default function Settings() {
                   appState.availableDestinations,
                 ),
               }
-              : null}
+              : { id: null, label: "No preference" }}
             onChange={(e) => void settingsActions.setPreferredLocation(e.id)}
             size="sm"
             itemToString={(e) => e.label}
