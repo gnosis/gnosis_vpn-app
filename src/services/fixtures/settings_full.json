@@ -1,0 +1,29 @@
+{
+  "preferredLocation": "exit-1",
+  "connectOnStartup": true,
+  "startMinimized": true,
+  "updateCheck": true,
+  "exitNodeSortOrder": "alpha",
+  "lastCheckedAt": 1720000000000,
+  "updateManifest": {
+    "schema_version": 1,
+    "generated_at": "2026-07-06T00:00:00Z",
+    "channels": {
+      "stable": {
+        "version": "0.29.0",
+        "published_at": "2026-07-01T12:00:00Z",
+        "download_url": "https://download.gnosisvpn.io/app/0.29.0.AppImage",
+        "size_bytes": "117.7 MiB",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "artifact_signature": "sig",
+        "release_notes": "notes",
+        "min_os_version": "10.15",
+        "min_app_version": "0.28.0"
+      },
+      "snapshot": null
+    }
+  },
+  "channel": "snapshot",
+  "dismissedUpdateVersion": "0.28.0",
+  "showDetailedMetrics": true
+}
