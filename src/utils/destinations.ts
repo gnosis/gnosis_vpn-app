@@ -4,6 +4,21 @@ import type {
 } from "@src/services/vpnService.ts";
 import { getSortLatencyMs, isReadyToConnect } from "@src/utils/exitHealth.ts";
 
+/** Sort by latency ascending; no-latency entries go last, then A–Z. */
+export function sortByStartupLatency(
+  available: Destination[],
+  destinations: Record<string, DestinationState>,
+): Destination[] {
+  return [...available].sort((a, b) => {
+    const msA = destinations[a.id] ? getSortLatencyMs(destinations[a.id]) : null;
+    const msB = destinations[b.id] ? getSortLatencyMs(destinations[b.id]) : null;
+    if (msA !== null && msB !== null) return msA - msB;
+    if (msA !== null) return -1;
+    if (msB !== null) return 1;
+    return destinationLabel(a).localeCompare(destinationLabel(b));
+  });
+}
+
 export function getPreferredAvailabilityChangeMessage(
   previous: Destination[],
   next: Destination[],
