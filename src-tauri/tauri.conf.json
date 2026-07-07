@@ -16,6 +16,7 @@
         "width": 360,
         "height": 640,
         "resizable": false,
+        "visible": false,
         "backgroundColor": "#111827"
       },
       {
