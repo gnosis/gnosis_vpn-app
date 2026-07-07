@@ -1,4 +1,5 @@
 use gnosis_vpn_lib::command;
+use gnosis_vpn_lib::route_health::RouteHealthState;
 use gnosis_vpn_lib::socket::root as root_socket;
 
 use serde::Serialize;
@@ -324,6 +325,7 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
 
     let app = app_handle.clone();
     let join_handle = tauri::async_runtime::spawn(async move {
+        let mut startup_connect_done = false;
         let tick_timeout = time::sleep(Duration::ZERO);
         tokio::pin!(tick_timeout);
         loop {
@@ -374,6 +376,25 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
                         if let Ok(guard) = quit_item.0.lock() {
                             let _ = guard.set_text(quit_label);
                         };
+
+                        if !startup_connect_done
+                            && status.destinations.iter().any(|ds| is_positive_route_health(&ds.route_health))
+                        {
+                            startup_connect_done = true;
+                            let settings = app.state::<crate::settings::SettingsStore>().current();
+                            if settings.connect_on_startup {
+                                if let Some(id) = pick_startup_target(&status.destinations, &settings.preferred_location) {
+                                    let trigger_clone = trigger.clone();
+                                    tauri::async_runtime::spawn(async move {
+                                        let p = PathBuf::from(root_socket::DEFAULT_PATH);
+                                        if let Err(e) = root_socket::process_cmd(&p, &command::Command::Connect(id)).await {
+                                            eprintln!("connect on startup failed: {e}");
+                                        }
+                                        trigger_clone.notify_one();
+                                    });
+                                }
+                            }
+                        }
                     }
                     app.state::<AppStateCache>().status.send_replace(Some(result.clone()));
                     let _ = app.emit("status", result);
@@ -513,4 +534,34 @@ async fn query_status() -> (Duration, Result<Option<StatusResponse>, String>) {
         ),
         Err(e) => (Duration::from_secs(2), Err(e.to_string())),
     }
+}
+
+fn is_positive_route_health(rh: &Option<command::RouteHealthView>) -> bool {
+    matches!(
+        rh.as_ref().map(|v| &v.state),
+        Some(RouteHealthState::ReadyToConnect { .. })
+    )
+}
+
+fn startup_latency(rh: &Option<command::RouteHealthView>) -> Option<Duration> {
+    match rh.as_ref().map(|v| &v.state)? {
+        RouteHealthState::ReadyToConnect { exit } => Some(exit.ping_rtt),
+        _ => None,
+    }
+}
+
+fn pick_startup_target(
+    destinations: &[command::DestinationState],
+    preferred: &Option<String>,
+) -> Option<String> {
+    if let Some(id) = preferred {
+        return Some(id.clone());
+    }
+    destinations
+        .iter()
+        .filter_map(|ds| {
+            startup_latency(&ds.route_health).map(|ms| (ms, ds.destination.id.clone()))
+        })
+        .min_by_key(|(ms, _)| *ms)
+        .map(|(_, id)| id)
 }

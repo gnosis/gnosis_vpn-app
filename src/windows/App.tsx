@@ -156,14 +156,6 @@ function App() {
       await settingsActions.load();
       await appActions.initializeApp();
 
-      if (
-        settings.connectOnStartup &&
-        appState.vpnStatus === "Disconnected" &&
-        appState.availableDestinations.length > 0
-      ) {
-        await appActions.connect();
-      }
-
       const unlisten = await listen<NavigatePayload>(
         "navigate",
         ({ payload }) =>
