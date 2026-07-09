@@ -3083,7 +3083,7 @@ dependencies = [
 [[package]]
 name = "edgli"
 version = "3.3.1"
-source = "git+https://github.com/hoprnet/edge-client.git?rev=556365f7b544a25b78ec22cce31bef026993901b#556365f7b544a25b78ec22cce31bef026993901b"
+source = "git+https://github.com/hoprnet/edge-client.git?rev=7da0fa5c713a5e904748802630bdafcf35f651b4#7da0fa5c713a5e904748802630bdafcf35f651b4"
 dependencies = [
  "anyhow",
  "async-signal",
@@ -3990,7 +3990,7 @@ dependencies = [
 
 [[package]]
 name = "gnosis_vpn-app"
-version = "0.28.1"
+version = "0.32.0"
 dependencies = [
  "ashpd",
  "cocoa",
@@ -4015,8 +4015,8 @@ dependencies = [
 
 [[package]]
 name = "gnosis_vpn-lib"
-version = "0.91.1"
-source = "git+https://github.com/gnosis/gnosis_vpn-client.git?rev=bf5d7ab238ce823880301eb63c522143522f36e7#bf5d7ab238ce823880301eb63c522143522f36e7"
+version = "0.92.0"
+source = "git+https://github.com/gnosis/gnosis_vpn-client.git?rev=d6c0558cb855e9d4ce5e6b56368a1e57cb3b1bcf#d6c0558cb855e9d4ce5e6b56368a1e57cb3b1bcf"
 dependencies = [
  "anyhow",
  "backon",
@@ -4063,6 +4063,16 @@ dependencies = [
  "glib-sys",
  "libc",
  "system-deps",
+]
+
+[[package]]
+name = "granit-parser"
+version = "0.0.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d03f81ad4732830d85cfd417a9f62cde6dadda4354d37d078a6084a19560aa2d"
+dependencies = [
+ "arraydeque",
+ "smallvec",
 ]
 
 [[package]]
@@ -8574,17 +8584,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "saphyr-parser-bw"
-version = "0.0.611"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "67dec0c833db75dc98957956b303fe447ffc5eb13f2325ef4c2350f7f3aa69e3"
-dependencies = [
- "arraydeque",
- "smallvec",
- "thiserror 2.0.18",
-]
-
-[[package]]
 name = "schannel"
 version = "0.1.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8801,19 +8800,19 @@ dependencies = [
 
 [[package]]
 name = "serde-saphyr"
-version = "0.0.25"
+version = "0.0.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "75e214449d107a81daf1453eb46c9314457660509534883e82db6faca2034a8a"
+checksum = "7bd22781911de0ca6debda95f073c8f18bec65d1a94f1fa9573f3102e514cea4"
 dependencies = [
  "ahash",
  "annotate-snippets",
- "base64 0.22.1",
+ "base64 0.21.7",
  "encoding_rs_io",
  "getrandom 0.3.4",
+ "granit-parser",
  "nohash-hasher",
  "num-traits",
- "saphyr-parser-bw",
- "serde",
+ "serde_core",
  "smallvec",
  "zmij",
 ]
