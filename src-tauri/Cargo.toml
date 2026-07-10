@@ -24,7 +24,7 @@ tauri-build = { version = "2.6.2", features = [] }
 
 [dependencies]
 # gnosis_vpn-lib = { path = "../../gnosis_vpn-client/gnosis_vpn-lib" }
-gnosis_vpn-lib = { git = "https://github.com/gnosis/gnosis_vpn-client.git", rev = "d6c0558cb855e9d4ce5e6b56368a1e57cb3b1bcf" }
+gnosis_vpn-lib = { git = "https://github.com/gnosis/gnosis_vpn-client.git", rev = "27d9fa4cd17bd5d191e7bb5b580b103bde393602" }
 liblzma = { version = "0.4.6", default-features = false, features = ["static"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"

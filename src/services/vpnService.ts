@@ -249,6 +249,7 @@ export const RunModeSchema = z.union([
   z.object({ Warmup: WarmupSchema }),
   z.object({ Running: RunningSchema }),
   z.literal("Shutdown"),
+  z.literal("Restarting"),
   z.literal("NotRunning"),
 ]);
 export type RunMode = z.infer<typeof RunModeSchema>;
