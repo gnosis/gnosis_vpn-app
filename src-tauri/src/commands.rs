@@ -20,7 +20,7 @@ use crate::tray;
 use crate::types::{BalanceResponse, ConnectionState, StatusResponse};
 use crate::{AppStateCache, BalancePollingHandle, StatusPollingHandle};
 
-const COMPATIBLE_VERSIONS: &[&str] = &["0.92"];
+const COMPATIBLE_VERSIONS: &[&str] = &["0.93"];
 
 fn is_version_compatible(version: &str) -> bool {
     COMPATIBLE_VERSIONS
