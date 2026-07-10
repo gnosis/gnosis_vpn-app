@@ -514,6 +514,11 @@ async fn query_status() -> (Duration, Result<Option<StatusResponse>, String>) {
                 disconnecting: status_resp.disconnecting,
             };
 
+            if matches!(resp.run_mode, crate::types::RunMode::NotRunning) {
+                let _ = start_client_worker(Duration::from_secs(10)).await;
+                return (Duration::from_secs(5), Ok(Some(resp)));
+            }
+
             let is_in_transition = resp.connecting.is_some() || resp.reconnecting.is_some();
             if is_in_transition {
                 (Duration::from_millis(222), Ok(Some(resp)))
@@ -522,7 +527,7 @@ async fn query_status() -> (Duration, Result<Option<StatusResponse>, String>) {
             }
         }
         Ok(command::Response::WorkerOffline) => {
-            // daemon restarted but worker is not running — try to restart it
+            // socket-level response: worker process not running — try to restart it
             let _ = start_client_worker(Duration::from_secs(10)).await;
             (Duration::from_secs(5), Ok(None))
         }
