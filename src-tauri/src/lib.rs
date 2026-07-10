@@ -41,9 +41,14 @@ use types::{BalanceResponse, StatusResponse};
 
 struct HeartbeatHandle(Mutex<Option<tauri::async_runtime::JoinHandle<()>>>);
 
+pub enum PollingExit {
+    Cancelled,
+    NeedsReinit,
+}
+
 pub struct StatusPollingHandle {
     pub cancel: CancellationToken,
-    pub handle: Option<tauri::async_runtime::JoinHandle<()>>,
+    pub handle: Option<tauri::async_runtime::JoinHandle<PollingExit>>,
     pub trigger: Arc<Notify>,
 }
 

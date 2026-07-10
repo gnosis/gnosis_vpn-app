@@ -18,7 +18,7 @@ use tokio::time::{self, Instant};
 use crate::icons::{self, TrayIconState};
 use crate::tray;
 use crate::types::{BalanceResponse, ConnectionState, StatusResponse};
-use crate::{AppStateCache, BalancePollingHandle, StatusPollingHandle};
+use crate::{AppStateCache, BalancePollingHandle, PollingExit, StatusPollingHandle};
 
 const COMPATIBLE_VERSIONS: &[&str] = &["0.93"];
 
@@ -332,13 +332,13 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
             tokio::select! {
                 _ = cancel.cancelled() => {
                     println!("Status tick received cancellation signal, exiting...");
-                    break;
+                    break PollingExit::Cancelled;
                 }
                 _ = trigger.notified() => {
                     tick_timeout.as_mut().reset(Instant::now());
                 }
                 _ = tick_timeout.as_mut() => {
-                    let (status_delay, result) = query_status().await;
+                    let (needs_reinit, status_delay, result) = query_status().await;
                     tick_timeout.as_mut().reset(Instant::now() + status_delay);
                     if let Ok(Some(ref status)) = result {
                         let conn_state = status.into();
@@ -398,6 +398,9 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
                     }
                     app.state::<AppStateCache>().status.send_replace(Some(result.clone()));
                     let _ = app.emit("status", result);
+                    if needs_reinit {
+                        break PollingExit::NeedsReinit;
+                    }
                 }
             }
         }
@@ -495,11 +498,26 @@ pub async fn run_initialization_loop(app: AppHandle) {
         app.state::<AppStateCache>()
             .service_info
             .send_replace(Some(info));
-        break;
+
+        let handle = app
+            .state::<Mutex<StatusPollingHandle>>()
+            .lock()
+            .ok()
+            .and_then(|mut g| g.handle.take());
+
+        let exit = if let Some(h) = handle {
+            h.await.unwrap_or(PollingExit::Cancelled)
+        } else {
+            PollingExit::Cancelled
+        };
+
+        if matches!(exit, PollingExit::Cancelled) {
+            break;
+        }
     }
 }
 
-async fn query_status() -> (Duration, Result<Option<StatusResponse>, String>) {
+async fn query_status() -> (bool, Duration, Result<Option<StatusResponse>, String>) {
     let p = PathBuf::from(root_socket::DEFAULT_PATH);
     let resp = root_socket::process_cmd(&p, &command::Command::Status).await;
     match resp {
@@ -515,29 +533,30 @@ async fn query_status() -> (Duration, Result<Option<StatusResponse>, String>) {
             };
 
             if matches!(resp.run_mode, crate::types::RunMode::NotRunning) {
-                let _ = start_client_worker(Duration::from_secs(10)).await;
-                return (Duration::from_secs(5), Ok(Some(resp)));
+                return (true, Duration::from_secs(5), Ok(Some(resp)));
             }
 
             let is_in_transition = resp.connecting.is_some() || resp.reconnecting.is_some();
             if is_in_transition {
-                (Duration::from_millis(222), Ok(Some(resp)))
+                (false, Duration::from_millis(222), Ok(Some(resp)))
             } else {
-                (Duration::from_secs(2), Ok(Some(resp)))
+                (false, Duration::from_secs(2), Ok(Some(resp)))
             }
         }
         Ok(command::Response::WorkerOffline) => {
-            // socket-level response: worker process not running — try to restart it
-            let _ = start_client_worker(Duration::from_secs(10)).await;
-            (Duration::from_secs(5), Ok(None))
+            // socket-level response: worker process not running
+            (true, Duration::from_secs(5), Ok(None))
         }
         // Internal response sent by the root process to itself; never forwarded to the app.
-        Ok(command::Response::ForceReconnectAcknowledged) => (Duration::from_secs(2), Ok(None)),
+        Ok(command::Response::ForceReconnectAcknowledged) => {
+            (false, Duration::from_secs(2), Ok(None))
+        }
         Ok(unexpected) => (
+            false,
             Duration::from_secs(2),
             Err(format!("Unexpected response type: {:?}", unexpected).to_string()),
         ),
-        Err(e) => (Duration::from_secs(2), Err(e.to_string())),
+        Err(e) => (false, Duration::from_secs(2), Err(e.to_string())),
     }
 }
 
