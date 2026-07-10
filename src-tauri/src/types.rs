@@ -100,6 +100,7 @@ pub enum RunMode {
         hopr_status: Option<CombinedHoprStatus>,
     },
     Shutdown,
+    Restarting,
     NotRunning,
 }
 
@@ -207,6 +208,7 @@ impl From<command::RunMode> for RunMode {
                 hopr_status: hopr_status.map(|s| s.into()),
             },
             command::RunMode::Shutdown => RunMode::Shutdown,
+            command::RunMode::Restarting => RunMode::Restarting,
             command::RunMode::NotRunning => RunMode::NotRunning,
         }
     }

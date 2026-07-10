@@ -59,7 +59,8 @@ export function deriveVPNStatus(
   response: StatusResponse,
 ): AppState["vpnStatus"] {
   if ("Shutdown" === response.run_mode) return "ServiceUnavailable";
-  if ("NotRunning" === response.run_mode) return "WorkerRestarting";
+  if ("NotRunning" === response.run_mode) return "ServiceUnavailable";
+  if ("Restarting" === response.run_mode) return "WorkerRestarting";
   if (isPreparingSafeRunMode(response.run_mode)) return "PreparingSafe";
   if (isDeployingSafeRunMode(response.run_mode)) return "DeployingSafe";
   if (isWarmupRunMode(response.run_mode)) {

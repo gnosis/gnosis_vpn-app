@@ -175,6 +175,11 @@ fn generate_fixtures() {
             node_address: "0x0000000000000000000000000000000000000000".to_string(),
         }),
     );
+    write(
+        &fixtures_dir,
+        "status_restarting.json",
+        &status_base(types::RunMode::Restarting),
+    );
 
     write(
         &fixtures_dir,

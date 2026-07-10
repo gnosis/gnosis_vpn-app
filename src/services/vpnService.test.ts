@@ -17,6 +17,7 @@ import statusRunning from "./fixtures/status_running.json";
 import statusPreparingSafe from "./fixtures/status_preparing_safe.json";
 import statusPreparingSafeWithRecommendation from "./fixtures/status_preparing_safe_with_recommendation.json";
 import statusDeployingSafe from "./fixtures/status_deploying_safe.json";
+import statusRestarting from "./fixtures/status_restarting.json";
 import statusWithConnections from "./fixtures/status_with_connections.json";
 import statusRouteHealthVariants from "./fixtures/status_route_health_variants.json";
 import connectNotFound from "./fixtures/connect_destination_not_found.json";
@@ -81,6 +82,10 @@ describe("StatusResponseSchema", () => {
     expect(StatusResponseSchema.safeParse(statusDeployingSafe).success).toBe(
       true,
     );
+  });
+
+  it("parses Restarting run_mode", () => {
+    expect(StatusResponseSchema.safeParse(statusRestarting).success).toBe(true);
   });
 
   it("parses ConnectedInfo and connection phase fields", () => {

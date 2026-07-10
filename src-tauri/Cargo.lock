@@ -3990,7 +3990,7 @@ dependencies = [
 
 [[package]]
 name = "gnosis_vpn-app"
-version = "0.32.0"
+version = "0.33.0"
 dependencies = [
  "ashpd",
  "cocoa",
@@ -4015,8 +4015,8 @@ dependencies = [
 
 [[package]]
 name = "gnosis_vpn-lib"
-version = "0.92.0"
-source = "git+https://github.com/gnosis/gnosis_vpn-client.git?rev=d6c0558cb855e9d4ce5e6b56368a1e57cb3b1bcf#d6c0558cb855e9d4ce5e6b56368a1e57cb3b1bcf"
+version = "0.93.0"
+source = "git+https://github.com/gnosis/gnosis_vpn-client.git?rev=93d0bcd34b767cc75df39ff86f76e739ab55a343#93d0bcd34b767cc75df39ff86f76e739ab55a343"
 dependencies = [
  "anyhow",
  "backon",
