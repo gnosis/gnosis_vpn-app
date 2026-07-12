@@ -72,7 +72,7 @@ export default function Settings() {
           options={FLAG_DISPLAY_OPTIONS}
           value={FLAG_DISPLAY_OPTIONS.find(
             (o) => o.id === settings.flagDisplay,
-          )!}
+          ) ?? FLAG_DISPLAY_OPTIONS[2]}
           onChange={(o) => void settingsActions.setFlagDisplay(o.id)}
           size="sm"
           itemToString={(o) => o.label}
