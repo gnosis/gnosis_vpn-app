@@ -54,8 +54,8 @@ source:
   `src/services/vpnService.ts`).
 - `destination.meta.flag` — optional ISO 3166-1 alpha-2 code (e.g. `"SE"`,
   `"BR"`) placed inside each destination's `meta` object; when present and
-  `settings.flagDisplay` is not `"none"`, the UI renders the country flag next to
-  the destination label.
+  `settings.flagDisplay` is not `"none"`, the UI renders the country flag next
+  to the destination label.
 - `settings` — seeds the shim's `get_settings` snapshot (camelCase keys as in
   `SettingsSchema` in `src/stores/settingsStore.ts`), e.g.
   `"settings": { "exitNodeSortOrder": "alpha", "showDetailedMetrics": true, "flagDisplay": "color" }`.
