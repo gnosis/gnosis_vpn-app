@@ -13,7 +13,7 @@ export default function Flag(props: { code: string }) {
       <span
         class={`fi fi-${props.code.toLowerCase()} rounded-sm shrink-0`}
         style={grayscale() ? { filter: "grayscale(1)" } : {}}
-        aria-hidden
+        aria-hidden="true"
       />
     </Show>
   );

@@ -121,7 +121,7 @@ export default function ExitNodeCard(props: {
           <div
             class={`absolute inset-y-0 left-0 w-1 ${color()}`}
             classList={{ "animate-pulse": isConnecting() || isReconnecting() }}
-            aria-hidden
+            aria-hidden="true"
           />
         )}
       </Show>
