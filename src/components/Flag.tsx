@@ -11,7 +11,7 @@ export default function Flag(props: { code: string }) {
   return (
     <Show when={visible()}>
       <span
-        class={`fi fi-${props.code.toLowerCase()} rounded-sm shrink-0`}
+        class={`fi fi-${props.code} rounded-sm shrink-0`}
         style={grayscale() ? { filter: "grayscale(1)" } : {}}
         aria-hidden="true"
       />
