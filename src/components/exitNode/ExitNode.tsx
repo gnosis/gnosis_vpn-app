@@ -63,9 +63,7 @@ export default function ExitNode() {
           >
             {(selectedId) => {
               const dest = () =>
-                appState.availableDestinations.find(
-                  (d) => d.id === selectedId(),
-                );
+                appState.destinations[selectedId()]?.destination;
               return (
                 <span class="flex items-center gap-1.5 text-sm font-medium text-text-primary min-w-0">
                   <Flag code={dest()?.meta.flag ?? ""} />
