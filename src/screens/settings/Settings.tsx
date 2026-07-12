@@ -1,12 +1,21 @@
 import { Dropdown } from "../../components/common/Dropdown.tsx";
 import Toggle from "@src/components/common/Toggle.tsx";
 import { useAppStore } from "@src/stores/appStore.ts";
-import { useSettingsStore } from "@src/stores/settingsStore.ts";
+import {
+  type FlagDisplay,
+  useSettingsStore,
+} from "@src/stores/settingsStore.ts";
 import {
   destinationLabel,
   destinationLabelById,
 } from "@src/utils/destinations.ts";
 import { Show } from "solid-js";
+
+const FLAG_DISPLAY_OPTIONS: { id: FlagDisplay; label: string }[] = [
+  { id: "none", label: "Off" },
+  { id: "mono", label: "Monochromatic" },
+  { id: "color", label: "Colored" },
+];
 
 export default function Settings() {
   const [appState] = useAppStore();
@@ -57,6 +66,18 @@ export default function Settings() {
         onChange={(e) =>
           void settingsActions.setStartMinimized(e.currentTarget.checked)}
       />
+      <label class="flex items-center justify-between gap-2 text-text-primary">
+        Exit node flags
+        <Dropdown
+          options={FLAG_DISPLAY_OPTIONS}
+          value={FLAG_DISPLAY_OPTIONS.find(
+            (o) => o.id === settings.flagDisplay,
+          )!}
+          onChange={(o) => void settingsActions.setFlagDisplay(o.id)}
+          size="sm"
+          itemToString={(o) => o.label}
+        />
+      </label>
       <div class="grow" />
     </div>
   );

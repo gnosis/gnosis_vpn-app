@@ -21,6 +21,7 @@ import {
 import HopsIcon from "./HopsIcon.tsx";
 import Stat from "./Stat.tsx";
 import Tag from "../common/Tag.tsx";
+import Flag from "../Flag.tsx";
 
 export default function ExitNodeCard(props: {
   destinationState: () => DestinationState;
@@ -126,8 +127,11 @@ export default function ExitNodeCard(props: {
       </Show>
       <div class="min-w-0 flex-1 px-4 py-3">
         <div class="flex flex-wrap items-start justify-between gap-1.5 mb-1">
-          <span class="font-semibold text-sm text-text-primary break-all">
-            {destinationLabel(props.destinationState().destination)}
+          <span class="flex items-center gap-1.5 font-semibold text-sm text-text-primary min-w-0">
+            <Flag code={props.destinationState().destination.meta.flag ?? ""} />
+            <span class="break-all">
+              {destinationLabel(props.destinationState().destination)}
+            </span>
           </span>
           <Show when={route() && hopCount() !== 1}>
             <Tag>
