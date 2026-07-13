@@ -31,8 +31,8 @@ Vite
 - `public/` - Static assets
 - Config: `vite.config.ts`, `tauri.conf.json`, `flake.nix` (Nix dev environment)
 
-**Key Dependencies**: `@tauri-apps/api`, `solid-js`, `tailwindcss`, Deno (task
-runner)
+**Key Dependencies**: `@tauri-apps/api`, `solid-js`, `tailwindcss`, `flag-icons`
+(SVG country flags), Deno (task runner)
 
 ## Code Style & Conventions
 

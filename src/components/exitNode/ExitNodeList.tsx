@@ -247,7 +247,7 @@ export default function ExitNodeList(props: { onClose: () => void }) {
             <Show when={appState.selectedId === null}>
               <div
                 class="absolute inset-y-0 left-0 w-1 bg-text-muted"
-                aria-hidden
+                aria-hidden="true"
               />
             </Show>
             <div class="flex flex-col">

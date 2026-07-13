@@ -56,9 +56,21 @@ export const DisconnectingInfoSchema = z.object({
 });
 export type DisconnectingInfo = z.infer<typeof DisconnectingInfoSchema>;
 
+// ISO 3166-1 alpha-2: exactly two ASCII letters, normalized to lowercase.
+// .catch(undefined) silently drops any value that doesn't match so garbage
+// from the server never reaches the CSS class string in Flag.tsx.
+const FlagCodeSchema = z
+  .string()
+  .regex(/^[a-zA-Z]{2}$/)
+  .transform((s) => s.toLowerCase())
+  .optional()
+  .catch(undefined);
+
 export const DestinationSchema = z.object({
   id: z.string(),
-  meta: z.object({ location: z.string() }).catchall(z.string()),
+  meta: z
+    .object({ location: z.string(), flag: FlagCodeSchema })
+    .catchall(z.string()),
   address: z.string(),
   routing: z.number(),
 });

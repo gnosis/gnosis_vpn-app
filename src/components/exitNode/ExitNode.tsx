@@ -8,6 +8,7 @@ import { createMemo, createSignal, Show } from "solid-js";
 import { Portal } from "solid-js/web";
 import { useSettingsStore } from "../../stores/settingsStore.ts";
 import ExitNodeList from "./ExitNodeList.tsx";
+import Flag from "../Flag.tsx";
 
 export default function ExitNode() {
   const [appState] = useAppStore();
@@ -51,22 +52,30 @@ export default function ExitNode() {
                     <span class="text-sm font-medium text-text-primary">
                       Auto
                     </span>
-                    <span class="text-xs text-text-secondary break-all">
-                      {destinationLabel(dest())}
+                    <span class="flex items-center gap-1.5 text-xs text-text-secondary min-w-0">
+                      <Flag code={dest().meta.flag ?? ""} />
+                      <span class="break-all">{destinationLabel(dest())}</span>
                     </span>
                   </span>
                 )}
               </Show>
             }
           >
-            {(selectedId) => (
-              <span class="text-sm font-medium text-text-primary break-all">
-                {destinationLabelById(
-                  selectedId(),
-                  appState.availableDestinations,
-                )}
-              </span>
-            )}
+            {(selectedId) => {
+              const dest = () =>
+                appState.destinations[selectedId()]?.destination;
+              return (
+                <span class="flex items-center gap-1.5 text-sm font-medium text-text-primary min-w-0">
+                  <Flag code={dest()?.meta.flag ?? ""} />
+                  <span class="break-all">
+                    {destinationLabelById(
+                      selectedId(),
+                      appState.availableDestinations,
+                    )}
+                  </span>
+                </span>
+              );
+            }}
           </Show>
         </div>
         <svg

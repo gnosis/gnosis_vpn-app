@@ -23,9 +23,10 @@ pub struct Settings {
     pub channel: Option<UpdateChannel>,
     pub dismissed_update_version: Option<String>,
     pub show_detailed_metrics: bool,
+    pub flag_display: FlagDisplay,
 }
 
-// Both enums serialize as plain strings (not tagged objects) to stay
+// All enums serialize as plain strings (not tagged objects) to stay
 // wire-compatible with the persisted settings.json and the TS union types.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -33,6 +34,15 @@ pub enum SortOrder {
     #[default]
     Latency,
     Alpha,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum FlagDisplay {
+    None,
+    Mono,
+    #[default]
+    Color,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -67,6 +77,8 @@ pub struct SettingsPatch {
     pub dismissed_update_version: Option<Option<String>>,
     #[serde(default)]
     pub show_detailed_metrics: Option<bool>,
+    #[serde(default)]
+    pub flag_display: Option<FlagDisplay>,
 }
 
 fn double_option<'de, T, D>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
@@ -108,6 +120,9 @@ impl Settings {
         }
         if let Some(v) = patch.show_detailed_metrics {
             self.show_detailed_metrics = v;
+        }
+        if let Some(v) = patch.flag_display {
+            self.flag_display = v;
         }
     }
 }
