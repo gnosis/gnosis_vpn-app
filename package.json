@@ -24,7 +24,7 @@
     "@tauri-apps/plugin-opener": "^2.5.4",
     "tailwindcss": "^4.3.0",
     "zod": "^4.4.3",
-    "marked": "^18.0.4"
+    "marked": "^18.0.5"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.0",
