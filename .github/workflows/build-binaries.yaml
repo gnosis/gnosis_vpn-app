@@ -60,7 +60,7 @@ jobs:
           cachix_auth_token: "${{ secrets.CACHIX_AUTH_TOKEN }}"
       - name: Updates build version
         id: version
-        uses: hoprnet/hopr-workflows/actions/set-build-version@ade4bbd75f7204255c61d19c23f67d3da221e7d2 # set-build-version-v2.0.0
+        uses: hoprnet/hopr-workflows/actions/set-build-version@2855f448149188cd9c4da41f0a6cbdf4f3d664a1 # set-build-version-v2.0.0
         with:
           file: src-tauri/Cargo.toml
           version_type: ${{ inputs.version_type }}
@@ -85,7 +85,7 @@ jobs:
           echo "rust_toolchain_target=${rust_toolchain_target}" | tee -a $GITHUB_OUTPUT
           echo "tauri_args=${tauri_args}" | tee -a $GITHUB_OUTPUT
       - name: Install Rust toolchain (stable) + targets
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
         with:
           targets: ${{ steps.vars.outputs.rust_toolchain_target }}
       - name: Rust cache
@@ -96,7 +96,7 @@ jobs:
       - name: Setup Deno
         uses: denoland/setup-deno@667a34cdef165d8d2b2e98dde39547c9daac7282 # v2.0.4
         with:
-          deno-version: v2.x
+          deno-version: 2.9.0
       - name: install ubuntu dependencies
         if: ${{ endsWith(inputs.architecture, '-linux') }}
         run: |
@@ -173,14 +173,14 @@ jobs:
           fi
       - name: Setup GCP
         if: steps.version.outputs.publish_artifact_registry == 'true'
-        uses: hoprnet/hopr-workflows/actions/setup-gcp@ade4bbd75f7204255c61d19c23f67d3da221e7d2 # setup-gcp-v4
+        uses: hoprnet/hopr-workflows/actions/setup-gcp@7263182fc9a2bab22cc5a029929940914eb9748d # setup-gcp-v4
         with:
           workload_identity_provider: projects/656686060169/locations/global/workloadIdentityPools/gnosisvpn-gh-pool/providers/github-provider
           service_account: download-gnosisvpn-gh-sa@gnosisvpn-production.iam.gserviceaccount.com
           install_sdk: "true"
       - name: Publish ${{ inputs.architecture }} into Google Artifact registry
         if: steps.version.outputs.publish_artifact_registry == 'true'
-        uses: hoprnet/hopr-workflows/actions/upload-artifact-registry@ade4bbd75f7204255c61d19c23f67d3da221e7d2 # upload-artifact-registry-v2
+        uses: hoprnet/hopr-workflows/actions/upload-artifact-registry@621619750f6772109d7840a7013135c212925d58 # upload-artifact-registry-v2
         with:
           source: ${{ github.workspace }}/artifacts
           package: gnosis_vpn-app

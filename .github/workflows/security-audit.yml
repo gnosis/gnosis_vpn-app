@@ -20,7 +20,7 @@ jobs:
       - name: Setup Deno
         uses: denoland/setup-deno@667a34cdef165d8d2b2e98dde39547c9daac7282 # v2.0.4
         with:
-          deno-version: "2.x"
+          deno-version: "2.9.0"
           cache: true
 
       - name: Audit dependencies
@@ -49,7 +49,7 @@ jobs:
         if: steps.pnpm_lock.outputs.found == 'true'
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
         with:
-          version: 9
+          version: 9.15.9
 
       - name: Setup Node.js
         if: steps.pnpm_lock.outputs.found == 'true'
