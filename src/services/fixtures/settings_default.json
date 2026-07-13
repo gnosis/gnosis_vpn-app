@@ -8,5 +8,6 @@
   "updateManifest": null,
   "channel": null,
   "dismissedUpdateVersion": null,
-  "showDetailedMetrics": false
+  "showDetailedMetrics": false,
+  "flagDisplay": "color"
 }

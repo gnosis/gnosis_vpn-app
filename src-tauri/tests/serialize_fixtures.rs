@@ -1,4 +1,4 @@
-use gnosis_vpn_app_lib::settings::{Settings, SortOrder, UpdateChannel};
+use gnosis_vpn_app_lib::settings::{FlagDisplay, Settings, SortOrder, UpdateChannel};
 use gnosis_vpn_app_lib::types;
 use gnosis_vpn_lib::balance::{
     Balance, BalanceRecommendation, Balances, Capacity, CapacityAllocator, FundingIssue, WxHOPR,
@@ -424,5 +424,6 @@ fn full_settings() -> Settings {
         channel: Some(UpdateChannel::Snapshot),
         dismissed_update_version: Some("0.28.0".to_string()),
         show_detailed_metrics: true,
+        flag_display: FlagDisplay::Mono,
     }
 }
