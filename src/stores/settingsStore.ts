@@ -44,6 +44,9 @@ export type UpdateManifest = z.infer<typeof UpdateManifestSchema>;
 export const UpdateChannelSchema = z.enum(["stable", "snapshot"]);
 export type UpdateChannel = z.infer<typeof UpdateChannelSchema>;
 
+export const FlagDisplaySchema = z.enum(["none", "mono", "color"]);
+export type FlagDisplay = z.infer<typeof FlagDisplaySchema>;
+
 export const SettingsSchema = z.object({
   preferredLocation: z.string().nullable(),
   connectOnStartup: z.boolean(),
@@ -55,6 +58,7 @@ export const SettingsSchema = z.object({
   channel: UpdateChannelSchema.nullable(),
   dismissedUpdateVersion: z.string().nullable(),
   showDetailedMetrics: z.boolean(),
+  flagDisplay: FlagDisplaySchema,
 });
 export type SettingsState = z.infer<typeof SettingsSchema>;
 
@@ -70,6 +74,7 @@ const DEFAULT_SETTINGS: SettingsState = {
   channel: null,
   dismissedUpdateVersion: null,
   showDetailedMetrics: false,
+  flagDisplay: "color",
 };
 
 type SettingsActions = {
@@ -86,6 +91,7 @@ type SettingsActions = {
   setChannel: (channel: UpdateChannel) => Promise<void>;
   setDismissedUpdateVersion: (version: string | null) => Promise<void>;
   setShowDetailedMetrics: (show: boolean) => Promise<void>;
+  setFlagDisplay: (display: FlagDisplay) => Promise<void>;
 };
 
 type SettingsStoreTuple = readonly [
@@ -164,6 +170,7 @@ export function createSettingsStore(): SettingsStoreTuple {
     setDismissedUpdateVersion: (version) =>
       patch({ dismissedUpdateVersion: version }),
     setShowDetailedMetrics: (show) => patch({ showDetailedMetrics: show }),
+    setFlagDisplay: (display) => patch({ flagDisplay: display }),
   } as const;
 
   const dispose = () => {
