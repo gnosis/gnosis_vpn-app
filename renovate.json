@@ -20,6 +20,12 @@
       "pinDigests": false
     },
     {
+      "description": "Disable gnosis_vpn-client git ref bumps — updated manually",
+      "matchManagers": ["cargo"],
+      "matchPackageNames": ["gnosis_vpn-lib"],
+      "enabled": false
+    },
+    {
       "matchManagers": ["cargo"],
       "matchUpdateTypes": ["patch"],
       "groupName": "rust crates (patch)"
