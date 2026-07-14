@@ -10,7 +10,7 @@
     "npm:dompurify@^3.4.5": "3.4.5",
     "npm:eslint@^10.6.0": "10.7.0",
     "npm:flag-icons@^7.5.0": "7.5.0",
-    "npm:marked@^18.0.4": "18.0.4",
+    "npm:marked@^18.0.5": "18.0.6",
     "npm:prettier@^3.9.1": "3.9.5",
     "npm:qrcode@^1.5.4": "1.5.4",
     "npm:solid-js@^1.9.13": "1.9.13",
@@ -1157,8 +1157,8 @@
         "@jridgewell/sourcemap-codec"
       ]
     },
-    "marked@18.0.4": {
-      "integrity": "sha512-c/BTaKzg0G6ezQx97DAkYU7k0HM6ys0FqYeKBL6hlBByZwy+ycA1+f0vDdjMHKKeEjdgkx0GOv9Il6D+85cOqA==",
+    "marked@18.0.6": {
+      "integrity": "sha512-MrV5puXBfuiy6wl6DLaq3BtIJQAJToAd5zt/ZKhRfGRAuFPALE7/4Y7jnxRQoEgK/pBgurGqLyAuRgZ2xOjr6w==",
       "bin": true
     },
     "merge-anything@5.1.7": {
@@ -1569,7 +1569,7 @@
         "npm:dompurify@^3.4.5",
         "npm:eslint@^10.6.0",
         "npm:flag-icons@^7.5.0",
-        "npm:marked@^18.0.4",
+        "npm:marked@^18.0.5",
         "npm:prettier@^3.9.1",
         "npm:qrcode@^1.5.4",
         "npm:solid-js@^1.9.13",
