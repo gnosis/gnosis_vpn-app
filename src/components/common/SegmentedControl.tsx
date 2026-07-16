@@ -1,5 +1,5 @@
 import { createSignal, createUniqueId, type JSX, Show } from "solid-js";
-import SegmentedControlSwicher from "./SegmentedControlSwicher.tsx";
+import SegmentedControlSwitcher from "./SegmentedControlSwitcher.tsx";
 import Tooltip from "./Tooltip.tsx";
 
 interface SegmentedControlProps<T extends string> {
@@ -11,7 +11,7 @@ interface SegmentedControlProps<T extends string> {
   disabled?: boolean;
   // Tooltip over the whole row (shown below it).
   tooltip?: JSX.Element;
-  // Tooltip over the swicher only; while it can show, the row tooltip stays hidden.
+  // Tooltip over the switcher only; while it can show, the row tooltip stays hidden.
   tooltipSwitcher?: JSX.Element;
 }
 
@@ -19,9 +19,9 @@ export default function SegmentedControl<T extends string>(
   props: SegmentedControlProps<T>,
 ) {
   const labelId = createUniqueId();
-  // While the pointer/focus is on the swicher its own tooltip shows,
+  // While the pointer/focus is on the switcher its own tooltip shows,
   // so the row-level tooltip must stay hidden.
-  const [overSwicher, setOverSwicher] = createSignal(false);
+  const [overSwitcher, setOverSwitcher] = createSignal(false);
 
   const row = (
     <div
@@ -38,12 +38,12 @@ export default function SegmentedControl<T extends string>(
         </Show>
       </div>
       <div
-        onMouseEnter={() => setOverSwicher(true)}
-        onMouseLeave={() => setOverSwicher(false)}
-        onFocusIn={() => setOverSwicher(true)}
-        onFocusOut={() => setOverSwicher(false)}
+        onMouseEnter={() => setOverSwitcher(true)}
+        onMouseLeave={() => setOverSwitcher(false)}
+        onFocusIn={() => setOverSwitcher(true)}
+        onFocusOut={() => setOverSwitcher(false)}
       >
-        <SegmentedControlSwicher
+        <SegmentedControlSwitcher
           options={props.options}
           value={props.value}
           onChange={props.onChange}
@@ -61,7 +61,7 @@ export default function SegmentedControl<T extends string>(
         content={props.tooltip}
         position="bottom"
         triggerClass="w-full"
-        disabled={overSwicher()}
+        disabled={overSwitcher()}
       >
         {row}
       </Tooltip>

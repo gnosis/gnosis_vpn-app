@@ -1,7 +1,7 @@
 import { For, type JSX } from "solid-js";
 import Tooltip from "./Tooltip.tsx";
 
-interface SegmentedControlSwicherProps<T extends string> {
+interface SegmentedControlSwitcherProps<T extends string> {
   options: { value: T; label: string; disabled?: boolean }[];
   value: T;
   onChange: (value: T) => void;
@@ -11,8 +11,8 @@ interface SegmentedControlSwicherProps<T extends string> {
   tooltipSwitcher?: JSX.Element;
 }
 
-export default function SegmentedControlSwicher<T extends string>(
-  props: SegmentedControlSwicherProps<T>,
+export default function SegmentedControlSwitcher<T extends string>(
+  props: SegmentedControlSwitcherProps<T>,
 ) {
   const buttonRefs: HTMLButtonElement[] = [];
 
@@ -88,7 +88,7 @@ export default function SegmentedControlSwicher<T extends string>(
               aria-checked={selected()}
               aria-disabled={disabled() || undefined}
               disabled={disabled()}
-              tabindex={selected() ? 0 : -1}
+              tabindex={selected() && !disabled() ? 0 : -1}
               class={`px-3 py-1 text-sm rounded-md transition-colors ${
                 disabled()
                   ? selected()

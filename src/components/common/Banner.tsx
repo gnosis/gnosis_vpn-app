@@ -53,12 +53,9 @@ export default function Banner(props: BannerProps): JSX.Element {
             </div>
           }
         >
-          <button
-            type="button"
-            class="hover:cursor-pointer flex items-center gap-1.5"
-          >
+          <span class="hover:cursor-pointer flex items-center gap-1.5">
             {content()}
-          </button>
+          </span>
         </Show>
         <Show when={props.onDismiss}>
           <button
