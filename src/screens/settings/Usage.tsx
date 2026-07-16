@@ -22,7 +22,7 @@ import {
   humanXdai,
   wxhoprDecimal,
 } from "../../utils/hopli.ts";
-import WarningIcon from "../../components/common/WarningIcon.tsx";
+import WarningIcon from "../../components/icons/WarningIcon.tsx";
 import Button from "../../components/common/Button.tsx";
 import { useAppStore } from "../../stores/appStore.ts";
 import AddFundsModal from "@src/components/AddFundsModal.tsx";

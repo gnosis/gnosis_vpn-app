@@ -4,6 +4,7 @@ import {
   type JSX,
   onCleanup,
   Show,
+  untrack,
 } from "solid-js";
 import { Portal } from "solid-js/web";
 
@@ -15,6 +16,11 @@ export default function Tooltip(props: {
   children: JSX.Element;
   position?: "top" | "bottom";
   tabIndex?: number;
+  // When true the tooltip never shows (and hides if already visible).
+  disabled?: boolean;
+  // Extra classes for the trigger wrapper, replacing the default `w-fit`
+  // (e.g. `w-full` when the trigger should span its row).
+  triggerClass?: string;
 }) {
   const [visible, setVisible] = createSignal(false);
   const [triggerX, setTriggerX] = createSignal(0);
@@ -76,21 +82,36 @@ export default function Tooltip(props: {
     });
   });
 
-  const show = () => {
-    clearTimeout(timeout);
-    updateAnchor();
-    timeout = setTimeout(() => setVisible(true), 120);
-  };
+  // Tracks hover/focus intent even while disabled, so the tooltip can
+  // reappear when `disabled` clears without a fresh mouseenter.
+  const [wantVisible, setWantVisible] = createSignal(false);
 
-  const hide = () => {
+  // Handlers only record intent; the effect below turns intent + `disabled`
+  // into actual visibility (with the asymmetric show/hide delays), so each
+  // transition runs exactly once.
+  const show = () => setWantVisible(true);
+  const hide = () => setWantVisible(false);
+
+  createEffect(() => {
     clearTimeout(timeout);
-    timeout = setTimeout(() => setVisible(false), 100);
-  };
+    if (props.disabled) {
+      // Force-hide immediately; wantVisible stays intact so the tooltip
+      // reappears once re-enabled without a fresh mouseenter.
+      setVisible(false);
+    } else if (wantVisible()) {
+      // untrack: updateAnchor reads props.position, which must not become a
+      // dependency of this effect.
+      untrack(updateAnchor);
+      timeout = setTimeout(() => setVisible(true), 120);
+    } else {
+      timeout = setTimeout(() => setVisible(false), 100);
+    }
+  });
 
   return (
     <div
       ref={triggerRef}
-      class="relative inline-flex w-fit"
+      class={`relative inline-flex ${props.triggerClass ?? "w-fit"}`}
       tabindex={props.tabIndex}
       onMouseEnter={show}
       onMouseLeave={hide}

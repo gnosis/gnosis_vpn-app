@@ -1,110 +1,75 @@
-import { For } from "solid-js";
+import { createSignal, createUniqueId, type JSX, Show } from "solid-js";
+import SegmentedControlSwitcher from "./SegmentedControlSwitcher.tsx";
+import Tooltip from "./Tooltip.tsx";
 
 interface SegmentedControlProps<T extends string> {
+  label: string;
+  description?: string;
   options: { value: T; label: string; disabled?: boolean }[];
   value: T;
   onChange: (value: T) => void;
   disabled?: boolean;
-  ariaLabel?: string;
-  ariaLabelledBy?: string;
+  // Tooltip over the whole row (shown below it).
+  tooltip?: JSX.Element;
+  // Tooltip over the switcher only; while it can show, the row tooltip stays hidden.
+  tooltipSwitcher?: JSX.Element;
 }
 
 export default function SegmentedControl<T extends string>(
   props: SegmentedControlProps<T>,
 ) {
-  const buttonRefs: HTMLButtonElement[] = [];
+  const labelId = createUniqueId();
+  const descId = createUniqueId();
+  // While the pointer/focus is on the switcher its own tooltip shows,
+  // so the row-level tooltip must stay hidden.
+  const [overSwitcher, setOverSwitcher] = createSignal(false);
 
-  const isOptDisabled = (opt: { disabled?: boolean }) =>
-    props.disabled || opt.disabled;
-
-  const selectAt = (idx: number) => {
-    const opt = props.options[idx];
-    if (!opt || isOptDisabled(opt)) return;
-    props.onChange(opt.value);
-    buttonRefs[idx]?.focus();
-  };
-
-  const moveBy = (delta: number) => {
-    if (props.disabled) return;
-    const cur = props.options.findIndex((o) => o.value === props.value);
-    if (cur === -1) return;
-    const len = props.options.length;
-    for (let step = 1; step <= len; step++) {
-      const next = (cur + delta * step + len * step) % len;
-      const nextOpt = props.options[next];
-      if (nextOpt && !isOptDisabled(nextOpt)) {
-        selectAt(next);
-        return;
-      }
-    }
-  };
-
-  const onKeyDown = (e: KeyboardEvent) => {
-    switch (e.key) {
-      case "ArrowRight":
-      case "ArrowDown":
-        e.preventDefault();
-        moveBy(1);
-        break;
-      case "ArrowLeft":
-      case "ArrowUp":
-        e.preventDefault();
-        moveBy(-1);
-        break;
-      case "Home":
-        e.preventDefault();
-        selectAt(0);
-        break;
-      case "End":
-        e.preventDefault();
-        selectAt(props.options.length - 1);
-        break;
-    }
-  };
-
-  return (
+  const row = (
     <div
-      role="radiogroup"
-      aria-label={props.ariaLabel}
-      aria-labelledby={props.ariaLabelledBy}
-      aria-disabled={props.disabled || undefined}
-      class={`flex gap-0.5 bg-bg-surface border border-border rounded-lg p-0.5 ${
+      class={`flex w-full items-center justify-between ${
         props.disabled ? "opacity-50 cursor-not-allowed" : ""
       }`}
     >
-      <For each={props.options}>
-        {(opt, i) => {
-          const selected = () => props.value === opt.value;
-          const disabled = () => isOptDisabled(opt);
-          return (
-            <button
-              ref={(el) => {
-                buttonRefs[i()] = el;
-              }}
-              type="button"
-              role="radio"
-              aria-checked={selected()}
-              aria-disabled={disabled() || undefined}
-              disabled={disabled()}
-              tabindex={selected() ? 0 : -1}
-              class={`px-3 py-1 text-sm rounded-md transition-colors ${
-                disabled()
-                  ? "text-text-secondary opacity-50 cursor-not-allowed"
-                  : selected()
-                  ? "bg-accent text-accent-text hover:cursor-pointer"
-                  : "text-text-secondary hover:text-text-primary hover:cursor-pointer"
-              }`}
-              onClick={() => {
-                if (disabled()) return;
-                props.onChange(opt.value);
-              }}
-              onKeyDown={onKeyDown}
-            >
-              {opt.label}
-            </button>
-          );
-        }}
-      </For>
+      <div class="flex flex-col">
+        <span id={labelId} class="text-text-primary">
+          {props.label}
+        </span>
+        <Show when={props.description}>
+          <span id={descId} class="text-xs text-text-secondary">
+            {props.description}
+          </span>
+        </Show>
+      </div>
+      <div
+        onMouseEnter={() => setOverSwitcher(true)}
+        onMouseLeave={() => setOverSwitcher(false)}
+        onFocusIn={() => setOverSwitcher(true)}
+        onFocusOut={() => setOverSwitcher(false)}
+      >
+        <SegmentedControlSwitcher
+          options={props.options}
+          value={props.value}
+          onChange={props.onChange}
+          disabled={props.disabled}
+          ariaLabelledBy={labelId}
+          ariaDescribedBy={props.description ? descId : undefined}
+          tooltipSwitcher={props.tooltipSwitcher}
+        />
+      </div>
     </div>
   );
+
+  if (props.tooltip !== undefined) {
+    return (
+      <Tooltip
+        content={props.tooltip}
+        position="bottom"
+        triggerClass="w-full"
+        disabled={overSwitcher()}
+      >
+        {row}
+      </Tooltip>
+    );
+  }
+  return row;
 }

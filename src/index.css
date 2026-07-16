@@ -109,6 +109,12 @@ select {
 @utility bg-darken {
   background-image: linear-gradient(rgb(0 0 0 / 0.12), rgb(0 0 0 / 0.12));
 }
+@utility bg-lighten {
+  background-image: linear-gradient(
+    rgb(255 255 255 / 0.08),
+    rgb(255 255 255 / 0.08)
+  );
+}
 
 /* Button press animation */
 .btn-press {
