@@ -107,21 +107,25 @@ export function MainScreen() {
       <div class="relative h-0 z-50">
         <div class="absolute top-2 left-0 right-0 flex flex-col gap-2">
           <Show when={appState.isUpdateAvailable}>
-            <div class="px-3 py-1.5 rounded-lg bg-orange-500/15 border border-orange-500/30 text-xs text-orange-400 flex items-center justify-between">
+            <div 
+              onClick={() => openSettingsWindow("updates")}
+              class="px-3 py-1.5 rounded-lg bg-orange-500/15 border border-orange-500/30 text-xs text-orange-400 flex items-center justify-between"
+            >
               <button
                 type="button"
                 class="hover:opacity-70 hover:cursor-pointer transition-opacity"
-                onClick={() => openSettingsWindow("updates")}
               >
                 Update available
               </button>
               <button
                 type="button"
                 class="hover:opacity-70 hover:cursor-pointer transition-opacity"
-                onClick={() =>
+                onClick={(event) => {
+                  event.stopPropagation();
                   void settingsActions.setDismissedUpdateVersion(
                     appState.availableVersion,
-                  )}
+                  );
+                }}
                 aria-label="Dismiss update notification"
               >
                 ✕
