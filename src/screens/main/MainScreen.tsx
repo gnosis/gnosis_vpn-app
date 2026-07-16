@@ -109,7 +109,7 @@ export function MainScreen() {
         <div class="absolute top-2 left-0 right-0 flex flex-col gap-2">
           <Show when={appState.isUpdateAvailable}>
             <Banner
-              variant="warning"
+              variant="update"
               icon={<UpdateIcon />}
               onClick={() => openSettingsWindow("updates")}
               onDismiss={() =>

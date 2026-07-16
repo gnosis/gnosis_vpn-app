@@ -1,7 +1,7 @@
 import { type JSX, Show } from "solid-js";
 
 export interface BannerProps {
-  variant?: "warning" | "neutral";
+  variant?: "warning" | "neutral" | "update";
   icon?: JSX.Element;
   // Makes the banner body clickable (rendered as a button).
   onClick?: () => void;
@@ -18,6 +18,7 @@ export interface BannerProps {
 const containerClasses: Record<NonNullable<BannerProps["variant"]>, string> = {
   warning: "bg-orange-500/15 border border-orange-500/30 text-orange-400",
   neutral: "bg-bg-surface text-text-primary",
+  update: "bg-[#1F2936]/50 border border-[#1F2936] text-black dark:text-text-secondary",
 };
 
 export default function Banner(props: BannerProps): JSX.Element {
@@ -37,8 +38,10 @@ export default function Banner(props: BannerProps): JSX.Element {
     <div
       onClick={() => props.onClick?.()}
       class={`rounded-lg px-3 py-1.5 text-xs flex flex-col items-start gap-2 ${
-        containerClasses[variant()]
-      }`}
+        props.onClick
+          ? "hover:cursor-pointer hover:bg-darken dark:hover:bg-lighten"
+          : ""
+      } ${containerClasses[variant()]}`}
     >
       <div class="w-full flex items-center justify-between">
         <Show
@@ -51,7 +54,7 @@ export default function Banner(props: BannerProps): JSX.Element {
         >
           <button
             type="button"
-            class="hover:opacity-70 hover:cursor-pointer transition-opacity flex items-center gap-1.5"
+            class="hover:cursor-pointer flex items-center gap-1.5"
           >
             {content()}
           </button>
@@ -59,7 +62,7 @@ export default function Banner(props: BannerProps): JSX.Element {
         <Show when={props.onDismiss}>
           <button
             type="button"
-            class="hover:opacity-70 hover:cursor-pointer transition-opacity"
+            class="size-5 -my-0.5 -mr-1.5 flex items-center justify-center rounded-full hover:cursor-pointer hover:bg-black/10 dark:hover:bg-white/15 transition-colors"
             onClick={(event) => {
               event.stopPropagation();
               props.onDismiss?.();
