@@ -208,11 +208,11 @@ export default function Updates() {
       />
       <SegmentedControl
         label="Update channel"
-      //  description="Stable is the default, Snapshot is for testing new features"
+        //  description="Stable is the default, Snapshot is for testing new features"
         options={CHANNEL_OPTIONS}
         value={effectiveChannel()}
         onChange={(ch) => void settingsActions.setChannel(ch)}
-      // tooltipSwicher="When on Stable, you can't switch to Snapshot"
+        // tooltipSwicher="When on Stable, you can't switch to Snapshot"
       />
       <div class="grow" />
       <div class="space-y-1 text-sm text-text-secondary text-center">
