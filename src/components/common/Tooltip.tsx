@@ -15,6 +15,11 @@ export default function Tooltip(props: {
   children: JSX.Element;
   position?: "top" | "bottom";
   tabIndex?: number;
+  // When true the tooltip never shows (and hides if already visible).
+  disabled?: boolean;
+  // Extra classes for the trigger wrapper, replacing the default `w-fit`
+  // (e.g. `w-full` when the trigger should span its row).
+  triggerClass?: string;
 }) {
   const [visible, setVisible] = createSignal(false);
   const [triggerX, setTriggerX] = createSignal(0);
@@ -76,21 +81,41 @@ export default function Tooltip(props: {
     });
   });
 
+  // Tracks hover/focus intent even while disabled, so the tooltip can
+  // reappear when `disabled` clears without a fresh mouseenter.
+  const [wantVisible, setWantVisible] = createSignal(false);
+
   const show = () => {
+    setWantVisible(true);
+    if (props.disabled) return;
     clearTimeout(timeout);
     updateAnchor();
-    timeout = setTimeout(() => setVisible(true), 120);
+    timeout = setTimeout(() => {
+      if (!props.disabled) setVisible(true);
+    }, 120);
   };
 
   const hide = () => {
+    setWantVisible(false);
     clearTimeout(timeout);
     timeout = setTimeout(() => setVisible(false), 100);
   };
 
+  // Force-hide while disabled; re-show once re-enabled if the pointer or
+  // focus is still on the trigger.
+  createEffect(() => {
+    if (props.disabled) {
+      clearTimeout(timeout);
+      setVisible(false);
+    } else if (wantVisible()) {
+      show();
+    }
+  });
+
   return (
     <div
       ref={triggerRef}
-      class="relative inline-flex w-fit"
+      class={`relative inline-flex ${props.triggerClass ?? "w-fit"}`}
       tabindex={props.tabIndex}
       onMouseEnter={show}
       onMouseLeave={hide}

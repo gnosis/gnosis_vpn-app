@@ -13,7 +13,7 @@ import { emit, listen } from "@tauri-apps/api/event";
 import brokenDeviceIcon from "@assets/icons/broken-device.svg";
 import Toggle from "@src/components/common/Toggle.tsx";
 import UpdateStatusCard from "@src/components/common/UpdateStatusCard.tsx";
-import ChannelSelector from "@src/components/common/ChannelSelector.tsx";
+import SegmentedControl from "@src/components/common/SegmentedControl.tsx";
 import CheckUpdateModal from "@src/components/CheckUpdateModal.tsx";
 import { useAppStore } from "@src/stores/appStore.ts";
 import {
@@ -26,6 +26,11 @@ import { evaluateUpdate } from "@src/utils/updateAvailability.ts";
 
 const REVEAL_CLICKS = 7;
 const REVEAL_WINDOW_MS = 2000;
+
+const CHANNEL_OPTIONS: { value: UpdateChannel; label: string }[] = [
+  { value: "stable", label: "Stable" },
+  { value: "snapshot", label: "Snapshot" },
+];
 
 export default function Updates() {
   const [appState, appActions] = useAppStore();
@@ -201,9 +206,13 @@ export default function Updates() {
           void settingsActions.setUpdateCheck(e.currentTarget.checked)}
         description="Done only when connected through the Gnosis VPN"
       />
-      <ChannelSelector
+      <SegmentedControl
+        label="Update channel"
+      //  description="Stable is the default, Snapshot is for testing new features"
+        options={CHANNEL_OPTIONS}
         value={effectiveChannel()}
         onChange={(ch) => void settingsActions.setChannel(ch)}
+      // tooltipSwicher="When on Stable, you can't switch to Snapshot"
       />
       <div class="grow" />
       <div class="space-y-1 text-sm text-text-secondary text-center">
