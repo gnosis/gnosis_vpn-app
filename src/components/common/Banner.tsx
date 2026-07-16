@@ -3,12 +3,9 @@ import { type JSX, Show } from "solid-js";
 export interface BannerProps {
   variant?: "warning" | "neutral" | "update";
   icon?: JSX.Element;
-  // Makes the banner body clickable (rendered as a button).
   onClick?: () => void;
-  // Shows the ✕ button; clicking it does not trigger onClick.
   onDismiss?: () => void;
   dismissAriaLabel?: string;
-  // Optional extra row below the main content (e.g. an action button).
   actions?: JSX.Element;
   children: JSX.Element;
 }

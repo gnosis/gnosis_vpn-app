@@ -19,6 +19,7 @@ export default function SegmentedControl<T extends string>(
   props: SegmentedControlProps<T>,
 ) {
   const labelId = createUniqueId();
+  const descId = createUniqueId();
   // While the pointer/focus is on the switcher its own tooltip shows,
   // so the row-level tooltip must stay hidden.
   const [overSwitcher, setOverSwitcher] = createSignal(false);
@@ -34,7 +35,9 @@ export default function SegmentedControl<T extends string>(
           {props.label}
         </span>
         <Show when={props.description}>
-          <span class="text-xs text-text-secondary">{props.description}</span>
+          <span id={descId} class="text-xs text-text-secondary">
+            {props.description}
+          </span>
         </Show>
       </div>
       <div
@@ -49,6 +52,7 @@ export default function SegmentedControl<T extends string>(
           onChange={props.onChange}
           disabled={props.disabled}
           ariaLabelledBy={labelId}
+          ariaDescribedBy={props.description ? descId : undefined}
           tooltipSwitcher={props.tooltipSwitcher}
         />
       </div>

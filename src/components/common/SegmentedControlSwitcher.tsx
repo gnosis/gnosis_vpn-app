@@ -8,6 +8,7 @@ interface SegmentedControlSwitcherProps<T extends string> {
   disabled?: boolean;
   ariaLabel?: string;
   ariaLabelledBy?: string;
+  ariaDescribedBy?: string;
   tooltipSwitcher?: JSX.Element;
 }
 
@@ -69,6 +70,7 @@ export default function SegmentedControlSwitcher<T extends string>(
       role="radiogroup"
       aria-label={props.ariaLabel}
       aria-labelledby={props.ariaLabelledBy}
+      aria-describedby={props.ariaDescribedBy}
       aria-disabled={props.disabled || undefined}
       class={`flex gap-0.5 bg-bg-surface border border-border rounded-lg p-0.5 ${
         props.disabled ? "cursor-not-allowed" : ""
