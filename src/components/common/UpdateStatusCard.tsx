@@ -3,6 +3,7 @@ import syncIcon from "@assets/icons/sync.svg";
 import checkmarkIcon from "@assets/icons/checkmark.svg";
 import { Modal } from "./Modal.tsx";
 import { Markdown } from "./Markdown.tsx";
+import HowToUpdateModal from "./HowToUpdateModal.tsx";
 import { useAppStore } from "@src/stores/appStore.ts";
 
 interface UpdateStatusCardProps {
@@ -17,7 +18,9 @@ interface UpdateStatusCardProps {
 export default function UpdateStatusCard(props: UpdateStatusCardProps) {
   const [appState] = useAppStore();
   const [showChangelog, setShowChangelog] = createSignal(false);
+  const [showHowTo, setShowHowTo] = createSignal(false);
   const showCheckmark = () => !props.loading && props.isUpToDate !== false;
+  const updateAvailable = () => props.isUpToDate === false;
 
   const statusText = () => {
     if (props.isUpToDate === true) {
@@ -96,10 +99,19 @@ export default function UpdateStatusCard(props: UpdateStatusCardProps) {
         type="button"
         class="shrink-0 h-8 px-3 text-sm rounded-md border border-border bg-transparent text-text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-darken hover:enabled:cursor-pointer"
         disabled={props.loading}
-        onClick={props.onCheck}
+        onClick={() =>
+          updateAvailable() ? setShowHowTo(true) : props.onCheck?.()}
       >
-        {props.loading ? "Checking…" : "Check now"}
+        {props.loading
+          ? "Checking…"
+          : updateAvailable()
+          ? "Install update"
+          : "Check now"}
       </button>
+      <HowToUpdateModal
+        open={showHowTo()}
+        onClose={() => setShowHowTo(false)}
+      />
     </div>
   );
 }
