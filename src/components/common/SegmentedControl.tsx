@@ -12,7 +12,7 @@ interface SegmentedControlProps<T extends string> {
   // Tooltip over the whole row (shown below it).
   tooltip?: JSX.Element;
   // Tooltip over the swicher only; while it can show, the row tooltip stays hidden.
-  tooltipSwicher?: JSX.Element;
+  tooltipSwitcher?: JSX.Element;
 }
 
 export default function SegmentedControl<T extends string>(
@@ -49,7 +49,7 @@ export default function SegmentedControl<T extends string>(
           onChange={props.onChange}
           disabled={props.disabled}
           ariaLabelledBy={labelId}
-          tooltipSwicher={props.tooltipSwicher}
+          tooltipSwitcher={props.tooltipSwitcher}
         />
       </div>
     </div>

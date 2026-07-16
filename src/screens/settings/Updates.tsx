@@ -212,7 +212,7 @@ export default function Updates() {
         options={CHANNEL_OPTIONS}
         value={effectiveChannel()}
         onChange={(ch) => void settingsActions.setChannel(ch)}
-        // tooltipSwicher="When on Stable, you can't switch to Snapshot"
+        // tooltipSwitcher="When on Stable, you can't switch to Snapshot"
       />
       <div class="grow" />
       <div class="space-y-1 text-sm text-text-secondary text-center">

@@ -74,7 +74,9 @@ export default function Banner(props: BannerProps): JSX.Element {
           </button>
         </Show>
       </div>
-      {props.actions}
+      <Show when={props.actions}>
+        <div onClick={(e) => e.stopPropagation()}>{props.actions}</div>
+      </Show>
     </div>
   );
 }

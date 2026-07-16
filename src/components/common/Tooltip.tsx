@@ -4,6 +4,7 @@ import {
   type JSX,
   onCleanup,
   Show,
+  untrack,
 } from "solid-js";
 import { Portal } from "solid-js/web";
 
@@ -85,30 +86,25 @@ export default function Tooltip(props: {
   // reappear when `disabled` clears without a fresh mouseenter.
   const [wantVisible, setWantVisible] = createSignal(false);
 
-  const show = () => {
-    setWantVisible(true);
-    if (props.disabled) return;
-    clearTimeout(timeout);
-    updateAnchor();
-    timeout = setTimeout(() => {
-      if (!props.disabled) setVisible(true);
-    }, 120);
-  };
+  // Handlers only record intent; the effect below turns intent + `disabled`
+  // into actual visibility (with the asymmetric show/hide delays), so each
+  // transition runs exactly once.
+  const show = () => setWantVisible(true);
+  const hide = () => setWantVisible(false);
 
-  const hide = () => {
-    setWantVisible(false);
-    clearTimeout(timeout);
-    timeout = setTimeout(() => setVisible(false), 100);
-  };
-
-  // Force-hide while disabled; re-show once re-enabled if the pointer or
-  // focus is still on the trigger.
   createEffect(() => {
+    clearTimeout(timeout);
     if (props.disabled) {
-      clearTimeout(timeout);
+      // Force-hide immediately; wantVisible stays intact so the tooltip
+      // reappears once re-enabled without a fresh mouseenter.
       setVisible(false);
     } else if (wantVisible()) {
-      show();
+      // untrack: updateAnchor reads props.position, which must not become a
+      // dependency of this effect.
+      untrack(updateAnchor);
+      timeout = setTimeout(() => setVisible(true), 120);
+    } else {
+      timeout = setTimeout(() => setVisible(false), 100);
     }
   });
 

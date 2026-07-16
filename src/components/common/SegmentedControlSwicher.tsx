@@ -8,7 +8,7 @@ interface SegmentedControlSwicherProps<T extends string> {
   disabled?: boolean;
   ariaLabel?: string;
   ariaLabelledBy?: string;
-  tooltipSwicher?: JSX.Element;
+  tooltipSwitcher?: JSX.Element;
 }
 
 export default function SegmentedControlSwicher<T extends string>(
@@ -112,9 +112,9 @@ export default function SegmentedControlSwicher<T extends string>(
     </div>
   );
 
-  if (props.tooltipSwicher !== undefined) {
+  if (props.tooltipSwitcher !== undefined) {
     return (
-      <Tooltip content={props.tooltipSwicher} position="bottom">
+      <Tooltip content={props.tooltipSwitcher} position="bottom">
         {group}
       </Tooltip>
     );
