@@ -28,6 +28,13 @@ fn is_version_compatible(version: &str) -> bool {
         .any(|c| version.trim().starts_with(c))
 }
 
+/// OS name for the frontend ("macos", "linux", …) — it has no runtime
+/// platform signal of its own and needs one to branch update-install UX.
+#[tauri::command]
+pub fn get_platform() -> &'static str {
+    std::env::consts::OS
+}
+
 #[tauri::command]
 pub async fn check_update(
     skip_vpn: bool,

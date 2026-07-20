@@ -61,6 +61,14 @@ source:
   `"settings": { "exitNodeSortOrder": "alpha", "showDetailedMetrics": true, "flagDisplay": "color" }`.
   Unset keys fall back to the app's defaults; `update_settings` merges the patch
   in-memory and fires `settings-changed`, so toggles behave realistically.
+- `platform` — value returned by `get_platform` (default `"linux"`); set
+  `"macos"` to enable the driven install-update flow on the Updates tab.
+- `installScript` — steps replayed as `update-install-status` events after an
+  `install_update` invoke, e.g.
+  `[{ "delay": 400, "status": { "kind": "Downloading" } }, ...]` (defaults to a
+  full Checking→Downloading→Installing→Completed run; a
+  `{ "kind": "Failed", "stage": "...", "error": "..." }` step shows the inline
+  error). `installStatus` seeds `get_install_status` for testing re-hydration.
 - `windowLabel: "settings"` renders the settings window instead (use
   `--size 640x480`). Switch tabs by clicking the nav buttons, e.g. Usage:
 

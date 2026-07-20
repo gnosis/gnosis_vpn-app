@@ -12,9 +12,12 @@ import { getVersion } from "@tauri-apps/api/app";
 import { emit, listen } from "@tauri-apps/api/event";
 import brokenDeviceIcon from "@assets/icons/broken-device.svg";
 import Toggle from "@src/components/common/Toggle.tsx";
-import UpdateStatusCard from "@src/components/common/UpdateStatusCard.tsx";
+import UpdateStatusCard, {
+  type InstallPhase,
+} from "@src/components/common/UpdateStatusCard.tsx";
 import ChannelSelector from "@src/components/common/ChannelSelector.tsx";
 import CheckUpdateModal from "@src/components/CheckUpdateModal.tsx";
+import InstallUpdateModal from "@src/components/InstallUpdateModal.tsx";
 import { useAppStore } from "@src/stores/appStore.ts";
 import {
   type UpdateChannel,
@@ -23,6 +26,13 @@ import {
 } from "@src/stores/settingsStore.ts";
 import { detectChannel } from "@src/utils/version.ts";
 import { evaluateUpdate } from "@src/utils/updateAvailability.ts";
+import {
+  getInstallStatus,
+  type InstallStatus,
+  InstallStatusSchema,
+  installUpdate,
+  UPDATE_INSTALL_STATUS_EVENT,
+} from "@src/services/updateInstall.ts";
 
 const REVEAL_CLICKS = 7;
 const REVEAL_WINDOW_MS = 2000;
@@ -33,6 +43,12 @@ export default function Updates() {
   const [showCheckModal, setShowCheckModal] = createSignal(false);
   const [checking, setChecking] = createSignal(false);
   const [pendingConnectCheck, setPendingConnectCheck] = createSignal(false);
+  const [showInstallModal, setShowInstallModal] = createSignal(false);
+  const [installPhase, setInstallPhase] = createSignal<InstallPhase | null>(
+    null,
+  );
+  const [installError, setInstallError] = createSignal<string | null>(null);
+  const [pendingConnectInstall, setPendingConnectInstall] = createSignal(false);
   const [appVersion] = createResource(() => getVersion());
   const [showVersionDetails, setShowVersionDetails] = createSignal(false);
   let versionClickCount = 0;
@@ -106,8 +122,68 @@ export default function Updates() {
 
   const handleCheck = () => void runCheck(false);
 
+  // Install progress (macOS): the Rust `install_update` command streams the
+  // updater's phases as events; the last one is queryable for re-hydration
+  // after a tab-switch remount mid-install.
+  let completedFallback: ReturnType<typeof setTimeout> | undefined;
+
+  const applyInstallStatus = (s: InstallStatus) => {
+    switch (s.kind) {
+      case "Checking":
+        setInstallError(null);
+        setInstallPhase("downloading");
+        break;
+      case "Downloading":
+        setInstallPhase("downloading");
+        break;
+      case "Installing":
+        setInstallPhase("installing");
+        break;
+      case "Completed":
+        // The installer restarts the app, so keep "Installing…" to the end.
+        // Safety nets in case the restart never happens: the effect below
+        // clears the phase once the restarted daemon flips isUpToDate, and
+        // this fallback re-enables the button for a retry.
+        setInstallPhase("installing");
+        clearTimeout(completedFallback);
+        completedFallback = setTimeout(() => setInstallPhase(null), 60_000);
+        break;
+      case "Failed":
+        setInstallPhase(null);
+        setInstallError(`${s.stage}: ${s.error}`);
+        break;
+    }
+  };
+
+  createEffect(() => {
+    if (installPhase() === "installing" && isUpToDate() === true) {
+      clearTimeout(completedFallback);
+      setInstallPhase(null);
+    }
+  });
+
+  const startInstall = (force: boolean) => {
+    setInstallError(null);
+    // Synchronous phase set: disables the button before the invoke resolves.
+    setInstallPhase("downloading");
+    installUpdate(effectiveChannel(), force).catch((e) => {
+      if (e === "InstallInProgress") return; // already streaming events
+      setInstallPhase(null);
+      setInstallError(String(e));
+    });
+  };
+
+  const handleInstall = () => {
+    if (appState.vpnStatus === "Connected") {
+      startInstall(false);
+    } else {
+      setShowInstallModal(true);
+    }
+  };
+
   let unlistenCheck: (() => void) | undefined;
   let unlistenPing: (() => void) | undefined;
+  let unlistenInstall: (() => void) | undefined;
   let disposed = false;
 
   onMount(() => {
@@ -130,12 +206,36 @@ export default function Updates() {
       }
       unlistenPing = unlisten;
     });
+    // Live events first, then catch up on a possibly running install. A
+    // hydration reply can be staler than an event that raced past it, so it
+    // only applies when no live event has arrived yet.
+    let sawLiveInstallEvent = false;
+    void listen(UPDATE_INSTALL_STATUS_EVENT, (event) => {
+      const parsed = InstallStatusSchema.safeParse(event.payload);
+      if (parsed.success) {
+        sawLiveInstallEvent = true;
+        applyInstallStatus(parsed.data);
+      }
+    }).then((unlisten) => {
+      if (disposed) {
+        unlisten();
+        return;
+      }
+      unlistenInstall = unlisten;
+      void getInstallStatus().then((status) => {
+        if (!disposed && !sawLiveInstallEvent && status) {
+          applyInstallStatus(status);
+        }
+      });
+    });
   });
 
   onCleanup(() => {
     disposed = true;
     unlistenCheck?.();
     unlistenPing?.();
+    unlistenInstall?.();
+    clearTimeout(completedFallback);
   });
 
   const handleCheckAnyway = () => {
@@ -155,6 +255,14 @@ export default function Updates() {
     if (pendingConnectCheck() && appState.vpnStatus === "Connected") {
       setPendingConnectCheck(false);
       void runCheck(false);
+    }
+  });
+
+  // Same for "Connect and install".
+  createEffect(() => {
+    if (pendingConnectInstall() && appState.vpnStatus === "Connected") {
+      setPendingConnectInstall(false);
+      startInstall(false);
     }
   });
 
@@ -187,12 +295,28 @@ export default function Updates() {
         lastChecked={settings.lastCheckedAt != null
           ? formatCheckedAt(settings.lastCheckedAt)
           : undefined}
+        onInstall={handleInstall}
+        installPhase={installPhase()}
+        installError={installError()}
       />
       <CheckUpdateModal
         open={showCheckModal()}
         onClose={() => setShowCheckModal(false)}
         onCheckAnyway={handleCheckAnyway}
         onConnectAndCheck={handleConnectAndCheck}
+      />
+      <InstallUpdateModal
+        open={showInstallModal()}
+        onClose={() => setShowInstallModal(false)}
+        onInstallAnyway={() => {
+          setShowInstallModal(false);
+          startInstall(true);
+        }}
+        onConnectAndInstall={() => {
+          setShowInstallModal(false);
+          setPendingConnectInstall(true);
+          void appActions.connect();
+        }}
       />
       <Toggle
         label="Automatic update check"
