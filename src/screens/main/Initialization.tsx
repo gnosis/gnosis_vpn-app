@@ -54,7 +54,7 @@ export default function Initialization(props: InitializationProps) {
         >
           Version:{" "}
           <span class="text-text-primary">
-            {props.info?.package_version ?? appVersion() ?? "—"}
+            {props.info?.package_version ?? "—"}
           </span>
         </div>
         <Show when={showDetails()}>
