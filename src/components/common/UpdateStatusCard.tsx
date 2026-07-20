@@ -1,5 +1,6 @@
 import { createResource, createSignal, Show } from "solid-js";
 import syncIcon from "@assets/icons/sync.svg";
+import refreshIcon from "@assets/icons/refresh.svg";
 import checkmarkIcon from "@assets/icons/checkmark.svg";
 import { Modal } from "./Modal.tsx";
 import { Markdown } from "./Markdown.tsx";
@@ -156,6 +157,20 @@ export default function UpdateStatusCard(props: UpdateStatusCardProps) {
         </Show>
       </div>
       <div class="grow" />
+      <Show when={updateAvailable() && !props.loading && !installing()}>
+        <button
+          type="button"
+          class="shrink-0 -mr-2 h-8 w-8 flex items-center justify-center rounded-md border border-border bg-transparent transition-colors hover:bg-darken hover:cursor-pointer"
+          title="Check for updates"
+          onClick={() => props.onCheck?.()}
+        >
+          <img
+            src={refreshIcon}
+            alt="Check for updates"
+            class="w-4 h-4 tab-icon"
+          />
+        </button>
+      </Show>
       <button
         type="button"
         class="shrink-0 h-8 px-3 text-sm rounded-md border border-border bg-transparent text-text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-darken hover:enabled:cursor-pointer"
