@@ -162,6 +162,7 @@ export default function UpdateStatusCard(props: UpdateStatusCardProps) {
           type="button"
           class="shrink-0 -mr-2 h-8 w-8 flex items-center justify-center rounded-md border border-border bg-transparent transition-colors hover:bg-darken hover:cursor-pointer"
           title="Check for updates"
+          aria-label="Check for updates"
           onClick={() => props.onCheck?.()}
         >
           <img
