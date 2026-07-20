@@ -35,20 +35,26 @@ export default function UpdateStatusCard(props: UpdateStatusCardProps) {
   const [appState] = useAppStore();
   const [showChangelog, setShowChangelog] = createSignal(false);
   const [showHowTo, setShowHowTo] = createSignal(false);
-  const [platform] = createResource(getPlatform);
+  const [platform, { refetch: refetchPlatform }] = createResource(getPlatform);
   const installing = () => props.installPhase != null;
   const showCheckmark = () =>
     !props.loading && !installing() && props.isUpToDate !== false;
   const updateAvailable = () => props.isUpToDate === false;
 
-  const handleButtonClick = () => {
+  const handleButtonClick = async () => {
     if (!updateAvailable()) {
       props.onCheck?.();
-    } else if (platform.loading) {
+      return;
+    }
+    if (platform.loading) {
       // Don't pick an install path before the platform is known — clicking
       // right after mount must not open the Linux how-to on macOS.
       return;
-    } else if (platform() === "macos") {
+    }
+    // A failed probe resolves to "unknown"; retry on click so a transient
+    // failure can't pin macOS on the manual path for the mount's lifetime.
+    const os = platform() === "unknown" ? await refetchPlatform() : platform();
+    if (os === "macos") {
       // macOS ships /usr/local/bin/gnosis_vpn-update; the app drives it.
       props.onInstall?.();
     } else {
