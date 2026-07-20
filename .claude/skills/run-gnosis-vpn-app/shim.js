@@ -24,6 +24,7 @@
     channel: null,
     dismissedUpdateVersion: null,
     showDetailedMetrics: false,
+    flagDisplay: "color",
     ...(fixture.settings ?? {}),
   };
 
@@ -33,9 +34,30 @@
     }
   };
 
+  // update-install flow (macOS): install_update replays fixture.installScript
+  // (or this default) as update-install-status events, mirroring the Rust
+  // command streaming the gnosis_vpn-update binary's NDJSON phases.
+  const defaultInstallScript = [
+    { delay: 100, status: { kind: "Checking" } },
+    { delay: 400, status: { kind: "Downloading" } },
+    { delay: 1500, status: { kind: "Installing" } },
+    { delay: 2500, status: { kind: "Completed", new_version: "9.9.9" } },
+  ];
+
   const handlers = {
     get_cached_state: () => fixture.cached_state,
     get_initial_theme: () => fixture.theme ?? "dark",
+    get_platform: () => fixture.platform ?? "linux",
+    get_install_status: () => fixture.installStatus ?? null,
+    install_update: () => {
+      for (const step of fixture.installScript ?? defaultInstallScript) {
+        setTimeout(
+          () => fireEvent("update-install-status", step.status),
+          step.delay,
+        );
+      }
+      return null;
+    },
     get_settings: () => ({ ...settings }),
     update_settings: ({ patch }) => {
       Object.assign(settings, patch);

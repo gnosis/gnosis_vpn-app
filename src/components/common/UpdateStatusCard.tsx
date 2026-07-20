@@ -1,9 +1,21 @@
-import { createSignal, Show } from "solid-js";
+import { createResource, createSignal, Show } from "solid-js";
 import syncIcon from "@assets/icons/sync.svg";
 import checkmarkIcon from "@assets/icons/checkmark.svg";
 import { Modal } from "./Modal.tsx";
 import { Markdown } from "./Markdown.tsx";
+import HowToUpdateModal from "./HowToUpdateModal.tsx";
 import { useAppStore } from "@src/stores/appStore.ts";
+import { getPlatform } from "@src/utils/platform.ts";
+
+// UI phases of a driven install (macOS): mapped from the updater's
+// update-install-status events by Updates.tsx. "installing" holds through
+// Completed — the installer restarts the app itself.
+export type InstallPhase = "downloading" | "installing";
+
+const INSTALL_LABELS: Record<InstallPhase, string> = {
+  downloading: "Downloading…",
+  installing: "Installing…",
+};
 
 interface UpdateStatusCardProps {
   lastChecked?: string;
@@ -12,12 +24,50 @@ interface UpdateStatusCardProps {
   isUpToDate?: boolean;
   latestVersion?: string;
   releaseNotes?: string;
+  // Starts the driven install; only used on macOS (other platforms get the
+  // how-to-update instructions instead).
+  onInstall?: () => void;
+  installPhase?: InstallPhase | null;
+  installError?: string | null;
 }
 
 export default function UpdateStatusCard(props: UpdateStatusCardProps) {
   const [appState] = useAppStore();
   const [showChangelog, setShowChangelog] = createSignal(false);
-  const showCheckmark = () => !props.loading && props.isUpToDate !== false;
+  const [showHowTo, setShowHowTo] = createSignal(false);
+  const [platform, { refetch: refetchPlatform }] = createResource(getPlatform);
+  const installing = () => props.installPhase != null;
+  const showCheckmark = () =>
+    !props.loading && !installing() && props.isUpToDate !== false;
+  const updateAvailable = () => props.isUpToDate === false;
+
+  const handleButtonClick = async () => {
+    if (!updateAvailable()) {
+      props.onCheck?.();
+      return;
+    }
+    if (platform.loading) {
+      // Don't pick an install path before the platform is known — clicking
+      // right after mount must not open the Linux how-to on macOS.
+      return;
+    }
+    // A failed probe resolves to "unknown"; retry on click so a transient
+    // failure can't pin macOS on the manual path for the mount's lifetime.
+    const os = platform() === "unknown" ? await refetchPlatform() : platform();
+    if (os === "macos") {
+      // macOS ships /usr/local/bin/gnosis_vpn-update; the app drives it.
+      props.onInstall?.();
+    } else {
+      // Elsewhere updating is manual; show the instructions.
+      setShowHowTo(true);
+    }
+  };
+
+  const buttonLabel = () => {
+    if (props.installPhase) return INSTALL_LABELS[props.installPhase];
+    if (props.loading) return "Checking…";
+    return updateAvailable() ? "Install update" : "Check now";
+  };
 
   const statusText = () => {
     if (props.isUpToDate === true) {
@@ -36,7 +86,9 @@ export default function UpdateStatusCard(props: UpdateStatusCardProps) {
         <img
           src={syncIcon}
           alt=""
-          class={`w-10 h-10 tab-icon${props.loading ? " animate-spin" : ""}`}
+          class={`w-10 h-10 tab-icon${
+            props.loading || installing() ? " animate-spin" : ""
+          }`}
         />
         <Show when={appState.serviceInfo?.package_version && showCheckmark()}>
           <div class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-bg-surface flex items-center justify-center">
@@ -87,19 +139,36 @@ export default function UpdateStatusCard(props: UpdateStatusCardProps) {
             </button>
           </div>
         </Modal>
-        <span class="mt-auto text-xs text-text-secondary">
-          Last checked: {props.lastChecked ?? "Never"}
-        </span>
+        <Show
+          when={props.installError}
+          fallback={
+            <span class="mt-auto text-xs text-text-secondary">
+              Last checked: {props.lastChecked ?? "Never"}
+            </span>
+          }
+        >
+          <span
+            class="mt-auto text-xs text-red-500 truncate"
+            title={props.installError ?? undefined}
+          >
+            Update failed — {props.installError}
+          </span>
+        </Show>
       </div>
       <div class="grow" />
       <button
         type="button"
         class="shrink-0 h-8 px-3 text-sm rounded-md border border-border bg-transparent text-text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-darken hover:enabled:cursor-pointer"
-        disabled={props.loading}
-        onClick={props.onCheck}
+        disabled={props.loading || installing() ||
+          (updateAvailable() && platform.loading)}
+        onClick={handleButtonClick}
       >
-        {props.loading ? "Checking…" : "Check now"}
+        {buttonLabel()}
       </button>
+      <HowToUpdateModal
+        open={showHowTo()}
+        onClose={() => setShowHowTo(false)}
+      />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 use gnosis_vpn_app_lib::settings::{FlagDisplay, Settings, SortOrder, UpdateChannel};
 use gnosis_vpn_app_lib::types;
+use gnosis_vpn_app_lib::update_install::InstallStatus;
 use gnosis_vpn_lib::balance::{
     Balance, BalanceRecommendation, Balances, Capacity, CapacityAllocator, FundingIssue, WxHOPR,
     XDai,
@@ -387,6 +388,38 @@ fn generate_fixtures() {
 
     write(&fixtures_dir, "settings_default.json", &Settings::default());
     write(&fixtures_dir, "settings_full.json", &full_settings());
+
+    // update-install-status event payloads (see updateInstall.test.ts)
+    write(
+        &fixtures_dir,
+        "install_status_checking.json",
+        &InstallStatus::Checking,
+    );
+    write(
+        &fixtures_dir,
+        "install_status_downloading.json",
+        &InstallStatus::Downloading,
+    );
+    write(
+        &fixtures_dir,
+        "install_status_installing.json",
+        &InstallStatus::Installing,
+    );
+    write(
+        &fixtures_dir,
+        "install_status_completed.json",
+        &InstallStatus::Completed {
+            new_version: "0.78.0".to_string(),
+        },
+    );
+    write(
+        &fixtures_dir,
+        "install_status_failed.json",
+        &InstallStatus::Failed {
+            stage: "Download".to_string(),
+            error: "connection reset".to_string(),
+        },
+    );
 }
 
 fn full_settings() -> Settings {

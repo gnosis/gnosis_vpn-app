@@ -18,10 +18,11 @@ pub mod settings;
 mod theme;
 pub mod tray;
 pub mod types;
+pub mod update_install;
 
 use commands::{
-    check_update, compress_logs, connect, disconnect, get_cached_state, run_initialization_loop,
-    set_app_icon, stop_client,
+    check_update, compress_logs, connect, disconnect, get_cached_state, get_platform,
+    run_initialization_loop, set_app_icon, stop_client,
 };
 use gnosis_vpn_lib::command::InfoResponse;
 use gnosis_vpn_lib::{command, socket::root as root_socket};
@@ -38,6 +39,7 @@ use tray::{
 };
 use types::ConnectionState;
 use types::{BalanceResponse, StatusResponse};
+use update_install::{UpdateInstallState, get_install_status, install_update};
 
 struct HeartbeatHandle(Mutex<Option<tauri::async_runtime::JoinHandle<()>>>);
 
@@ -381,6 +383,9 @@ pub fn run() {
                 handle: None,
             }));
 
+            // last update-install status: re-hydration + concurrent-install guard
+            app.manage(UpdateInstallState::default());
+
             let (status_tx, _) = watch::channel(None);
             let (balance_tx, _) = watch::channel(None);
             let (service_info_tx, _) = watch::channel(None);
@@ -406,7 +411,10 @@ pub fn run() {
             check_update,
             get_cached_state,
             get_settings,
-            update_settings
+            update_settings,
+            get_platform,
+            install_update,
+            get_install_status
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
