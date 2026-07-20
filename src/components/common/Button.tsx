@@ -18,15 +18,15 @@ export interface ButtonProps {
 }
 
 const baseClasses =
-  "font-bold inline-flex items-center justify-center focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed gap-2 hover:cursor-pointer transition-transform duration-150 ease-out select-none";
+  "font-bold inline-flex items-center justify-center focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed gap-2 enabled:cursor-pointer transition-transform duration-150 ease-out select-none";
 
 const variantClasses: Record<NonNullable<ButtonProps["variant"]>, string> = {
   primary:
-    "border border-transparent bg-accent text-accent-text focus:outline-none hover:bg-accent-hover",
+    "border border-transparent bg-accent text-accent-text focus:outline-none enabled:hover:bg-accent-hover",
   secondary:
-    "border border-transparent bg-btn-secondary-bg text-btn-secondary-text focus:outline-none hover:bg-btn-secondary-hover",
+    "border border-transparent bg-btn-secondary-bg text-btn-secondary-text focus:outline-none enabled:hover:bg-btn-secondary-hover",
   outline:
-    "border border-border bg-transparent text-text-primary focus:outline-none hover:bg-darken",
+    "border border-border bg-transparent text-text-primary focus:outline-none enabled:hover:bg-darken",
 };
 
 const sizeClasses: Record<NonNullable<ButtonProps["size"]>, string> = {

@@ -58,6 +58,16 @@
       }
       return null;
     },
+    // Resolves with fixture.checkUpdateManifest (falling back to the seeded
+    // settings.updateManifest) after checkUpdateDelayMs, so the "Checking…"
+    // UI state is observable.
+    check_update: () =>
+      new Promise((resolve) =>
+        setTimeout(
+          () => resolve(fixture.checkUpdateManifest ?? settings.updateManifest),
+          fixture.checkUpdateDelayMs ?? 2000,
+        )
+      ),
     get_settings: () => ({ ...settings }),
     update_settings: ({ patch }) => {
       Object.assign(settings, patch);
