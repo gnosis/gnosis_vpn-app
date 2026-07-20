@@ -5,6 +5,11 @@ import { invoke } from "@tauri-apps/api/core";
 let cached: Promise<string> | undefined;
 
 export function getPlatform(): Promise<string> {
-  cached ??= invoke<string>("get_platform").catch(() => "unknown");
+  cached ??= invoke<string>("get_platform").catch(() => {
+    // A failure here can be transient; clear the cache so the next call
+    // retries instead of pinning "unknown" forever.
+    cached = undefined;
+    return "unknown";
+  });
   return cached;
 }

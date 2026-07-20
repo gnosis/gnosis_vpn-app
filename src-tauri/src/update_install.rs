@@ -150,7 +150,10 @@ pub fn install_update(app: AppHandle, channel: String, force: bool) -> Result<()
     let stderr_tail = std::thread::spawn(move || {
         let mut tail: VecDeque<String> = VecDeque::with_capacity(STDERR_TAIL_LINES);
         if let Some(stderr) = stderr {
-            for line in std::io::BufReader::new(stderr).lines().map_while(Result::ok) {
+            for line in std::io::BufReader::new(stderr)
+                .lines()
+                .map_while(Result::ok)
+            {
                 if tail.len() == STDERR_TAIL_LINES {
                     tail.pop_front();
                 }
@@ -164,7 +167,10 @@ pub fn install_update(app: AppHandle, channel: String, force: bool) -> Result<()
     std::thread::spawn(move || {
         let mut saw_terminal = false;
         if let Some(stdout) = stdout {
-            for line in std::io::BufReader::new(stdout).lines().map_while(Result::ok) {
+            for line in std::io::BufReader::new(stdout)
+                .lines()
+                .map_while(Result::ok)
+            {
                 match parse_line(&line) {
                     Some(status) => {
                         saw_terminal |= status.is_terminal();
@@ -253,7 +259,10 @@ mod tests {
             new_version: "1.2.3".to_string(),
         })
         .unwrap();
-        assert_eq!(v, serde_json::json!({"kind": "Completed", "new_version": "1.2.3"}));
+        assert_eq!(
+            v,
+            serde_json::json!({"kind": "Completed", "new_version": "1.2.3"})
+        );
         let v = serde_json::to_value(InstallStatus::Failed {
             stage: "Install".to_string(),
             error: "e".to_string(),
@@ -270,14 +279,18 @@ mod tests {
         assert!(!InstallStatus::Checking.is_terminal());
         assert!(!InstallStatus::Downloading.is_terminal());
         assert!(!InstallStatus::Installing.is_terminal());
-        assert!(InstallStatus::Completed {
-            new_version: String::new()
-        }
-        .is_terminal());
-        assert!(InstallStatus::Failed {
-            stage: String::new(),
-            error: String::new()
-        }
-        .is_terminal());
+        assert!(
+            InstallStatus::Completed {
+                new_version: String::new()
+            }
+            .is_terminal()
+        );
+        assert!(
+            InstallStatus::Failed {
+                stage: String::new(),
+                error: String::new()
+            }
+            .is_terminal()
+        );
     }
 }

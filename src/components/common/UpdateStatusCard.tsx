@@ -44,6 +44,10 @@ export default function UpdateStatusCard(props: UpdateStatusCardProps) {
   const handleButtonClick = () => {
     if (!updateAvailable()) {
       props.onCheck?.();
+    } else if (platform.loading) {
+      // Don't pick an install path before the platform is known — clicking
+      // right after mount must not open the Linux how-to on macOS.
+      return;
     } else if (platform() === "macos") {
       // macOS ships /usr/local/bin/gnosis_vpn-update; the app drives it.
       props.onInstall?.();
@@ -149,7 +153,8 @@ export default function UpdateStatusCard(props: UpdateStatusCardProps) {
       <button
         type="button"
         class="shrink-0 h-8 px-3 text-sm rounded-md border border-border bg-transparent text-text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-darken hover:enabled:cursor-pointer"
-        disabled={props.loading || installing()}
+        disabled={props.loading || installing() ||
+          (updateAvailable() && platform.loading)}
         onClick={handleButtonClick}
       >
         {buttonLabel()}
