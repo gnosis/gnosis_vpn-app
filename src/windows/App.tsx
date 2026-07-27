@@ -104,8 +104,9 @@ function App() {
   }, { defer: true }));
 
   createEffect(() => {
-    if (!settings.updateCheck || settings.lastCheckedAt == null) return;
-    const delay = Math.max(
+    if (!settings.updateCheck) return;
+    // A null lastCheckedAt (fresh install) counts as due immediately.
+    const delay = settings.lastCheckedAt == null ? 0 : Math.max(
       0,
       settings.lastCheckedAt + AUTO_CHECK_INTERVAL_MS - Date.now(),
     );
