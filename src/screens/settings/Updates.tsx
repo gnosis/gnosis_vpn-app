@@ -341,7 +341,7 @@ export default function Updates() {
         options={CHANNEL_OPTIONS}
         value={effectiveChannel()}
         onChange={(ch) => void settingsActions.setChannel(ch)}
-        disabled={true} //installedChannel() === "stable"}
+        disabled //installedChannel() === "stable"}
         // tooltipSwitcher="When on Stable, you can't switch to Snapshot"
       />
       <div class="grow" />
