@@ -92,10 +92,10 @@ export default function Updates() {
     appState.serviceInfo?.package_version ?? null
   );
 
-  const installedChannel = createMemo<UpdateChannel | null>(() => {
-    const ver = packageVersion();
-    return ver ? detectChannel(ver) : null;
-  });
+  // const installedChannel = createMemo<UpdateChannel | null>(() => {
+  //   const ver = packageVersion();
+  //   return ver ? detectChannel(ver) : null;
+  // });
 
   const effectiveChannel = createMemo<UpdateChannel>(() => {
     if (settings.channel) return settings.channel;
