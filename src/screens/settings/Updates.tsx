@@ -92,10 +92,10 @@ export default function Updates() {
     appState.serviceInfo?.package_version ?? null
   );
 
-  const installedChannel = createMemo<UpdateChannel | null>(() => {
-    const ver = packageVersion();
-    return ver ? detectChannel(ver) : null;
-  });
+  // const installedChannel = createMemo<UpdateChannel | null>(() => {
+  //   const ver = packageVersion();
+  //   return ver ? detectChannel(ver) : null;
+  // });
 
   const effectiveChannel = createMemo<UpdateChannel>(() => {
     if (settings.channel) return settings.channel;
@@ -341,7 +341,7 @@ export default function Updates() {
         options={CHANNEL_OPTIONS}
         value={effectiveChannel()}
         onChange={(ch) => void settingsActions.setChannel(ch)}
-        disabled={true} //installedChannel() === "stable"}
+        disabled //installedChannel() === "stable"}
         // tooltipSwitcher="When on Stable, you can't switch to Snapshot"
       />
       <div class="grow" />
