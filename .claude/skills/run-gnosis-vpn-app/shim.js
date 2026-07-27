@@ -17,7 +17,7 @@
     preferredLocation: null,
     connectOnStartup: false,
     startMinimized: false,
-    updateCheck: false,
+    updateCheck: true,
     exitNodeSortOrder: "latency",
     lastCheckedAt: null,
     updateManifest: null,
