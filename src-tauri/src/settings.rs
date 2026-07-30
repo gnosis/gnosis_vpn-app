@@ -10,7 +10,7 @@ use std::sync::{Mutex, MutexGuard};
 /// App settings owned by the Rust layer and mirrored by the webviews.
 /// Persisted as a flat JSON object in `app_data_dir/settings.json` —
 /// the same path and format previously written via tauri-plugin-store.
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Settings {
     pub preferred_location: Option<String>,
@@ -24,6 +24,24 @@ pub struct Settings {
     pub dismissed_update_version: Option<String>,
     pub show_detailed_metrics: bool,
     pub flag_display: FlagDisplay,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Self {
+            preferred_location: None,
+            connect_on_startup: false,
+            start_minimized: false,
+            update_check: true,
+            exit_node_sort_order: SortOrder::default(),
+            last_checked_at: None,
+            update_manifest: None,
+            channel: None,
+            dismissed_update_version: None,
+            show_detailed_metrics: false,
+            flag_display: FlagDisplay::default(),
+        }
+    }
 }
 
 // All enums serialize as plain strings (not tagged objects) to stay
@@ -322,14 +340,14 @@ mod tests {
         let store = SettingsStore::load(path.clone());
         store
             .update(patch(json!({
-                "updateCheck": true,
+                "updateCheck": false,
                 "exitNodeSortOrder": "alpha",
                 "lastCheckedAt": 1720000000000i64
             })))
             .expect("update should succeed");
 
         let reloaded = SettingsStore::load(path).current();
-        assert!(reloaded.update_check);
+        assert!(!reloaded.update_check);
         assert_eq!(reloaded.exit_node_sort_order, SortOrder::Alpha);
         assert_eq!(reloaded.last_checked_at, Some(1720000000000));
     }

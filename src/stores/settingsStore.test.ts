@@ -124,9 +124,9 @@ describe("settingsStore", () => {
     await actions.load();
     invokeMock.mockRejectedValueOnce(new Error("disk full"));
 
-    await expect(actions.setUpdateCheck(true)).resolves.toBeUndefined();
+    await expect(actions.setUpdateCheck(false)).resolves.toBeUndefined();
 
-    expect(state.updateCheck).toBe(false);
+    expect(state.updateCheck).toBe(true);
     expect(errorSpy).toHaveBeenCalled();
     errorSpy.mockRestore();
   });
