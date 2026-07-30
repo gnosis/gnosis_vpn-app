@@ -43,6 +43,24 @@ describe("formatXdai", () => {
     expect(formatXdai("   ", 2)).toBe("0");
     expect(formatXdai("1e18", 2)).toBe("1");
   });
+
+  it("rounds up with ceil rounding", () => {
+    expect(formatXdai(10001n * 10n ** 14n, 2, "ceil")).toBe("1.01");
+    // 1 wei deficit still renders as the smallest displayable amount.
+    expect(formatXdai(1n, 2, "ceil")).toBe("0.01");
+    expect(formatXdai(1n, 4, "ceil")).toBe("0.0001");
+  });
+
+  it("keeps exact values unchanged with ceil rounding", () => {
+    expect(formatXdai(15n * 10n ** 17n, 2, "ceil")).toBe("1.5");
+    expect(formatXdai(0n, 2, "ceil")).toBe("0");
+  });
+
+  it("throws for negative hopli bigint with ceil rounding", () => {
+    expect(() => formatXdai(-1n, 2, "ceil")).toThrow(
+      /hopli must be non-negative/,
+    );
+  });
 });
 
 describe("wxhoprDecimal", () => {
@@ -103,6 +121,43 @@ describe("humanWxhopr", () => {
   it("handles large balances without Number precision loss", () => {
     // 10^18 - 1 hopli is just below 1 wxHOPR; bigint math keeps full precision.
     expect(humanWxhopr(10n ** 18n - 1n)).toBe("0.999 wxHOPR");
+  });
+});
+
+describe("humanWxhopr with ceil rounding (send-at-least amounts)", () => {
+  it("rounds up to 2 decimals for values >= 1", () => {
+    // 101.0000001 must not display as 101 — "send at least 101" would underfund.
+    expect(humanWxhopr(1010000001n * 10n ** 11n, "ceil")).toBe("101.01 wxHOPR");
+    expect(humanWxhopr(123456n * 10n ** 13n, "ceil")).toBe("1.24 wxHOPR");
+  });
+
+  it("keeps exact values unchanged", () => {
+    expect(humanWxhopr(101n * 10n ** 18n, "ceil")).toBe("101 wxHOPR");
+    expect(humanWxhopr(15n * 10n ** 17n, "ceil")).toBe("1.5 wxHOPR");
+    expect(humanWxhopr(0n, "ceil")).toBe("0 wxHOPR");
+  });
+
+  it("carries across the integer part", () => {
+    expect(humanWxhopr(2n * 10n ** 18n - 1n, "ceil")).toBe("2 wxHOPR");
+  });
+
+  it("rounds up the last significant figure below 1", () => {
+    expect(humanWxhopr(123456n * 10n ** 12n, "ceil")).toBe("0.124 wxHOPR");
+  });
+
+  it("rounds up in subscript-zero notation", () => {
+    expect(humanWxhopr(349n * 10n ** 10n + 1n, "ceil")).toBe("0.0₅35 wxHOPR");
+  });
+
+  it("crosses the compact threshold when rounding up", () => {
+    expect(humanWxhopr(9999n * 10n ** 14n, "ceil")).toBe("1 wxHOPR");
+  });
+
+  it("threads rounding through humanWxhoprParts", () => {
+    expect(humanWxhoprParts(1010000001n * 10n ** 11n, "ceil")).toEqual({
+      amount: "101.01",
+      unit: "wxHOPR",
+    });
   });
 });
 

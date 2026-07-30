@@ -40,6 +40,21 @@ function stripTrailingZeros(s: string): string {
   return s.includes(".") ? s.replace(/\.?0+$/, "") : s;
 }
 
+/** Rounding direction for display amounts. Use "ceil" for "send at least"
+ * copy so the headline number never understates the requirement; keep the
+ * default "floor" for balances, which must never overstate what is owned. */
+export type Rounding = "floor" | "ceil";
+
+/** Round a raw 18-decimal amount up to a multiple of 10^(18 - fractionDigits). */
+function ceilToFractionDigits(raw: bigint, fractionDigits: number): bigint {
+  if (raw < 0n) {
+    throw new RangeError("hopli must be non-negative");
+  }
+  if (fractionDigits >= 18) return raw;
+  const unit = 10n ** BigInt(18 - fractionDigits);
+  return ((raw + unit - 1n) / unit) * unit;
+}
+
 /** Placeholder shown when an amount can't be parsed (null/undefined/malformed). */
 export const NO_VALUE = "-";
 
@@ -66,18 +81,19 @@ export function toBigIntSafe(
   }
 }
 
-/** Minimum wei value that formatXdai renders as non-zero (0.01 xDAI, matches default fractionDigits=2). */
-export const MIN_DISPLAYABLE_XDAI_WEI = 10n ** 16n;
-
 /** Format an xDAI amount (18-decimal base unit) as a decimal string without trailing zeros. */
 export function formatXdai(
   value: string | number | bigint,
   fractionDigits = 2,
+  rounding: Rounding = "floor",
 ): string {
   assertNonNegativeParams(18, fractionDigits);
   const hopli = toBigIntSafe(value);
   if (hopli !== null) {
-    return stripTrailingZeros(fixedFloor(hopli, 18, fractionDigits));
+    const raw = rounding === "ceil"
+      ? ceilToFractionDigits(hopli, fractionDigits)
+      : hopli;
+    return stripTrailingZeros(fixedFloor(raw, 18, fractionDigits));
   }
   const num = Number(value);
   if (!Number.isFinite(num)) return "0";
@@ -116,11 +132,34 @@ const COMPACT_SIG_FIGS = 3;
  * figures; once that would need 4+ leading zeros (i.e. value < 0.0001) it
  * switches to subscript-zero notation: e.g. 0.00000349 → `0.0₅349`, where the
  * subscript counts the leading zeros after the decimal point.
+ *
+ * With `rounding: "ceil"` the value is rounded up at the same display
+ * precision instead of truncated.
  */
-function formatCompactAmount(raw: bigint, flooredThreshold: bigint): string {
+function formatCompactAmount(
+  raw: bigint,
+  flooredThreshold: bigint,
+  rounding: Rounding = "floor",
+): string {
   if (raw <= 0n) return "0";
 
   const denom = 10n ** 18n;
+
+  if (rounding === "ceil") {
+    // Derive the display precision from the original value, round up to it,
+    // then render the ceiled value with the plain floor logic below (exact at
+    // this precision). Carry that crosses `flooredThreshold` — e.g.
+    // 0.9999 → 1 — is handled by re-picking the branch for the ceiled value.
+    const fracStr = (raw % denom).toString().padStart(18, "0");
+    const precision = raw >= flooredThreshold
+      ? 2
+      : fracStr.search(/[1-9]/) + COMPACT_SIG_FIGS;
+    return formatCompactAmount(
+      ceilToFractionDigits(raw, precision),
+      flooredThreshold,
+    );
+  }
+
   const intPart = raw / denom;
   const fracStr = (raw % denom).toString().padStart(18, "0");
 
@@ -150,14 +189,20 @@ function formatCompactAmount(raw: bigint, flooredThreshold: bigint): string {
  */
 export function humanWxhoprParts(
   hopli: string | bigint | null | undefined,
+  rounding: Rounding = "floor",
 ): { amount: string; unit: string } {
   const raw = toBigIntSafe(hopli);
-  const amount = raw === null ? NO_VALUE : formatCompactAmount(raw, 10n ** 18n);
+  const amount = raw === null
+    ? NO_VALUE
+    : formatCompactAmount(raw, 10n ** 18n, rounding);
   return { amount, unit: "wxHOPR" };
 }
 
-export function humanWxhopr(hopli: string | bigint | null | undefined): string {
-  const { amount, unit } = humanWxhoprParts(hopli);
+export function humanWxhopr(
+  hopli: string | bigint | null | undefined,
+  rounding: Rounding = "floor",
+): string {
+  const { amount, unit } = humanWxhoprParts(hopli, rounding);
   return amount === NO_VALUE ? amount : `${amount} ${unit}`;
 }
 
