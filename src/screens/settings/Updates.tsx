@@ -92,20 +92,20 @@ export default function Updates() {
     appState.serviceInfo?.package_version ?? null
   );
 
-  // const installedChannel = createMemo<UpdateChannel | null>(() => {
-  //   const ver = packageVersion();
-  //   return ver ? detectChannel(ver) : null;
-  // });
-
+  // The installed package version is the single source of truth for the
+  // channel — a persisted value could outlive a reinstall onto the other
+  // channel (e.g. snapshot → stable) and go stale.
   const effectiveChannel = createMemo<UpdateChannel>(() => {
-    if (settings.channel) return settings.channel;
     const ver = packageVersion();
     return ver ? detectChannel(ver) : "stable";
   });
 
+  // Reconcile the persisted setting with the detected channel so a stale
+  // value on disk self-heals.
   createEffect(() => {
-    if (!settings.channel && packageVersion()) {
-      void settingsActions.setChannel(detectChannel(packageVersion()!));
+    const ver = packageVersion();
+    if (ver && settings.channel !== detectChannel(ver)) {
+      void settingsActions.setChannel(detectChannel(ver));
     }
   });
 
@@ -117,7 +117,6 @@ export default function Updates() {
     evaluateUpdate({
       packageVersion: packageVersion(),
       manifest: settings.updateManifest ?? null,
-      channel: settings.channel,
       dismissedVersion: settings.dismissedUpdateVersion,
     }).isUpToDate
   );

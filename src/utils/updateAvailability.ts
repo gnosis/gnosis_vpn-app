@@ -1,7 +1,4 @@
-import {
-  type UpdateChannel,
-  type UpdateManifest,
-} from "@src/stores/settingsStore.ts";
+import { type UpdateManifest } from "@src/stores/settingsStore.ts";
 import { compareVersions, detectChannel } from "@src/utils/version.ts";
 
 export type UpdateDecision = {
@@ -10,13 +7,14 @@ export type UpdateDecision = {
   availableVersion: string | null;
 };
 
+// The channel is always derived from the installed package version, so the
+// comparison below is always same-channel (never calver vs semver).
 export function evaluateUpdate(input: {
   packageVersion: string | null;
   manifest: UpdateManifest | null;
-  channel: UpdateChannel | null;
   dismissedVersion: string | null;
 }): UpdateDecision {
-  const { packageVersion: pkg, manifest, channel, dismissedVersion } = input;
+  const { packageVersion: pkg, manifest, dismissedVersion } = input;
   if (!pkg || !manifest) {
     return {
       isUpToDate: undefined,
@@ -24,7 +22,7 @@ export function evaluateUpdate(input: {
       availableVersion: null,
     };
   }
-  const effectiveChannel = channel ?? detectChannel(pkg);
+  const effectiveChannel = detectChannel(pkg);
   const latest = manifest.channels[effectiveChannel]?.version ?? null;
   if (!latest) {
     return {
@@ -33,8 +31,7 @@ export function evaluateUpdate(input: {
       availableVersion: null,
     };
   }
-  const channelMismatch = detectChannel(pkg) !== effectiveChannel;
-  const hasUpdate = channelMismatch || compareVersions(pkg, latest) < 0;
+  const hasUpdate = compareVersions(pkg, latest) < 0;
   return {
     isUpToDate: !hasUpdate,
     isUpdateAvailable: hasUpdate && dismissedVersion !== latest,

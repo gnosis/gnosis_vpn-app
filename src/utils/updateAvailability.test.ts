@@ -40,7 +40,6 @@ describe("missing inputs", () => {
     expect(evaluateUpdate({
       packageVersion: null,
       manifest: stableManifest("0.8.0"),
-      channel: null,
       dismissedVersion: null,
     })).toEqual({
       isUpToDate: undefined,
@@ -53,7 +52,6 @@ describe("missing inputs", () => {
     expect(evaluateUpdate({
       packageVersion: "",
       manifest: stableManifest("0.8.0"),
-      channel: null,
       dismissedVersion: null,
     })).toEqual({
       isUpToDate: undefined,
@@ -66,7 +64,6 @@ describe("missing inputs", () => {
     expect(evaluateUpdate({
       packageVersion: "0.8.0",
       manifest: null,
-      channel: "stable",
       dismissedVersion: null,
     })).toEqual({
       isUpToDate: undefined,
@@ -81,7 +78,6 @@ describe("missing inputs", () => {
     expect(evaluateUpdate({
       packageVersion: "0.8.0",
       manifest: snapshotManifest("0.8.0+build.1"),
-      channel: null,
       dismissedVersion: null,
     })).toEqual({
       isUpToDate: undefined,
@@ -99,7 +95,6 @@ describe("missing inputs", () => {
     expect(evaluateUpdate({
       packageVersion: "0.8.0",
       manifest: emptyManifest,
-      channel: "stable",
       dismissedVersion: null,
     })).toEqual({
       isUpToDate: undefined,
@@ -114,7 +109,6 @@ describe("version-shape edge cases (current contract)", () => {
     expect(evaluateUpdate({
       packageVersion: "1.2",
       manifest: stableManifest("1.2.0"),
-      channel: "stable",
       dismissedVersion: null,
     })).toEqual({
       isUpToDate: true,
@@ -124,12 +118,11 @@ describe("version-shape edge cases (current contract)", () => {
   });
 });
 
-describe("stable channel", () => {
+describe("stable channel (derived from packageVersion)", () => {
   it("reports update available when installed is lower than latest stable", () => {
     expect(evaluateUpdate({
       packageVersion: "0.7.5",
       manifest: stableManifest("0.8.0"),
-      channel: "stable",
       dismissedVersion: null,
     })).toEqual({
       isUpToDate: false,
@@ -142,7 +135,6 @@ describe("stable channel", () => {
     expect(evaluateUpdate({
       packageVersion: "0.8.0",
       manifest: stableManifest("0.8.0"),
-      channel: "stable",
       dismissedVersion: null,
     })).toEqual({
       isUpToDate: true,
@@ -156,21 +148,6 @@ describe("stable channel", () => {
     expect(evaluateUpdate({
       packageVersion: "0.9.0",
       manifest: stableManifest("0.8.0"),
-      channel: "stable",
-      dismissedVersion: null,
-    })).toEqual({
-      isUpToDate: true,
-      isUpdateAvailable: false,
-      availableVersion: null,
-    });
-  });
-
-  it("derives stable channel from packageVersion when channel is null", () => {
-    // detectChannel("0.8.0") -> "stable"
-    expect(evaluateUpdate({
-      packageVersion: "0.8.0",
-      manifest: stableManifest("0.8.0"),
-      channel: null,
       dismissedVersion: null,
     })).toEqual({
       isUpToDate: true,
@@ -180,12 +157,12 @@ describe("stable channel", () => {
   });
 });
 
-describe("snapshot channel — build metadata (+build.N)", () => {
+describe("snapshot channel (derived from packageVersion) — build metadata (+build.N)", () => {
   it("reports update available when installed snapshot is older", () => {
+    // detectChannel("0.7.5+build.7") -> "snapshot"
     expect(evaluateUpdate({
       packageVersion: "0.7.5+build.7",
       manifest: snapshotManifest("0.7.5+build.10"),
-      channel: "snapshot",
       dismissedVersion: null,
     })).toEqual({
       isUpToDate: false,
@@ -198,7 +175,6 @@ describe("snapshot channel — build metadata (+build.N)", () => {
     expect(evaluateUpdate({
       packageVersion: "0.7.5+build.10",
       manifest: snapshotManifest("0.7.5+build.10"),
-      channel: "snapshot",
       dismissedVersion: null,
     })).toEqual({
       isUpToDate: true,
@@ -211,20 +187,18 @@ describe("snapshot channel — build metadata (+build.N)", () => {
     const result = evaluateUpdate({
       packageVersion: "0.7.5+build.20",
       manifest: snapshotManifest("0.7.5+build.10"),
-      channel: "snapshot",
       dismissedVersion: null,
     });
     expect(result.isUpToDate).toBe(true);
   });
 });
 
-describe("snapshot channel — pre-release suffix (-rc.N)", () => {
+describe("snapshot channel (derived from packageVersion) — pre-release suffix (-rc.N)", () => {
   it("reports update available when pre-release pkg core is older than manifest core", () => {
     // compareVersions strips '-rc.1', so "1.0.0-rc.1" core == "1.0.0".
     const result = evaluateUpdate({
       packageVersion: "1.0.0-rc.1",
       manifest: snapshotManifest("1.1.0"),
-      channel: "snapshot",
       dismissedVersion: null,
     });
     expect(result.isUpdateAvailable).toBe(true);
@@ -235,50 +209,49 @@ describe("snapshot channel — pre-release suffix (-rc.N)", () => {
     const result = evaluateUpdate({
       packageVersion: "1.0.0-rc.1",
       manifest: snapshotManifest("1.0.0"),
-      channel: "snapshot",
       dismissedVersion: null,
     });
     expect(result.isUpToDate).toBe(true);
   });
-
-  it("derives snapshot channel from packageVersion when channel is null", () => {
-    // detectChannel("0.7.5+build.7") -> "snapshot"
-    const result = evaluateUpdate({
-      packageVersion: "0.7.5+build.7",
-      manifest: snapshotManifest("0.7.5+build.10"),
-      channel: null,
-      dismissedVersion: null,
-    });
-    expect(result.isUpdateAvailable).toBe(true);
-  });
 });
 
-describe("channel mismatch", () => {
-  it("flags update available when installed is stable but selected channel is snapshot", () => {
-    // channelMismatch alone forces hasUpdate=true.
+describe("GNO-689 regression — channel follows the installed package", () => {
+  it("stable install stays up-to-date even when a newer snapshot exists", () => {
+    // The VM scenario: rotsee/snapshot install replaced by jura/stable
+    // 0.91.1. A persisted "snapshot" channel used to force a false update
+    // to the snapshot build; the channel input no longer exists, so a
+    // stale disk value cannot influence the result.
     expect(evaluateUpdate({
-      packageVersion: "0.8.0",
-      manifest: fullManifest("0.8.0", "0.8.0+build.5"),
-      channel: "snapshot",
+      packageVersion: "0.91.1",
+      manifest: fullManifest("0.91.1", "2026.07.31+build.14043"),
       dismissedVersion: null,
     })).toEqual({
-      isUpToDate: false,
-      isUpdateAvailable: true,
-      availableVersion: "0.8.0+build.5",
+      isUpToDate: true,
+      isUpdateAvailable: false,
+      availableVersion: null,
     });
   });
 
-  it("flags update available when installed is snapshot but selected channel is stable", () => {
+  it("stable install is offered stable updates while a snapshot entry exists", () => {
     expect(evaluateUpdate({
-      packageVersion: "0.8.0+build.3",
-      manifest: fullManifest("0.8.0", "0.8.0+build.5"),
-      channel: "stable",
+      packageVersion: "0.91.1",
+      manifest: fullManifest("0.92.0", "2026.07.31+build.14043"),
       dismissedVersion: null,
     })).toEqual({
       isUpToDate: false,
       isUpdateAvailable: true,
-      availableVersion: "0.8.0",
+      availableVersion: "0.92.0",
     });
+  });
+
+  it("a stale snapshot dismissedVersion does not suppress a real stable update", () => {
+    const result = evaluateUpdate({
+      packageVersion: "0.91.1",
+      manifest: fullManifest("0.92.0", "2026.07.31+build.14043"),
+      dismissedVersion: "2026.07.31+build.14042",
+    });
+    expect(result.isUpdateAvailable).toBe(true);
+    expect(result.availableVersion).toBe("0.92.0");
   });
 });
 
@@ -288,7 +261,6 @@ describe("dismissed version", () => {
     expect(evaluateUpdate({
       packageVersion: "0.7.5",
       manifest: stableManifest("0.8.0"),
-      channel: "stable",
       dismissedVersion: "0.8.0",
     })).toEqual({
       isUpToDate: false,
@@ -301,7 +273,6 @@ describe("dismissed version", () => {
     const result = evaluateUpdate({
       packageVersion: "0.7.5",
       manifest: stableManifest("0.8.0"),
-      channel: "stable",
       dismissedVersion: "0.7.9",
     });
     expect(result.isUpdateAvailable).toBe(true);
@@ -312,7 +283,6 @@ describe("dismissed version", () => {
     const result = evaluateUpdate({
       packageVersion: "0.7.5",
       manifest: stableManifest("0.8.0"),
-      channel: "stable",
       dismissedVersion: null,
     });
     expect(result.isUpdateAvailable).toBe(true);

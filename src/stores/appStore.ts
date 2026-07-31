@@ -584,16 +584,15 @@ export function createAppStore(): AppStoreTuple {
     },
   } as const;
 
-  // Both windows derive update state locally via the same helper — settings
-  // sync through the rust-owned settings store, so both compute identical
-  // results. Always applies the helper output (even when isUpToDate is
-  // undefined) so a channel switch that lands on a missing release clears
-  // any stale banner state.
+  // Both windows derive update state locally via the same helper — the
+  // channel comes from the installed package version, so both compute
+  // identical results. Always applies the helper output (even when
+  // isUpToDate is undefined) so a package change that lands on a missing
+  // release clears any stale banner state.
   createEffect(() => {
     const d = evaluateUpdate({
       packageVersion: state.serviceInfo?.package_version ?? null,
       manifest: settings.updateManifest ?? null,
-      channel: settings.channel,
       dismissedVersion: settings.dismissedUpdateVersion,
     });
     setState("availableVersion", d.availableVersion);
