@@ -70,7 +70,7 @@ type AppActions = {
   initializeApp: () => Promise<void>;
   setScreen: (screen: AppScreen) => void;
   chooseDestination: (id: string | null) => void;
-  connect: () => Promise<void>;
+  connect: (targetIdOverride?: string) => Promise<void>;
   disconnect: () => Promise<void>;
 };
 
@@ -527,9 +527,9 @@ export function createAppStore(): AppStoreTuple {
       applyDestinationSelection();
     },
 
-    connect: async () => {
+    connect: async (targetIdOverride?: string) => {
       setState("isLoading", true);
-      const requestedId = state.selectedId;
+      const requestedId = targetIdOverride ?? state.selectedId;
       const { id: targetId, reason: selectionReason } = requestedId
         ? { id: requestedId, reason: "selected exit node" }
         : {

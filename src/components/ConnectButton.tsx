@@ -1,13 +1,12 @@
 import { createMemo } from "solid-js";
 import Button from "./common/Button.tsx";
 import { useAppStore } from "../stores/appStore.ts";
-import { useSettingsStore } from "../stores/settingsStore.ts";
-import { resolveAutoDestination } from "../utils/destinations.ts";
+import { useBannerStore } from "../stores/bannerStore.ts";
 import { isReadyToConnect } from "../utils/exitHealth.ts";
 
 export default function ConnectButton() {
   const [appState, appActions] = useAppStore();
-  const [settings] = useSettingsStore();
+  const [bannerState] = useBannerStore();
 
   const isActive = createMemo(() =>
     appState.vpnStatus === "Connected" ||
@@ -16,20 +15,12 @@ export default function ConnectButton() {
   );
   const label = createMemo(() => (isActive() ? "Disconnect" : "Connect"));
 
-  const targetId = createMemo(() => {
-    if (appState.selectedId) return appState.selectedId;
-    return resolveAutoDestination(
-      appState.availableDestinations,
-      appState.destinations,
-      settings.preferredLocation,
-    )?.id ?? appState.availableDestinations[0]?.id;
-  });
+  const targetId = createMemo(() => bannerState.activeId);
 
-  const targetDestinationState = createMemo(() =>
-    Object.values(appState.destinations).find((ds) =>
-      ds.destination.id === (targetId() ?? "")
-    )
-  );
+  const targetDestinationState = createMemo(() => {
+    const id = targetId();
+    return id ? appState.destinations[id] : undefined;
+  });
 
   const isTargetReady = createMemo(() =>
     isReadyToConnect(targetDestinationState()?.route_health ?? undefined)
@@ -40,7 +31,7 @@ export default function ConnectButton() {
       if (isActive()) {
         await appActions.disconnect();
       } else {
-        await appActions.connect();
+        await appActions.connect(targetId() ?? undefined);
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

@@ -32,7 +32,7 @@ const statusColorClass: Record<HealthColor, string> = {
 };
 
 /**
- * Expanded health detail panel shown below the ExitNode card.
+ * Expanded health detail panel shown below the location banner.
  * Displays latency, capacity, load, routing, and error info.
  */
 export default function ExitHealthDetail(

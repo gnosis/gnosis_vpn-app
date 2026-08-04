@@ -8,14 +8,14 @@ import {
 } from "solid-js";
 import { useAppStore } from "../../stores/appStore.ts";
 import { useSettingsStore } from "../../stores/settingsStore.ts";
+import { useBannerStore } from "../../stores/bannerStore.ts";
 import { StatusIndicator } from "../../components/status/StatusIndicator.tsx";
 import Navigation from "../../components/Navigation.tsx";
-import ExitNode from "../../components/exitNode/ExitNode.tsx";
+import LocationBanner from "../../components/exitNode/LocationBanner.tsx";
 import ConnectButton from "../../components/ConnectButton.tsx";
 import StatusHero from "../../components/status/StatusHero.tsx";
 import StatusLine from "../../components/status/StatusLine.tsx";
 import ExitHealthDetail from "../../components/exitNode/ExitHealthDetail.tsx";
-import { resolveAutoDestination } from "../../utils/destinations.ts";
 import ConnectionStatus from "../../components/status/ConnectionStatus.tsx";
 import { openSettingsWindow } from "../../utils/settingsWindow.ts";
 import { isRunningRunMode } from "../../services/vpnService.ts";
@@ -31,7 +31,8 @@ const [dismissedBalanceStatus, setDismissedBalanceStatus] = createSignal<
 
 export function MainScreen() {
   const [appState] = useAppStore();
-  const [settings, settingsActions] = useSettingsStore();
+  const [, settingsActions] = useSettingsStore();
+  const [bannerState] = useBannerStore();
 
   const fundingIssues = createMemo(() =>
     isRunningRunMode(appState.runMode)
@@ -52,15 +53,11 @@ export function MainScreen() {
       ? "Your balance is empty"
       : "Your balance is low";
 
-  const activeDestinationState = createMemo(() => {
-    if (appState.selectedId) return appState.destinations[appState.selectedId];
-    const resolved = resolveAutoDestination(
-      appState.availableDestinations,
-      appState.destinations,
-      settings.preferredLocation,
-    );
-    return resolved ? appState.destinations[resolved.id] : undefined;
-  });
+  const activeDestinationState = createMemo(() =>
+    bannerState.activeId
+      ? appState.destinations[bannerState.activeId]
+      : undefined
+  );
 
   let mainRef!: HTMLDivElement;
   let exitAnchorRef!: HTMLDivElement;
@@ -141,7 +138,7 @@ export function MainScreen() {
       >
         <StatusHero />
         <div ref={exitAnchorRef} class="w-full flex justify-center z-10">
-          <ExitNode />
+          <LocationBanner />
         </div>
         <Show when={activeDestinationState()}>
           {(ds) => (
