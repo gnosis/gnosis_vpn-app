@@ -200,7 +200,7 @@ export function createAppStore(): AppStoreTuple {
     pendingScreenTransition = null;
   };
 
-  const [settings] = useSettingsStore();
+  const [settings, settingsActions] = useSettingsStore();
   const [, logActions] = useLogsStore();
   const log = (content: string) => logActions.append(content);
   const logStatus = (response: StatusResponse) =>
@@ -559,6 +559,7 @@ export function createAppStore(): AppStoreTuple {
       try {
         if (targetId) {
           await VPNService.connect(targetId);
+          await settingsActions.setLastConnectedDestination(targetId);
         }
         applyDestinationSelection();
       } catch (error) {
