@@ -368,6 +368,22 @@ select {
   animation: check-pop 400ms ease-out forwards;
 }
 
+/* Plays automatically on mount since it's a fresh DOM node — no JS toggle needed. */
+.card-pop-in {
+  animation: card-pop-in 200ms ease-out both;
+}
+
+@keyframes card-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 .system-window {
   background-color: var(--color-bg-primary);
 }
