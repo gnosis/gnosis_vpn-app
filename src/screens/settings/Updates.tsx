@@ -19,6 +19,7 @@ import SegmentedControl from "@src/components/common/SegmentedControl.tsx";
 import CheckUpdateModal from "@src/components/CheckUpdateModal.tsx";
 import InstallUpdateModal from "@src/components/InstallUpdateModal.tsx";
 import { useAppStore } from "@src/stores/appStore.ts";
+import { useBannerStore } from "@src/stores/bannerStore.ts";
 import {
   type UpdateChannel,
   type UpdateManifest,
@@ -44,6 +45,7 @@ const CHANNEL_OPTIONS: { value: UpdateChannel; label: string }[] = [
 
 export default function Updates() {
   const [appState, appActions] = useAppStore();
+  const [bannerState] = useBannerStore();
   const [settings, settingsActions] = useSettingsStore();
   const [showCheckModal, setShowCheckModal] = createSignal(false);
   const [checking, setChecking] = createSignal(false);
@@ -256,7 +258,7 @@ export default function Updates() {
   const handleConnectAndCheck = () => {
     setShowCheckModal(false);
     setPendingConnectCheck(true);
-    void appActions.connect();
+    if (bannerState.activeId) void appActions.connect(bannerState.activeId);
   };
 
   // After "Connect and check": once VPN reaches Connected, fire the check.
@@ -325,7 +327,9 @@ export default function Updates() {
         onConnectAndInstall={() => {
           setShowInstallModal(false);
           setPendingConnectInstall(true);
-          void appActions.connect();
+          if (bannerState.activeId) {
+            void appActions.connect(bannerState.activeId);
+          }
         }}
       />
       <Toggle

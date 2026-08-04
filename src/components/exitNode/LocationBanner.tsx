@@ -61,7 +61,7 @@ export default function LocationBanner() {
     <div
       ref={containerRef}
       onScroll={handleScroll}
-      class="w-full flex flex-row gap-2 overflow-x-auto snap-x snap-mandatory scroll-smooth"
+      class="flex-1 min-w-0 flex flex-row gap-2 overflow-x-auto snap-x snap-mandatory scroll-smooth"
     >
       <For each={bannerState.order}>
         {(id) => (

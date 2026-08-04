@@ -28,7 +28,6 @@ import { useLogsStore } from "@src/stores/logsStore.ts";
 import {
   destinationLabel,
   getPreferredAvailabilityChangeMessage,
-  resolveAutoDestination,
 } from "@src/utils/destinations.ts";
 
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
@@ -53,8 +52,6 @@ export interface AppState {
   disconnecting: DisconnectingInfo[];
   isLoading: boolean;
   error?: string;
-  destination: Destination | null;
-  selectedId: string | null;
   runMode: RunMode | null;
   vpnStatus: string;
   warmupStatus: string;
@@ -69,8 +66,7 @@ export interface AppState {
 type AppActions = {
   initializeApp: () => Promise<void>;
   setScreen: (screen: AppScreen) => void;
-  chooseDestination: (id: string | null) => void;
-  connect: (targetIdOverride?: string) => Promise<void>;
+  connect: (targetId: string) => Promise<void>;
   disconnect: () => Promise<void>;
 };
 
@@ -95,13 +91,11 @@ function initialState(): AppState {
     connecting: null,
     reconnecting: null,
     currentScreen: AppScreen.Initialization,
-    destination: null,
     destinations: {},
     disconnecting: [],
     error: undefined,
     isLoading: false,
     runMode: null,
-    selectedId: null,
     serviceInfo: null,
     vpnStatus: "ServiceUnavailable",
     warmupStatus: "",
@@ -130,7 +124,6 @@ export function createAppStore(): AppStoreTuple {
   let unlistenServiceInfo: (() => void) | undefined;
   let unlistenStatusUpdate: (() => void) | undefined;
   let unlistenBalanceUpdate: (() => void) | undefined;
-  let connectedOnOpenDetected = false;
   let activeSyncPhase: SyncPhaseIndex | null = null;
   let syncPhaseStartTime = 0;
   let syncTimer: ReturnType<typeof setInterval> | undefined;
@@ -208,60 +201,11 @@ export function createAppStore(): AppStoreTuple {
 
   const criticalError = (message: string) => {
     log(message);
-    connectedOnOpenDetected = false;
     stopSyncProgress();
     const savedServiceInfo = state.serviceInfo;
     setState(reconcile(initialState()));
     setState("serviceInfo", savedServiceInfo);
     setState("error", message);
-  };
-
-  const applyDestinationSelection = () => {
-    // 1. Explicit user selection
-    if (state.selectedId) {
-      const dest = state.destinations[state.selectedId];
-      if (dest) {
-        setState("destination", dest.destination);
-        return;
-      }
-    }
-
-    // 2. Service already connected/connecting when app opened (one-time detection).
-    // Only runs until we've detected it once — avoids locking out "Random" mode
-    // after the user later chooses it and a connection succeeds.
-    if (!connectedOnOpenDetected) {
-      const activeId = state.connected?.destination_id ??
-        state.connecting?.destination_id ??
-        state.reconnecting?.destination_id;
-      const connectedEntry = activeId
-        ? state.destinations[activeId]
-        : undefined;
-      if (connectedEntry) {
-        connectedOnOpenDetected = true;
-        setState("selectedId", connectedEntry.destination.id);
-        setState("destination", connectedEntry.destination);
-        return;
-      }
-      // No connection found yet — mark as done once destinations are present
-      // so a fresh session doesn't keep probing after the user has interacted.
-      if (Object.values(state.destinations).length > 0) {
-        connectedOnOpenDetected = true;
-      }
-    }
-
-    // 3. Preferred location (if available).
-    // Only sets destination — not selectedId — so the user's "Auto" choice
-    // stays visible. connect() resolves preferredLocation independently via
-    // resolveAutoDestination.
-    if (settings.preferredLocation) {
-      const dest = state.destinations[settings.preferredLocation];
-      if (dest) {
-        setState("destination", dest.destination);
-        return;
-      }
-    }
-
-    setState("destination", null);
   };
 
   const processStatusResponse = (response: StatusResponse) => {
@@ -313,7 +257,6 @@ export function createAppStore(): AppStoreTuple {
     setState("disconnecting", reconcile(response.disconnecting));
     setState("vpnStatus", deriveVPNStatus(response));
     setState("availableDestinations", availableDestinations);
-    applyDestinationSelection();
   };
 
   const logStateChange = (
@@ -387,7 +330,6 @@ export function createAppStore(): AppStoreTuple {
 
   const actions = {
     initializeApp: async () => {
-      connectedOnOpenDetected = false;
       stopSyncProgress();
       setState("syncProgress", 0);
       if (unlistenServiceInfo) {
@@ -522,46 +464,20 @@ export function createAppStore(): AppStoreTuple {
 
     setScreen: (screen: AppScreen) => setState("currentScreen", screen),
 
-    chooseDestination: (id: string | null) => {
-      setState("selectedId", id ?? null);
-      applyDestinationSelection();
-    },
-
-    connect: async (targetIdOverride?: string) => {
+    connect: async (targetId: string) => {
       setState("isLoading", true);
-      const requestedId = targetIdOverride ?? state.selectedId;
-      const { id: targetId, reason: selectionReason } = requestedId
-        ? { id: requestedId, reason: "selected exit node" }
-        : {
-          id: resolveAutoDestination(
-            state.availableDestinations,
-            state.destinations,
-            settings.preferredLocation,
-          )?.id,
-          reason: "auto destination",
-        };
-
-      const reasonForLog = requestedId ? "selected exit node" : selectionReason;
-      if (targetId && reasonForLog !== "selected exit node") {
-        const selected = state.availableDestinations.find(
-          (d) => d.id === targetId,
-        );
-        if (!selected) {
-          setState("isLoading", false);
-          return;
-        }
+      const selected = state.availableDestinations.find(
+        (d) => d.id === targetId,
+      );
+      if (selected) {
         const name = destinationLabel(selected);
         const short = shortAddress(selected.address);
-        const pretty = `${name} - ${short}`;
-        log(`Connecting to ${reasonForLog}: ${pretty}`);
+        log(`Connecting to ${name} - ${short}`);
       }
 
       try {
-        if (targetId) {
-          await VPNService.connect(targetId);
-          await settingsActions.setLastConnectedDestination(targetId);
-        }
-        applyDestinationSelection();
+        await VPNService.connect(targetId);
+        await settingsActions.setLastConnectedDestination(targetId);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         log(message);

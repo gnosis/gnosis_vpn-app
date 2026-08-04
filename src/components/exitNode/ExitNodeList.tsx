@@ -11,10 +11,10 @@ import {
 } from "solid-js";
 import type { DestinationState } from "@src/services/vpnService.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
+import { useBannerStore } from "@src/stores/bannerStore.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import {
   destinationLabel,
-  resolveAutoDestination,
   sortAlphaDestinations,
   sortByHealthScore,
 } from "@src/utils/destinations.ts";
@@ -23,6 +23,7 @@ import UnreachableDialog from "./UnreachableDialog.tsx";
 
 export default function ExitNodeList(props: { onClose: () => void }) {
   const [appState, appActions] = useAppStore();
+  const [bannerState, bannerActions] = useBannerStore();
   const [settings, settingsActions] = useSettingsStore();
 
   const [query, setQuery] = createSignal("");
@@ -47,14 +48,6 @@ export default function ExitNodeList(props: { onClose: () => void }) {
     document.addEventListener("keydown", handleKeyDown);
   });
   onCleanup(() => document.removeEventListener("keydown", handleKeyDown));
-
-  const resolvedAutoDestination = createMemo(() =>
-    resolveAutoDestination(
-      appState.availableDestinations,
-      appState.destinations,
-      settings.preferredLocation,
-    )
-  );
 
   const sortedDestinations = createMemo(() => {
     if (settings.exitNodeSortOrder === "alpha") {
@@ -116,30 +109,6 @@ export default function ExitNodeList(props: { onClose: () => void }) {
   const tick = setInterval(() => setNowSec(Date.now() / 1000), 1000);
   onCleanup(() => clearInterval(tick));
 
-  const handleSelectAuto = () => {
-    if (appState.selectedId === null) {
-      props.onClose();
-      return;
-    }
-    if (
-      vpnActive() &&
-      (resolvedAutoDestination()?.id ===
-          (appState.connected?.destination_id ??
-            appState.connecting?.destination_id ??
-            appState.reconnecting?.destination_id) ||
-        appState.disconnecting.some(
-          (d) => d.destination_id === resolvedAutoDestination()?.id,
-        ))
-    ) {
-      appActions.chooseDestination(null);
-      props.onClose();
-      return;
-    }
-    appActions.chooseDestination(null);
-    if (vpnActive() && resolvedAutoDestination()) void appActions.connect();
-    props.onClose();
-  };
-
   const handleCardClick = (id: string) => {
     if (
       appState.connected?.destination_id === id ||
@@ -147,7 +116,9 @@ export default function ExitNodeList(props: { onClose: () => void }) {
       appState.reconnecting?.destination_id === id ||
       appState.disconnecting.some((d) => d.destination_id === id)
     ) {
-      if (appState.selectedId !== id) appActions.chooseDestination(id);
+      if (bannerState.activeId !== id) {
+        bannerActions.setActiveId(id, { manual: true });
+      }
       props.onClose();
       return;
     }
@@ -155,8 +126,8 @@ export default function ExitNodeList(props: { onClose: () => void }) {
       setShowUnreachable(true);
       return;
     }
-    appActions.chooseDestination(id);
-    if (vpnActive()) void appActions.connect();
+    bannerActions.setActiveId(id, { manual: true });
+    if (vpnActive()) void appActions.connect(id);
     props.onClose();
   };
 
@@ -234,35 +205,6 @@ export default function ExitNodeList(props: { onClose: () => void }) {
         role="group"
         aria-label="Exit node options"
       >
-        <Show when={!query()}>
-          <div
-            class={`relative w-full bg-bg-surface-alt px-4 py-3 cursor-pointer hover:bg-bg-surface transition-colors ${
-              appState.selectedId === null ? "border-b border-border" : ""
-            }`}
-            onClick={handleSelectAuto}
-            onKeyDown={(e) => e.key === "Enter" && handleSelectAuto()}
-            role="button"
-            tabIndex={0}
-          >
-            <Show when={appState.selectedId === null}>
-              <div
-                class="absolute inset-y-0 left-0 w-1 bg-text-muted"
-                aria-hidden="true"
-              />
-            </Show>
-            <div class="flex flex-col">
-              <span class="font-semibold text-sm text-text-primary">Auto</span>
-              <Show when={resolvedAutoDestination()}>
-                {(dest) => (
-                  <span class="text-xs text-text-secondary break-all">
-                    {destinationLabel(dest())}
-                  </span>
-                )}
-              </Show>
-            </div>
-          </div>
-        </Show>
-
         <For each={filtered()}>
           {(dest) => (
             <ExitNodeCard
@@ -272,7 +214,7 @@ export default function ExitNodeList(props: { onClose: () => void }) {
                     destination: dest,
                     route_health: null,
                   } as DestinationState)}
-              isSelected={appState.selectedId === dest.id}
+              isSelected={bannerState.activeId === dest.id}
               nowSec={nowSec}
               onClick={() => handleCardClick(dest.id)}
             />

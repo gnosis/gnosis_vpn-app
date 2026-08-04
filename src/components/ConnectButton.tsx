@@ -31,7 +31,8 @@ export default function ConnectButton() {
       if (isActive()) {
         await appActions.disconnect();
       } else {
-        await appActions.connect(targetId() ?? undefined);
+        const id = targetId();
+        if (id) await appActions.connect(id);
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
