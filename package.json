@@ -29,7 +29,7 @@
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.0",
     "eslint": "^10.6.0",
-    "prettier": "^3.9.1",
+    "prettier": "^3.9.6",
     "typescript": "^6.0.3",
     "vite": "8.1.0",
     "vite-plugin-solid": "^2.11.12",
