@@ -17,6 +17,9 @@ const SLIDE_MS = 1500;
 // settling margin — so it isn't misread as the user manually scrolling away
 // from the latest card.
 const PROGRAMMATIC_SCROLL_WINDOW_MS = CARD_PULSE_MS + SLIDE_MS + 50;
+// A jump has no animation to outlast — just enough margin for the resulting
+// scroll event to land.
+const JUMP_SCROLL_WINDOW_MS = 50;
 const LATEST_SNAP_EPSILON_PX = 8;
 const DRAG_THRESHOLD_PX = 6;
 
@@ -76,6 +79,20 @@ async function slideToLatest(
   // SLIDE_MS has actually elapsed.
   const maxScrollLeft = container.scrollWidth - container.clientWidth;
   await animateScrollLeft(container, maxScrollLeft, SLIDE_MS);
+  container.style.scrollBehavior = "";
+  container.style.scrollSnapType = "";
+}
+
+// Manually picking a destination from the list is already a deliberate,
+// already-seen choice — jump straight to its card instead of replaying the
+// pulse-then-slide reserved for an unattended auto-switch. scroll-behavior
+// must be overridden too, not just scroll-snap — the container's
+// scroll-smooth class would otherwise animate this scrollLeft write exactly
+// like a user-driven scroll.
+function jumpToLatest(container: HTMLDivElement) {
+  container.style.scrollBehavior = "auto";
+  container.style.scrollSnapType = "none";
+  container.scrollLeft = container.scrollWidth - container.clientWidth;
   container.style.scrollBehavior = "";
   container.style.scrollSnapType = "";
 }
@@ -172,9 +189,15 @@ export default function LocationBanner() {
   createEffect((prevLastId: string | null | undefined) => {
     const order = bannerState.order;
     const lastId = order.length > 0 ? order[order.length - 1] : null;
+    const shouldAnimate = bannerState.animateSwitch;
     if (prevLastId !== undefined && lastId !== prevLastId && containerRef) {
-      programmaticScrollUntil = Date.now() + PROGRAMMATIC_SCROLL_WINDOW_MS;
-      void slideToLatest(containerRef, prevLastId ?? null);
+      if (shouldAnimate) {
+        programmaticScrollUntil = Date.now() + PROGRAMMATIC_SCROLL_WINDOW_MS;
+        void slideToLatest(containerRef, prevLastId ?? null);
+      } else {
+        programmaticScrollUntil = Date.now() + JUMP_SCROLL_WINDOW_MS;
+        jumpToLatest(containerRef);
+      }
     }
     return lastId;
   }, undefined);

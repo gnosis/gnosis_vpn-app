@@ -43,6 +43,11 @@ export interface BannerState {
   viewingLatest: boolean;
   pendingCandidateId: string | null;
   countdownEndsAt: number | null;
+  // Whether the most recent order/activeId change should slide-animate in
+  // the banner. Auto-switch (commitCandidate) animates so the user notices
+  // the change; a manual pick from the list (setActiveId) is already the
+  // result of a deliberate choice, so it jumps straight to the new card.
+  animateSwitch: boolean;
   initialized: boolean;
   // Set once by LocationBanner's onMount. Everything below stays frozen
   // until then, so the initial pick and any switch countdown only ever
@@ -70,6 +75,7 @@ function initialBannerState(): BannerState {
     viewingLatest: true,
     pendingCandidateId: null,
     countdownEndsAt: null,
+    animateSwitch: true,
     initialized: false,
     visible: false,
   };
@@ -120,6 +126,7 @@ export function createBannerStore(
       viewingLatest: true,
       pendingCandidateId: null,
       countdownEndsAt: null,
+      animateSwitch: true,
     });
   };
 
@@ -214,6 +221,7 @@ export function createBannerStore(
         order: asNewestOrder(id),
         activeId: id,
         viewingLatest: true,
+        animateSwitch: false,
       });
     },
     noteViewingLatest: (isLatest) => setState("viewingLatest", isLatest),
