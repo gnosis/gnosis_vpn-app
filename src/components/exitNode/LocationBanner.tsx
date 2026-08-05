@@ -130,6 +130,14 @@ export default function LocationBanner() {
         onPointerMove={handlePointerMove}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
+        // setPointerCapture (for mouse/pen drag above) retargets the click
+        // that follows pointerup to this container, not the card underneath
+        // — so tap-to-open has to live here rather than on each card's
+        // onClick, which would never see it.
+        onClick={() => {
+          if (didDrag) return;
+          setShowList(true);
+        }}
         class="w-full flex flex-row gap-2 overflow-x-auto no-scrollbar snap-x snap-mandatory scroll-smooth cursor-grab select-none active:cursor-grabbing"
       >
         <For each={bannerState.order}>
@@ -141,10 +149,6 @@ export default function LocationBanner() {
                   role="button"
                   aria-label="Select exit node"
                   tabIndex={0}
-                  onClick={() => {
-                    if (didDrag) return;
-                    setShowList(true);
-                  }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.repeat) setShowList(true);
                     if (e.key === " ") e.preventDefault();
