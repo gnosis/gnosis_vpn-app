@@ -12,7 +12,6 @@ import { useBannerStore } from "../../stores/bannerStore.ts";
 import { StatusIndicator } from "../../components/status/StatusIndicator.tsx";
 import Navigation from "../../components/Navigation.tsx";
 import LocationBanner from "../../components/exitNode/LocationBanner.tsx";
-import BrowseDestinationsButton from "../../components/exitNode/BrowseDestinationsButton.tsx";
 import ConnectButton from "../../components/ConnectButton.tsx";
 import StatusHero from "../../components/status/StatusHero.tsx";
 import StatusLine from "../../components/status/StatusLine.tsx";
@@ -138,9 +137,8 @@ export function MainScreen() {
         class="flex w-full flex-1 flex-col items-center relative min-h-0"
       >
         <StatusHero />
-        <div ref={exitAnchorRef} class="w-full flex items-center gap-2 z-10">
+        <div ref={exitAnchorRef} class="w-full flex justify-center z-10">
           <LocationBanner />
-          <BrowseDestinationsButton />
         </div>
         <Show when={activeDestinationState()}>
           {(ds) => (
