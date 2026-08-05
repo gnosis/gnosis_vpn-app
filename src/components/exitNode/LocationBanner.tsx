@@ -74,8 +74,9 @@ export default function LocationBanner() {
                 >
                   <LocationBannerCard
                     destinationState={ds()}
-                    isSwitching={id === bannerState.activeId &&
-                      bannerState.countdownEndsAt !== null}
+                    switchEndsAt={id === bannerState.activeId
+                      ? bannerState.countdownEndsAt
+                      : null}
                   />
                 </div>
               )}

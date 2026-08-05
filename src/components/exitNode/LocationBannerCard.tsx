@@ -9,7 +9,10 @@ import SwitchSpinner from "./SwitchSpinner.tsx";
 // switching spinner occupying the same slot.
 export default function LocationBannerCard(props: {
   destinationState: DestinationState;
-  isSwitching?: boolean;
+  // The countdown deadline (not just a boolean) so a mid-countdown reset —
+  // the pending candidate changing before it commits — remounts the spinner
+  // instead of leaving it stuck on its original, now-stale clock.
+  switchEndsAt?: number | null;
 }) {
   const destination = () => props.destinationState.destination;
 
@@ -21,8 +24,8 @@ export default function LocationBannerCard(props: {
           <Flag code={destination().meta.flag ?? ""} />
           <span class="truncate">{destinationLabel(destination())}</span>
         </span>
-        <Show when={props.isSwitching}>
-          <SwitchSpinner />
+        <Show when={props.switchEndsAt} keyed>
+          {(_endsAt) => <SwitchSpinner />}
         </Show>
       </div>
     </div>

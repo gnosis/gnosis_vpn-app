@@ -38,7 +38,7 @@ export default function SwitchSpinner() {
             class="dash-recede"
             style={{
               "animation-delay": `${
-                (i / DASHES.length) * SWITCH_COUNTDOWN_MS
+                ((i + 1) / DASHES.length) * SWITCH_COUNTDOWN_MS
               }ms`,
             }}
           />
