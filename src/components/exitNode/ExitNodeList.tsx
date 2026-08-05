@@ -117,7 +117,7 @@ export default function ExitNodeList(props: { onClose: () => void }) {
       appState.disconnecting.some((d) => d.destination_id === id)
     ) {
       if (bannerState.activeId !== id) {
-        bannerActions.setActiveId(id, { manual: true });
+        bannerActions.setActiveId(id);
       }
       props.onClose();
       return;
@@ -126,7 +126,7 @@ export default function ExitNodeList(props: { onClose: () => void }) {
       setShowUnreachable(true);
       return;
     }
-    bannerActions.setActiveId(id, { manual: true });
+    bannerActions.setActiveId(id);
     if (vpnActive()) void appActions.connect(id);
     props.onClose();
   };

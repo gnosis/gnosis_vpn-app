@@ -47,7 +47,7 @@ export interface BannerState {
 }
 
 type BannerActions = {
-  setActiveId: (id: string, opts?: { manual?: boolean }) => void;
+  setActiveId: (id: string) => void;
   noteViewingLatest: (isLatest: boolean) => void;
   reset: () => void;
 };
@@ -93,13 +93,19 @@ export function createBannerStore(
     }
   };
 
+  // Becoming active always makes a destination the newest/rightmost card —
+  // if it already has a stale, earlier spot in the trail (e.g. a past pick
+  // that's back in favor), that spot is dropped rather than left behind as
+  // a duplicate history entry.
+  const asNewestOrder = (id: string) => [
+    ...state.order.filter((existing) => existing !== id),
+    id,
+  ];
+
   const commitCandidate = (id: string) => {
     timeoutHandle = undefined;
-    const nextOrder = state.order.includes(id)
-      ? [...state.order.filter((existing) => existing !== id), id]
-      : [...state.order, id];
     setState({
-      order: nextOrder,
+      order: asNewestOrder(id),
       activeId: id,
       viewingLatest: true,
       pendingCandidateId: null,
@@ -185,21 +191,17 @@ export function createBannerStore(
   });
 
   const actions: BannerActions = {
-    setActiveId: (id, opts) => {
+    setActiveId: (id) => {
       if (timeoutHandle) {
         clearTimeout(timeoutHandle);
         timeoutHandle = undefined;
       }
-      const nextOrder = state.order.includes(id)
-        ? state.order
-        : [...state.order, id];
-      const isLatest = nextOrder[nextOrder.length - 1] === id;
       setState({
         pendingCandidateId: null,
         countdownEndsAt: null,
-        order: nextOrder,
+        order: asNewestOrder(id),
         activeId: id,
-        viewingLatest: opts?.manual ? isLatest : true,
+        viewingLatest: true,
       });
     },
     noteViewingLatest: (isLatest) => setState("viewingLatest", isLatest),

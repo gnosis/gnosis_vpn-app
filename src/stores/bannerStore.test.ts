@@ -364,7 +364,7 @@ describe("bannerStore.setActiveId", () => {
     await Promise.resolve();
     expect(banner[0].activeId).toBe("fast");
 
-    banner[1].setActiveId("fast", { manual: true });
+    banner[1].setActiveId("fast");
 
     expect(banner[0].viewingLatest).toBe(true);
   });
@@ -373,28 +373,29 @@ describe("bannerStore.setActiveId", () => {
     const { banner } = setupWithTwoCards();
     await Promise.resolve();
 
-    banner[1].setActiveId("other", { manual: true });
+    banner[1].setActiveId("other");
 
     expect(banner[0].activeId).toBe("other");
     expect(banner[0].order).toEqual(["fast", "other"]);
     expect(banner[0].viewingLatest).toBe(true);
   });
 
-  it("navigating back to an older, no-longer-latest card sets viewingLatest false", async () => {
+  it("reselecting an older card drops its stale spot and moves it to the end", async () => {
     const { banner } = setupWithTwoCards();
     await Promise.resolve();
     expect(banner[0].activeId).toBe("fast");
 
     // "other" enters the trail (e.g. picked from the browse-all list) and becomes latest.
-    banner[1].setActiveId("other", { manual: true });
-    expect(banner[0].viewingLatest).toBe(true);
+    banner[1].setActiveId("other");
+    expect(banner[0].order).toEqual(["fast", "other"]);
 
-    // navigating back to "fast", which is no longer the last element of order.
-    banner[1].setActiveId("fast", { manual: true });
+    // Reselecting "fast" makes it the new latest again — its earlier spot
+    // in the trail is dropped rather than left behind as a duplicate.
+    banner[1].setActiveId("fast");
 
     expect(banner[0].activeId).toBe("fast");
-    expect(banner[0].order).toEqual(["fast", "other"]);
-    expect(banner[0].viewingLatest).toBe(false);
+    expect(banner[0].order).toEqual(["other", "fast"]);
+    expect(banner[0].viewingLatest).toBe(true);
   });
 
   it("re-proposes a countdown after reselecting the current latest card, since auto-follow stays active", async () => {
@@ -417,7 +418,7 @@ describe("bannerStore.setActiveId", () => {
 
     // "fast" is still the latest order entry, so this doesn't pause auto-follow —
     // the still-better "better" candidate is legitimately re-proposed right away.
-    banner[1].setActiveId("fast", { manual: true });
+    banner[1].setActiveId("fast");
 
     expect(banner[0].pendingCandidateId).toBe("better");
   });

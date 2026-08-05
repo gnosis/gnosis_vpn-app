@@ -322,6 +322,15 @@ select {
   }
 }
 
+/* Keeps touch/drag scrolling but hides the scrollbar chrome */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 .fade-in-up {
   animation: fade-in-up 240ms ease-out both;
 }

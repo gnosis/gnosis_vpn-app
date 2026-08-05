@@ -21,19 +21,22 @@ export default function LocationBanner() {
   let containerRef: HTMLDivElement | undefined;
   let programmaticScrollUntil = 0;
 
-  // A newly-appended card slides into view via native smooth-scroll — no
+  // The newest card slides into view via native smooth-scroll — no
   // hand-rolled translateX animation needed, and it reuses the same
-  // interaction the user swipes with.
-  createEffect((prevLength: number | undefined) => {
-    const length = bannerState.order.length;
-    if (prevLength !== undefined && length > prevLength && containerRef) {
+  // interaction the user swipes with. Tracking the last id (not just
+  // order.length) also catches a reselected historical entry moving to
+  // the end, which leaves the length unchanged.
+  createEffect((prevLastId: string | null | undefined) => {
+    const order = bannerState.order;
+    const lastId = order.length > 0 ? order[order.length - 1] : null;
+    if (prevLastId !== undefined && lastId !== prevLastId && containerRef) {
       programmaticScrollUntil = Date.now() + PROGRAMMATIC_SCROLL_WINDOW_MS;
       containerRef.scrollTo({
         left: containerRef.scrollWidth,
         behavior: "smooth",
       });
     }
-    return length;
+    return lastId;
   }, undefined);
 
   const handleScroll = () => {
@@ -50,7 +53,7 @@ export default function LocationBanner() {
       <div
         ref={containerRef}
         onScroll={handleScroll}
-        class="w-full flex flex-row gap-2 overflow-x-auto snap-x snap-mandatory scroll-smooth"
+        class="w-full flex flex-row gap-2 overflow-x-auto no-scrollbar snap-x snap-mandatory scroll-smooth"
       >
         <For each={bannerState.order}>
           {(id) => (
