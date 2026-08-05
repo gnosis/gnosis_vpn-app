@@ -377,19 +377,15 @@ select {
   animation: check-pop 400ms ease-out forwards;
 }
 
-/* Plays automatically on mount since it's a fresh DOM node — no JS toggle needed. */
-.card-pop-in {
-  animation: card-pop-in 200ms ease-out both;
+/* Hard cutoff (not a fade) to match the app's discrete-step spinner style. */
+.dash-recede {
+  opacity: 1;
+  animation: dash-recede 1ms linear forwards;
 }
 
-@keyframes card-pop-in {
-  from {
-    opacity: 0;
-    transform: scale(0.9);
-  }
+@keyframes dash-recede {
   to {
-    opacity: 1;
-    transform: scale(1);
+    opacity: 0;
   }
 }
 

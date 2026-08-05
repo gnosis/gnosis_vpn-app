@@ -3,7 +3,6 @@ import { Portal } from "solid-js/web";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { useBannerStore } from "@src/stores/bannerStore.ts";
 import LocationBannerCard from "./LocationBannerCard.tsx";
-import CountdownBadge from "./CountdownBadge.tsx";
 import ExitNodeList from "./ExitNodeList.tsx";
 
 // A scrollTo call fires the same native scroll events a user swipe does.
@@ -73,14 +72,11 @@ export default function LocationBanner() {
                     if (e.key === " ") setShowList(true);
                   }}
                 >
-                  <LocationBannerCard destinationState={ds()} />
-                  <Show
-                    when={id === bannerState.activeId
-                      ? bannerState.countdownEndsAt
-                      : null}
-                  >
-                    {(endsAt) => <CountdownBadge countdownEndsAt={endsAt()} />}
-                  </Show>
+                  <LocationBannerCard
+                    destinationState={ds()}
+                    isSwitching={id === bannerState.activeId &&
+                      bannerState.countdownEndsAt !== null}
+                  />
                 </div>
               )}
             </Show>
