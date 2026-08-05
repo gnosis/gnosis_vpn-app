@@ -25,7 +25,7 @@ export default function LocationBannerCard(props: {
           <span class="truncate">{destinationLabel(destination())}</span>
         </span>
         <Show when={props.switchEndsAt} keyed>
-          {(_endsAt) => <SwitchSpinner />}
+          {(endsAt) => <SwitchSpinner endsAt={endsAt} />}
         </Show>
       </div>
     </div>
