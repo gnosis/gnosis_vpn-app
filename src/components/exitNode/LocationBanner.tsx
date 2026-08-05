@@ -5,13 +5,72 @@ import { useBannerStore } from "@src/stores/bannerStore.ts";
 import LocationBannerCard from "./LocationBannerCard.tsx";
 import ExitNodeList from "./ExitNodeList.tsx";
 
-// A scrollTo call fires the same native scroll events a user swipe does.
-// Ignore scroll events for this long after we trigger one ourselves — long
-// enough to outlast the smooth-scroll animation — so it isn't misread as the
-// user manually scrolling away from the latest card.
-const PROGRAMMATIC_SCROLL_WINDOW_MS = 400;
+// Must match .banner-card-pulse's animation-duration in index.css — the
+// outgoing card shrinks then grows back before the slide starts.
+const CARD_PULSE_MS = 420;
+// Slower than a native smooth-scroll so the motion reads as a deliberate
+// slide rather than a jump.
+const SLIDE_MS = 900;
+// A scrollLeft change fires the same native scroll events a user swipe
+// does. Ignore scroll events for this long after we drive one ourselves —
+// long enough to outlast the pulse-then-slide sequence plus a small
+// settling margin — so it isn't misread as the user manually scrolling away
+// from the latest card.
+const PROGRAMMATIC_SCROLL_WINDOW_MS = CARD_PULSE_MS + SLIDE_MS + 50;
 const LATEST_SNAP_EPSILON_PX = 8;
 const DRAG_THRESHOLD_PX = 6;
+
+function easeOutCubic(t: number): number {
+  return 1 - (1 - t) ** 3;
+}
+
+function animateScrollLeft(
+  el: HTMLElement,
+  to: number,
+  duration: number,
+): Promise<void> {
+  const from = el.scrollLeft;
+  const delta = to - from;
+  if (delta === 0) return Promise.resolve();
+
+  return new Promise((resolve) => {
+    const start = performance.now();
+    const step = (now: number) => {
+      const progress = Math.min((now - start) / duration, 1);
+      el.scrollLeft = from + delta * easeOutCubic(progress);
+      if (progress < 1) {
+        requestAnimationFrame(step);
+      } else {
+        resolve();
+      }
+    };
+    requestAnimationFrame(step);
+  });
+}
+
+// Shrinks-then-grows the outgoing card (signalling "this is about to
+// change"), then glides the container to the newest card. Scroll-snap is
+// suspended for the glide since it fights direct scrollLeft assignment the
+// same way it fights manual drag (see handlePointerMove below).
+async function slideToLatest(
+  container: HTMLDivElement,
+  prevActiveId: string | null,
+) {
+  const prevCard = prevActiveId
+    ? container.querySelector<HTMLElement>(
+      `[data-destination-id="${prevActiveId}"]`,
+    )
+    : null;
+  if (prevCard) {
+    prevCard.classList.add("banner-card-pulse");
+    await new Promise((resolve) => setTimeout(resolve, CARD_PULSE_MS));
+    prevCard.classList.remove("banner-card-pulse");
+  }
+
+  container.style.scrollSnapType = "none";
+  await animateScrollLeft(container, container.scrollWidth, SLIDE_MS);
+  container.style.scrollSnapType = "";
+}
 
 export default function LocationBanner() {
   const [appState] = useAppStore();
@@ -100,20 +159,14 @@ export default function LocationBanner() {
     if (didDrag) settleToNearestCard();
   };
 
-  // The newest card slides into view via native smooth-scroll — no
-  // hand-rolled translateX animation needed, and it reuses the same
-  // interaction the user swipes with. Tracking the last id (not just
-  // order.length) also catches a reselected historical entry moving to
-  // the end, which leaves the length unchanged.
+  // Tracking the last id (not just order.length) also catches a reselected
+  // historical entry moving to the end, which leaves the length unchanged.
   createEffect((prevLastId: string | null | undefined) => {
     const order = bannerState.order;
     const lastId = order.length > 0 ? order[order.length - 1] : null;
     if (prevLastId !== undefined && lastId !== prevLastId && containerRef) {
       programmaticScrollUntil = Date.now() + PROGRAMMATIC_SCROLL_WINDOW_MS;
-      containerRef.scrollTo({
-        left: containerRef.scrollWidth,
-        behavior: "smooth",
-      });
+      void slideToLatest(containerRef, prevLastId ?? null);
     }
     return lastId;
   }, undefined);
@@ -151,6 +204,7 @@ export default function LocationBanner() {
             <Show when={appState.destinations[id]}>
               {(ds) => (
                 <div
+                  data-destination-id={id}
                   class="relative w-full shrink-0 snap-center cursor-pointer"
                   role="button"
                   aria-label="Select exit node"

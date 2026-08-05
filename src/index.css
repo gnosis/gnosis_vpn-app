@@ -377,16 +377,35 @@ select {
   animation: check-pop 400ms ease-out forwards;
 }
 
-/* Hard cutoff (not a fade) to match the app's discrete-step spinner style. */
-.dash-recede {
-  opacity: 1;
-  animation: dash-recede 1ms linear forwards;
+/* Ring depletes clockwise from full to empty, like a countdown timer running
+ * out — duration and total dash length are set per-instance via inline
+ * animation-duration/--countdown-circumference. */
+.countdown-recede {
+  stroke-dashoffset: 0;
+  animation: countdown-recede linear forwards;
 }
 
-@keyframes dash-recede {
+@keyframes countdown-recede {
   to {
-    opacity: 0;
+    stroke-dashoffset: var(--countdown-circumference);
   }
+}
+
+/* Signals "this card is about to change" right before it slides out. */
+@keyframes banner-card-pulse {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(0.94);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.banner-card-pulse {
+  animation: banner-card-pulse 420ms ease-in-out;
 }
 
 .system-window {
