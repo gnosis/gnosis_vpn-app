@@ -72,6 +72,7 @@ const disposeFns: Array<() => void> = [];
 function setup(
   appOverrides: Partial<BannerAppState> = {},
   settingsOverrides: Partial<BannerSettingsState> = {},
+  { startVisible = true }: { startVisible?: boolean } = {},
 ) {
   const [appState, setAppState] = createStore<BannerAppState>({
     availableDestinations: [],
@@ -92,6 +93,10 @@ function setup(
     disposeFns.push(dispose);
     return createBannerStore(appState, settings);
   });
+  // Mirrors LocationBanner's onMount — every existing test exercises
+  // behavior from the moment the banner is on screen, matching real usage.
+  // Tests targeting the pre-visible gating itself opt out via startVisible.
+  if (startVisible) banner[1].markVisible();
 
   return { appState, setAppState, settings, setSettings, banner };
 }
@@ -194,6 +199,73 @@ describe("bannerStore initialization", () => {
     await Promise.resolve();
 
     expect(banner[0].activeId).toBe("stale");
+  });
+});
+
+describe("bannerStore visibility gating", () => {
+  it("does nothing before markVisible, even once destinations arrive", async () => {
+    const fast = { ...BASE_DESTINATION, id: "fast" };
+    const { banner, setAppState } = setup({}, {}, { startVisible: false });
+
+    setAppState("availableDestinations", [fast]);
+    setAppState("destinations", { fast: makeReadyToConnect("fast") });
+    await Promise.resolve();
+
+    expect(banner[0].activeId).toBeNull();
+    expect(banner[0].order).toEqual([]);
+    expect(banner[0].initialized).toBe(false);
+  });
+
+  it("picks the current best destination at the moment markVisible is called, not one from before it was seen", async () => {
+    const slow = { ...BASE_DESTINATION, id: "slow" };
+    const fast = { ...BASE_DESTINATION, id: "fast" };
+    const { banner, setAppState } = setup({}, {}, { startVisible: false });
+
+    // "slow" is the only, best-so-far candidate while the banner is still
+    // behind an earlier screen the user hasn't seen yet.
+    setAppState("availableDestinations", [slow]);
+    setAppState("destinations", {
+      slow: makeReadyToConnect("slow", 500_000_000),
+    });
+    await Promise.resolve();
+    expect(banner[0].activeId).toBeNull();
+
+    // A strictly better destination shows up before the banner is ever visible.
+    setAppState("availableDestinations", [slow, fast]);
+    setAppState("destinations", {
+      slow: makeReadyToConnect("slow", 500_000_000),
+      fast: makeReadyToConnect("fast", 10_000_000),
+    });
+    await Promise.resolve();
+    expect(banner[0].activeId).toBeNull();
+
+    // Only once the main screen actually shows should the current best be
+    // picked — "fast" outright, with no leftover countdown from "slow".
+    banner[1].markVisible();
+    await Promise.resolve();
+
+    expect(banner[0].activeId).toBe("fast");
+    expect(banner[0].order).toEqual(["fast"]);
+    expect(banner[0].pendingCandidateId).toBeNull();
+    expect(banner[0].countdownEndsAt).toBeNull();
+  });
+
+  it("preserves visibility across reset, since LocationBanner won't remount to call markVisible again", async () => {
+    const fast = { ...BASE_DESTINATION, id: "fast" };
+    const { banner, setAppState } = setup();
+    setAppState("availableDestinations", [fast]);
+    setAppState("destinations", { fast: makeReadyToConnect("fast") });
+    await Promise.resolve();
+    expect(banner[0].activeId).toBe("fast");
+
+    setAppState("availableDestinations", []);
+    banner[1].reset();
+
+    setAppState("availableDestinations", [fast]);
+    setAppState("destinations", { fast: makeReadyToConnect("fast") });
+    await Promise.resolve();
+
+    expect(banner[0].activeId).toBe("fast");
   });
 });
 

@@ -1,4 +1,4 @@
-import { createEffect, createSignal, For, Show } from "solid-js";
+import { createEffect, createSignal, For, onMount, Show } from "solid-js";
 import { Portal } from "solid-js/web";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { useBannerStore } from "@src/stores/bannerStore.ts";
@@ -17,6 +17,12 @@ export default function LocationBanner() {
   const [appState] = useAppStore();
   const [bannerState, bannerActions] = useBannerStore();
   const [showList, setShowList] = createSignal(false);
+
+  // This component only mounts once the main screen is actually displayed
+  // (App.tsx holds earlier screens open for MIN_SCREEN_DISPLAY_TIME), so
+  // this is the right moment to let the store start picking/switching —
+  // never earlier, behind a screen the user hasn't seen yet.
+  onMount(() => bannerActions.markVisible());
 
   let containerRef: HTMLDivElement | undefined;
   let programmaticScrollUntil = 0;

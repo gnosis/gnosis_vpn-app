@@ -44,11 +44,20 @@ export interface BannerState {
   pendingCandidateId: string | null;
   countdownEndsAt: number | null;
   initialized: boolean;
+  // Set once by LocationBanner's onMount. Everything below stays frozen
+  // until then, so the initial pick and any switch countdown only ever
+  // happen once the user can actually see the banner — otherwise both
+  // could run to completion behind an earlier screen (e.g. during the
+  // Synchronization screen's MIN_SCREEN_DISPLAY_TIME hold), and the user
+  // would land on the main screen to find destinations already added
+  // that they never saw appear.
+  visible: boolean;
 }
 
 type BannerActions = {
   setActiveId: (id: string) => void;
   noteViewingLatest: (isLatest: boolean) => void;
+  markVisible: () => void;
   reset: () => void;
 };
 
@@ -62,6 +71,7 @@ function initialBannerState(): BannerState {
     pendingCandidateId: null,
     countdownEndsAt: null,
     initialized: false,
+    visible: false,
   };
 }
 
@@ -118,6 +128,7 @@ export function createBannerStore(
   // app mid-connection), otherwise the persisted last-connected id (if it's
   // still a known destination), otherwise the best/preferred candidate.
   createEffect(() => {
+    if (!state.visible) return;
     if (state.initialized) return;
     // Both fields land in the same status update in production
     // (appStore.ts sets `destinations` before `availableDestinations`), but
@@ -158,6 +169,7 @@ export function createBannerStore(
   // countdown-then-append sequence. Frozen entirely while connected, or
   // while the user has scrolled away from the latest card.
   createEffect(() => {
+    if (!state.visible) return;
     if (!state.initialized) return;
 
     if (isConnectedFreeze(appState.vpnStatus) || !state.viewingLatest) {
@@ -205,12 +217,19 @@ export function createBannerStore(
       });
     },
     noteViewingLatest: (isLatest) => setState("viewingLatest", isLatest),
+    markVisible: () => {
+      if (!state.visible) setState("visible", true);
+    },
     reset: () => {
       if (timeoutHandle) {
         clearTimeout(timeoutHandle);
         timeoutHandle = undefined;
       }
-      setState({ ...initialBannerState() });
+      // Preserve visible across a reset (e.g. criticalError): it tracks
+      // whether the banner has ever been shown, not the destination data
+      // being cleared, and LocationBanner won't call markVisible again
+      // unless it actually remounts.
+      setState({ ...initialBannerState(), visible: state.visible });
     },
   };
 
