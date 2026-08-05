@@ -7,10 +7,10 @@ import ExitNodeList from "./ExitNodeList.tsx";
 
 // Must match .banner-card-pulse's animation-duration in index.css — the
 // outgoing card shrinks then grows back before the slide starts.
-const CARD_PULSE_MS = 420;
+const CARD_PULSE_MS = 600;
 // Slower than a native smooth-scroll so the motion reads as a deliberate
 // slide rather than a jump.
-const SLIDE_MS = 900;
+const SLIDE_MS = 1500;
 // A scrollLeft change fires the same native scroll events a user swipe
 // does. Ignore scroll events for this long after we drive one ourselves —
 // long enough to outlast the pulse-then-slide sequence plus a small
@@ -49,9 +49,10 @@ function animateScrollLeft(
 }
 
 // Shrinks-then-grows the outgoing card (signalling "this is about to
-// change"), then glides the container to the newest card. Scroll-snap is
-// suspended for the glide since it fights direct scrollLeft assignment the
-// same way it fights manual drag (see handlePointerMove below).
+// change"), then glides the container to the newest card. Scroll-snap and
+// smooth scroll-behavior are suspended for the glide — they fight direct
+// scrollLeft assignment the same way they fight manual drag (see
+// handlePointerMove below).
 async function slideToLatest(
   container: HTMLDivElement,
   prevActiveId: string | null,
@@ -67,8 +68,15 @@ async function slideToLatest(
     prevCard.classList.remove("banner-card-pulse");
   }
 
+  container.style.scrollBehavior = "auto";
   container.style.scrollSnapType = "none";
-  await animateScrollLeft(container, container.scrollWidth, SLIDE_MS);
+  // The browser clamps scrollLeft writes to scrollWidth - clientWidth, not
+  // scrollWidth itself — animating toward the unclamped value would have
+  // our eased progress hit that ceiling (and visually stop) well before
+  // SLIDE_MS has actually elapsed.
+  const maxScrollLeft = container.scrollWidth - container.clientWidth;
+  await animateScrollLeft(container, maxScrollLeft, SLIDE_MS);
+  container.style.scrollBehavior = "";
   container.style.scrollSnapType = "";
 }
 

@@ -397,7 +397,7 @@ select {
     transform: scale(1);
   }
   40% {
-    transform: scale(0.94);
+    transform: scale(0.8);
   }
   100% {
     transform: scale(1);
@@ -405,7 +405,7 @@ select {
 }
 
 .banner-card-pulse {
-  animation: banner-card-pulse 420ms ease-in-out;
+  animation: banner-card-pulse 600ms ease-in-out;
 }
 
 .system-window {
