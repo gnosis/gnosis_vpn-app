@@ -49,7 +49,9 @@ pub const TRAY_ICON_DISCONNECTED_LOW_FUNDS: &str =
 pub const TRAY_ICON_DISCONNECTED_OUT_OF_FUNDS: &str =
     "tray-icons/tray-icon-disconnected-out-of-funds.png";
 
-// Linux tray icon constants (theme-independent, full-color app icon design)
+// Linux tray icon constants (theme-independent, full-color app icon design
+// with a circular rather than square backdrop, so it reads as a badge next
+// to flat symbolic tray icons; see derive-tray-icons.py)
 pub const TRAY_ICON_LINUX_CONNECTED: &str = "tray-icons/linux/connected.png";
 pub const TRAY_ICON_LINUX_CONNECTED_LOW_FUNDS: &str = "tray-icons/linux/connected-low-funds.png";
 pub const TRAY_ICON_LINUX_CONNECTED_OUT_OF_FUNDS: &str =
