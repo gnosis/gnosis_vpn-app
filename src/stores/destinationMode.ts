@@ -17,6 +17,9 @@ import { isReadyToConnect } from "@src/utils/exitHealth.ts";
 
 // How long a better auto-candidate is held pending before it settles.
 export const SWITCH_COUNTDOWN_MS = 5_000;
+// Grace period after a manual exit-node-list pick before it unconditionally
+// reverts to auto, regardless of whether it still matches the auto pick.
+export const SELECTED_AUTO_REVERT_MS = 10_000;
 // Total duration of the (UI-owned) slide animation once a switch starts.
 export const SWITCH_ANIMATE_MS = 1_000;
 // Offset within the animation window at which the candidate becomes the
@@ -93,6 +96,10 @@ export function createDestinationMode(
   // Remembered so `active -> selected` (rule 15) still knows which
   // destination to land on even once `disconnecting` itself clears out.
   let lastActiveId: string | null = null;
+  // True only while the current `selected` mode came from a manual
+  // selectDestination() call — gates which of the two revert mechanisms
+  // below (unconditional grace timer vs. matches-best-pick) applies.
+  let selectedManually = false;
 
   let pendingTimeout: ReturnType<typeof setTimeout> | undefined;
   const clearPendingTimer = () => {
@@ -123,6 +130,7 @@ export function createDestinationMode(
       candidateId === settings.preferredLocation && !preferredPromotionUsed
     ) {
       preferredPromotionUsed = true;
+      selectedManually = false;
       setMode(
         reconcile({ kind: "selected", id: candidateId, autoRevertAt: null }),
       );
@@ -153,6 +161,7 @@ export function createDestinationMode(
     }
 
     if (mode.kind === "active") {
+      selectedManually = false;
       setMode(
         reconcile({
           kind: "selected",
@@ -174,6 +183,7 @@ export function createDestinationMode(
     if (preferredId !== null && preferredReady) {
       startupDecided = true;
       preferredPromotionUsed = true;
+      selectedManually = false;
       setMode(
         reconcile({ kind: "selected", id: preferredId, autoRevertAt: null }),
       );
@@ -185,6 +195,7 @@ export function createDestinationMode(
       appState.destinations[persistedId] !== undefined;
     if (persistedId !== null && persistedKnown) {
       startupDecided = true;
+      selectedManually = false;
       setMode(
         reconcile({ kind: "selected", id: persistedId, autoRevertAt: null }),
       );
@@ -246,14 +257,18 @@ export function createDestinationMode(
     );
   });
 
-  // Rules 11-13 — the one auto-behavior allowed while `selected`: if the
+  // Rules 12-13 — the one auto-behavior allowed while `selected` via a
+  // non-manual path (preferred promotion, startup, post-disconnect): if the
   // selected id keeps matching auto's current best for a sustained 5s,
-  // revert to auto instead of staying sticky.
+  // revert to auto instead of staying sticky. Manual picks instead run their
+  // own unconditional grace timer, managed directly in selectDestination
+  // below — this effect leaves those alone.
   createEffect(() => {
     if (mode.kind !== "selected") {
       clearRevertTimer();
       return;
     }
+    if (selectedManually) return;
     const { id, autoRevertAt } = mode;
     const matchesBest = bestCandidateId() === id;
 
@@ -276,12 +291,21 @@ export function createDestinationMode(
   });
 
   const actions: DestinationModeActions = {
-    // Rules 9-10.
+    // Rules 9-11: a manual pick unconditionally reverts to auto after
+    // SELECTED_AUTO_REVERT_MS, regardless of whether it still matches the
+    // auto pick — re-picking (even the same id) restarts the grace timer.
     selectDestination: (id) => {
       if (mode.kind === "active") return;
       clearPendingTimer();
       clearRevertTimer();
-      setMode(reconcile({ kind: "selected", id, autoRevertAt: null }));
+      selectedManually = true;
+      const autoRevertAt = Date.now() + SELECTED_AUTO_REVERT_MS;
+      setMode(reconcile({ kind: "selected", id, autoRevertAt }));
+      revertTimeout = setTimeout(() => {
+        revertTimeout = undefined;
+        selectedManually = false;
+        setMode(reconcile({ kind: "auto", current: id, pending: null }));
+      }, SELECTED_AUTO_REVERT_MS);
     },
   };
 

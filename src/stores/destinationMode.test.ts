@@ -14,6 +14,7 @@ import {
   type ModeSettingsState,
   type ModeUiState,
   resolveConnectTarget,
+  SELECTED_AUTO_REVERT_MS,
   SWITCH_COUNTDOWN_MS,
   SWITCH_CROSSOVER_MS,
 } from "./destinationMode.ts";
@@ -411,13 +412,12 @@ describe("manual selection", () => {
     expect(mode[0]).toMatchObject({ pending: { candidateId: "better" } });
 
     mode[1].selectDestination("other");
-    expect(mode[0]).toMatchObject({
-      kind: "selected",
-      id: "other",
-      autoRevertAt: null,
-    });
+    expect(mode[0]).toMatchObject({ kind: "selected", id: "other" });
+    if (mode[0].kind !== "selected") throw new Error("unreachable");
+    expect(mode[0].autoRevertAt).not.toBeNull();
 
-    // The cancelled pending candidate's timer must not fire later.
+    // The cancelled pending candidate's timer must not fire later, and the
+    // manual grace period hasn't elapsed yet either.
     await vi.advanceTimersByTimeAsync(SETTLE_MS);
     expect(mode[0]).toMatchObject({ kind: "selected", id: "other" });
   });
@@ -450,82 +450,25 @@ describe("manual selection", () => {
   });
 });
 
-describe("selected auto-revert", () => {
-  it("starts the revert timer only once selected matches current best", async () => {
+describe("manual selection auto-revert", () => {
+  it("starts an unconditional grace timer regardless of whether the pick matches the auto best", async () => {
     const fast = { ...BASE_DESTINATION, id: "fast" };
     const other = { ...BASE_DESTINATION, id: "other" };
     const { mode, setAppState } = setup();
     setAppState("availableDestinations", [fast, other]);
     setAppState("destinations", {
-      fast: makeReadyToConnect("fast", 10_000_000),
+      fast: makeReadyToConnect("fast", 10_000_000), // best auto pick
       other: makeReadyToConnect("other", 500_000_000),
     });
     await Promise.resolve();
 
     mode[1].selectDestination("other");
-    await Promise.resolve();
-    expect(mode[0]).toMatchObject({
-      kind: "selected",
-      id: "other",
-      autoRevertAt: null,
-    });
-
-    mode[1].selectDestination("fast");
-    await Promise.resolve();
-    expect(mode[0]).toMatchObject({ kind: "selected", id: "fast" });
+    expect(mode[0]).toMatchObject({ kind: "selected", id: "other" });
     if (mode[0].kind !== "selected") throw new Error("unreachable");
-    expect(mode[0].autoRevertAt).not.toBeNull();
+    expect(mode[0].autoRevertAt).toBe(Date.now() + SELECTED_AUTO_REVERT_MS);
   });
 
-  it("cancels the revert timer if the best pick changes away before it elapses", async () => {
-    const fast = { ...BASE_DESTINATION, id: "fast" };
-    const other = { ...BASE_DESTINATION, id: "other" };
-    const { mode, setAppState } = setup();
-    setAppState("availableDestinations", [fast, other]);
-    setAppState("destinations", {
-      fast: makeReadyToConnect("fast", 10_000_000),
-      other: makeReadyToConnect("other", 500_000_000),
-    });
-    await Promise.resolve();
-    mode[1].selectDestination("fast");
-    await Promise.resolve();
-    expect(mode[0]).toMatchObject({ kind: "selected", id: "fast" });
-    if (mode[0].kind !== "selected") throw new Error("unreachable");
-    expect(mode[0].autoRevertAt).not.toBeNull();
-
-    setAppState("destinations", {
-      fast: makeUnavailable("fast"),
-      other: makeReadyToConnect("other", 500_000_000),
-    });
-    await Promise.resolve();
-    expect(mode[0]).toMatchObject({
-      kind: "selected",
-      id: "fast",
-      autoRevertAt: null,
-    });
-
-    await vi.advanceTimersByTimeAsync(SWITCH_COUNTDOWN_MS);
-    expect(mode[0]).toMatchObject({ kind: "selected", id: "fast" });
-  });
-
-  it("reverts to auto once the timer elapses uninterrupted", async () => {
-    const fast = { ...BASE_DESTINATION, id: "fast" };
-    const { mode, setAppState } = setup();
-    setAppState("availableDestinations", [fast]);
-    setAppState("destinations", { fast: makeReadyToConnect("fast") });
-    await Promise.resolve();
-    mode[1].selectDestination("fast");
-    await Promise.resolve();
-
-    await vi.advanceTimersByTimeAsync(SWITCH_COUNTDOWN_MS);
-    expect(mode[0]).toMatchObject({
-      kind: "auto",
-      current: "fast",
-      pending: null,
-    });
-  });
-
-  it("never starts a revert timer for a genuinely different selection (sticky indefinitely)", async () => {
+  it("reverts to auto once the grace period elapses, even for a pick that never matched the best candidate", async () => {
     const fast = { ...BASE_DESTINATION, id: "fast" };
     const slow = { ...BASE_DESTINATION, id: "slow" };
     const { mode, setAppState } = setup();
@@ -538,17 +481,90 @@ describe("selected auto-revert", () => {
 
     mode[1].selectDestination("slow");
     await Promise.resolve();
-    expect(mode[0]).toMatchObject({
-      kind: "selected",
-      id: "slow",
-      autoRevertAt: null,
-    });
+    expect(mode[0]).toMatchObject({ kind: "selected", id: "slow" });
 
-    await vi.advanceTimersByTimeAsync(SWITCH_COUNTDOWN_MS * 10);
+    // Reverts to auto with "slow" as current — since "fast" is the better
+    // auto pick, the auto loop immediately starts its own pending countdown
+    // toward it, on top of (not instead of) the revert we're testing here.
+    await vi.advanceTimersByTimeAsync(SELECTED_AUTO_REVERT_MS);
     expect(mode[0]).toMatchObject({
-      kind: "selected",
-      id: "slow",
-      autoRevertAt: null,
+      kind: "auto",
+      current: "slow",
+      pending: { candidateId: "fast" },
+    });
+  });
+
+  it("restarts the grace timer on a fresh manual pick, cancelling the earlier one", async () => {
+    const fast = { ...BASE_DESTINATION, id: "fast" };
+    const other = { ...BASE_DESTINATION, id: "other" };
+    const { mode, setAppState } = setup();
+    setAppState("availableDestinations", [fast, other]);
+    setAppState("destinations", {
+      fast: makeReadyToConnect("fast"),
+      other: makeReadyToConnect("other"),
+    });
+    await Promise.resolve();
+
+    mode[1].selectDestination("other");
+    await vi.advanceTimersByTimeAsync(SELECTED_AUTO_REVERT_MS - 1_000);
+    mode[1].selectDestination("fast");
+    await Promise.resolve();
+    expect(mode[0]).toMatchObject({ kind: "selected", id: "fast" });
+
+    // The cancelled "other" timer must not fire and flip things later.
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(mode[0]).toMatchObject({ kind: "selected", id: "fast" });
+
+    await vi.advanceTimersByTimeAsync(SELECTED_AUTO_REVERT_MS - 1_000);
+    expect(mode[0]).toMatchObject({
+      kind: "auto",
+      current: "fast",
+      pending: null,
+    });
+  });
+
+  it("connecting during the grace window cancels the pending revert", async () => {
+    const fast = { ...BASE_DESTINATION, id: "fast" };
+    const { mode, setAppState } = setup();
+    setAppState("availableDestinations", [fast]);
+    setAppState("destinations", { fast: makeReadyToConnect("fast") });
+    await Promise.resolve();
+
+    mode[1].selectDestination("fast");
+    await Promise.resolve();
+
+    setAppState("connecting", {
+      destination_id: "fast",
+      since: 0,
+      phase: "Init",
+    });
+    await Promise.resolve();
+    expect(mode[0]).toMatchObject({ kind: "active", id: "fast" });
+
+    await vi.advanceTimersByTimeAsync(SELECTED_AUTO_REVERT_MS);
+    expect(mode[0]).toMatchObject({ kind: "active", id: "fast" });
+  });
+});
+
+describe("non-manual selected auto-revert", () => {
+  it("still reverts to auto when a non-manual selected id matches the best pick for a sustained 5s (e.g. after a disconnect)", async () => {
+    const fast = { ...BASE_DESTINATION, id: "fast" };
+    const { mode, setAppState } = setup();
+    setAppState("availableDestinations", [fast]);
+    setAppState("destinations", { fast: makeReadyToConnect("fast") });
+    setAppState("connected", { destination_id: "fast", since: 0 });
+    await Promise.resolve();
+    expect(mode[0]).toMatchObject({ kind: "active", id: "fast" });
+
+    setAppState("connected", null);
+    await Promise.resolve();
+    expect(mode[0]).toMatchObject({ kind: "selected", id: "fast" });
+
+    await vi.advanceTimersByTimeAsync(SWITCH_COUNTDOWN_MS);
+    expect(mode[0]).toMatchObject({
+      kind: "auto",
+      current: "fast",
+      pending: null,
     });
   });
 });

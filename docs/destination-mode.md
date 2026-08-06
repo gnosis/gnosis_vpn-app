@@ -20,12 +20,13 @@ stateDiagram-v2
         CandidatePending --> Idle: settleAt reached — commit\ncurrent := candidate (7, non-preferred)
     }
 
-    Auto --> Selected: manual selectDestination(id) (9)
+    Auto --> Selected: manual selectDestination(id) —\nstarts unconditional 10s grace timer (9)
     Auto --> Selected: settleAt reached AND candidate ==\npreferredLocation AND promotion unused\n(consumes promotion) (7)
     Auto --> Active: Connect pressed — target via\nresolveConnectTarget, or backend\nreports connecting (12/14)
 
-    Selected --> Selected: manual selectDestination(otherId) (9)
-    Selected --> Auto: selected id == current best,\nunchanged for 5s — autoRevertAt\nelapses (11-13)
+    Selected --> Selected: manual selectDestination(otherId) —\nrestarts the 10s grace timer (9)
+    Selected --> Auto: manual pick's 10s grace timer\nelapses, unconditionally (11)
+    Selected --> Auto: non-manual selected id == current best,\nunchanged for 5s — autoRevertAt\nelapses (12-13)
     Selected --> Active: Connect pressed, or backend\nreports connecting (14)
 
     Active --> Active: retarget while active — backend\nreports connecting to a new id,\nno interstitial mode (14)
@@ -37,9 +38,14 @@ stateDiagram-v2
 - **`auto`** — no destination explicitly chosen. Internally tracks `current`
   (the presently-shown pick) and an optional `pending` candidate mid-switch.
   Never promotes itself out except via the one-time preferred-location rule.
-- **`selected: { id }`** — a specific destination is chosen. No auto
-  re-targeting, except reverting back to `auto` if `id` happens to coincide with
-  auto's current best pick for a sustained 5s.
+- **`selected: { id }`** — a specific destination is chosen. Two distinct ways
+  to revert back to `auto`, depending on how `selected` was entered:
+  - **manual pick** (`selectDestination`, e.g. from the exit-node list) —
+    unconditionally, after a fixed 10s grace period, regardless of whether `id`
+    matches the auto pick.
+  - **any other path** (preferred promotion, startup, post-disconnect) — only if
+    `id` happens to coincide with auto's current best pick for a sustained 5s;
+    otherwise sticky indefinitely.
 - **`active: { id }`** — connecting, connected, or reconnecting to `id`.
   Excludes `disconnecting`: the instant nothing is connecting/connected/
   reconnecting, mode is already `selected`, regardless of backend teardown still
@@ -92,26 +98,33 @@ Reactive to `availableDestinations`/`destinations`/`preferredLocation` changes:
 
 ### Manual selection
 
-9. `selectDestination(id)` while in `auto` or `selected(other)` →
-   `selected(id)`, clearing any pending/auto-revert state. (No special case
-   needed for "id happens to equal auto's current best" — rule 11 below handles
-   that uniformly afterward.)
+9. `selectDestination(id)` while in `auto` or `selected(other)` → `selected(id)`
+   with `autoRevertAt = now + SELECTED_AUTO_REVERT_MS`, clearing any
+   pending/prior-revert state and starting the grace timer below. A fresh call
+   while already `selected` (even re-picking the same id) cancels the previous
+   timer and restarts it.
 
 10. `selectDestination(id)` while `active` → no-op (retargeting while active
     goes through rule 14, not this action).
 
-### `selected` auto-revert
+11. At `autoRevertAt` → revert to `auto` with `current = id`, `pending = null`,
+    unconditionally — regardless of whether `id` still matches
+    `resolveAutoDestination`'s pick. (If the auto pick has since diverged, the
+    auto loop below may immediately start a new `pending` toward it.)
 
-The one auto-behavior allowed in this mode:
+### `selected` auto-revert for non-manual entries
 
-11. Whenever mode is `selected(id)` and `id` currently equals
-    `resolveAutoDestination`'s pick, start
-    `autoRevertAt = now + SWITCH_COUNTDOWN_MS` if not already running.
+The one auto-behavior allowed in this mode when `selected` was reached via any
+path other than rule 9 (startup rules 2-3, promotion rule 7, or post-disconnect
+rule 15) — these stay sticky indefinitely rather than running rule 11's timer:
 
-12. If `id` stops matching the best pick before `autoRevertAt` → clear
-    `autoRevertAt`, stay `selected(id)` indefinitely (sticky).
+12. Whenever such a `selected(id)` currently equals `resolveAutoDestination`'s
+    pick, start `autoRevertAt = now + SWITCH_COUNTDOWN_MS` if not already
+    running.
 
-13. At `autoRevertAt` → revert to `auto` with `current = id`, `pending = null`.
+13. If `id` stops matching the best pick before `autoRevertAt` → clear
+    `autoRevertAt`, stay `selected(id)` indefinitely (sticky). At `autoRevertAt`
+    → revert to `auto` with `current = id`, `pending = null`.
 
 ### Connecting/disconnecting
 
@@ -135,7 +148,10 @@ Pure function, no store mutation — `resolveConnectTarget(mode, now)`:
 ## Constants
 
 - `SWITCH_COUNTDOWN_MS = 5_000` — how long a better candidate is "pending"
-  before it takes effect.
+  before it takes effect; also the sustained-match duration for the non-manual
+  `selected` auto-revert (rules 12-13).
+- `SELECTED_AUTO_REVERT_MS = 10_000` — grace period after a manual pick (rule 9)
+  before it unconditionally reverts to `auto` (rule 11).
 - `SWITCH_ANIMATE_MS = 1_000` — total duration of the (UI-owned) slide animation
   once a switch starts.
 - `SWITCH_CROSSOVER_MS = 500` — offset within the animation window at which the
