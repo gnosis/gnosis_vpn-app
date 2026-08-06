@@ -24,6 +24,11 @@ import {
   StatusResponseSchema,
   VPNService,
 } from "@src/services/vpnService.ts";
+import {
+  createDestinationMode,
+  createDestinationOrder,
+  type DestinationMode,
+} from "@src/stores/destinationMode.ts";
 import { useLogsStore } from "@src/stores/logsStore.ts";
 import {
   destinationLabel,
@@ -61,6 +66,14 @@ export interface AppState {
   availableVersion: string | null;
   targetDestination: string | null;
   balance: BalanceResponse | null;
+  mode: DestinationMode;
+  // Carousel render order (oldest -> newest) and whether the most recent
+  // change to it should slide-animate (auto-driven) or jump (manual pick).
+  destinationOrder: string[];
+  switchAnimate: boolean;
+  // False while the user has scrolled the carousel away from the latest
+  // card — pauses `mode`'s auto candidate-detection loop.
+  viewingLatest: boolean;
 }
 
 type AppActions = {
@@ -68,6 +81,8 @@ type AppActions = {
   setScreen: (screen: AppScreen) => void;
   connect: (targetId: string) => Promise<void>;
   disconnect: () => Promise<void>;
+  selectDestination: (id: string) => void;
+  noteViewingLatest: (isLatest: boolean) => void;
 };
 
 type AppStoreTuple = readonly [Store<AppState>, AppActions];
@@ -105,6 +120,10 @@ function initialState(): AppState {
     availableVersion: null,
     targetDestination: null,
     balance: null,
+    mode: { kind: "auto", current: null, pending: null },
+    destinationOrder: [],
+    switchAnimate: true,
+    viewingLatest: true,
   };
 }
 
@@ -200,6 +219,20 @@ export function createAppStore(): AppStoreTuple {
   const log = (content: string) => logActions.append(content);
   const logStatus = (response: StatusResponse) =>
     logActions.appendStatus(response);
+
+  // `state` itself already has the fields these need (availableDestinations/
+  // destinations/connected/connecting/reconnecting/viewingLatest), so it's
+  // passed directly rather than mirrored into a separate copy first.
+  const [mode, modeActions] = createDestinationMode(state, settings, state);
+  const [order, orderActions] = createDestinationOrder(mode, modeActions);
+
+  createEffect(() => {
+    setState("mode", reconcile({ ...mode }));
+  });
+  createEffect(() => {
+    setState("destinationOrder", [...order.order]);
+    setState("switchAnimate", order.animate);
+  });
 
   const criticalError = (message: string) => {
     log(message);
@@ -501,6 +534,10 @@ export function createAppStore(): AppStoreTuple {
         setState("isLoading", false);
       }
     },
+
+    selectDestination: (id: string) => orderActions.selectDestination(id),
+    noteViewingLatest: (isLatest: boolean) =>
+      setState("viewingLatest", isLatest),
   } as const;
 
   // Both windows derive update state locally via the same helper — settings

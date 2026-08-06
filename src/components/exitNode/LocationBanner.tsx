@@ -1,7 +1,7 @@
-import { createEffect, createSignal, For, onMount, Show } from "solid-js";
+import { createEffect, createSignal, For, Show } from "solid-js";
 import { Portal } from "solid-js/web";
 import { useAppStore } from "@src/stores/appStore.ts";
-import { useBannerStore } from "@src/stores/bannerStore.ts";
+import { currentDisplayId } from "@src/stores/destinationMode.ts";
 import LocationBannerCard from "./LocationBannerCard.tsx";
 import ExitNodeList from "./ExitNodeList.tsx";
 
@@ -98,15 +98,8 @@ function jumpToLatest(container: HTMLDivElement) {
 }
 
 export default function LocationBanner() {
-  const [appState] = useAppStore();
-  const [bannerState, bannerActions] = useBannerStore();
+  const [appState, appActions] = useAppStore();
   const [showList, setShowList] = createSignal(false);
-
-  // This component only mounts once the main screen is actually displayed
-  // (App.tsx holds earlier screens open for MIN_SCREEN_DISPLAY_TIME), so
-  // this is the right moment to let the store start picking/switching —
-  // never earlier, behind a screen the user hasn't seen yet.
-  onMount(() => bannerActions.markVisible());
 
   let containerRef: HTMLDivElement | undefined;
   let programmaticScrollUntil = 0;
@@ -187,9 +180,9 @@ export default function LocationBanner() {
   // Tracking the last id (not just order.length) also catches a reselected
   // historical entry moving to the end, which leaves the length unchanged.
   createEffect((prevLastId: string | null | undefined) => {
-    const order = bannerState.order;
+    const order = appState.destinationOrder;
     const lastId = order.length > 0 ? order[order.length - 1] : null;
-    const shouldAnimate = bannerState.animateSwitch;
+    const shouldAnimate = appState.switchAnimate;
     if (prevLastId !== undefined && lastId !== prevLastId && containerRef) {
       if (shouldAnimate) {
         programmaticScrollUntil = Date.now() + PROGRAMMATIC_SCROLL_WINDOW_MS;
@@ -208,7 +201,7 @@ export default function LocationBanner() {
     const { scrollLeft, scrollWidth, clientWidth } = containerRef;
     const atLatest = Math.abs(scrollLeft - (scrollWidth - clientWidth)) <
       LATEST_SNAP_EPSILON_PX;
-    bannerActions.noteViewingLatest(atLatest);
+    appActions.noteViewingLatest(atLatest);
   };
 
   return (
@@ -230,7 +223,7 @@ export default function LocationBanner() {
         }}
         class="w-full flex flex-row gap-2 overflow-x-auto no-scrollbar snap-x snap-mandatory scroll-smooth cursor-grab select-none active:cursor-grabbing"
       >
-        <For each={bannerState.order}>
+        <For each={appState.destinationOrder}>
           {(id) => (
             <Show when={appState.destinations[id]}>
               {(ds) => (
@@ -250,8 +243,9 @@ export default function LocationBanner() {
                 >
                   <LocationBannerCard
                     destinationState={ds()}
-                    switchEndsAt={id === bannerState.activeId
-                      ? bannerState.countdownEndsAt
+                    switchEndsAt={id === currentDisplayId(appState.mode) &&
+                        appState.mode.kind === "auto"
+                      ? appState.mode.pending?.countdownEndsAt ?? null
                       : null}
                   />
                 </div>

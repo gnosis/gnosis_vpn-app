@@ -11,7 +11,7 @@ import {
 } from "solid-js";
 import type { DestinationState } from "@src/services/vpnService.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
-import { useBannerStore } from "@src/stores/bannerStore.ts";
+import { currentDisplayId } from "@src/stores/destinationMode.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import {
   destinationLabel,
@@ -23,7 +23,6 @@ import UnreachableDialog from "./UnreachableDialog.tsx";
 
 export default function ExitNodeList(props: { onClose: () => void }) {
   const [appState, appActions] = useAppStore();
-  const [bannerState, bannerActions] = useBannerStore();
   const [settings, settingsActions] = useSettingsStore();
 
   const [query, setQuery] = createSignal("");
@@ -116,8 +115,8 @@ export default function ExitNodeList(props: { onClose: () => void }) {
       appState.reconnecting?.destination_id === id ||
       appState.disconnecting.some((d) => d.destination_id === id)
     ) {
-      if (bannerState.activeId !== id) {
-        bannerActions.setActiveId(id);
+      if (currentDisplayId(appState.mode) !== id) {
+        appActions.selectDestination(id);
       }
       props.onClose();
       return;
@@ -126,7 +125,7 @@ export default function ExitNodeList(props: { onClose: () => void }) {
       setShowUnreachable(true);
       return;
     }
-    bannerActions.setActiveId(id);
+    appActions.selectDestination(id);
     if (vpnActive()) void appActions.connect(id);
     props.onClose();
   };
@@ -214,7 +213,7 @@ export default function ExitNodeList(props: { onClose: () => void }) {
                     destination: dest,
                     route_health: null,
                   } as DestinationState)}
-              isSelected={bannerState.activeId === dest.id}
+              isSelected={currentDisplayId(appState.mode) === dest.id}
               nowSec={nowSec}
               onClick={() => handleCardClick(dest.id)}
             />

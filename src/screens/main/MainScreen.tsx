@@ -8,7 +8,7 @@ import {
 } from "solid-js";
 import { useAppStore } from "../../stores/appStore.ts";
 import { useSettingsStore } from "../../stores/settingsStore.ts";
-import { useBannerStore } from "../../stores/bannerStore.ts";
+import { currentDisplayId } from "../../stores/destinationMode.ts";
 import { StatusIndicator } from "../../components/status/StatusIndicator.tsx";
 import Navigation from "../../components/Navigation.tsx";
 import LocationBanner from "../../components/exitNode/LocationBanner.tsx";
@@ -32,7 +32,6 @@ const [dismissedBalanceStatus, setDismissedBalanceStatus] = createSignal<
 export function MainScreen() {
   const [appState] = useAppStore();
   const [, settingsActions] = useSettingsStore();
-  const [bannerState] = useBannerStore();
 
   const fundingIssues = createMemo(() =>
     isRunningRunMode(appState.runMode)
@@ -53,11 +52,10 @@ export function MainScreen() {
       ? "Your balance is empty"
       : "Your balance is low";
 
-  const activeDestinationState = createMemo(() =>
-    bannerState.activeId
-      ? appState.destinations[bannerState.activeId]
-      : undefined
-  );
+  const activeDestinationState = createMemo(() => {
+    const id = currentDisplayId(appState.mode);
+    return id ? appState.destinations[id] : undefined;
+  });
 
   let mainRef!: HTMLDivElement;
   let exitAnchorRef!: HTMLDivElement;

@@ -8,8 +8,11 @@ import type {
 } from "@src/services/vpnService.ts";
 import {
   createDestinationMode,
+  createDestinationOrder,
+  currentDisplayId,
   type ModeAppState,
   type ModeSettingsState,
+  type ModeUiState,
   resolveConnectTarget,
   SWITCH_COUNTDOWN_MS,
   SWITCH_CROSSOVER_MS,
@@ -62,6 +65,7 @@ const disposeFns: Array<() => void> = [];
 function setup(
   appOverrides: Partial<ModeAppState> = {},
   settingsOverrides: Partial<ModeSettingsState> = {},
+  uiOverrides: Partial<ModeUiState> = {},
 ) {
   const [appState, setAppState] = createStore<ModeAppState>({
     availableDestinations: [],
@@ -76,13 +80,17 @@ function setup(
     lastConnectedDestination: null,
     ...settingsOverrides,
   });
+  const [ui, setUi] = createStore<ModeUiState>({
+    viewingLatest: true,
+    ...uiOverrides,
+  });
 
   const mode = createRoot((dispose) => {
     disposeFns.push(dispose);
-    return createDestinationMode(appState, settings);
+    return createDestinationMode(appState, settings, ui);
   });
 
-  return { appState, setAppState, settings, setSettings, mode };
+  return { appState, setAppState, settings, setSettings, ui, setUi, mode };
 }
 
 beforeEach(() => {
@@ -193,7 +201,13 @@ describe("auto loop", () => {
     if (mode[0].kind !== "auto") throw new Error("unreachable");
     expect(mode[0].current).toBe("fast");
     expect(mode[0].pending?.candidateId).toBe("better");
+    expect(mode[0].pending?.countdownEndsAt).toBe(
+      Date.now() + SWITCH_COUNTDOWN_MS,
+    );
     expect(mode[0].pending?.settleAt).toBe(Date.now() + SETTLE_MS);
+    expect(mode[0].pending?.settleAt).toBe(
+      mode[0].pending!.countdownEndsAt + SWITCH_CROSSOVER_MS,
+    );
   });
 
   it("cancels the pending candidate if it reverts to current before settling", async () => {
@@ -253,6 +267,71 @@ describe("auto loop", () => {
     await Promise.resolve();
 
     expect(mode[0]).toMatchObject({ pending: { candidateId: "best" } });
+  });
+});
+
+describe("viewingLatest pause", () => {
+  it("does not detect a new candidate while viewingLatest is false", async () => {
+    const fast = { ...BASE_DESTINATION, id: "fast" };
+    const { mode, setAppState, setUi } = setup({}, {}, {
+      viewingLatest: false,
+    });
+    setAppState("availableDestinations", [fast]);
+    setAppState("destinations", {
+      fast: makeReadyToConnect("fast", 100_000_000),
+    });
+    await Promise.resolve();
+    expect(mode[0]).toMatchObject({ kind: "auto", current: "fast" });
+
+    const better = { ...BASE_DESTINATION, id: "better" };
+    setAppState("availableDestinations", [fast, better]);
+    setAppState("destinations", {
+      fast: makeReadyToConnect("fast", 100_000_000),
+      better: makeReadyToConnect("better", 10_000_000),
+    });
+    await Promise.resolve();
+    expect(mode[0]).toMatchObject({
+      kind: "auto",
+      current: "fast",
+      pending: null,
+    });
+
+    await vi.advanceTimersByTimeAsync(SETTLE_MS);
+    expect(mode[0]).toMatchObject({ kind: "auto", current: "fast" });
+
+    setUi("viewingLatest", true);
+    await Promise.resolve();
+    expect(mode[0]).toMatchObject({ pending: { candidateId: "better" } });
+  });
+
+  it("cancels an in-flight pending candidate the moment viewingLatest turns false", async () => {
+    const fast = { ...BASE_DESTINATION, id: "fast" };
+    const better = { ...BASE_DESTINATION, id: "better" };
+    const { mode, setAppState, setUi } = setup();
+    setAppState("availableDestinations", [fast]);
+    setAppState("destinations", {
+      fast: makeReadyToConnect("fast", 100_000_000),
+    });
+    await Promise.resolve();
+
+    setAppState("availableDestinations", [fast, better]);
+    setAppState("destinations", {
+      fast: makeReadyToConnect("fast", 100_000_000),
+      better: makeReadyToConnect("better", 10_000_000),
+    });
+    await Promise.resolve();
+    expect(mode[0]).toMatchObject({ pending: { candidateId: "better" } });
+
+    setUi("viewingLatest", false);
+    await Promise.resolve();
+    expect(mode[0]).toMatchObject({
+      kind: "auto",
+      current: "fast",
+      pending: null,
+    });
+
+    await vi.advanceTimersByTimeAsync(SETTLE_MS);
+    expect(mode[0]).toMatchObject({ kind: "auto", current: "fast" });
   });
 });
 
@@ -498,7 +577,7 @@ describe("resolveConnectTarget", () => {
     const mode = {
       kind: "auto" as const,
       current: "x",
-      pending: { candidateId: "y", settleAt: 1_000 },
+      pending: { candidateId: "y", countdownEndsAt: 500, settleAt: 1_000 },
     };
     expect(resolveConnectTarget(mode, 999)).toBe("x");
   });
@@ -507,7 +586,7 @@ describe("resolveConnectTarget", () => {
     const mode = {
       kind: "auto" as const,
       current: "x",
-      pending: { candidateId: "y", settleAt: 1_000 },
+      pending: { candidateId: "y", countdownEndsAt: 500, settleAt: 1_000 },
     };
     expect(resolveConnectTarget(mode, 1_000)).toBe("y");
     expect(resolveConnectTarget(mode, 1_500)).toBe("y");
@@ -583,5 +662,146 @@ describe("active / disconnect", () => {
     await Promise.resolve();
 
     expect(mode[0]).toMatchObject({ kind: "active", id: "b" });
+  });
+});
+
+describe("currentDisplayId", () => {
+  it("follows current in auto, ignoring an in-flight pending candidate", () => {
+    expect(
+      currentDisplayId({ kind: "auto", current: "x", pending: null }),
+    ).toBe("x");
+    expect(
+      currentDisplayId({
+        kind: "auto",
+        current: "x",
+        pending: { candidateId: "y", countdownEndsAt: 0, settleAt: 0 },
+      }),
+    ).toBe("x");
+  });
+
+  it("follows id in selected and active", () => {
+    expect(
+      currentDisplayId({ kind: "selected", id: "x", autoRevertAt: null }),
+    ).toBe("x");
+    expect(currentDisplayId({ kind: "active", id: "x" })).toBe("x");
+  });
+});
+
+describe("createDestinationOrder", () => {
+  function setupWithOrder(
+    appOverrides: Partial<ModeAppState> = {},
+    settingsOverrides: Partial<ModeSettingsState> = {},
+  ) {
+    const ctx = setup(appOverrides, settingsOverrides);
+    const order = createRoot((dispose) => {
+      disposeFns.push(dispose);
+      return createDestinationOrder(ctx.mode[0], ctx.mode[1]);
+    });
+    return { ...ctx, order };
+  }
+
+  it("appends the very first displayed id", async () => {
+    const fast = { ...BASE_DESTINATION, id: "fast" };
+    const { setAppState, order } = setupWithOrder();
+    setAppState("availableDestinations", [fast]);
+    setAppState("destinations", { fast: makeReadyToConnect("fast") });
+    await Promise.resolve();
+
+    expect(order[0].order).toEqual(["fast"]);
+  });
+
+  it("animates an auto-driven change", async () => {
+    const fast = { ...BASE_DESTINATION, id: "fast" };
+    const better = { ...BASE_DESTINATION, id: "better" };
+    const { setAppState, order } = setupWithOrder();
+    setAppState("availableDestinations", [fast]);
+    setAppState("destinations", {
+      fast: makeReadyToConnect("fast", 100_000_000),
+    });
+    await Promise.resolve();
+
+    setAppState("availableDestinations", [fast, better]);
+    setAppState("destinations", {
+      fast: makeReadyToConnect("fast", 100_000_000),
+      better: makeReadyToConnect("better", 10_000_000),
+    });
+    await Promise.resolve();
+    await vi.advanceTimersByTimeAsync(SETTLE_MS);
+
+    expect(order[0]).toMatchObject({
+      order: ["fast", "better"],
+      animate: true,
+    });
+  });
+
+  it("does not animate a destination picked directly via selectDestination", async () => {
+    const fast = { ...BASE_DESTINATION, id: "fast" };
+    const other = { ...BASE_DESTINATION, id: "other" };
+    const { setAppState, order } = setupWithOrder();
+    setAppState("availableDestinations", [fast, other]);
+    setAppState("destinations", {
+      fast: makeReadyToConnect("fast"),
+      other: makeReadyToConnect("other"),
+    });
+    await Promise.resolve();
+
+    order[1].selectDestination("other");
+    await Promise.resolve();
+
+    expect(order[0]).toMatchObject({
+      order: ["fast", "other"],
+      animate: false,
+    });
+  });
+
+  it("dedups and moves a reselected historic id to the newest slot", async () => {
+    const fast = { ...BASE_DESTINATION, id: "fast" };
+    const other = { ...BASE_DESTINATION, id: "other" };
+    const { setAppState, order } = setupWithOrder();
+    setAppState("availableDestinations", [fast, other]);
+    setAppState("destinations", {
+      fast: makeReadyToConnect("fast"),
+      other: makeReadyToConnect("other"),
+    });
+    await Promise.resolve();
+
+    order[1].selectDestination("other");
+    await Promise.resolve();
+    expect(order[0].order).toEqual(["fast", "other"]);
+
+    order[1].selectDestination("fast");
+    await Promise.resolve();
+
+    expect(order[0]).toMatchObject({
+      order: ["other", "fast"],
+      animate: false,
+    });
+  });
+
+  it("still animates once a manual pick's matching display change only happens later (retarget while active)", async () => {
+    const a = { ...BASE_DESTINATION, id: "a" };
+    const b = { ...BASE_DESTINATION, id: "b" };
+    const { setAppState, order } = setupWithOrder();
+    setAppState("availableDestinations", [a, b]);
+    setAppState("destinations", {
+      a: makeReadyToConnect("a"),
+      b: makeReadyToConnect("b"),
+    });
+    setAppState("connected", { destination_id: "a", since: 0 });
+    await Promise.resolve();
+    expect(order[0].order).toEqual(["a"]);
+
+    // Picking "b" from the list while already active: selectDestination is a
+    // no-op on mode itself (still active("a")) until the backend actually
+    // reports connecting to "b" — the manual intent must survive that gap.
+    order[1].selectDestination("b");
+    await Promise.resolve();
+    expect(order[0].order).toEqual(["a"]);
+
+    setAppState("connected", null);
+    setAppState("connecting", { destination_id: "b", since: 0, phase: "Init" });
+    await Promise.resolve();
+
+    expect(order[0]).toMatchObject({ order: ["a", "b"], animate: false });
   });
 });

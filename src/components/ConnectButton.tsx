@@ -1,12 +1,14 @@
 import { createMemo } from "solid-js";
 import Button from "./common/Button.tsx";
 import { useAppStore } from "../stores/appStore.ts";
-import { useBannerStore } from "../stores/bannerStore.ts";
+import {
+  currentDisplayId,
+  resolveConnectTarget,
+} from "../stores/destinationMode.ts";
 import { isReadyToConnect } from "../utils/exitHealth.ts";
 
 export default function ConnectButton() {
   const [appState, appActions] = useAppStore();
-  const [bannerState] = useBannerStore();
 
   const isActive = createMemo(() =>
     appState.vpnStatus === "Connected" ||
@@ -15,10 +17,12 @@ export default function ConnectButton() {
   );
   const label = createMemo(() => (isActive() ? "Disconnect" : "Connect"));
 
-  const targetId = createMemo(() => bannerState.activeId);
+  // Display-only — ignores an in-flight auto pending candidate, which is an
+  // acceptable simplification here since it's not the actual connect target.
+  const displayedId = createMemo(() => currentDisplayId(appState.mode));
 
   const targetDestinationState = createMemo(() => {
-    const id = targetId();
+    const id = displayedId();
     return id ? appState.destinations[id] : undefined;
   });
 
@@ -31,7 +35,10 @@ export default function ConnectButton() {
       if (isActive()) {
         await appActions.disconnect();
       } else {
-        const id = targetId();
+        // Resolved fresh at click time, not memoized — a memo only
+        // recomputes when `mode` changes, not when wall-clock time crosses
+        // an auto pending candidate's settleAt.
+        const id = resolveConnectTarget(appState.mode, Date.now());
         if (id) await appActions.connect(id);
       }
     } catch (error) {

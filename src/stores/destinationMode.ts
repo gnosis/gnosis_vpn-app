@@ -27,6 +27,10 @@ export const SWITCH_CROSSOVER_MS = 500;
 
 export interface AutoPending {
   candidateId: string;
+  // Plain 5s countdown boundary — what the UI's countdown ring animates.
+  countdownEndsAt: number;
+  // countdownEndsAt + SWITCH_CROSSOVER_MS — what resolveConnectTarget and the
+  // actual commit use; the slide animation plays between the two.
   settleAt: number;
 }
 
@@ -51,6 +55,14 @@ export interface ModeSettingsState {
   lastConnectedDestination: string | null;
 }
 
+/** UI-driven input: pauses the auto candidate-detection loop (rules 5-8)
+ * while the user has scrolled the carousel away from the latest card, so
+ * nothing changes underneath them. Everything else (startup, connecting/
+ * disconnecting, the `selected` auto-revert) ignores this. */
+export interface ModeUiState {
+  viewingLatest: boolean;
+}
+
 type DestinationModeActions = {
   selectDestination: (id: string) => void;
 };
@@ -67,6 +79,7 @@ function initialMode(): DestinationMode {
 export function createDestinationMode(
   appState: ModeAppState,
   settings: ModeSettingsState,
+  ui: ModeUiState,
 ): DestinationModeStoreTuple {
   const [mode, setMode] = createStore<DestinationMode>(initialMode());
 
@@ -185,11 +198,24 @@ export function createDestinationMode(
   });
 
   // Rules 5-8 — the auto candidate-detection loop. Only active while
-  // `mode.kind === "auto"`; runs forever, never exits itself except through
-  // commitCandidate's preferred-promotion branch above.
+  // `mode.kind === "auto"` and the carousel is showing its latest card; runs
+  // forever, never exits itself except through commitCandidate's
+  // preferred-promotion branch above.
   createEffect(() => {
     if (mode.kind !== "auto") {
       clearPendingTimer();
+      return;
+    }
+    // Unlike leaving "auto" entirely (whoever changes `kind` already
+    // installs a fresh object with no `pending`), freezing here is the only
+    // thing that would otherwise leave a stale, timer-less `pending` behind.
+    if (!ui.viewingLatest) {
+      clearPendingTimer();
+      if (mode.pending !== null) {
+        setMode(
+          reconcile({ kind: "auto", current: mode.current, pending: null }),
+        );
+      }
       return;
     }
     const candidateId = bestCandidateId();
@@ -205,9 +231,14 @@ export function createDestinationMode(
     if (pending?.candidateId === candidateId) return;
 
     clearPendingTimer();
-    const settleAt = Date.now() + SWITCH_COUNTDOWN_MS + SWITCH_CROSSOVER_MS;
+    const countdownEndsAt = Date.now() + SWITCH_COUNTDOWN_MS;
+    const settleAt = countdownEndsAt + SWITCH_CROSSOVER_MS;
     setMode(
-      reconcile({ kind: "auto", current, pending: { candidateId, settleAt } }),
+      reconcile({
+        kind: "auto",
+        current,
+        pending: { candidateId, countdownEndsAt, settleAt },
+      }),
     );
     pendingTimeout = setTimeout(
       () => commitCandidate(candidateId),
@@ -269,4 +300,69 @@ export function resolveConnectTarget(
     return mode.pending.candidateId;
   }
   return mode.current;
+}
+
+/** What's currently shown, ignoring an in-flight pending candidate — display
+ * only follows `current` once the auto loop actually commits it, same
+ * instant `resolveConnectTarget` would flip to it too. */
+export function currentDisplayId(mode: DestinationMode): string | null {
+  if (mode.kind === "auto") return mode.current;
+  return mode.id;
+}
+
+export interface DestinationOrderState {
+  // Destination ids, oldest -> left, newest/current -> rightmost.
+  order: string[];
+  // Whether the most recent order change should slide-animate in the
+  // carousel. False only for a destination picked directly from the list
+  // (matched below); every auto-driven change animates.
+  animate: boolean;
+}
+
+type DestinationOrderActions = {
+  selectDestination: (id: string) => void;
+};
+
+/** Tracks carousel presentation on top of an existing mode store: which ids
+ * have been shown (for the history carousel) and whether the latest change
+ * should jump or slide. Kept separate from `createDestinationMode` itself so
+ * that state machine stays free of presentation concerns. */
+export function createDestinationOrder(
+  mode: SolidStore<DestinationMode>,
+  modeActions: { selectDestination: (id: string) => void },
+): readonly [SolidStore<DestinationOrderState>, DestinationOrderActions] {
+  const [state, setState] = createStore<DestinationOrderState>({
+    order: [],
+    animate: true,
+  });
+
+  // Set by our own selectDestination wrapper, consumed by the effect below
+  // once the resulting display change actually happens — which may be
+  // immediate (idle pick) or only after a later backend event (mid-session
+  // retarget while already active).
+  let pendingManualId: string | null = null;
+
+  createEffect(() => {
+    const id = currentDisplayId(mode);
+    if (id === null) return;
+    const lastId = state.order.length > 0
+      ? state.order[state.order.length - 1]
+      : null;
+    if (id === lastId) return;
+
+    const animate = pendingManualId !== id;
+    if (pendingManualId === id) pendingManualId = null;
+
+    setState({
+      order: [...state.order.filter((existing) => existing !== id), id],
+      animate,
+    });
+  });
+
+  return [state, {
+    selectDestination: (id) => {
+      pendingManualId = id;
+      modeActions.selectDestination(id);
+    },
+  }] as const;
 }
