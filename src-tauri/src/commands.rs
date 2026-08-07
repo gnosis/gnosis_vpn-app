@@ -554,7 +554,7 @@ async fn query_status() -> (bool, Duration, Result<Option<StatusResponse>, Strin
             if is_in_transition {
                 (false, Duration::from_millis(222), Ok(Some(resp)))
             } else {
-                (false, Duration::from_secs(2), Ok(Some(resp)))
+                (false, Duration::from_secs_f64(5.3), Ok(Some(resp)))
             }
         }
         Ok(command::Response::WorkerOffline) => {
@@ -567,10 +567,10 @@ async fn query_status() -> (bool, Duration, Result<Option<StatusResponse>, Strin
         }
         Ok(unexpected) => (
             false,
-            Duration::from_secs(2),
+            Duration::from_secs_f64(5.3),
             Err(format!("Unexpected response type: {:?}", unexpected).to_string()),
         ),
-        Err(e) => (false, Duration::from_secs(2), Err(e.to_string())),
+        Err(e) => (false, Duration::from_secs_f64(5.3), Err(e.to_string())),
     }
 }
 
