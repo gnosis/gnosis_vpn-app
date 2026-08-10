@@ -15,9 +15,10 @@ type Props = {
   label: string;
   amount: string;
   unit: string;
-  // Required: the status cell must always render, or the 4-column
-  // grid contract below breaks.
-  status: StatusText;
+  // The status cell itself always renders (the 4-column grid contract below
+  // depends on it); omitting `status` just leaves the label text empty,
+  // e.g. the Gas Fees row when gas is sufficient.
+  status?: StatusText;
   tooltip?: JSX.Element;
   // Rendered right below the status label, e.g. a traffic estimate.
   subline?: JSX.Element;
@@ -116,7 +117,7 @@ export default function FundsInfo(props: Props) {
         onMouseLeave={props.tooltip ? hide : undefined}
       >
         <span class={`font-bold text-xs ${statusColor()}`}>
-          {props.status}
+          {props.status ?? ""}
         </span>
         {props.subline}
       </span>

@@ -292,6 +292,9 @@ export const BalanceResponseSchema = z.object({
   funding_issues: z.array(FundingIssueSchema).nullable(),
   ideal_balance: BalanceRecommendationSchema.nullable(),
   capacity_allocations: z.array(CapacityEntrySchema).nullable(),
+  // wxHOPR on the node EOA, deposited but not yet swept into the Safe.
+  // Absent from daemons older than the node_capacity rollout.
+  node_capacity: CapacitySchema.nullish(),
 });
 export type BalanceResponse = z.infer<typeof BalanceResponseSchema>;
 

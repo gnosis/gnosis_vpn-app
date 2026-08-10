@@ -12,7 +12,7 @@ use tokio::time::sleep;
 use gnosis_vpn_lib::balance::FundingIssue;
 
 use crate::commands::set_app_icon;
-use crate::types::{ConnectionState, RunMode};
+use crate::types::{BalanceResponse, ConnectionState, RunMode};
 
 // App icon constants
 pub const APP_ICON_CONNECTED: &str = "app-icon-connected.png";
@@ -178,17 +178,13 @@ pub struct IconState {
 impl IconState {
     // Records a freshly polled status. Returns the dock icon to repaint, or
     // None when it is unchanged or the heartbeat owns icon updates (animating).
-    pub fn apply_status(
-        &mut self,
-        conn_state: &ConnectionState,
-        run_mode: &RunMode,
-    ) -> Option<String> {
-        self.funds_level = funds_level(run_mode);
+    pub fn apply_status(&mut self, conn_state: &ConnectionState, level: FundsLevel) -> Option<String> {
+        self.funds_level = level;
         self.is_animating = is_animating_state(conn_state);
         if self.is_animating {
             return None;
         }
-        let icon_name = determine_app_icon(conn_state, run_mode);
+        let icon_name = determine_app_icon(conn_state, level);
         if self.current_icon == icon_name {
             return None;
         }
@@ -214,36 +210,91 @@ pub enum FundsLevel {
     Empty,
 }
 
+// Funding thresholds — keep in sync with src/utils/funding.ts.
+const GIB: u64 = 1 << 30;
+const TRAFFIC_EMPTY_BELOW_BYTES: u64 = 3 * GIB;
+const TRAFFIC_LOW_BELOW_BYTES: u64 = 5 * GIB;
+// 0.003 / 0.005 xDAI in wei
+const XDAI_EMPTY_BELOW_WEI: u128 = 3_000_000_000_000_000;
+const XDAI_LOW_BELOW_WEI: u128 = 5_000_000_000_000_000;
+
 // Mirrors deriveOverallStatus in src/utils/funding.ts — keep both in sync.
-pub fn funds_level(run_mode: &RunMode) -> FundsLevel {
+// Traffic is judged by total byte capacity (Safe + channels + node EOA) and
+// gas by the node's xDAI, falling back to the daemon's funding issues while
+// balance data hasn't been polled yet.
+pub fn funds_level(run_mode: &RunMode, balance: Option<&BalanceResponse>) -> FundsLevel {
     let issues = match run_mode {
-        RunMode::Running {
-            funding_issues: Some(issues),
-            ..
-        } => issues,
+        RunMode::Running { funding_issues, .. } => funding_issues.as_deref().unwrap_or(&[]),
         _ => return FundsLevel::Sufficient,
     };
 
-    let is_empty = issues.iter().any(|i| {
-        matches!(
-            i,
-            FundingIssue::Unfunded
-                | FundingIssue::ChannelsOutOfFunds
-                | FundingIssue::SafeOutOfFunds
-                | FundingIssue::NodeUnderfunded
-        )
-    });
-    if is_empty {
-        return FundsLevel::Empty;
-    }
+    let traffic = balance
+        .and_then(traffic_level)
+        .unwrap_or_else(|| traffic_level_from_issues(issues));
+    let gas = balance
+        .and_then(gas_level)
+        .unwrap_or_else(|| gas_level_from_issues(issues));
+    worst(traffic, gas)
+}
 
-    let is_low = issues.iter().any(|i| {
+fn worst(a: FundsLevel, b: FundsLevel) -> FundsLevel {
+    match (a, b) {
+        (FundsLevel::Empty, _) | (_, FundsLevel::Empty) => FundsLevel::Empty,
+        (FundsLevel::Low, _) | (_, FundsLevel::Low) => FundsLevel::Low,
+        _ => FundsLevel::Sufficient,
+    }
+}
+
+// None until the daemon reports capacity allocations.
+fn traffic_level(balance: &BalanceResponse) -> Option<FundsLevel> {
+    let entries = balance.capacity_allocations.as_ref()?;
+    let total = entries
+        .iter()
+        .map(|e| e.capacity.byte_capacity)
+        .chain(balance.node_capacity.as_ref().map(|c| c.byte_capacity))
+        .fold(0u64, u64::saturating_add);
+    Some(if total < TRAFFIC_EMPTY_BELOW_BYTES {
+        FundsLevel::Empty
+    } else if total < TRAFFIC_LOW_BELOW_BYTES {
+        FundsLevel::Low
+    } else {
+        FundsLevel::Sufficient
+    })
+}
+
+fn gas_level(balance: &BalanceResponse) -> Option<FundsLevel> {
+    let node_wei: u128 = balance.node.parse().ok()?;
+    Some(if node_wei < XDAI_EMPTY_BELOW_WEI {
+        FundsLevel::Empty
+    } else if node_wei < XDAI_LOW_BELOW_WEI {
+        FundsLevel::Low
+    } else {
+        FundsLevel::Sufficient
+    })
+}
+
+fn traffic_level_from_issues(issues: &[FundingIssue]) -> FundsLevel {
+    if issues.iter().any(|i| {
         matches!(
             i,
-            FundingIssue::SafeLowOnFunds | FundingIssue::NodeLowOnFunds
+            FundingIssue::Unfunded | FundingIssue::ChannelsOutOfFunds | FundingIssue::SafeOutOfFunds
         )
-    });
-    if is_low {
+    }) {
+        FundsLevel::Empty
+    } else if issues.iter().any(|i| matches!(i, FundingIssue::SafeLowOnFunds)) {
+        FundsLevel::Low
+    } else {
+        FundsLevel::Sufficient
+    }
+}
+
+fn gas_level_from_issues(issues: &[FundingIssue]) -> FundsLevel {
+    if issues
+        .iter()
+        .any(|i| matches!(i, FundingIssue::Unfunded | FundingIssue::NodeUnderfunded))
+    {
+        FundsLevel::Empty
+    } else if issues.iter().any(|i| matches!(i, FundingIssue::NodeLowOnFunds)) {
         FundsLevel::Low
     } else {
         FundsLevel::Sufficient
@@ -311,8 +362,7 @@ pub fn update_icon_name_if_changed(current: &Mutex<String>, next: &str) -> bool 
     }
 }
 
-pub fn determine_app_icon(connection_state: &ConnectionState, run_mode: &RunMode) -> String {
-    let level = funds_level(run_mode);
+pub fn determine_app_icon(connection_state: &ConnectionState, level: FundsLevel) -> String {
     let icon = match connection_state {
         ConnectionState::Connected(_) => match level {
             FundsLevel::Sufficient => APP_ICON_CONNECTED,
@@ -438,6 +488,9 @@ pub fn start_icon_heartbeat(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::{TauriCapacity, TauriCapacityEntry};
+    use gnosis_vpn_lib::balance::{Address, CapacityAllocator};
+    use gnosis_vpn_lib::command;
 
     fn running(issues: Vec<FundingIssue>) -> RunMode {
         RunMode::Running {
@@ -446,37 +499,83 @@ mod tests {
         }
     }
 
+    fn capacity(byte_capacity: u64) -> TauriCapacity {
+        TauriCapacity {
+            stake: "0".to_string(),
+            expected_messages: 0,
+            min_guaranteed_messages: 0,
+            byte_capacity,
+        }
+    }
+
+    fn balance(
+        allocation_bytes: Option<Vec<u64>>,
+        node_capacity_bytes: Option<u64>,
+        node_wei: &str,
+    ) -> BalanceResponse {
+        BalanceResponse {
+            node: node_wei.to_string(),
+            safe: "0".to_string(),
+            channels_out: "0".to_string(),
+            info: command::Info {
+                node_address: Address::from([0u8; 20]),
+                node_peer_id: String::new(),
+                safe_address: Address::from([0u8; 20]),
+            },
+            funding_issues: None,
+            ideal_balance: None,
+            capacity_allocations: allocation_bytes.map(|bytes| {
+                bytes
+                    .into_iter()
+                    .map(|b| TauriCapacityEntry {
+                        allocator: CapacityAllocator::Safe,
+                        capacity: capacity(b),
+                    })
+                    .collect()
+            }),
+            node_capacity: node_capacity_bytes.map(capacity),
+        }
+    }
+
+    const XDAI_OK: &str = "10000000000000000"; // 0.01 xDAI
+
     #[test]
     fn funds_level_ignores_non_running_modes() {
-        assert_eq!(funds_level(&RunMode::NotRunning), FundsLevel::Sufficient);
-        assert_eq!(funds_level(&RunMode::Shutdown), FundsLevel::Sufficient);
+        assert_eq!(funds_level(&RunMode::NotRunning, None), FundsLevel::Sufficient);
+        assert_eq!(funds_level(&RunMode::Shutdown, None), FundsLevel::Sufficient);
+        // even a drained balance is ignored outside Running
+        let drained = balance(Some(vec![0]), None, "0");
+        assert_eq!(
+            funds_level(&RunMode::NotRunning, Some(&drained)),
+            FundsLevel::Sufficient
+        );
     }
 
     #[test]
-    fn funds_level_classifies_issues() {
-        assert_eq!(funds_level(&running(vec![])), FundsLevel::Sufficient);
+    fn funds_level_falls_back_to_issues_without_balance() {
+        assert_eq!(funds_level(&running(vec![]), None), FundsLevel::Sufficient);
         assert_eq!(
-            funds_level(&running(vec![FundingIssue::SafeLowOnFunds])),
+            funds_level(&running(vec![FundingIssue::SafeLowOnFunds]), None),
             FundsLevel::Low
         );
         assert_eq!(
-            funds_level(&running(vec![FundingIssue::NodeLowOnFunds])),
+            funds_level(&running(vec![FundingIssue::NodeLowOnFunds]), None),
             FundsLevel::Low
         );
         assert_eq!(
-            funds_level(&running(vec![FundingIssue::Unfunded])),
+            funds_level(&running(vec![FundingIssue::Unfunded]), None),
             FundsLevel::Empty
         );
         assert_eq!(
-            funds_level(&running(vec![FundingIssue::ChannelsOutOfFunds])),
+            funds_level(&running(vec![FundingIssue::ChannelsOutOfFunds]), None),
             FundsLevel::Empty
         );
         assert_eq!(
-            funds_level(&running(vec![FundingIssue::SafeOutOfFunds])),
+            funds_level(&running(vec![FundingIssue::SafeOutOfFunds]), None),
             FundsLevel::Empty
         );
         assert_eq!(
-            funds_level(&running(vec![FundingIssue::NodeUnderfunded])),
+            funds_level(&running(vec![FundingIssue::NodeUnderfunded]), None),
             FundsLevel::Empty
         );
     }
@@ -487,7 +586,72 @@ mod tests {
             FundingIssue::SafeLowOnFunds,
             FundingIssue::SafeOutOfFunds,
         ]);
-        assert_eq!(funds_level(&mode), FundsLevel::Empty);
+        assert_eq!(funds_level(&mode, None), FundsLevel::Empty);
+    }
+
+    #[test]
+    fn traffic_thresholds_on_total_byte_capacity() {
+        let mode = running(vec![]);
+        let cases = [
+            (3 * GIB - 1, FundsLevel::Empty),
+            (3 * GIB, FundsLevel::Low),
+            (5 * GIB - 1, FundsLevel::Low),
+            (5 * GIB, FundsLevel::Sufficient),
+        ];
+        for (bytes, expected) in cases {
+            let b = balance(Some(vec![bytes]), None, XDAI_OK);
+            assert_eq!(funds_level(&mode, Some(&b)), expected, "bytes = {bytes}");
+        }
+    }
+
+    #[test]
+    fn traffic_counts_node_capacity_and_all_allocations() {
+        let mode = running(vec![]);
+        // 2 GiB in the safe + 1.5 GiB in a channel + 1.5 GiB on the node EOA = 5 GiB
+        let b = balance(Some(vec![2 * GIB, GIB + GIB / 2]), Some(GIB + GIB / 2), XDAI_OK);
+        assert_eq!(funds_level(&mode, Some(&b)), FundsLevel::Sufficient);
+    }
+
+    #[test]
+    fn balance_thresholds_override_stale_issues() {
+        // daemon still reports ChannelsOutOfFunds, but capacity says >= 5 GiB
+        let mode = running(vec![FundingIssue::ChannelsOutOfFunds]);
+        let b = balance(Some(vec![6 * GIB]), None, XDAI_OK);
+        assert_eq!(funds_level(&mode, Some(&b)), FundsLevel::Sufficient);
+    }
+
+    #[test]
+    fn gas_thresholds_on_node_xdai() {
+        let mode = running(vec![]);
+        let cases = [
+            ("2999999999999999", FundsLevel::Empty),
+            ("3000000000000000", FundsLevel::Low),
+            ("4999999999999999", FundsLevel::Low),
+            ("5000000000000000", FundsLevel::Sufficient),
+        ];
+        for (wei, expected) in cases {
+            let b = balance(Some(vec![6 * GIB]), None, wei);
+            assert_eq!(funds_level(&mode, Some(&b)), expected, "node = {wei}");
+        }
+    }
+
+    #[test]
+    fn worst_of_traffic_and_gas_wins() {
+        let mode = running(vec![]);
+        // plenty of traffic, no gas
+        let b = balance(Some(vec![6 * GIB]), None, "0");
+        assert_eq!(funds_level(&mode, Some(&b)), FundsLevel::Empty);
+        // plenty of gas, no traffic
+        let b = balance(Some(vec![0]), None, XDAI_OK);
+        assert_eq!(funds_level(&mode, Some(&b)), FundsLevel::Empty);
+    }
+
+    #[test]
+    fn missing_allocations_fall_back_to_issues_for_traffic() {
+        // balance polled but capacity allocations not yet computed by the daemon
+        let mode = running(vec![FundingIssue::SafeLowOnFunds]);
+        let b = balance(None, None, XDAI_OK);
+        assert_eq!(funds_level(&mode, Some(&b)), FundsLevel::Low);
     }
 
     #[test]
@@ -496,46 +660,46 @@ mod tests {
         let connecting = ConnectionState::Connecting("x".into());
         let disconnected = ConnectionState::Disconnected;
 
-        let sufficient = running(vec![]);
-        let low = running(vec![FundingIssue::NodeLowOnFunds]);
-        let empty = running(vec![FundingIssue::Unfunded]);
+        let sufficient = FundsLevel::Sufficient;
+        let low = FundsLevel::Low;
+        let empty = FundsLevel::Empty;
 
         assert_eq!(
-            determine_app_icon(&connected, &sufficient),
+            determine_app_icon(&connected, sufficient),
             APP_ICON_CONNECTED
         );
         assert_eq!(
-            determine_app_icon(&connected, &low),
+            determine_app_icon(&connected, low),
             APP_ICON_CONNECTED_LOW_FUNDS
         );
         assert_eq!(
-            determine_app_icon(&connected, &empty),
+            determine_app_icon(&connected, empty),
             APP_ICON_CONNECTED_OUT_OF_FUNDS
         );
 
         assert_eq!(
-            determine_app_icon(&connecting, &sufficient),
+            determine_app_icon(&connecting, sufficient),
             APP_ICON_CONNECTING_1
         );
         assert_eq!(
-            determine_app_icon(&connecting, &low),
+            determine_app_icon(&connecting, low),
             APP_ICON_CONNECTING_LOW_FUNDS_1
         );
         assert_eq!(
-            determine_app_icon(&connecting, &empty),
+            determine_app_icon(&connecting, empty),
             APP_ICON_CONNECTING_OUT_OF_FUNDS_1
         );
 
         assert_eq!(
-            determine_app_icon(&disconnected, &sufficient),
+            determine_app_icon(&disconnected, sufficient),
             APP_ICON_DISCONNECTED
         );
         assert_eq!(
-            determine_app_icon(&disconnected, &low),
+            determine_app_icon(&disconnected, low),
             APP_ICON_DISCONNECTED_LOW_FUNDS
         );
         assert_eq!(
-            determine_app_icon(&disconnected, &empty),
+            determine_app_icon(&disconnected, empty),
             APP_ICON_DISCONNECTED_OUT_OF_FUNDS
         );
     }

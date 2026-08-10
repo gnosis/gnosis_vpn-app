@@ -13,7 +13,8 @@ import FundsInfo from "../../components/FundsInfo.tsx";
 import { Show } from "solid-js";
 import {
   deriveNodeStatus,
-  deriveSafeStatus,
+  deriveOverallStatus,
+  deriveTrafficStatus,
   describeCriticalIssue,
 } from "../../utils/funding.ts";
 import {
@@ -45,14 +46,24 @@ export default function Usage() {
   const effectiveCredit = createMemo(() => {
     const b = appState.balance;
     if (!b) return null;
-    return computeEffectiveCredit(b.capacity_allocations ?? []);
+    return computeEffectiveCredit(b);
   });
 
   const totalWxhoprHopli = createMemo(() => {
     const b = appState.balance;
     if (!b?.capacity_allocations) return undefined;
-    return sumCapacityStake(b.capacity_allocations);
+    return sumCapacityStake(b);
   });
+
+  const trafficStatus = createMemo(() =>
+    deriveTrafficStatus(appState.balance, fundingIssues())
+  );
+  const gasStatus = createMemo(() =>
+    deriveNodeStatus(appState.balance, fundingIssues())
+  );
+  const overallStatus = createMemo(() =>
+    deriveOverallStatus(appState.balance, fundingIssues())
+  );
 
   const wxhoprRaw = () =>
     preparingSafe()?.node_wxhopr ?? totalWxhoprHopli() ?? 0n;
@@ -79,10 +90,6 @@ export default function Usage() {
     return diff > 0n ? diff : null;
   });
 
-  const criticalIssue = createMemo(() => fundingIssues()[0]);
-  const isCriticalLevel = createMemo(() =>
-    criticalIssue() === "Unfunded" || criticalIssue() === "ChannelsOutOfFunds"
-  );
 
   return (
     <div class="p-4 w-full flex flex-col gap-2 items-center">
@@ -108,11 +115,17 @@ export default function Usage() {
           </div>
         </Match>
         <Match when={isRunningRunMode(appState.runMode) || preparingSafe()}>
-          <Show when={describeCriticalIssue(fundingIssues())}>
+          {/* The daemon's issue text only shows while the thresholds agree
+              something is wrong — a funded Safe/EOA whose channels are still
+              being opened must not read as a red warning. */}
+          <Show
+            when={overallStatus() !== "Sufficient" &&
+              describeCriticalIssue(fundingIssues())}
+          >
             {(description) => (
               <div
                 class={`px-4 py-2 rounded-lg text-sm font-medium ${
-                  isCriticalLevel()
+                  overallStatus() === "Empty"
                     ? "bg-red-100 text-red-800"
                     : "bg-amber-100 text-amber-800"
                 }`}
@@ -142,7 +155,7 @@ export default function Usage() {
                   label="Traffic"
                   {...humanWxhoprParts(wxhoprRaw())}
                   tooltip={<>{wxhoprDecimal(wxhoprRaw())} wxHOPR</>}
-                  status={deriveSafeStatus(fundingIssues())}
+                  status={trafficStatus()}
                   subline={
                     // Explicit null check + assertion instead of Show's
                     // narrowing callback: credit can be 0n, which is falsy
@@ -155,7 +168,7 @@ export default function Usage() {
                       >
                         <span
                           class={`text-xs font-normal ${
-                            deriveSafeStatus(fundingIssues()) === "Empty"
+                            trafficStatus() === "Empty"
                               ? "text-vpn-red"
                               : "text-text-secondary"
                           }`}
@@ -171,7 +184,8 @@ export default function Usage() {
                   amount={humanXdai(xdaiRaw())}
                   unit="xDAI"
                   tooltip={<>{formatXdai(xdaiRaw(), 18)} xDAI</>}
-                  status={deriveNodeStatus(fundingIssues())}
+                  // A sufficient gas balance shows no label at all.
+                  status={gasStatus() === "Sufficient" ? undefined : gasStatus()}
                 />
               </div>
             </Show>

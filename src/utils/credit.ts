@@ -1,7 +1,7 @@
-import type { CapacityEntry } from "@src/services/vpnService.ts";
+import type { BalanceResponse } from "@src/services/vpnService.ts";
 
 const BYTES_PER_MB = 1_048_576n;
-const BYTES_PER_GB = BYTES_PER_MB * 1024n;
+export const BYTES_PER_GB = BYTES_PER_MB * 1024n;
 const BYTES_PER_TB = BYTES_PER_GB * 1024n;
 
 function withThousandsSep(intStr: string): string {
@@ -35,15 +35,23 @@ export function formatCredit(creditBytes: bigint): string {
   return formatCreditUnit(creditBytes, BYTES_PER_MB, 0, "MB");
 }
 
-/** Sum byte_capacity across all capacity allocations. */
-export function computeEffectiveCredit(entries: CapacityEntry[]): bigint {
-  return entries.reduce(
+/** Sum byte_capacity across all capacity allocations plus the node EOA. */
+export function computeEffectiveCredit(balance: BalanceResponse): bigint {
+  const node = balance.node_capacity
+    ? BigInt(balance.node_capacity.byte_capacity)
+    : 0n;
+  return (balance.capacity_allocations ?? []).reduce(
     (sum, e) => sum + BigInt(e.capacity.byte_capacity),
-    0n,
+    node,
   );
 }
 
-/** Sum stake across all capacity allocations (Safe + Peer = total wxHOPR in wxHopli). */
-export function sumCapacityStake(entries: CapacityEntry[]): bigint {
-  return entries.reduce((sum, e) => sum + e.capacity.stake, 0n);
+/** Sum stake across all capacity allocations plus the node EOA
+ * (Safe + Peer + EOA = total wxHOPR in wxHopli). */
+export function sumCapacityStake(balance: BalanceResponse): bigint {
+  const node = balance.node_capacity?.stake ?? 0n;
+  return (balance.capacity_allocations ?? []).reduce(
+    (sum, e) => sum + e.capacity.stake,
+    node,
+  );
 }

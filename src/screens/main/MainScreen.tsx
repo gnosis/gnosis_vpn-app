@@ -38,7 +38,9 @@ export function MainScreen() {
       ? (appState.runMode.Running.funding_issues ?? [])
       : []
   );
-  const balanceStatus = createMemo(() => deriveOverallStatus(fundingIssues()));
+  const balanceStatus = createMemo(() =>
+    deriveOverallStatus(appState.balance, fundingIssues())
+  );
   // Reset dismissal when balance recovers so the next drop resurfaces the banner.
   createEffect(() => {
     if (balanceStatus() === "Sufficient") setDismissedBalanceStatus(null);

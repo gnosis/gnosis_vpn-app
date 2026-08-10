@@ -58,6 +58,17 @@ pub struct TauriCapacity {
     pub byte_capacity: u64,
 }
 
+impl From<balance::Capacity> for TauriCapacity {
+    fn from(c: balance::Capacity) -> Self {
+        TauriCapacity {
+            stake: c.stake.amount().to_string(),
+            expected_messages: c.expected_messages,
+            min_guaranteed_messages: c.min_guaranteed_messages,
+            byte_capacity: c.byte_capacity,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize)]
 pub struct TauriCapacityEntry {
     pub allocator: balance::CapacityAllocator,
@@ -73,6 +84,8 @@ pub struct BalanceResponse {
     pub funding_issues: Option<Vec<balance::FundingIssue>>,
     pub ideal_balance: Option<TauriBalanceRecommendation>,
     pub capacity_allocations: Option<Vec<TauriCapacityEntry>>,
+    // wxHOPR on the node EOA, deposited but not yet swept into the Safe.
+    pub node_capacity: Option<TauriCapacity>,
 }
 
 // RunMode merges the library's Init+Warmup variants and flattens two optional
@@ -183,7 +196,8 @@ impl From<command::RunMode> for RunMode {
                 node_wxhopr: node_wxhopr.amount().to_string(),
                 funding_tool,
                 error,
-                balance_recommendation: balance_recommendation.map(Into::into),
+                // boxed in the lib since v0.94 to keep the RunMode enum small
+                balance_recommendation: balance_recommendation.map(|r| (*r).into()),
             },
             command::RunMode::DeployingSafe { node_address } => RunMode::DeployingSafe {
                 node_address: node_address.to_checksum(),
@@ -231,12 +245,7 @@ impl From<command::BalanceResponse> for BalanceResponse {
                 .into_iter()
                 .map(|e| TauriCapacityEntry {
                     allocator: e.allocator,
-                    capacity: TauriCapacity {
-                        stake: e.capacity.stake.amount().to_string(),
-                        expected_messages: e.capacity.expected_messages,
-                        min_guaranteed_messages: e.capacity.min_guaranteed_messages,
-                        byte_capacity: e.capacity.byte_capacity,
-                    },
+                    capacity: e.capacity.into(),
                 })
                 .collect()
         });
@@ -248,6 +257,7 @@ impl From<command::BalanceResponse> for BalanceResponse {
             funding_issues: br.funding_issues,
             ideal_balance: br.ideal_balance.map(Into::into),
             capacity_allocations,
+            node_capacity: br.node_capacity.map(Into::into),
         }
     }
 }

@@ -4,7 +4,7 @@ import { isRunningRunMode } from "@src/services/vpnService.ts";
 import { humanWxhopr, humanXdai } from "@src/utils/hopli.ts";
 import {
   deriveNodeStatus,
-  deriveSafeStatus,
+  deriveTrafficStatus,
   type StatusText,
 } from "@src/utils/funding.ts";
 import {
@@ -46,14 +46,21 @@ export default function BalancePopup(props: Props) {
   const effectiveCredit = createMemo(() => {
     const b = appState.balance;
     if (!b) return null;
-    return computeEffectiveCredit(b.capacity_allocations ?? []);
+    return computeEffectiveCredit(b);
   });
 
   const totalWxhopr = createMemo(() => {
     const b = appState.balance;
     if (!b?.capacity_allocations) return 0n;
-    return sumCapacityStake(b.capacity_allocations);
+    return sumCapacityStake(b);
   });
+
+  const trafficStatus = createMemo(() =>
+    deriveTrafficStatus(appState.balance, fundingIssues())
+  );
+  const gasStatus = createMemo(() =>
+    deriveNodeStatus(appState.balance, fundingIssues())
+  );
 
   return (
     <Show
@@ -92,7 +99,7 @@ export default function BalancePopup(props: Props) {
 
             <div class="mb-2">
               <div class="flex items-center gap-1 mb-0.5">
-                <StatusDot status={deriveSafeStatus(fundingIssues())} />
+                <StatusDot status={trafficStatus()} />
                 <div class="text-[9px] text-accent-text/70 uppercase tracking-wide">
                   TRAFFIC
                 </div>
@@ -105,9 +112,7 @@ export default function BalancePopup(props: Props) {
               >
                 <div
                   class={`text-sm font-bold font-mono text-right ${
-                    deriveSafeStatus(fundingIssues()) === "Empty"
-                      ? "text-red-500"
-                      : ""
+                    trafficStatus() === "Empty" ? "text-red-500" : ""
                   }`}
                 >
                   {humanWxhopr(totalWxhopr())}
@@ -122,7 +127,7 @@ export default function BalancePopup(props: Props) {
 
             <div>
               <div class="flex items-center gap-1 mb-0.5">
-                <StatusDot status={deriveNodeStatus(fundingIssues())} />
+                <StatusDot status={gasStatus()} />
                 <div class="text-[9px] text-accent-text/70 uppercase tracking-wide">
                   GAS FEES
                 </div>

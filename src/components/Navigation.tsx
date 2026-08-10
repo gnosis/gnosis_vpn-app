@@ -21,11 +21,12 @@ function Navigation() {
   let containerRef: HTMLDivElement | undefined;
   let hoverTimeout: ReturnType<typeof globalThis.setTimeout> | undefined;
 
-  // Icon reflects the worst of Safe (traffic) and Node (gas) status,
-  // matching the two status dots in the balance popup.
+  // Icon reflects the worst of traffic and gas status, matching the two
+  // status dots in the balance popup.
   const getFundsIcon = () => {
     if (!isRunningRunMode(appState.runMode)) return fundsEmptyIcon;
     const status = deriveOverallStatus(
+      appState.balance,
       appState.runMode.Running.funding_issues ?? [],
     );
     if (status === "Empty") return fundsEmptyIcon;

@@ -1,25 +1,72 @@
-import type { FundingIssue } from "@src/services/vpnService.ts";
+import type {
+  BalanceResponse,
+  FundingIssue,
+} from "@src/services/vpnService.ts";
+import { BYTES_PER_GB, computeEffectiveCredit } from "@src/utils/credit.ts";
 
 export type StatusText = "Sufficient" | "Low" | "Empty" | string;
 
 /**
- * Global funding state priority (highest to lowest):
+ * Funding status is derived from hard thresholds on the balance response, not
+ * from the daemon's funding issues — those only reflect channel/Safe message
+ * capacity and read "empty" while funds sit in the Safe or on the node EOA.
  *
- * Critical (Cannot Work):
- *   1. Unfunded           - Initial state, nothing funded
- *   2. ChannelsOutOfFunds - No traffic possible
- *                           Affects BOTH Safe & EOA: Safe empty (no wxHOPR) OR EOA empty (can't pay for chain ops)
+ * Traffic (total byte capacity: Safe + channels + node EOA):
+ *   <  3 GB -> Empty
+ *   <  5 GB -> Low
+ *   >= 5 GB -> Sufficient
  *
- * Warning (Degraded):
- *   3. SafeOutOfFunds     - Cannot top up channels (< 10 wxHOPR in Safe)
- *   4. NodeUnderfunded    - Cannot open/top up channels (< 0.0075 xDai)
+ * Gas (node xDAI):
+ *   <  0.003 xDAI -> Empty
+ *   <  0.005 xDAI -> Low
+ *   >= 0.005 xDAI -> Sufficient (the Gas Fees row renders no label for it)
  *
- * Low (Preventive):
- *   5. SafeLowOnFunds     - Warning before SafeOutOfFunds
- *   6. NodeLowOnFunds     - Warning before NodeUnderfunded
+ * The daemon's funding issues remain as fallback until the first balance
+ * response arrives.
+ *
+ * Keep thresholds in sync with src-tauri/src/icons.rs (tray icon).
  */
 
-export function deriveSafeStatus(issues: FundingIssue[]): StatusText {
+export const TRAFFIC_EMPTY_BELOW = 3n * BYTES_PER_GB;
+export const TRAFFIC_LOW_BELOW = 5n * BYTES_PER_GB;
+// 0.003 / 0.005 xDAI in wei
+export const XDAI_EMPTY_BELOW = 3_000_000_000_000_000n;
+export const XDAI_LOW_BELOW = 5_000_000_000_000_000n;
+
+export function deriveTrafficStatus(
+  balance: BalanceResponse | null,
+  issues: FundingIssue[],
+): StatusText {
+  if (!balance?.capacity_allocations) return trafficStatusFromIssues(issues);
+  const totalBytes = computeEffectiveCredit(balance);
+  if (totalBytes < TRAFFIC_EMPTY_BELOW) return "Empty";
+  if (totalBytes < TRAFFIC_LOW_BELOW) return "Low";
+  return "Sufficient";
+}
+
+export function deriveNodeStatus(
+  balance: BalanceResponse | null,
+  issues: FundingIssue[],
+): StatusText {
+  if (!balance) return nodeStatusFromIssues(issues);
+  if (balance.node < XDAI_EMPTY_BELOW) return "Empty";
+  if (balance.node < XDAI_LOW_BELOW) return "Low";
+  return "Sufficient";
+}
+
+// Worst of traffic and gas status — the wallet icon must flag either problem.
+export function deriveOverallStatus(
+  balance: BalanceResponse | null,
+  issues: FundingIssue[],
+): StatusText {
+  const traffic = deriveTrafficStatus(balance, issues);
+  const gas = deriveNodeStatus(balance, issues);
+  if (traffic === "Empty" || gas === "Empty") return "Empty";
+  if (traffic === "Low" || gas === "Low") return "Low";
+  return "Sufficient";
+}
+
+function trafficStatusFromIssues(issues: FundingIssue[]): StatusText {
   if (
     issues.includes("Unfunded") ||
     issues.includes("ChannelsOutOfFunds") ||
@@ -29,21 +76,10 @@ export function deriveSafeStatus(issues: FundingIssue[]): StatusText {
   return "Sufficient";
 }
 
-// Worst of Safe and Node status — the wallet icon must flag either problem.
-export function deriveOverallStatus(issues: FundingIssue[]): StatusText {
-  const safe = deriveSafeStatus(issues);
-  const node = deriveNodeStatus(issues);
-  if (safe === "Empty" || node === "Empty") return "Empty";
-  if (safe === "Low" || node === "Low") return "Low";
-  return "Sufficient";
-}
-
-export function deriveNodeStatus(issues: FundingIssue[]): StatusText {
-  if (
-    issues.includes("Unfunded") ||
-    issues.includes("ChannelsOutOfFunds") ||
-    issues.includes("NodeUnderfunded")
-  ) return "Empty";
+function nodeStatusFromIssues(issues: FundingIssue[]): StatusText {
+  if (issues.includes("Unfunded") || issues.includes("NodeUnderfunded")) {
+    return "Empty";
+  }
   if (issues.includes("NodeLowOnFunds")) return "Low";
   return "Sufficient";
 }
