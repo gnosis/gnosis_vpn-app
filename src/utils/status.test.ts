@@ -1,10 +1,17 @@
 import { describe, expect, it } from "vitest";
-import type { StatusResponse } from "@src/services/vpnService.ts";
+import type {
+  BalanceRecommendation,
+  PreparingSafe,
+  StatusResponse,
+} from "@src/services/vpnService.ts";
+import type { AppState } from "@src/stores/appStore.ts";
 import {
   isConnected,
   isConnecting,
   isDisconnected,
   isDisconnecting,
+  isWxHOPRTransferred,
+  isXDAITransferred,
 } from "./status.ts";
 
 const BASE: StatusResponse = {
@@ -28,6 +35,50 @@ const DISCONNECTING_INFO = {
   since: 0,
   phase: "Disconnecting" as const,
 };
+
+const BASE_APP_STATE: AppState = {
+  currentScreen: "initialization" as AppState["currentScreen"],
+  serviceInfo: null,
+  availableDestinations: [],
+  destinations: {},
+  connected: null,
+  connecting: null,
+  reconnecting: null,
+  disconnecting: [],
+  isLoading: false,
+  destination: null,
+  selectedId: null,
+  runMode: null,
+  vpnStatus: "ServiceUnavailable",
+  warmupStatus: "",
+  syncProgress: 0,
+  syncRecoveryDeadline: null,
+  isUpdateAvailable: false,
+  availableVersion: null,
+  targetDestination: null,
+  balance: null,
+};
+
+const BALANCE_RECOMMENDATION: BalanceRecommendation = {
+  wxhopr: 100n,
+  xdai: 50n,
+};
+
+const PREPARING_SAFE: PreparingSafe = {
+  node_address: "0xnode",
+  node_xdai: 0n,
+  node_wxhopr: 0n,
+  funding_tool: null,
+  error: null,
+  balance_recommendation: BALANCE_RECOMMENDATION,
+};
+
+function appStateWithPreparingSafe(preparingSafe: PreparingSafe): AppState {
+  return {
+    ...BASE_APP_STATE,
+    runMode: { PreparingSafe: preparingSafe },
+  };
+}
 
 describe("isConnected", () => {
   it("returns true when connected info is present", () => {
@@ -96,5 +147,83 @@ describe("isDisconnected", () => {
     expect(isDisconnected({ ...BASE, reconnecting: CONNECTING_INFO })).toBe(
       false,
     );
+  });
+});
+
+describe("isXDAITransferred", () => {
+  it("returns false when not in PreparingSafe run mode", () => {
+    expect(isXDAITransferred(BASE_APP_STATE)).toBe(false);
+  });
+
+  it("returns false when balance_recommendation is null", () => {
+    const state = appStateWithPreparingSafe({
+      ...PREPARING_SAFE,
+      node_xdai: 1_000n,
+      balance_recommendation: null,
+    });
+    expect(isXDAITransferred(state)).toBe(false);
+  });
+
+  it("returns false when node_xdai is below the recommendation", () => {
+    const state = appStateWithPreparingSafe({
+      ...PREPARING_SAFE,
+      node_xdai: BALANCE_RECOMMENDATION.xdai - 1n,
+    });
+    expect(isXDAITransferred(state)).toBe(false);
+  });
+
+  it("returns true when node_xdai meets the recommendation", () => {
+    const state = appStateWithPreparingSafe({
+      ...PREPARING_SAFE,
+      node_xdai: BALANCE_RECOMMENDATION.xdai,
+    });
+    expect(isXDAITransferred(state)).toBe(true);
+  });
+
+  it("returns true when node_xdai exceeds the recommendation", () => {
+    const state = appStateWithPreparingSafe({
+      ...PREPARING_SAFE,
+      node_xdai: BALANCE_RECOMMENDATION.xdai + 1n,
+    });
+    expect(isXDAITransferred(state)).toBe(true);
+  });
+});
+
+describe("isWxHOPRTransferred", () => {
+  it("returns false when not in PreparingSafe run mode", () => {
+    expect(isWxHOPRTransferred(BASE_APP_STATE)).toBe(false);
+  });
+
+  it("returns false when balance_recommendation is null", () => {
+    const state = appStateWithPreparingSafe({
+      ...PREPARING_SAFE,
+      node_wxhopr: 1_000n,
+      balance_recommendation: null,
+    });
+    expect(isWxHOPRTransferred(state)).toBe(false);
+  });
+
+  it("returns false when node_wxhopr is below the recommendation", () => {
+    const state = appStateWithPreparingSafe({
+      ...PREPARING_SAFE,
+      node_wxhopr: BALANCE_RECOMMENDATION.wxhopr - 1n,
+    });
+    expect(isWxHOPRTransferred(state)).toBe(false);
+  });
+
+  it("returns true when node_wxhopr meets the recommendation", () => {
+    const state = appStateWithPreparingSafe({
+      ...PREPARING_SAFE,
+      node_wxhopr: BALANCE_RECOMMENDATION.wxhopr,
+    });
+    expect(isWxHOPRTransferred(state)).toBe(true);
+  });
+
+  it("returns true when node_wxhopr exceeds the recommendation", () => {
+    const state = appStateWithPreparingSafe({
+      ...PREPARING_SAFE,
+      node_wxhopr: BALANCE_RECOMMENDATION.wxhopr + 1n,
+    });
+    expect(isWxHOPRTransferred(state)).toBe(true);
   });
 });
