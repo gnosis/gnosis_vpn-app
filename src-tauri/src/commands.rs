@@ -22,7 +22,7 @@ use crate::{AppStateCache, BalancePollingHandle, PollingExit, StatusPollingHandl
 
 /// Semver requirements for compatible gnosis_vpn-client service versions,
 /// e.g. "0.93" (any 0.93.x) or ">=0.93.0" (0.93.0 and all later versions).
-const COMPATIBLE_VERSIONS: &[&str] = &["0.93"];
+const COMPATIBLE_VERSIONS: &[&str] = &[">=0.94.0"];
 
 fn is_version_compatible(version: &str) -> bool {
     let Ok(version) = semver::Version::parse(version.trim()) else {
