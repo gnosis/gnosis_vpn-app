@@ -20,12 +20,19 @@ use crate::tray;
 use crate::types::{BalanceResponse, ConnectionState, StatusResponse};
 use crate::{AppStateCache, BalancePollingHandle, PollingExit, StatusPollingHandle};
 
+/// Semver requirements for compatible daemon versions, e.g. "0.93" (any 0.93.x)
+/// or ">=0.93.0" (0.93.0 and all later versions).
 const COMPATIBLE_VERSIONS: &[&str] = &["0.93"];
 
 fn is_version_compatible(version: &str) -> bool {
-    COMPATIBLE_VERSIONS
-        .iter()
-        .any(|c| version.trim().starts_with(c))
+    let Ok(version) = semver::Version::parse(version.trim()) else {
+        return false;
+    };
+    COMPATIBLE_VERSIONS.iter().any(|req| {
+        semver::VersionReq::parse(req)
+            .map(|req| req.matches(&version))
+            .unwrap_or(false)
+    })
 }
 
 /// OS name for the frontend ("macos", "linux", …) — it has no runtime
@@ -595,4 +602,41 @@ fn pick_startup_target(
         })
         .min_by_key(|(ms, _)| *ms)
         .map(|(_, id)| id)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // The list is rewritten by the bump-version workflow; a malformed entry
+    // would otherwise only surface as a silent runtime mismatch.
+    #[test]
+    fn compatible_versions_are_valid_semver_requirements() {
+        for req in COMPATIBLE_VERSIONS {
+            assert!(
+                semver::VersionReq::parse(req).is_ok(),
+                "invalid semver requirement in COMPATIBLE_VERSIONS: {req}"
+            );
+        }
+    }
+
+    #[test]
+    fn plain_requirement_matches_its_minor_series() {
+        assert!(is_version_compatible("0.93.0"));
+        assert!(is_version_compatible(" 0.93.5 "));
+        assert!(!is_version_compatible("0.92.9"));
+        assert!(!is_version_compatible("0.94.0"));
+        assert!(!is_version_compatible("0.930.0"));
+        assert!(!is_version_compatible("not-a-version"));
+        assert!(!is_version_compatible(""));
+    }
+
+    #[test]
+    fn minimum_requirement_matches_all_later_versions() {
+        let min = semver::VersionReq::parse(">=0.93.0").unwrap();
+        for version in ["0.93.0", "0.93.7", "0.94.0", "1.2.3"] {
+            assert!(min.matches(&semver::Version::parse(version).unwrap()));
+        }
+        assert!(!min.matches(&semver::Version::parse("0.92.9").unwrap()));
+    }
 }
