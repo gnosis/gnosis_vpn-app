@@ -15,10 +15,10 @@ import type {
 import { resolveAutoDestination } from "@src/utils/destinations.ts";
 import { isReadyToConnect } from "@src/utils/exitHealth.ts";
 
-// How long a better auto-candidate is held pending before it settles.
+// How long a better auto-candidate is held pending before it settles; also
+// the flat, unconditional deadline for any `selected`-phase entry to revert
+// back to `auto` (see docs/destination-mode.md).
 export const SWITCH_COUNTDOWN_MS = 5_000;
-// Grace period after a manual exit-node-list pick before it unconditionally
-// reverts to auto, regardless of whether it still matches the auto pick.
 export const SELECTED_AUTO_REVERT_MS = 10_000;
 // Total duration of the (UI-owned) slide animation once a switch starts.
 export const SWITCH_ANIMATE_MS = 1_000;
@@ -27,6 +27,13 @@ export const SWITCH_ANIMATE_MS = 1_000;
 // unambiguously "current" on screen; this is deliberately a fixed constant
 // rather than a live DOM/pixel measurement. See docs/destination-mode.md.
 export const SWITCH_CROSSOVER_MS = 500;
+
+export type DestinationOrigin = "auto" | "user";
+
+export interface DestinationEntry {
+  id: string;
+  origin: DestinationOrigin;
+}
 
 export interface AutoPending {
   candidateId: string;
@@ -37,10 +44,31 @@ export interface AutoPending {
   settleAt: number;
 }
 
-export type DestinationMode =
-  | { kind: "auto"; current: string | null; pending: AutoPending | null }
-  | { kind: "selected"; id: string; autoRevertAt: number | null }
-  | { kind: "active"; id: string };
+// The history banner's list IS the model — each phase carries the fields
+// meaningful to it instead of one flat shape full of "only meaningful when
+// ..." nullables. `activeId` is never null past `uninitialized`; a
+// `selected` entry always has its revert deadline (the flat 10s timer is
+// unconditional, however the entry was reached). The one fact that's
+// genuinely optional is whether `auto` currently has a pending candidate.
+export type DestinationModel =
+  | { phase: "uninitialized" }
+  | {
+    phase: "auto";
+    entries: DestinationEntry[];
+    activeId: string;
+    pending: AutoPending | null;
+  }
+  | {
+    phase: "selected";
+    entries: DestinationEntry[];
+    activeId: string;
+    autoRevertAt: number;
+  }
+  | {
+    phase: "connecting";
+    entries: DestinationEntry[];
+    activeId: string;
+  };
 
 /** The slice of AppState this store reacts to — kept minimal so it can be
  * driven by lightweight fakes in tests instead of the full app store. */
@@ -58,33 +86,30 @@ export interface ModeSettingsState {
   lastConnectedDestination: string | null;
 }
 
-/** UI-driven input: pauses the auto candidate-detection loop (rules 5-8)
- * while the user has scrolled the carousel away from the latest card, so
- * nothing changes underneath them. Everything else (startup, connecting/
- * disconnecting, the `selected` auto-revert) ignores this. */
-export interface ModeUiState {
-  viewingLatest: boolean;
-}
-
-type DestinationModeActions = {
-  selectDestination: (id: string) => void;
+type DestinationModelActions = {
+  // Scrolling the banner to a card already in `entries` (rule 10). A no-op
+  // for unknown ids and while `connecting` — a live connection is only ever
+  // retargeted through a real connect() call, reflected back via rule 12.
+  setActiveEntry: (id: string) => void;
+  // Picking a destination from the vertical ExitNodeList — any known
+  // destination, not just one already in the banner (rules 9 & 14).
+  pickDestination: (id: string) => void;
 };
 
 type DestinationModeStoreTuple = readonly [
-  SolidStore<DestinationMode>,
-  DestinationModeActions,
+  SolidStore<DestinationModel>,
+  DestinationModelActions,
 ];
 
-function initialMode(): DestinationMode {
-  return { kind: "auto", current: null, pending: null };
+function initialModel(): DestinationModel {
+  return { phase: "uninitialized" };
 }
 
 export function createDestinationMode(
   appState: ModeAppState,
   settings: ModeSettingsState,
-  ui: ModeUiState,
 ): DestinationModeStoreTuple {
-  const [mode, setMode] = createStore<DestinationMode>(initialMode());
+  const [mode, setMode] = createStore<DestinationModel>(initialModel());
 
   // Fires at most once per app run (this store's lifetime) — see
   // docs/destination-mode.md's promotion rule. Not part of the exposed
@@ -93,13 +118,9 @@ export function createDestinationMode(
   // Gates the one-time startup decision (rules 2-4) so it only ever runs
   // before the first real destinations batch has been resolved into a mode.
   let startupDecided = false;
-  // Remembered so `active -> selected` (rule 15) still knows which
-  // destination to land on even once `disconnecting` itself clears out.
+  // Remembered so `connecting -> selected` (rule 15) still knows which
+  // destination to land on even once the backend fields themselves clear.
   let lastActiveId: string | null = null;
-  // True only while the current `selected` mode came from a manual
-  // selectDestination() call — gates which of the two revert mechanisms
-  // below (unconditional grace timer vs. matches-best-pick) applies.
-  let selectedManually = false;
 
   let pendingTimeout: ReturnType<typeof setTimeout> | undefined;
   const clearPendingTimer = () => {
@@ -124,25 +145,54 @@ export function createDestinationMode(
       settings.preferredLocation,
     )?.id ?? null;
 
+  // The one place a `selected` phase gets constructed — every path in
+  // (startup, promotion, a pick, post-disconnect) always starts the same
+  // unconditional flat-10s revert; the type only allows building `selected`
+  // with a deadline attached, so there's no way to forget it here.
+  const startSelected = (entries: DestinationEntry[], activeId: string) => {
+    clearPendingTimer();
+    clearRevertTimer();
+    const autoRevertAt = Date.now() + SELECTED_AUTO_REVERT_MS;
+    setMode(reconcile({ phase: "selected", entries, activeId, autoRevertAt }));
+    revertTimeout = setTimeout(() => {
+      revertTimeout = undefined;
+      if (mode.phase !== "selected") return;
+      setMode(
+        reconcile({
+          phase: "auto",
+          entries: mode.entries,
+          activeId: mode.activeId,
+          pending: null,
+        }),
+      );
+    }, SELECTED_AUTO_REVERT_MS);
+  };
+
   const commitCandidate = (candidateId: string) => {
     pendingTimeout = undefined;
+    if (mode.phase !== "auto") return;
+    const { entries } = mode;
     if (
       candidateId === settings.preferredLocation && !preferredPromotionUsed
     ) {
       preferredPromotionUsed = true;
-      selectedManually = false;
-      setMode(
-        reconcile({ kind: "selected", id: candidateId, autoRevertAt: null }),
-      );
+      startSelected(entries, candidateId);
       return;
     }
-    setMode(reconcile({ kind: "auto", current: candidateId, pending: null }));
+    setMode(
+      reconcile({
+        phase: "auto",
+        entries,
+        activeId: candidateId,
+        pending: null,
+      }),
+    );
   };
 
-  // Rules 1-4 (startup) and 14-15 (connecting/disconnecting) — the backend's
+  // Rules 1-4 (startup) and 12/15 (connecting/disconnecting) — the backend's
   // connected/connecting/reconnecting fields always take priority over
-  // anything else, and losing them always lands on `selected`, ignoring any
-  // lingering `disconnecting` entries (no waiting on teardown).
+  // anything else, and losing them always lands on `selected`, with no
+  // interstitial "disconnecting" mode to wait on.
   createEffect(() => {
     const liveId = appState.connected?.destination_id ??
       appState.connecting?.destination_id ??
@@ -152,23 +202,22 @@ export function createDestinationMode(
     if (liveId !== null) {
       startupDecided = true;
       lastActiveId = liveId;
-      if (mode.kind !== "active" || mode.id !== liveId) {
+      if (mode.phase !== "connecting" || mode.activeId !== liveId) {
         clearPendingTimer();
         clearRevertTimer();
-        setMode(reconcile({ kind: "active", id: liveId }));
+        const existingEntries = mode.phase === "uninitialized"
+          ? []
+          : mode.entries;
+        const entries = existingEntries.some((e) => e.id === liveId)
+          ? existingEntries
+          : [...existingEntries, { id: liveId, origin: "auto" as const }];
+        setMode(reconcile({ phase: "connecting", entries, activeId: liveId }));
       }
       return;
     }
 
-    if (mode.kind === "active") {
-      selectedManually = false;
-      setMode(
-        reconcile({
-          kind: "selected",
-          id: lastActiveId ?? mode.id,
-          autoRevertAt: null,
-        }),
-      );
+    if (mode.phase === "connecting") {
+      startSelected(mode.entries, lastActiveId ?? mode.activeId);
       return;
     }
 
@@ -183,10 +232,7 @@ export function createDestinationMode(
     if (preferredId !== null && preferredReady) {
       startupDecided = true;
       preferredPromotionUsed = true;
-      selectedManually = false;
-      setMode(
-        reconcile({ kind: "selected", id: preferredId, autoRevertAt: null }),
-      );
+      startSelected([{ id: preferredId, origin: "auto" }], preferredId);
       return;
     }
 
@@ -195,59 +241,66 @@ export function createDestinationMode(
       appState.destinations[persistedId] !== undefined;
     if (persistedId !== null && persistedKnown) {
       startupDecided = true;
-      selectedManually = false;
-      setMode(
-        reconcile({ kind: "selected", id: persistedId, autoRevertAt: null }),
-      );
+      startSelected([{ id: persistedId, origin: "auto" }], persistedId);
       return;
     }
 
+    const initialId = bestCandidateId();
+    if (initialId === null) return;
     startupDecided = true;
     setMode(
-      reconcile({ kind: "auto", current: bestCandidateId(), pending: null }),
+      reconcile({
+        phase: "auto",
+        entries: [{ id: initialId, origin: "auto" }],
+        activeId: initialId,
+        pending: null,
+      }),
     );
   });
 
   // Rules 5-8 — the auto candidate-detection loop. Only active while
-  // `mode.kind === "auto"` and the carousel is showing its latest card; runs
-  // forever, never exits itself except through commitCandidate's
-  // preferred-promotion branch above.
+  // `mode.phase === "auto"`; runs forever, never exits itself except through
+  // commitCandidate's preferred-promotion branch above.
   createEffect(() => {
-    if (mode.kind !== "auto") {
+    if (mode.phase !== "auto") {
       clearPendingTimer();
-      return;
-    }
-    // Unlike leaving "auto" entirely (whoever changes `kind` already
-    // installs a fresh object with no `pending`), freezing here is the only
-    // thing that would otherwise leave a stale, timer-less `pending` behind.
-    if (!ui.viewingLatest) {
-      clearPendingTimer();
-      if (mode.pending !== null) {
-        setMode(
-          reconcile({ kind: "auto", current: mode.current, pending: null }),
-        );
-      }
       return;
     }
     const candidateId = bestCandidateId();
-    const { current, pending } = mode;
+    const { activeId, pending, entries } = mode;
 
-    if (candidateId === null || candidateId === current) {
+    if (candidateId === null || candidateId === activeId) {
       if (pending !== null) {
         clearPendingTimer();
-        setMode(reconcile({ kind: "auto", current, pending: null }));
+        setMode(
+          reconcile({
+            phase: "auto",
+            entries: entries.filter((e) => e.id !== pending.candidateId),
+            activeId,
+            pending: null,
+          }),
+        );
       }
       return;
     }
     if (pending?.candidateId === candidateId) return;
 
     clearPendingTimer();
+    // A different candidate supersedes an earlier one that never settled —
+    // drop its speculative entry rather than leaving it stranded.
+    const withoutStalePending = pending
+      ? entries.filter((e) => e.id !== pending.candidateId)
+      : entries;
+    const nextEntries = withoutStalePending.some((e) => e.id === candidateId)
+      ? withoutStalePending
+      : [...withoutStalePending, { id: candidateId, origin: "auto" as const }];
     const countdownEndsAt = Date.now() + SWITCH_COUNTDOWN_MS;
     const settleAt = countdownEndsAt + SWITCH_CROSSOVER_MS;
     setMode(
       reconcile({
-        kind: "auto",
-        current,
+        phase: "auto",
+        entries: nextEntries,
+        activeId,
         pending: { candidateId, countdownEndsAt, settleAt },
       }),
     );
@@ -257,136 +310,87 @@ export function createDestinationMode(
     );
   });
 
-  // Rules 12-13 — the one auto-behavior allowed while `selected` via a
-  // non-manual path (preferred promotion, startup, post-disconnect): if the
-  // selected id keeps matching auto's current best for a sustained 5s,
-  // revert to auto instead of staying sticky. Manual picks instead run their
-  // own unconditional grace timer, managed directly in selectDestination
-  // below — this effect leaves those alone.
+  // Rule 16 — a `selected` (not `connecting`) entry that stops being
+  // ready-to-connect drops back into `auto`; the effect above then picks up
+  // immediately (same reactive flush) and starts its normal candidate-pending
+  // sequence toward the best remaining destination. Skips ids we have no
+  // data for at all — an unconfirmed pick isn't the same as a known-bad one.
   createEffect(() => {
-    if (mode.kind !== "selected") {
-      clearRevertTimer();
-      return;
-    }
-    if (selectedManually) return;
-    const { id, autoRevertAt } = mode;
-    const matchesBest = bestCandidateId() === id;
-
-    if (!matchesBest) {
-      if (autoRevertAt !== null) {
-        clearRevertTimer();
-        setMode(reconcile({ kind: "selected", id, autoRevertAt: null }));
-      }
-      return;
-    }
-    if (autoRevertAt !== null) return;
-
+    if (mode.phase !== "selected") return;
+    const destInfo = appState.destinations[mode.activeId];
+    if (destInfo === undefined) return;
+    if (isReadyToConnect(destInfo.route_health ?? undefined)) return;
     clearRevertTimer();
-    const revertAt = Date.now() + SWITCH_COUNTDOWN_MS;
-    setMode(reconcile({ kind: "selected", id, autoRevertAt: revertAt }));
-    revertTimeout = setTimeout(() => {
-      revertTimeout = undefined;
-      setMode(reconcile({ kind: "auto", current: id, pending: null }));
-    }, SWITCH_COUNTDOWN_MS);
+    setMode(
+      reconcile({
+        phase: "auto",
+        entries: mode.entries,
+        activeId: mode.activeId,
+        pending: null,
+      }),
+    );
   });
 
-  const actions: DestinationModeActions = {
-    // Rules 9-11: a manual pick unconditionally reverts to auto after
-    // SELECTED_AUTO_REVERT_MS, regardless of whether it still matches the
-    // auto pick — re-picking (even the same id) restarts the grace timer.
-    selectDestination: (id) => {
-      if (mode.kind === "active") return;
-      clearPendingTimer();
-      clearRevertTimer();
-      selectedManually = true;
-      const autoRevertAt = Date.now() + SELECTED_AUTO_REVERT_MS;
-      setMode(reconcile({ kind: "selected", id, autoRevertAt }));
-      revertTimeout = setTimeout(() => {
-        revertTimeout = undefined;
-        selectedManually = false;
-        setMode(reconcile({ kind: "auto", current: id, pending: null }));
-      }, SELECTED_AUTO_REVERT_MS);
+  const actions: DestinationModelActions = {
+    setActiveEntry: (id) => {
+      if (mode.phase === "uninitialized" || mode.phase === "connecting") {
+        return;
+      }
+      if (!mode.entries.some((e) => e.id === id)) return;
+      const entries = mode.phase === "auto" && mode.pending &&
+          mode.pending.candidateId !== id
+        ? mode.entries.filter((e) => e.id !== mode.pending!.candidateId)
+        : mode.entries;
+      startSelected(entries, id);
+    },
+
+    pickDestination: (id) => {
+      if (mode.phase === "uninitialized") return;
+      if (mode.phase === "connecting") {
+        if (mode.entries.some((e) => e.id === id)) return;
+        setMode(
+          reconcile({
+            phase: "connecting",
+            entries: [...mode.entries, { id, origin: "user" as const }],
+            activeId: mode.activeId,
+          }),
+        );
+        return;
+      }
+      const baseEntries = mode.phase === "auto" && mode.pending
+        ? mode.entries.filter((e) => e.id !== mode.pending!.candidateId)
+        : mode.entries;
+      const nextEntries = baseEntries.map((e) =>
+        e.id === mode.activeId ? { id, origin: "user" as const } : e
+      );
+      startSelected(nextEntries, id);
     },
   };
 
   return [mode, actions] as const;
 }
 
-/** What Connect should target right now, given the current mode. Before an
+/** What Connect should target right now, given the current model. Before an
  * auto pending candidate's settleAt, the outgoing destination is still the
  * unambiguous target; at/after it, the incoming candidate is. */
 export function resolveConnectTarget(
-  mode: DestinationMode,
+  model: DestinationModel,
   now: number,
 ): string | null {
-  if (mode.kind === "selected" || mode.kind === "active") return mode.id;
-  if (mode.pending && now >= mode.pending.settleAt) {
-    return mode.pending.candidateId;
+  if (model.phase === "uninitialized") return null;
+  if (model.phase === "selected" || model.phase === "connecting") {
+    return model.activeId;
   }
-  return mode.current;
+  if (model.pending && now >= model.pending.settleAt) {
+    return model.pending.candidateId;
+  }
+  return model.activeId;
 }
 
 /** What's currently shown, ignoring an in-flight pending candidate — display
- * only follows `current` once the auto loop actually commits it, same
+ * only follows `activeId` once the auto loop actually commits it, same
  * instant `resolveConnectTarget` would flip to it too. */
-export function currentDisplayId(mode: DestinationMode): string | null {
-  if (mode.kind === "auto") return mode.current;
-  return mode.id;
-}
-
-export interface DestinationOrderState {
-  // Destination ids, oldest -> left, newest/current -> rightmost.
-  order: string[];
-  // Whether the most recent order change should slide-animate in the
-  // carousel. False only for a destination picked directly from the list
-  // (matched below); every auto-driven change animates.
-  animate: boolean;
-}
-
-type DestinationOrderActions = {
-  selectDestination: (id: string) => void;
-};
-
-/** Tracks carousel presentation on top of an existing mode store: which ids
- * have been shown (for the history carousel) and whether the latest change
- * should jump or slide. Kept separate from `createDestinationMode` itself so
- * that state machine stays free of presentation concerns. */
-export function createDestinationOrder(
-  mode: SolidStore<DestinationMode>,
-  modeActions: { selectDestination: (id: string) => void },
-): readonly [SolidStore<DestinationOrderState>, DestinationOrderActions] {
-  const [state, setState] = createStore<DestinationOrderState>({
-    order: [],
-    animate: true,
-  });
-
-  // Set by our own selectDestination wrapper, consumed by the effect below
-  // once the resulting display change actually happens — which may be
-  // immediate (idle pick) or only after a later backend event (mid-session
-  // retarget while already active).
-  let pendingManualId: string | null = null;
-
-  createEffect(() => {
-    const id = currentDisplayId(mode);
-    if (id === null) return;
-    const lastId = state.order.length > 0
-      ? state.order[state.order.length - 1]
-      : null;
-    if (id === lastId) return;
-
-    const animate = pendingManualId !== id;
-    if (pendingManualId === id) pendingManualId = null;
-
-    setState({
-      order: [...state.order.filter((existing) => existing !== id), id],
-      animate,
-    });
-  });
-
-  return [state, {
-    selectDestination: (id) => {
-      pendingManualId = id;
-      modeActions.selectDestination(id);
-    },
-  }] as const;
+export function currentDisplayId(model: DestinationModel): string | null {
+  if (model.phase === "uninitialized") return null;
+  return model.activeId;
 }

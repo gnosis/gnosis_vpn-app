@@ -11,16 +11,6 @@ const CARD_PULSE_MS = 600;
 // Slower than a native smooth-scroll so the motion reads as a deliberate
 // slide rather than a jump.
 const SLIDE_MS = 1500;
-// A scrollLeft change fires the same native scroll events a user swipe
-// does. Ignore scroll events for this long after we drive one ourselves —
-// long enough to outlast the pulse-then-slide sequence plus a small
-// settling margin — so it isn't misread as the user manually scrolling away
-// from the latest card.
-const PROGRAMMATIC_SCROLL_WINDOW_MS = CARD_PULSE_MS + SLIDE_MS + 50;
-// A jump has no animation to outlast — just enough margin for the resulting
-// scroll event to land.
-const JUMP_SCROLL_WINDOW_MS = 50;
-const LATEST_SNAP_EPSILON_PX = 8;
 const DRAG_THRESHOLD_PX = 6;
 
 function easeOutCubic(t: number): number {
@@ -98,11 +88,10 @@ function jumpToLatest(container: HTMLDivElement) {
 }
 
 export default function LocationBanner() {
-  const [appState, appActions] = useAppStore();
+  const [appState] = useAppStore();
   const [showList, setShowList] = createSignal(false);
 
   let containerRef: HTMLDivElement | undefined;
-  let programmaticScrollUntil = 0;
 
   // Touch already gets native pan-to-scroll from the browser. Mouse/pen
   // don't — overflow-x-auto alone only lets them drag the (now hidden)
@@ -177,38 +166,38 @@ export default function LocationBanner() {
     if (didDrag) settleToNearestCard();
   };
 
+  // Ids in history order (oldest -> newest); empty before startup resolves.
+  const entryIds = () =>
+    appState.mode.phase === "uninitialized"
+      ? []
+      : appState.mode.entries.map((e) => e.id);
+
   // Tracking the last id (not just order.length) also catches a reselected
   // historical entry moving to the end, which leaves the length unchanged.
   createEffect((prevLastId: string | null | undefined) => {
-    const order = appState.destinationOrder;
+    const order = entryIds();
     const lastId = order.length > 0 ? order[order.length - 1] : null;
-    const shouldAnimate = appState.switchAnimate;
+    const mode = appState.mode;
+    // The newest card's own origin says how it got there: appended by the
+    // auto loop (slide) vs. placed there by a pick (jump straight to it).
+    // Placeholder derivation — see docs/destination-mode.md's non-goal note
+    // on the deferred UI pass for a more precise signal.
+    const shouldAnimate = mode.phase !== "uninitialized" &&
+      mode.entries[mode.entries.length - 1]?.origin === "auto";
     if (prevLastId !== undefined && lastId !== prevLastId && containerRef) {
       if (shouldAnimate) {
-        programmaticScrollUntil = Date.now() + PROGRAMMATIC_SCROLL_WINDOW_MS;
         void slideToLatest(containerRef, prevLastId ?? null);
       } else {
-        programmaticScrollUntil = Date.now() + JUMP_SCROLL_WINDOW_MS;
         jumpToLatest(containerRef);
       }
     }
     return lastId;
   }, undefined);
 
-  const handleScroll = () => {
-    if (!containerRef) return;
-    if (Date.now() < programmaticScrollUntil) return;
-    const { scrollLeft, scrollWidth, clientWidth } = containerRef;
-    const atLatest = Math.abs(scrollLeft - (scrollWidth - clientWidth)) <
-      LATEST_SNAP_EPSILON_PX;
-    appActions.noteViewingLatest(atLatest);
-  };
-
   return (
     <>
       <div
         ref={containerRef}
-        onScroll={handleScroll}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={endDrag}
@@ -223,7 +212,7 @@ export default function LocationBanner() {
         }}
         class="w-full flex flex-row gap-2 overflow-x-auto no-scrollbar snap-x snap-mandatory scroll-smooth cursor-grab select-none active:cursor-grabbing"
       >
-        <For each={appState.destinationOrder}>
+        <For each={entryIds()}>
           {(id) => (
             <Show when={appState.destinations[id]}>
               {(ds) => (
@@ -244,7 +233,7 @@ export default function LocationBanner() {
                   <LocationBannerCard
                     destinationState={ds()}
                     switchEndsAt={id === currentDisplayId(appState.mode) &&
-                        appState.mode.kind === "auto"
+                        appState.mode.phase === "auto"
                       ? appState.mode.pending?.countdownEndsAt ?? null
                       : null}
                   />

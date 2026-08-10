@@ -26,8 +26,7 @@ import {
 } from "@src/services/vpnService.ts";
 import {
   createDestinationMode,
-  createDestinationOrder,
-  type DestinationMode,
+  type DestinationModel,
 } from "@src/stores/destinationMode.ts";
 import { useLogsStore } from "@src/stores/logsStore.ts";
 import {
@@ -66,14 +65,9 @@ export interface AppState {
   availableVersion: string | null;
   targetDestination: string | null;
   balance: BalanceResponse | null;
-  mode: DestinationMode;
-  // Carousel render order (oldest -> newest) and whether the most recent
-  // change to it should slide-animate (auto-driven) or jump (manual pick).
-  destinationOrder: string[];
-  switchAnimate: boolean;
-  // False while the user has scrolled the carousel away from the latest
-  // card — pauses `mode`'s auto candidate-detection loop.
-  viewingLatest: boolean;
+  // The history banner's list and active pointer — see
+  // docs/destination-mode.md.
+  mode: DestinationModel;
 }
 
 type AppActions = {
@@ -81,8 +75,8 @@ type AppActions = {
   setScreen: (screen: AppScreen) => void;
   connect: (targetId: string) => Promise<void>;
   disconnect: () => Promise<void>;
-  selectDestination: (id: string) => void;
-  noteViewingLatest: (isLatest: boolean) => void;
+  setActiveEntry: (id: string) => void;
+  pickDestination: (id: string) => void;
 };
 
 type AppStoreTuple = readonly [Store<AppState>, AppActions];
@@ -120,10 +114,7 @@ function initialState(): AppState {
     availableVersion: null,
     targetDestination: null,
     balance: null,
-    mode: { kind: "auto", current: null, pending: null },
-    destinationOrder: [],
-    switchAnimate: true,
-    viewingLatest: true,
+    mode: { phase: "uninitialized" },
   };
 }
 
@@ -221,17 +212,12 @@ export function createAppStore(): AppStoreTuple {
     logActions.appendStatus(response);
 
   // `state` itself already has the fields these need (availableDestinations/
-  // destinations/connected/connecting/reconnecting/viewingLatest), so it's
-  // passed directly rather than mirrored into a separate copy first.
-  const [mode, modeActions] = createDestinationMode(state, settings, state);
-  const [order, orderActions] = createDestinationOrder(mode, modeActions);
+  // destinations/connected/connecting/reconnecting), so it's passed directly
+  // rather than mirrored into a separate copy first.
+  const [mode, modeActions] = createDestinationMode(state, settings);
 
   createEffect(() => {
     setState("mode", reconcile({ ...mode }));
-  });
-  createEffect(() => {
-    setState("destinationOrder", [...order.order]);
-    setState("switchAnimate", order.animate);
   });
 
   const criticalError = (message: string) => {
@@ -535,9 +521,8 @@ export function createAppStore(): AppStoreTuple {
       }
     },
 
-    selectDestination: (id: string) => orderActions.selectDestination(id),
-    noteViewingLatest: (isLatest: boolean) =>
-      setState("viewingLatest", isLatest),
+    setActiveEntry: (id: string) => modeActions.setActiveEntry(id),
+    pickDestination: (id: string) => modeActions.pickDestination(id),
   } as const;
 
   // Both windows derive update state locally via the same helper — settings
