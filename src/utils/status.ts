@@ -77,22 +77,20 @@ export function deriveVPNStatus(
   return "ServiceUnavailable";
 }
 
-// 0.01 xDAI / 0.01 wxHOPR expressed in wei (10^16)
-const MIN_TRANSFERRED_WEI = 10_000_000_000_000_000n;
-
 export function isXDAITransferred(state: AppState): boolean {
+  if (!state || !isPreparingSafeRunMode(state.runMode)) return false;
+  const { node_xdai, balance_recommendation } = state.runMode.PreparingSafe;
   return (
-    !!state &&
-    isPreparingSafeRunMode(state.runMode) &&
-    state.runMode.PreparingSafe.node_xdai >= MIN_TRANSFERRED_WEI
+    balance_recommendation !== null && node_xdai >= balance_recommendation.xdai
   );
 }
 
 export function isWxHOPRTransferred(state: AppState): boolean {
+  if (!state || !isPreparingSafeRunMode(state.runMode)) return false;
+  const { node_wxhopr, balance_recommendation } = state.runMode.PreparingSafe;
   return (
-    !!state &&
-    isPreparingSafeRunMode(state.runMode) &&
-    state.runMode.PreparingSafe.node_wxhopr >= MIN_TRANSFERRED_WEI
+    balance_recommendation !== null &&
+    node_wxhopr >= balance_recommendation.wxhopr
   );
 }
 
