@@ -20,8 +20,8 @@ use crate::tray;
 use crate::types::{BalanceResponse, ConnectionState, StatusResponse};
 use crate::{AppStateCache, BalancePollingHandle, PollingExit, StatusPollingHandle};
 
-/// Semver requirements for compatible daemon versions, e.g. "0.93" (any 0.93.x)
-/// or ">=0.93.0" (0.93.0 and all later versions).
+/// Semver requirements for compatible gnosis_vpn-client service versions,
+/// e.g. "0.93" (any 0.93.x) or ">=0.93.0" (0.93.0 and all later versions).
 const COMPATIBLE_VERSIONS: &[&str] = &["0.93"];
 
 fn is_version_compatible(version: &str) -> bool {

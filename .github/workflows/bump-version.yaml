@@ -20,7 +20,7 @@ on:
         required: false
         type: string
       supported_client_versions:
-        description: "Comma-separated compatible client versions, e.g. '>=0.93.0' or '0.93, 0.94' (empty: keep current)"
+        description: "Comma-separated compatible gnosis_vpn-client service versions, e.g. '>=0.93.0' or '0.93, 0.94' (empty: keep current)"
         required: false
         type: string
 concurrency:
@@ -170,7 +170,9 @@ jobs:
             echo "supported_client_versions contained no usable entries" >&2
             exit 1
           fi
-          sed -i -E "s|^const COMPATIBLE_VERSIONS: &\[&str\] = &\[.*\];$|const COMPATIBLE_VERSIONS: \&[\&str] = \&[${joined}];|" src-tauri/src/commands.rs
+          # perl -0777 so the pattern also matches after rustfmt reflows a
+          # long list to multiple lines; a line-anchored sed would then miss it.
+          perl -0777 -pi -e "s|const COMPATIBLE_VERSIONS: &\[&str\] = &\[[^\]]*\];|const COMPATIBLE_VERSIONS: &[&str] = &[${joined}];|" src-tauri/src/commands.rs
           if ! grep -qF "const COMPATIBLE_VERSIONS: &[&str] = &[${joined}];" src-tauri/src/commands.rs; then
             echo "src-tauri/src/commands.rs still lacks the new COMPATIBLE_VERSIONS list after the substitution" >&2
             exit 1
@@ -178,6 +180,8 @@ jobs:
       # Equivalent of running `deno task tauri dev` locally and cancelling it:
       # refreshes Cargo.lock with the bumped app version and, when client_ref
       # changed, re-resolves gnosis_vpn-lib to the new rev — without compiling.
+      # --workspace only syncs workspace-member versions (unlike a bare
+      # `cargo update`); every other locked dependency version stays put.
       - name: Update Cargo.lock
         shell: bash
         env:
