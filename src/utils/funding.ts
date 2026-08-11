@@ -19,7 +19,7 @@ export type StatusText = "Sufficient" | "Low" | "Empty" | string;
  * Gas (node xDAI):
  *   <  0.003 xDAI -> Empty
  *   <  0.005 xDAI -> Low
- *   >= 0.005 xDAI -> Sufficient (the Gas Fees row renders no label for it)
+ *   >= 0.005 xDAI -> Sufficient
  *
  * The daemon's funding issues remain as fallback until the first balance
  * response arrives.

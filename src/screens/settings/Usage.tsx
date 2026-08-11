@@ -184,8 +184,7 @@ export default function Usage() {
                   amount={humanXdai(xdaiRaw())}
                   unit="xDAI"
                   tooltip={<>{formatXdai(xdaiRaw(), 18)} xDAI</>}
-                  // A sufficient gas balance shows no label at all.
-                  status={gasStatus() === "Sufficient" ? undefined : gasStatus()}
+                  status={gasStatus()}
                 />
               </div>
             </Show>
