@@ -102,6 +102,18 @@ export function resolveAutoDestination(
   return candidates[0] ?? null;
 }
 
+/** Whether a VPN session is live enough that switching destinations should
+ * retarget it via connect() rather than just re-pointing the display. Includes
+ * Disconnecting only when it still has a target — a plain disconnect has none. */
+export function isVpnActive(
+  vpnStatus: string,
+  targetDestination: string | null,
+): boolean {
+  return vpnStatus === "Connected" || vpnStatus === "Connecting" ||
+    vpnStatus === "Reconnecting" ||
+    (vpnStatus === "Disconnecting" && targetDestination !== null);
+}
+
 export function destinationLabel(d: Destination): string {
   const loc = d.meta?.location;
   return loc ? `${d.id} - ${loc}` : d.id;

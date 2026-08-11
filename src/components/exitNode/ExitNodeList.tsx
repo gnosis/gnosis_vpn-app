@@ -15,6 +15,7 @@ import { currentDisplayId } from "@src/stores/destinationMode.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import {
   destinationLabel,
+  isVpnActive,
   sortAlphaDestinations,
   sortByHealthScore,
 } from "@src/utils/destinations.ts";
@@ -89,15 +90,8 @@ export default function ExitNodeList(props: { onClose: () => void }) {
     return list.filter((d) => destinationLabel(d).toLowerCase().includes(q));
   });
 
-  // Includes Disconnecting so that switching destinations while tearing down
-  // the old tunnel still triggers connect(). When target_destination is null
-  // the backend has no connect intent (explicit disconnect) — just select.
   const vpnActive = () =>
-    appState.vpnStatus === "Connected" ||
-    appState.vpnStatus === "Connecting" ||
-    appState.vpnStatus === "Reconnecting" ||
-    (appState.vpnStatus === "Disconnecting" &&
-      appState.targetDestination !== null);
+    isVpnActive(appState.vpnStatus, appState.targetDestination);
 
   const isAvailable = (id: string) =>
     appState.availableDestinations.some((d) => d.id === id);

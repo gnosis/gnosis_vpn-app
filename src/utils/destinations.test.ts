@@ -4,6 +4,7 @@ import type {
   DestinationState,
 } from "@src/services/vpnService.ts";
 import {
+  isVpnActive,
   resolveAutoDestination,
   sortAlphaDestinations,
   sortByHealthScore,
@@ -136,6 +137,24 @@ describe("resolveAutoDestination", () => {
       null,
     );
     expect(result?.id).toBe("nodeA");
+  });
+});
+
+describe("isVpnActive", () => {
+  it("is true for Connected, Connecting, and Reconnecting", () => {
+    expect(isVpnActive("Connected", null)).toBe(true);
+    expect(isVpnActive("Connecting", null)).toBe(true);
+    expect(isVpnActive("Reconnecting", null)).toBe(true);
+  });
+
+  it("is true for Disconnecting only when a target destination is set", () => {
+    expect(isVpnActive("Disconnecting", "nodeA")).toBe(true);
+    expect(isVpnActive("Disconnecting", null)).toBe(false);
+  });
+
+  it("is false for Disconnected and other idle statuses", () => {
+    expect(isVpnActive("Disconnected", null)).toBe(false);
+    expect(isVpnActive("Disconnected", "nodeA")).toBe(false);
   });
 });
 
