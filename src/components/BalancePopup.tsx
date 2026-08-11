@@ -51,7 +51,7 @@ export default function BalancePopup(props: Props) {
 
   const totalWxhopr = createMemo(() => {
     const b = appState.balance;
-    if (!b?.capacity_allocations) return 0n;
+    if (!b) return 0n;
     return sumCapacityStake(b);
   });
 

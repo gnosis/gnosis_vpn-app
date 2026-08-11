@@ -64,7 +64,9 @@ describe("computeEffectiveCredit", () => {
   it("sums bytes from a single peer allocation", () => {
     expect(
       computeEffectiveCredit(
-        makeBalance([makeEntry(500_000, 0n, { type: "peer", address: "0xabc" })]),
+        makeBalance([
+          makeEntry(500_000, 0n, { type: "peer", address: "0xabc" }),
+        ]),
       ),
     ).toBe(500_000n);
   });

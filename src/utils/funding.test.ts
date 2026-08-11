@@ -100,7 +100,7 @@ describe("deriveTrafficStatus", () => {
 });
 
 describe("deriveNodeStatus", () => {
-  it("applies the 0.003 / 0.005 xDAI thresholds to the node balance", () => {
+  it("applies the 0.0015 / 0.0035 xDAI thresholds to the node balance", () => {
     const cases: [bigint, string][] = [
       [XDAI_EMPTY_BELOW - 1n, "Empty"],
       [XDAI_EMPTY_BELOW, "Low"],

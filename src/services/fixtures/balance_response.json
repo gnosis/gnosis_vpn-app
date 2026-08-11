@@ -9,5 +9,6 @@
   },
   "funding_issues": null,
   "ideal_balance": null,
-  "capacity_allocations": null
+  "capacity_allocations": null,
+  "node_capacity": null
 }

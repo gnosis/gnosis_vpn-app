@@ -33,5 +33,11 @@
         "byte_capacity": 262144
       }
     }
-  ]
+  ],
+  "node_capacity": {
+    "stake": "250000000000000000",
+    "expected_messages": 125,
+    "min_guaranteed_messages": 12,
+    "byte_capacity": 131072
+  }
 }

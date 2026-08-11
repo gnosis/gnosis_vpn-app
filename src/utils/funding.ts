@@ -17,9 +17,9 @@ export type StatusText = "Sufficient" | "Low" | "Empty" | string;
  *   >= 5 GB -> Sufficient
  *
  * Gas (node xDAI):
- *   <  0.003 xDAI -> Empty
- *   <  0.005 xDAI -> Low
- *   >= 0.005 xDAI -> Sufficient
+ *   <  0.0015 xDAI -> Empty
+ *   <  0.0035 xDAI -> Low
+ *   >= 0.0035 xDAI -> Sufficient
  *
  * The daemon's funding issues remain as fallback until the first balance
  * response arrives.
@@ -29,9 +29,9 @@ export type StatusText = "Sufficient" | "Low" | "Empty" | string;
 
 export const TRAFFIC_EMPTY_BELOW = 3n * BYTES_PER_GB;
 export const TRAFFIC_LOW_BELOW = 5n * BYTES_PER_GB;
-// 0.003 / 0.005 xDAI in wei
-export const XDAI_EMPTY_BELOW = 3_000_000_000_000_000n;
-export const XDAI_LOW_BELOW = 5_000_000_000_000_000n;
+// 0.0015 / 0.0035 xDAI in wei
+export const XDAI_EMPTY_BELOW = 1_500_000_000_000_000n;
+export const XDAI_LOW_BELOW = 3_500_000_000_000_000n;
 
 export function deriveTrafficStatus(
   balance: BalanceResponse | null,

@@ -158,10 +158,14 @@ fn generate_fixtures() {
         node_wxhopr: Balance::<WxHOPR>::from(500_000_000_000_000_000u64), // 0.5 wxHOPR
         funding_tool: None,
         error: None,
-        balance_recommendation: Some(BalanceRecommendation {
+        balance_recommendation: Some(Box::new(BalanceRecommendation {
             wxhopr: Balance::<WxHOPR>::from(10_000_000_000_000_000_000u64), // 10 wxHOPR
             xdai: Balance::<XDai>::from(100_000_000_000_000_000u64),        // 0.1 xDAI
-        }),
+            channel_stakes: Balance::<WxHOPR>::from(9_990_000_000_000_000_000u64), // 9.99 wxHOPR
+            fee_to_start: Balance::<WxHOPR>::from(10_000_000_000_000_000u64), // 0.01 wxHOPR
+            txs_to_start: 3,
+            xdai_fee_per_tx: Balance::<XDai>::from(100_000_000_000_000_000u64), // 0.1 xDAI
+        })),
     });
     write(
         &fixtures_dir,
@@ -311,6 +315,7 @@ fn generate_fixtures() {
         None,
         None,
         None,
+        None,
     ));
     write(&fixtures_dir, "balance_response.json", &balance_zero);
 
@@ -324,11 +329,16 @@ fn generate_fixtures() {
     let ideal = BalanceRecommendation {
         wxhopr: Balance::<WxHOPR>::from(2_000_000_000_000_000_000u64), // 2 wxHOPR
         xdai: Balance::<XDai>::from(50_000_000_000_000_000u64),        // 0.05 xDAI
+        channel_stakes: Balance::<WxHOPR>::from(2_000_000_000_000_000_000u64), // 2 wxHOPR
+        fee_to_start: Balance::<WxHOPR>::zero(), // key already bound while running
+        txs_to_start: 0,
+        xdai_fee_per_tx: Balance::<XDai>::from(50_000_000_000_000_000u64), // 0.05 xDAI
     };
     let balance_with_issues = types::BalanceResponse::from(command::BalanceResponse::build(
         &balance_info(),
         &balances_with_funds,
         &HashMap::new(),
+        None,
         None,
         Some(ideal),
         Some(vec![
@@ -367,6 +377,13 @@ fn generate_fixtures() {
         &balances_with_funds,
         &HashMap::new(),
         Some(&capacity_map),
+        // wxHOPR sitting on the node EOA, not yet swept into the Safe
+        Some(Capacity {
+            stake: Balance::<WxHOPR>::from(250_000_000_000_000_000u64), // 0.25 wxHOPR
+            expected_messages: 125,
+            min_guaranteed_messages: 12,
+            byte_capacity: 131_072,
+        }),
         None,
         None,
     ));

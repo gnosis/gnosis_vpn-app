@@ -51,7 +51,7 @@ export default function Usage() {
 
   const totalWxhoprHopli = createMemo(() => {
     const b = appState.balance;
-    if (!b?.capacity_allocations) return undefined;
+    if (!b) return undefined;
     return sumCapacityStake(b);
   });
 
@@ -90,7 +90,6 @@ export default function Usage() {
     return diff > 0n ? diff : null;
   });
 
-
   return (
     <div class="p-4 w-full flex flex-col gap-2 items-center">
       <Switch>
@@ -115,9 +114,11 @@ export default function Usage() {
           </div>
         </Match>
         <Match when={isRunningRunMode(appState.runMode) || preparingSafe()}>
-          {/* The daemon's issue text only shows while the thresholds agree
+          {
+            /* The daemon's issue text only shows while the thresholds agree
               something is wrong — a funded Safe/EOA whose channels are still
-              being opened must not read as a red warning. */}
+              being opened must not read as a red warning. */
+          }
           <Show
             when={overallStatus() !== "Sufficient" &&
               describeCriticalIssue(fundingIssues())}

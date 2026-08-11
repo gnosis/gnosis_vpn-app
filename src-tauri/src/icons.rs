@@ -178,7 +178,11 @@ pub struct IconState {
 impl IconState {
     // Records a freshly polled status. Returns the dock icon to repaint, or
     // None when it is unchanged or the heartbeat owns icon updates (animating).
-    pub fn apply_status(&mut self, conn_state: &ConnectionState, level: FundsLevel) -> Option<String> {
+    pub fn apply_status(
+        &mut self,
+        conn_state: &ConnectionState,
+        level: FundsLevel,
+    ) -> Option<String> {
         self.funds_level = level;
         self.is_animating = is_animating_state(conn_state);
         if self.is_animating {
@@ -214,9 +218,9 @@ pub enum FundsLevel {
 const GIB: u64 = 1 << 30;
 const TRAFFIC_EMPTY_BELOW_BYTES: u64 = 3 * GIB;
 const TRAFFIC_LOW_BELOW_BYTES: u64 = 5 * GIB;
-// 0.003 / 0.005 xDAI in wei
-const XDAI_EMPTY_BELOW_WEI: u128 = 3_000_000_000_000_000;
-const XDAI_LOW_BELOW_WEI: u128 = 5_000_000_000_000_000;
+// 0.0015 / 0.0035 xDAI in wei
+const XDAI_EMPTY_BELOW_WEI: u128 = 1_500_000_000_000_000;
+const XDAI_LOW_BELOW_WEI: u128 = 3_500_000_000_000_000;
 
 // Mirrors deriveOverallStatus in src/utils/funding.ts — keep both in sync.
 // Traffic is judged by total byte capacity (Safe + channels + node EOA) and
@@ -277,11 +281,16 @@ fn traffic_level_from_issues(issues: &[FundingIssue]) -> FundsLevel {
     if issues.iter().any(|i| {
         matches!(
             i,
-            FundingIssue::Unfunded | FundingIssue::ChannelsOutOfFunds | FundingIssue::SafeOutOfFunds
+            FundingIssue::Unfunded
+                | FundingIssue::ChannelsOutOfFunds
+                | FundingIssue::SafeOutOfFunds
         )
     }) {
         FundsLevel::Empty
-    } else if issues.iter().any(|i| matches!(i, FundingIssue::SafeLowOnFunds)) {
+    } else if issues
+        .iter()
+        .any(|i| matches!(i, FundingIssue::SafeLowOnFunds))
+    {
         FundsLevel::Low
     } else {
         FundsLevel::Sufficient
@@ -294,7 +303,10 @@ fn gas_level_from_issues(issues: &[FundingIssue]) -> FundsLevel {
         .any(|i| matches!(i, FundingIssue::Unfunded | FundingIssue::NodeUnderfunded))
     {
         FundsLevel::Empty
-    } else if issues.iter().any(|i| matches!(i, FundingIssue::NodeLowOnFunds)) {
+    } else if issues
+        .iter()
+        .any(|i| matches!(i, FundingIssue::NodeLowOnFunds))
+    {
         FundsLevel::Low
     } else {
         FundsLevel::Sufficient
@@ -541,8 +553,14 @@ mod tests {
 
     #[test]
     fn funds_level_ignores_non_running_modes() {
-        assert_eq!(funds_level(&RunMode::NotRunning, None), FundsLevel::Sufficient);
-        assert_eq!(funds_level(&RunMode::Shutdown, None), FundsLevel::Sufficient);
+        assert_eq!(
+            funds_level(&RunMode::NotRunning, None),
+            FundsLevel::Sufficient
+        );
+        assert_eq!(
+            funds_level(&RunMode::Shutdown, None),
+            FundsLevel::Sufficient
+        );
         // even a drained balance is ignored outside Running
         let drained = balance(Some(vec![0]), None, "0");
         assert_eq!(
@@ -608,7 +626,11 @@ mod tests {
     fn traffic_counts_node_capacity_and_all_allocations() {
         let mode = running(vec![]);
         // 2 GiB in the safe + 1.5 GiB in a channel + 1.5 GiB on the node EOA = 5 GiB
-        let b = balance(Some(vec![2 * GIB, GIB + GIB / 2]), Some(GIB + GIB / 2), XDAI_OK);
+        let b = balance(
+            Some(vec![2 * GIB, GIB + GIB / 2]),
+            Some(GIB + GIB / 2),
+            XDAI_OK,
+        );
         assert_eq!(funds_level(&mode, Some(&b)), FundsLevel::Sufficient);
     }
 
@@ -624,10 +646,10 @@ mod tests {
     fn gas_thresholds_on_node_xdai() {
         let mode = running(vec![]);
         let cases = [
-            ("2999999999999999", FundsLevel::Empty),
-            ("3000000000000000", FundsLevel::Low),
-            ("4999999999999999", FundsLevel::Low),
-            ("5000000000000000", FundsLevel::Sufficient),
+            ("1499999999999999", FundsLevel::Empty),
+            ("1500000000000000", FundsLevel::Low),
+            ("3499999999999999", FundsLevel::Low),
+            ("3500000000000000", FundsLevel::Sufficient),
         ];
         for (wei, expected) in cases {
             let b = balance(Some(vec![6 * GIB]), None, wei);
