@@ -1,4 +1,3 @@
-import { Show } from "solid-js";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import flagCountries from "flag-icons/country.json";
 
@@ -21,13 +20,11 @@ export default function Flag(props: { code: string }) {
   const grayscale = () => settings.flagDisplay === "mono";
 
   return (
-    <Show when={visible()}>
-      <span
-        class={`fi fi-${resolvedCode()} w-12 h-9 rounded-sm shrink-0${
-          grayscale() ? " grayscale" : ""
-        }`}
-        aria-hidden="true"
-      />
-    </Show>
+    <span
+      class={`w-12 h-9 rounded-sm shrink-0${
+        visible() ? ` fi fi-${resolvedCode()}` : ""
+      }${grayscale() ? " grayscale" : ""}`}
+      aria-hidden="true"
+    />
   );
 }
