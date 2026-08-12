@@ -171,6 +171,15 @@ export default function LocationBanner() {
 
   const handlePointerDown = (e: PointerEvent) => {
     if (!containerRef || e.pointerType === "touch") return;
+    // Skip drag-tracking when the gesture starts on the list button —
+    // setPointerCapture below would otherwise retarget its click to this
+    // container, and the button would never see it.
+    if (
+      e.target instanceof Element &&
+      e.target.closest("[data-exit-list-trigger]")
+    ) {
+      return;
+    }
     dragStartX = e.clientX;
     dragStartScrollLeft = containerRef.scrollLeft;
     didDrag = false;
@@ -343,14 +352,6 @@ export default function LocationBanner() {
         onPointerMove={handlePointerMove}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
-        // setPointerCapture (for mouse/pen drag above) retargets the click
-        // that follows pointerup to this container, not the card underneath
-        // — so tap-to-open has to live here rather than on each card's
-        // onClick, which would never see it.
-        onClick={() => {
-          if (didDrag) return;
-          setShowList(true);
-        }}
         class="w-full flex flex-row gap-2 overflow-x-auto no-scrollbar snap-x snap-mandatory scroll-smooth cursor-grab select-none active:cursor-grabbing"
       >
         <For each={entryIds()}>
@@ -359,13 +360,10 @@ export default function LocationBanner() {
               {(ds) => (
                 <div
                   data-destination-id={id}
-                  class="relative w-full shrink-0 snap-center cursor-pointer"
-                  role="button"
-                  aria-label="Select exit node"
+                  class="relative w-full shrink-0 snap-center"
+                  aria-label="Exit node, use left and right arrow keys to browse"
                   tabIndex={0}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.repeat) setShowList(true);
-                    if (e.key === " ") e.preventDefault();
                     if (e.key === "ArrowRight") {
                       e.preventDefault();
                       slideToAdjacent(id, 1);
@@ -375,9 +373,6 @@ export default function LocationBanner() {
                       slideToAdjacent(id, -1);
                     }
                   }}
-                  onKeyUp={(e) => {
-                    if (e.key === " ") setShowList(true);
-                  }}
                 >
                   <LocationBannerCard
                     destinationState={ds()}
@@ -385,6 +380,7 @@ export default function LocationBanner() {
                         appState.mode.phase === "auto"
                       ? appState.mode.pending?.countdownEndsAt ?? null
                       : null}
+                    onOpenList={() => setShowList(true)}
                   />
                 </div>
               )}

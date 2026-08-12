@@ -140,7 +140,7 @@ export function MainScreen() {
         </div>
         <Show when={activeDestinationState()}>
           {(ds) => (
-            <div class="w-full z-10 mt-2">
+            <div class="w-full z-10">
               <ExitHealthDetail destinationState={ds()} />
             </div>
           )}

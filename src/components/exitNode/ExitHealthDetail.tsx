@@ -22,7 +22,7 @@ import {
 import HopsIcon from "./HopsIcon.tsx";
 import Stat from "./Stat.tsx";
 import Tag from "../common/Tag.tsx";
-import Toggle from "../common/Toggle.tsx";
+import ChevronIcon from "../common/ChevronIcon.tsx";
 
 const statusColorClass: Record<HealthColor, string> = {
   green: "text-vpn-light-green",
@@ -103,7 +103,7 @@ export default function ExitHealthDetail(
   return (
     <Show when={destId()} keyed>
       {(_id: string) => (
-        <div class="w-full bg-bg-surface rounded-2xl px-4 py-2.5 text-xs fade-in-up relative">
+        <div class="w-full bg-bg-surface rounded-b-2xl px-4 py-2.5 text-xs fade-in-up relative">
           <div class="flex flex-wrap items-center gap-1.5 mb-1">
             <Show when={route() && getHopCount(routing()) !== 1}>
               <Tag>
@@ -121,51 +121,58 @@ export default function ExitHealthDetail(
           </div>
 
           <Show when={hasHealthContent(routeHealth())}>
-            <div class="absolute top-2.5 right-4 flex items-center gap-2 text-text-secondary">
-              <span>Details</span>
-              <Toggle
-                small
-                checked={settings.showDetailedMetrics}
-                onChange={(e) =>
+            <div class="border-t border-border pt-1.5 -mx-4 px-4">
+              <button
+                type="button"
+                aria-expanded={settings.showDetailedMetrics}
+                aria-label="Toggle exit node details"
+                class="flex w-full items-center justify-end text-text-secondary hover:cursor-pointer"
+                onClick={() =>
                   void settingsActions.setShowDetailedMetrics(
-                    e.currentTarget.checked,
+                    !settings.showDetailedMetrics,
                   )}
-              />
-            </div>
-            <div class="grid grid-cols-[3fr_2fr] gap-x-4 gap-y-2 pl-2 text-text-secondary">
-              <Stat
-                label="Latency"
-                value={latency()}
-                tooltip={
-                  <div class="space-y-1">
-                    <p class="text-white font-bold">Expected ~200ms</p>
-                    <div class="flex items-center gap-1.5">
-                      <span class="text-vpn-light-green">&#9660;</span>
-                      <span>Lower is better</span>
-                    </div>
-                    <div class="flex items-center gap-1.5">
-                      <span class="text-vpn-red">&#9650;</span>
-                      <span>Higher is worse</span>
-                    </div>
-                  </div>
-                }
-              />
-              <Stat
-                label="Checked"
-                value={lastChecked()}
-                tooltip={<span>Time since last health check</span>}
-              />
+              >
+                <ChevronIcon
+                  class={`w-3 h-2 transition-transform duration-200 ${
+                    settings.showDetailedMetrics ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
               <Show when={settings.showDetailedMetrics}>
-                <Stat
-                  label="Capacity"
-                  value={slots()}
-                  tooltip={<span>Available / total connection slots</span>}
-                />
-                <Stat
-                  label="Load"
-                  value={loadAvg()}
-                  tooltip={<span>Server load average. Lower is better.</span>}
-                />
+                <div class="grid grid-cols-[3fr_2fr] gap-x-4 gap-y-2 pl-2 pt-1.5 text-text-secondary">
+                  <Stat
+                    label="Latency"
+                    value={latency()}
+                    tooltip={
+                      <div class="space-y-1">
+                        <p class="text-white font-bold">Expected ~200ms</p>
+                        <div class="flex items-center gap-1.5">
+                          <span class="text-vpn-light-green">&#9660;</span>
+                          <span>Lower is better</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                          <span class="text-vpn-red">&#9650;</span>
+                          <span>Higher is worse</span>
+                        </div>
+                      </div>
+                    }
+                  />
+                  <Stat
+                    label="Checked"
+                    value={lastChecked()}
+                    tooltip={<span>Time since last health check</span>}
+                  />
+                  <Stat
+                    label="Capacity"
+                    value={slots()}
+                    tooltip={<span>Available / total connection slots</span>}
+                  />
+                  <Stat
+                    label="Load"
+                    value={loadAvg()}
+                    tooltip={<span>Server load average. Lower is better.</span>}
+                  />
+                </div>
               </Show>
             </div>
           </Show>

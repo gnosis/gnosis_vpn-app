@@ -58,6 +58,8 @@ export const SettingsSchema = z.object({
   updateManifest: UpdateManifestSchema.nullable(),
   channel: UpdateChannelSchema.nullable(),
   dismissedUpdateVersion: z.string().nullable(),
+  // Name is legacy — now drives whether the exit-health details panel
+  // (chevron toggle) is expanded at all, not just its extra stat rows.
   showDetailedMetrics: z.boolean(),
   flagDisplay: FlagDisplaySchema,
 });
