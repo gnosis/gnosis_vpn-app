@@ -156,6 +156,7 @@ export default function ExitHealthDetail(
                   <Stat
                     label="Latency"
                     value={latency()}
+                    valueClass="font-semibold text-text-primary"
                     tooltip={latencyTooltip()}
                   />
                 }
@@ -164,11 +165,13 @@ export default function ExitHealthDetail(
                   <Stat
                     label="Latency"
                     value={latency()}
+                    valueClass="font-semibold text-text-primary"
                     tooltip={latencyTooltip()}
                   />
                   <Stat
                     label="Checked"
                     value={lastChecked()}
+                    valueClass="font-semibold text-text-primary"
                     tooltip={<span>Time since last health check</span>}
                   />
                   <Stat
@@ -194,7 +197,7 @@ export default function ExitHealthDetail(
                   )}
               >
                 <ChevronIcon
-                  class={`w-3 h-2 transition-transform duration-200 ${
+                  class={`w-4 h-3 transition-transform duration-200 ${
                     settings.showDetailedMetrics ? "" : "rotate-180"
                   }`}
                 />
