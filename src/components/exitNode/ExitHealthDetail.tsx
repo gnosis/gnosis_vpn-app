@@ -16,7 +16,6 @@ import {
   getExitHealthColor,
   getHopCount,
   getLastCheckedEpoch,
-  hasHealthContent,
   type HealthColor,
 } from "@src/utils/exitHealth.ts";
 import HopsIcon from "./HopsIcon.tsx";
@@ -84,10 +83,15 @@ export default function ExitHealthDetail(
     return rh ? formatLoadAvg(rh) : null;
   };
   const route = () => formatRouting(routing());
-  // "Ready to connect" is the expected steady state once health data exists
-  // at all, so it's noise here — only a state that needs the user's
-  // attention (Connected, Full, Connecting, ...) is worth a tag.
-  const showStatusTag = () => status() !== "Ready to connect";
+  // Stats (latency, capacity, load) only mean anything once the route is
+  // actually usable — everything else (checking, needs channel/peer,
+  // unreachable, ...) only ever gets a one-line status, no numbers, no
+  // expand affordance. This also means the panel auto-collapses to that
+  // status line if health degrades mid-expansion, and auto-restores the
+  // user's expand/collapse choice once it's usable again — the choice
+  // itself is never touched, only whether it's honored right now.
+  const isGoodState = () =>
+    isConnected() || routeHealth()?.state.state === "ReadyToConnect";
 
   // Independent clock: ExitHealthDetail is mounted in MainScreen, outside ExitNodeList
   // which runs its own clock. Both are intentionally separate mounts.
@@ -104,6 +108,23 @@ export default function ExitHealthDetail(
     return formatSecondsAgo(diff);
   };
 
+  // A function (not a shared JSX value) so the collapsed and expanded
+  // layouts each get their own node — they never render together, but
+  // Solid's JSX nodes aren't safe to hand to two spots at once regardless.
+  const latencyTooltip = () => (
+    <div class="space-y-1">
+      <p class="text-white font-bold">Expected ~200ms</p>
+      <div class="flex items-center gap-1.5">
+        <span class="text-vpn-light-green">&#9660;</span>
+        <span>Lower is better</span>
+      </div>
+      <div class="flex items-center gap-1.5">
+        <span class="text-vpn-red">&#9650;</span>
+        <span>Higher is worse</span>
+      </div>
+    </div>
+  );
+
   return (
     <Show when={destId()} keyed>
       {(_id: string) => (
@@ -117,35 +138,33 @@ export default function ExitHealthDetail(
             </div>
           </Show>
 
-          <Show when={showStatusTag()}>
-            <div class="flex flex-wrap items-center gap-1.5 mb-1.5">
-              <Tag
-                value={status()}
-                class={`${statusColorClass[color()]} bg-bg-primary`}
-              />
-            </div>
-          </Show>
-
-          <Show when={hasHealthContent(routeHealth())}>
+          <Show
+            when={isGoodState()}
+            fallback={
+              <div class="flex flex-wrap items-center gap-1.5">
+                <Tag
+                  value={status()}
+                  class={`${statusColorClass[color()]} bg-bg-primary`}
+                />
+              </div>
+            }
+          >
             <div class="flex items-center justify-between gap-2">
-              <Show when={settings.showDetailedMetrics}>
+              <Show
+                when={settings.showDetailedMetrics}
+                fallback={
+                  <Stat
+                    label="Latency"
+                    value={latency()}
+                    tooltip={latencyTooltip()}
+                  />
+                }
+              >
                 <div class="grid grid-cols-[3fr_2fr] gap-x-4 gap-y-2 text-text-secondary">
                   <Stat
                     label="Latency"
                     value={latency()}
-                    tooltip={
-                      <div class="space-y-1">
-                        <p class="text-white font-bold">Expected ~200ms</p>
-                        <div class="flex items-center gap-1.5">
-                          <span class="text-vpn-light-green">&#9660;</span>
-                          <span>Lower is better</span>
-                        </div>
-                        <div class="flex items-center gap-1.5">
-                          <span class="text-vpn-red">&#9650;</span>
-                          <span>Higher is worse</span>
-                        </div>
-                      </div>
-                    }
+                    tooltip={latencyTooltip()}
                   />
                   <Stat
                     label="Checked"
@@ -176,7 +195,7 @@ export default function ExitHealthDetail(
               >
                 <ChevronIcon
                   class={`w-3 h-2 transition-transform duration-200 ${
-                    settings.showDetailedMetrics ? "rotate-180" : ""
+                    settings.showDetailedMetrics ? "" : "rotate-180"
                   }`}
                 />
               </button>
