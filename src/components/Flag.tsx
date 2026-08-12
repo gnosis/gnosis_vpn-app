@@ -21,7 +21,7 @@ export default function Flag(props: { code: string }) {
 
   return (
     <span
-      class={`w-12 h-9 rounded-sm shrink-0${
+      class={`w-7 h-5 rounded-sm shrink-0${
         visible() ? ` fi fi-${resolvedCode()}` : ""
       }${grayscale() ? " grayscale" : ""}`}
       aria-hidden="true"
