@@ -6,7 +6,7 @@ const KNOWN_FLAG_CODES = new Set(flagCountries.map((country) => country.code));
 
 // gb-sct etc. have art; other ISO 3166-2 subdivisions don't, so fall back to
 // the parent country code (the part before the hyphen) when the exact code is missing.
-function resolveFlagCode(code: string): string | undefined {
+export function resolveFlagCode(code: string): string | undefined {
   if (KNOWN_FLAG_CODES.has(code)) return code;
   const parentCode = code.split("-")[0];
   return KNOWN_FLAG_CODES.has(parentCode) ? parentCode : undefined;

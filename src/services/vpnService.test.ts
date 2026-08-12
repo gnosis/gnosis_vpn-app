@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   BalanceResponseSchema,
   ConnectResponseSchema,
+  DestinationSchema,
   DisconnectResponseSchema,
   ServiceInfoSchema,
   StatusResponseSchema,
@@ -179,5 +180,38 @@ describe("BalanceResponseSchema", () => {
 describe("ServiceInfoSchema", () => {
   it("parses service info", () => {
     expect(ServiceInfoSchema.safeParse(serviceInfo).success).toBe(true);
+  });
+});
+
+describe("DestinationSchema flag parsing", () => {
+  const destination = (flag: string) => ({
+    id: "dest-1",
+    meta: { location: "Somewhere", flag },
+    address: "0x1111111111111111111111111111111111111111",
+    routing: 1,
+  });
+
+  it("keeps a plain alpha-2 code", () => {
+    const result = DestinationSchema.safeParse(destination("DE"));
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.meta.flag).toBe("de");
+  });
+
+  it("keeps a well-formed ISO 3166-2 subdivision code", () => {
+    const result = DestinationSchema.safeParse(destination("GB-SCT"));
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.meta.flag).toBe("gb-sct");
+  });
+
+  // Regression: a malformed subdivision suffix used to fail the schema regex
+  // outright, so .catch(undefined) dropped the flag entirely and Flag.tsx
+  // never got the chance to fall back to the parent country's flag.
+  it("preserves the parent country prefix for a malformed subdivision suffix", () => {
+    const result = DestinationSchema.safeParse(destination("GB-foobar"));
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.meta.flag).toBe("gb-foobar");
   });
 });
