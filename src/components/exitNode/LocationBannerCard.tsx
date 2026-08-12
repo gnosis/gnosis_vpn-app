@@ -22,7 +22,7 @@ export default function LocationBannerCard(props: {
     <div class="flex h-16 w-full shrink-0 flex-col justify-center gap-0.5 rounded-2xl bg-bg-surface px-4 snap-center">
       <span class="text-xs text-text-secondary">Exit Node</span>
       <div class="flex items-center justify-between gap-2 min-w-0">
-        <span class="flex items-center gap-2.5 min-w-0 text-xl font-medium text-text-primary">
+        <span class="flex items-center gap-1.5 min-w-0 text-xs font-medium text-text-primary">
           <Flag code={destination().meta.flag ?? ""} />
           <span class="truncate">{destinationLabel(destination())}</span>
         </span>
