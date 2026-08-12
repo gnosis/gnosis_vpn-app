@@ -376,6 +376,7 @@ export default function LocationBanner() {
                 >
                   <LocationBannerCard
                     destinationState={ds()}
+                    destinationPhase={appState.mode.phase}
                     switchEndsAt={id === currentDisplayId(appState.mode) &&
                         appState.mode.phase === "auto"
                       ? appState.mode.pending?.countdownEndsAt ?? null

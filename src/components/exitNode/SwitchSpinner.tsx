@@ -17,7 +17,7 @@ export default function SwitchSpinner(props: { endsAt: number }) {
   return (
     <svg
       viewBox="0 0 24 24"
-      class="h-5 w-5 shrink-0 -rotate-90 text-text-secondary"
+      class="h-3 w-3 shrink-0 -rotate-90 text-text-secondary"
       role="img"
       aria-label="Switching"
     >
