@@ -84,6 +84,10 @@ export default function ExitHealthDetail(
     return rh ? formatLoadAvg(rh) : null;
   };
   const route = () => formatRouting(routing());
+  // "Ready to connect" is the expected steady state once health data exists
+  // at all, so it's noise here — only a state that needs the user's
+  // attention (Connected, Full, Connecting, ...) is worth a tag.
+  const showStatusTag = () => status() !== "Ready to connect";
 
   // Independent clock: ExitHealthDetail is mounted in MainScreen, outside ExitNodeList
   // which runs its own clock. Both are intentionally separate mounts.
@@ -103,43 +107,29 @@ export default function ExitHealthDetail(
   return (
     <Show when={destId()} keyed>
       {(_id: string) => (
-        <div class="w-full bg-bg-surface rounded-b-2xl px-4 py-2.5 text-xs fade-in-up relative">
-          <div class="flex flex-wrap items-center gap-1.5 mb-1">
-            <Show when={route() && getHopCount(routing()) !== 1}>
+        <div class="w-full text-xs fade-in-up relative">
+          <Show when={route() && getHopCount(routing()) !== 1}>
+            <div class="flex flex-wrap items-center gap-1.5 mb-1.5">
               <Tag>
                 <HopsIcon count={getHopCount(routing())} hideCount />
                 <span class="ml-1">{route()}</span>
               </Tag>
-            </Show>
-          </div>
+            </div>
+          </Show>
 
-          <div class="flex flex-wrap items-center gap-1.5 mb-1.5">
-            <Tag
-              value={status()}
-              class={`${statusColorClass[color()]} bg-bg-primary`}
-            />
-          </div>
+          <Show when={showStatusTag()}>
+            <div class="flex flex-wrap items-center gap-1.5 mb-1.5">
+              <Tag
+                value={status()}
+                class={`${statusColorClass[color()]} bg-bg-primary`}
+              />
+            </div>
+          </Show>
 
           <Show when={hasHealthContent(routeHealth())}>
-            <div class="border-t border-border pt-1.5 -mx-4 px-4">
-              <button
-                type="button"
-                aria-expanded={settings.showDetailedMetrics}
-                aria-label="Toggle exit node details"
-                class="flex w-full items-center justify-end text-text-secondary hover:cursor-pointer"
-                onClick={() =>
-                  void settingsActions.setShowDetailedMetrics(
-                    !settings.showDetailedMetrics,
-                  )}
-              >
-                <ChevronIcon
-                  class={`w-3 h-2 transition-transform duration-200 ${
-                    settings.showDetailedMetrics ? "rotate-180" : ""
-                  }`}
-                />
-              </button>
+            <div class="flex items-center justify-between gap-2">
               <Show when={settings.showDetailedMetrics}>
-                <div class="grid grid-cols-[3fr_2fr] gap-x-4 gap-y-2 pl-2 pt-1.5 text-text-secondary">
+                <div class="grid grid-cols-[3fr_2fr] gap-x-4 gap-y-2 text-text-secondary">
                   <Stat
                     label="Latency"
                     value={latency()}
@@ -174,6 +164,22 @@ export default function ExitHealthDetail(
                   />
                 </div>
               </Show>
+              <button
+                type="button"
+                aria-expanded={settings.showDetailedMetrics}
+                aria-label="Toggle exit node details"
+                class="shrink-0 ml-auto text-text-secondary hover:cursor-pointer"
+                onClick={() =>
+                  void settingsActions.setShowDetailedMetrics(
+                    !settings.showDetailedMetrics,
+                  )}
+              >
+                <ChevronIcon
+                  class={`w-3 h-2 transition-transform duration-200 ${
+                    settings.showDetailedMetrics ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
             </div>
           </Show>
         </div>

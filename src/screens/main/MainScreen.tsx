@@ -135,16 +135,18 @@ export function MainScreen() {
         class="flex w-full flex-1 flex-col items-center relative min-h-0"
       >
         <StatusHero />
-        <div ref={exitAnchorRef} class="w-full flex justify-center z-10">
-          <LocationBanner />
+        <div class="w-full bg-bg-surface-alt rounded-2xl p-4 z-10">
+          <div ref={exitAnchorRef} class="w-full flex justify-center">
+            <LocationBanner />
+          </div>
+          <Show when={activeDestinationState()}>
+            {(ds) => (
+              <div class="w-full mt-4">
+                <ExitHealthDetail destinationState={ds()} />
+              </div>
+            )}
+          </Show>
         </div>
-        <Show when={activeDestinationState()}>
-          {(ds) => (
-            <div class="w-full z-10">
-              <ExitHealthDetail destinationState={ds()} />
-            </div>
-          )}
-        </Show>
         <StatusLine heightPx={connectorHeight()} bottomPx={connectorBottom()} />
       </main>
       <div class="mt-4 w-full z-10">
