@@ -1,17 +1,29 @@
 import { Show } from "solid-js";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
+import flagCountries from "flag-icons/country.json";
+
+const KNOWN_FLAG_CODES = new Set(flagCountries.map((country) => country.code));
+
+// gb-sct etc. have art; other ISO 3166-2 subdivisions don't, so fall back to
+// the parent country code (the part before the hyphen) when the exact code is missing.
+function resolveFlagCode(code: string): string | undefined {
+  if (KNOWN_FLAG_CODES.has(code)) return code;
+  const parentCode = code.split("-")[0];
+  return KNOWN_FLAG_CODES.has(parentCode) ? parentCode : undefined;
+}
 
 export default function Flag(props: { code: string }) {
   const [settings] = useSettingsStore();
 
+  const resolvedCode = () => resolveFlagCode(props.code);
   const visible = () =>
-    props.code.length > 0 && settings.flagDisplay !== "none";
+    resolvedCode() !== undefined && settings.flagDisplay !== "none";
   const grayscale = () => settings.flagDisplay === "mono";
 
   return (
     <Show when={visible()}>
       <span
-        class={`fi fi-${props.code} w-12 h-9 rounded-sm shrink-0${
+        class={`fi fi-${resolvedCode()} w-12 h-9 rounded-sm shrink-0${
           grayscale() ? " grayscale" : ""
         }`}
         aria-hidden="true"

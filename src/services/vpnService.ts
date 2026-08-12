@@ -56,12 +56,15 @@ export const DisconnectingInfoSchema = z.object({
 });
 export type DisconnectingInfo = z.infer<typeof DisconnectingInfoSchema>;
 
-// ISO 3166-1 alpha-2: exactly two ASCII letters, normalized to lowercase.
+// ISO 3166-1 alpha-2, or ISO 3166-2 subdivision (alpha-2 + "-" + 1-3
+// alphanumeric chars, e.g. GB-SCT), normalized to lowercase. Flag.tsx checks
+// the code against flag-icons' actual asset list and falls back to the
+// parent country if a subdivision has no art of its own.
 // .catch(undefined) silently drops any value that doesn't match so garbage
 // from the server never reaches the CSS class string in Flag.tsx.
 const FlagCodeSchema = z
   .string()
-  .regex(/^[a-zA-Z]{2}$/)
+  .regex(/^[a-zA-Z]{2}(-[a-zA-Z0-9]{1,3})?$/)
   .transform((s) => s.toLowerCase())
   .optional()
   .catch(undefined);
