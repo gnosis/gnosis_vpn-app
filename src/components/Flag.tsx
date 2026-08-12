@@ -11,7 +11,7 @@ export default function Flag(props: { code: string }) {
   return (
     <Show when={visible()}>
       <span
-        class={`fi fi-${props.code} rounded-sm shrink-0${
+        class={`fi fi-${props.code} w-12 h-9 rounded-sm shrink-0${
           grayscale() ? " grayscale" : ""
         }`}
         aria-hidden="true"
