@@ -22,9 +22,11 @@ function cardTitle(phase: DestinationModel["phase"]): string {
   }
 }
 
-// Fixed height so the card row's geometry never shifts — MainScreen's
-// connector-bar math anchors to this row and must not be affected by the
-// switching spinner occupying the title row's slot.
+// Card height comes from content + padding, not a fixed constant — the
+// title row's height stays the same whether the switching spinner is
+// mounted or not (text-xs's line-height comfortably exceeds the spinner's
+// 12px), so MainScreen's connector-bar math (driven by this row's live
+// getBoundingClientRect()) never sees it jump.
 export default function LocationBannerCard(props: {
   destinationState: DestinationState;
   destinationPhase: DestinationModel["phase"];
@@ -37,22 +39,22 @@ export default function LocationBannerCard(props: {
   const destination = () => props.destinationState.destination;
 
   return (
-    <div class="flex h-16 w-full shrink-0 flex-col justify-center gap-0.5 rounded-2xl bg-bg-surface px-4 snap-center">
-      <div class="flex items-center gap-1.5">
-        <span class="text-xs text-text-secondary">
-          {cardTitle(props.destinationPhase)}
-        </span>
-        <Show when={props.switchEndsAt} keyed>
-          {(endsAt) => <SwitchSpinner endsAt={endsAt} />}
-        </Show>
-      </div>
-      <div class="flex items-center justify-between gap-2 min-w-0">
+    <div class="flex w-full shrink-0 items-center justify-between gap-2 rounded-2xl bg-bg-surface pt-4 pr-1.5 pb-3 pl-4 snap-center">
+      <div class="flex flex-col gap-4 min-w-0">
+        <div class="flex items-center gap-1.5">
+          <span class="text-xs text-text-secondary">
+            {cardTitle(props.destinationPhase)}
+          </span>
+          <Show when={props.switchEndsAt} keyed>
+            {(endsAt) => <SwitchSpinner endsAt={endsAt} />}
+          </Show>
+        </div>
         <span class="flex items-center gap-1.5 min-w-0 text-xs font-medium text-text-primary">
           <Flag code={destination().meta.flag ?? ""} />
           <span class="truncate">{destinationLabel(destination())}</span>
         </span>
-        <ExitNodeListButton onClick={props.onOpenList} />
       </div>
+      <ExitNodeListButton onClick={props.onOpenList} />
     </div>
   );
 }
