@@ -94,15 +94,22 @@ pub fn get_install_status(state: State<'_, UpdateInstallState>) -> Option<Instal
 #[cfg(target_os = "macos")]
 #[tauri::command]
 pub async fn get_toolkit_version() -> Option<String> {
-    let output = std::process::Command::new(UPDATER_PATH)
-        .args(["version", "-o", "plain"])
-        .output()
-        .ok()?;
-    if !output.status.success() {
-        return None;
-    }
-    let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    (!version.is_empty()).then_some(version)
+    // `output()` blocks; keep it off the shared async executor so a hung
+    // updater binary can't stall other Tauri commands.
+    tauri::async_runtime::spawn_blocking(|| {
+        let output = std::process::Command::new(UPDATER_PATH)
+            .args(["version", "-o", "plain"])
+            .output()
+            .ok()?;
+        if !output.status.success() {
+            return None;
+        }
+        let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        (!version.is_empty()).then_some(version)
+    })
+    .await
+    .ok()
+    .flatten()
 }
 
 #[cfg(not(target_os = "macos"))]
