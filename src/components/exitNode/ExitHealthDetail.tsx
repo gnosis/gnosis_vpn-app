@@ -179,7 +179,12 @@ export default function ExitHealthDetail(
                       valueClass="font-semibold text-text-primary"
                       tooltip={latencyTooltip()}
                     />
-                    {hopsTag()}
+                    {
+                      /* -ml-2 cancels the pill's own px-2, so its icon lines
+                        up with Capacity's text below instead of the pill's
+                        outline. */
+                    }
+                    <div class="-ml-2">{hopsTag()}</div>
                     <Stat
                       label="Checked"
                       value={lastChecked()}
