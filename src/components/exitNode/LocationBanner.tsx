@@ -11,7 +11,6 @@ import { useAppStore } from "@src/stores/appStore.ts";
 import { currentDisplayId } from "@src/stores/destinationMode.ts";
 import { isVpnActive } from "@src/utils/destinations.ts";
 import LocationBannerCard from "./LocationBannerCard.tsx";
-import ExitHealthDetail from "./ExitHealthDetail.tsx";
 import ExitNodeList from "./ExitNodeList.tsx";
 
 // Re-enabled for the slider rework in progress — see LocationBanner's
@@ -367,10 +366,7 @@ export default function LocationBanner() {
               {(ds) => (
                 <div
                   data-destination-id={id}
-                  // Narrower than the strip so a sliver of the adjacent
-                  // card's rounded corner peeks in on both sides once this
-                  // one is snap-centered.
-                  class="relative w-[calc(100%-24px)] shrink-0 snap-center"
+                  class="relative w-full shrink-0 snap-center"
                   aria-label="Exit node, use left and right arrow keys to browse"
                   tabIndex={0}
                   onKeyDown={(e) => {
@@ -393,14 +389,6 @@ export default function LocationBanner() {
                       : null}
                     onOpenList={() => setShowList(true)}
                   />
-                  {
-                    /* Rides along in the same slide as its card, so the
-                      slide+details combination moves as one unit instead of
-                      the card sliding while the details snap underneath. */
-                  }
-                  <div class="w-full mt-1.5">
-                    <ExitHealthDetail destinationState={ds()} />
-                  </div>
                 </div>
               )}
             </Show>

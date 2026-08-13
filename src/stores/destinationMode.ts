@@ -94,6 +94,12 @@ type DestinationModelActions = {
   // Picking a destination from the vertical ExitNodeList — any known
   // destination, not just one already in the banner (rules 9 & 14).
   pickDestination: (id: string) => void;
+  // TEMP(dev): appends a new "auto"-origin entry without touching activeId —
+  // mirrors what the candidate-detection loop does when it starts pending,
+  // which is what actually triggers LocationBanner's slide. Lets the slide
+  // animation be re-triggered on demand while it's being reworked. Remove
+  // once the slider rework lands.
+  debugAppendAutoEntry: (id: string) => void;
 };
 
 type DestinationModeStoreTuple = readonly [
@@ -364,6 +370,37 @@ export function createDestinationMode(
         e.id === mode.activeId ? { id, origin: "user" as const } : e
       );
       startSelected(nextEntries, id);
+    },
+
+    // TEMP(dev): see the interface doc comment — remove with the rest of
+    // this debug affordance once the slider rework lands.
+    debugAppendAutoEntry: (id) => {
+      if (mode.phase === "uninitialized") return;
+      if (mode.entries.some((e) => e.id === id)) return;
+      const entries = [...mode.entries, { id, origin: "auto" as const }];
+      if (mode.phase === "auto") {
+        setMode(
+          reconcile({
+            phase: "auto",
+            entries,
+            activeId: mode.activeId,
+            pending: mode.pending,
+          }),
+        );
+      } else if (mode.phase === "selected") {
+        setMode(
+          reconcile({
+            phase: "selected",
+            entries,
+            activeId: mode.activeId,
+            autoRevertAt: mode.autoRevertAt,
+          }),
+        );
+      } else {
+        setMode(
+          reconcile({ phase: "connecting", entries, activeId: mode.activeId }),
+        );
+      }
     },
   };
 
