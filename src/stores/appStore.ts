@@ -541,12 +541,33 @@ export function createAppStore(): AppStoreTuple {
       debugDestCounter += 1;
       const newId = `debug-${debugDestCounter}`;
       const newDestination: Destination = { ...base.destination, id: newId };
-      setState("destinations", newId, { ...base, destination: newDestination });
-      setState(
-        "availableDestinations",
-        (prev) => [...prev, newDestination],
-      );
-      modeActions.debugAppendAutoEntry(newId);
+
+      // A strictly better latency than the base, so resolveAutoDestination
+      // actually picks this as the new best candidate — that's what makes
+      // the real candidate-detection loop below pick it up, append it,
+      // start the countdown, and (once it commits) trigger the slide, same
+      // as it would for a real health-driven switch.
+      let routeHealth = base.route_health;
+      if (routeHealth && routeHealth.state.state === "ReadyToConnect") {
+        const rhs = routeHealth.state;
+        routeHealth = {
+          ...routeHealth,
+          state: {
+            ...rhs,
+            exit: {
+              ...rhs.exit,
+              ping_rtt: Math.max(1, rhs.exit.ping_rtt - 10),
+            },
+          },
+        };
+      }
+
+      const newDestState: DestinationState = {
+        destination: newDestination,
+        route_health: routeHealth,
+      };
+      setState("destinations", newId, newDestState);
+      setState("availableDestinations", (prev) => [...prev, newDestination]);
     },
   } as const;
 

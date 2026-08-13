@@ -8,14 +8,12 @@ import {
 } from "solid-js";
 import { useAppStore } from "../../stores/appStore.ts";
 import { useSettingsStore } from "../../stores/settingsStore.ts";
-import { currentDisplayId } from "../../stores/destinationMode.ts";
 import { StatusIndicator } from "../../components/status/StatusIndicator.tsx";
 import Navigation from "../../components/Navigation.tsx";
 import LocationBanner from "../../components/exitNode/LocationBanner.tsx";
 import ConnectButton from "../../components/ConnectButton.tsx";
 import StatusHero from "../../components/status/StatusHero.tsx";
 import StatusLine from "../../components/status/StatusLine.tsx";
-import ExitHealthDetail from "../../components/exitNode/ExitHealthDetail.tsx";
 import ConnectionStatus from "../../components/status/ConnectionStatus.tsx";
 import { openSettingsWindow } from "../../utils/settingsWindow.ts";
 import { isRunningRunMode } from "../../services/vpnService.ts";
@@ -51,11 +49,6 @@ export function MainScreen() {
     balanceStatus() === "Empty"
       ? "Your balance is empty"
       : "Your balance is low";
-
-  const activeDestinationState = createMemo(() => {
-    const id = currentDisplayId(appState.mode);
-    return id ? appState.destinations[id] : undefined;
-  });
 
   let mainRef!: HTMLDivElement;
   let exitAnchorRef!: HTMLDivElement;
@@ -139,16 +132,6 @@ export function MainScreen() {
           <div ref={exitAnchorRef} class="w-full flex justify-center">
             <LocationBanner />
           </div>
-          <Show when={activeDestinationState()}>
-            {(ds) => (
-              // mt-1.5 matches the card's own p-1.5 so this row sits as far
-              // from the destination card as it does from the card's bottom
-              // edge — evenly centered in the leftover space.
-              <div class="w-full mt-1.5">
-                <ExitHealthDetail destinationState={ds()} />
-              </div>
-            )}
-          </Show>
         </div>
         <StatusLine heightPx={connectorHeight()} bottomPx={connectorBottom()} />
       </main>
