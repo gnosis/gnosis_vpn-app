@@ -176,13 +176,13 @@ export default function LocationBanner() {
 
   const handlePointerDown = (e: PointerEvent) => {
     if (!containerRef || e.pointerType === "touch") return;
-    // Skip drag-tracking when the gesture starts on the list button —
-    // setPointerCapture below would otherwise retarget its click to this
-    // container, and the button would never see it.
-    if (
-      e.target instanceof Element &&
-      e.target.closest("[data-exit-list-trigger]")
-    ) {
+    // Skip drag-tracking when the gesture starts on any button (list
+    // button, chevron, ...) — setPointerCapture below would otherwise
+    // retarget its click to this container, and the button would never see
+    // it. A blanket "button" check instead of naming each one individually
+    // so a future button added inside a slide doesn't silently inherit the
+    // same bug.
+    if (e.target instanceof Element && e.target.closest("button")) {
       return;
     }
     dragStartX = e.clientX;
