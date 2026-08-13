@@ -128,7 +128,15 @@ export function MainScreen() {
         class="flex w-full flex-1 flex-col items-center relative min-h-0"
       >
         <StatusHero />
-        <div ref={exitAnchorRef} class="w-full flex justify-center z-10">
+        {
+          /* -mx-4 cancels the screen's own px-4 so the carousel's edge-peek
+            (LocationBanner.tsx) can bleed all the way to the true window
+            border instead of stopping at the page margin. */
+        }
+        <div
+          ref={exitAnchorRef}
+          class="-mx-4 self-stretch flex justify-center z-10"
+        >
           <LocationBanner />
         </div>
         <StatusLine heightPx={connectorHeight()} bottomPx={connectorBottom()} />
