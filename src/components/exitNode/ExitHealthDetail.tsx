@@ -1,4 +1,10 @@
-import { createMemo, createSignal, onCleanup, Show } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  onCleanup,
+  Show,
+} from "solid-js";
 import type {
   DestinationState,
   RouteHealthView,
@@ -136,6 +142,30 @@ export default function ExitHealthDetail(
     </Show>
   );
 
+  // The hops pill lives in one spot next to Latency (collapsed) and a
+  // different one aligned under Capacity (expanded) — two different
+  // layouts, not two positions of the same one, so CSS alone can't tween
+  // between them. Instead we measure both and slide the same DOM node with
+  // a transform (a lightweight FLIP): capacityRef stays mounted at all
+  // times (only its row's height animates), so its column position is
+  // measurable even while collapsed.
+  let hopsRef: HTMLDivElement | undefined;
+  let capacityRef: HTMLDivElement | undefined;
+  const [hopsOffsetPx, setHopsOffsetPx] = createSignal(0);
+  const PILL_LEFT_PAD_PX = 8; // Tag's own px-2, canceled so the icon (not the pill's outline) lines up with Capacity
+
+  createEffect(() => {
+    const expanded = settings.showDetailedMetrics;
+    latency(); // re-measure if the latency text's width changes
+    if (!expanded || !hopsRef || !capacityRef) {
+      setHopsOffsetPx(0);
+      return;
+    }
+    const hopsLeft = hopsRef.getBoundingClientRect().left;
+    const capacityLeft = capacityRef.getBoundingClientRect().left;
+    setHopsOffsetPx(capacityLeft - PILL_LEFT_PAD_PX - hopsLeft);
+  });
+
   return (
     <Show when={destId()} keyed>
       {(_id: string) => (
@@ -153,67 +183,101 @@ export default function ExitHealthDetail(
             }
           >
             <div class="flex items-center justify-between gap-2">
-              <div class="flex items-center gap-2">
-                <Show
-                  when={settings.showDetailedMetrics}
-                  fallback={
-                    <>
-                      <Stat
-                        label="Latency"
-                        value={latency()}
-                        valueClass="font-semibold text-text-primary"
-                        tooltip={latencyTooltip()}
-                      />
-                      {hopsTag()}
-                    </>
-                  }
+              <div class="min-w-0">
+                <div class="flex items-center gap-2">
+                  <Stat
+                    label="Latency"
+                    value={latency()}
+                    valueClass="font-semibold text-text-primary"
+                    tooltip={latencyTooltip()}
+                  />
+                  <div
+                    ref={hopsRef}
+                    class="transition-transform duration-300 ease-out"
+                    style={{ transform: `translateX(${hopsOffsetPx()}px)` }}
+                  >
+                    {hopsTag()}
+                  </div>
+                </div>
+                {
+                  /* grid-template-rows 0fr->1fr is the standard CSS-only way
+                    to animate a height nobody knows up front; the inner
+                    overflow-hidden clips content out of the shrinking row. */
+                }
+                <div
+                  class="grid transition-[grid-template-rows] duration-300 ease-out"
+                  style={{
+                    "grid-template-rows": settings.showDetailedMetrics
+                      ? "1fr"
+                      : "0fr",
+                  }}
                 >
-                  {
-                    /* 2 columns auto-wrap the 5 cells into 3 rows: latency+hops,
-                      checked+capacity, load (alone). */
-                  }
-                  <div class="grid grid-cols-[3fr_2fr] gap-x-4 gap-y-2 text-text-secondary">
-                    <Stat
-                      label="Latency"
-                      value={latency()}
-                      valueClass="font-semibold text-text-primary"
-                      tooltip={latencyTooltip()}
-                    />
-                    {
-                      /* -ml-2 cancels the pill's own px-2, so its icon lines
-                        up with Capacity's text below instead of the pill's
-                        outline. */
-                    }
-                    <div class="-ml-2 h-full flex items-center">
-                      {hopsTag()}
-                    </div>
-                    <Stat
-                      label="Checked"
-                      value={lastChecked()}
-                      valueClass="font-semibold text-text-primary"
-                      tooltip={<span>Time since last health check</span>}
-                    />
-                    <Stat
-                      label="Capacity"
-                      value={slots()}
-                      tooltip={<span>Available / total connection slots</span>}
-                    />
-                    {
-                      /* col-span-2: Load is alone in its row, so it can use
-                        the full row width instead of just the first column. */
-                    }
-                    <div class="col-span-2">
-                      <Stat
-                        label="Load"
-                        value={loadAvg()}
-                        valueClass="text-text-primary whitespace-nowrap"
-                        tooltip={
-                          <span>Server load average. Lower is better.</span>
-                        }
-                      />
+                  <div class="overflow-hidden">
+                    <div class="grid grid-cols-[3fr_2fr] gap-x-4 gap-y-2 pt-2 text-text-secondary">
+                      <div
+                        class="transition-all duration-300 ease-out"
+                        style={{
+                          opacity: settings.showDetailedMetrics ? 1 : 0,
+                          transform: settings.showDetailedMetrics
+                            ? "translateY(0)"
+                            : "translateY(-4px)",
+                          "transition-delay": settings.showDetailedMetrics
+                            ? "80ms"
+                            : "0ms",
+                        }}
+                      >
+                        <Stat
+                          label="Checked"
+                          value={lastChecked()}
+                          valueClass="font-semibold text-text-primary"
+                          tooltip={<span>Time since last health check</span>}
+                        />
+                      </div>
+                      <div
+                        ref={capacityRef}
+                        class="transition-all duration-300 ease-out"
+                        style={{
+                          opacity: settings.showDetailedMetrics ? 1 : 0,
+                          transform: settings.showDetailedMetrics
+                            ? "translateY(0)"
+                            : "translateY(-4px)",
+                          "transition-delay": settings.showDetailedMetrics
+                            ? "80ms"
+                            : "0ms",
+                        }}
+                      >
+                        <Stat
+                          label="Capacity"
+                          value={slots()}
+                          tooltip={
+                            <span>Available / total connection slots</span>
+                          }
+                        />
+                      </div>
+                      <div
+                        class="col-span-2 transition-all duration-300 ease-out"
+                        style={{
+                          opacity: settings.showDetailedMetrics ? 1 : 0,
+                          transform: settings.showDetailedMetrics
+                            ? "translateY(0)"
+                            : "translateY(-4px)",
+                          "transition-delay": settings.showDetailedMetrics
+                            ? "160ms"
+                            : "0ms",
+                        }}
+                      >
+                        <Stat
+                          label="Load"
+                          value={loadAvg()}
+                          valueClass="text-text-primary whitespace-nowrap"
+                          tooltip={
+                            <span>Server load average. Lower is better.</span>
+                          }
+                        />
+                      </div>
                     </div>
                   </div>
-                </Show>
+                </div>
               </div>
               <button
                 type="button"
