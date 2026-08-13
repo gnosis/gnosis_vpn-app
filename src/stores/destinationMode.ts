@@ -15,6 +15,13 @@ import type {
 import { resolveAutoDestination } from "@src/utils/destinations.ts";
 import { isReadyToConnect } from "@src/utils/exitHealth.ts";
 
+// TEMP(dev): disabled while the transition-animation rework is in progress,
+// so MainScreen's "DEBUG: trigger slide" button (debugAppendAutoEntry) is
+// the only thing that can change the list — real health-driven
+// auto-switching running concurrently would fight manual animation testing.
+// Flip back to true once the rework lands.
+const AUTO_CANDIDATE_DETECTION_ENABLED = false;
+
 // How long a better auto-candidate is held pending before it settles; also
 // the flat, unconditional deadline for any `selected`-phase entry to revert
 // back to `auto` (see docs/destination-mode.md).
@@ -268,6 +275,7 @@ export function createDestinationMode(
   // `mode.phase === "auto"`; runs forever, never exits itself except through
   // commitCandidate's preferred-promotion branch above.
   createEffect(() => {
+    if (!AUTO_CANDIDATE_DETECTION_ENABLED) return;
     if (mode.phase !== "auto") {
       clearPendingTimer();
       return;
@@ -322,6 +330,7 @@ export function createDestinationMode(
   // sequence toward the best remaining destination. Skips ids we have no
   // data for at all — an unconfirmed pick isn't the same as a known-bad one.
   createEffect(() => {
+    if (!AUTO_CANDIDATE_DETECTION_ENABLED) return;
     if (mode.phase !== "selected") return;
     const destInfo = appState.destinations[mode.activeId];
     if (destInfo === undefined) return;
