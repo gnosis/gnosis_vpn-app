@@ -154,7 +154,6 @@ export default function ExitHealthDetail(
           >
             <div class="flex items-center justify-between gap-2">
               <div class="flex items-center gap-2">
-                {hopsTag()}
                 <Show
                   when={settings.showDetailedMetrics}
                   fallback={
@@ -193,6 +192,7 @@ export default function ExitHealthDetail(
                     />
                   </div>
                 </Show>
+                {hopsTag()}
               </div>
               <button
                 type="button"
