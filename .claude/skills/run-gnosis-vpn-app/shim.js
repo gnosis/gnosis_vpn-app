@@ -117,13 +117,16 @@
   // host OS, not the fixture.
   const wantDark = (fixture.theme ?? "dark") === "dark";
   const origMatchMedia = globalThis.matchMedia.bind(globalThis);
-  globalThis.matchMedia = (query) =>
-    query.includes("dark")
-      ? {
-        matches: wantDark,
-        media: query,
-        addEventListener() {},
-        removeEventListener() {},
-      }
-      : origMatchMedia(query);
+  globalThis.matchMedia = (query) => {
+    const asksDark = query.includes("dark");
+    const asksLight = query.includes("light");
+    // Anything not about the color scheme is none of our business.
+    if (!asksDark && !asksLight) return origMatchMedia(query);
+    return {
+      matches: asksDark ? wantDark : !wantDark,
+      media: query,
+      addEventListener() {},
+      removeEventListener() {},
+    };
+  };
 })();

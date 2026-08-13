@@ -56,12 +56,15 @@ export default function Updates() {
   const [installError, setInstallError] = createSignal<string | null>(null);
   const [pendingConnectInstall, setPendingConnectInstall] = createSignal(false);
   const [appVersion] = createResource(() => getVersion());
+  const [showVersionDetails, setShowVersionDetails] = createSignal(false);
   // The updater toolkit only exists on macOS, so the row is hidden elsewhere.
   const [platform] = createResource(getPlatform);
-  const [toolkitVersion] = createResource(() =>
-    invoke<string | null>("get_toolkit_version").catch(() => null)
+  // Probing the version spawns the updater binary; hold off until the row is
+  // actually on screen (the details are behind a 7-click reveal).
+  const [toolkitVersion] = createResource(
+    () => showVersionDetails() && platform() === "macos",
+    () => invoke<string | null>("get_toolkit_version").catch(() => null),
   );
-  const [showVersionDetails, setShowVersionDetails] = createSignal(false);
   let versionClickCount = 0;
   let lastVersionClickAt = 0;
 

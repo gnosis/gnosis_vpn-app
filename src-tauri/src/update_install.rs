@@ -9,7 +9,7 @@
 //! The last status is kept in managed state so the settings Updates tab can
 //! re-hydrate mid-install after a remount (`get_install_status`), and doubles
 //! as the guard against concurrent installs.
-#![cfg_attr(not(target_os = "macos"), allow(dead_code))]
+#![cfg_attr(target_os = "linux", allow(dead_code))]
 
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager, State};
@@ -94,25 +94,20 @@ pub fn get_install_status(state: State<'_, UpdateInstallState>) -> Option<Instal
 #[cfg(target_os = "macos")]
 #[tauri::command]
 pub async fn get_toolkit_version() -> Option<String> {
-    // `output()` blocks; keep it off the shared async executor so a hung
-    // updater binary can't stall other Tauri commands.
-    tauri::async_runtime::spawn_blocking(|| {
-        let output = std::process::Command::new(UPDATER_PATH)
-            .args(["version", "-o", "plain"])
-            .output()
-            .ok()?;
-        if !output.status.success() {
-            return None;
-        }
-        let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        (!version.is_empty()).then_some(version)
-    })
-    .await
-    .ok()
-    .flatten()
+    use gnosis_vpn_lib::shell_command_ext::{Logs, ShellCommandExt};
+
+    // `run_stdout` runs on tokio's process driver, so a hung updater binary
+    // can't stall the async executor. A machine without the toolkit is an
+    // expected outcome here, hence `Suppress` rather than logged errors.
+    let version = tokio::process::Command::new(UPDATER_PATH)
+        .args(["version", "-o", "plain"])
+        .run_stdout(Logs::Suppress)
+        .await
+        .ok()?;
+    (!version.is_empty()).then_some(version)
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(target_os = "linux")]
 #[tauri::command]
 pub async fn get_toolkit_version() -> Option<String> {
     None
@@ -230,7 +225,7 @@ pub fn install_update(app: AppHandle, channel: String, force: bool) -> Result<()
     Ok(())
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(target_os = "linux")]
 #[tauri::command]
 #[allow(unused_variables)]
 pub fn install_update(app: AppHandle, channel: String, force: bool) -> Result<(), String> {
