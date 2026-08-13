@@ -21,6 +21,8 @@ import { deriveOverallStatus, type StatusText } from "../../utils/funding.ts";
 import Banner from "../../components/common/Banner.tsx";
 import UpdateIcon from "../../components/icons/UpdateIcon.tsx";
 import WarningIcon from "../../components/icons/WarningIcon.tsx";
+import { currentDisplayId } from "../../stores/destinationMode.ts";
+import { destinationLabel } from "../../utils/destinations.ts";
 
 // Module scope — survives screen switches, resets on app restart.
 const [dismissedBalanceStatus, setDismissedBalanceStatus] = createSignal<
@@ -49,6 +51,16 @@ export function MainScreen() {
     balanceStatus() === "Empty"
       ? "Your balance is empty"
       : "Your balance is low";
+
+  // TEMP(dev): see the "DEBUG: trigger slide" button below — surfaces which
+  // destination the model actually considers active/displayed, since that
+  // can differ from whichever card the carousel is currently previewing.
+  const activeCardLabel = () => {
+    const id = currentDisplayId(appState.mode);
+    if (!id) return "(none)";
+    const destination = appState.destinations[id]?.destination;
+    return destination ? destinationLabel(destination) : id;
+  };
 
   let mainRef!: HTMLDivElement;
   let exitAnchorRef!: HTMLDivElement;
@@ -145,6 +157,9 @@ export function MainScreen() {
         /* TEMP(dev): re-triggers LocationBanner's slide on demand for
           animation iteration — remove once the slider rework lands. */
       }
+      <div class="mb-1 w-full text-center text-xs font-bold text-fuchsia-300">
+        DEBUG active card: {activeCardLabel()}
+      </div>
       <button
         type="button"
         class="mb-2 w-full rounded-lg bg-fuchsia-600 py-1 text-xs font-bold text-white hover:cursor-pointer"
