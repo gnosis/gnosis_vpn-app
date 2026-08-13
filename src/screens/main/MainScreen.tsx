@@ -135,7 +135,7 @@ export function MainScreen() {
         class="flex w-full flex-1 flex-col items-center relative min-h-0"
       >
         <StatusHero />
-        <div class="w-full bg-bg-surface-alt rounded-2xl p-4 z-10">
+        <div class="w-full bg-slate-800 rounded-2xl p-4 z-10">
           <div ref={exitAnchorRef} class="w-full flex justify-center">
             <LocationBanner />
           </div>
