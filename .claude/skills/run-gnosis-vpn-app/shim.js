@@ -23,6 +23,7 @@
     updateManifest: null,
     channel: null,
     dismissedUpdateVersion: null,
+    installedVersion: null,
     showDetailedMetrics: false,
     flagDisplay: "color",
     ...(fixture.settings ?? {}),

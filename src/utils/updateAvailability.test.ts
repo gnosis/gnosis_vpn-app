@@ -3,7 +3,7 @@ import type {
   ChannelRelease,
   UpdateManifest,
 } from "@src/stores/settingsStore.ts";
-import { evaluateUpdate } from "./updateAvailability.ts";
+import { evaluateUpdate, resolveChannelResync } from "./updateAvailability.ts";
 
 const release = (version: string): ChannelRelease => ({
   version,
@@ -316,5 +316,59 @@ describe("dismissed version", () => {
       dismissedVersion: null,
     });
     expect(result.isUpdateAvailable).toBe(true);
+  });
+});
+
+describe("resolveChannelResync", () => {
+  it("keeps a stored preference when no previous install is recorded", () => {
+    // First run after the marker was introduced: the previous channel is
+    // unknown, so a pending switch to snapshot must not be reset to stable.
+    expect(resolveChannelResync({
+      packageVersion: "0.8.0",
+      installedVersion: null,
+      channel: "snapshot",
+    })).toBeUndefined();
+  });
+
+  it("fills in an unset preference from the installed package", () => {
+    expect(resolveChannelResync({
+      packageVersion: "0.8.0",
+      installedVersion: null,
+      channel: null,
+    })).toBe("stable");
+    expect(resolveChannelResync({
+      packageVersion: "0.8.0-rc.1",
+      installedVersion: null,
+      channel: null,
+    })).toBe("snapshot");
+  });
+
+  it("follows the installed package when the update crossed channels", () => {
+    expect(resolveChannelResync({
+      packageVersion: "0.8.0-rc.1",
+      installedVersion: "0.7.5",
+      channel: "stable",
+    })).toBe("snapshot");
+    expect(resolveChannelResync({
+      packageVersion: "0.8.0",
+      installedVersion: "0.7.5-rc.1",
+      channel: "snapshot",
+    })).toBe("stable");
+  });
+
+  it("keeps a pending switch when the package stayed on one channel", () => {
+    expect(resolveChannelResync({
+      packageVersion: "0.8.0",
+      installedVersion: "0.7.5",
+      channel: "snapshot",
+    })).toBeUndefined();
+  });
+
+  it("fills in an unset preference on a same-channel update", () => {
+    expect(resolveChannelResync({
+      packageVersion: "0.8.0",
+      installedVersion: "0.7.5",
+      channel: null,
+    })).toBe("stable");
   });
 });
