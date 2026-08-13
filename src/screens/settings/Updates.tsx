@@ -93,22 +93,16 @@ export default function Updates() {
     appState.serviceInfo?.package_version ?? null
   );
 
-  // const installedChannel = createMemo<UpdateChannel | null>(() => {
-  //   const ver = packageVersion();
-  //   return ver ? detectChannel(ver) : null;
-  // });
-
-  const effectiveChannel = createMemo<UpdateChannel>(() => {
-    if (settings.channel) return settings.channel;
+  const installedChannel = createMemo<UpdateChannel | null>(() => {
     const ver = packageVersion();
-    return ver ? detectChannel(ver) : "stable";
+    return ver ? detectChannel(ver) : null;
   });
 
-  createEffect(() => {
-    if (!settings.channel && packageVersion()) {
-      void settingsActions.setChannel(detectChannel(packageVersion()!));
-    }
-  });
+  // The preference (settings.channel) is kept in sync with the installed
+  // package by the appStore resync effect, so it is normally set here.
+  const effectiveChannel = createMemo<UpdateChannel>(() =>
+    settings.channel ?? installedChannel() ?? "stable"
+  );
 
   const latestVersion = createMemo(() =>
     settings.updateManifest?.channels[effectiveChannel()]?.version
