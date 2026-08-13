@@ -176,8 +176,8 @@ export default function ExitHealthDetail(
     <Show when={destId()} keyed>
       {(_id: string) => (
         <div
-          class={`w-full text-xs fade-in-up relative pl-3${
-            isGoodState() ? " cursor-pointer" : ""
+          class={`w-full text-xs fade-in-up relative pl-3 ${
+            isGoodState() ? "cursor-pointer" : ""
           }`}
           role={isGoodState() ? "button" : undefined}
           tabIndex={isGoodState() ? 0 : undefined}
