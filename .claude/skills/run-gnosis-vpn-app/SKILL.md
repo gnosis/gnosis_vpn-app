@@ -112,9 +112,8 @@ nix fmt
   add `wait 1500` after any action that triggers a screen transition.
 - **Theme comes from `matchMedia`, not the backend.** `index.tsx` overrides the
   backend theme with `prefers-color-scheme`, and headless Chromium follows the
-  host OS's setting. `shim.js` patches `matchMedia` to answer with the
-  fixture's theme (both directions) — answering `get_initial_theme` alone is
-  not enough.
+  host OS's setting. `shim.js` patches `matchMedia` to answer with the fixture's
+  theme (both directions) — answering `get_initial_theme` alone is not enough.
 - **`settingsStore.load()` must succeed.** `App.tsx` awaits it before
   `initializeApp()` with no try/catch; if `get_settings` rejects, no status is
   hydrated and no screen ever changes.
