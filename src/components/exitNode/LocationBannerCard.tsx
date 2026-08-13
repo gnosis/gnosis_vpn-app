@@ -39,7 +39,7 @@ export default function LocationBannerCard(props: {
   const destination = () => props.destinationState.destination;
 
   return (
-    <div class="flex w-full shrink-0 items-center justify-between gap-2 rounded-2xl bg-bg-surface px-3 py-3.5 snap-center">
+    <div class="flex w-full shrink-0 items-center justify-between gap-2 rounded-2xl bg-slate-700 px-3 py-3.5 snap-center">
       <div class="flex flex-col gap-4 min-w-0">
         <div class="flex items-center gap-1.5">
           <span class="text-xs text-text-secondary">
@@ -49,7 +49,7 @@ export default function LocationBannerCard(props: {
             {(endsAt) => <SwitchSpinner endsAt={endsAt} />}
           </Show>
         </div>
-        <span class="flex items-center gap-1.5 min-w-0 text-xs font-medium text-text-primary">
+        <span class="flex items-center gap-1.5 min-w-0 text-xs font-semibold text-text-primary">
           <Flag code={destination().meta.flag ?? ""} />
           <span class="truncate">{destinationLabel(destination())}</span>
         </span>
