@@ -157,14 +157,21 @@ export default function ExitHealthDetail(
                 <Show
                   when={settings.showDetailedMetrics}
                   fallback={
-                    <Stat
-                      label="Latency"
-                      value={latency()}
-                      valueClass="font-semibold text-text-primary"
-                      tooltip={latencyTooltip()}
-                    />
+                    <>
+                      <Stat
+                        label="Latency"
+                        value={latency()}
+                        valueClass="font-semibold text-text-primary"
+                        tooltip={latencyTooltip()}
+                      />
+                      {hopsTag()}
+                    </>
                   }
                 >
+                  {
+                    /* 2 columns auto-wrap the 5 cells into 3 rows: latency+hops,
+                      checked+capacity, load (alone). */
+                  }
                   <div class="grid grid-cols-[3fr_2fr] gap-x-4 gap-y-2 text-text-secondary">
                     <Stat
                       label="Latency"
@@ -172,6 +179,7 @@ export default function ExitHealthDetail(
                       valueClass="font-semibold text-text-primary"
                       tooltip={latencyTooltip()}
                     />
+                    {hopsTag()}
                     <Stat
                       label="Checked"
                       value={lastChecked()}
@@ -192,7 +200,6 @@ export default function ExitHealthDetail(
                     />
                   </div>
                 </Show>
-                {hopsTag()}
               </div>
               <button
                 type="button"
