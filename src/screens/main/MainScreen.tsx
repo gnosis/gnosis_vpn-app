@@ -30,7 +30,7 @@ const [dismissedBalanceStatus, setDismissedBalanceStatus] = createSignal<
 >(null);
 
 export function MainScreen() {
-  const [appState] = useAppStore();
+  const [appState, appActions] = useAppStore();
   const [, settingsActions] = useSettingsStore();
 
   const fundingIssues = createMemo(() =>
@@ -152,6 +152,17 @@ export function MainScreen() {
         </div>
         <StatusLine heightPx={connectorHeight()} bottomPx={connectorBottom()} />
       </main>
+      {
+        /* TEMP(dev): re-triggers LocationBanner's slide on demand for
+          animation iteration — remove once the slider rework lands. */
+      }
+      <button
+        type="button"
+        class="mb-2 w-full rounded-lg bg-fuchsia-600 py-1 text-xs font-bold text-white hover:cursor-pointer"
+        onClick={() => appActions.debugAddFakeDestination()}
+      >
+        DEBUG: trigger slide
+      </button>
       <div class="mt-4 w-full z-10">
         <ConnectButton />
       </div>

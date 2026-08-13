@@ -13,9 +13,10 @@ import { isVpnActive } from "@src/utils/destinations.ts";
 import LocationBannerCard from "./LocationBannerCard.tsx";
 import ExitNodeList from "./ExitNodeList.tsx";
 
-// Temporarily off pending a rework of this animation — auto-advance now
-// jumps straight to the latest card instead of pulsing then gliding.
-const AUTO_SLIDE_ENABLED = false;
+// Re-enabled for the slider rework in progress — see LocationBanner's
+// animation overhaul discussion. Flip back to false to fall back to an
+// instant jump if needed.
+const AUTO_SLIDE_ENABLED = true;
 
 // Must match .banner-card-pulse's animation-duration in index.css — the
 // outgoing card shrinks then grows back before the slide starts.

@@ -26,6 +26,7 @@ import {
 } from "@src/services/vpnService.ts";
 import {
   createDestinationMode,
+  currentDisplayId,
   type DestinationModel,
 } from "@src/stores/destinationMode.ts";
 import { useLogsStore } from "@src/stores/logsStore.ts";
@@ -77,6 +78,10 @@ type AppActions = {
   disconnect: () => Promise<void>;
   setActiveEntry: (id: string) => void;
   pickDestination: (id: string) => void;
+  // TEMP(dev): clones the current destination under a fresh id and appends
+  // it as a new "auto" entry, purely to re-trigger LocationBanner's slide
+  // on demand for animation iteration. Remove once the slider rework lands.
+  debugAddFakeDestination: () => void;
 };
 
 type AppStoreTuple = readonly [Store<AppState>, AppActions];
@@ -141,6 +146,8 @@ export function createAppStore(): AppStoreTuple {
   let syncTimer: ReturnType<typeof setInterval> | undefined;
   let catchUpTarget: number | null = null;
   let pendingScreenTransition: AppScreen | null = null;
+  // TEMP(dev): see debugAddFakeDestination.
+  let debugDestCounter = 0;
 
   const CATCH_UP_SPEED = 6.6; // % per 100ms tick
   const TICK_INTERVAL = 100; // ms
@@ -523,6 +530,24 @@ export function createAppStore(): AppStoreTuple {
 
     setActiveEntry: (id: string) => modeActions.setActiveEntry(id),
     pickDestination: (id: string) => modeActions.pickDestination(id),
+
+    // TEMP(dev): see the interface doc comment — remove with the rest of
+    // this debug affordance once the slider rework lands.
+    debugAddFakeDestination: () => {
+      const baseId = currentDisplayId(state.mode) ??
+        state.availableDestinations[0]?.id;
+      const base = baseId ? state.destinations[baseId] : undefined;
+      if (!base) return;
+      debugDestCounter += 1;
+      const newId = `debug-${debugDestCounter}`;
+      const newDestination: Destination = { ...base.destination, id: newId };
+      setState("destinations", newId, { ...base, destination: newDestination });
+      setState(
+        "availableDestinations",
+        (prev) => [...prev, newDestination],
+      );
+      modeActions.debugAppendAutoEntry(newId);
+    },
   } as const;
 
   // Both windows derive update state locally via the same helper — settings
