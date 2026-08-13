@@ -173,7 +173,12 @@ export default function ExitHealthDetail(
           <Show
             when={isGoodState()}
             fallback={
-              <div class="flex flex-wrap items-center gap-1.5">
+              <div class="flex flex-wrap items-center gap-1.5 -ml-2">
+                {
+                  /* -ml-2 cancels the leading pill's own px-2, so its text
+                    lines up with the flag/label above instead of the
+                    pill's outline. */
+                }
                 {hopsTag()}
                 <Tag
                   value={status()}

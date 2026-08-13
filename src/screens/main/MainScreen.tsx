@@ -141,7 +141,10 @@ export function MainScreen() {
           </div>
           <Show when={activeDestinationState()}>
             {(ds) => (
-              <div class="w-full mt-4">
+              // mt-1.5 matches the card's own p-1.5 so this row sits as far
+              // from the destination card as it does from the card's bottom
+              // edge — evenly centered in the leftover space.
+              <div class="w-full mt-1.5">
                 <ExitHealthDetail destinationState={ds()} />
               </div>
             )}
