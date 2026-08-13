@@ -173,21 +173,20 @@ export default function LocationBanner() {
   let dragStartX: number | undefined;
   let dragStartScrollLeft = 0;
   let didDrag = false;
+  // The button (real <button> or a custom role="button" div, e.g. the
+  // health row's expand toggle) a gesture started on, if any — a drag must
+  // be able to start from on top of a button same as anywhere else in a
+  // slide, so pointerdown can't just skip tracking there. Replayed manually
+  // in endDrag when the gesture turns out to be a tap, since
+  // setPointerCapture below retargets the native click away from wherever
+  // the gesture actually started.
+  let pendingClickTarget: HTMLElement | null = null;
 
   const handlePointerDown = (e: PointerEvent) => {
     if (!containerRef || e.pointerType === "touch") return;
-    // Skip drag-tracking when the gesture starts on any button — real
-    // <button> or a custom role="button" div (e.g. the health row's expand
-    // toggle) — setPointerCapture below would otherwise retarget its click
-    // to this container, and the button would never see it. A blanket check
-    // instead of naming each one individually so a future button added
-    // inside a slide doesn't silently inherit the same bug.
-    if (
-      e.target instanceof Element &&
-      e.target.closest('button, [role="button"]')
-    ) {
-      return;
-    }
+    pendingClickTarget = e.target instanceof Element
+      ? e.target.closest<HTMLElement>('button, [role="button"]')
+      : null;
     dragStartX = e.clientX;
     dragStartScrollLeft = containerRef.scrollLeft;
     didDrag = false;
@@ -274,7 +273,12 @@ export default function LocationBanner() {
     dragStartX = undefined;
     containerRef.style.scrollBehavior = "";
     containerRef.style.scrollSnapType = "";
-    if (didDrag) settleToNearestCard();
+    if (didDrag) {
+      settleToNearestCard();
+    } else {
+      pendingClickTarget?.click();
+    }
+    pendingClickTarget = null;
   };
 
   // Native touch swipes never go through the pointer handlers above, so they
