@@ -69,6 +69,8 @@ source:
   full Checking→Downloading→Installing→Completed run; a
   `{ "kind": "Failed", "stage": "...", "error": "..." }` step shows the inline
   error). `installStatus` seeds `get_install_status` for testing re-hydration.
+- `toolkitVersion` — value returned by `get_toolkit_version` (default `null`,
+  shown as "—" in the Updates tab's hidden version details).
 - `windowLabel: "settings"` renders the settings window instead (use
   `--size 640x480`). Switch tabs by clicking the nav buttons, e.g. Usage:
 
@@ -109,9 +111,10 @@ nix fmt
   (1333 ms) between screen switches. The driver waits this out after mount, but
   add `wait 1500` after any action that triggers a screen transition.
 - **Theme comes from `matchMedia`, not the backend.** `index.tsx` overrides the
-  backend theme with `prefers-color-scheme`, and headless Chromium defaults to
-  light. `shim.js` patches `matchMedia` when the fixture says dark — answering
-  `get_initial_theme` alone is not enough.
+  backend theme with `prefers-color-scheme`, and headless Chromium follows the
+  host OS's setting. `shim.js` patches `matchMedia` to answer with the
+  fixture's theme (both directions) — answering `get_initial_theme` alone is
+  not enough.
 - **`settingsStore.load()` must succeed.** `App.tsx` awaits it before
   `initializeApp()` with no try/catch; if `get_settings` rejects, no status is
   hydrated and no screen ever changes.

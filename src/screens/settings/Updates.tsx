@@ -55,6 +55,9 @@ export default function Updates() {
   const [installError, setInstallError] = createSignal<string | null>(null);
   const [pendingConnectInstall, setPendingConnectInstall] = createSignal(false);
   const [appVersion] = createResource(() => getVersion());
+  const [toolkitVersion] = createResource(() =>
+    invoke<string | null>("get_toolkit_version").catch(() => null)
+  );
   const [showVersionDetails, setShowVersionDetails] = createSignal(false);
   let versionClickCount = 0;
   let lastVersionClickAt = 0;
@@ -363,6 +366,12 @@ export default function Updates() {
             App version:{" "}
             <span class="text-text-primary">
               {appVersion() ?? "—"}
+            </span>
+          </div>
+          <div class="text-xs">
+            Toolkit version:{" "}
+            <span class="text-text-primary">
+              {toolkitVersion() ?? "—"}
             </span>
           </div>
         </Show>

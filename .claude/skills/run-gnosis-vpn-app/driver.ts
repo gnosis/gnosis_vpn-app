@@ -60,7 +60,8 @@ const shimSource = await Deno.readTextFile(
   new URL("shim.js", skillDir).pathname,
 );
 const fixtureJson = await Deno.readTextFile(fixturePath);
-JSON.parse(fixtureJson); // fail fast on malformed fixture
+// Also fails fast on a malformed fixture.
+const fixture = JSON.parse(fixtureJson) as { theme?: string };
 const entryTag = '<script src="/src/index.tsx" type="module"></script>';
 if (!indexHtml.includes(entryTag)) {
   throw new Error("index.html entry <script> tag not found — update driver.ts");
@@ -260,6 +261,16 @@ try {
     height,
     deviceScaleFactor: 1,
     mobile: false,
+  }, sessionId);
+
+  // Align the browser's prefers-color-scheme with the fixture theme. The
+  // shim's matchMedia patch only covers JS callers; CSS media queries (e.g.
+  // the splash styles in index.html) follow the host OS without this.
+  await cdp.send("Emulation.setEmulatedMedia", {
+    features: [{
+      name: "prefers-color-scheme",
+      value: (fixture.theme ?? "dark") === "dark" ? "dark" : "light",
+    }],
   }, sessionId);
 
   const evaluate = async (expression: string): Promise<unknown> => {

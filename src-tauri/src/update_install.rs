@@ -90,6 +90,27 @@ pub fn get_install_status(state: State<'_, UpdateInstallState>) -> Option<Instal
     state.0.lock().ok().and_then(|guard| (*guard).clone())
 }
 
+/// Version of the bundled updater toolkit; `None` where it isn't installed.
+#[cfg(target_os = "macos")]
+#[tauri::command]
+pub async fn get_toolkit_version() -> Option<String> {
+    let output = std::process::Command::new(UPDATER_PATH)
+        .args(["version", "-o", "plain"])
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    (!version.is_empty()).then_some(version)
+}
+
+#[cfg(not(target_os = "macos"))]
+#[tauri::command]
+pub async fn get_toolkit_version() -> Option<String> {
+    None
+}
+
 /// Start the updater and return immediately; progress and the outcome flow
 /// exclusively through `update-install-status` events. `Err` means the run
 /// was not started (bad channel, already running, spawn failure).
