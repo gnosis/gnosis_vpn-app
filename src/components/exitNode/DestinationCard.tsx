@@ -27,7 +27,7 @@ function cardTitle(phase: DestinationModel["phase"]): string {
 // mounted or not (text-xs's line-height comfortably exceeds the spinner's
 // 12px), so MainScreen's connector-bar math (driven by this row's live
 // getBoundingClientRect()) never sees it jump.
-export default function LocationBannerCard(props: {
+export default function DestinationCard(props: {
   destinationState: DestinationState;
   destinationPhase: DestinationModel["phase"];
   // The countdown deadline (not just a boolean) so a mid-countdown reset —
@@ -39,7 +39,7 @@ export default function LocationBannerCard(props: {
   const destination = () => props.destinationState.destination;
 
   return (
-    <div class="flex w-full shrink-0 items-center justify-between gap-2 rounded-2xl bg-slate-700 px-3 py-3.5 snap-center">
+    <div class="flex w-full shrink-0 items-center justify-between gap-2 rounded-2xl bg-slate-700 px-3 py-3.5">
       <div class="flex flex-col gap-4 min-w-0">
         <div class="flex items-center gap-1.5">
           <span class="text-xs text-text-secondary">

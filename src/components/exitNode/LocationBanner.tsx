@@ -10,8 +10,7 @@ import { Portal } from "solid-js/web";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { currentDisplayId } from "@src/stores/destinationMode.ts";
 import { isVpnActive } from "@src/utils/destinations.ts";
-import LocationBannerCard from "./LocationBannerCard.tsx";
-import ExitHealthDetail from "./ExitHealthDetail.tsx";
+import DetailCard from "./DetailCard.tsx";
 import ExitNodeList from "./ExitNodeList.tsx";
 
 // Re-enabled for the slider rework in progress — see LocationBanner's
@@ -388,7 +387,7 @@ export default function LocationBanner() {
                     }
                   }}
                 >
-                  <LocationBannerCard
+                  <DetailCard
                     destinationState={ds()}
                     destinationPhase={appState.mode.phase}
                     switchEndsAt={id === currentDisplayId(appState.mode) &&
@@ -397,14 +396,6 @@ export default function LocationBanner() {
                       : null}
                     onOpenList={() => setShowList(true)}
                   />
-                  {
-                    /* Rides along in the same slide as its card, so the
-                      card+detail combination moves as one unit instead of
-                      the card sliding while the details snap underneath. */
-                  }
-                  <div class="w-full mt-1.5">
-                    <ExitHealthDetail destinationState={ds()} />
-                  </div>
                 </div>
               )}
             </Show>

@@ -128,10 +128,8 @@ export function MainScreen() {
         class="flex w-full flex-1 flex-col items-center relative min-h-0"
       >
         <StatusHero />
-        <div class="w-full bg-slate-800 rounded-2xl p-1.5 z-10">
-          <div ref={exitAnchorRef} class="w-full flex justify-center">
-            <LocationBanner />
-          </div>
+        <div ref={exitAnchorRef} class="w-full flex justify-center z-10">
+          <LocationBanner />
         </div>
         <StatusLine heightPx={connectorHeight()} bottomPx={connectorBottom()} />
       </main>
