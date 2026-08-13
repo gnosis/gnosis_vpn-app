@@ -58,7 +58,7 @@ export const SettingsSchema = z.object({
   updateManifest: UpdateManifestSchema.nullable(),
   channel: UpdateChannelSchema.nullable(),
   dismissedUpdateVersion: z.string().nullable(),
-  lastInstalledVersion: z.string().nullable(),
+  installedVersion: z.string().nullable(),
   showDetailedMetrics: z.boolean(),
   flagDisplay: FlagDisplaySchema,
 });
@@ -75,7 +75,7 @@ const DEFAULT_SETTINGS: SettingsState = {
   updateManifest: null,
   channel: null,
   dismissedUpdateVersion: null,
-  lastInstalledVersion: null,
+  installedVersion: null,
   showDetailedMetrics: false,
   flagDisplay: "color",
 };
@@ -183,7 +183,7 @@ export function createSettingsStore(): SettingsStoreTuple {
     // record the new version while keeping the stale channel.
     syncInstalledVersion: (version, channel) =>
       patch({
-        lastInstalledVersion: version,
+        installedVersion: version,
         ...(channel ? { channel } : {}),
       }),
     setDismissedUpdateVersion: (version) =>

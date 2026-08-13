@@ -25,7 +25,7 @@
   },
   "channel": "snapshot",
   "dismissedUpdateVersion": "0.28.0",
-  "lastInstalledVersion": "0.28.5",
+  "installedVersion": "0.28.5",
   "showDetailedMetrics": true,
   "flagDisplay": "mono"
 }
