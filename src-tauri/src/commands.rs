@@ -554,7 +554,11 @@ async fn query_status() -> (bool, Duration, Result<Option<StatusResponse>, Strin
             if is_in_transition {
                 (false, Duration::from_millis(222), Ok(Some(resp)))
             } else {
-                (false, Duration::from_secs_f64(5.3), Ok(Some(resp)))
+                // TEMP(dev): slowed from 5.3s while working on the transition
+                // animations, so a fresh status response doesn't compete with
+                // manual (debug-button-driven) animation testing as often.
+                // Restore to 5.3s once that's done.
+                (false, Duration::from_secs(120), Ok(Some(resp)))
             }
         }
         Ok(command::Response::WorkerOffline) => {
