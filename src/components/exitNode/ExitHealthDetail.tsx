@@ -196,13 +196,20 @@ export default function ExitHealthDetail(
                       value={slots()}
                       tooltip={<span>Available / total connection slots</span>}
                     />
-                    <Stat
-                      label="Load"
-                      value={loadAvg()}
-                      tooltip={
-                        <span>Server load average. Lower is better.</span>
-                      }
-                    />
+                    {
+                      /* col-span-2: Load is alone in its row, so it can use
+                        the full row width instead of just the first column. */
+                    }
+                    <div class="col-span-2">
+                      <Stat
+                        label="Load"
+                        value={loadAvg()}
+                        valueClass="text-text-primary whitespace-nowrap"
+                        tooltip={
+                          <span>Server load average. Lower is better.</span>
+                        }
+                      />
+                    </div>
                   </div>
                 </Show>
               </div>
@@ -215,9 +222,10 @@ export default function ExitHealthDetail(
                 // this icon's own half-width), despite the two rows having
                 // different edge insets.
                 class="shrink-0 mr-[38px] text-text-secondary hover:cursor-pointer"
-                onClick={() => void settingsActions.setShowDetailedMetrics(
-                  !settings.showDetailedMetrics,
-                )}
+                onClick={() =>
+                  void settingsActions.setShowDetailedMetrics(
+                    !settings.showDetailedMetrics,
+                  )}
               >
                 <ChevronIcon
                   class={`w-4 h-3 transition-transform duration-200 ${
