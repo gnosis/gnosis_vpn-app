@@ -139,7 +139,7 @@ export default function ExitHealthDetail(
   return (
     <Show when={destId()} keyed>
       {(_id: string) => (
-        <div class="w-full text-xs fade-in-up relative">
+        <div class="w-full text-xs fade-in-up relative pl-3">
           <Show
             when={isGoodState()}
             fallback={
@@ -209,7 +209,7 @@ export default function ExitHealthDetail(
               >
                 <ChevronIcon
                   class={`w-4 h-3 transition-transform duration-200 ${
-                    settings.showDetailedMetrics ? "" : "rotate-180"
+                    settings.showDetailedMetrics ? "rotate-180" : ""
                   }`}
                 />
               </button>
