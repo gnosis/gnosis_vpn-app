@@ -11,6 +11,7 @@ import { useAppStore } from "@src/stores/appStore.ts";
 import { currentDisplayId } from "@src/stores/destinationMode.ts";
 import { isVpnActive } from "@src/utils/destinations.ts";
 import LocationBannerCard from "./LocationBannerCard.tsx";
+import ExitHealthDetail from "./ExitHealthDetail.tsx";
 import ExitNodeList from "./ExitNodeList.tsx";
 
 // Re-enabled for the slider rework in progress — see LocationBanner's
@@ -289,7 +290,17 @@ export default function LocationBanner() {
     if (id) commitSlideTo(id);
   };
 
+  // Which slide currently sits centered in the viewport — tracked
+  // separately from the committed active id so the edge peeks below follow
+  // a live drag/swipe instead of jumping only once a gesture commits.
+  const [visibleId, setVisibleId] = createSignal<string | null>(null);
+  const updateVisibleId = () => {
+    if (!containerRef) return;
+    setVisibleId(nearestCardId(containerRef));
+  };
+
   const handleScroll = () => {
+    updateVisibleId();
     if (supportsScrollEnd) return;
     if (suppressSettle || dragStartX !== undefined) return;
     clearTimeout(scrollDebounceTimer);
@@ -319,6 +330,62 @@ export default function LocationBanner() {
     appState.mode.phase === "uninitialized"
       ? []
       : appState.mode.entries.map((e) => e.id);
+
+  // The centered slide's own box — drives the edge peeks' top/height so
+  // they always match whatever's currently on screen (card only, or card
+  // plus however tall the detail panel happens to be right now).
+  const [peekRect, setPeekRect] = createSignal<
+    { top: number; height: number } | null
+  >(null);
+  let peekResizeObserver: ResizeObserver | undefined;
+  let peekObservedEl: Element | null = null;
+
+  const updatePeekRect = () => {
+    const id = visibleId();
+    const el = id && containerRef
+      ? containerRef.querySelector<HTMLElement>(`[data-destination-id="${id}"]`)
+      : null;
+    if (!el) {
+      setPeekRect(null);
+      return;
+    }
+    const rect = el.getBoundingClientRect();
+    setPeekRect({ top: rect.top, height: rect.height });
+    // Re-observe only when the centered slide actually changed — the
+    // observer itself is what catches its detail panel expanding or
+    // collapsing after that.
+    if (peekObservedEl !== el) {
+      peekResizeObserver?.disconnect();
+      peekResizeObserver = new ResizeObserver(updatePeekRect);
+      peekResizeObserver.observe(el);
+      peekObservedEl = el;
+    }
+  };
+
+  createEffect(() => {
+    visibleId();
+    const rafId = requestAnimationFrame(updatePeekRect);
+    onCleanup(() => cancelAnimationFrame(rafId));
+  });
+
+  onMount(() => {
+    updateVisibleId();
+    const handleResize = () => updatePeekRect();
+    globalThis.addEventListener("resize", handleResize);
+    onCleanup(() => globalThis.removeEventListener("resize", handleResize));
+  });
+
+  onCleanup(() => peekResizeObserver?.disconnect());
+
+  const visibleIndex = () => {
+    const id = visibleId();
+    return id ? entryIds().indexOf(id) : -1;
+  };
+  const hasPreviousSlide = () => visibleIndex() > 0;
+  const hasNextSlide = () => {
+    const idx = visibleIndex();
+    return idx >= 0 && idx < entryIds().length - 1;
+  };
 
   const slideToAdjacent = (id: string, direction: 1 | -1) => {
     const order = entryIds();
@@ -389,12 +456,44 @@ export default function LocationBanner() {
                       : null}
                     onOpenList={() => setShowList(true)}
                   />
+                  {
+                    /* Rides along in the same slide as its card, so the
+                      card+detail combination moves as one unit instead of
+                      the card sliding while the details snap underneath. */
+                  }
+                  <div class="w-full mt-1.5">
+                    <ExitHealthDetail destinationState={ds()} />
+                  </div>
                 </div>
               )}
             </Show>
           )}
         </For>
       </div>
+
+      {
+        /* Plain slivers of the card's own color, not live crops of the
+          neighbor's actual content — a real crop would drag along whatever
+          happens to sit near that edge (e.g. the list button), which reads
+          as broken rather than as "there's more here". Width matches the
+          card's rounded-2xl radius, so only the curve of a corner shows. */
+      }
+      <Show when={hasPreviousSlide() ? peekRect() : null}>
+        {(rect) => (
+          <div
+            class="fixed left-0 w-4 rounded-r-2xl bg-slate-700 pointer-events-none"
+            style={{ top: `${rect().top}px`, height: `${rect().height}px` }}
+          />
+        )}
+      </Show>
+      <Show when={hasNextSlide() ? peekRect() : null}>
+        {(rect) => (
+          <div
+            class="fixed right-0 w-4 rounded-l-2xl bg-slate-700 pointer-events-none"
+            style={{ top: `${rect().top}px`, height: `${rect().height}px` }}
+          />
+        )}
+      </Show>
 
       <Portal>
         <Show when={showList()}>
