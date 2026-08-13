@@ -125,23 +125,26 @@ export default function ExitHealthDetail(
     </div>
   );
 
+  // Shared between the good and fallback layouts so the hop count always
+  // sits next to whatever status/latency info is showing, not stacked above it.
+  const hopsTag = () => (
+    <Show when={route() && getHopCount(routing()) !== 1}>
+      <Tag>
+        <HopsIcon count={getHopCount(routing())} hideCount />
+        <span class="ml-1">{route()}</span>
+      </Tag>
+    </Show>
+  );
+
   return (
     <Show when={destId()} keyed>
       {(_id: string) => (
         <div class="w-full text-xs fade-in-up relative">
-          <Show when={route() && getHopCount(routing()) !== 1}>
-            <div class="flex flex-wrap items-center gap-1.5 mb-1.5">
-              <Tag>
-                <HopsIcon count={getHopCount(routing())} hideCount />
-                <span class="ml-1">{route()}</span>
-              </Tag>
-            </div>
-          </Show>
-
           <Show
             when={isGoodState()}
             fallback={
               <div class="flex flex-wrap items-center gap-1.5">
+                {hopsTag()}
                 <Tag
                   value={status()}
                   class={`${statusColorClass[color()]} bg-bg-primary`}
@@ -150,51 +153,59 @@ export default function ExitHealthDetail(
             }
           >
             <div class="flex items-center justify-between gap-2">
-              <Show
-                when={settings.showDetailedMetrics}
-                fallback={
-                  <Stat
-                    label="Latency"
-                    value={latency()}
-                    valueClass="font-semibold text-text-primary"
-                    tooltip={latencyTooltip()}
-                  />
-                }
-              >
-                <div class="grid grid-cols-[3fr_2fr] gap-x-4 gap-y-2 text-text-secondary">
-                  <Stat
-                    label="Latency"
-                    value={latency()}
-                    valueClass="font-semibold text-text-primary"
-                    tooltip={latencyTooltip()}
-                  />
-                  <Stat
-                    label="Checked"
-                    value={lastChecked()}
-                    valueClass="font-semibold text-text-primary"
-                    tooltip={<span>Time since last health check</span>}
-                  />
-                  <Stat
-                    label="Capacity"
-                    value={slots()}
-                    tooltip={<span>Available / total connection slots</span>}
-                  />
-                  <Stat
-                    label="Load"
-                    value={loadAvg()}
-                    tooltip={<span>Server load average. Lower is better.</span>}
-                  />
-                </div>
-              </Show>
+              <div class="flex items-center gap-2">
+                {hopsTag()}
+                <Show
+                  when={settings.showDetailedMetrics}
+                  fallback={
+                    <Stat
+                      label="Latency"
+                      value={latency()}
+                      valueClass="font-semibold text-text-primary"
+                      tooltip={latencyTooltip()}
+                    />
+                  }
+                >
+                  <div class="grid grid-cols-[3fr_2fr] gap-x-4 gap-y-2 text-text-secondary">
+                    <Stat
+                      label="Latency"
+                      value={latency()}
+                      valueClass="font-semibold text-text-primary"
+                      tooltip={latencyTooltip()}
+                    />
+                    <Stat
+                      label="Checked"
+                      value={lastChecked()}
+                      valueClass="font-semibold text-text-primary"
+                      tooltip={<span>Time since last health check</span>}
+                    />
+                    <Stat
+                      label="Capacity"
+                      value={slots()}
+                      tooltip={<span>Available / total connection slots</span>}
+                    />
+                    <Stat
+                      label="Load"
+                      value={loadAvg()}
+                      tooltip={
+                        <span>Server load average. Lower is better.</span>
+                      }
+                    />
+                  </div>
+                </Show>
+              </div>
               <button
                 type="button"
                 aria-expanded={settings.showDetailedMetrics}
                 aria-label="Toggle exit node details"
-                class="shrink-0 ml-auto text-text-secondary hover:cursor-pointer"
-                onClick={() =>
-                  void settingsActions.setShowDetailedMetrics(
-                    !settings.showDetailedMetrics,
-                  )}
+                // Lines up with ExitNodeListButton's icon above (destination
+                // card's px-3 + button's px-7 + list icon's half-width, minus
+                // this icon's own half-width), despite the two rows having
+                // different edge insets.
+                class="shrink-0 mr-[38px] text-text-secondary hover:cursor-pointer"
+                onClick={() => void settingsActions.setShowDetailedMetrics(
+                  !settings.showDetailedMetrics,
+                )}
               >
                 <ChevronIcon
                   class={`w-4 h-3 transition-transform duration-200 ${
