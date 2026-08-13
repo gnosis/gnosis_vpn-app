@@ -13,6 +13,10 @@ import { isVpnActive } from "@src/utils/destinations.ts";
 import LocationBannerCard from "./LocationBannerCard.tsx";
 import ExitNodeList from "./ExitNodeList.tsx";
 
+// Temporarily off pending a rework of this animation — auto-advance now
+// jumps straight to the latest card instead of pulsing then gliding.
+const AUTO_SLIDE_ENABLED = false;
+
 // Must match .banner-card-pulse's animation-duration in index.css — the
 // outgoing card shrinks then grows back before the slide starts.
 const CARD_PULSE_MS = 600;
@@ -331,7 +335,8 @@ export default function LocationBanner() {
     // auto loop (slide) vs. placed there by a pick (jump straight to it).
     // Placeholder derivation — see docs/destination-mode.md's non-goal note
     // on the deferred UI pass for a more precise signal.
-    const shouldAnimate = mode.phase !== "uninitialized" &&
+    const shouldAnimate = AUTO_SLIDE_ENABLED &&
+      mode.phase !== "uninitialized" &&
       mode.entries[mode.entries.length - 1]?.origin === "auto";
     if (prevLastId !== undefined && lastId !== prevLastId && containerRef) {
       const container = containerRef;
