@@ -184,7 +184,9 @@ export default function ExitHealthDetail(
                         up with Capacity's text below instead of the pill's
                         outline. */
                     }
-                    <div class="-ml-2">{hopsTag()}</div>
+                    <div class="-ml-2 h-full flex items-center">
+                      {hopsTag()}
+                    </div>
                     <Stat
                       label="Checked"
                       value={lastChecked()}
