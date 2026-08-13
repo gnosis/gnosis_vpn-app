@@ -166,10 +166,35 @@ export default function ExitHealthDetail(
     setHopsOffsetPx(capacityLeft - PILL_LEFT_PAD_PX - hopsLeft);
   });
 
+  // The whole area south of the destination card toggles expand/collapse,
+  // not just the chevron — a bigger, more forgiving click/tap target. Only
+  // wired up in the good state: the fallback view has nothing to toggle.
+  const toggleDetailedMetrics = () =>
+    void settingsActions.setShowDetailedMetrics(!settings.showDetailedMetrics);
+
   return (
     <Show when={destId()} keyed>
       {(_id: string) => (
-        <div class="w-full text-xs fade-in-up relative pl-3">
+        <div
+          class={`w-full text-xs fade-in-up relative pl-3${
+            isGoodState() ? " cursor-pointer" : ""
+          }`}
+          role={isGoodState() ? "button" : undefined}
+          tabIndex={isGoodState() ? 0 : undefined}
+          aria-expanded={isGoodState()
+            ? settings.showDetailedMetrics
+            : undefined}
+          aria-label={isGoodState() ? "Toggle exit node details" : undefined}
+          onClick={() => isGoodState() && toggleDetailedMetrics()}
+          onKeyDown={(e) => {
+            if (!isGoodState()) return;
+            if (e.key === "Enter" && !e.repeat) toggleDetailedMetrics();
+            if (e.key === " ") e.preventDefault(); // prevent scroll; activate on keyup
+          }}
+          onKeyUp={(e) => {
+            if (isGoodState() && e.key === " ") toggleDetailedMetrics();
+          }}
+        >
           <Show
             when={isGoodState()}
             fallback={
@@ -284,26 +309,21 @@ export default function ExitHealthDetail(
                   </div>
                 </div>
               </div>
-              <button
-                type="button"
-                aria-expanded={settings.showDetailedMetrics}
-                aria-label="Toggle exit node details"
-                // Lines up with ExitNodeListButton's icon above (destination
-                // card's px-3 + button's px-7 + list icon's half-width, minus
-                // this icon's own half-width), despite the two rows having
-                // different edge insets.
-                class="shrink-0 mr-[38px] text-text-secondary hover:cursor-pointer"
-                onClick={() =>
-                  void settingsActions.setShowDetailedMetrics(
-                    !settings.showDetailedMetrics,
-                  )}
-              >
+              {
+                /* Decorative now — the whole row above is the real toggle
+                  control; see aria-expanded/aria-label on the outer div. */
+              }
+              <span // Lines up with ExitNodeListButton's icon above (destination
+               // card's px-3 + button's px-7 + list icon's half-width, minus
+              // this icon's own half-width), despite the two rows having
+              // different edge insets.
+              class="shrink-0 mr-[38px] text-text-secondary">
                 <ChevronIcon
                   class={`w-4 h-3 transition-transform duration-200 ${
                     settings.showDetailedMetrics ? "rotate-180" : ""
                   }`}
                 />
-              </button>
+              </span>
             </div>
           </Show>
         </div>
