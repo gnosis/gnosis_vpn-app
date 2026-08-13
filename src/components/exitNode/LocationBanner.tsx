@@ -8,7 +8,11 @@ import {
 } from "solid-js";
 import { Portal } from "solid-js/web";
 import { useAppStore } from "@src/stores/appStore.ts";
-import { currentDisplayId } from "@src/stores/destinationMode.ts";
+import {
+  currentDisplayId,
+  SWITCH_ANIMATE_MS,
+  SWITCH_CROSSOVER_MS,
+} from "@src/stores/destinationMode.ts";
 import { isVpnActive } from "@src/utils/destinations.ts";
 import DetailCard from "./DetailCard.tsx";
 import ExitNodeList from "./ExitNodeList.tsx";
@@ -181,12 +185,21 @@ export default function LocationBanner() {
   // setPointerCapture below retargets the native click away from wherever
   // the gesture actually started.
   let pendingClickTarget: HTMLElement | null = null;
+  // Which slide (by id) a gesture started on, if any — lets a tap on a
+  // peeking neighbor's visible sliver switch to it (see animateSwitchTo)
+  // without needing its own separate click handler, which pointer capture
+  // below would swallow the same way it would a button's.
+  let pendingCardId: string | null = null;
 
   const handlePointerDown = (e: PointerEvent) => {
     if (!containerRef || e.pointerType === "touch") return;
-    pendingClickTarget = e.target instanceof Element
-      ? e.target.closest<HTMLElement>('button, [role="button"]')
-      : null;
+    const target = e.target instanceof Element ? e.target : null;
+    pendingClickTarget =
+      target?.closest<HTMLElement>('button, [role="button"]') ??
+        null;
+    pendingCardId =
+      target?.closest<HTMLElement>("[data-destination-id]")?.dataset
+        .destinationId ?? null;
     dragStartX = e.clientX;
     dragStartScrollLeft = containerRef.scrollLeft;
     didDrag = false;
@@ -259,6 +272,35 @@ export default function LocationBanner() {
     commitSlideTo(id);
   };
 
+  // Tapping a peeking neighbor's visible sliver — the "usual rules" for a
+  // switch: a SWITCH_ANIMATE_MS (1s) slide, committed at SWITCH_CROSSOVER_MS
+  // (0.5s) into it rather than at the end, same crossover point the
+  // auto-switch countdown uses (see destinationMode.ts). Deliberately
+  // separate from animateSettleTo — that one commits only once its (faster,
+  // uncrossed-over) animation finishes.
+  const animateSwitchTo = (id: string) => {
+    if (!containerRef) return;
+    const card = containerRef.querySelector<HTMLElement>(
+      `[data-destination-id="${id}"]`,
+    );
+    if (!card) return;
+    const container = containerRef;
+    const commitTimer = setTimeout(
+      () => commitSlideTo(id),
+      SWITCH_CROSSOVER_MS,
+    );
+    void runSuppressed(async () => {
+      container.style.scrollSnapType = "none";
+      await animateScrollLeft(
+        container,
+        centeredScrollLeft(container, card),
+        SWITCH_ANIMATE_MS,
+        () => !mounted,
+      );
+      container.style.scrollSnapType = "";
+    }).finally(() => clearTimeout(commitTimer));
+  };
+
   const settleToNearestCard = () => {
     if (!containerRef) return;
     const id = nearestCardId(containerRef);
@@ -275,10 +317,15 @@ export default function LocationBanner() {
     containerRef.style.scrollSnapType = "";
     if (didDrag) {
       settleToNearestCard();
-    } else {
-      pendingClickTarget?.click();
+    } else if (pendingClickTarget) {
+      pendingClickTarget.click();
+    } else if (
+      pendingCardId && pendingCardId !== currentDisplayId(appState.mode)
+    ) {
+      animateSwitchTo(pendingCardId);
     }
     pendingClickTarget = null;
+    pendingCardId = null;
   };
 
   // Native touch swipes never go through the pointer handlers above, so they
