@@ -32,6 +32,7 @@ import {
 } from "@src/utils/destinations.ts";
 
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
+import { detectChannel } from "@src/utils/version.ts";
 import { deriveVPNStatus } from "@src/utils/status.ts";
 import { shortAddress } from "../utils/shortAddress.ts";
 
@@ -200,7 +201,7 @@ export function createAppStore(): AppStoreTuple {
     pendingScreenTransition = null;
   };
 
-  const [settings] = useSettingsStore();
+  const [settings, settingsActions] = useSettingsStore();
   const [, logActions] = useLogsStore();
   const log = (content: string) => logActions.append(content);
   const logStatus = (response: StatusResponse) =>
@@ -589,6 +590,26 @@ export function createAppStore(): AppStoreTuple {
   // results. Always applies the helper output (even when isUpToDate is
   // undefined) so a channel switch that lands on a missing release clears
   // any stale banner state.
+  // Detect a new installed package (the app restarts through updates, so
+  // this compares against a persisted marker). Reset the channel preference
+  // only when the installed channel itself changed (e.g. an update moved us
+  // from snapshot to stable) or on first run — a pending user switch
+  // (preference ≠ installed channel, same package) must survive.
+  createEffect(() => {
+    // Wait for the real snapshot: acting on DEFAULT_SETTINGS would mistake
+    // every launch for a first run and clobber the stored preference.
+    if (!settingsActions.hydrated()) return;
+    const pkg = state.serviceInfo?.package_version;
+    if (!pkg || pkg === settings.lastInstalledVersion) return;
+    const prev = settings.lastInstalledVersion;
+    const installed = detectChannel(pkg);
+    const channelChanged = prev == null || detectChannel(prev) !== installed;
+    void settingsActions.syncInstalledVersion(
+      pkg,
+      channelChanged || !settings.channel ? installed : undefined,
+    );
+  });
+
   createEffect(() => {
     const d = evaluateUpdate({
       packageVersion: state.serviceInfo?.package_version ?? null,

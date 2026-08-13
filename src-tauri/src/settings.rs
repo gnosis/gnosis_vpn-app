@@ -22,6 +22,7 @@ pub struct Settings {
     pub update_manifest: Option<Manifest>,
     pub channel: Option<UpdateChannel>,
     pub dismissed_update_version: Option<String>,
+    pub last_installed_version: Option<String>,
     pub show_detailed_metrics: bool,
     pub flag_display: FlagDisplay,
 }
@@ -38,6 +39,7 @@ impl Default for Settings {
             update_manifest: None,
             channel: None,
             dismissed_update_version: None,
+            last_installed_version: None,
             show_detailed_metrics: false,
             flag_display: FlagDisplay::default(),
         }
@@ -93,6 +95,8 @@ pub struct SettingsPatch {
     pub channel: Option<Option<UpdateChannel>>,
     #[serde(default, deserialize_with = "double_option")]
     pub dismissed_update_version: Option<Option<String>>,
+    #[serde(default, deserialize_with = "double_option")]
+    pub last_installed_version: Option<Option<String>>,
     #[serde(default)]
     pub show_detailed_metrics: Option<bool>,
     #[serde(default)]
@@ -135,6 +139,9 @@ impl Settings {
         }
         if let Some(v) = patch.dismissed_update_version {
             self.dismissed_update_version = v;
+        }
+        if let Some(v) = patch.last_installed_version {
+            self.last_installed_version = v;
         }
         if let Some(v) = patch.show_detailed_metrics {
             self.show_detailed_metrics = v;

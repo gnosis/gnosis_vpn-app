@@ -1,3 +1,4 @@
+import { createSignal } from "solid-js";
 import {
   createStore,
   reconcile,
@@ -57,6 +58,7 @@ export const SettingsSchema = z.object({
   updateManifest: UpdateManifestSchema.nullable(),
   channel: UpdateChannelSchema.nullable(),
   dismissedUpdateVersion: z.string().nullable(),
+  lastInstalledVersion: z.string().nullable(),
   showDetailedMetrics: z.boolean(),
   flagDisplay: FlagDisplaySchema,
 });
@@ -73,12 +75,15 @@ const DEFAULT_SETTINGS: SettingsState = {
   updateManifest: null,
   channel: null,
   dismissedUpdateVersion: null,
+  lastInstalledVersion: null,
   showDetailedMetrics: false,
   flagDisplay: "color",
 };
 
 type SettingsActions = {
   load: () => Promise<void>;
+  /** Reactive: true once the first real snapshot replaced DEFAULT_SETTINGS. */
+  hydrated: () => boolean;
   setPreferredLocation: (id: string | null) => Promise<void>;
   setConnectOnStartup: (enabled: boolean) => Promise<void>;
   setStartMinimized: (enabled: boolean) => Promise<void>;
@@ -89,6 +94,10 @@ type SettingsActions = {
     checkedAt: number,
   ) => Promise<void>;
   setChannel: (channel: UpdateChannel) => Promise<void>;
+  syncInstalledVersion: (
+    version: string,
+    channel?: UpdateChannel,
+  ) => Promise<void>;
   setDismissedUpdateVersion: (version: string | null) => Promise<void>;
   setShowDetailedMetrics: (show: boolean) => Promise<void>;
   setFlagDisplay: (display: FlagDisplay) => Promise<void>;
@@ -102,6 +111,7 @@ type SettingsStoreTuple = readonly [
 
 export function createSettingsStore(): SettingsStoreTuple {
   const [state, setState] = createStore<SettingsState>({ ...DEFAULT_SETTINGS });
+  const [hydrated, setHydrated] = createSignal(false);
 
   let loadPromise: Promise<void> | undefined;
   let unlistenChange: (() => void) | undefined;
@@ -136,6 +146,7 @@ export function createSettingsStore(): SettingsStoreTuple {
         },
       );
       applySnapshot(await invoke<unknown>("get_settings"));
+      setHydrated(true);
     } catch (e) {
       console.error("Failed to load settings:", e);
     } finally {
@@ -159,6 +170,7 @@ export function createSettingsStore(): SettingsStoreTuple {
       loadPromise ??= hydrate();
       return loadPromise;
     },
+    hydrated,
     setPreferredLocation: (id) => patch({ preferredLocation: id }),
     setConnectOnStartup: (enabled) => patch({ connectOnStartup: enabled }),
     setStartMinimized: (enabled) => patch({ startMinimized: enabled }),
@@ -167,6 +179,13 @@ export function createSettingsStore(): SettingsStoreTuple {
     setUpdateCheckResult: (manifest, checkedAt) =>
       patch({ updateManifest: manifest, lastCheckedAt: checkedAt }),
     setChannel: (channel) => patch({ channel }),
+    // Marker and channel land in one patch so a crash between them cannot
+    // record the new version while keeping the stale channel.
+    syncInstalledVersion: (version, channel) =>
+      patch({
+        lastInstalledVersion: version,
+        ...(channel ? { channel } : {}),
+      }),
     setDismissedUpdateVersion: (version) =>
       patch({ dismissedUpdateVersion: version }),
     setShowDetailedMetrics: (show) => patch({ showDetailedMetrics: show }),
