@@ -553,12 +553,17 @@ async fn query_status() -> (bool, Duration, Result<Option<StatusResponse>, Strin
             let is_in_transition = resp.connecting.is_some() || resp.reconnecting.is_some();
             if is_in_transition {
                 (false, Duration::from_millis(222), Ok(Some(resp)))
-            } else {
+            } else if matches!(resp.run_mode, crate::types::RunMode::Running { .. }) {
                 // TEMP(dev): slowed from 5.3s while working on the transition
                 // animations, so a fresh status response doesn't compete with
-                // manual (debug-button-driven) animation testing as often.
-                // Restore to 5.3s once that's done.
+                // manual (debug-button-driven) animation testing once we've
+                // reached the main screen. Restore to 5.3s once that's done.
                 (false, Duration::from_secs(120), Ok(Some(resp)))
+            } else {
+                // Still on the way to the main screen (PreparingSafe /
+                // DeployingSafe / Warmup) - keep polling quickly so sync
+                // progress still updates responsively.
+                (false, Duration::from_secs_f64(5.3), Ok(Some(resp)))
             }
         }
         Ok(command::Response::WorkerOffline) => {
