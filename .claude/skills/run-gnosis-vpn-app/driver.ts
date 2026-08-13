@@ -60,8 +60,16 @@ const shimSource = await Deno.readTextFile(
   new URL("shim.js", skillDir).pathname,
 );
 const fixtureJson = await Deno.readTextFile(fixturePath);
-// Also fails fast on a malformed fixture.
-const fixture = JSON.parse(fixtureJson) as { theme?: string };
+const parsed: unknown = JSON.parse(fixtureJson); // fails fast on malformed JSON
+if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+  console.error(`fixture must be a JSON object: ${fixturePath}`);
+  Deno.exit(1);
+}
+// The fixture is the shim's contract (see SKILL.md) and is injected verbatim;
+// the driver itself only needs the theme, so it doesn't model the rest.
+const fixtureTheme = (parsed as { theme?: unknown }).theme === "light"
+  ? "light"
+  : "dark";
 const entryTag = '<script src="/src/index.tsx" type="module"></script>';
 if (!indexHtml.includes(entryTag)) {
   throw new Error("index.html entry <script> tag not found — update driver.ts");
@@ -267,10 +275,7 @@ try {
   // shim's matchMedia patch only covers JS callers; CSS media queries (e.g.
   // the splash styles in index.html) follow the host OS without this.
   await cdp.send("Emulation.setEmulatedMedia", {
-    features: [{
-      name: "prefers-color-scheme",
-      value: (fixture.theme ?? "dark") === "dark" ? "dark" : "light",
-    }],
+    features: [{ name: "prefers-color-scheme", value: fixtureTheme }],
   }, sessionId);
 
   const evaluate = async (expression: string): Promise<unknown> => {
