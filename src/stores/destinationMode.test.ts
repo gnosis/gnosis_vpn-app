@@ -256,6 +256,85 @@ describe("auto loop (rules 5-8)", () => {
     expect(model[0].pending?.settleAt).toBe(Date.now() + SETTLE_MS);
   });
 
+  it("retargets an in-flight pending candidate to a still-better one without restarting the timer, if it arrives before countdownEndsAt", async () => {
+    const { model, setAppState, fast } = setupInAuto();
+    await Promise.resolve();
+
+    const better = { ...BASE_DESTINATION, id: "better" };
+    setAppState("availableDestinations", [fast, better]);
+    setAppState("destinations", {
+      fast: makeReadyToConnect("fast", 100_000_000),
+      better: makeReadyToConnect("better", 10_000_000),
+    });
+    await Promise.resolve();
+    if (model[0].phase !== "auto") throw new Error("unreachable");
+    const originalCountdownEndsAt = model[0].pending?.countdownEndsAt;
+    const originalSettleAt = model[0].pending?.settleAt;
+
+    await vi.advanceTimersByTimeAsync(SWITCH_COUNTDOWN_MS / 2);
+
+    const best = { ...BASE_DESTINATION, id: "best" };
+    setAppState("availableDestinations", [fast, better, best]);
+    setAppState("destinations", {
+      fast: makeReadyToConnect("fast", 100_000_000),
+      better: makeReadyToConnect("better", 10_000_000),
+      best: makeReadyToConnect("best", 1_000_000),
+    });
+    await Promise.resolve();
+
+    expect(model[0].phase).toBe("auto");
+    if (model[0].phase !== "auto") throw new Error("unreachable");
+    expect(model[0].activeId).toBe("fast");
+    expect(ids(model[0].entries)).toEqual(["fast", "best"]);
+    expect(model[0].pending?.candidateId).toBe("best");
+    expect(model[0].pending?.countdownEndsAt).toBe(originalCountdownEndsAt);
+    expect(model[0].pending?.settleAt).toBe(originalSettleAt);
+
+    // Commits to the retargeted candidate at the ORIGINAL settle time, not a
+    // new one 5s out from the retarget.
+    await vi.advanceTimersByTimeAsync(SETTLE_MS - SWITCH_COUNTDOWN_MS / 2);
+    expect(model[0]).toMatchObject({ activeId: "best", pending: null });
+  });
+
+  it("ignores a still-better candidate once the switch animation window has started, then starts a fresh pending right after commit", async () => {
+    const { model, setAppState, fast } = setupInAuto();
+    await Promise.resolve();
+
+    const better = { ...BASE_DESTINATION, id: "better" };
+    setAppState("availableDestinations", [fast, better]);
+    setAppState("destinations", {
+      fast: makeReadyToConnect("fast", 100_000_000),
+      better: makeReadyToConnect("better", 10_000_000),
+    });
+    await Promise.resolve();
+
+    // Past countdownEndsAt (the pulse/slide is already scheduled) but before
+    // settleAt.
+    await vi.advanceTimersByTimeAsync(
+      SWITCH_COUNTDOWN_MS + SWITCH_CROSSOVER_MS / 2,
+    );
+
+    const best = { ...BASE_DESTINATION, id: "best" };
+    setAppState("availableDestinations", [fast, better, best]);
+    setAppState("destinations", {
+      fast: makeReadyToConnect("fast", 100_000_000),
+      better: makeReadyToConnect("better", 10_000_000),
+      best: makeReadyToConnect("best", 1_000_000),
+    });
+    await Promise.resolve();
+
+    // Untouched — still committing to "better" as originally scheduled.
+    expect(model[0]).toMatchObject({ pending: { candidateId: "better" } });
+
+    // Commits to "better" as originally scheduled, then immediately (same
+    // flush) picks up the still-better "best" candidate as a fresh pending.
+    await vi.advanceTimersByTimeAsync(SWITCH_CROSSOVER_MS / 2);
+    expect(model[0]).toMatchObject({
+      activeId: "better",
+      pending: { candidateId: "best" },
+    });
+  });
+
   it("removes the speculative entry and clears pending if the candidate reverts before settling (rule 6)", async () => {
     const { model, setAppState, fast } = setupInAuto();
     await Promise.resolve();

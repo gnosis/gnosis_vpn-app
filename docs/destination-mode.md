@@ -149,7 +149,17 @@ Reactive to `availableDestinations`/`destinations`/`preferredLocation` changes:
    `{id: candidateId, origin: "auto"}` to `entries` immediately, and set
    `pending = { candidateId, settleAt: now + SWITCH_COUNTDOWN_MS + SWITCH_CROSSOVER_MS }`.
    A different candidate superseding an earlier, not-yet-settled one drops that
-   earlier speculative entry rather than leaving it stranded.
+   earlier speculative entry rather than leaving it stranded — but _how_ it
+   supersedes depends on timing:
+   - Before `countdownEndsAt` (still inside the plain 5s countdown, nothing has
+     animated yet) → retarget in place: swap `pending.candidateId` (and its
+     entry) to the new one, keeping the original `countdownEndsAt`/ `settleAt` —
+     the timer is never restarted.
+   - At/after `countdownEndsAt` (the pulse/slide switch animation is already
+     scheduled or playing) → ignored; the current transition commits to its
+     original candidate as scheduled. The moment it commits, this same rule runs
+     again with `pending` now null, so a still-better candidate starts its own
+     fresh pending immediately after.
 
 6. The winning candidate reverts back to equal `activeId` before `settleAt` →
    remove the speculative entry just appended, clear `pending`.

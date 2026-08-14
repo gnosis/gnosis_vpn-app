@@ -173,10 +173,15 @@ export function createDestinationMode(
     }, SELECTED_AUTO_REVERT_MS);
   };
 
-  const commitCandidate = (candidateId: string) => {
+  // Reads the candidate from live state rather than a closure argument —
+  // startCandidatePending may have retargeted `pending.candidateId` since
+  // this timeout was scheduled (see its mid-countdown swap branch), and the
+  // timer itself is never rescheduled when that happens.
+  const commitCandidate = () => {
     pendingTimeout = undefined;
-    if (mode.phase !== "auto") return;
-    const { entries } = mode;
+    if (mode.phase !== "auto" || mode.pending === null) return;
+    const { entries, pending } = mode;
+    const candidateId = pending.candidateId;
     if (
       candidateId === settings.preferredLocation && !preferredPromotionUsed
     ) {
@@ -259,7 +264,7 @@ export function createDestinationMode(
     });
   });
 
-  // Rule 5 — arms (or supersedes) a pending switch to `candidateId`: appends
+  // Rule 5 — arms (or retargets) a pending switch to `candidateId`: appends
   // it to `entries` as a speculative auto-origin entry (unless already
   // present), starts the countdown, and schedules the commit.
   const startCandidatePending = (candidateId: string) => {
@@ -267,7 +272,17 @@ export function createDestinationMode(
     const { activeId, pending, entries } = mode;
     if (pending?.candidateId === candidateId) return;
 
-    clearPendingTimer();
+    if (pending !== null && Date.now() >= pending.countdownEndsAt) {
+      // The pulse/slide for the current transition is already scheduled (or
+      // playing) — let it finish targeting the original candidate instead of
+      // retargeting it out from under LocationBanner's countdown effect,
+      // which would kick off a second, overlapping animation. The detection
+      // effect that called us reruns the instant this transition commits, so
+      // a still-better candidate starts its own fresh pending immediately
+      // after.
+      return;
+    }
+
     // A different candidate supersedes an earlier one that never settled —
     // drop its speculative entry rather than leaving it stranded.
     const withoutStalePending = pending
@@ -276,6 +291,19 @@ export function createDestinationMode(
     const nextEntries = withoutStalePending.some((e) => e.id === candidateId)
       ? withoutStalePending
       : [...withoutStalePending, { id: candidateId, origin: "auto" as const }];
+
+    if (pending !== null) {
+      // Still within the 5s countdown, nothing has animated yet — retarget
+      // the in-flight transition instead of restarting its timer.
+      commitMode({
+        phase: "auto",
+        entries: nextEntries,
+        activeId,
+        pending: { ...pending, candidateId },
+      });
+      return;
+    }
+
     const countdownEndsAt = Date.now() + SWITCH_COUNTDOWN_MS;
     const settleAt = countdownEndsAt + SWITCH_CROSSOVER_MS;
     commitMode({
@@ -285,7 +313,7 @@ export function createDestinationMode(
       pending: { candidateId, countdownEndsAt, settleAt },
     });
     pendingTimeout = setTimeout(
-      () => commitCandidate(candidateId),
+      () => commitCandidate(),
       SWITCH_COUNTDOWN_MS + SWITCH_CROSSOVER_MS,
     );
   };
