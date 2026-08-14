@@ -330,21 +330,29 @@ export default function LocationBanner() {
     // here first would hand it back to the browser a frame early, letting
     // native mandatory snap jump the position instantly before our own
     // animation gets a chance to take over smoothly.
+    // ExitHealthDetail turns its *entire* row into a role="button" toggle
+    // for a bigger, more forgiving tap target — but that only makes sense
+    // for the already-active card. On a peeking neighbor, the same tap
+    // should switch to that card instead of silently toggling its (barely
+    // visible) detail panel. A real <button> (e.g. the list-open icon)
+    // isn't subject to that ambiguity, so it always fires as tapped.
+    const isRealButton = pendingClickTarget?.tagName === "BUTTON";
+    // Compares against what's actually centered right now, not the model's
+    // activeId — an in-flight auto-switch (animateAutoSwitch commits only
+    // once the model's own settleAt timer fires, not as it animates) can
+    // leave those two disagreeing about which card is "current", which
+    // previously made a tap on the very first peeking neighbor a no-op.
+    const tappedPeekingCard = containerRef && pendingCardId &&
+      pendingCardId !== nearestCardId(containerRef);
+
     if (didDrag) {
       settleToNearestCard();
+    } else if (pendingClickTarget && isRealButton) {
+      pendingClickTarget.click();
+    } else if (tappedPeekingCard) {
+      animateSwitchTo(pendingCardId!);
     } else if (pendingClickTarget) {
       pendingClickTarget.click();
-    } else if (
-      // Compares against what's actually centered right now, not the
-      // model's activeId — an in-flight auto-switch (animateAutoSwitch
-      // commits only once the model's own settleAt timer fires, not as it
-      // animates) can leave those two disagreeing about which card is
-      // "current", which previously made a tap on the very first peeking
-      // neighbor a no-op.
-      containerRef && pendingCardId &&
-      pendingCardId !== nearestCardId(containerRef)
-    ) {
-      animateSwitchTo(pendingCardId);
     }
     pendingClickTarget = null;
     pendingCardId = null;
