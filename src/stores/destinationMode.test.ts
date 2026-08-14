@@ -700,17 +700,33 @@ describe("pickDestination — ExitNodeList pick (rules 9 & 14)", () => {
 
   it("drops the duplicate when the pick already sits elsewhere in entries, keeping the list unique-by-id", async () => {
     const fast = { ...BASE_DESTINATION, id: "fast" };
+    const better = { ...BASE_DESTINATION, id: "better" };
+    const third = { ...BASE_DESTINATION, id: "third" };
     const { model, setAppState } = setup();
     setAppState("availableDestinations", [fast]);
-    setAppState("destinations", { fast: makeReadyToConnect("fast") });
+    setAppState("destinations", {
+      fast: makeReadyToConnect("fast", 100_000_000),
+    });
     await Promise.resolve();
 
-    // Accumulate entries ["fast", "better", "third"] via the same rule-5
-    // countdown/settle sequence the real candidate-detection loop would use,
-    // ending with activeId "third" and no pending candidate.
-    model[1].debugAppendAutoEntry("better");
+    // Accumulate entries ["fast", "better", "third"] via the real rule-5
+    // countdown/settle sequence, ending with activeId "third" and no
+    // pending candidate.
+    setAppState("availableDestinations", [fast, better]);
+    setAppState("destinations", {
+      fast: makeReadyToConnect("fast", 100_000_000),
+      better: makeReadyToConnect("better", 10_000_000),
+    });
+    await Promise.resolve();
     await vi.advanceTimersByTimeAsync(SETTLE_MS);
-    model[1].debugAppendAutoEntry("third");
+
+    setAppState("availableDestinations", [fast, better, third]);
+    setAppState("destinations", {
+      fast: makeReadyToConnect("fast", 100_000_000),
+      better: makeReadyToConnect("better", 10_000_000),
+      third: makeReadyToConnect("third", 1_000_000),
+    });
+    await Promise.resolve();
     await vi.advanceTimersByTimeAsync(SETTLE_MS);
     if (model[0].phase !== "auto") throw new Error("unreachable");
     expect(ids(model[0].entries)).toEqual(["fast", "better", "third"]);
@@ -728,12 +744,20 @@ describe("pickDestination — ExitNodeList pick (rules 9 & 14)", () => {
 
   it("re-picking the currently active entry doesn't remove it, just re-tags it user-origin", async () => {
     const fast = { ...BASE_DESTINATION, id: "fast" };
+    const better = { ...BASE_DESTINATION, id: "better" };
     const { model, setAppState } = setup();
     setAppState("availableDestinations", [fast]);
-    setAppState("destinations", { fast: makeReadyToConnect("fast") });
+    setAppState("destinations", {
+      fast: makeReadyToConnect("fast", 100_000_000),
+    });
     await Promise.resolve();
 
-    model[1].debugAppendAutoEntry("better");
+    setAppState("availableDestinations", [fast, better]);
+    setAppState("destinations", {
+      fast: makeReadyToConnect("fast", 100_000_000),
+      better: makeReadyToConnect("better", 10_000_000),
+    });
+    await Promise.resolve();
     await vi.advanceTimersByTimeAsync(SETTLE_MS);
     if (model[0].phase !== "auto") throw new Error("unreachable");
     expect(model[0].activeId).toBe("better");

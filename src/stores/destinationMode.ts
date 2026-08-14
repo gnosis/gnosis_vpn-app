@@ -15,13 +15,6 @@ import type {
 import { resolveAutoDestination } from "@src/utils/destinations.ts";
 import { isReadyToConnect } from "@src/utils/exitHealth.ts";
 
-// TEMP(dev): disabled while the transition-animation rework is in progress,
-// so MainScreen's "DEBUG: trigger slide" button (debugAppendAutoEntry) is
-// the only thing that can change the list — real health-driven
-// auto-switching running concurrently would fight manual animation testing.
-// Flip back to true once the rework lands.
-const AUTO_CANDIDATE_DETECTION_ENABLED = false;
-
 // How long a better auto-candidate is held pending before it settles; also
 // the flat, unconditional deadline for any `selected`-phase entry to revert
 // back to `auto` (see docs/destination-mode.md).
@@ -101,11 +94,6 @@ type DestinationModelActions = {
   // Picking a destination from the vertical ExitNodeList — any known
   // destination, not just one already in the banner (rules 9 & 14).
   pickDestination: (id: string) => void;
-  // TEMP(dev): starts a real rule-5 candidate-pending countdown toward `id`,
-  // the same as the (currently disabled) candidate-detection loop would —
-  // lets the full countdown/pulse/slide sequence be re-triggered on demand
-  // while AUTO_CANDIDATE_DETECTION_ENABLED is off. Remove once it's back on.
-  debugAppendAutoEntry: (id: string) => void;
 };
 
 type DestinationModeStoreTuple = readonly [
@@ -273,10 +261,7 @@ export function createDestinationMode(
 
   // Rule 5 — arms (or supersedes) a pending switch to `candidateId`: appends
   // it to `entries` as a speculative auto-origin entry (unless already
-  // present), starts the countdown, and schedules the commit. Shared by the
-  // real candidate-detection loop below and debugAppendAutoEntry, which
-  // exercises this exact countdown/animate/commit sequence on demand while
-  // AUTO_CANDIDATE_DETECTION_ENABLED is off.
+  // present), starts the countdown, and schedules the commit.
   const startCandidatePending = (candidateId: string) => {
     if (mode.phase !== "auto") return;
     const { activeId, pending, entries } = mode;
@@ -309,7 +294,6 @@ export function createDestinationMode(
   // `mode.phase === "auto"`; runs forever, never exits itself except through
   // commitCandidate's preferred-promotion branch above.
   createEffect(() => {
-    if (!AUTO_CANDIDATE_DETECTION_ENABLED) return;
     if (mode.phase !== "auto") {
       clearPendingTimer();
       return;
@@ -338,7 +322,6 @@ export function createDestinationMode(
   // sequence toward the best remaining destination. Skips ids we have no
   // data for at all — an unconfirmed pick isn't the same as a known-bad one.
   createEffect(() => {
-    if (!AUTO_CANDIDATE_DETECTION_ENABLED) return;
     if (mode.phase !== "selected") return;
     const destInfo = appState.destinations[mode.activeId];
     if (destInfo === undefined) return;
@@ -389,14 +372,6 @@ export function createDestinationMode(
         e.id === mode.activeId ? { id, origin: "user" as const } : e
       );
       startSelected(nextEntries, id);
-    },
-
-    // TEMP(dev): see the interface doc comment — remove with the rest of
-    // this debug affordance once the slider rework lands.
-    debugAppendAutoEntry: (id) => {
-      if (mode.phase !== "auto") return;
-      if (mode.entries.some((e) => e.id === id)) return;
-      startCandidatePending(id);
     },
   };
 
