@@ -10,7 +10,6 @@ use zstd::stream::Encoder;
 use std::fs::File;
 use std::io::{self, BufReader};
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::task::spawn_blocking;
@@ -554,25 +553,8 @@ async fn query_status() -> (bool, Duration, Result<Option<StatusResponse>, Strin
             let is_in_transition = resp.connecting.is_some() || resp.reconnecting.is_some();
             if is_in_transition {
                 (false, Duration::from_millis(222), Ok(Some(resp)))
-            } else if matches!(resp.run_mode, crate::types::RunMode::Running { .. }) {
-                // TEMP(dev): even dirtier - stay at the normal 5.3s cadence
-                // for the first couple of polls after reaching the main
-                // screen, then back off to 2min so a fresh status response
-                // doesn't compete with manual (debug-button-driven)
-                // animation testing. Remove this whole counter and restore
-                // the plain 5.3s once that's done.
-                static RUNNING_POLL_COUNT: AtomicU32 = AtomicU32::new(0);
-                let count = RUNNING_POLL_COUNT.fetch_add(1, Ordering::Relaxed);
-                if count < 2 {
-                    (false, Duration::from_secs_f64(5.3), Ok(Some(resp)))
-                } else {
-                    (false, Duration::from_secs(120), Ok(Some(resp)))
-                }
             } else {
-                // Still on the way to the main screen (PreparingSafe /
-                // DeployingSafe / Warmup) - keep polling quickly so sync
-                // progress still updates responsively.
-                (false, Duration::from_secs_f64(5.3), Ok(Some(resp)))
+                (false, Duration::from_secs_f64(2.3), Ok(Some(resp)))
             }
         }
         Ok(command::Response::WorkerOffline) => {
@@ -585,10 +567,10 @@ async fn query_status() -> (bool, Duration, Result<Option<StatusResponse>, Strin
         }
         Ok(unexpected) => (
             false,
-            Duration::from_secs_f64(5.3),
+            Duration::from_secs_f64(2.3),
             Err(format!("Unexpected response type: {:?}", unexpected).to_string()),
         ),
-        Err(e) => (false, Duration::from_secs_f64(5.3), Err(e.to_string())),
+        Err(e) => (false, Duration::from_secs_f64(2.3), Err(e.to_string())),
     }
 }
 
