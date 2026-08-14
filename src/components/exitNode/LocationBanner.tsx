@@ -336,7 +336,13 @@ export default function LocationBanner() {
     } else if (pendingClickTarget) {
       pendingClickTarget.click();
     } else if (
-      pendingCardId && pendingCardId !== currentDisplayId(appState.mode)
+      // Compares against what's actually centered right now, not the
+      // model's activeId — a not-yet-committed auto-slide (slideToLatest
+      // never calls commitSlideTo) can leave those two disagreeing about
+      // which card is "current", which previously made a tap on the very
+      // first peeking neighbor a no-op.
+      containerRef && pendingCardId &&
+      pendingCardId !== nearestCardId(containerRef)
     ) {
       animateSwitchTo(pendingCardId);
     }
