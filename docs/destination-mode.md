@@ -82,9 +82,11 @@ candidate.
 
 `entries` is session-only history: oldest first, newest/current last (except
 when a `selected`-phase pick replaces an entry in place — see rule 9). An
-entry's `origin` records whether it was auto-appended or user-picked; nothing
-currently prunes old entries besides an auto candidate that reverts before it
-ever settles (rule 6).
+entry's `origin` records whether it was auto-appended or user-picked. It's also
+a unique-by-id list — nothing ever appends an id already present, and two things
+prune existing entries to keep it that way: an auto candidate that reverts
+before it ever settles (rule 6), and a pick landing on an id that already sits
+elsewhere in the list (rule 9).
 
 ## States
 
@@ -170,10 +172,13 @@ Reactive to `availableDestinations`/`destinations`/`preferredLocation` changes:
 
 9. `pickDestination(id)`:
    - While `auto` or `selected` → replaces the _active_ entry's `id` in place
-     (same slot, `entries.length` unchanged), tags it `origin: "user"`, and
-     enters `selected` with a fresh flat 10s `autoRevertAt`. Any not-yet-settled
-     auto candidate is discarded first (see rule 5's note) rather than left
-     stranded.
+     (same slot), tags it `origin: "user"`, and enters `selected` with a fresh
+     flat 10s `autoRevertAt`. Any not-yet-settled auto candidate is discarded
+     first (see rule 5's note) rather than left stranded. If `id` already sits
+     elsewhere in `entries` (e.g. a visible neighbor card), that other copy is
+     dropped too — `entries` stays unique-by-id, so `entries.length` is
+     unchanged only when the pick wasn't already present; otherwise it shrinks
+     by one.
    - While `connecting` → see rule 14.
 
 10. `setActiveEntry(id)`, `id` already in `entries`:

@@ -379,7 +379,13 @@ export function createDestinationMode(
       const baseEntries = mode.phase === "auto" && mode.pending
         ? mode.entries.filter((e) => e.id !== mode.pending!.candidateId)
         : mode.entries;
-      const nextEntries = baseEntries.map((e) =>
+      // entries is unique-by-id — if the pick already sits elsewhere in the
+      // list (e.g. a visible neighbor card), drop that copy first so the map
+      // below can't leave two entries with the same id.
+      const withoutDuplicatePick = baseEntries.filter((e) =>
+        e.id !== id || e.id === mode.activeId
+      );
+      const nextEntries = withoutDuplicatePick.map((e) =>
         e.id === mode.activeId ? { id, origin: "user" as const } : e
       );
       startSelected(nextEntries, id);

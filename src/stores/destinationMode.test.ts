@@ -697,6 +697,56 @@ describe("pickDestination — ExitNodeList pick (rules 9 & 14)", () => {
     if (model[0].phase !== "connecting") throw new Error("unreachable");
     expect(ids(model[0].entries)).toEqual(["fast", "other"]);
   });
+
+  it("drops the duplicate when the pick already sits elsewhere in entries, keeping the list unique-by-id", async () => {
+    const fast = { ...BASE_DESTINATION, id: "fast" };
+    const { model, setAppState } = setup();
+    setAppState("availableDestinations", [fast]);
+    setAppState("destinations", { fast: makeReadyToConnect("fast") });
+    await Promise.resolve();
+
+    // Accumulate entries ["fast", "better", "third"] via the same rule-5
+    // countdown/settle sequence the real candidate-detection loop would use,
+    // ending with activeId "third" and no pending candidate.
+    model[1].debugAppendAutoEntry("better");
+    await vi.advanceTimersByTimeAsync(SETTLE_MS);
+    model[1].debugAppendAutoEntry("third");
+    await vi.advanceTimersByTimeAsync(SETTLE_MS);
+    if (model[0].phase !== "auto") throw new Error("unreachable");
+    expect(ids(model[0].entries)).toEqual(["fast", "better", "third"]);
+    expect(model[0].activeId).toBe("third");
+
+    model[1].pickDestination("fast");
+    const afterPick = snapshot(model);
+    if (afterPick.phase !== "selected") throw new Error("unreachable");
+    expect(afterPick.entries).toEqual([
+      { id: "better", origin: "auto" },
+      { id: "fast", origin: "user" },
+    ]);
+    expect(afterPick.activeId).toBe("fast");
+  });
+
+  it("re-picking the currently active entry doesn't remove it, just re-tags it user-origin", async () => {
+    const fast = { ...BASE_DESTINATION, id: "fast" };
+    const { model, setAppState } = setup();
+    setAppState("availableDestinations", [fast]);
+    setAppState("destinations", { fast: makeReadyToConnect("fast") });
+    await Promise.resolve();
+
+    model[1].debugAppendAutoEntry("better");
+    await vi.advanceTimersByTimeAsync(SETTLE_MS);
+    if (model[0].phase !== "auto") throw new Error("unreachable");
+    expect(model[0].activeId).toBe("better");
+
+    model[1].pickDestination("better");
+    const afterPick = snapshot(model);
+    if (afterPick.phase !== "selected") throw new Error("unreachable");
+    expect(afterPick.entries).toEqual([
+      { id: "fast", origin: "auto" },
+      { id: "better", origin: "user" },
+    ]);
+    expect(afterPick.activeId).toBe("better");
+  });
 });
 
 describe("selected auto-revert — flat, unconditional 10s (rule 11)", () => {
