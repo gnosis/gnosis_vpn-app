@@ -393,6 +393,57 @@ export default function LocationBanner() {
       ? []
       : appState.mode.entries.map((e) => e.id);
 
+  // Must match the mount fade's `duration-700` below — a removed entry
+  // (e.g. a cancelled auto-switch candidate) fades out over the same
+  // duration it would have faded in with, instead of vanishing instantly.
+  const CARD_EXIT_FADE_MS = 700;
+
+  // What <For> actually renders: `entryIds()` plus any id that just dropped
+  // out of it, kept around (and marked via `exitingIds`) until its fade-out
+  // finishes. New ids need no such bookkeeping — their fade-in is handled
+  // entirely by the starting:opacity-0 CSS below, so they can join
+  // immediately.
+  const [displayIds, setDisplayIds] = createSignal<string[]>([]);
+  const [exitingIds, setExitingIds] = createSignal<ReadonlySet<string>>(
+    new Set(),
+  );
+
+  createEffect((prevIds: string[]) => {
+    const nextIds = entryIds();
+    const removedIds = prevIds.filter((id) => !nextIds.includes(id));
+
+    if (removedIds.length > 0) {
+      setExitingIds((cur) => {
+        const next = new Set(cur);
+        removedIds.forEach((id) => next.add(id));
+        return next;
+      });
+      for (const id of removedIds) {
+        setTimeout(() => {
+          setExitingIds((cur) => {
+            if (!cur.has(id)) return cur;
+            const next = new Set(cur);
+            next.delete(id);
+            return next;
+          });
+          setDisplayIds((cur) => cur.filter((x) => x !== id));
+        }, CARD_EXIT_FADE_MS);
+      }
+    }
+
+    // Preserve existing slots (including ones still fading out) rather than
+    // appending everything anew, so a removal doesn't reshuffle neighbors.
+    setDisplayIds((cur) => {
+      const stillPresent = cur.filter((id) =>
+        nextIds.includes(id) || removedIds.includes(id)
+      );
+      const withNew = nextIds.filter((id) => !stillPresent.includes(id));
+      return [...stillPresent, ...withNew];
+    });
+
+    return nextIds;
+  }, entryIds());
+
   const slideToAdjacent = (id: string, direction: 1 | -1) => {
     const order = entryIds();
     const nextId = order[order.indexOf(id) + direction];
@@ -473,13 +524,14 @@ export default function LocationBanner() {
             auto-supplies the other 8px between this and the adjacent card. */
         }
         <div class="w-[10px] shrink-0" aria-hidden="true" />
-        <For each={entryIds()}>
+        <For each={displayIds()}>
           {(id) => (
             <Show when={appState.destinations[id]}>
               {(ds) => (
                 <div
                   data-destination-id={id}
                   class="relative w-[calc(100%-36px)] shrink-0 snap-center transition-opacity duration-700 ease-out starting:opacity-0"
+                  classList={{ "opacity-0": exitingIds().has(id) }}
                   aria-label="Exit node, use left and right arrow keys to browse"
                   tabIndex={0}
                   onKeyDown={(e) => {

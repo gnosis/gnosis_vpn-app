@@ -441,6 +441,71 @@ describe("auto loop (rules 5-8)", () => {
     expect(ids(model[0].entries)).toEqual(["fast", "better", "best"]);
   });
 
+  it("cancels the transition outright rather than falling back to a lesser candidate when the pending one itself gets worse", async () => {
+    const { model, setAppState, fast } = setupInAuto();
+    await Promise.resolve();
+
+    const better = { ...BASE_DESTINATION, id: "better" };
+    setAppState("availableDestinations", [fast, better]);
+    setAppState("destinations", {
+      fast: makeReadyToConnect("fast", 100_000_000),
+      better: makeReadyToConnect("better", 10_000_000),
+    });
+    await Promise.resolve();
+    expect(model[0]).toMatchObject({ pending: { candidateId: "better" } });
+
+    // "better" goes unready mid-countdown, but a still-decent third option
+    // ("backup" — worse than "better" ever was, but still better than
+    // "fast") shows up in the very same update.
+    const backup = { ...BASE_DESTINATION, id: "backup" };
+    setAppState("availableDestinations", [fast, better, backup]);
+    setAppState("destinations", {
+      fast: makeReadyToConnect("fast", 100_000_000),
+      better: makeUnavailable("better"),
+      backup: makeReadyToConnect("backup", 50_000_000),
+    });
+    await Promise.resolve();
+
+    // Cancelled and self-corrected to a *fresh* pending toward "backup" —
+    // not a silent retarget that carries over the original countdown.
+    expect(model[0].phase).toBe("auto");
+    if (model[0].phase !== "auto") throw new Error("unreachable");
+    expect(model[0].activeId).toBe("fast");
+    expect(ids(model[0].entries)).toEqual(["fast", "backup"]);
+    expect(model[0].pending?.candidateId).toBe("backup");
+    expect(model[0].pending?.countdownEndsAt).toBe(
+      Date.now() + SWITCH_COUNTDOWN_MS,
+    );
+  });
+
+  it("cancels the transition when the pending candidate's own latency regresses past activeId's, even with no fallback candidate", async () => {
+    const { model, setAppState, fast } = setupInAuto();
+    await Promise.resolve();
+
+    const better = { ...BASE_DESTINATION, id: "better" };
+    setAppState("availableDestinations", [fast, better]);
+    setAppState("destinations", {
+      fast: makeReadyToConnect("fast", 100_000_000),
+      better: makeReadyToConnect("better", 10_000_000),
+    });
+    await Promise.resolve();
+    expect(model[0]).toMatchObject({ pending: { candidateId: "better" } });
+
+    setAppState("destinations", {
+      fast: makeReadyToConnect("fast", 100_000_000),
+      better: makeReadyToConnect("better", 500_000_000),
+    });
+    await Promise.resolve();
+
+    expect(model[0]).toMatchObject({
+      phase: "auto",
+      activeId: "fast",
+      pending: null,
+    });
+    if (model[0].phase !== "auto") throw new Error("unreachable");
+    expect(ids(model[0].entries)).toEqual(["fast"]);
+  });
+
   it("treats the active entry going not-ready as just another better-candidate detection, no special-case needed (rule 8)", async () => {
     const other = { ...BASE_DESTINATION, id: "other" };
     const { model, setAppState, fast } = setupInAuto();

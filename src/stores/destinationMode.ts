@@ -13,7 +13,7 @@ import type {
   ReconnectingInfo,
 } from "@src/services/vpnService.ts";
 import { resolveAutoDestination } from "@src/utils/destinations.ts";
-import { isReadyToConnect } from "@src/utils/exitHealth.ts";
+import { getSortLatencyMs, isReadyToConnect } from "@src/utils/exitHealth.ts";
 
 // How long a better auto-candidate is held pending before it settles; also
 // the flat, unconditional deadline for any `selected`-phase entry to revert
@@ -151,6 +151,29 @@ export function createDestinationMode(
       appState.destinations,
       settings.preferredLocation,
     )?.id ?? null;
+
+  // Whether a pending candidate is still a legitimate reason to switch away
+  // from `activeId` — not just "some other id currently ranks first", since
+  // that can happen simply because this candidate itself got worse (went
+  // unready, or its latency regressed past activeId's). Only true when the
+  // candidate is still ready *and* still strictly better than staying put.
+  const isPendingCandidateStillWorthwhile = (
+    candidateId: string,
+    activeId: string,
+  ) => {
+    const candidateInfo = appState.destinations[candidateId];
+    if (
+      candidateInfo === undefined ||
+      !isReadyToConnect(candidateInfo.route_health ?? undefined)
+    ) {
+      return false;
+    }
+    const candidateLatency = getSortLatencyMs(candidateInfo);
+    const activeInfo = appState.destinations[activeId];
+    const activeLatency = activeInfo && getSortLatencyMs(activeInfo);
+    if (candidateLatency === null || activeLatency == null) return true;
+    return candidateLatency < activeLatency;
+  };
 
   // The one place a `selected` phase gets constructed — every path in
   // (startup, promotion, a pick, post-disconnect) always starts the same
@@ -318,6 +341,23 @@ export function createDestinationMode(
     );
   };
 
+  // Shared by both revert paths below — clears the timer, drops the
+  // speculative entry, and cancels the transition outright rather than
+  // falling back to whatever else now ranks best.
+  const cancelPending = (
+    activeId: string,
+    pending: AutoPending,
+    entries: DestinationEntry[],
+  ) => {
+    clearPendingTimer();
+    commitMode({
+      phase: "auto",
+      entries: entries.filter((e) => e.id !== pending.candidateId),
+      activeId,
+      pending: null,
+    });
+  };
+
   // Rules 5-8 — the auto candidate-detection loop. Only active while
   // `mode.phase === "auto"`; runs forever, never exits itself except through
   // commitCandidate's preferred-promotion branch above.
@@ -330,17 +370,26 @@ export function createDestinationMode(
     const { activeId, pending, entries } = mode;
 
     if (candidateId === null || candidateId === activeId) {
-      if (pending !== null) {
-        clearPendingTimer();
-        commitMode({
-          phase: "auto",
-          entries: entries.filter((e) => e.id !== pending.candidateId),
-          activeId,
-          pending: null,
-        });
-      }
+      if (pending !== null) cancelPending(activeId, pending, entries);
       return;
     }
+
+    if (
+      pending !== null &&
+      pending.candidateId !== candidateId &&
+      Date.now() < pending.countdownEndsAt &&
+      !isPendingCandidateStillWorthwhile(pending.candidateId, activeId)
+    ) {
+      // The candidate we were about to switch to got worse (no longer ready,
+      // or no longer actually better than staying put) — cancel the whole
+      // transition rather than chasing whatever now ranks best as a
+      // fallback. Once countdownEndsAt has passed, leave it be instead (same
+      // reasoning as startCandidatePending's own guard below) — the
+      // detection effect self-corrects the instant it commits regardless.
+      cancelPending(activeId, pending, entries);
+      return;
+    }
+
     startCandidatePending(candidateId);
   });
 

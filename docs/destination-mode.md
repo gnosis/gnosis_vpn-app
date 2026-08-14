@@ -149,7 +149,9 @@ Reactive to `availableDestinations`/`destinations`/`preferredLocation` changes:
    `{id: candidateId, origin: "auto"}` to `entries` immediately, and set
    `pending = { candidateId, settleAt: now + SWITCH_COUNTDOWN_MS + SWITCH_CROSSOVER_MS }`.
    A different candidate superseding an earlier, not-yet-settled one drops that
-   earlier speculative entry rather than leaving it stranded — but _how_ it
+   earlier speculative entry rather than leaving it stranded — but only when the
+   earlier one is _still worthwhile_ (still ready-to-connect and still strictly
+   better than `activeId` — see rule 6 for when it isn't). When it is, _how_ it
    supersedes depends on timing:
    - Before `countdownEndsAt` (still inside the plain 5s countdown, nothing has
      animated yet) → retarget in place: swap `pending.candidateId` (and its
@@ -161,8 +163,18 @@ Reactive to `availableDestinations`/`destinations`/`preferredLocation` changes:
      again with `pending` now null, so a still-better candidate starts its own
      fresh pending immediately after.
 
-6. The winning candidate reverts back to equal `activeId` before `settleAt` →
-   remove the speculative entry just appended, clear `pending`.
+6. The pending candidate stops being worth switching to before `settleAt` —
+   either it reverts back to equal `activeId`, or (regardless of what
+   `resolveAutoDestination` now returns) it itself is no longer ready-to-connect
+   or its latency has regressed past `activeId`'s — → cancel the transition
+   outright: remove its speculative entry, clear `pending`. This does NOT fall
+   back to whatever other candidate now ranks best, even if one exists and is
+   still better than `activeId`; that candidate gets its own fresh pending on
+   the next pass of this same rule, with a full countdown, not a carried-over
+   one. Gated the same way as rule 5's retarget — only while
+   `now < countdownEndsAt`; past that, the in-flight transition is left to
+   finish (see rule 5). In the UI, the removed card fades out over the same
+   duration it would have faded in with, rather than disappearing instantly.
 
 7. At `settleAt` → commit `activeId := candidateId`, clear `pending`.
    - If `candidateId === settings.preferredLocation` and
