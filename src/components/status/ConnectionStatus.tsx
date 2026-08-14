@@ -67,7 +67,7 @@ export default function ConnectionStatus() {
   return (
     <Show when={status()}>
       {(s) => (
-        <p class="w-full text-center text-xs text-text-secondary animate-fade-in fixed bottom-1 left-0 text-ellipsis truncate px-2">
+        <p class="w-full text-center text-xs text-text-secondary transition-opacity duration-300 ease-out starting:opacity-0 fixed bottom-1 left-0 text-ellipsis truncate px-2">
           {s()}
         </p>
       )}

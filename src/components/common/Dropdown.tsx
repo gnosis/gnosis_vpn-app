@@ -259,6 +259,7 @@ export function Dropdown<T>(props: DropdownProps<T>) {
             }}
             class={`fixed z-50 rounded-xl bg-bg-surface shadow-lg ring-1 ring-black/10 outline-none
                      transition-all duration-200 ease-out origin-top
+                     starting:opacity-0 starting:-translate-y-2 starting:pointer-events-none
                      ${
               open()
                 ? "opacity-100 translate-y-0"
