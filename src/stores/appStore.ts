@@ -1,4 +1,4 @@
-import { createEffect, createRoot } from "solid-js";
+import { batch, createEffect, createRoot } from "solid-js";
 import { createStore, reconcile, type Store } from "solid-js/store";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
@@ -227,7 +227,7 @@ export function createAppStore(): AppStoreTuple {
   const [mode, modeActions] = createDestinationMode(state, settings);
 
   createEffect(() => {
-    setState("mode", reconcile({ ...mode }));
+    batch(() => setState("mode", reconcile({ ...mode })));
   });
 
   const criticalError = (message: string) => {

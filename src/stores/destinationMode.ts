@@ -1,4 +1,4 @@
-import { createEffect } from "solid-js";
+import { batch, createEffect } from "solid-js";
 import {
   createStore,
   reconcile,
@@ -101,11 +101,10 @@ type DestinationModelActions = {
   // Picking a destination from the vertical ExitNodeList — any known
   // destination, not just one already in the banner (rules 9 & 14).
   pickDestination: (id: string) => void;
-  // TEMP(dev): appends a new "auto"-origin entry without touching activeId —
-  // mirrors what the candidate-detection loop does when it starts pending,
-  // which is what actually triggers LocationBanner's slide. Lets the slide
-  // animation be re-triggered on demand while it's being reworked. Remove
-  // once the slider rework lands.
+  // TEMP(dev): starts a real rule-5 candidate-pending countdown toward `id`,
+  // the same as the (currently disabled) candidate-detection loop would —
+  // lets the full countdown/pulse/slide sequence be re-triggered on demand
+  // while AUTO_CANDIDATE_DETECTION_ENABLED is off. Remove once it's back on.
   debugAppendAutoEntry: (id: string) => void;
 };
 
@@ -123,6 +122,13 @@ export function createDestinationMode(
   settings: ModeSettingsState,
 ): DestinationModeStoreTuple {
   const [mode, setMode] = createStore<DestinationModel>(initialModel());
+  // reconcile() diffs and applies changed keys one at a time rather than as
+  // one atomic write — an effect reading both `entries` and `pending` (e.g.
+  // LocationBanner's) can otherwise observe a torn intermediate state where
+  // only one of the two has updated yet. batch() defers dependent effects
+  // until every key from a single model transition has landed.
+  const commitMode = (value: DestinationModel) =>
+    batch(() => setMode(reconcile(value)));
 
   // Fires at most once per app run (this store's lifetime) — see
   // docs/destination-mode.md's promotion rule. Not part of the exposed
@@ -166,18 +172,16 @@ export function createDestinationMode(
     clearPendingTimer();
     clearRevertTimer();
     const autoRevertAt = Date.now() + SELECTED_AUTO_REVERT_MS;
-    setMode(reconcile({ phase: "selected", entries, activeId, autoRevertAt }));
+    commitMode({ phase: "selected", entries, activeId, autoRevertAt });
     revertTimeout = setTimeout(() => {
       revertTimeout = undefined;
       if (mode.phase !== "selected") return;
-      setMode(
-        reconcile({
-          phase: "auto",
-          entries: mode.entries,
-          activeId: mode.activeId,
-          pending: null,
-        }),
-      );
+      commitMode({
+        phase: "auto",
+        entries: mode.entries,
+        activeId: mode.activeId,
+        pending: null,
+      });
     }, SELECTED_AUTO_REVERT_MS);
   };
 
@@ -192,14 +196,12 @@ export function createDestinationMode(
       startSelected(entries, candidateId);
       return;
     }
-    setMode(
-      reconcile({
-        phase: "auto",
-        entries,
-        activeId: candidateId,
-        pending: null,
-      }),
-    );
+    commitMode({
+      phase: "auto",
+      entries,
+      activeId: candidateId,
+      pending: null,
+    });
   };
 
   // Rules 1-4 (startup) and 12/15 (connecting/disconnecting) — the backend's
@@ -224,7 +226,7 @@ export function createDestinationMode(
         const entries = existingEntries.some((e) => e.id === liveId)
           ? existingEntries
           : [...existingEntries, { id: liveId, origin: "auto" as const }];
-        setMode(reconcile({ phase: "connecting", entries, activeId: liveId }));
+        commitMode({ phase: "connecting", entries, activeId: liveId });
       }
       return;
     }
@@ -261,15 +263,47 @@ export function createDestinationMode(
     const initialId = bestCandidateId();
     if (initialId === null) return;
     startupDecided = true;
-    setMode(
-      reconcile({
-        phase: "auto",
-        entries: [{ id: initialId, origin: "auto" }],
-        activeId: initialId,
-        pending: null,
-      }),
-    );
+    commitMode({
+      phase: "auto",
+      entries: [{ id: initialId, origin: "auto" }],
+      activeId: initialId,
+      pending: null,
+    });
   });
+
+  // Rule 5 — arms (or supersedes) a pending switch to `candidateId`: appends
+  // it to `entries` as a speculative auto-origin entry (unless already
+  // present), starts the countdown, and schedules the commit. Shared by the
+  // real candidate-detection loop below and debugAppendAutoEntry, which
+  // exercises this exact countdown/animate/commit sequence on demand while
+  // AUTO_CANDIDATE_DETECTION_ENABLED is off.
+  const startCandidatePending = (candidateId: string) => {
+    if (mode.phase !== "auto") return;
+    const { activeId, pending, entries } = mode;
+    if (pending?.candidateId === candidateId) return;
+
+    clearPendingTimer();
+    // A different candidate supersedes an earlier one that never settled —
+    // drop its speculative entry rather than leaving it stranded.
+    const withoutStalePending = pending
+      ? entries.filter((e) => e.id !== pending.candidateId)
+      : entries;
+    const nextEntries = withoutStalePending.some((e) => e.id === candidateId)
+      ? withoutStalePending
+      : [...withoutStalePending, { id: candidateId, origin: "auto" as const }];
+    const countdownEndsAt = Date.now() + SWITCH_COUNTDOWN_MS;
+    const settleAt = countdownEndsAt + SWITCH_CROSSOVER_MS;
+    commitMode({
+      phase: "auto",
+      entries: nextEntries,
+      activeId,
+      pending: { candidateId, countdownEndsAt, settleAt },
+    });
+    pendingTimeout = setTimeout(
+      () => commitCandidate(candidateId),
+      SWITCH_COUNTDOWN_MS + SWITCH_CROSSOVER_MS,
+    );
+  };
 
   // Rules 5-8 — the auto candidate-detection loop. Only active while
   // `mode.phase === "auto"`; runs forever, never exits itself except through
@@ -286,42 +320,16 @@ export function createDestinationMode(
     if (candidateId === null || candidateId === activeId) {
       if (pending !== null) {
         clearPendingTimer();
-        setMode(
-          reconcile({
-            phase: "auto",
-            entries: entries.filter((e) => e.id !== pending.candidateId),
-            activeId,
-            pending: null,
-          }),
-        );
+        commitMode({
+          phase: "auto",
+          entries: entries.filter((e) => e.id !== pending.candidateId),
+          activeId,
+          pending: null,
+        });
       }
       return;
     }
-    if (pending?.candidateId === candidateId) return;
-
-    clearPendingTimer();
-    // A different candidate supersedes an earlier one that never settled —
-    // drop its speculative entry rather than leaving it stranded.
-    const withoutStalePending = pending
-      ? entries.filter((e) => e.id !== pending.candidateId)
-      : entries;
-    const nextEntries = withoutStalePending.some((e) => e.id === candidateId)
-      ? withoutStalePending
-      : [...withoutStalePending, { id: candidateId, origin: "auto" as const }];
-    const countdownEndsAt = Date.now() + SWITCH_COUNTDOWN_MS;
-    const settleAt = countdownEndsAt + SWITCH_CROSSOVER_MS;
-    setMode(
-      reconcile({
-        phase: "auto",
-        entries: nextEntries,
-        activeId,
-        pending: { candidateId, countdownEndsAt, settleAt },
-      }),
-    );
-    pendingTimeout = setTimeout(
-      () => commitCandidate(candidateId),
-      SWITCH_COUNTDOWN_MS + SWITCH_CROSSOVER_MS,
-    );
+    startCandidatePending(candidateId);
   });
 
   // Rule 16 — a `selected` (not `connecting`) entry that stops being
@@ -336,14 +344,12 @@ export function createDestinationMode(
     if (destInfo === undefined) return;
     if (isReadyToConnect(destInfo.route_health ?? undefined)) return;
     clearRevertTimer();
-    setMode(
-      reconcile({
-        phase: "auto",
-        entries: mode.entries,
-        activeId: mode.activeId,
-        pending: null,
-      }),
-    );
+    commitMode({
+      phase: "auto",
+      entries: mode.entries,
+      activeId: mode.activeId,
+      pending: null,
+    });
   });
 
   const actions: DestinationModelActions = {
@@ -363,13 +369,11 @@ export function createDestinationMode(
       if (mode.phase === "uninitialized") return;
       if (mode.phase === "connecting") {
         if (mode.entries.some((e) => e.id === id)) return;
-        setMode(
-          reconcile({
-            phase: "connecting",
-            entries: [...mode.entries, { id, origin: "user" as const }],
-            activeId: mode.activeId,
-          }),
-        );
+        commitMode({
+          phase: "connecting",
+          entries: [...mode.entries, { id, origin: "user" as const }],
+          activeId: mode.activeId,
+        });
         return;
       }
       const baseEntries = mode.phase === "auto" && mode.pending
@@ -384,32 +388,9 @@ export function createDestinationMode(
     // TEMP(dev): see the interface doc comment — remove with the rest of
     // this debug affordance once the slider rework lands.
     debugAppendAutoEntry: (id) => {
-      if (mode.phase === "uninitialized") return;
+      if (mode.phase !== "auto") return;
       if (mode.entries.some((e) => e.id === id)) return;
-      const entries = [...mode.entries, { id, origin: "auto" as const }];
-      if (mode.phase === "auto") {
-        setMode(
-          reconcile({
-            phase: "auto",
-            entries,
-            activeId: mode.activeId,
-            pending: mode.pending,
-          }),
-        );
-      } else if (mode.phase === "selected") {
-        setMode(
-          reconcile({
-            phase: "selected",
-            entries,
-            activeId: mode.activeId,
-            autoRevertAt: mode.autoRevertAt,
-          }),
-        );
-      } else {
-        setMode(
-          reconcile({ phase: "connecting", entries, activeId: mode.activeId }),
-        );
-      }
+      startCandidatePending(id);
     },
   };
 

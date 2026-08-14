@@ -17,19 +17,12 @@ import { isVpnActive } from "@src/utils/destinations.ts";
 import DetailCard from "./DetailCard.tsx";
 import ExitNodeList from "./ExitNodeList.tsx";
 
-// Re-enabled for the slider rework in progress — see LocationBanner's
-// animation overhaul discussion. Flip back to false to fall back to an
-// instant jump if needed.
-const AUTO_SLIDE_ENABLED = true;
-
 // Must match .banner-card-pulse's animation-duration in index.css — the
-// outgoing card shrinks then grows back before the slide starts.
+// outgoing card shrinks then grows back before the slide starts. Counts
+// against SWITCH_ANIMATE_MS's total, not on top of it — see animateAutoSwitch.
 const CARD_PULSE_MS = 600;
-// Slower than a native smooth-scroll so the motion reads as a deliberate
-// slide rather than a jump.
-const SLIDE_MS = 1500;
 // A settle only ever moves to the adjacent card, so it's a quick snap rather
-// than the cross-strip glide SLIDE_MS is tuned for.
+// than the cross-strip glide SWITCH_ANIMATE_MS is tuned for.
 const SETTLE_ANIMATE_MS = 300;
 // Swallows any trailing `scroll` events the browser dispatches asynchronously
 // right after a programmatic scrollLeft write, so they don't get mistaken for
@@ -73,40 +66,6 @@ function animateScrollLeft(
   });
 }
 
-// Shrinks-then-grows the outgoing card (signalling "this is about to
-// change"), then glides the container to the newest card. Scroll-snap and
-// smooth scroll-behavior are suspended for the glide — they fight direct
-// scrollLeft assignment the same way they fight manual drag (see
-// handlePointerMove below).
-async function slideToLatest(
-  container: HTMLDivElement,
-  prevActiveId: string | null,
-  isCancelled: () => boolean,
-) {
-  const prevCard = prevActiveId
-    ? container.querySelector<HTMLElement>(
-      `[data-destination-id="${prevActiveId}"]`,
-    )
-    : null;
-  if (prevCard) {
-    prevCard.classList.add("banner-card-pulse");
-    await new Promise((resolve) => setTimeout(resolve, CARD_PULSE_MS));
-    prevCard.classList.remove("banner-card-pulse");
-  }
-  if (isCancelled()) return;
-
-  container.style.scrollBehavior = "auto";
-  container.style.scrollSnapType = "none";
-  // The browser clamps scrollLeft writes to scrollWidth - clientWidth, not
-  // scrollWidth itself — animating toward the unclamped value would have
-  // our eased progress hit that ceiling (and visually stop) well before
-  // SLIDE_MS has actually elapsed.
-  const maxScrollLeft = container.scrollWidth - container.clientWidth;
-  await animateScrollLeft(container, maxScrollLeft, SLIDE_MS, isCancelled);
-  container.style.scrollBehavior = "";
-  container.style.scrollSnapType = "";
-}
-
 // Manually picking a destination from the list is already a deliberate,
 // already-seen choice — jump straight to its card instead of replaying the
 // pulse-then-slide reserved for an unattended auto-switch. scroll-behavior
@@ -146,6 +105,43 @@ function nearestCardId(container: HTMLDivElement): string | null {
     }
   }
   return nearestCard?.getAttribute("data-destination-id") ?? null;
+}
+
+// Auto mode's candidate becoming active once its countdown (the headline
+// SwitchSpinner) elapses: the outgoing card pulses, then the strip slides to
+// center the candidate — mirroring the model's own settleAt, which commits
+// activeId SWITCH_CROSSOVER_MS into this same window, i.e. partway through
+// the slide phase below rather than during the pulse.
+async function animateAutoSwitch(
+  container: HTMLDivElement,
+  outgoingId: string,
+  candidateId: string,
+  isCancelled: () => boolean,
+) {
+  const outgoingCard = container.querySelector<HTMLElement>(
+    `[data-destination-id="${outgoingId}"]`,
+  );
+  if (outgoingCard) {
+    outgoingCard.classList.add("banner-card-pulse");
+    await new Promise((resolve) => setTimeout(resolve, CARD_PULSE_MS));
+    outgoingCard.classList.remove("banner-card-pulse");
+  }
+  if (isCancelled()) return;
+
+  const card = container.querySelector<HTMLElement>(
+    `[data-destination-id="${candidateId}"]`,
+  );
+  if (!card) return;
+  container.style.scrollBehavior = "auto";
+  container.style.scrollSnapType = "none";
+  await animateScrollLeft(
+    container,
+    centeredScrollLeft(container, card),
+    SWITCH_ANIMATE_MS - CARD_PULSE_MS,
+    isCancelled,
+  );
+  container.style.scrollBehavior = "";
+  container.style.scrollSnapType = "";
 }
 
 export default function LocationBanner() {
@@ -337,10 +333,11 @@ export default function LocationBanner() {
       pendingClickTarget.click();
     } else if (
       // Compares against what's actually centered right now, not the
-      // model's activeId — a not-yet-committed auto-slide (slideToLatest
-      // never calls commitSlideTo) can leave those two disagreeing about
-      // which card is "current", which previously made a tap on the very
-      // first peeking neighbor a no-op.
+      // model's activeId — an in-flight auto-switch (animateAutoSwitch
+      // commits only once the model's own settleAt timer fires, not as it
+      // animates) can leave those two disagreeing about which card is
+      // "current", which previously made a tap on the very first peeking
+      // neighbor a no-op.
       containerRef && pendingCardId &&
       pendingCardId !== nearestCardId(containerRef)
     ) {
@@ -404,27 +401,60 @@ export default function LocationBanner() {
 
   // Tracking the last id (not just order.length) also catches a reselected
   // historical entry moving to the end, which leaves the length unchanged.
+  //
+  // A rule-5 candidate append (mode.pending.candidateId === lastId, not yet
+  // activeId) is deliberately excluded here — during its 5s countdown
+  // nothing about the strip should move; it just sits there peeking until
+  // either the countdown effect below slides to it, or it reverts and
+  // disappears again. Every other new-last-entry case (a pick, a startup/
+  // connecting landing) is already-active the instant it appears, so a
+  // straight jump is enough — the pulse-then-slide announcement is reserved
+  // for the timed auto-switch.
+  //
+  // The isUnsettledCandidate check is deferred to a microtask rather than
+  // read inline here — entries/pending are two separate store writes within
+  // one model transition, mirrored into this component's store through an
+  // intermediate reconcile() bridge (appStore's mode → state.mode), and that
+  // bridge can flush this very effect while only one of the two has landed.
+  // Queuing the decision lets the whole synchronous reactive cascade settle
+  // first, so it reads entries/pending as they'll actually stay.
   createEffect((prevLastId: string | null | undefined) => {
     const order = entryIds();
     const lastId = order.length > 0 ? order[order.length - 1] : null;
-    const mode = appState.mode;
-    // The newest card's own origin says how it got there: appended by the
-    // auto loop (slide) vs. placed there by a pick (jump straight to it).
-    // Placeholder derivation — see docs/destination-mode.md's non-goal note
-    // on the deferred UI pass for a more precise signal.
-    const shouldAnimate = AUTO_SLIDE_ENABLED &&
-      mode.phase !== "uninitialized" &&
-      mode.entries[mode.entries.length - 1]?.origin === "auto";
     if (prevLastId !== undefined && lastId !== prevLastId && containerRef) {
       const container = containerRef;
-      void runSuppressed(() =>
-        shouldAnimate
-          ? slideToLatest(container, prevLastId ?? null, () => !mounted)
-          : Promise.resolve(jumpToLatest(container))
-      );
+      queueMicrotask(() => {
+        if (containerRef !== container) return;
+        const mode = appState.mode;
+        const isUnsettledCandidate = mode.phase === "auto" &&
+          mode.pending?.candidateId === lastId;
+        if (!isUnsettledCandidate) {
+          void runSuppressed(() => Promise.resolve(jumpToLatest(container)));
+        }
+      });
     }
     return lastId;
   }, undefined);
+
+  // Rule 7's UI half: once a pending candidate's countdown (the headline
+  // SwitchSpinner) elapses, play the pulse-then-slide switch so it lands
+  // centered right as the model commits activeId to it, SWITCH_CROSSOVER_MS
+  // later — see animateAutoSwitch. Scheduled off countdownEndsAt directly
+  // rather than reacting to the commit itself, since entries/activeId don't
+  // change at countdownEndsAt (only at settleAt, after this animation ends).
+  createEffect(() => {
+    const mode = appState.mode;
+    if (mode.phase !== "auto" || !mode.pending || !containerRef) return;
+    const { candidateId, countdownEndsAt } = mode.pending;
+    const outgoingId = mode.activeId;
+    const container = containerRef;
+    const timer = setTimeout(() => {
+      void runSuppressed(() =>
+        animateAutoSwitch(container, outgoingId, candidateId, () => !mounted)
+      );
+    }, Math.max(0, countdownEndsAt - Date.now()));
+    onCleanup(() => clearTimeout(timer));
+  });
 
   return (
     <>

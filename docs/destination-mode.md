@@ -259,7 +259,13 @@ following were redesigned, and remain candidates for a later UI pass:
   `activeId`" (rule 10) or "scroll while connecting retargets the connection"
   (rule 13) — scrolling is currently just a drag/tap-to-open gesture with no
   `setActiveEntry`/`connect()` wiring.
-- Its slide-vs-jump animation choice is a placeholder derived from the newest
-  entry's `origin` (`"auto"` → slide, `"user"` → jump), which is only an
-  approximation of "was this specific transition auto-driven or user-driven" —
-  accurate in the common cases, but not exhaustively.
+
+A later pass replaced the slide-vs-jump placeholder mentioned in earlier
+revisions of this doc: `LocationBanner.tsx` now schedules the pulse-then-slide
+switch off `pending.countdownEndsAt` directly (rule 7's UI half) rather than
+guessing from the newest entry's `origin`. A rule-5 candidate append doesn't
+move the strip at all — it just sits there peeking, visible via
+`nearestCardId`-based tap-to-switch, until the countdown either elapses (slide)
+or reverts (rule 6, disappears). Every other new-last-entry case (a pick, a
+startup/connecting landing) jumps straight to it, since it's already active the
+instant it appears.
