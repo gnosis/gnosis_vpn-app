@@ -10,6 +10,7 @@ import { Portal } from "solid-js/web";
 import { useAppStore } from "@src/stores/appStore.ts";
 import {
   currentDisplayId,
+  type DestinationEntry,
   SWITCH_ANIMATE_MS,
   SWITCH_CROSSOVER_MS,
 } from "@src/stores/destinationMode.ts";
@@ -387,65 +388,73 @@ export default function LocationBanner() {
     }
   });
 
-  // Ids in history order (oldest -> newest); empty before startup resolves.
-  const entryIds = () =>
-    appState.mode.phase === "uninitialized"
-      ? []
-      : appState.mode.entries.map((e) => e.id);
+  // Entries in history order (oldest -> newest); empty before startup
+  // resolves.
+  const modeEntries = () =>
+    appState.mode.phase === "uninitialized" ? [] : appState.mode.entries;
 
   // Must match the mount fade's `duration-700` below — a removed entry
   // (e.g. a cancelled auto-switch candidate) fades out over the same
   // duration it would have faded in with, instead of vanishing instantly.
   const CARD_EXIT_FADE_MS = 700;
 
-  // What <For> actually renders: `entryIds()` plus any id that just dropped
-  // out of it, kept around (and marked via `exitingIds`) until its fade-out
-  // finishes. New ids need no such bookkeeping — their fade-in is handled
-  // entirely by the starting:opacity-0 CSS below, so they can join
-  // immediately.
-  const [displayIds, setDisplayIds] = createSignal<string[]>([]);
-  const [exitingIds, setExitingIds] = createSignal<ReadonlySet<string>>(
+  // What <For> actually renders: `modeEntries()` plus any entry that just
+  // dropped out of it, kept around (and marked via `exitingKeys`) until its
+  // fade-out finishes. New entries need no such bookkeeping — their fade-in
+  // is handled entirely by the starting:opacity-0 CSS below, so they can join
+  // immediately. Tracked by `entry.key` rather than destination id — picking
+  // a destination that's already elsewhere in history mints a fresh key for
+  // it (see pickDestination), so it mounts here as a new card instead of
+  // reconciling into, and silently repositioning, the old one.
+  const [displayEntries, setDisplayEntries] = createSignal<DestinationEntry[]>(
+    [],
+  );
+  const [exitingKeys, setExitingKeys] = createSignal<ReadonlySet<number>>(
     new Set(),
   );
 
-  createEffect((prevIds: string[]) => {
-    const nextIds = entryIds();
-    const removedIds = prevIds.filter((id) => !nextIds.includes(id));
+  createEffect((prevKeys: number[]) => {
+    const nextEntries = modeEntries();
+    const nextKeys = nextEntries.map((e) => e.key);
+    const removedKeys = prevKeys.filter((key) => !nextKeys.includes(key));
 
-    if (removedIds.length > 0) {
-      setExitingIds((cur) => {
+    if (removedKeys.length > 0) {
+      setExitingKeys((cur) => {
         const next = new Set(cur);
-        removedIds.forEach((id) => next.add(id));
+        removedKeys.forEach((key) => next.add(key));
         return next;
       });
-      for (const id of removedIds) {
+      for (const key of removedKeys) {
         setTimeout(() => {
-          setExitingIds((cur) => {
-            if (!cur.has(id)) return cur;
+          setExitingKeys((cur) => {
+            if (!cur.has(key)) return cur;
             const next = new Set(cur);
-            next.delete(id);
+            next.delete(key);
             return next;
           });
-          setDisplayIds((cur) => cur.filter((x) => x !== id));
+          setDisplayEntries((cur) => cur.filter((e) => e.key !== key));
         }, CARD_EXIT_FADE_MS);
       }
     }
 
     // Preserve existing slots (including ones still fading out) rather than
     // appending everything anew, so a removal doesn't reshuffle neighbors.
-    setDisplayIds((cur) => {
-      const stillPresent = cur.filter((id) =>
-        nextIds.includes(id) || removedIds.includes(id)
+    setDisplayEntries((cur) => {
+      const stillPresent = cur.filter((e) =>
+        nextKeys.includes(e.key) || removedKeys.includes(e.key)
       );
-      const withNew = nextIds.filter((id) => !stillPresent.includes(id));
+      const stillPresentKeys = stillPresent.map((e) => e.key);
+      const withNew = nextEntries.filter((e) =>
+        !stillPresentKeys.includes(e.key)
+      );
       return [...stillPresent, ...withNew];
     });
 
-    return nextIds;
-  }, entryIds());
+    return nextKeys;
+  }, modeEntries().map((e) => e.key));
 
   const slideToAdjacent = (id: string, direction: 1 | -1) => {
-    const order = entryIds();
+    const order = modeEntries().map((e) => e.id);
     const nextId = order[order.indexOf(id) + direction];
     if (nextId) void animateSettleTo(nextId);
   };
@@ -470,7 +479,7 @@ export default function LocationBanner() {
   // Queuing the decision lets the whole synchronous reactive cascade settle
   // first, so it reads entries/pending as they'll actually stay.
   createEffect((prevLastId: string | null | undefined) => {
-    const order = entryIds();
+    const order = modeEntries().map((e) => e.id);
     const lastId = order.length > 0 ? order[order.length - 1] : null;
     if (prevLastId !== undefined && lastId !== prevLastId && containerRef) {
       const container = containerRef;
@@ -524,31 +533,32 @@ export default function LocationBanner() {
             auto-supplies the other 8px between this and the adjacent card. */
         }
         <div class="w-[10px] shrink-0" aria-hidden="true" />
-        <For each={displayIds()}>
-          {(id) => (
-            <Show when={appState.destinations[id]}>
+        <For each={displayEntries()}>
+          {(entry) => (
+            <Show when={appState.destinations[entry.id]}>
               {(ds) => (
                 <div
-                  data-destination-id={id}
+                  data-destination-id={entry.id}
                   class="relative w-[calc(100%-36px)] shrink-0 snap-center transition-opacity duration-700 ease-out starting:opacity-0"
-                  classList={{ "opacity-0": exitingIds().has(id) }}
+                  classList={{ "opacity-0": exitingKeys().has(entry.key) }}
                   aria-label="Exit node, use left and right arrow keys to browse"
                   tabIndex={0}
                   onKeyDown={(e) => {
                     if (e.key === "ArrowRight") {
                       e.preventDefault();
-                      slideToAdjacent(id, 1);
+                      slideToAdjacent(entry.id, 1);
                     }
                     if (e.key === "ArrowLeft") {
                       e.preventDefault();
-                      slideToAdjacent(id, -1);
+                      slideToAdjacent(entry.id, -1);
                     }
                   }}
                 >
                   <DetailCard
                     destinationState={ds()}
                     destinationPhase={appState.mode.phase}
-                    switchEndsAt={id === currentDisplayId(appState.mode) &&
+                    switchEndsAt={entry.id ===
+                          currentDisplayId(appState.mode) &&
                         appState.mode.phase === "auto"
                       ? appState.mode.pending?.countdownEndsAt ?? null
                       : null}

@@ -94,6 +94,14 @@ function ids(entries: Array<{ id: string }>): string[] {
   return entries.map((e) => e.id);
 }
 
+// `entries` id/origin pairs, dropping the render-only `key` field so
+// assertions don't have to hardcode its counter value.
+function idsAndOrigins(
+  entries: Array<{ id: string; origin: string }>,
+): Array<{ id: string; origin: string }> {
+  return entries.map((e) => ({ id: e.id, origin: e.origin }));
+}
+
 // A plain function call, not a direct `const x = model[0]` copy — TS treats
 // the latter as an alias of `model[0]` and incorrectly carries over an
 // earlier, unrelated `if (model[0].phase !== ...)` guard's narrowing even
@@ -765,7 +773,9 @@ describe("pickDestination — ExitNodeList pick (rules 9 & 14)", () => {
     model[1].pickDestination("picked");
     expect(model[0]).toMatchObject({ phase: "selected", activeId: "picked" });
     if (model[0].phase !== "selected") throw new Error("unreachable");
-    expect(model[0].entries).toEqual([{ id: "picked", origin: "user" }]);
+    expect(idsAndOrigins(model[0].entries)).toEqual([
+      { id: "picked", origin: "user" },
+    ]);
     expect(model[0].autoRevertAt).toBe(Date.now() + SELECTED_AUTO_REVERT_MS);
   });
 
@@ -832,7 +842,7 @@ describe("pickDestination — ExitNodeList pick (rules 9 & 14)", () => {
     model[1].pickDestination("other");
     expect(model[0]).toMatchObject({ phase: "connecting", activeId: "fast" });
     if (model[0].phase !== "connecting") throw new Error("unreachable");
-    expect(model[0].entries).toEqual([
+    expect(idsAndOrigins(model[0].entries)).toEqual([
       { id: "fast", origin: "auto" },
       { id: "other", origin: "user" },
     ]);
@@ -902,7 +912,7 @@ describe("pickDestination — ExitNodeList pick (rules 9 & 14)", () => {
     model[1].pickDestination("fast");
     const afterPick = snapshot(model);
     if (afterPick.phase !== "selected") throw new Error("unreachable");
-    expect(afterPick.entries).toEqual([
+    expect(idsAndOrigins(afterPick.entries)).toEqual([
       { id: "better", origin: "auto" },
       { id: "fast", origin: "user" },
     ]);
@@ -932,7 +942,7 @@ describe("pickDestination — ExitNodeList pick (rules 9 & 14)", () => {
     model[1].pickDestination("better");
     const afterPick = snapshot(model);
     if (afterPick.phase !== "selected") throw new Error("unreachable");
-    expect(afterPick.entries).toEqual([
+    expect(idsAndOrigins(afterPick.entries)).toEqual([
       { id: "fast", origin: "auto" },
       { id: "better", origin: "user" },
     ]);

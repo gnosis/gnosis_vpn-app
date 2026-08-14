@@ -33,6 +33,10 @@ export type DestinationOrigin = "auto" | "user";
 export interface DestinationEntry {
   id: string;
   origin: DestinationOrigin;
+  // Render/reconcile identity, separate from `id` — lets a re-picked
+  // destination that's already elsewhere in history mount as a fresh card
+  // instead of reconciling into (and silently repositioning) the old one.
+  key: number;
 }
 
 export interface AutoPending {
@@ -116,7 +120,13 @@ export function createDestinationMode(
   // only one of the two has updated yet. batch() defers dependent effects
   // until every key from a single model transition has landed.
   const commitMode = (value: DestinationModel) =>
-    batch(() => setMode(reconcile(value)));
+    batch(() => setMode(reconcile(value, { key: "key" })));
+
+  let nextEntryKey = 0;
+  const freshEntry = (
+    id: string,
+    origin: DestinationOrigin,
+  ): DestinationEntry => ({ id, origin, key: nextEntryKey++ });
 
   // Fires at most once per app run (this store's lifetime) — see
   // docs/destination-mode.md's promotion rule. Not part of the exposed
@@ -241,7 +251,7 @@ export function createDestinationMode(
           : mode.entries;
         const entries = existingEntries.some((e) => e.id === liveId)
           ? existingEntries
-          : [...existingEntries, { id: liveId, origin: "auto" as const }];
+          : [...existingEntries, freshEntry(liveId, "auto")];
         commitMode({ phase: "connecting", entries, activeId: liveId });
       }
       return;
@@ -263,7 +273,7 @@ export function createDestinationMode(
     if (preferredId !== null && preferredReady) {
       startupDecided = true;
       preferredPromotionUsed = true;
-      startSelected([{ id: preferredId, origin: "auto" }], preferredId);
+      startSelected([freshEntry(preferredId, "auto")], preferredId);
       return;
     }
 
@@ -272,7 +282,7 @@ export function createDestinationMode(
       appState.destinations[persistedId] !== undefined;
     if (persistedId !== null && persistedKnown) {
       startupDecided = true;
-      startSelected([{ id: persistedId, origin: "auto" }], persistedId);
+      startSelected([freshEntry(persistedId, "auto")], persistedId);
       return;
     }
 
@@ -281,7 +291,7 @@ export function createDestinationMode(
     startupDecided = true;
     commitMode({
       phase: "auto",
-      entries: [{ id: initialId, origin: "auto" }],
+      entries: [freshEntry(initialId, "auto")],
       activeId: initialId,
       pending: null,
     });
@@ -313,7 +323,7 @@ export function createDestinationMode(
       : entries;
     const nextEntries = withoutStalePending.some((e) => e.id === candidateId)
       ? withoutStalePending
-      : [...withoutStalePending, { id: candidateId, origin: "auto" as const }];
+      : [...withoutStalePending, freshEntry(candidateId, "auto")];
 
     if (pending !== null) {
       // Still within the 5s countdown, nothing has animated yet — retarget
@@ -447,7 +457,7 @@ export function createDestinationMode(
         if (mode.entries.some((e) => e.id === id)) return;
         commitMode({
           phase: "connecting",
-          entries: [...mode.entries, { id, origin: "user" as const }],
+          entries: [...mode.entries, freshEntry(id, "user")],
           activeId: mode.activeId,
         });
         return;
@@ -455,16 +465,24 @@ export function createDestinationMode(
       const baseEntries = mode.phase === "auto" && mode.pending
         ? mode.entries.filter((e) => e.id !== mode.pending!.candidateId)
         : mode.entries;
-      // entries is unique-by-id — if the pick already sits elsewhere in the
-      // list (e.g. a visible neighbor card), drop that copy first so the map
-      // below can't leave two entries with the same id.
-      const withoutDuplicatePick = baseEntries.filter((e) =>
-        e.id !== id || e.id === mode.activeId
+
+      if (id === mode.activeId) {
+        // Already the active card — re-tag its origin in place rather than
+        // minting a fresh key, so it doesn't fade/remount for a no-op pick.
+        const nextEntries = baseEntries.map((e) =>
+          e.id === id ? { ...e, origin: "user" as const } : e
+        );
+        startSelected(nextEntries, id);
+        return;
+      }
+      // The outgoing active entry and any stale copy of the pick elsewhere in
+      // history both go — a fresh key for the pick below always mounts a new
+      // card instead of reconciling into (and silently repositioning) one of
+      // theirs just because it happens to share this destination id.
+      const withoutOutgoing = baseEntries.filter((e) =>
+        e.id !== mode.activeId && e.id !== id
       );
-      const nextEntries = withoutDuplicatePick.map((e) =>
-        e.id === mode.activeId ? { id, origin: "user" as const } : e
-      );
-      startSelected(nextEntries, id);
+      startSelected([...withoutOutgoing, freshEntry(id, "user")], id);
     },
   };
 

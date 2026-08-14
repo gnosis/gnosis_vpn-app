@@ -218,7 +218,7 @@ export function createAppStore(): AppStoreTuple {
   const [mode, modeActions] = createDestinationMode(state, settings);
 
   createEffect(() => {
-    batch(() => setState("mode", reconcile({ ...mode })));
+    batch(() => setState("mode", reconcile({ ...mode }, { key: "key" })));
   });
 
   const criticalError = (message: string) => {
