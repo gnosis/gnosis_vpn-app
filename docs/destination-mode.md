@@ -217,6 +217,13 @@ Reactive to `availableDestinations`/`destinations`/`preferredLocation` changes:
     A fresh pick/scroll while already `selected` cancels the previous timer and
     restarts it.
 
+    The model flips to `auto` immediately, but `LocationBanner.tsx` deliberately
+    delays the _displayed_ title behind it — it keeps showing "Selected
+    Location" through the candidate-detection window (rules 5-8) rather than
+    flipping to "Best Location" only to possibly slide away to a different card
+    a moment later. So `mode.phase` and the on-screen title can briefly disagree
+    by design; this is a UI-only concern, not modeled here.
+
 ### Unavailable non-auto entry
 
 16. While `selected`, if `activeId`'s destination _transitions_ from

@@ -1,4 +1,3 @@
-import type { DestinationModel } from "@src/stores/destinationMode.ts";
 import type { DestinationState } from "@src/services/vpnService.ts";
 import DestinationCard from "./DestinationCard.tsx";
 import ExitHealthDetail from "./ExitHealthDetail.tsx";
@@ -10,7 +9,7 @@ import ExitHealthDetail from "./ExitHealthDetail.tsx";
 // destination card's.
 export default function DetailCard(props: {
   destinationState: DestinationState;
-  destinationPhase: DestinationModel["phase"];
+  title: string;
   switchEndsAt?: number | null;
   onOpenList: () => void;
 }) {
@@ -18,7 +17,7 @@ export default function DetailCard(props: {
     <div class="w-full bg-slate-800 rounded-2xl p-1.5">
       <DestinationCard
         destinationState={props.destinationState}
-        destinationPhase={props.destinationPhase}
+        title={props.title}
         switchEndsAt={props.switchEndsAt}
         onOpenList={props.onOpenList}
       />

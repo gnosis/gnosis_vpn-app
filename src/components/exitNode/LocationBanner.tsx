@@ -11,10 +11,12 @@ import { useAppStore } from "@src/stores/appStore.ts";
 import {
   currentDisplayId,
   type DestinationEntry,
+  type DestinationModel,
   SWITCH_ANIMATE_MS,
+  SWITCH_COUNTDOWN_MS,
   SWITCH_CROSSOVER_MS,
 } from "@src/stores/destinationMode.ts";
-import { isVpnActive } from "@src/utils/destinations.ts";
+import { cardTitle, isVpnActive } from "@src/utils/destinations.ts";
 import DetailCard from "./DetailCard.tsx";
 import ExitNodeList from "./ExitNodeList.tsx";
 
@@ -496,6 +498,66 @@ export default function LocationBanner() {
     return lastId;
   }, undefined);
 
+  // Keeps the pre-revert title ("Selected Location") on screen through the
+  // auto candidate-detection window after a `selected` -> `auto` revert
+  // (rule 11/16), instead of instantly flipping to "Best Location" only to
+  // maybe slide away to a different card a moment later — see
+  // docs/destination-mode.md's note on this delay. Cleared once its card is
+  // provably done deciding: it moved on to a different (better) card, or the
+  // flat SWITCH_COUNTDOWN_MS deadline passed with no pending candidate left
+  // to resolve.
+  const [revealHold, setRevealHold] = createSignal<
+    { activeId: string; holdEndsAt: number } | null
+  >(null);
+
+  const releaseHoldIfSettled = () => {
+    const hold = revealHold();
+    if (!hold) return;
+    const mode = appState.mode;
+    if (mode.phase !== "auto" || mode.activeId !== hold.activeId) {
+      setRevealHold(null);
+      return;
+    }
+    if (mode.pending === null && Date.now() >= hold.holdEndsAt) {
+      setRevealHold(null);
+    }
+  };
+
+  createEffect((prevPhase: DestinationModel["phase"] | undefined) => {
+    const mode = appState.mode;
+    if (prevPhase === "selected" && mode.phase === "auto") {
+      const activeId = mode.activeId;
+      setRevealHold({ activeId, holdEndsAt: Date.now() + SWITCH_COUNTDOWN_MS });
+      // The deadline passing is a pure time event, not a store change — the
+      // reactive effect below only re-checks on the next entries/pending/
+      // activeId change, which may not happen right at the deadline (e.g. no
+      // candidate ever shows up).
+      const timer = setTimeout(releaseHoldIfSettled, SWITCH_COUNTDOWN_MS);
+      onCleanup(() => clearTimeout(timer));
+    }
+    return mode.phase;
+  }, undefined);
+
+  createEffect(() => {
+    const mode = appState.mode;
+    if (mode.phase === "auto") {
+      // Read so this reruns when a pending candidate commits (activeId
+      // changes) or cancels (pending -> null) after the flat deadline above
+      // already elapsed while it was still in flight.
+      mode.activeId;
+      mode.pending;
+    }
+    releaseHoldIfSettled();
+  });
+
+  const resolvedTitle = () => {
+    const mode = appState.mode;
+    const hold = revealHold();
+    const isHeld = hold !== null && mode.phase === "auto" &&
+      mode.activeId === hold.activeId;
+    return cardTitle(isHeld ? "selected" : mode.phase);
+  };
+
   // Rule 7's UI half: once a pending candidate's countdown (the headline
   // SwitchSpinner) elapses, play the pulse-then-slide switch so it lands
   // centered right as the model commits activeId to it, SWITCH_CROSSOVER_MS
@@ -556,11 +618,12 @@ export default function LocationBanner() {
                 >
                   <DetailCard
                     destinationState={ds()}
-                    destinationPhase={appState.mode.phase}
+                    title={resolvedTitle()}
                     switchEndsAt={entry.id ===
                           currentDisplayId(appState.mode) &&
                         appState.mode.phase === "auto"
-                      ? appState.mode.pending?.countdownEndsAt ?? null
+                      ? appState.mode.pending?.countdownEndsAt ??
+                        revealHold()?.holdEndsAt ?? null
                       : null}
                     onOpenList={() => setShowList(true)}
                   />

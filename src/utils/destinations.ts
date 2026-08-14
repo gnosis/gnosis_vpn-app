@@ -2,6 +2,7 @@ import type {
   Destination,
   DestinationState,
 } from "@src/services/vpnService.ts";
+import type { DestinationModel } from "@src/stores/destinationMode.ts";
 import { getSortLatencyMs, isReadyToConnect } from "@src/utils/exitHealth.ts";
 
 /** Sort by latency ascending; no-latency entries go last, then A–Z. */
@@ -125,4 +126,20 @@ export function destinationLabelById(
 ): string {
   const dest = available.find((d) => d.id === id);
   return dest ? destinationLabel(dest) : `${id} (unavailable)`;
+}
+
+// "uninitialized" never actually reaches a rendered card — LocationBanner's
+// entryIds() is empty until the mode resolves — but this stays exhaustive
+// over the real union instead of a narrowed duplicate of it.
+export function cardTitle(phase: DestinationModel["phase"]): string {
+  switch (phase) {
+    case "auto":
+      return "Best Location";
+    case "selected":
+      return "Selected Location";
+    case "connecting":
+      return "Current Location";
+    case "uninitialized":
+      return "";
+  }
 }
