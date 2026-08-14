@@ -124,11 +124,10 @@ export default function FundsInfo(props: Props) {
         <Portal mount={document.body}>
           <div
             ref={bubbleRef}
-            class="tooltip-bubble fixed z-200 max-w-52 rounded-lg bg-neutral-800 px-3 py-2 shadow-lg text-xs leading-relaxed text-gray-100"
+            class="fixed z-200 max-w-52 rounded-lg bg-neutral-800 px-3 py-2 shadow-lg text-xs leading-relaxed text-gray-100 -translate-x-1/2 transition-[opacity,scale] duration-150 ease-out starting:opacity-0 starting:scale-95"
             style={{
               bottom: `${anchorBottom()}px`,
               left: `${left()}px`,
-              transform: "translateX(-50%)",
             }}
             onMouseEnter={show}
             onMouseLeave={hide}

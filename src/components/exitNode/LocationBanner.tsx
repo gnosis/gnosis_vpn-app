@@ -479,7 +479,7 @@ export default function LocationBanner() {
               {(ds) => (
                 <div
                   data-destination-id={id}
-                  class="relative w-[calc(100%-36px)] shrink-0 snap-center transition-opacity duration-300 ease-out starting:opacity-0"
+                  class="relative w-[calc(100%-36px)] shrink-0 snap-center transition-opacity duration-700 ease-out starting:opacity-0"
                   aria-label="Exit node, use left and right arrow keys to browse"
                   tabIndex={0}
                   onKeyDown={(e) => {
