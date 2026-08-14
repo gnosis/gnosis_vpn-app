@@ -33,24 +33,33 @@ export default function DestinationCard(props: {
   const [displayTitle, setDisplayTitle] = createSignal(props.title);
   const [faded, setFaded] = createSignal(false);
 
+  // Snaps (no fade) on the effect's first run rather than using `on`'s
+  // `defer: true` — a newly-mounted card's title can already have moved on
+  // from the value `createSignal(props.title)` captured at construction
+  // (e.g. a fresh pending-candidate card mounts while `entries` and
+  // `pending` land as two separate reactive writes of the same model
+  // transition), and `defer` would silently discard that first real change
+  // instead of just skipping its fade.
+  let mounted = false;
   createEffect(
-    on(
-      () => props.title,
-      (title) => {
-        // `on` re-fires whenever anything upstream recomputes the title,
-        // even when the recomputed text is unchanged (e.g. LocationBanner's
-        // reveal-hold re-deriving the same "Selected Location" string) —
-        // skip the fade rather than flashing the text out and back in for
-        // a no-op change.
-        if (title === displayTitle()) return;
-        setFaded(true);
-        setTimeout(() => {
-          setDisplayTitle(title);
-          setFaded(false);
-        }, TITLE_FADE_MS);
-      },
-      { defer: true },
-    ),
+    on(() => props.title, (title) => {
+      if (!mounted) {
+        mounted = true;
+        setDisplayTitle(title);
+        return;
+      }
+      // `on` re-fires whenever anything upstream recomputes the title, even
+      // when the recomputed text is unchanged (e.g. LocationBanner's
+      // reveal-hold re-deriving the same "Selected Location" string) — skip
+      // the fade rather than flashing the text out and back in for a no-op
+      // change.
+      if (title === displayTitle()) return;
+      setFaded(true);
+      setTimeout(() => {
+        setDisplayTitle(title);
+        setFaded(false);
+      }, TITLE_FADE_MS);
+    }),
   );
 
   return (

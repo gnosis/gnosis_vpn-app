@@ -233,6 +233,16 @@ Reactive to `availableDestinations`/`destinations`/`preferredLocation` changes:
     candidate found deep into an otherwise-settled `auto` run is just as much an
     open question as one found right after reverting.
 
+    This title is resolved per rendered entry, not once globally from
+    `mode.phase` — only the live active card (once provably settled) and its
+    pending candidate (the "next" card, peeking ahead of actually becoming
+    active) may ever read "Best Location". Every other entry — older history,
+    reached by a manual pick or scroll, or simply superseded — always reads
+    "Selected Location" regardless of the current phase. Otherwise, dragging
+    back through history while the strip is in `auto` would flash "Best
+    Location" on every card it passes, not just the one actually holding that
+    title.
+
 ### Unavailable non-auto entry
 
 16. While `selected`, if `activeId`'s destination _transitions_ from

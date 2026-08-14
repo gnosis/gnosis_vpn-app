@@ -558,8 +558,28 @@ export default function LocationBanner() {
     releaseHoldIfSettled();
   });
 
-  const resolvedTitle = () => {
+  // Title is resolved per entry, not once globally — only the live active
+  // card and its pending candidate (the "next" card, about to become
+  // active) may ever read "Best Location". Every other entry is history:
+  // reached by a manual pick/scroll or long superseded, so it always reads
+  // "Selected Location" regardless of the current global phase. Without
+  // this, dragging back through older cards while the strip is in `auto`
+  // made every one of them flash "Best Location", since the old uniform
+  // title was just `cardTitle(mode.phase)` applied to every card alike.
+  const titleFor = (entry: DestinationEntry): string => {
     const mode = appState.mode;
+    if (mode.phase === "uninitialized") return "";
+
+    const isActive = entry.id === mode.activeId;
+    const isPendingCandidate = mode.phase === "auto" &&
+      mode.pending?.candidateId === entry.id;
+
+    if (!isActive) {
+      // The pending candidate previews as "Best Location" while it's still
+      // just peeking, ahead of actually becoming active.
+      return isPendingCandidate ? cardTitle("auto") : cardTitle("selected");
+    }
+
     const hold = revealHold();
     const isRevertHold = hold !== null && mode.phase === "auto" &&
       mode.activeId === hold.activeId;
@@ -634,7 +654,7 @@ export default function LocationBanner() {
                 >
                   <DetailCard
                     destinationState={ds()}
-                    title={resolvedTitle()}
+                    title={titleFor(entry)}
                     switchEndsAt={entry.id ===
                           currentDisplayId(appState.mode) &&
                         appState.mode.phase === "auto"
