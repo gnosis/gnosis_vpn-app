@@ -344,24 +344,40 @@ export function createDestinationMode(
     startCandidatePending(candidateId);
   });
 
-  // Rule 16 — a `selected` (not `connecting`) entry that stops being
+  // Rule 16 — a `selected` (not `connecting`) entry that *stops* being
   // ready-to-connect drops back into `auto`; the effect above then picks up
   // immediately (same reactive flush) and starts its normal candidate-pending
-  // sequence toward the best remaining destination. Skips ids we have no
-  // data for at all — an unconfirmed pick isn't the same as a known-bad one.
-  createEffect(() => {
-    if (mode.phase !== "selected") return;
-    const destInfo = appState.destinations[mode.activeId];
-    if (destInfo === undefined) return;
-    if (isReadyToConnect(destInfo.route_health ?? undefined)) return;
-    clearRevertTimer();
-    commitMode({
-      phase: "auto",
-      entries: mode.entries,
-      activeId: mode.activeId,
-      pending: null,
-    });
-  });
+  // sequence toward the best remaining destination. This only fires on an
+  // actual ready -> not-ready transition of the *same* entry, tracked via the
+  // previous run's snapshot — a fresh selection (manual pick or swipe-back)
+  // hasn't necessarily been (re-)probed as ready yet, and must still get its
+  // full flat 10s grace window (startSelected's autoRevertAt) rather than
+  // being bounced straight back to `auto` in the same tick it was selected.
+  createEffect(
+    (prev: { activeId: string; wasReady: boolean } | null) => {
+      if (mode.phase !== "selected") return null;
+      const destInfo = appState.destinations[mode.activeId];
+      // No data yet for this entry — an unconfirmed pick isn't the same as a
+      // known-bad one; leave the last-known snapshot untouched rather than
+      // treating "no data" as "not ready" for the transition check below.
+      if (destInfo === undefined) return prev;
+      const isReady = isReadyToConnect(destInfo.route_health ?? undefined);
+      const droppedReady = prev !== null && prev.activeId === mode.activeId &&
+        prev.wasReady && !isReady;
+      if (droppedReady) {
+        clearRevertTimer();
+        commitMode({
+          phase: "auto",
+          entries: mode.entries,
+          activeId: mode.activeId,
+          pending: null,
+        });
+        return null;
+      }
+      return { activeId: mode.activeId, wasReady: isReady };
+    },
+    null,
+  );
 
   const actions: DestinationModelActions = {
     setActiveEntry: (id) => {

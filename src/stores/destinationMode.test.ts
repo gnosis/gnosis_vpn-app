@@ -554,6 +554,29 @@ describe("setActiveEntry — scroll-to-card (rule 10)", () => {
     expect(ids(model[0].entries)).toEqual(["fast", "better"]);
   });
 
+  it("enters selected with the full 10s grace window even when the target entry isn't (yet) ready-to-connect", async () => {
+    const { model, setAppState } = await setupWithHistory();
+    setAppState("destinations", {
+      fast: makeUnavailable("fast"),
+      better: makeReadyToConnect("better", 10_000_000),
+    });
+    await Promise.resolve();
+
+    model[1].setActiveEntry("fast");
+    expect(model[0]).toMatchObject({ phase: "selected", activeId: "fast" });
+    if (model[0].phase !== "selected") throw new Error("unreachable");
+    expect(model[0].autoRevertAt).toBe(Date.now() + SELECTED_AUTO_REVERT_MS);
+
+    // Still selected right up to the flat 10s deadline — not-ready-at-pick-
+    // time must not fall back to auto any sooner (rule 16 only reacts to an
+    // actual ready -> not-ready transition of the same entry).
+    await vi.advanceTimersByTimeAsync(SELECTED_AUTO_REVERT_MS - 1);
+    expect(model[0]).toMatchObject({ phase: "selected", activeId: "fast" });
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(model[0]).toMatchObject({ phase: "auto", activeId: "fast" });
+  });
+
   it("is a no-op when the target id isn't an existing entry", async () => {
     const { model } = await setupWithHistory();
 
@@ -1053,6 +1076,29 @@ describe("unavailable non-auto entry falls back to auto (rule 16)", () => {
 
     await vi.advanceTimersByTimeAsync(SETTLE_MS);
     expect(model[0]).toMatchObject({ phase: "auto", activeId: "backup" });
+  });
+
+  it("does not immediately bounce back a pick that isn't ready-to-connect yet — it still gets the full flat 10s window", async () => {
+    const picked = { ...BASE_DESTINATION, id: "picked" };
+    const backup = { ...BASE_DESTINATION, id: "backup" };
+    const { model, setAppState } = setup();
+    setAppState("availableDestinations", [picked, backup]);
+    setAppState("destinations", {
+      picked: makeUnavailable("picked"),
+      backup: makeReadyToConnect("backup"),
+    });
+    await Promise.resolve();
+
+    model[1].pickDestination("picked");
+    expect(model[0]).toMatchObject({ phase: "selected", activeId: "picked" });
+
+    await Promise.resolve();
+    expect(model[0]).toMatchObject({ phase: "selected", activeId: "picked" });
+
+    await vi.advanceTimersByTimeAsync(SELECTED_AUTO_REVERT_MS - 1);
+    expect(model[0]).toMatchObject({ phase: "selected", activeId: "picked" });
+    await vi.advanceTimersByTimeAsync(1);
+    expect(model[0]).toMatchObject({ phase: "auto", activeId: "picked" });
   });
 
   it("does not fire while connecting — a live connection going away is handled by rule 15, not this fallback", async () => {

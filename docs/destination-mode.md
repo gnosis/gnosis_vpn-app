@@ -207,12 +207,17 @@ Reactive to `availableDestinations`/`destinations`/`preferredLocation` changes:
 
 ### Unavailable non-auto entry
 
-16. While `selected`, if `activeId`'s destination stops being ready-to-connect →
-    drop back to `auto` (`pending = null`); the effect behind rules 5-8 then
-    runs immediately (same reactive flush) and starts its normal
-    candidate-pending sequence toward the best remaining destination. Skipped
-    for ids we have no data for at all (an unconfirmed pick isn't the same as a
-    known-unavailable one).
+16. While `selected`, if `activeId`'s destination _transitions_ from
+    ready-to-connect to not-ready (tracked against the previous run's snapshot
+    for that same entry) → drop back to `auto` (`pending = null`); the effect
+    behind rules 5-8 then runs immediately (same reactive flush) and starts its
+    normal candidate-pending sequence toward the best remaining destination.
+    Skipped for ids we have no data for at all (an unconfirmed pick isn't the
+    same as a known-unavailable one) — and, crucially, a freshly `selected`
+    entry that simply hasn't been (re-)probed as ready yet does NOT count as a
+    transition, so it still gets the full flat 10s `autoRevertAt` window
+    (rule 11) rather than bouncing straight back to `auto` in the same tick it
+    was selected.
 
 ### Connecting/disconnecting
 
