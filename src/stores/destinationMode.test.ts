@@ -449,6 +449,43 @@ describe("auto loop (rules 5-8)", () => {
     expect(ids(model[0].entries)).toEqual(["fast", "better", "best"]);
   });
 
+  it("re-appends a candidate at the end as a fresh entry when it already sits earlier in history (rule 5)", async () => {
+    const { model, setAppState, fast } = setupInAuto();
+    await Promise.resolve();
+
+    const better = { ...BASE_DESTINATION, id: "better" };
+    setAppState("availableDestinations", [fast, better]);
+    setAppState("destinations", {
+      fast: makeReadyToConnect("fast", 100_000_000),
+      better: makeReadyToConnect("better", 10_000_000),
+    });
+    await Promise.resolve();
+    await vi.advanceTimersByTimeAsync(SETTLE_MS);
+
+    // "better" is now activeId, with "fast" sitting earlier in entries.
+    expect(model[0]).toMatchObject({ activeId: "better", pending: null });
+    if (model[0].phase !== "auto") throw new Error("unreachable");
+    const originalFastKey = model[0].entries[0].key;
+
+    // Health flips back — "fast" is now the better candidate again, but it
+    // already sits at the front of entries rather than being brand new.
+    setAppState("destinations", {
+      fast: makeReadyToConnect("fast", 1_000_000),
+      better: makeReadyToConnect("better", 100_000_000),
+    });
+    await Promise.resolve();
+
+    expect(model[0]).toMatchObject({
+      activeId: "better",
+      pending: { candidateId: "fast" },
+    });
+    if (model[0].phase !== "auto") throw new Error("unreachable");
+    // Moved to the end as a fresh entry instead of left in its old spot —
+    // otherwise the UI's pulse/slide would animate backward toward it.
+    expect(ids(model[0].entries)).toEqual(["better", "fast"]);
+    expect(model[0].entries[1].key).not.toBe(originalFastKey);
+  });
+
   it("cancels the transition outright rather than falling back to a lesser candidate when the pending one itself gets worse", async () => {
     const { model, setAppState, fast } = setupInAuto();
     await Promise.resolve();

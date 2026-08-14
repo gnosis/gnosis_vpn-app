@@ -37,6 +37,12 @@ export default function DestinationCard(props: {
     on(
       () => props.title,
       (title) => {
+        // `on` re-fires whenever anything upstream recomputes the title,
+        // even when the recomputed text is unchanged (e.g. LocationBanner's
+        // reveal-hold re-deriving the same "Selected Location" string) —
+        // skip the fade rather than flashing the text out and back in for
+        // a no-op change.
+        if (title === displayTitle()) return;
         setFaded(true);
         setTimeout(() => {
           setDisplayTitle(title);

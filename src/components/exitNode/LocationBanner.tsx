@@ -561,8 +561,16 @@ export default function LocationBanner() {
   const resolvedTitle = () => {
     const mode = appState.mode;
     const hold = revealHold();
-    const isHeld = hold !== null && mode.phase === "auto" &&
+    const isRevertHold = hold !== null && mode.phase === "auto" &&
       mode.activeId === hold.activeId;
+    // A pending candidate — found fresh mid-`auto`, not just post-revert —
+    // is just as much an open question as the revert-hold above: until it
+    // either commits (a new card, already reading "Best Location") or
+    // cancels, the still-active card isn't provably the best anymore
+    // either, so it reads "Selected Location" too.
+    const isEvaluatingCandidate = mode.phase === "auto" &&
+      mode.pending !== null;
+    const isHeld = isRevertHold || isEvaluatingCandidate;
     return cardTitle(isHeld ? "selected" : mode.phase);
   };
 

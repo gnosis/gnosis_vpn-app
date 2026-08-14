@@ -145,13 +145,18 @@ timer as any other path into `selected` — see rule 11.
 Reactive to `availableDestinations`/`destinations`/`preferredLocation` changes:
 
 5. `resolveAutoDestination` returns an id different from `activeId` and
-   different from an existing `pending.candidateId` → append
-   `{id: candidateId, origin: "auto"}` to `entries` immediately, and set
+   different from an existing `pending.candidateId` → (re-)append
+   `{id: candidateId, origin: "auto"}` to the _end_ of `entries` immediately,
+   and set
    `pending = { candidateId, settleAt: now + SWITCH_COUNTDOWN_MS + SWITCH_CROSSOVER_MS }`.
-   A different candidate superseding an earlier, not-yet-settled one drops that
-   earlier speculative entry rather than leaving it stranded — but only when the
-   earlier one is _still worthwhile_ (still ready-to-connect and still strictly
-   better than `activeId` — see rule 6 for when it isn't). When it is, _how_ it
+   If `candidateId` already sits elsewhere in `entries` (e.g. an id visited
+   earlier this session), that old copy is dropped first — the candidate always
+   lands at the end as a fresh entry, so the UI's pulse/slide always animates
+   forward toward it instead of backward toward its old position. A different
+   candidate superseding an earlier, not-yet-settled one drops that earlier
+   speculative entry rather than leaving it stranded — but only when the earlier
+   one is _still worthwhile_ (still ready-to-connect and still strictly better
+   than `activeId` — see rule 6 for when it isn't). When it is, _how_ it
    supersedes depends on timing:
    - Before `countdownEndsAt` (still inside the plain 5s countdown, nothing has
      animated yet) → retarget in place: swap `pending.candidateId` (and its
@@ -222,7 +227,11 @@ Reactive to `availableDestinations`/`destinations`/`preferredLocation` changes:
     Location" through the candidate-detection window (rules 5-8) rather than
     flipping to "Best Location" only to possibly slide away to a different card
     a moment later. So `mode.phase` and the on-screen title can briefly disagree
-    by design; this is a UI-only concern, not modeled here.
+    by design; this is a UI-only concern, not modeled here. The same "Selected
+    Location" title also reappears on the still-active card any other time
+    `pending` is non-null (rule 5), not just right after a revert — a fresh
+    candidate found deep into an otherwise-settled `auto` run is just as much an
+    open question as one found right after reverting.
 
 ### Unavailable non-auto entry
 

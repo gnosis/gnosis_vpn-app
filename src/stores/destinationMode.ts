@@ -297,9 +297,9 @@ export function createDestinationMode(
     });
   });
 
-  // Rule 5 — arms (or retargets) a pending switch to `candidateId`: appends
-  // it to `entries` as a speculative auto-origin entry (unless already
-  // present), starts the countdown, and schedules the commit.
+  // Rule 5 — arms (or retargets) a pending switch to `candidateId`: (re-)
+  // appends it to the end of `entries` as a speculative auto-origin entry,
+  // starts the countdown, and schedules the commit.
   const startCandidatePending = (candidateId: string) => {
     if (mode.phase !== "auto") return;
     const { activeId, pending, entries } = mode;
@@ -317,13 +317,22 @@ export function createDestinationMode(
     }
 
     // A different candidate supersedes an earlier one that never settled —
-    // drop its speculative entry rather than leaving it stranded.
+    // drop its speculative entry rather than leaving it stranded. And if the
+    // candidate itself already sits elsewhere in history (e.g. an entry from
+    // earlier this session), drop that old copy too rather than leaving it
+    // in place — otherwise the UI's pulse/slide would animate backward
+    // toward that old position instead of forward like a brand-new
+    // candidate. A fresh entry always lands at the end either way.
     const withoutStalePending = pending
       ? entries.filter((e) => e.id !== pending.candidateId)
       : entries;
-    const nextEntries = withoutStalePending.some((e) => e.id === candidateId)
-      ? withoutStalePending
-      : [...withoutStalePending, freshEntry(candidateId, "auto")];
+    const withoutStaleCandidate = withoutStalePending.filter((e) =>
+      e.id !== candidateId
+    );
+    const nextEntries = [
+      ...withoutStaleCandidate,
+      freshEntry(candidateId, "auto"),
+    ];
 
     if (pending !== null) {
       // Still within the 5s countdown, nothing has animated yet — retarget
