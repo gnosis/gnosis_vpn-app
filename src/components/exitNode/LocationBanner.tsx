@@ -260,6 +260,7 @@ export default function LocationBanner() {
     if (!card) return;
     const container = containerRef;
     await runSuppressed(async () => {
+      container.style.scrollBehavior = "auto";
       container.style.scrollSnapType = "none";
       await animateScrollLeft(
         container,
@@ -267,6 +268,7 @@ export default function LocationBanner() {
         SETTLE_ANIMATE_MS,
         () => !mounted,
       );
+      container.style.scrollBehavior = "";
       container.style.scrollSnapType = "";
     });
     commitSlideTo(id);
@@ -290,6 +292,7 @@ export default function LocationBanner() {
       SWITCH_CROSSOVER_MS,
     );
     void runSuppressed(async () => {
+      container.style.scrollBehavior = "auto";
       container.style.scrollSnapType = "none";
       await animateScrollLeft(
         container,
@@ -297,6 +300,7 @@ export default function LocationBanner() {
         SWITCH_ANIMATE_MS,
         () => !mounted,
       );
+      container.style.scrollBehavior = "";
       container.style.scrollSnapType = "";
     }).finally(() => clearTimeout(commitTimer));
   };
@@ -304,7 +308,15 @@ export default function LocationBanner() {
   const settleToNearestCard = () => {
     if (!containerRef) return;
     const id = nearestCardId(containerRef);
-    if (id) void animateSettleTo(id);
+    if (id) {
+      void animateSettleTo(id);
+    } else {
+      // No card to settle to (shouldn't normally happen) — still need to
+      // hand scroll-behavior/snap back to native CSS ourselves, since
+      // nothing else will now that endDrag no longer does it unconditionally.
+      containerRef.style.scrollBehavior = "";
+      containerRef.style.scrollSnapType = "";
+    }
   };
 
   const endDrag = () => {
@@ -313,8 +325,12 @@ export default function LocationBanner() {
       return;
     }
     dragStartX = undefined;
-    containerRef.style.scrollBehavior = "";
-    containerRef.style.scrollSnapType = "";
+    // Not reset here even though the drag overrode them — settleToNearestCard
+    // (and its animation) takes over the transition immediately and owns
+    // restoring them once it's actually done. Resetting scroll-snap-type
+    // here first would hand it back to the browser a frame early, letting
+    // native mandatory snap jump the position instantly before our own
+    // animation gets a chance to take over smoothly.
     if (didDrag) {
       settleToNearestCard();
     } else if (pendingClickTarget) {
