@@ -96,8 +96,17 @@ export default function ExitHealthDetail(
   // status line if health degrades mid-expansion, and auto-restores the
   // user's expand/collapse choice once it's usable again — the choice
   // itself is never touched, only whether it's honored right now.
+  // Connecting/Reconnecting mean an action is in flight for this
+  // destination. route_health is a separate, less-frequently-polled check,
+  // so it can still read a stale "ReadyToConnect" from before the action
+  // started — don't let that stale snapshot keep the panel expanded while
+  // one is running. Disconnecting is deliberately excluded: it's treated as
+  // already disconnected here.
+  const isActionInFlight = () =>
+    connectionLabel() === "Connecting" || connectionLabel() === "Reconnecting";
   const isGoodState = () =>
-    isConnected() || routeHealth()?.state.state === "ReadyToConnect";
+    isConnected() ||
+    (!isActionInFlight() && routeHealth()?.state.state === "ReadyToConnect");
 
   // Independent clock: ExitHealthDetail is mounted in MainScreen, outside ExitNodeList
   // which runs its own clock. Both are intentionally separate mounts.
@@ -166,6 +175,50 @@ export default function ExitHealthDetail(
     setHopsOffsetPx(capacityLeft - PILL_LEFT_PAD_PX - hopsLeft);
   });
 
+  // The good/fallback swap below and the Checked/Capacity/Load panel used to
+  // collapse via a "grid-template-rows: 1fr 0fr" trick, animating between an
+  // 0fr and 1fr row on an auto-height parent. Chromium resolves that fine,
+  // but the app's real webview (WebKitGTK on Linux) doesn't reliably shrink
+  // the 0fr row to zero there, leaving the panel pinned open — a headless
+  // Chromium-only test can't catch this since it's an engine difference, not
+  // a logic bug. Measuring each block's own natural height via scrollHeight
+  // and transitioning max-height between concrete pixel values sidesteps the
+  // ambiguity entirely: every engine agrees on what a definite max-height
+  // transition should do.
+  // goodRowRef nests detailedStatsRef, which is itself max-height-animated —
+  // measuring goodRowRef's own scrollHeight would race against that child's
+  // DOM commit (a parent's scrollHeight reflects a clamped child's *current*
+  // rendered height, not its natural one). Measure the two parts
+  // independently instead and sum them; that's plain arithmetic, no race.
+  let latencyRowRef: HTMLDivElement | undefined;
+  let detailedStatsRef: HTMLDivElement | undefined;
+  let fallbackRowRef: HTMLDivElement | undefined;
+  const [latencyRowHeightPx, setLatencyRowHeightPx] = createSignal(0);
+  const [detailedStatsHeightPx, setDetailedStatsHeightPx] = createSignal(0);
+  const [fallbackRowHeightPx, setFallbackRowHeightPx] = createSignal(0);
+  const goodRowHeightPx = () =>
+    latencyRowHeightPx() +
+    (settings.showDetailedMetrics ? detailedStatsHeightPx() : 0);
+
+  createEffect(() => {
+    latency();
+    route();
+    if (latencyRowRef) setLatencyRowHeightPx(latencyRowRef.scrollHeight);
+  });
+  createEffect(() => {
+    lastChecked();
+    slots();
+    loadAvg();
+    if (detailedStatsRef) {
+      setDetailedStatsHeightPx(detailedStatsRef.scrollHeight);
+    }
+  });
+  createEffect(() => {
+    route();
+    status();
+    if (fallbackRowRef) setFallbackRowHeightPx(fallbackRowRef.scrollHeight);
+  });
+
   // The whole area south of the destination card toggles expand/collapse,
   // not just the chevron — a bigger, more forgiving click/tap target. Only
   // wired up in the good state: the fallback view has nothing to toggle.
@@ -198,19 +251,19 @@ export default function ExitHealthDetail(
           {
             /* Both branches stay mounted (never swapped via <Show>'s
               unmount/mount) so the good-state/fallback height change can
-              animate the same 0fr/1fr grid-rows way the detail panel below
-              does — a <Show> swap has nothing left to clip once the old
-              branch is gone. */
+              animate — a <Show> swap has nothing left to clip once the old
+              branch is gone. Each one's own max-height (not a shared grid)
+              drives the collapse; see the scrollHeight effects above. */
           }
-          <div
-            class="grid transition-[grid-template-rows] duration-300 ease-out"
-            style={{
-              "grid-template-rows": isGoodState() ? "1fr 0fr" : "0fr 1fr",
-            }}
-          >
-            <div class="overflow-hidden flex items-center justify-between gap-2">
+          <div>
+            <div
+              class="overflow-hidden flex items-center justify-between gap-2 transition-[max-height] duration-300 ease-out"
+              style={{
+                "max-height": isGoodState() ? `${goodRowHeightPx()}px` : "0px",
+              }}
+            >
               <div class="min-w-0">
-                <div class="flex items-center gap-2">
+                <div ref={latencyRowRef} class="flex items-center gap-2">
                   <Stat
                     label="Latency"
                     value={latency()}
@@ -225,82 +278,76 @@ export default function ExitHealthDetail(
                     {hopsTag()}
                   </div>
                 </div>
-                {
-                  /* grid-template-rows 0fr->1fr is the standard CSS-only way
-                    to animate a height nobody knows up front; the inner
-                    overflow-hidden clips content out of the shrinking row. */
-                }
                 <div
-                  class="grid transition-[grid-template-rows] duration-300 ease-out"
+                  ref={detailedStatsRef}
+                  class="overflow-hidden transition-[max-height] duration-300 ease-out"
                   style={{
-                    "grid-template-rows": settings.showDetailedMetrics
-                      ? "1fr"
-                      : "0fr",
+                    "max-height": settings.showDetailedMetrics
+                      ? `${detailedStatsHeightPx()}px`
+                      : "0px",
                   }}
                 >
-                  <div class="overflow-hidden">
-                    <div class="grid grid-cols-[3fr_2fr] gap-x-4 gap-y-2 pt-2 text-text-secondary">
-                      <div
-                        class="transition-all duration-300 ease-out"
-                        style={{
-                          opacity: settings.showDetailedMetrics ? 1 : 0,
-                          transform: settings.showDetailedMetrics
-                            ? "translateY(0)"
-                            : "translateY(-4px)",
-                          "transition-delay": settings.showDetailedMetrics
-                            ? "80ms"
-                            : "0ms",
-                        }}
-                      >
-                        <Stat
-                          label="Checked"
-                          value={lastChecked()}
-                          valueClass="font-semibold text-text-primary"
-                          tooltip={<span>Time since last health check</span>}
-                        />
-                      </div>
-                      <div
-                        ref={capacityRef}
-                        class="transition-all duration-300 ease-out"
-                        style={{
-                          opacity: settings.showDetailedMetrics ? 1 : 0,
-                          transform: settings.showDetailedMetrics
-                            ? "translateY(0)"
-                            : "translateY(-4px)",
-                          "transition-delay": settings.showDetailedMetrics
-                            ? "80ms"
-                            : "0ms",
-                        }}
-                      >
-                        <Stat
-                          label="Capacity"
-                          value={slots()}
-                          tooltip={
-                            <span>Available / total connection slots</span>
-                          }
-                        />
-                      </div>
-                      <div
-                        class="col-span-2 transition-all duration-300 ease-out"
-                        style={{
-                          opacity: settings.showDetailedMetrics ? 1 : 0,
-                          transform: settings.showDetailedMetrics
-                            ? "translateY(0)"
-                            : "translateY(-4px)",
-                          "transition-delay": settings.showDetailedMetrics
-                            ? "160ms"
-                            : "0ms",
-                        }}
-                      >
-                        <Stat
-                          label="Load"
-                          value={loadAvg()}
-                          valueClass="text-text-primary whitespace-nowrap"
-                          tooltip={
-                            <span>Server load average. Lower is better.</span>
-                          }
-                        />
-                      </div>
+                  <div class="grid grid-cols-[3fr_2fr] gap-x-4 gap-y-2 pt-2 text-text-secondary">
+                    <div
+                      class="transition-all duration-300 ease-out"
+                      style={{
+                        opacity: settings.showDetailedMetrics ? 1 : 0,
+                        transform: settings.showDetailedMetrics
+                          ? "translateY(0)"
+                          : "translateY(-4px)",
+                        "transition-delay": settings.showDetailedMetrics
+                          ? "80ms"
+                          : "0ms",
+                      }}
+                    >
+                      <Stat
+                        label="Checked"
+                        value={lastChecked()}
+                        valueClass="font-semibold text-text-primary"
+                        tooltip={<span>Time since last health check</span>}
+                      />
+                    </div>
+                    <div
+                      ref={capacityRef}
+                      class="transition-all duration-300 ease-out"
+                      style={{
+                        opacity: settings.showDetailedMetrics ? 1 : 0,
+                        transform: settings.showDetailedMetrics
+                          ? "translateY(0)"
+                          : "translateY(-4px)",
+                        "transition-delay": settings.showDetailedMetrics
+                          ? "80ms"
+                          : "0ms",
+                      }}
+                    >
+                      <Stat
+                        label="Capacity"
+                        value={slots()}
+                        tooltip={
+                          <span>Available / total connection slots</span>
+                        }
+                      />
+                    </div>
+                    <div
+                      class="col-span-2 transition-all duration-300 ease-out"
+                      style={{
+                        opacity: settings.showDetailedMetrics ? 1 : 0,
+                        transform: settings.showDetailedMetrics
+                          ? "translateY(0)"
+                          : "translateY(-4px)",
+                        "transition-delay": settings.showDetailedMetrics
+                          ? "160ms"
+                          : "0ms",
+                      }}
+                    >
+                      <Stat
+                        label="Load"
+                        value={loadAvg()}
+                        valueClass="text-text-primary whitespace-nowrap"
+                        tooltip={
+                          <span>Server load average. Lower is better.</span>
+                        }
+                      />
                     </div>
                   </div>
                 </div>
@@ -321,7 +368,15 @@ export default function ExitHealthDetail(
                 />
               </span>
             </div>
-            <div class="overflow-hidden flex flex-wrap items-center gap-1.5 -ml-2">
+            <div
+              ref={fallbackRowRef}
+              class="overflow-hidden flex flex-wrap items-center gap-1.5 -ml-2 transition-[max-height] duration-300 ease-out"
+              style={{
+                "max-height": isGoodState()
+                  ? "0px"
+                  : `${fallbackRowHeightPx()}px`,
+              }}
+            >
               {
                 /* -ml-2 cancels the leading pill's own px-2, so its text
                   lines up with the flag/label above instead of the
