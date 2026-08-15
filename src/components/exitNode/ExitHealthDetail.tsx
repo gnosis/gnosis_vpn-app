@@ -195,24 +195,20 @@ export default function ExitHealthDetail(
             if (isGoodState() && e.key === " ") toggleDetailedMetrics();
           }}
         >
-          <Show
-            when={isGoodState()}
-            fallback={
-              <div class="flex flex-wrap items-center gap-1.5 -ml-2">
-                {
-                  /* -ml-2 cancels the leading pill's own px-2, so its text
-                    lines up with the flag/label above instead of the
-                    pill's outline. */
-                }
-                {hopsTag()}
-                <Tag
-                  value={status()}
-                  class={`${statusColorClass[color()]} bg-bg-primary`}
-                />
-              </div>
-            }
+          {
+            /* Both branches stay mounted (never swapped via <Show>'s
+              unmount/mount) so the good-state/fallback height change can
+              animate the same 0fr/1fr grid-rows way the detail panel below
+              does — a <Show> swap has nothing left to clip once the old
+              branch is gone. */
+          }
+          <div
+            class="grid transition-[grid-template-rows] duration-300 ease-out"
+            style={{
+              "grid-template-rows": isGoodState() ? "1fr 0fr" : "0fr 1fr",
+            }}
           >
-            <div class="flex items-center justify-between gap-2">
+            <div class="overflow-hidden flex items-center justify-between gap-2">
               <div class="min-w-0">
                 <div class="flex items-center gap-2">
                   <Stat
@@ -325,7 +321,19 @@ export default function ExitHealthDetail(
                 />
               </span>
             </div>
-          </Show>
+            <div class="overflow-hidden flex flex-wrap items-center gap-1.5 -ml-2">
+              {
+                /* -ml-2 cancels the leading pill's own px-2, so its text
+                  lines up with the flag/label above instead of the
+                  pill's outline. */
+              }
+              {hopsTag()}
+              <Tag
+                value={status()}
+                class={`${statusColorClass[color()]} bg-bg-primary`}
+              />
+            </div>
+          </div>
         </div>
       )}
     </Show>

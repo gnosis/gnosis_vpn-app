@@ -10,6 +10,7 @@ import ExitHealthDetail from "./ExitHealthDetail.tsx";
 export default function DetailCard(props: {
   destinationState: DestinationState;
   title: string;
+  fadeTitle: boolean;
   switchEndsAt?: number | null;
   onOpenList: () => void;
 }) {
@@ -18,6 +19,7 @@ export default function DetailCard(props: {
       <DestinationCard
         destinationState={props.destinationState}
         title={props.title}
+        fadeTitle={props.fadeTitle}
         switchEndsAt={props.switchEndsAt}
         onOpenList={props.onOpenList}
       />

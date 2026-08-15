@@ -21,15 +21,15 @@ export default function DestinationCard(props: {
   // the pending candidate changing before it commits — remounts the spinner
   // instead of leaving it stuck on its original, now-stale clock.
   switchEndsAt?: number | null;
+  // Only the active card's title cross-fades (every phase/hold transition it
+  // goes through, e.g. "Best Location" -> "Selected Location" once a better
+  // candidate is found). Non-active cards just preview "Best"/"Selected" as
+  // the pending candidate changes, and snap instead.
+  fadeTitle: boolean;
   onOpenList: () => void;
 }) {
   const destination = () => props.destinationState.destination;
 
-  // Cross-fades on any title change rather than swapping the text instantly —
-  // covers both a deliberate reveal-hold elsewhere (LocationBanner delaying
-  // "Selected Location" -> "Best Location") and every other title change
-  // (e.g. disconnect flipping connecting -> selected), with no special-casing
-  // needed for why the text changed.
   const [displayTitle, setDisplayTitle] = createSignal(props.title);
   const [faded, setFaded] = createSignal(false);
 
@@ -54,6 +54,10 @@ export default function DestinationCard(props: {
       // the fade rather than flashing the text out and back in for a no-op
       // change.
       if (title === displayTitle()) return;
+      if (!props.fadeTitle) {
+        setDisplayTitle(title);
+        return;
+      }
       setFaded(true);
       setTimeout(() => {
         setDisplayTitle(title);
