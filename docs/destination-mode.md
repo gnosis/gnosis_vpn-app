@@ -233,6 +233,13 @@ Reactive to `availableDestinations`/`destinations`/`preferredLocation` changes:
     candidate found deep into an otherwise-settled `auto` run is just as much an
     open question as one found right after reverting.
 
+    This hold is skipped entirely when rules 5-8 never start a `pending`
+    candidate in the first place — i.e. `activeId` already _is_
+    `resolveAutoDestination`'s pick, or there's no candidate at all. There's
+    nothing to wait out in that case, so the title moves straight to "Best
+    Location" with its normal cross-fade instead of sitting on "Selected
+    Location" for the full flat window first.
+
     This title is resolved per rendered entry, not once globally from
     `mode.phase` — only the live active card (once provably settled) and its
     pending candidate (the "next" card, peeking ahead of actually becoming

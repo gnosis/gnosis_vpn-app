@@ -535,7 +535,26 @@ export default function LocationBanner() {
     const mode = appState.mode;
     if (prevPhase === "selected" && mode.phase === "auto") {
       const activeId = mode.activeId;
+      // Armed synchronously (not deferred) so isRevertHold masks entries/
+      // pending's torn-read gap immediately — see the jumpToLatest note
+      // above for why this component's mirrored mode can briefly show
+      // `entries` with a fresh candidate appended but `pending` still null.
+      // Without the immediate arm, that gap reads as plain `auto` with no
+      // candidate (cardTitle("auto") = "Best Location"), which then latches
+      // into DestinationCard's fade before `pending` catches up a tick
+      // later — and the fade's own "skip no-op" then swallows the correction
+      // back, since it arrives while `displayTitle` hasn't moved yet either.
       setRevealHold({ activeId, holdEndsAt: Date.now() + SWITCH_COUNTDOWN_MS });
+      // Once the whole synchronous cascade above has actually settled,
+      // re-check: `pending` staying null means rules 5-8 never started a
+      // real candidate (best is already active, or none exists) — nothing to
+      // hold for, so release right away instead of waiting out the full
+      // window.
+      queueMicrotask(() => {
+        const settled = appState.mode;
+        if (settled.phase !== "auto" || settled.activeId !== activeId) return;
+        if (settled.pending === null) setRevealHold(null);
+      });
       // The deadline passing is a pure time event, not a store change — the
       // reactive effect below only re-checks on the next entries/pending/
       // activeId change, which may not happen right at the deadline (e.g. no
@@ -655,6 +674,7 @@ export default function LocationBanner() {
                   <DetailCard
                     destinationState={ds()}
                     title={titleFor(entry)}
+                    fadeTitle={entry.id === currentDisplayId(appState.mode)}
                     switchEndsAt={entry.id ===
                           currentDisplayId(appState.mode) &&
                         appState.mode.phase === "auto"
