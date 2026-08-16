@@ -445,6 +445,26 @@ export function createDestinationMode(
     startCandidatePending(candidateId);
   });
 
+  // Rule 17 — unlike `auto`, a better candidate found while `connecting`
+  // (connected, connecting, or reconnecting) is never auto-switched to: it's
+  // only appended as a fresh history entry, there to swipe to or pick
+  // manually, with no countdown/pending mechanism and no effect on
+  // `activeId`. Self-limiting rather than untracked — appending a candidate
+  // already in `entries` is a guaranteed no-op on the very next run, so a
+  // spurious re-run from this same commit just confirms nothing more to do.
+  createEffect(() => {
+    if (mode.phase !== "connecting") return;
+    const candidateId = bestCandidateId();
+    if (candidateId === null) return;
+    if (candidateId === mode.activeId) return;
+    if (mode.entries.some((e) => e.id === candidateId)) return;
+    commitMode({
+      phase: "connecting",
+      entries: [...mode.entries, freshEntry(candidateId, "auto")],
+      activeId: mode.activeId,
+    });
+  });
+
   // Rule 16 — a `selected` (not `connecting`) entry that *stops* being
   // ready-to-connect drops back into `auto`; the effect above then picks up
   // immediately (same reactive flush) and starts its normal candidate-pending
@@ -496,7 +516,7 @@ export function createDestinationMode(
     pickDestination: (id) => {
       if (mode.phase === "uninitialized") return;
       if (mode.phase === "connecting") {
-        if (mode.entries.some((e) => e.id === id)) return;
+        if (id === mode.activeId) return;
         // `activeId` stays put — it must always name the destination the
         // backend actually reports as connecting/connected (every reader
         // from ExitNodeList's row highlight to Connect/Disconnect assumes
@@ -506,9 +526,14 @@ export function createDestinationMode(
         // banner immediately as a display-only optimistic switch, without
         // the data model ever having to lie about what's really connected.
         userSwitchOutgoingId = mode.activeId;
+        // `id` may already sit in `entries` as a rule-17 auto-suggested
+        // candidate — drop that copy and re-add it fresh as a user pick
+        // rather than treating "already present" as "nothing to do"; a real
+        // pick must always win over a merely-surfaced suggestion.
+        const withoutStaleCopy = mode.entries.filter((e) => e.id !== id);
         commitMode({
           phase: "connecting",
-          entries: [...mode.entries, freshEntry(id, "user")],
+          entries: [...withoutStaleCopy, freshEntry(id, "user")],
           activeId: mode.activeId,
         });
         return;

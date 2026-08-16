@@ -37,6 +37,7 @@ stateDiagram-v2
     Connecting --> Connecting: retarget while connecting — backend\nreports connecting to a new id,\nno interstitial phase (12)
     Connecting --> Connecting: pickDestination(id) while connecting —\nappends a user-origin entry without\nmoving activeId yet (14)
     Connecting --> Connecting: pick resolves to a new id —\ndrops the outgoing entry it\nsuperseded (12+14)
+    Connecting --> Connecting: better candidate found —\nappended to entries, never\nauto-switched to (17)
     Connecting --> Selected: backend clears connected/connecting/\nreconnecting — no waiting on\ndisconnecting (15)
 ```
 
@@ -287,18 +288,30 @@ Reactive to `availableDestinations`/`destinations`/`preferredLocation` changes:
     member of `entries` that the backend actually reports as connecting/
     connected/reconnecting (every reader, from ExitNodeList's row highlight to
     Connect/Disconnect, assumes this), so it can't jump ahead of a pick that
-    hasn't been confirmed yet. The caller issues the actual `connect()`, and
-    `activeId` only moves once the backend confirms (rule 12) — no duplicate
-    entry is created when it does, and if the backend never follows through,
-    both entries simply stay, with `activeId` still correctly the real one.
-    (`LocationBanner` hides the outgoing entry from the banner immediately as a
-    display-only optimistic switch — see its `modeEntries()` — without the data
-    model itself ever having to get ahead of what's actually connected.)
+    hasn't been confirmed yet. If `id` already sits in `entries` (e.g. a rule-17
+    auto-suggested candidate), that copy is dropped first — a real pick always
+    wins over a merely-surfaced suggestion, landing fresh at the end with
+    `origin: "user"` regardless of how it got there. The caller issues the
+    actual `connect()`, and `activeId` only moves once the backend confirms
+    (rule 12) — no duplicate entry is created when it does, and if the backend
+    never follows through, both entries simply stay, with `activeId` still
+    correctly the real one. (`LocationBanner` hides the outgoing entry from the
+    banner immediately as a display-only optimistic switch — see its
+    `modeEntries()` — without the data model itself ever having to get ahead of
+    what's actually connected.)
 
 15. Backend reports none of connected/connecting/reconnecting (regardless of
     whether `disconnecting` is still non-empty — **no waiting, no special
     "disconnecting" phase**) → `selected`, `activeId :=` whatever was last
     `connecting`, with the same flat 10s `autoRevertAt`.
+
+16. `resolveAutoDestination` returns an id different from `activeId` and not
+    already in `entries`, while `connecting` → append `{id, origin: "auto"}` to
+    the end of `entries`. Unlike rule 5's `auto`-phase version, this is the
+    entire rule: no `pending`, no countdown, no auto-switch, no effect on
+    `activeId` — a better destination showing up while already connected,
+    connecting, or reconnecting is never switched to automatically, only made
+    reachable as a fresh card to swipe to or pick manually.
 
 ### Resolving what Connect should target
 

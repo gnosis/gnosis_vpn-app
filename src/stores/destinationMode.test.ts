@@ -223,9 +223,13 @@ describe("startup (rules 0-4)", () => {
     });
     await Promise.resolve();
 
+    // activeId still wins outright — a ready preferred location never
+    // auto-switches us away from a live connection. It does still get
+    // surfaced as a rule-17 candidate, same as any other better-ranked
+    // destination found while connecting.
     expect(model[0]).toMatchObject({ phase: "connecting", activeId: "stale" });
     if (model[0].phase !== "connecting") throw new Error("unreachable");
-    expect(ids(model[0].entries)).toEqual(["stale"]);
+    expect(ids(model[0].entries)).toEqual(["stale", "preferred"]);
   });
 });
 
@@ -887,13 +891,21 @@ describe("pickDestination — ExitNodeList pick (rules 9 & 14)", () => {
 
   it("drops the superseded outgoing entry once the backend confirms the pick completed to a different id (rules 12+14 together)", async () => {
     const fast = { ...BASE_DESTINATION, id: "fast" };
-    const { model, setAppState } = setup();
-    setAppState("availableDestinations", [fast]);
-    setAppState("destinations", { fast: makeReadyToConnect("fast") });
-    setAppState("connecting", {
-      destination_id: "fast",
-      since: 0,
-      phase: "Init",
+    const other = { ...BASE_DESTINATION, id: "other" };
+    // Seeded atomically (not via sequential setAppState calls) so the very
+    // first reactive pass already sees the full picture — otherwise
+    // destinations/availableDestinations would land before `connecting`
+    // does, transiently picking a startup `auto` candidate first. "other"
+    // ranks strictly better than "fast", matching rule 17's own pick once
+    // "other" is active — this isolates rules 12+14 from rule 17's separate
+    // "surface a genuinely better candidate" behavior.
+    const { model, setAppState } = setup({
+      availableDestinations: [fast, other],
+      destinations: {
+        fast: makeReadyToConnect("fast", 100_000_000),
+        other: makeReadyToConnect("other", 10_000_000),
+      },
+      connecting: { destination_id: "fast", since: 0, phase: "Init" },
     });
     await Promise.resolve();
 
@@ -1184,6 +1196,78 @@ describe("connecting / disconnect (rules 12 & 15)", () => {
     expect(model[0]).toMatchObject({ phase: "connecting", activeId: "b" });
     if (model[0].phase !== "connecting") throw new Error("unreachable");
     expect(ids(model[0].entries)).toEqual(["a", "b"]);
+  });
+});
+
+describe("better candidate found while connecting is appended, never auto-switched to (rule 17)", () => {
+  it("appends a better candidate without moving activeId or ever auto-switching", async () => {
+    const fast = { ...BASE_DESTINATION, id: "fast" };
+    const { model, setAppState } = setup();
+    setAppState("availableDestinations", [fast]);
+    setAppState("destinations", {
+      fast: makeReadyToConnect("fast", 100_000_000),
+    });
+    setAppState("connected", { destination_id: "fast", since: 0 });
+    await Promise.resolve();
+    expect(model[0]).toMatchObject({ phase: "connecting", activeId: "fast" });
+
+    const better = { ...BASE_DESTINATION, id: "better" };
+    setAppState("availableDestinations", [fast, better]);
+    setAppState("destinations", {
+      fast: makeReadyToConnect("fast", 100_000_000),
+      better: makeReadyToConnect("better", 10_000_000),
+    });
+    await Promise.resolve();
+
+    expect(model[0]).toMatchObject({ phase: "connecting", activeId: "fast" });
+    if (model[0].phase !== "connecting") throw new Error("unreachable");
+    expect(idsAndOrigins(model[0].entries)).toEqual([
+      { id: "fast", origin: "auto" },
+      { id: "better", origin: "auto" },
+    ]);
+
+    // No pending/countdown mechanism exists for `connecting` at all — even
+    // waiting out the `auto`-phase settle window changes nothing.
+    await vi.advanceTimersByTimeAsync(SETTLE_MS);
+    expect(model[0]).toMatchObject({ phase: "connecting", activeId: "fast" });
+    expect(ids(model[0].entries)).toEqual(["fast", "better"]);
+  });
+
+  it("does not duplicate an already-appended candidate on subsequent re-evaluations", async () => {
+    const fast = { ...BASE_DESTINATION, id: "fast" };
+    const better = { ...BASE_DESTINATION, id: "better" };
+    // Seeded atomically — see the comment on the rules 12+14 test above for
+    // why sequential setAppState calls here would transiently pick a
+    // startup `auto` candidate before `connected` ever lands.
+    const { model, setAppState } = setup({
+      availableDestinations: [fast, better],
+      destinations: {
+        fast: makeReadyToConnect("fast", 100_000_000),
+        better: makeReadyToConnect("better", 10_000_000),
+      },
+      connected: { destination_id: "fast", since: 0 },
+    });
+    await Promise.resolve();
+    if (model[0].phase !== "connecting") throw new Error("unreachable");
+    expect(ids(model[0].entries)).toEqual(["fast", "better"]);
+
+    setAppState("destinations", {
+      fast: makeReadyToConnect("fast", 100_000_000),
+      better: makeReadyToConnect("better", 9_000_000),
+    });
+    await Promise.resolve();
+    expect(ids(model[0].entries)).toEqual(["fast", "better"]);
+  });
+
+  it("does not append anything when the active destination is already the best", async () => {
+    const fast = { ...BASE_DESTINATION, id: "fast" };
+    const { model, setAppState } = setup();
+    setAppState("availableDestinations", [fast]);
+    setAppState("destinations", { fast: makeReadyToConnect("fast") });
+    setAppState("connected", { destination_id: "fast", since: 0 });
+    await Promise.resolve();
+    if (model[0].phase !== "connecting") throw new Error("unreachable");
+    expect(ids(model[0].entries)).toEqual(["fast"]);
   });
 });
 
