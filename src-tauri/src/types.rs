@@ -36,6 +36,10 @@ pub enum ConnectionState {
 pub struct TauriBalanceRecommendation {
     pub wxhopr: String,
     pub xdai: String,
+    pub channel_stakes: String,
+    pub fee_to_start: String,
+    pub txs_to_start: u64,
+    pub xdai_fee_per_tx: String,
 }
 
 impl From<balance::BalanceRecommendation> for TauriBalanceRecommendation {
@@ -43,6 +47,10 @@ impl From<balance::BalanceRecommendation> for TauriBalanceRecommendation {
         TauriBalanceRecommendation {
             wxhopr: r.wxhopr.amount().to_string(),
             xdai: r.xdai.amount().to_string(),
+            channel_stakes: r.channel_stakes.amount().to_string(),
+            fee_to_start: r.fee_to_start.amount().to_string(),
+            txs_to_start: r.txs_to_start,
+            xdai_fee_per_tx: r.xdai_fee_per_tx.amount().to_string(),
         }
     }
 }
@@ -86,7 +94,7 @@ pub enum RunMode {
         node_wxhopr: String,
         funding_tool: Option<String>,
         error: Option<String>,
-        balance_recommendation: Option<TauriBalanceRecommendation>,
+        balance_recommendation: Option<Box<TauriBalanceRecommendation>>,
     },
     DeployingSafe {
         node_address: String,
@@ -183,7 +191,8 @@ impl From<command::RunMode> for RunMode {
                 node_wxhopr: node_wxhopr.amount().to_string(),
                 funding_tool,
                 error,
-                balance_recommendation: balance_recommendation.map(Into::into),
+                balance_recommendation: balance_recommendation
+                    .map(|b| Box::new(TauriBalanceRecommendation::from(*b))),
             },
             command::RunMode::DeployingSafe { node_address } => RunMode::DeployingSafe {
                 node_address: node_address.to_checksum(),

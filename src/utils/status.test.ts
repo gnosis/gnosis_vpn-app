@@ -62,6 +62,10 @@ const BASE_APP_STATE: AppState = {
 const BALANCE_RECOMMENDATION: BalanceRecommendation = {
   wxhopr: 100n,
   xdai: 50n,
+  channel_stakes: 0n,
+  fee_to_start: 0n,
+  txs_to_start: 0,
+  xdai_fee_per_tx: 0n,
 };
 
 const PREPARING_SAFE: PreparingSafe = {
