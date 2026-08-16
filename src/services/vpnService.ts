@@ -185,6 +185,10 @@ const BigIntStringSchema = z.string().transform((s) => BigInt(s));
 export const BalanceRecommendationSchema = z.object({
   wxhopr: BigIntStringSchema,
   xdai: BigIntStringSchema,
+  channel_stakes: BigIntStringSchema,
+  fee_to_start: BigIntStringSchema,
+  txs_to_start: z.number(),
+  xdai_fee_per_tx: BigIntStringSchema,
 });
 export type BalanceRecommendation = z.infer<typeof BalanceRecommendationSchema>;
 

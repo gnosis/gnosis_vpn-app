@@ -622,11 +622,11 @@ mod tests {
 
     #[test]
     fn plain_requirement_matches_its_minor_series() {
-        assert!(is_version_compatible("0.93.0"));
-        assert!(is_version_compatible(" 0.93.5 "));
-        assert!(!is_version_compatible("0.92.9"));
-        assert!(!is_version_compatible("0.94.0"));
-        assert!(!is_version_compatible("0.930.0"));
+        assert!(is_version_compatible("0.94.0"));
+        assert!(is_version_compatible(" 0.94.5 "));
+        assert!(!is_version_compatible("0.93.9"));
+        assert!(!is_version_compatible("0.95.0"));
+        assert!(!is_version_compatible("0.940.0"));
         assert!(!is_version_compatible("not-a-version"));
         assert!(!is_version_compatible(""));
     }

@@ -158,10 +158,14 @@ fn generate_fixtures() {
         node_wxhopr: Balance::<WxHOPR>::from(500_000_000_000_000_000u64), // 0.5 wxHOPR
         funding_tool: None,
         error: None,
-        balance_recommendation: Some(BalanceRecommendation {
+        balance_recommendation: Some(Box::new(BalanceRecommendation {
             wxhopr: Balance::<WxHOPR>::from(10_000_000_000_000_000_000u64), // 10 wxHOPR
             xdai: Balance::<XDai>::from(100_000_000_000_000_000u64),        // 0.1 xDAI
-        }),
+            channel_stakes: Balance::<WxHOPR>::from(5_000_000_000_000_000_000u64), // 5 wxHOPR
+            fee_to_start: Balance::<WxHOPR>::from(1_000_000_000_000_000_000u64), // 1 wxHOPR
+            txs_to_start: 3,
+            xdai_fee_per_tx: Balance::<XDai>::from(10_000_000_000_000_000u64), // 0.01 xDAI
+        })),
     });
     write(
         &fixtures_dir,
@@ -324,6 +328,10 @@ fn generate_fixtures() {
     let ideal = BalanceRecommendation {
         wxhopr: Balance::<WxHOPR>::from(2_000_000_000_000_000_000u64), // 2 wxHOPR
         xdai: Balance::<XDai>::from(50_000_000_000_000_000u64),        // 0.05 xDAI
+        channel_stakes: Balance::<WxHOPR>::from(1_000_000_000_000_000_000u64), // 1 wxHOPR
+        fee_to_start: Balance::<WxHOPR>::from(500_000_000_000_000_000u64), // 0.5 wxHOPR
+        txs_to_start: 2,
+        xdai_fee_per_tx: Balance::<XDai>::from(5_000_000_000_000_000u64), // 0.005 xDAI
     };
     let balance_with_issues = types::BalanceResponse::from(command::BalanceResponse::build(
         &balance_info(),
