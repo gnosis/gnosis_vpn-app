@@ -138,12 +138,6 @@ export function createDestinationMode(
   // Remembered so `connecting -> selected` (rule 15) still knows which
   // destination to land on even once the backend fields themselves clear.
   let lastActiveId: string | null = null;
-  // Set by pickDestination while already `connecting` (rule 14) — the
-  // destination we're deliberately switching away from. Rule 12 drops it
-  // from `entries` once the switch actually completes to something else, but
-  // only then: a backend-only retarget (no pick involved) never touches this,
-  // so it keeps both entries as its own rule intends.
-  let userSwitchOutgoingId: string | null = null;
 
   let pendingTimeout: ReturnType<typeof setTimeout> | undefined;
   const clearPendingTimer = () => {
@@ -255,29 +249,15 @@ export function createDestinationMode(
         const existingEntries = mode.phase === "uninitialized"
           ? []
           : mode.entries;
-        // A user-initiated switch (rule 14) just resolved to something other
-        // than the destination it was picked from — that outgoing entry has
-        // served its purpose (it stayed visible as "still connected" through
-        // the pending switch) and can now go. A backend-only retarget never
-        // set this, so it leaves both entries alone, per rule 12's own case.
-        const outgoingToDrop =
-          userSwitchOutgoingId !== null && userSwitchOutgoingId !== liveId
-            ? userSwitchOutgoingId
-            : null;
-        userSwitchOutgoingId = null;
-        const withoutOutgoing = outgoingToDrop !== null
-          ? existingEntries.filter((e) => e.id !== outgoingToDrop)
-          : existingEntries;
-        const entries = withoutOutgoing.some((e) => e.id === liveId)
-          ? withoutOutgoing
-          : [...withoutOutgoing, freshEntry(liveId, "auto")];
+        const entries = existingEntries.some((e) => e.id === liveId)
+          ? existingEntries
+          : [...existingEntries, freshEntry(liveId, "auto")];
         commitMode({ phase: "connecting", entries, activeId: liveId });
       }
       return;
     }
 
     if (mode.phase === "connecting") {
-      userSwitchOutgoingId = null;
       startSelected(mode.entries, lastActiveId ?? mode.activeId);
       return;
     }
@@ -483,14 +463,20 @@ export function createDestinationMode(
     pickDestination: (id) => {
       if (mode.phase === "uninitialized") return;
       if (mode.phase === "connecting") {
-        if (mode.entries.some((e) => e.id === id)) return;
-        // Remembered so rule 12 can drop this outgoing entry once the switch
-        // actually completes to `id` — until then it stays put, visibly
-        // still the connected one.
-        userSwitchOutgoingId = mode.activeId;
+        if (id === mode.activeId) return;
+        // Drop the outgoing (still-connected) entry immediately rather than
+        // waiting for the backend to confirm the switch — the banner should
+        // reflect the pick right away, not keep the destination we're
+        // deliberately leaving around as a stray history card in the
+        // meantime. `activeId` itself still only moves once the backend
+        // confirms (rule 12) — Connect keeps acting on the real connection
+        // regardless of what the banner is showing.
+        const withoutOutgoing = mode.entries.filter((e) =>
+          e.id !== mode.activeId && e.id !== id
+        );
         commitMode({
           phase: "connecting",
-          entries: [...mode.entries, freshEntry(id, "user")],
+          entries: [...withoutOutgoing, freshEntry(id, "user")],
           activeId: mode.activeId,
         });
         return;

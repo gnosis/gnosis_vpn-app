@@ -35,8 +35,7 @@ stateDiagram-v2
     Selected --> Connecting: backend reports\nconnecting/connected/reconnecting (12)
 
     Connecting --> Connecting: retarget while connecting — backend\nreports connecting to a new id,\nno interstitial phase (12)
-    Connecting --> Connecting: pickDestination(id) while connecting —\nappends a user-origin entry without\nmoving activeId yet (14)
-    Connecting --> Connecting: pick resolves to a new id —\ndrops the outgoing entry it\nsuperseded (12+14)
+    Connecting --> Connecting: pickDestination(id) while connecting —\ndrops the outgoing entry, appends a\nuser-origin one, activeId unmoved (14)
     Connecting --> Selected: backend clears connected/connecting/\nreconnecting — no waiting on\ndisconnecting (15)
 ```
 
@@ -270,25 +269,19 @@ Reactive to `availableDestinations`/`destinations`/`preferredLocation` changes:
 12. Backend reports `connected`/`connecting`/`reconnecting` for some id (from
     any prior phase, or retargeting an already-`connecting` id) → phase is
     `connecting`, `activeId := id`; append `{id, origin: "auto"}` to `entries`
-    if not already present. If this id is resolving a rule-14 pick (i.e. the
-    switch was user-initiated and has now completed to a _different_ id than it
-    was picked from) → also drop the outgoing entry it superseded, so it doesn't
-    linger in history once we're no longer connected to it. A backend-only
-    retarget (no pick involved) never drops anything — both the old and new id
-    stay, per rule 13's example.
+    if not already present.
 
 13. `setActiveEntry(id)` while `connecting` → no-op. Retargeting a live
     connection by scrolling goes through a real `connect()` call issued by the
     caller (not modeled in this store) and is only reflected back once the
     backend confirms, via rule 12.
 
-14. `pickDestination(id)` while `connecting` → append `{id, origin: "user"}` to
-    `entries` without moving `activeId` yet, remembering the outgoing
-    (still-connected) id so rule 12 can drop it once the switch actually
-    completes to `id`; until then it stays put, visibly still the connected
-    entry. The caller issues the actual `connect()`, and `activeId` only moves
-    once the backend confirms (rule 12) — no duplicate entry is created when it
-    does.
+14. `pickDestination(id)` while `connecting` → drop the outgoing (still
+    connected) entry and append `{id, origin: "user"}` to `entries`, without
+    moving `activeId` yet — the banner reflects the pick immediately rather than
+    keeping the destination being left behind around as a stray history card.
+    The caller issues the actual `connect()`, and `activeId` only moves once the
+    backend confirms (rule 12) — no duplicate entry is created when it does.
 
 15. Backend reports none of connected/connecting/reconnecting (regardless of
     whether `disconnecting` is still non-empty — **no waiting, no special

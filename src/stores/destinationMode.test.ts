@@ -863,7 +863,7 @@ describe("pickDestination — ExitNodeList pick (rules 9 & 14)", () => {
     expect(ids(afterPick.entries)).toEqual(["picked"]);
   });
 
-  it("appends a new user-origin entry without moving activeId while connecting (rule 14)", async () => {
+  it("drops the outgoing entry and appends a new user-origin one without moving activeId while connecting (rule 14)", async () => {
     const fast = { ...BASE_DESTINATION, id: "fast" };
     const { model, setAppState } = setup();
     setAppState("availableDestinations", [fast]);
@@ -880,12 +880,11 @@ describe("pickDestination — ExitNodeList pick (rules 9 & 14)", () => {
     expect(model[0]).toMatchObject({ phase: "connecting", activeId: "fast" });
     if (model[0].phase !== "connecting") throw new Error("unreachable");
     expect(idsAndOrigins(model[0].entries)).toEqual([
-      { id: "fast", origin: "auto" },
       { id: "other", origin: "user" },
     ]);
   });
 
-  it("drops the superseded outgoing entry once the backend confirms the pick completed to a different id (rules 12+14 together)", async () => {
+  it("does not duplicate the entry once the backend actually confirms connecting to the picked id (rules 12+14 together)", async () => {
     const fast = { ...BASE_DESTINATION, id: "fast" };
     const { model, setAppState } = setup();
     setAppState("availableDestinations", [fast]);
@@ -910,35 +909,6 @@ describe("pickDestination — ExitNodeList pick (rules 9 & 14)", () => {
     expect(model[0]).toMatchObject({ phase: "connecting", activeId: "other" });
     if (model[0].phase !== "connecting") throw new Error("unreachable");
     expect(ids(model[0].entries)).toEqual(["other"]);
-  });
-
-  it("leaves entries untouched if a later connecting update still reports the original (pre-pick) id", async () => {
-    const fast = { ...BASE_DESTINATION, id: "fast" };
-    const { model, setAppState } = setup();
-    setAppState("availableDestinations", [fast]);
-    setAppState("destinations", { fast: makeReadyToConnect("fast") });
-    setAppState("connecting", {
-      destination_id: "fast",
-      since: 0,
-      phase: "Init",
-    });
-    await Promise.resolve();
-
-    model[1].pickDestination("other");
-    await Promise.resolve();
-
-    // The switch never went through — backend reports connecting to "fast"
-    // again, not "other".
-    setAppState("connecting", {
-      destination_id: "fast",
-      since: 1,
-      phase: "Init",
-    });
-    await Promise.resolve();
-
-    expect(model[0]).toMatchObject({ phase: "connecting", activeId: "fast" });
-    if (model[0].phase !== "connecting") throw new Error("unreachable");
-    expect(ids(model[0].entries)).toEqual(["fast", "other"]);
   });
 
   it("drops the duplicate when the pick already sits elsewhere in entries, keeping the list unique-by-id", async () => {
