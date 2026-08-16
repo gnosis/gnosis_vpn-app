@@ -1,25 +1,18 @@
-//! Runs the bundled `gnosis_vpn-update` binary (macOS-only) and streams its
-//! progress to the frontend as `update-install-status` events.
+//! Runs the bundled `gnosis_vpn-update` binary and streams its progress via
+//! `INSTALL_STATUS_EVENT`.
 //!
 //! The updater prints NDJSON on stdout — one externally-tagged value per
 //! line: `"Checking"` → `"Downloading"` → `"Installing"` → a terminal
 //! `{"Completed":{...}}` or `{"Failed":{...}}` (contract documented in the
 //! gnosis_vpn-toolkit repo). stderr carries human logs only.
-//!
-//! The last status is kept in managed state so the settings Updates tab can
-//! re-hydrate mid-install after a remount (`get_install_status`), and doubles
-//! as the guard against concurrent installs.
-#![cfg_attr(target_os = "linux", allow(dead_code))]
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use tauri::{AppHandle, Emitter, Manager, State};
 
-use std::sync::Mutex;
+use super::{InstallStatus, UpdateInstallState};
 
-pub const INSTALL_STATUS_EVENT: &str = "update-install-status";
-
-#[cfg(target_os = "macos")]
 const UPDATER_PATH: &str = "/usr/local/bin/gnosis_vpn-update";
+const INSTALL_STATUS_EVENT: &str = "update-install-status";
 
 /// One NDJSON line from `gnosis_vpn-update update` (serde's default
 /// externally-tagged encoding, e.g. `"Downloading"` or
@@ -31,27 +24,6 @@ enum UpdaterStatus {
     Installing,
     Completed { new_version: String },
     Failed { stage: String, error: String },
-}
-
-/// Normalized event payload for the frontend, e.g. `{"kind":"Downloading"}`
-/// or `{"kind":"Completed","new_version":"0.78.0"}`.
-#[derive(Clone, Debug, Serialize)]
-#[serde(tag = "kind")]
-pub enum InstallStatus {
-    Checking,
-    Downloading,
-    Installing,
-    Completed { new_version: String },
-    Failed { stage: String, error: String },
-}
-
-impl InstallStatus {
-    fn is_terminal(&self) -> bool {
-        matches!(
-            self,
-            InstallStatus::Completed { .. } | InstallStatus::Failed { .. }
-        )
-    }
 }
 
 impl From<UpdaterStatus> for InstallStatus {
@@ -66,9 +38,15 @@ impl From<UpdaterStatus> for InstallStatus {
     }
 }
 
-/// Last install status; `None` until the first install of this app run.
-#[derive(Default)]
-pub struct UpdateInstallState(pub Mutex<Option<InstallStatus>>);
+impl InstallStatus {
+    // Only the install flow (this file) needs to know when a status is terminal.
+    fn is_terminal(&self) -> bool {
+        matches!(
+            self,
+            InstallStatus::Completed { .. } | InstallStatus::Failed { .. }
+        )
+    }
+}
 
 fn parse_line(line: &str) -> Option<InstallStatus> {
     serde_json::from_str::<UpdaterStatus>(line)
@@ -85,13 +63,7 @@ fn publish(app: &AppHandle, status: InstallStatus) {
     let _ = app.emit(INSTALL_STATUS_EVENT, &status);
 }
 
-#[tauri::command]
-pub fn get_install_status(state: State<'_, UpdateInstallState>) -> Option<InstallStatus> {
-    state.0.lock().ok().and_then(|guard| (*guard).clone())
-}
-
 /// Version of the bundled updater toolkit; `None` where it isn't installed.
-#[cfg(target_os = "macos")]
 #[tauri::command]
 pub async fn get_toolkit_version() -> Option<String> {
     use gnosis_vpn_lib::shell_command_ext::{Logs, ShellCommandExt};
@@ -107,16 +79,9 @@ pub async fn get_toolkit_version() -> Option<String> {
     (!version.is_empty()).then_some(version)
 }
 
-#[cfg(target_os = "linux")]
-#[tauri::command]
-pub async fn get_toolkit_version() -> Option<String> {
-    None
-}
-
 /// Start the updater and return immediately; progress and the outcome flow
 /// exclusively through `update-install-status` events. `Err` means the run
 /// was not started (bad channel, already running, spawn failure).
-#[cfg(target_os = "macos")]
 #[tauri::command]
 pub fn install_update(app: AppHandle, channel: String, force: bool) -> Result<(), String> {
     use std::collections::VecDeque;
@@ -225,13 +190,6 @@ pub fn install_update(app: AppHandle, channel: String, force: bool) -> Result<()
     Ok(())
 }
 
-#[cfg(target_os = "linux")]
-#[tauri::command]
-#[allow(unused_variables)]
-pub fn install_update(app: AppHandle, channel: String, force: bool) -> Result<(), String> {
-    Err("UnsupportedPlatform".to_string())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -272,29 +230,6 @@ mod tests {
         assert!(parse_line("").is_none());
         assert!(parse_line("not json").is_none());
         assert!(parse_line(r#"{"Unknown":{}}"#).is_none());
-    }
-
-    #[test]
-    fn serializes_kind_tagged_events() {
-        let v = serde_json::to_value(InstallStatus::Downloading).unwrap();
-        assert_eq!(v, serde_json::json!({"kind": "Downloading"}));
-        let v = serde_json::to_value(InstallStatus::Completed {
-            new_version: "1.2.3".to_string(),
-        })
-        .unwrap();
-        assert_eq!(
-            v,
-            serde_json::json!({"kind": "Completed", "new_version": "1.2.3"})
-        );
-        let v = serde_json::to_value(InstallStatus::Failed {
-            stage: "Install".to_string(),
-            error: "e".to_string(),
-        })
-        .unwrap();
-        assert_eq!(
-            v,
-            serde_json::json!({"kind": "Failed", "stage": "Install", "error": "e"})
-        );
     }
 
     #[test]
