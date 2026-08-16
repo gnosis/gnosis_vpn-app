@@ -399,9 +399,24 @@ export default function LocationBanner() {
   });
 
   // Entries in history order (oldest -> newest); empty before startup
-  // resolves.
-  const modeEntries = () =>
-    appState.mode.phase === "uninitialized" ? [] : appState.mode.entries;
+  // resolves. While connecting, a freshly user-picked entry immediately
+  // supersedes the outgoing (still technically connected) one it's meant to
+  // replace — a display-only decision: the data model deliberately keeps
+  // both until the backend actually confirms the switch (see
+  // docs/destination-mode.md rule 14), so a pick that never completes can't
+  // strand the real connection off the model entirely. Only the entry the
+  // freshest pick is superseding is hidden this way — older history stays
+  // visible, and the hidden card reappears if the pick doesn't pan out and
+  // the backend keeps reporting the original connection.
+  const modeEntries = () => {
+    const mode = appState.mode;
+    if (mode.phase === "uninitialized") return [];
+    const { entries, activeId } = mode;
+    if (mode.phase !== "connecting" || entries.length < 2) return entries;
+    const last = entries[entries.length - 1];
+    if (last.origin !== "user" || last.id === activeId) return entries;
+    return entries.filter((e) => e.id !== activeId);
+  };
 
   // Must match the mount fade's `duration-700` below — a removed entry
   // (e.g. a cancelled auto-switch candidate) fades out over the same
