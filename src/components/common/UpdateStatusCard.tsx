@@ -174,7 +174,11 @@ export default function UpdateStatusCard(props: UpdateStatusCardProps) {
       </Show>
       <button
         type="button"
-        class="shrink-0 h-8 px-3 text-sm rounded-md border border-border bg-transparent text-text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-darken hover:enabled:cursor-pointer"
+        class={`shrink-0 h-8 px-3 text-sm rounded-md border transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:cursor-pointer ${
+          updateAvailable()
+            ? "bg-green-100 border-green-300 text-green-800 hover:enabled:bg-green-200 dark:bg-green-500/15 dark:border-green-500/40 dark:text-green-300 dark:hover:enabled:bg-green-500/25"
+            : "border-border bg-transparent text-text-primary hover:enabled:bg-darken"
+        }`}
         disabled={props.loading || installing() ||
           (updateAvailable() && platform.loading)}
         onClick={handleButtonClick}

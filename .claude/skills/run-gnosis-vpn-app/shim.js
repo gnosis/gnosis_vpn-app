@@ -51,6 +51,7 @@
     get_initial_theme: () => fixture.theme ?? "dark",
     get_platform: () => fixture.platform ?? "linux",
     get_install_status: () => fixture.installStatus ?? null,
+    get_toolkit_version: () => fixture.toolkitVersion ?? null,
     install_update: () => {
       for (const step of fixture.installScript ?? defaultInstallScript) {
         setTimeout(
@@ -113,17 +114,21 @@
     },
   };
 
-  // index.tsx trusts matchMedia over the backend theme, so force it too.
-  if ((fixture.theme ?? "dark") === "dark") {
-    const origMatchMedia = globalThis.matchMedia.bind(globalThis);
-    globalThis.matchMedia = (query) =>
-      query.includes("dark")
-        ? {
-          matches: true,
-          media: query,
-          addEventListener() {},
-          removeEventListener() {},
-        }
-        : origMatchMedia(query);
-  }
+  // index.tsx trusts matchMedia over the backend theme, so force it too —
+  // in both directions: the browser's own prefers-color-scheme follows the
+  // host OS, not the fixture.
+  const wantDark = (fixture.theme ?? "dark") === "dark";
+  const origMatchMedia = globalThis.matchMedia.bind(globalThis);
+  globalThis.matchMedia = (query) => {
+    const asksDark = query.includes("dark");
+    const asksLight = query.includes("light");
+    // Anything not about the color scheme is none of our business.
+    if (!asksDark && !asksLight) return origMatchMedia(query);
+    return {
+      matches: asksDark ? wantDark : !wantDark,
+      media: query,
+      addEventListener() {},
+      removeEventListener() {},
+    };
+  };
 })();

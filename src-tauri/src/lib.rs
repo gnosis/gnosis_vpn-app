@@ -39,7 +39,7 @@ use tray::{
 };
 use types::ConnectionState;
 use types::{BalanceResponse, StatusResponse};
-use update_install::{UpdateInstallState, get_install_status, install_update};
+use update_install::{UpdateInstallState, get_install_status, get_toolkit_version, install_update};
 
 struct HeartbeatHandle(Mutex<Option<tauri::async_runtime::JoinHandle<()>>>);
 
@@ -414,7 +414,8 @@ pub fn run() {
             update_settings,
             get_platform,
             install_update,
-            get_install_status
+            get_install_status,
+            get_toolkit_version
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

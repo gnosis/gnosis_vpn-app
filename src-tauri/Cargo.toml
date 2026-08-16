@@ -35,7 +35,7 @@ tauri-plugin-dialog = "2.7.1"
 dark-light = "2.0"
 reqwest = { version = "0.13.4", features = ["json"] }
 semver = "1.0.28"
-tokio = { version = "1.52.3", features = ["time", "rt", "sync"] }
+tokio = { version = "1.52.3", features = ["time", "rt", "sync", "process"] }
 tokio-util = { version = "0.7.17", features = ["rt"] }
 zstd = "0.13.3"
 
