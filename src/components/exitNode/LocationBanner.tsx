@@ -15,7 +15,7 @@ import {
   SWITCH_ANIMATE_MS,
   SWITCH_COUNTDOWN_MS,
   SWITCH_CROSSOVER_MS,
-} from "@src/stores/destinationMode.ts";
+} from "@src/stores/backupDestinationMode.ts";
 import { cardTitle, isVpnActive } from "@src/utils/destinations.ts";
 import DetailCard from "./DetailCard.tsx";
 import ExitNodeList from "./ExitNodeList.tsx";

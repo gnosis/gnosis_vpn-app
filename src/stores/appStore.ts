@@ -28,9 +28,9 @@ import {
   VPNService,
 } from "@src/services/vpnService.ts";
 import {
-  createDestinationMode,
+  createBackupDestinationMode,
   type DestinationModel,
-} from "@src/stores/destinationMode.ts";
+} from "@src/stores/backupDestinationMode.ts";
 import { useLogsStore } from "@src/stores/logsStore.ts";
 import {
   destinationLabel,
@@ -215,7 +215,7 @@ export function createAppStore(): AppStoreTuple {
   // `state` itself already has the fields these need (availableDestinations/
   // destinations/connected/connecting/reconnecting), so it's passed directly
   // rather than mirrored into a separate copy first.
-  const [mode, modeActions] = createDestinationMode(state, settings);
+  const [mode, modeActions] = createBackupDestinationMode(state, settings);
 
   createEffect(() => {
     batch(() => setState("mode", reconcile({ ...mode }, { key: "key" })));

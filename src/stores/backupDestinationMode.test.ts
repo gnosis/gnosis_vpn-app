@@ -7,7 +7,7 @@ import type {
   DestinationState,
 } from "@src/services/vpnService.ts";
 import {
-  createDestinationMode,
+  createBackupDestinationMode,
   currentDisplayId,
   type DestinationModel,
   type ModeAppState,
@@ -16,7 +16,7 @@ import {
   SELECTED_AUTO_REVERT_MS,
   SWITCH_COUNTDOWN_MS,
   SWITCH_CROSSOVER_MS,
-} from "./destinationMode.ts";
+} from "./backupDestinationMode.ts";
 
 const SETTLE_MS = SWITCH_COUNTDOWN_MS + SWITCH_CROSSOVER_MS;
 
@@ -82,7 +82,7 @@ function setup(
 
   const model = createRoot((dispose) => {
     disposeFns.push(dispose);
-    return createDestinationMode(appState, settings);
+    return createBackupDestinationMode(appState, settings);
   });
 
   return { appState, setAppState, settings, setSettings, model };
