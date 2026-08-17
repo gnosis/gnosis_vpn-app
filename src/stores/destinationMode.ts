@@ -89,6 +89,8 @@ export function applyStatusUpdate(
   mode: DestinationMode,
   status: StatusSnapshot,
 ): DestinationMode {
+  // first
+
   const candidate = resolveCandidate(
     status.availableDestinations,
     status.destinations,

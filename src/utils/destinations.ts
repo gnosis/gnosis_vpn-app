@@ -82,27 +82,6 @@ export function sortAlphaDestinations(
   });
 }
 
-export function resolveAutoDestination(
-  available: Destination[],
-  destinations: Record<string, DestinationState>,
-  preferredLocation: string | null,
-): Destination | null {
-  const candidates = sortByHealthScore(available, destinations);
-  if (candidates.length === 0) return null;
-  if (preferredLocation) {
-    const preferred = candidates.find((d) => d.id === preferredLocation);
-    if (
-      preferred &&
-      isReadyToConnect(
-        destinations[preferredLocation]?.route_health ?? undefined,
-      )
-    ) {
-      return preferred;
-    }
-  }
-  return candidates[0] ?? null;
-}
-
 // Frozen copy for backupDestinationMode.ts, so resolveAutoDestination stays
 // free to evolve for the new destinationMode module without changing this
 // implementation's behavior underneath it.
@@ -134,9 +113,12 @@ export function isVpnActive(
   vpnStatus: string,
   targetDestination: string | null,
 ): boolean {
-  return vpnStatus === "Connected" || vpnStatus === "Connecting" ||
+  return (
+    vpnStatus === "Connected" ||
+    vpnStatus === "Connecting" ||
     vpnStatus === "Reconnecting" ||
-    (vpnStatus === "Disconnecting" && targetDestination !== null);
+    (vpnStatus === "Disconnecting" && targetDestination !== null)
+  );
 }
 
 export function destinationLabel(d: Destination): string {
