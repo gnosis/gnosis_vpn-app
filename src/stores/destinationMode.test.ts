@@ -12,13 +12,12 @@ import type {
 } from "./destinationMode.ts";
 
 // Stub test suite for the reworked data model — auto phase only for now.
-// Every case below is `it.skip`: the "given" state is fully prepared, but the
-// act/assert step is deliberately left as a TODO until the module itself
-// (and the reducer API it exposes) is designed. Keeping the bodies real
-// (not `it.todo`) so they still typecheck against the stub types as that
-// design happens. The `void(...)` lines only exist to satisfy
-// noUnusedLocals until each TODO is filled in — delete them once the
-// act/assert step uses these values for real.
+// Every case's "given" state is fully prepared, but the act/assert step is
+// deliberately left as a TODO until the module itself (and the reducer API
+// it exposes) is designed — each test currently passes vacuously. The
+// `void ...` lines only exist to satisfy noUnusedLocals until each TODO is
+// filled in — delete them once the act/assert step uses these values for
+// real.
 
 // ---------------------------------------------------------------------------
 // Test data
@@ -138,7 +137,7 @@ function autoMode(params: {
 // ---------------------------------------------------------------------------
 
 describe("auto phase / bootstrap", () => {
-  it.skip("first statusResponse with a ready destination arrives -> picks it immediately, no countdown", () => {
+  it("first statusResponse with a ready destination arrives -> picks it immediately, no countdown", () => {
     const given = autoMode({ entries: [], active: null });
     const status = snapshot({
       availableDestinations: [destination("a")],
@@ -148,7 +147,7 @@ describe("auto phase / bootstrap", () => {
     void status; // TODO: act + assert — expect active "a", single auto-origin entry, no pending.
   });
 
-  it.skip("first statusResponse arrives with no ready destination -> stays uninitialized (active null)", () => {
+  it("first statusResponse arrives with no ready destination -> stays uninitialized (active null)", () => {
     const given = autoMode({ entries: [], active: null });
     const status = snapshot({
       availableDestinations: [destination("a")],
@@ -164,7 +163,7 @@ describe("auto phase / bootstrap", () => {
 // ---------------------------------------------------------------------------
 
 describe("auto phase / user events", () => {
-  it.skip("pickDestination(id) where id is a different, unlisted destination -> replaces active in place, enters selected", () => {
+  it("pickDestination(id) where id is a different, unlisted destination -> replaces active in place, enters selected", () => {
     const given = autoMode({
       entries: [entry("a", "auto", 0)],
       active: "a",
@@ -174,7 +173,7 @@ describe("auto phase / user events", () => {
     void pickedId; // TODO: act + assert — expect phase "selected", active "b", "a" dropped.
   });
 
-  it.skip("pickDestination(id) where id === active -> re-tags origin to user in place, enters selected", () => {
+  it("pickDestination(id) where id === active -> re-tags origin to user in place, enters selected", () => {
     const given = autoMode({
       entries: [entry("a", "auto", 0)],
       active: "a",
@@ -184,7 +183,7 @@ describe("auto phase / user events", () => {
     void pickedId; // TODO: act + assert — expect phase "selected", same entry now origin "user".
   });
 
-  it.skip("pickDestination(id) where id already sits elsewhere in entries -> drops the stale copy, re-adds fresh", () => {
+  it("pickDestination(id) where id already sits elsewhere in entries -> drops the stale copy, re-adds fresh", () => {
     const given = autoMode({
       entries: [entry("a", "auto", 0), entry("b", "auto", 1)],
       active: "a",
@@ -194,7 +193,7 @@ describe("auto phase / user events", () => {
     void pickedId; // TODO: act + assert — expect exactly one "b" entry, fresh key, phase "selected".
   });
 
-  it.skip("pickDestination(id) where id is the current pending candidate -> discards the not-yet-settled candidate, promotes it directly", () => {
+  it("pickDestination(id) where id is the current pending candidate -> discards the not-yet-settled candidate, promotes it directly", () => {
     const now = 0;
     const given = autoMode({
       entries: [entry("a", "auto", 0), entry("b", "auto", 1)],
@@ -206,7 +205,7 @@ describe("auto phase / user events", () => {
     void pickedId; // TODO: act + assert — expect pending cleared, phase "selected", active "b".
   });
 
-  it.skip("setActiveEntry(id) where id is already in entries -> moves active pointer, enters selected with a fresh revert deadline", () => {
+  it("setActiveEntry(id) where id is already in entries -> moves active pointer, enters selected with a fresh revert deadline", () => {
     const given = autoMode({
       entries: [entry("a", "auto", 0), entry("b", "auto", 1)],
       active: "a",
@@ -216,7 +215,7 @@ describe("auto phase / user events", () => {
     void targetId; // TODO: act + assert — expect phase "selected", active "b", autoRevertAt set.
   });
 
-  it.skip("setActiveEntry(id) where id is the pending candidate -> short-circuits the countdown, promotes immediately", () => {
+  it("setActiveEntry(id) where id is the pending candidate -> short-circuits the countdown, promotes immediately", () => {
     const now = 0;
     const given = autoMode({
       entries: [entry("a", "auto", 0), entry("b", "auto", 1)],
@@ -228,7 +227,7 @@ describe("auto phase / user events", () => {
     void targetId; // TODO: act + assert — expect pending cleared, phase "selected", active "b".
   });
 
-  it.skip("setActiveEntry(id) where id is unknown -> no-op", () => {
+  it("setActiveEntry(id) where id is unknown -> no-op", () => {
     const given = autoMode({
       entries: [entry("a", "auto", 0)],
       active: "a",
@@ -238,7 +237,7 @@ describe("auto phase / user events", () => {
     void targetId; // TODO: act + assert — expect mode unchanged.
   });
 
-  it.skip("setActiveEntry(id) where id === active already -> still restarts as selected with a fresh revert deadline", () => {
+  it("setActiveEntry(id) where id === active already -> still restarts as selected with a fresh revert deadline", () => {
     const given = autoMode({
       entries: [entry("a", "auto", 0)],
       active: "a",
@@ -254,7 +253,7 @@ describe("auto phase / user events", () => {
 // ---------------------------------------------------------------------------
 
 describe("auto phase / timers", () => {
-  it.skip("settleAt reached, candidate is not preferredLocation -> commits active := candidateId, stays auto", () => {
+  it("settleAt reached, candidate is not preferredLocation -> commits active := candidateId, stays auto", () => {
     const now = 0;
     const given = autoMode({
       entries: [entry("a", "auto", 0), entry("b", "auto", 1)],
@@ -268,7 +267,7 @@ describe("auto phase / timers", () => {
     void settleAt; // TODO: act (advance clock to settleAt) + assert — expect active "b", pending null, phase still "auto".
   });
 
-  it.skip("settleAt reached, candidate === preferredLocation and promotion unused -> commits AND promotes to selected, consumes the flag", () => {
+  it("settleAt reached, candidate === preferredLocation and promotion unused -> commits AND promotes to selected, consumes the flag", () => {
     const now = 0;
     const given = autoMode({
       entries: [entry("a", "auto", 0), entry("b", "auto", 1)],
@@ -282,7 +281,7 @@ describe("auto phase / timers", () => {
     void preferredPromotionUsed; // TODO: act + assert — expect phase "selected", active "b", autoRevertAt set, promotion flag now consumed.
   });
 
-  it.skip("settleAt reached, candidate === preferredLocation but promotion already used -> commits, stays auto (no promotion)", () => {
+  it("settleAt reached, candidate === preferredLocation but promotion already used -> commits, stays auto (no promotion)", () => {
     const now = 0;
     const given = autoMode({
       entries: [entry("a", "auto", 0), entry("b", "auto", 1)],
@@ -302,7 +301,7 @@ describe("auto phase / timers", () => {
 // ---------------------------------------------------------------------------
 
 describe("auto phase / statusResponse changes", () => {
-  it.skip("a better candidate appears, no existing pending -> starts a new pending countdown, appends a speculative entry", () => {
+  it("a better candidate appears, no existing pending -> starts a new pending countdown, appends a speculative entry", () => {
     const given = autoMode({
       entries: [entry("a", "auto", 0)],
       active: "a",
@@ -315,7 +314,7 @@ describe("auto phase / statusResponse changes", () => {
     void status; // TODO: act + assert — expect pending candidate "b", "b" appended to entries, active unchanged.
   });
 
-  it.skip("best candidate changes while pending is still within countdown -> retargets in place, timer not restarted", () => {
+  it("best candidate changes while pending is still within countdown -> retargets in place, timer not restarted", () => {
     const now = 0;
     const given = autoMode({
       entries: [entry("a", "auto", 0), entry("b", "auto", 1)],
@@ -334,7 +333,7 @@ describe("auto phase / statusResponse changes", () => {
     void status; // TODO: act + assert — expect pending.candidateId "c", same countdownEndsAt/settleAt, "b" entry replaced by "c".
   });
 
-  it.skip("best candidate changes after countdownEndsAt has passed -> ignored, original transition left to finish", () => {
+  it("best candidate changes after countdownEndsAt has passed -> ignored, original transition left to finish", () => {
     const now = 5_000; // at pending("b", 0).countdownEndsAt
     const given = autoMode({
       entries: [entry("a", "auto", 0), entry("b", "auto", 1)],
@@ -354,7 +353,7 @@ describe("auto phase / statusResponse changes", () => {
     void status; // TODO: act + assert — expect pending unchanged (still targeting "b").
   });
 
-  it.skip("pending candidate reverts to equal active before settling -> cancels the transition outright", () => {
+  it("pending candidate reverts to equal active before settling -> cancels the transition outright", () => {
     const now = 0;
     const given = autoMode({
       entries: [entry("a", "auto", 0), entry("b", "auto", 1)],
@@ -369,7 +368,7 @@ describe("auto phase / statusResponse changes", () => {
     void status; // TODO: act + assert — expect pending null, "b" entry removed, active still "a".
   });
 
-  it.skip("pending candidate stops being ready before settling -> cancels the transition, does not fall back to another candidate", () => {
+  it("pending candidate stops being ready before settling -> cancels the transition, does not fall back to another candidate", () => {
     const now = 0;
     const given = autoMode({
       entries: [
@@ -392,7 +391,7 @@ describe("auto phase / statusResponse changes", () => {
     void status; // TODO: act + assert — expect pending null, "b" entry removed, active still "a" — NOT retargeted to "c" yet (that's a fresh rule-5 pass, own countdown).
   });
 
-  it.skip("pending candidate's latency regresses past active's before settling -> cancels the transition", () => {
+  it("pending candidate's latency regresses past active's before settling -> cancels the transition", () => {
     const now = 0;
     const given = autoMode({
       entries: [entry("a", "auto", 0), entry("b", "auto", 1)],
@@ -407,7 +406,7 @@ describe("auto phase / statusResponse changes", () => {
     void status; // TODO: act + assert — expect pending null, "b" entry removed, active still "a".
   });
 
-  it.skip("active destination disappears entirely from availableDestinations -> best-candidate recompute ignores it, starts fresh pending toward the next best", () => {
+  it("active destination disappears entirely from availableDestinations -> best-candidate recompute ignores it, starts fresh pending toward the next best", () => {
     // New scenario: destinations are no longer assumed static. Deliberately
     // distinct from "active becomes not-ready" (still present, just unhealthy)
     // — here `active`'s id is gone from `availableDestinations` outright.
@@ -428,7 +427,7 @@ describe("auto phase / statusResponse changes", () => {
     // rule rather than reusing rule 5's "different id" path?
   });
 
-  it.skip("preferredLocation changes mid-countdown -> promotion is evaluated against its value at settle time, not when pending was armed", () => {
+  it("preferredLocation changes mid-countdown -> promotion is evaluated against its value at settle time, not when pending was armed", () => {
     const now = 0;
     const given = autoMode({
       entries: [entry("a", "auto", 0), entry("b", "auto", 1)],
@@ -444,7 +443,7 @@ describe("auto phase / statusResponse changes", () => {
     void status; // TODO: act + assert once settle fires — expect promotion to fire using this updated preferredLocation.
   });
 
-  it.skip("backend reports connected/connecting/reconnecting for some id -> exits auto into connecting", () => {
+  it("backend reports connected/connecting/reconnecting for some id -> exits auto into connecting", () => {
     const given = autoMode({
       entries: [entry("a", "auto", 0)],
       active: "a",
