@@ -26,6 +26,7 @@ import {
 } from "@src/stores/settingsStore.ts";
 import { detectChannel } from "@src/utils/version.ts";
 import { evaluateUpdate } from "@src/utils/updateAvailability.ts";
+import { getPlatform } from "@src/utils/platform.ts";
 import {
   getInstallStatus,
   type InstallStatus,
@@ -56,6 +57,14 @@ export default function Updates() {
   const [pendingConnectInstall, setPendingConnectInstall] = createSignal(false);
   const [appVersion] = createResource(() => getVersion());
   const [showVersionDetails, setShowVersionDetails] = createSignal(false);
+  // The updater toolkit only exists on macOS, so the row is hidden elsewhere.
+  const [platform] = createResource(getPlatform);
+  // Probing the version spawns the updater binary; hold off until the row is
+  // actually on screen (the details are behind a 7-click reveal).
+  const [toolkitVersion] = createResource(
+    () => showVersionDetails() && platform() === "macos",
+    () => invoke<string | null>("get_toolkit_version").catch(() => null),
+  );
   let versionClickCount = 0;
   let lastVersionClickAt = 0;
 
@@ -359,6 +368,14 @@ export default function Updates() {
               {appVersion() ?? "—"}
             </span>
           </div>
+          <Show when={platform() === "macos"}>
+            <div class="text-xs">
+              Toolkit version:{" "}
+              <span class="text-text-primary">
+                {toolkitVersion() ?? "—"}
+              </span>
+            </div>
+          </Show>
         </Show>
       </div>
     </div>
