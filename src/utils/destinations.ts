@@ -103,6 +103,30 @@ export function resolveAutoDestination(
   return candidates[0] ?? null;
 }
 
+// Frozen copy for backupDestinationMode.ts, so resolveAutoDestination stays
+// free to evolve for the new destinationMode module without changing this
+// implementation's behavior underneath it.
+export function backupResolveAutoDestination(
+  available: Destination[],
+  destinations: Record<string, DestinationState>,
+  preferredLocation: string | null,
+): Destination | null {
+  const candidates = sortByHealthScore(available, destinations);
+  if (candidates.length === 0) return null;
+  if (preferredLocation) {
+    const preferred = candidates.find((d) => d.id === preferredLocation);
+    if (
+      preferred &&
+      isReadyToConnect(
+        destinations[preferredLocation]?.route_health ?? undefined,
+      )
+    ) {
+      return preferred;
+    }
+  }
+  return candidates[0] ?? null;
+}
+
 /** Whether a VPN session is live enough that switching destinations should
  * retarget it via connect() rather than just re-pointing the display. Includes
  * Disconnecting only when it still has a target — a plain disconnect has none. */

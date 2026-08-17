@@ -12,7 +12,7 @@ import type {
   DestinationState,
   ReconnectingInfo,
 } from "@src/services/vpnService.ts";
-import { resolveAutoDestination } from "@src/utils/destinations.ts";
+import { backupResolveAutoDestination } from "@src/utils/destinations.ts";
 import { getSortLatencyMs, isReadyToConnect } from "@src/utils/exitHealth.ts";
 
 // How long a better auto-candidate is held pending before it settles; also
@@ -164,7 +164,7 @@ export function createBackupDestinationMode(
   };
 
   const bestCandidateId = () =>
-    resolveAutoDestination(
+    backupResolveAutoDestination(
       appState.availableDestinations,
       appState.destinations,
       settings.preferredLocation,

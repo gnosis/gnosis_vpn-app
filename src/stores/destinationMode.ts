@@ -5,7 +5,7 @@ import type {
   Destination,
   DestinationState,
 } from "@src/services/vpnService.ts";
-import { resolveAutoDestination } from "@src/utils/destinations.ts";
+import { sortByHealthScore } from "@src/utils/destinations.ts";
 import { isReadyToConnect } from "@src/utils/exitHealth.ts";
 
 export type DestinationOrigin = "auto" | "user";
@@ -47,6 +47,29 @@ export type StatusSnapshot = {
   destinations: Record<string, DestinationState>;
 };
 
+// Stub — currently mirrors utils/destinations.ts's resolveAutoDestination;
+// will be reworked once the new model's candidate rules are settled.
+function resolveCandidate(
+  available: Destination[],
+  destinations: Record<string, DestinationState>,
+  preferredLocation: string | null,
+): Destination | null {
+  const candidates = sortByHealthScore(available, destinations);
+  if (candidates.length === 0) return null;
+  if (preferredLocation) {
+    const preferred = candidates.find((d) => d.id === preferredLocation);
+    if (
+      preferred &&
+      isReadyToConnect(
+        destinations[preferredLocation]?.route_health ?? undefined,
+      )
+    ) {
+      return preferred;
+    }
+  }
+  return candidates[0] ?? null;
+}
+
 /** Stub: nothing active yet, auto phase, no entries — `preferredLocation` is
  * captured once here since the settings store won't feed it in again. */
 export function createDestinationMode(
@@ -62,15 +85,11 @@ export function createDestinationMode(
   };
 }
 
-/** Bootstrap only, for now: nothing active yet means nothing to switch away
- * from, so the first ready candidate is picked immediately, no countdown. */
 export function applyStatusUpdate(
   mode: DestinationMode,
   status: StatusSnapshot,
 ): DestinationMode {
-  if (mode.mode.phase !== "auto" || mode.active !== null) return mode;
-
-  const candidate = resolveAutoDestination(
+  const candidate = resolveCandidate(
     status.availableDestinations,
     status.destinations,
     mode.preferredLocation,
