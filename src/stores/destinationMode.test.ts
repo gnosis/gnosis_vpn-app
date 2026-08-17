@@ -84,7 +84,6 @@ function snapshot(overrides: Partial<StatusSnapshot> = {}): StatusSnapshot {
   return {
     availableDestinations: [],
     destinations: {},
-    preferredLocation: null,
     ...overrides,
   };
 }
@@ -111,6 +110,7 @@ function autoMode(params: {
   active: string | null;
   pending?: AutoPending | null;
   nextKey?: number;
+  preferredLocation?: string | null;
 }): DestinationMode {
   const highestExistingKey = params.entries.reduce(
     (max, e) => Math.max(max, e.key),
@@ -122,6 +122,7 @@ function autoMode(params: {
     active: params.active,
     mode: { phase: "auto", pending: params.pending ?? null },
     nextKey: params.nextKey ?? highestExistingKey + 1,
+    preferredLocation: params.preferredLocation ?? null,
   };
 }
 
@@ -274,11 +275,10 @@ describe("auto phase / timers", () => {
       entries: [entry("a", "auto", 0), entry("b", "auto", 1)],
       active: "a",
       pending: pending("b", now),
+      preferredLocation: "b",
     });
-    const preferredLocation = "b";
     const preferredPromotionUsed = false;
     void given;
-    void preferredLocation;
     void preferredPromotionUsed; // TODO: act + assert — expect phase "selected", active "b", autoRevertAt set, promotion flag now consumed.
   });
 
@@ -288,17 +288,16 @@ describe("auto phase / timers", () => {
       entries: [entry("a", "auto", 0), entry("b", "auto", 1)],
       active: "a",
       pending: pending("b", now),
+      preferredLocation: "b",
     });
-    const preferredLocation = "b";
     const preferredPromotionUsed = true;
     void given;
-    void preferredLocation;
     void preferredPromotionUsed; // TODO: act + assert — expect active "b", pending null, phase still "auto" (promotion already spent).
   });
 });
 
 // ---------------------------------------------------------------------------
-// statusResponse changes (availableDestinations / destinations / preferredLocation)
+// statusResponse changes (availableDestinations / destinations)
 // ---------------------------------------------------------------------------
 
 describe("auto phase / statusResponse changes", () => {
@@ -425,22 +424,6 @@ describe("auto phase / statusResponse changes", () => {
     // does `active` stay "a" (stale) until the pending candidate settles, or
     // does losing `active` from availableDestinations need its own immediate
     // rule rather than reusing rule 5's "different id" path?
-  });
-
-  it("preferredLocation changes mid-countdown -> promotion is evaluated against its value at settle time, not when pending was armed", () => {
-    const now = 0;
-    const given = autoMode({
-      entries: [entry("a", "auto", 0), entry("b", "auto", 1)],
-      active: "a",
-      pending: pending("b", now), // armed while preferredLocation was null/other
-    });
-    const status = snapshot({
-      availableDestinations: [destination("a"), destination("b")],
-      destinations: { a: ready("a", 100), b: ready("b", 20) },
-      preferredLocation: "b", // changed after the pending was armed
-    });
-    void given;
-    void status; // TODO: act + assert once settle fires — expect promotion to fire using this updated preferredLocation.
   });
 
   it("backend reports connected/connecting/reconnecting for some id -> exits auto into connecting", () => {

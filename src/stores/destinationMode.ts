@@ -34,6 +34,9 @@ export type DestinationMode = {
   // Monotonic, never reused — deriving it from array position or
   // `entries.size` would let a re-added id collide with a stale render key.
   nextKey: number;
+  // From the settings store, not statusResponse — fixed at creation time,
+  // never touched by applyStatusUpdate.
+  preferredLocation: string | null;
 };
 
 // availableDestinations/destinations can change over the store's lifetime
@@ -41,8 +44,22 @@ export type DestinationMode = {
 export type StatusSnapshot = {
   availableDestinations: Destination[];
   destinations: Record<string, DestinationState>;
-  preferredLocation: string | null;
 };
+
+/** Stub: nothing active yet, auto phase, no entries — `preferredLocation` is
+ * captured once here since the settings store won't feed it in again. */
+export function createDestinationMode(
+  preferredLocation: string | null,
+): DestinationMode {
+  return {
+    entries: new Map(),
+    sequence: [],
+    active: null,
+    mode: { phase: "auto", pending: null },
+    nextKey: 0,
+    preferredLocation,
+  };
+}
 
 /** Bootstrap only, for now: nothing active yet means nothing to switch away
  * from, so the first ready candidate is picked immediately, no countdown. */
@@ -55,7 +72,7 @@ export function applyStatusUpdate(
   const candidate = resolveAutoDestination(
     status.availableDestinations,
     status.destinations,
-    status.preferredLocation,
+    mode.preferredLocation,
   );
   if (candidate === null) return mode;
 
@@ -70,5 +87,6 @@ export function applyStatusUpdate(
     active: candidate.id,
     mode: { phase: "auto", pending: null },
     nextKey: mode.nextKey + 1,
+    preferredLocation: mode.preferredLocation,
   };
 }
