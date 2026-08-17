@@ -3,9 +3,10 @@
 
 export type DestinationOrigin = "auto" | "user";
 
-export interface DestinationEntry {
+export interface Entry {
   id: string;
   origin: DestinationOrigin;
+  // renderkey, continously incremented
   key: number;
 }
 
@@ -15,22 +16,14 @@ export interface AutoPending {
   settleAt: number;
 }
 
-export type DestinationModel =
-  | { phase: "uninitialized" }
-  | {
-    phase: "auto";
-    entries: DestinationEntry[];
-    activeId: string;
-    pending: AutoPending | null;
-  }
-  | {
-    phase: "selected";
-    entries: DestinationEntry[];
-    activeId: string;
-    autoRevertAt: number;
-  }
-  | {
-    phase: "connecting";
-    entries: DestinationEntry[];
-    activeId: string;
-  };
+export type Mode =
+  | { phase: "auto"; pending: AutoPending | null }
+  | { phase: "selected"; autoRevertAt: number }
+  | { phase: "connecting" };
+
+export type DestinationMode = {
+  entries: Map<string, Entry>;
+  sequence: string[];
+  active: string | null;
+  mode: Mode;
+};
