@@ -2,7 +2,10 @@ import { createEffect, createRoot } from "solid-js";
 import { createStore, reconcile, type Store } from "solid-js/store";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
-import { evaluateUpdate } from "@src/utils/updateAvailability.ts";
+import {
+  evaluateUpdate,
+  resolveChannelResync,
+} from "@src/utils/updateAvailability.ts";
 
 import {
   type BalanceResponse,
@@ -200,7 +203,7 @@ export function createAppStore(): AppStoreTuple {
     pendingScreenTransition = null;
   };
 
-  const [settings] = useSettingsStore();
+  const [settings, settingsActions] = useSettingsStore();
   const [, logActions] = useLogsStore();
   const log = (content: string) => logActions.append(content);
   const logStatus = (response: StatusResponse) =>
@@ -589,6 +592,25 @@ export function createAppStore(): AppStoreTuple {
   // results. Always applies the helper output (even when isUpToDate is
   // undefined) so a channel switch that lands on a missing release clears
   // any stale banner state.
+  // Detect a new installed package (the app restarts through updates, so
+  // this compares against a persisted marker) and let resolveChannelResync
+  // decide whether the channel preference follows it.
+  createEffect(() => {
+    // Wait for the real snapshot: acting on DEFAULT_SETTINGS would mistake
+    // every launch for a first run and clobber the stored preference.
+    if (!settingsActions.hydrated()) return;
+    const pkg = state.serviceInfo?.package_version;
+    if (!pkg || pkg === settings.installedVersion) return;
+    void settingsActions.syncInstalledVersion(
+      pkg,
+      resolveChannelResync({
+        packageVersion: pkg,
+        installedVersion: settings.installedVersion,
+        channel: settings.channel,
+      }),
+    );
+  });
+
   createEffect(() => {
     const d = evaluateUpdate({
       packageVersion: state.serviceInfo?.package_version ?? null,

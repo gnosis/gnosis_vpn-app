@@ -473,6 +473,7 @@ fn full_settings() -> Settings {
         update_manifest: Some(manifest),
         channel: Some(UpdateChannel::Snapshot),
         dismissed_update_version: Some("0.28.0".to_string()),
+        installed_version: Some("0.28.5".to_string()),
         show_detailed_metrics: true,
         flag_display: FlagDisplay::Mono,
     }
