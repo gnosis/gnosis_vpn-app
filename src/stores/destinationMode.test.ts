@@ -1,14 +1,16 @@
-import { describe, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import type {
   Destination,
   DestinationState,
 } from "@src/services/vpnService.ts";
-import type {
-  AutoPending,
-  DestinationMode,
-  DestinationOrigin,
-  Entry,
+import {
+  applyStatusUpdate,
+  type AutoPending,
+  type DestinationMode,
+  type DestinationOrigin,
+  type Entry,
+  type StatusSnapshot,
 } from "./destinationMode.ts";
 
 // Stub test suite for the reworked data model — auto phase only for now.
@@ -22,17 +24,6 @@ import type {
 // ---------------------------------------------------------------------------
 // Test data
 // ---------------------------------------------------------------------------
-
-// availableDestinations/destinations are no longer assumed static — a future
-// pass feeds this module the live statusResponse slice so it can react when
-// entries appear, disappear, or change health, not just once at startup.
-// Named separately from the module's own types since destinationMode.ts
-// doesn't define this input shape yet.
-type StatusSnapshot = {
-  availableDestinations: Destination[];
-  destinations: Record<string, DestinationState>;
-  preferredLocation: string | null;
-};
 
 const BASE_DESTINATION: Destination = {
   id: "a",
@@ -122,12 +113,18 @@ function autoMode(params: {
   entries: Entry[];
   active: string | null;
   pending?: AutoPending | null;
+  nextKey?: number;
 }): DestinationMode {
+  const highestExistingKey = params.entries.reduce(
+    (max, e) => Math.max(max, e.key),
+    -1,
+  );
   return {
     entries: new Map(params.entries.map((e) => [e.id, e])),
     sequence: params.entries.map((e) => e.id),
     active: params.active,
     mode: { phase: "auto", pending: params.pending ?? null },
+    nextKey: params.nextKey ?? highestExistingKey + 1,
   };
 }
 
@@ -143,8 +140,15 @@ describe("auto phase / bootstrap", () => {
       availableDestinations: [destination("a")],
       destinations: { a: ready("a") },
     });
-    void given;
-    void status; // TODO: act + assert — expect active "a", single auto-origin entry, no pending.
+
+    const next = applyStatusUpdate(given, status);
+
+    expect(next.active).toBe("a");
+    expect(next.sequence).toEqual(["a"]);
+    expect([...next.entries.values()]).toEqual([
+      { id: "a", origin: "auto", key: 0 },
+    ]);
+    expect(next.mode).toEqual({ phase: "auto", pending: null });
   });
 
   it("first statusResponse arrives with no ready destination -> stays uninitialized (active null)", () => {
