@@ -13,13 +13,10 @@ import {
   type StatusSnapshot,
 } from "./destinationMode.ts";
 
-// Stub test suite for the reworked data model — auto phase only for now.
-// Every case's "given" state is fully prepared, but the act/assert step is
-// deliberately left as a TODO until the module itself (and the reducer API
-// it exposes) is designed — each test currently passes vacuously. The
-// `void ...` lines only exist to satisfy noUnusedLocals until each TODO is
-// filled in — delete them once the act/assert step uses these values for
-// real.
+// Stub suite for the reworked auto-phase model: each unimplemented case has
+// its "given" state prepared, but act/assert is left as a TODO — it passes
+// vacuously until filled in. `void ...` only silences noUnusedLocals until
+// then; remove it once the assertions use these values.
 
 // ---------------------------------------------------------------------------
 // Test data
@@ -76,12 +73,12 @@ function notReady(id: string): DestinationState {
   return { destination: destination(id), route_health: notReadyState() };
 }
 
-// No entry in `destinations` at all — distinct from `notReady`, which still
-// carries a (non-ready) health record. Used for "vanished from the backend's
-// destinations map" scenarios, not just "known but currently unhealthy".
+// Distinct from `notReady`: no health record at all, vs. one that's present
+// but unhealthy.
 function missingHealthData(id: string): DestinationState {
   return { destination: destination(id), route_health: null };
 }
+void missingHealthData; // unused until the "disappears" scenario below is implemented
 
 function snapshot(overrides: Partial<StatusSnapshot> = {}): StatusSnapshot {
   return {
@@ -129,8 +126,8 @@ function autoMode(params: {
 }
 
 // ---------------------------------------------------------------------------
-// Bootstrap — no entries yet (replaces the old `uninitialized` phase; this
-// model has no such phase, `auto` with `active: null` is the starting point)
+// Bootstrap — this model has no `uninitialized` phase; `auto` with
+// `active: null` is the starting point instead.
 // ---------------------------------------------------------------------------
 
 describe("auto phase / bootstrap", () => {
@@ -411,9 +408,8 @@ describe("auto phase / statusResponse changes", () => {
   });
 
   it("active destination disappears entirely from availableDestinations -> best-candidate recompute ignores it, starts fresh pending toward the next best", () => {
-    // New scenario: destinations are no longer assumed static. Deliberately
-    // distinct from "active becomes not-ready" (still present, just unhealthy)
-    // — here `active`'s id is gone from `availableDestinations` outright.
+    // Distinct from "active becomes not-ready": here `active`'s id is gone
+    // from `availableDestinations` outright, not just unhealthy.
     const given = autoMode({
       entries: [entry("a", "auto", 0), entry("b", "auto", 1)],
       active: "a",
@@ -425,7 +421,7 @@ describe("auto phase / statusResponse changes", () => {
     });
     void given;
     void status;
-    void missingHealthData; // TODO: act + assert — decide/confirm expected shape once the reducer exists:
+    // TODO: act + assert — decide expected shape once the reducer exists:
     // does `active` stay "a" (stale) until the pending candidate settles, or
     // does losing `active` from availableDestinations need its own immediate
     // rule rather than reusing rule 5's "different id" path?
@@ -455,8 +451,6 @@ describe("auto phase / statusResponse changes", () => {
     const connectingId = "a";
     void given;
     void connectingId; // TODO: act + assert — expect phase "connecting", active unchanged, entry retained.
-    // Deliberately not covering "connecting destination disappears from
-    // availableDestinations" here — out of scope per the client already
-    // handling that case; nothing for this module to react to.
+    // Not covering "connecting destination disappears" — the client handles that, not this module.
   });
 });

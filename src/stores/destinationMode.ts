@@ -1,5 +1,5 @@
-// Reworked destination-mode data model — auto phase only for now.
-// See [[backupDestinationMode.ts]] for the implementation being replaced.
+// Reworked destination-mode model (auto phase only) — see
+// [[backupDestinationMode.ts]] for what this replaces.
 
 import type {
   Destination,
@@ -12,7 +12,6 @@ export type DestinationOrigin = "auto" | "user";
 export interface Entry {
   id: string;
   origin: DestinationOrigin;
-  // renderkey, continously incremented
   key: number;
 }
 
@@ -32,25 +31,21 @@ export type DestinationMode = {
   sequence: string[];
   active: string | null;
   mode: Mode;
-  // Monotonic, never reused even across removals — see the render-key
-  // discussion: deriving it from array position, or from `entries.size`,
-  // would let a re-added id collide with (or inherit) a stale animation key.
+  // Monotonic, never reused — deriving it from array position or
+  // `entries.size` would let a re-added id collide with a stale render key.
   nextKey: number;
 };
 
-// The statusResponse-derived slice this module reacts to. Not assumed
-// static — availableDestinations/destinations can change over the store's
-// lifetime (a destination can appear, disappear, or change health), not
-// just once at startup.
+// availableDestinations/destinations can change over the store's lifetime
+// now, not just once at startup.
 export type StatusSnapshot = {
   availableDestinations: Destination[];
   destinations: Record<string, DestinationState>;
   preferredLocation: string | null;
 };
 
-/** Bootstrap only, for now: while `auto` and nothing is active yet, the
- * first ready candidate is picked immediately — no countdown, since there's
- * nothing yet to switch away from. */
+/** Bootstrap only, for now: nothing active yet means nothing to switch away
+ * from, so the first ready candidate is picked immediately, no countdown. */
 export function applyStatusUpdate(
   mode: DestinationMode,
   status: StatusSnapshot,
