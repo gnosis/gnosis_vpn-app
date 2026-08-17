@@ -6,6 +6,7 @@ import type {
   DestinationState,
 } from "@src/services/vpnService.ts";
 import { resolveAutoDestination } from "@src/utils/destinations.ts";
+import { isReadyToConnect } from "@src/utils/exitHealth.ts";
 
 export type DestinationOrigin = "auto" | "user";
 
@@ -75,6 +76,12 @@ export function applyStatusUpdate(
     mode.preferredLocation,
   );
   if (candidate === null) return mode;
+  // resolveAutoDestination falls back to the first available destination
+  // even when none are ready — bootstrap must wait for a real one instead.
+  const candidateReady = isReadyToConnect(
+    status.destinations[candidate.id]?.route_health ?? undefined,
+  );
+  if (!candidateReady) return mode;
 
   const freshEntry: Entry = {
     id: candidate.id,

@@ -155,8 +155,13 @@ describe("auto phase / bootstrap", () => {
       availableDestinations: [destination("a")],
       destinations: { a: notReady("a") },
     });
-    void given;
-    void status; // TODO: act + assert — expect active still null, no entries.
+
+    const next = applyStatusUpdate(given, status);
+
+    expect(next.active).toBeNull();
+    expect(next.sequence).toEqual([]);
+    expect(next.entries.size).toBe(0);
+    expect(next.mode).toEqual({ phase: "auto", pending: null });
   });
 });
 
