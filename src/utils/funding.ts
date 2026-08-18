@@ -1,141 +1,90 @@
 import type {
   BalanceResponse,
-  FundingIssue,
+  FundingStatus,
 } from "@src/services/vpnService.ts";
-import {
-  BYTES_PER_GB,
-  computeEffectiveCredit,
-  sumCapacityStake,
-} from "@src/utils/credit.ts";
 
 export type StatusText = "Sufficient" | "Low" | "Empty" | string;
 
-/**
- * Funding status is derived from hard thresholds on the balance response, not
- * from the daemon's funding issues — those only reflect channel/Safe message
- * capacity and read "empty" while funds sit in the Safe or on the node EOA.
- *
- * Traffic (total byte capacity: Safe + channels + node EOA):
- *   <  3 GB -> Empty
- *   <  5 GB -> Low
- *   >= 5 GB -> Sufficient
- *
- * Gas (node xDAI):
- *   <  0.0015 xDAI -> Empty
- *   <  0.0035 xDAI -> Low
- *   >= 0.0035 xDAI -> Sufficient
- *
- * The daemon's funding issues remain as fallback only while there is no
- * capacity data at all (no balance yet, or a fresh daemon that has not
- * computed capacity_allocations). As soon as allocations are present the
- * thresholds win — node EOA funds count toward traffic via the struct's
- * `node` part.
- *
- * Keep thresholds in sync with src-tauri/src/icons.rs (tray icon).
- */
+// The daemon pools wxHOPR/xDAI across channels, Safe, and the node EOA into
+// Good/Low/Empty traffic and gas levels (see gnosis_vpn-lib's FundingStatus) —
+// this module just reads that verdict instead of re-deriving it. balance's
+// funding_status (60s poll, freshest capacity data) is preferred; runModeStatus
+// (the ~2s status poll's own computation) is used only until the first balance
+// response arrives.
+function resolveFundingStatus(
+  balance: BalanceResponse | null,
+  runModeStatus: FundingStatus | null,
+): FundingStatus | null {
+  return balance?.funding_status ?? runModeStatus ?? null;
+}
 
-export const TRAFFIC_EMPTY_BELOW = 3n * BYTES_PER_GB;
-export const TRAFFIC_LOW_BELOW = 5n * BYTES_PER_GB;
-// 0.0015 / 0.0035 xDAI in wei
-export const XDAI_EMPTY_BELOW = 1_500_000_000_000_000n;
-export const XDAI_LOW_BELOW = 3_500_000_000_000_000n;
+function toStatusText(level: FundingStatus["traffic"]): StatusText {
+  return level === "Good" ? "Sufficient" : level;
+}
 
 export function deriveTrafficStatus(
   balance: BalanceResponse | null,
-  issues: FundingIssue[],
+  runModeStatus: FundingStatus | null,
 ): StatusText {
-  if (!balance || !balance.capacity_allocations) {
-    return trafficStatusFromIssues(issues);
-  }
-  const totalBytes = computeEffectiveCredit(balance);
-  if (totalBytes < TRAFFIC_EMPTY_BELOW) return "Empty";
-  if (totalBytes < TRAFFIC_LOW_BELOW) return "Low";
-  return "Sufficient";
+  const status = resolveFundingStatus(balance, runModeStatus);
+  return status ? toStatusText(status.traffic) : "Sufficient";
 }
 
 export function deriveNodeStatus(
   balance: BalanceResponse | null,
-  issues: FundingIssue[],
+  runModeStatus: FundingStatus | null,
 ): StatusText {
-  if (!balance) return nodeStatusFromIssues(issues);
-  if (balance.node < XDAI_EMPTY_BELOW) return "Empty";
-  if (balance.node < XDAI_LOW_BELOW) return "Low";
-  return "Sufficient";
+  const status = resolveFundingStatus(balance, runModeStatus);
+  return status ? toStatusText(status.gas) : "Sufficient";
 }
 
 // Worst of traffic and gas status — the wallet icon must flag either problem.
 export function deriveOverallStatus(
   balance: BalanceResponse | null,
-  issues: FundingIssue[],
+  runModeStatus: FundingStatus | null,
 ): StatusText {
-  const traffic = deriveTrafficStatus(balance, issues);
-  const gas = deriveNodeStatus(balance, issues);
+  const traffic = deriveTrafficStatus(balance, runModeStatus);
+  const gas = deriveNodeStatus(balance, runModeStatus);
   if (traffic === "Empty" || gas === "Empty") return "Empty";
   if (traffic === "Low" || gas === "Low") return "Low";
   return "Sufficient";
 }
 
-// Recommended top-up amounts for the Add Funds modal. ideal_balance is the
-// recommended balance from edgli; it sits above the Sufficient thresholds, so
-// a positive diff alone does not mean funds are needed — only recommend when
-// the corresponding status is Low or Empty.
+// Recommended top-up amounts for the Add Funds modal. The daemon already
+// gates these to null while the corresponding level is Good.
 export function deriveWxhoprDeficit(
   balance: BalanceResponse | null,
-  issues: FundingIssue[],
+  runModeStatus: FundingStatus | null,
 ): bigint | null {
-  if (deriveTrafficStatus(balance, issues) === "Sufficient") return null;
-  if (!balance?.ideal_balance) return null;
-  const diff = balance.ideal_balance.wxhopr - sumCapacityStake(balance);
-  return diff > 0n ? diff : null;
+  return resolveFundingStatus(balance, runModeStatus)?.wxhopr_deficit ?? null;
 }
 
 export function deriveXdaiDeficit(
   balance: BalanceResponse | null,
-  issues: FundingIssue[],
+  runModeStatus: FundingStatus | null,
 ): bigint | null {
-  if (deriveNodeStatus(balance, issues) === "Sufficient") return null;
-  if (!balance?.ideal_balance) return null;
-  const diff = balance.ideal_balance.xdai - balance.node;
-  return diff > 0n ? diff : null;
+  return resolveFundingStatus(balance, runModeStatus)?.xdai_deficit ?? null;
 }
 
-function trafficStatusFromIssues(issues: FundingIssue[]): StatusText {
-  if (
-    issues.includes("Unfunded") ||
-    issues.includes("ChannelsOutOfFunds") ||
-    issues.includes("SafeOutOfFunds")
-  ) return "Empty";
-  if (issues.includes("SafeLowOnFunds")) return "Low";
-  return "Sufficient";
-}
+const LEVEL_SEVERITY = { Empty: 2, Low: 1, Good: 0 } as const;
 
-function nodeStatusFromIssues(issues: FundingIssue[]): StatusText {
-  if (issues.includes("Unfunded") || issues.includes("NodeUnderfunded")) {
-    return "Empty";
-  }
-  if (issues.includes("NodeLowOnFunds")) return "Low";
-  return "Sufficient";
-}
+// Describes the worse of traffic/gas for the warning banner. The daemon only
+// hands back the two pooled levels (not per-location detail like "Safe out of
+// funds" vs "channels out of funds"), so the message is phrased per resource.
+export function describeCriticalIssue(
+  balance: BalanceResponse | null,
+  runModeStatus: FundingStatus | null,
+): string | null {
+  const status = resolveFundingStatus(balance, runModeStatus);
+  if (!status) return null;
 
-// Backend orders issues by priority, so issues[0] is always the most critical.
-export function describeCriticalIssue(issues: FundingIssue[]): string | null {
-  if (issues.length === 0) return null;
-  return getIssueDescription(issues[0]);
-}
+  const trafficIsWorse =
+    LEVEL_SEVERITY[status.traffic] >= LEVEL_SEVERITY[status.gas];
+  const worstLevel = trafficIsWorse ? status.traffic : status.gas;
+  if (worstLevel === "Good") return null;
 
-function getIssueDescription(issue: FundingIssue): string {
-  switch (issue) {
-    case "Unfunded":
-      return "System not funded - cannot work at all";
-    case "ChannelsOutOfFunds":
-      return "Channels out of funds - no traffic possible (Safe or EOA empty)";
-    case "SafeOutOfFunds":
-      return "Safe out of funds - cannot top up channels";
-    case "SafeLowOnFunds":
-      return "Safe low on funds - top up soon";
-    case "NodeUnderfunded":
-      return "Node underfunded - cannot manage channels";
-    case "NodeLowOnFunds":
-      return "Node low on funds - top up soon";
-  }
+  const urgency = worstLevel === "Empty" ? "empty" : "low";
+  return trafficIsWorse
+    ? `Traffic funds are ${urgency} — top up wxHOPR`
+    : `Gas is ${urgency} — top up xDAI`;
 }

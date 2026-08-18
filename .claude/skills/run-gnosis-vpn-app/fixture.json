@@ -6,7 +6,12 @@
       "Ok": {
         "run_mode": {
           "Running": {
-            "funding_issues": ["SafeLowOnFunds"],
+            "funding_status": {
+              "traffic": "Low",
+              "gas": "Good",
+              "wxhopr_deficit": "500000000000000000",
+              "xdai_deficit": null
+            },
             "hopr_status": "Running"
           }
         },
@@ -57,7 +62,12 @@
           "node_peer_id": "12D3KooWFixture000000000000000000000000000000000",
           "safe_address": "0x4444444444444444444444444444444444444444"
         },
-        "funding_issues": ["SafeLowOnFunds"],
+        "funding_status": {
+          "traffic": "Low",
+          "gas": "Good",
+          "wxhopr_deficit": "500000000000000000",
+          "xdai_deficit": null
+        },
         "ideal_balance": null,
         "capacity_allocations": null
       }

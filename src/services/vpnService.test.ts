@@ -152,7 +152,7 @@ describe("BalanceResponseSchema", () => {
     expect(result.data.channels_out).toBe(0n);
   });
 
-  it("parses balance response with ideal_balance and funding_issues", () => {
+  it("parses balance response with ideal_balance and funding_status", () => {
     const result = BalanceResponseSchema.safeParse(balanceResponseWithIssues);
     expect(result.success).toBe(true);
     if (!result.success) return;
@@ -162,6 +162,9 @@ describe("BalanceResponseSchema", () => {
     expect(typeof result.data.ideal_balance!.xdai).toBe("bigint");
     expect(result.data.ideal_balance!.wxhopr - result.data.safe)
       .toBeGreaterThan(0n);
+    expect(result.data.funding_status).not.toBeNull();
+    expect(result.data.funding_status!.traffic).toBe("Low");
+    expect(typeof result.data.funding_status!.wxhopr_deficit).toBe("bigint");
   });
 
   it("parses balance response with capacity_allocations", () => {

@@ -37,10 +37,10 @@ function StatusDot(props: { status: StatusText }) {
 export default function BalancePopup(props: Props) {
   const [appState] = useAppStore();
 
-  const fundingIssues = createMemo(() =>
+  const runModeStatus = createMemo(() =>
     isRunningRunMode(appState.runMode)
-      ? (appState.runMode.Running.funding_issues ?? [])
-      : []
+      ? appState.runMode.Running.funding_status
+      : null
   );
 
   const effectiveCredit = createMemo(() => {
@@ -56,10 +56,10 @@ export default function BalancePopup(props: Props) {
   });
 
   const trafficStatus = createMemo(() =>
-    deriveTrafficStatus(appState.balance, fundingIssues())
+    deriveTrafficStatus(appState.balance, runModeStatus())
   );
   const gasStatus = createMemo(() =>
-    deriveNodeStatus(appState.balance, fundingIssues())
+    deriveNodeStatus(appState.balance, runModeStatus())
   );
 
   return (

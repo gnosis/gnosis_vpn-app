@@ -2,8 +2,8 @@ use gnosis_vpn_app_lib::settings::{FlagDisplay, Settings, SortOrder, UpdateChann
 use gnosis_vpn_app_lib::types;
 use gnosis_vpn_app_lib::update_install::InstallStatus;
 use gnosis_vpn_lib::balance::{
-    Balance, BalanceRecommendation, Balances, Capacity, CapacityAllocations, FundingIssue, WxHOPR,
-    XDai,
+    Balance, BalanceRecommendation, Balances, Capacity, CapacityAllocations, FundingLevel,
+    FundingStatus, WxHOPR, XDai,
 };
 use gnosis_vpn_lib::check_update;
 use gnosis_vpn_lib::command::RouteHealthView;
@@ -130,7 +130,7 @@ fn generate_fixtures() {
         &fixtures_dir,
         "status_running.json",
         &status_base(types::RunMode::Running {
-            funding_issues: None,
+            funding_status: None,
             hopr_status: None,
         }),
     );
@@ -318,7 +318,7 @@ fn generate_fixtures() {
     ));
     write(&fixtures_dir, "balance_response.json", &balance_zero);
 
-    // balance_response — with ideal_balance and a funding issue
+    // balance_response — with ideal_balance and a low funding status
     // 1 wxHOPR = 10^18 wei, 0.05 xDAI = 5 * 10^16 wei
     let balances_with_funds = Balances {
         node_xdai: Balance::<XDai>::from(30_000_000_000_000_000u64), // 0.03 xDAI
@@ -333,16 +333,19 @@ fn generate_fixtures() {
         txs_to_start: 0,
         xdai_fee_per_tx: Balance::<XDai>::from(50_000_000_000_000_000u64), // 0.05 xDAI
     };
+    let funding_status = FundingStatus {
+        traffic: FundingLevel::Low,
+        gas: FundingLevel::Low,
+        wxhopr_deficit: Some(Balance::<WxHOPR>::from(1_000_000_000_000_000_000u64)), // 1 wxHOPR
+        xdai_deficit: Some(Balance::<XDai>::from(20_000_000_000_000_000u64)),        // 0.02 xDAI
+    };
     let balance_with_issues = types::BalanceResponse::from(command::BalanceResponse::build(
         &balance_info(),
         &balances_with_funds,
         &HashMap::new(),
         None,
         Some(ideal),
-        Some(vec![
-            FundingIssue::NodeLowOnFunds,
-            FundingIssue::SafeLowOnFunds,
-        ]),
+        Some(funding_status),
     ));
     write(
         &fixtures_dir,

@@ -163,20 +163,24 @@ export const DisconnectResponseSchema = z.union([
 ]);
 export type DisconnectResponse = z.infer<typeof DisconnectResponseSchema>;
 
-export const FundingIssueSchema = z.enum([
-  "Unfunded",
-  "ChannelsOutOfFunds",
-  "SafeOutOfFunds",
-  "SafeLowOnFunds",
-  "NodeUnderfunded",
-  "NodeLowOnFunds",
-]);
-export type FundingIssue = z.infer<typeof FundingIssueSchema>;
-
 // Hopli amounts arrive as raw wei integer strings (e.g. "1000000000000000000").
 // Transforming to bigint at the boundary catches malformed values early and
 // removes the need for BigInt() calls throughout the codebase.
 const BigIntStringSchema = z.string().transform((s) => BigInt(s));
+
+export const FundingLevelSchema = z.enum(["Good", "Low", "Empty"]);
+export type FundingLevel = z.infer<typeof FundingLevelSchema>;
+
+// Traffic (wxHOPR) and gas (xDAI) health, already pooled by the daemon across
+// open channels, Safe, and the node EOA, plus how much more is needed to reach
+// the ideal recommendation.
+export const FundingStatusSchema = z.object({
+  traffic: FundingLevelSchema,
+  gas: FundingLevelSchema,
+  wxhopr_deficit: BigIntStringSchema.nullable(),
+  xdai_deficit: BigIntStringSchema.nullable(),
+});
+export type FundingStatus = z.infer<typeof FundingStatusSchema>;
 
 export const BalanceRecommendationSchema = z.object({
   wxhopr: BigIntStringSchema,
@@ -252,7 +256,7 @@ export const WarmupSchema = z.object({
 export type Warmup = z.infer<typeof WarmupSchema>;
 
 export const RunningSchema = z.object({
-  funding_issues: z.array(FundingIssueSchema).nullable(),
+  funding_status: FundingStatusSchema.nullable(),
   hopr_status: WarmupStatusSchema.nullable(),
 });
 export type Running = z.infer<typeof RunningSchema>;
@@ -291,7 +295,7 @@ export const BalanceResponseSchema = z.object({
   safe: BigIntStringSchema,
   channels_out: BigIntStringSchema,
   info: InfoSchema,
-  funding_issues: z.array(FundingIssueSchema).nullable(),
+  funding_status: FundingStatusSchema.nullable(),
   ideal_balance: BalanceRecommendationSchema.nullable(),
   capacity_allocations: CapacityAllocationsSchema.nullable(),
 });

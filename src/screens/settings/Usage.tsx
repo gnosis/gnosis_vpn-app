@@ -39,10 +39,10 @@ export default function Usage() {
       ? appState.runMode.PreparingSafe
       : null);
 
-  const fundingIssues = createMemo(() =>
+  const runModeStatus = createMemo(() =>
     isRunningRunMode(appState.runMode)
-      ? (appState.runMode.Running.funding_issues ?? [])
-      : []
+      ? appState.runMode.Running.funding_status
+      : null
   );
 
   const effectiveCredit = createMemo(() => {
@@ -58,13 +58,13 @@ export default function Usage() {
   });
 
   const trafficStatus = createMemo(() =>
-    deriveTrafficStatus(appState.balance, fundingIssues())
+    deriveTrafficStatus(appState.balance, runModeStatus())
   );
   const gasStatus = createMemo(() =>
-    deriveNodeStatus(appState.balance, fundingIssues())
+    deriveNodeStatus(appState.balance, runModeStatus())
   );
   const overallStatus = createMemo(() =>
-    deriveOverallStatus(appState.balance, fundingIssues())
+    deriveOverallStatus(appState.balance, runModeStatus())
   );
 
   const wxhoprRaw = () =>
@@ -75,11 +75,11 @@ export default function Usage() {
   const isBalanceLoading = () => appState.balance === null;
 
   const wxhoprDeficit = createMemo(() =>
-    deriveWxhoprDeficit(appState.balance, fundingIssues())
+    deriveWxhoprDeficit(appState.balance, runModeStatus())
   );
 
   const xdaiDeficit = createMemo(() =>
-    deriveXdaiDeficit(appState.balance, fundingIssues())
+    deriveXdaiDeficit(appState.balance, runModeStatus())
   );
 
   return (
@@ -116,7 +116,7 @@ export default function Usage() {
           }
           <Show
             when={overallStatus() !== "Sufficient" &&
-              describeCriticalIssue(fundingIssues())}
+              describeCriticalIssue(appState.balance, runModeStatus())}
           >
             {(description) => (
               <div

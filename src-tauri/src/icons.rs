@@ -9,8 +9,6 @@ use tauri::{AppHandle, Manager, tray::TrayIcon};
 
 use tokio::time::sleep;
 
-use gnosis_vpn_lib::balance::FundingIssue;
-
 use crate::commands::set_app_icon;
 use crate::types::{BalanceResponse, ConnectionState, RunMode};
 
@@ -214,31 +212,32 @@ pub enum FundsLevel {
     Empty,
 }
 
-// Funding thresholds — keep in sync with src/utils/funding.ts.
-const GIB: u64 = 1 << 30;
-const TRAFFIC_EMPTY_BELOW_BYTES: u64 = 3 * GIB;
-const TRAFFIC_LOW_BELOW_BYTES: u64 = 5 * GIB;
-// 0.0015 / 0.0035 xDAI in wei
-const XDAI_EMPTY_BELOW_WEI: u128 = 1_500_000_000_000_000;
-const XDAI_LOW_BELOW_WEI: u128 = 3_500_000_000_000_000;
+impl From<gnosis_vpn_lib::balance::FundingLevel> for FundsLevel {
+    fn from(level: gnosis_vpn_lib::balance::FundingLevel) -> Self {
+        match level {
+            gnosis_vpn_lib::balance::FundingLevel::Good => FundsLevel::Sufficient,
+            gnosis_vpn_lib::balance::FundingLevel::Low => FundsLevel::Low,
+            gnosis_vpn_lib::balance::FundingLevel::Empty => FundsLevel::Empty,
+        }
+    }
+}
 
-// Mirrors deriveOverallStatus in src/utils/funding.ts — keep both in sync.
-// Traffic is judged by total byte capacity (Safe + channels + node EOA) and
-// gas by the node's xDAI, falling back to the daemon's funding issues while
-// balance data hasn't been polled yet.
+// The daemon already pools traffic (Safe + channels + node EOA) and gas (node xDAI)
+// into Good/Low/Empty levels — this just picks the worst of the two. Prefers the
+// balance poll's status (fresher capacity data) and falls back to the status poll's
+// while a balance response hasn't arrived yet.
 pub fn funds_level(run_mode: &RunMode, balance: Option<&BalanceResponse>) -> FundsLevel {
-    let issues = match run_mode {
-        RunMode::Running { funding_issues, .. } => funding_issues.as_deref().unwrap_or(&[]),
+    let run_mode_status = match run_mode {
+        RunMode::Running { funding_status, .. } => funding_status.as_ref(),
         _ => return FundsLevel::Sufficient,
     };
-
-    let traffic = balance
-        .and_then(traffic_level)
-        .unwrap_or_else(|| traffic_level_from_issues(issues));
-    let gas = balance
-        .and_then(gas_level)
-        .unwrap_or_else(|| gas_level_from_issues(issues));
-    worst(traffic, gas)
+    let Some(status) = balance
+        .and_then(|b| b.funding_status.as_ref())
+        .or(run_mode_status)
+    else {
+        return FundsLevel::Sufficient;
+    };
+    worst(status.traffic.into(), status.gas.into())
 }
 
 fn worst(a: FundsLevel, b: FundsLevel) -> FundsLevel {
@@ -246,72 +245,6 @@ fn worst(a: FundsLevel, b: FundsLevel) -> FundsLevel {
         (FundsLevel::Empty, _) | (_, FundsLevel::Empty) => FundsLevel::Empty,
         (FundsLevel::Low, _) | (_, FundsLevel::Low) => FundsLevel::Low,
         _ => FundsLevel::Sufficient,
-    }
-}
-
-// None only while the daemon has computed no capacity data at all; the
-// allocations carry node EOA and Safe funds alongside the open channels.
-fn traffic_level(balance: &BalanceResponse) -> Option<FundsLevel> {
-    let caps = balance.capacity_allocations.as_ref()?;
-    let total = caps
-        .peer_allocations
-        .values()
-        .map(|c| c.byte_capacity)
-        .chain([caps.node.byte_capacity, caps.safe.byte_capacity])
-        .fold(0u64, u64::saturating_add);
-    Some(if total < TRAFFIC_EMPTY_BELOW_BYTES {
-        FundsLevel::Empty
-    } else if total < TRAFFIC_LOW_BELOW_BYTES {
-        FundsLevel::Low
-    } else {
-        FundsLevel::Sufficient
-    })
-}
-
-fn gas_level(balance: &BalanceResponse) -> Option<FundsLevel> {
-    let node_wei: u128 = balance.node.parse().ok()?;
-    Some(if node_wei < XDAI_EMPTY_BELOW_WEI {
-        FundsLevel::Empty
-    } else if node_wei < XDAI_LOW_BELOW_WEI {
-        FundsLevel::Low
-    } else {
-        FundsLevel::Sufficient
-    })
-}
-
-fn traffic_level_from_issues(issues: &[FundingIssue]) -> FundsLevel {
-    if issues.iter().any(|i| {
-        matches!(
-            i,
-            FundingIssue::Unfunded
-                | FundingIssue::ChannelsOutOfFunds
-                | FundingIssue::SafeOutOfFunds
-        )
-    }) {
-        FundsLevel::Empty
-    } else if issues
-        .iter()
-        .any(|i| matches!(i, FundingIssue::SafeLowOnFunds))
-    {
-        FundsLevel::Low
-    } else {
-        FundsLevel::Sufficient
-    }
-}
-
-fn gas_level_from_issues(issues: &[FundingIssue]) -> FundsLevel {
-    if issues
-        .iter()
-        .any(|i| matches!(i, FundingIssue::Unfunded | FundingIssue::NodeUnderfunded))
-    {
-        FundsLevel::Empty
-    } else if issues
-        .iter()
-        .any(|i| matches!(i, FundingIssue::NodeLowOnFunds))
-    {
-        FundsLevel::Low
-    } else {
-        FundsLevel::Sufficient
     }
 }
 
@@ -502,29 +435,29 @@ pub fn start_icon_heartbeat(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{TauriCapacity, TauriCapacityAllocations};
-    use gnosis_vpn_lib::balance::Address;
+    use crate::types::TauriFundingStatus;
+    use gnosis_vpn_lib::balance::{Address, FundingLevel as LibFundingLevel};
     use gnosis_vpn_lib::command;
 
-    fn running(issues: Vec<FundingIssue>) -> RunMode {
+    fn running(status: Option<TauriFundingStatus>) -> RunMode {
         RunMode::Running {
-            funding_issues: Some(issues),
+            funding_status: status,
             hopr_status: None,
         }
     }
 
-    fn capacity(byte_capacity: u64) -> TauriCapacity {
-        TauriCapacity {
-            stake: "0".to_string(),
-            expected_messages: 0,
-            min_guaranteed_messages: 0,
-            byte_capacity,
+    fn status(traffic: LibFundingLevel, gas: LibFundingLevel) -> TauriFundingStatus {
+        TauriFundingStatus {
+            traffic,
+            gas,
+            wxhopr_deficit: None,
+            xdai_deficit: None,
         }
     }
 
-    fn balance(allocation_bytes: Option<Vec<u64>>, node_wei: &str) -> BalanceResponse {
+    fn balance(status: Option<TauriFundingStatus>) -> BalanceResponse {
         BalanceResponse {
-            node: node_wei.to_string(),
+            node: "0".to_string(),
             safe: "0".to_string(),
             channels_out: "0".to_string(),
             info: command::Info {
@@ -532,23 +465,11 @@ mod tests {
                 node_peer_id: String::new(),
                 safe_address: Address::from([0u8; 20]),
             },
-            funding_issues: None,
+            funding_status: status,
             ideal_balance: None,
-            // the byte totals go into peer entries; node and safe stay zero —
-            // traffic_level only cares about the sum across all three parts
-            capacity_allocations: allocation_bytes.map(|bytes| TauriCapacityAllocations {
-                peer_allocations: bytes
-                    .into_iter()
-                    .enumerate()
-                    .map(|(i, b)| (format!("0x{i:040x}"), capacity(b)))
-                    .collect(),
-                node: capacity(0),
-                safe: capacity(0),
-            }),
+            capacity_allocations: None,
         }
     }
-
-    const XDAI_OK: &str = "10000000000000000"; // 0.01 xDAI
 
     #[test]
     fn funds_level_ignores_non_running_modes() {
@@ -561,7 +482,7 @@ mod tests {
             FundsLevel::Sufficient
         );
         // even a drained balance is ignored outside Running
-        let drained = balance(Some(vec![0]), "0");
+        let drained = balance(Some(status(LibFundingLevel::Empty, LibFundingLevel::Empty)));
         assert_eq!(
             funds_level(&RunMode::NotRunning, Some(&drained)),
             FundsLevel::Sufficient
@@ -569,120 +490,33 @@ mod tests {
     }
 
     #[test]
-    fn funds_level_falls_back_to_issues_without_balance() {
-        assert_eq!(funds_level(&running(vec![]), None), FundsLevel::Sufficient);
-        assert_eq!(
-            funds_level(&running(vec![FundingIssue::SafeLowOnFunds]), None),
-            FundsLevel::Low
-        );
-        assert_eq!(
-            funds_level(&running(vec![FundingIssue::NodeLowOnFunds]), None),
-            FundsLevel::Low
-        );
-        assert_eq!(
-            funds_level(&running(vec![FundingIssue::Unfunded]), None),
-            FundsLevel::Empty
-        );
-        assert_eq!(
-            funds_level(&running(vec![FundingIssue::ChannelsOutOfFunds]), None),
-            FundsLevel::Empty
-        );
-        assert_eq!(
-            funds_level(&running(vec![FundingIssue::SafeOutOfFunds]), None),
-            FundsLevel::Empty
-        );
-        assert_eq!(
-            funds_level(&running(vec![FundingIssue::NodeUnderfunded]), None),
-            FundsLevel::Empty
-        );
+    fn funds_level_sufficient_when_no_status_anywhere_yet() {
+        assert_eq!(funds_level(&running(None), None), FundsLevel::Sufficient);
     }
 
     #[test]
-    fn funds_level_empty_wins_over_low() {
-        let mode = running(vec![
-            FundingIssue::SafeLowOnFunds,
-            FundingIssue::SafeOutOfFunds,
-        ]);
-        assert_eq!(funds_level(&mode, None), FundsLevel::Empty);
-    }
-
-    #[test]
-    fn traffic_thresholds_on_total_byte_capacity() {
-        let mode = running(vec![]);
-        let cases = [
-            (3 * GIB - 1, FundsLevel::Empty),
-            (3 * GIB, FundsLevel::Low),
-            (5 * GIB - 1, FundsLevel::Low),
-            (5 * GIB, FundsLevel::Sufficient),
-        ];
-        for (bytes, expected) in cases {
-            let b = balance(Some(vec![bytes]), XDAI_OK);
-            assert_eq!(funds_level(&mode, Some(&b)), expected, "bytes = {bytes}");
-        }
-    }
-
-    #[test]
-    fn traffic_counts_all_allocations() {
-        let mode = running(vec![]);
-        // 2 GiB in the safe + 1.5 GiB in a channel + 1.5 GiB on the node EOA = 5 GiB
-        // (the node EOA arrives as just another allocation entry)
-        let b = balance(Some(vec![2 * GIB, GIB + GIB / 2, GIB + GIB / 2]), XDAI_OK);
-        assert_eq!(funds_level(&mode, Some(&b)), FundsLevel::Sufficient);
-    }
-
-    #[test]
-    fn balance_thresholds_override_stale_issues() {
-        // daemon still reports ChannelsOutOfFunds, but capacity says >= 5 GiB
-        let mode = running(vec![FundingIssue::ChannelsOutOfFunds]);
-        let b = balance(Some(vec![6 * GIB]), XDAI_OK);
-        assert_eq!(funds_level(&mode, Some(&b)), FundsLevel::Sufficient);
-    }
-
-    #[test]
-    fn gas_thresholds_on_node_xdai() {
-        let mode = running(vec![]);
-        let cases = [
-            ("1499999999999999", FundsLevel::Empty),
-            ("1500000000000000", FundsLevel::Low),
-            ("3499999999999999", FundsLevel::Low),
-            ("3500000000000000", FundsLevel::Sufficient),
-        ];
-        for (wei, expected) in cases {
-            let b = balance(Some(vec![6 * GIB]), wei);
-            assert_eq!(funds_level(&mode, Some(&b)), expected, "node = {wei}");
-        }
-    }
-
-    #[test]
-    fn worst_of_traffic_and_gas_wins() {
-        let mode = running(vec![]);
-        // plenty of traffic, no gas
-        let b = balance(Some(vec![6 * GIB]), "0");
-        assert_eq!(funds_level(&mode, Some(&b)), FundsLevel::Empty);
-        // plenty of gas, no traffic
-        let b = balance(Some(vec![0]), XDAI_OK);
-        assert_eq!(funds_level(&mode, Some(&b)), FundsLevel::Empty);
-    }
-
-    #[test]
-    fn missing_allocations_fall_back_to_issues_for_traffic() {
-        // balance polled but capacity allocations not yet computed by the daemon
-        let mode = running(vec![FundingIssue::SafeLowOnFunds]);
-        let b = balance(None, XDAI_OK);
+    fn funds_level_reads_worst_of_traffic_and_gas_from_balance() {
+        let mode = running(None);
+        let b = balance(Some(status(LibFundingLevel::Good, LibFundingLevel::Low)));
         assert_eq!(funds_level(&mode, Some(&b)), FundsLevel::Low);
+
+        let b = balance(Some(status(LibFundingLevel::Empty, LibFundingLevel::Good)));
+        assert_eq!(funds_level(&mode, Some(&b)), FundsLevel::Empty);
     }
 
     #[test]
-    fn allocations_decide_traffic_over_stale_issues() {
-        // freshly deposited EOA funds arrive inside the allocations struct —
-        // the channel-scoped issues must not paint this as empty
-        let mode = running(vec![FundingIssue::ChannelsOutOfFunds]);
-        let b = balance(Some(vec![6 * GIB]), XDAI_OK);
-        assert_eq!(funds_level(&mode, Some(&b)), FundsLevel::Sufficient);
+    fn funds_level_falls_back_to_run_mode_status_without_balance() {
+        let mode = running(Some(status(LibFundingLevel::Low, LibFundingLevel::Good)));
+        assert_eq!(funds_level(&mode, None), FundsLevel::Low);
+    }
 
-        // with allocations present, thresholds decide — not the issues
-        let b = balance(Some(vec![0]), XDAI_OK);
-        assert_eq!(funds_level(&mode, Some(&b)), FundsLevel::Empty);
+    #[test]
+    fn funds_level_prefers_balance_status_over_run_mode_status() {
+        // run mode still reports Empty from a stale status poll, but the more
+        // recent balance poll says everything is fine — balance wins.
+        let mode = running(Some(status(LibFundingLevel::Empty, LibFundingLevel::Empty)));
+        let b = balance(Some(status(LibFundingLevel::Good, LibFundingLevel::Good)));
+        assert_eq!(funds_level(&mode, Some(&b)), FundsLevel::Sufficient);
     }
 
     #[test]

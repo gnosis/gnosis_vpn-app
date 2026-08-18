@@ -33,13 +33,13 @@ export function MainScreen() {
   const [appState] = useAppStore();
   const [settings, settingsActions] = useSettingsStore();
 
-  const fundingIssues = createMemo(() =>
+  const runModeStatus = createMemo(() =>
     isRunningRunMode(appState.runMode)
-      ? (appState.runMode.Running.funding_issues ?? [])
-      : []
+      ? appState.runMode.Running.funding_status
+      : null
   );
   const balanceStatus = createMemo(() =>
-    deriveOverallStatus(appState.balance, fundingIssues())
+    deriveOverallStatus(appState.balance, runModeStatus())
   );
   // Reset dismissal when balance recovers so the next drop resurfaces the banner.
   createEffect(() => {

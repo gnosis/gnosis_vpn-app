@@ -48,3 +48,8 @@ futures-core = { version = "0.3.33", default-features = false }
 cocoa = "0.26.1"
 objc = "0.2.7"
 dispatch = "0.2"
+
+# TODO: drop once este/funding is pushed to gnosis/gnosis_vpn-client and the
+# rev above is bumped to point at it directly.
+[patch."https://github.com/gnosis/gnosis_vpn-client.git"]
+gnosis_vpn-lib = { path = "../../gnosis_vpn-client/gnosis_vpn-lib" }

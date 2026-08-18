@@ -101,13 +101,34 @@ impl From<balance::CapacityAllocations> for TauriCapacityAllocations {
     }
 }
 
+// Mirrors balance::FundingStatus but stringifies the deficits as raw hopli
+// integer strings, consistent with the other balance fields.
+#[derive(Clone, Debug, Serialize)]
+pub struct TauriFundingStatus {
+    pub traffic: balance::FundingLevel,
+    pub gas: balance::FundingLevel,
+    pub wxhopr_deficit: Option<String>,
+    pub xdai_deficit: Option<String>,
+}
+
+impl From<balance::FundingStatus> for TauriFundingStatus {
+    fn from(s: balance::FundingStatus) -> Self {
+        TauriFundingStatus {
+            traffic: s.traffic,
+            gas: s.gas,
+            wxhopr_deficit: s.wxhopr_deficit.map(|d| d.amount().to_string()),
+            xdai_deficit: s.xdai_deficit.map(|d| d.amount().to_string()),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize)]
 pub struct BalanceResponse {
     pub node: String,
     pub safe: String,
     pub channels_out: String,
     pub info: command::Info,
-    pub funding_issues: Option<Vec<balance::FundingIssue>>,
+    pub funding_status: Option<TauriFundingStatus>,
     pub ideal_balance: Option<TauriBalanceRecommendation>,
     pub capacity_allocations: Option<TauriCapacityAllocations>,
 }
@@ -133,7 +154,7 @@ pub enum RunMode {
         last_error: Option<String>,
     },
     Running {
-        funding_issues: Option<Vec<balance::FundingIssue>>,
+        funding_status: Option<TauriFundingStatus>,
         hopr_status: Option<CombinedHoprStatus>,
     },
     Shutdown,
@@ -239,10 +260,10 @@ impl From<command::RunMode> for RunMode {
                 RunMode::Warmup { status, last_error }
             }
             command::RunMode::Running {
-                funding_issues,
+                funding_status,
                 hopr_status,
             } => RunMode::Running {
-                funding_issues,
+                funding_status: funding_status.map(Into::into),
                 hopr_status: hopr_status.map(|s| s.into()),
             },
             command::RunMode::Shutdown => RunMode::Shutdown,
@@ -270,7 +291,7 @@ impl From<command::BalanceResponse> for BalanceResponse {
             safe: br.safe.amount().to_string(),
             channels_out,
             info: br.info,
-            funding_issues: br.funding_issues,
+            funding_status: br.funding_status.map(Into::into),
             ideal_balance: br.ideal_balance.map(Into::into),
             capacity_allocations,
         }

@@ -41,7 +41,7 @@ function makeBalance(
     safe: 0n,
     channels_out: 0n,
     info: { node_address: "0x0", node_peer_id: "", safe_address: "0x0" },
-    funding_issues: null,
+    funding_status: null,
     ideal_balance: null,
     capacity_allocations,
   };

@@ -7,7 +7,7 @@
     "node_peer_id": "16Uiu2HAmTest",
     "safe_address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa"
   },
-  "funding_issues": null,
+  "funding_status": null,
   "ideal_balance": null,
   "capacity_allocations": {
     "peer_allocations": {
