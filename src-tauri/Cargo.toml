@@ -23,9 +23,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2.6.3", features = [] }
 
 [dependencies]
-# TODO(release): repoint to the gnosis_vpn-client main rev once branch
-# mj/node-wxhopr-capacity (capacity_allocations as a struct: peer_allocations/node/safe) merges.
-gnosis_vpn-lib = { git = "https://github.com/gnosis/gnosis_vpn-client.git", rev = "5054d95b34ead059234411a5a6e08487e81317c8" }
+gnosis_vpn-lib = { git = "https://github.com/gnosis/gnosis_vpn-client.git", rev = "f0adf0d0ea416b4aa759c5b3217a1bf7d2fd6b31" }
 liblzma = { version = "0.4.7", default-features = false, features = ["static"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
@@ -48,8 +46,3 @@ futures-core = { version = "0.3.33", default-features = false }
 cocoa = "0.26.1"
 objc = "0.2.7"
 dispatch = "0.2"
-
-# TODO: drop once este/funding is pushed to gnosis/gnosis_vpn-client and the
-# rev above is bumped to point at it directly.
-[patch."https://github.com/gnosis/gnosis_vpn-client.git"]
-gnosis_vpn-lib = { path = "../../gnosis_vpn-client/gnosis_vpn-lib" }
