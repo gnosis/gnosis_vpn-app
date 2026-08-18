@@ -222,10 +222,7 @@ impl From<gnosis_vpn_lib::balance::FundingLevel> for FundsLevel {
     }
 }
 
-// The daemon already pools traffic (Safe + channels + node EOA) and gas (node xDAI)
-// into Good/Low/Empty levels — this just picks the worst of the two. Prefers the
-// balance poll's status (fresher capacity data) and falls back to the status poll's
-// while a balance response hasn't arrived yet.
+// Prefers the balance poll's fresher status, falling back to the status poll's.
 pub fn funds_level(run_mode: &RunMode, balance: Option<&BalanceResponse>) -> FundsLevel {
     let run_mode_status = match run_mode {
         RunMode::Running { funding_status, .. } => funding_status.as_ref(),
@@ -512,8 +509,7 @@ mod tests {
 
     #[test]
     fn funds_level_prefers_balance_status_over_run_mode_status() {
-        // run mode still reports Empty from a stale status poll, but the more
-        // recent balance poll says everything is fine — balance wins.
+        // stale run-mode status says Empty, fresher balance status wins.
         let mode = running(Some(status(LibFundingLevel::Empty, LibFundingLevel::Empty)));
         let b = balance(Some(status(LibFundingLevel::Good, LibFundingLevel::Good)));
         assert_eq!(funds_level(&mode, Some(&b)), FundsLevel::Sufficient);

@@ -171,9 +171,7 @@ const BigIntStringSchema = z.string().transform((s) => BigInt(s));
 export const FundingLevelSchema = z.enum(["Good", "Low", "Empty"]);
 export type FundingLevel = z.infer<typeof FundingLevelSchema>;
 
-// Traffic (wxHOPR) and gas (xDAI) health, already pooled by the daemon across
-// open channels, Safe, and the node EOA, plus how much more is needed to reach
-// the ideal recommendation.
+// Traffic/gas health, already pooled by the daemon, plus how much more is needed.
 export const FundingStatusSchema = z.object({
   traffic: FundingLevelSchema,
   gas: FundingLevelSchema,

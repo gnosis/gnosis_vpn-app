@@ -5,12 +5,7 @@ import type {
 
 export type StatusText = "Sufficient" | "Low" | "Empty" | string;
 
-// The daemon pools wxHOPR/xDAI across channels, Safe, and the node EOA into
-// Good/Low/Empty traffic and gas levels (see gnosis_vpn-lib's FundingStatus) —
-// this module just reads that verdict instead of re-deriving it. balance's
-// funding_status (60s poll, freshest capacity data) is preferred; runModeStatus
-// (the ~2s status poll's own computation) is used only until the first balance
-// response arrives.
+// balance's funding_status (fresher) wins; runModeStatus is the pre-balance fallback.
 function resolveFundingStatus(
   balance: BalanceResponse | null,
   runModeStatus: FundingStatus | null,
@@ -50,8 +45,7 @@ export function deriveOverallStatus(
   return "Sufficient";
 }
 
-// Recommended top-up amounts for the Add Funds modal. The daemon already
-// gates these to null while the corresponding level is Good.
+// Daemon already gates these to null while the corresponding level is Good.
 export function deriveWxhoprDeficit(
   balance: BalanceResponse | null,
   runModeStatus: FundingStatus | null,
@@ -68,9 +62,7 @@ export function deriveXdaiDeficit(
 
 const LEVEL_SEVERITY = { Empty: 2, Low: 1, Good: 0 } as const;
 
-// Describes the worse of traffic/gas for the warning banner. The daemon only
-// hands back the two pooled levels (not per-location detail like "Safe out of
-// funds" vs "channels out of funds"), so the message is phrased per resource.
+// Daemon only hands back the two pooled levels, so the message is per-resource.
 export function describeCriticalIssue(
   balance: BalanceResponse | null,
   runModeStatus: FundingStatus | null,

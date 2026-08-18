@@ -101,8 +101,7 @@ impl From<balance::CapacityAllocations> for TauriCapacityAllocations {
     }
 }
 
-// Mirrors balance::FundingStatus but stringifies the deficits as raw hopli
-// integer strings, consistent with the other balance fields.
+// Mirrors balance::FundingStatus but stringifies deficits, like the other balance fields.
 #[derive(Clone, Debug, Serialize)]
 pub struct TauriFundingStatus {
     pub traffic: balance::FundingLevel,
