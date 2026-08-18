@@ -16,6 +16,17 @@ export default function AddFundsModal(props: {
   const hasRecommendation = () =>
     Boolean(props.wxhoprDeficit || props.xdaiDeficit);
 
+  // The exact value in parentheses is only worth showing when the rounded
+  // display doesn't already spell it out verbatim.
+  const wxhoprExact = (deficit: bigint): string | null => {
+    const exact = wxhoprDecimal(deficit);
+    return humanWxhopr(deficit, "ceil") === `${exact} wxHOPR` ? null : exact;
+  };
+  const xdaiExact = (deficit: bigint): string | null => {
+    const exact = formatXdai(deficit, 18);
+    return formatXdai(deficit, 3, "ceil") === exact ? null : exact;
+  };
+
   return (
     <Modal open={props.open} onClose={props.onClose}>
       <div class={`flex flex-col ${hasRecommendation() ? "gap-2" : "gap-8"}`}>
@@ -41,11 +52,18 @@ export default function AddFundsModal(props: {
               <Show when={props.wxhoprDeficit}>
                 {(deficit) => (
                   <div class="font-mono">
-                    +{humanWxhopr(deficit(), "ceil")}{" "}
-                    (<span class="select-text cursor-text">
-                      {wxhoprDecimal(deficit())}
-                    </span>{" "}
-                    wxHOPR)
+                    +{humanWxhopr(deficit(), "ceil")}
+                    <Show when={wxhoprExact(deficit())}>
+                      {(exact) => (
+                        <>
+                          {" "}
+                          (<span class="select-text cursor-text">
+                            {exact()}
+                          </span>{" "}
+                          wxHOPR)
+                        </>
+                      )}
+                    </Show>
                   </div>
                 )}
               </Show>
@@ -53,6 +71,17 @@ export default function AddFundsModal(props: {
                 {(deficit) => (
                   <div class="font-mono">
                     +{formatXdai(deficit(), 3, "ceil")} xDAI
+                    <Show when={xdaiExact(deficit())}>
+                      {(exact) => (
+                        <>
+                          {" "}
+                          (<span class="select-text cursor-text">
+                            {exact()}
+                          </span>{" "}
+                          xDAI)
+                        </>
+                      )}
+                    </Show>
                   </div>
                 )}
               </Show>

@@ -68,7 +68,9 @@ describe("computeEffectiveCredit", () => {
     expect(
       computeEffectiveCredit(
         makeBalance(
-          makeAllocations({ peer_allocations: { "0xabc": makeCapacity(500_000) } }),
+          makeAllocations({
+            peer_allocations: { "0xabc": makeCapacity(500_000) },
+          }),
         ),
       ),
     ).toBe(500_000n);
