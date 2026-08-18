@@ -4,7 +4,7 @@
     "npm:@tailwindcss/vite@^4.3.3": "4.3.3_vite@8.2.1",
     "npm:@tauri-apps/api@^2.11.1": "2.11.1",
     "npm:@tauri-apps/cli@^2.11.4": "2.11.4",
-    "npm:@tauri-apps/plugin-dialog@2.7.1": "2.7.1",
+    "npm:@tauri-apps/plugin-dialog@2.7.2": "2.7.2",
     "npm:@tauri-apps/plugin-opener@^2.5.4": "2.5.4",
     "npm:@types/qrcode@^1.5.6": "1.5.6",
     "npm:dompurify@^3.4.13": "3.4.13",
@@ -499,8 +499,8 @@
       ],
       "bin": true
     },
-    "@tauri-apps/plugin-dialog@2.7.1": {
-      "integrity": "sha512-OK1UBXYt+ojcmxMktzzuyonYIFta8CmAASpX+CA+DTGK24KlHjhYI6x2iOJ/TjZF4N7/ACK1oFmEOjIY9IhzOQ==",
+    "@tauri-apps/plugin-dialog@2.7.2": {
+      "integrity": "sha512-pX0IGm1I3I6wc+zeKYcq1GSqogK6okCNX5fOdaNU5ab1AjGS6l1E5wFNjEb7meg7ZFSp0JUs+0jQGQNyOvLrsg==",
       "dependencies": [
         "@tauri-apps/api"
       ]
@@ -1591,7 +1591,7 @@
         "npm:@tailwindcss/vite@^4.3.3",
         "npm:@tauri-apps/api@^2.11.1",
         "npm:@tauri-apps/cli@^2.11.4",
-        "npm:@tauri-apps/plugin-dialog@2.7.1",
+        "npm:@tauri-apps/plugin-dialog@2.7.2",
         "npm:@tauri-apps/plugin-opener@^2.5.4",
         "npm:@types/qrcode@^1.5.6",
         "npm:dompurify@^3.4.13",
