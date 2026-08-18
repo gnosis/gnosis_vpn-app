@@ -19,6 +19,5 @@
     "txs_to_start": 0,
     "xdai_fee_per_tx": "50000000000000000"
   },
-  "capacity_allocations": null,
-  "node_capacity": null
+  "capacity_allocations": null
 }

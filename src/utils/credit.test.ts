@@ -32,7 +32,6 @@ function makeEntry(
 
 function makeBalance(
   capacity_allocations: CapacityEntry[] | null,
-  node_capacity: Capacity | null = null,
 ): BalanceResponse {
   return {
     node: 0n,
@@ -42,7 +41,6 @@ function makeBalance(
     funding_issues: null,
     ideal_balance: null,
     capacity_allocations,
-    node_capacity,
   };
 }
 
@@ -80,10 +78,13 @@ describe("computeEffectiveCredit", () => {
     expect(computeEffectiveCredit(makeBalance(entries))).toBe(1_750_000n);
   });
 
-  it("includes the node EOA capacity", () => {
+  it("includes the node EOA allocation entry", () => {
     expect(
       computeEffectiveCredit(
-        makeBalance([makeEntry(1_000_000)], makeCapacity(500_000)),
+        makeBalance([
+          makeEntry(1_000_000),
+          makeEntry(500_000, 0n, { type: "node_eoa" }),
+        ]),
       ),
     ).toBe(1_500_000n);
   });
@@ -110,10 +111,10 @@ describe("sumCapacityStake", () => {
   it("includes the node EOA stake", () => {
     expect(
       sumCapacityStake(
-        makeBalance(
-          [makeEntry(0, 1_000_000_000_000_000_000n)],
-          makeCapacity(0, 500_000_000_000_000_000n),
-        ),
+        makeBalance([
+          makeEntry(0, 1_000_000_000_000_000_000n),
+          makeEntry(0, 500_000_000_000_000_000n, { type: "node_eoa" }),
+        ]),
       ),
     ).toBe(1_500_000_000_000_000_000n);
   });

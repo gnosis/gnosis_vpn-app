@@ -23,9 +23,9 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2.6.2", features = [] }
 
 [dependencies]
-# TODO(release): repoint to the pushed gnosis_vpn-client rev containing node_capacity
-# (branch mj/node-wxhopr-capacity) before merging; path dep is for local development only.
-gnosis_vpn-lib = { git = "https://github.com/gnosis/gnosis_vpn-client.git", rev = "36ca37e16a75086e6e35f33abbf440979a26cf65" }
+# TODO(release): repoint to the gnosis_vpn-client main rev once branch
+# mj/node-wxhopr-capacity (node-EOA funds as the `node_eoa` capacity allocation) merges.
+gnosis_vpn-lib = { git = "https://github.com/gnosis/gnosis_vpn-client.git", rev = "85bf1b078a00264a148a490977eb580d4dbea971" }
 liblzma = { version = "0.4.6", default-features = false, features = ["static"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"

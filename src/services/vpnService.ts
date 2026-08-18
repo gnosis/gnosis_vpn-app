@@ -191,6 +191,8 @@ export type BalanceRecommendation = z.infer<typeof BalanceRecommendationSchema>;
 export const CapacityAllocatorSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("safe") }),
   z.object({ type: z.literal("peer"), address: z.string() }),
+  // wxHOPR on the node EOA, deposited but not yet swept into the Safe.
+  z.object({ type: z.literal("node_eoa") }),
 ]);
 export type CapacityAllocator = z.infer<typeof CapacityAllocatorSchema>;
 
@@ -296,9 +298,6 @@ export const BalanceResponseSchema = z.object({
   funding_issues: z.array(FundingIssueSchema).nullable(),
   ideal_balance: BalanceRecommendationSchema.nullable(),
   capacity_allocations: z.array(CapacityEntrySchema).nullable(),
-  // wxHOPR on the node EOA, deposited but not yet swept into the Safe.
-  // Absent from daemons older than the node_capacity rollout.
-  node_capacity: CapacitySchema.nullish(),
 });
 export type BalanceResponse = z.infer<typeof BalanceResponseSchema>;
 

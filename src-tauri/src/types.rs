@@ -92,8 +92,6 @@ pub struct BalanceResponse {
     pub funding_issues: Option<Vec<balance::FundingIssue>>,
     pub ideal_balance: Option<TauriBalanceRecommendation>,
     pub capacity_allocations: Option<Vec<TauriCapacityEntry>>,
-    // wxHOPR on the node EOA, deposited but not yet swept into the Safe.
-    pub node_capacity: Option<TauriCapacity>,
 }
 
 // RunMode merges the library's Init+Warmup variants and flattens two optional
@@ -265,7 +263,6 @@ impl From<command::BalanceResponse> for BalanceResponse {
             funding_issues: br.funding_issues,
             ideal_balance: br.ideal_balance.map(Into::into),
             capacity_allocations,
-            node_capacity: br.node_capacity.map(Into::into),
         }
     }
 }

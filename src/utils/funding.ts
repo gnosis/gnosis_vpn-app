@@ -2,7 +2,11 @@ import type {
   BalanceResponse,
   FundingIssue,
 } from "@src/services/vpnService.ts";
-import { BYTES_PER_GB, computeEffectiveCredit } from "@src/utils/credit.ts";
+import {
+  BYTES_PER_GB,
+  computeEffectiveCredit,
+  sumCapacityStake,
+} from "@src/utils/credit.ts";
 
 export type StatusText = "Sufficient" | "Low" | "Empty" | string;
 
@@ -21,8 +25,11 @@ export type StatusText = "Sufficient" | "Low" | "Empty" | string;
  *   <  0.0035 xDAI -> Low
  *   >= 0.0035 xDAI -> Sufficient
  *
- * The daemon's funding issues remain as fallback until the first balance
- * response arrives.
+ * The daemon's funding issues remain as fallback only while there is no
+ * capacity data at all (no balance yet, or a fresh daemon that has not
+ * computed capacity_allocations). As soon as allocations are present the
+ * thresholds win — node EOA funds count toward traffic via the node_eoa
+ * allocation entry.
  *
  * Keep thresholds in sync with src-tauri/src/icons.rs (tray icon).
  */
@@ -37,7 +44,9 @@ export function deriveTrafficStatus(
   balance: BalanceResponse | null,
   issues: FundingIssue[],
 ): StatusText {
-  if (!balance?.capacity_allocations) return trafficStatusFromIssues(issues);
+  if (!balance || !balance.capacity_allocations) {
+    return trafficStatusFromIssues(issues);
+  }
   const totalBytes = computeEffectiveCredit(balance);
   if (totalBytes < TRAFFIC_EMPTY_BELOW) return "Empty";
   if (totalBytes < TRAFFIC_LOW_BELOW) return "Low";
@@ -64,6 +73,30 @@ export function deriveOverallStatus(
   if (traffic === "Empty" || gas === "Empty") return "Empty";
   if (traffic === "Low" || gas === "Low") return "Low";
   return "Sufficient";
+}
+
+// Recommended top-up amounts for the Add Funds modal. ideal_balance is the
+// recommended balance from edgli; it sits above the Sufficient thresholds, so
+// a positive diff alone does not mean funds are needed — only recommend when
+// the corresponding status is Low or Empty.
+export function deriveWxhoprDeficit(
+  balance: BalanceResponse | null,
+  issues: FundingIssue[],
+): bigint | null {
+  if (deriveTrafficStatus(balance, issues) === "Sufficient") return null;
+  if (!balance?.ideal_balance) return null;
+  const diff = balance.ideal_balance.wxhopr - sumCapacityStake(balance);
+  return diff > 0n ? diff : null;
+}
+
+export function deriveXdaiDeficit(
+  balance: BalanceResponse | null,
+  issues: FundingIssue[],
+): bigint | null {
+  if (deriveNodeStatus(balance, issues) === "Sufficient") return null;
+  if (!balance?.ideal_balance) return null;
+  const diff = balance.ideal_balance.xdai - balance.node;
+  return diff > 0n ? diff : null;
 }
 
 function trafficStatusFromIssues(issues: FundingIssue[]): StatusText {

@@ -35,23 +35,20 @@ export function formatCredit(creditBytes: bigint): string {
   return formatCreditUnit(creditBytes, BYTES_PER_MB, 0, "MB");
 }
 
-/** Sum byte_capacity across all capacity allocations plus the node EOA. */
+/** Sum byte_capacity across all capacity allocations
+ * (the node EOA arrives as the node_eoa entry). */
 export function computeEffectiveCredit(balance: BalanceResponse): bigint {
-  const node = balance.node_capacity
-    ? BigInt(balance.node_capacity.byte_capacity)
-    : 0n;
   return (balance.capacity_allocations ?? []).reduce(
     (sum, e) => sum + BigInt(e.capacity.byte_capacity),
-    node,
+    0n,
   );
 }
 
-/** Sum stake across all capacity allocations plus the node EOA
- * (Safe + Peer + EOA = total wxHOPR in wxHopli). */
+/** Sum stake across all capacity allocations
+ * (Safe + Peer + node EOA = total wxHOPR in wxHopli). */
 export function sumCapacityStake(balance: BalanceResponse): bigint {
-  const node = balance.node_capacity?.stake ?? 0n;
   return (balance.capacity_allocations ?? []).reduce(
     (sum, e) => sum + e.capacity.stake,
-    node,
+    0n,
   );
 }

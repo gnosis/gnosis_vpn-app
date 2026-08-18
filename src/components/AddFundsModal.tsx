@@ -11,11 +11,20 @@ export default function AddFundsModal(props: {
   wxhoprDeficit?: bigint | null;
   xdaiDeficit?: bigint | null;
 }) {
+  // The recommendation block makes the modal tall enough to push the title
+  // out of view, so trade the roomy spacing for a tight one only then.
+  const hasRecommendation = () =>
+    Boolean(props.wxhoprDeficit || props.xdaiDeficit);
+
   return (
     <Modal open={props.open} onClose={props.onClose}>
-      <div class="flex flex-col gap-8">
+      <div class={`flex flex-col ${hasRecommendation() ? "gap-2" : "gap-8"}`}>
         <div class="text-base font-semibold">Add funds</div>
-        <div class="flex flex-col gap-4 my-2">
+        <div
+          class={`flex flex-col ${
+            hasRecommendation() ? "gap-2" : "gap-4 my-2"
+          }`}
+        >
           <FundingAddress
             address={props.nodeAddress}
             full
@@ -43,7 +52,7 @@ export default function AddFundsModal(props: {
               <Show when={props.xdaiDeficit}>
                 {(deficit) => (
                   <div class="font-mono">
-                    +{formatXdai(deficit(), 2, "ceil")} xDAI
+                    +{formatXdai(deficit(), 3, "ceil")} xDAI
                   </div>
                 )}
               </Show>

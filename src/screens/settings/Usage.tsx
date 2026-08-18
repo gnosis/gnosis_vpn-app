@@ -15,6 +15,8 @@ import {
   deriveNodeStatus,
   deriveOverallStatus,
   deriveTrafficStatus,
+  deriveWxhoprDeficit,
+  deriveXdaiDeficit,
   describeCriticalIssue,
 } from "../../utils/funding.ts";
 import {
@@ -72,23 +74,13 @@ export default function Usage() {
 
   const isBalanceLoading = () => appState.balance === null;
 
-  const wxhoprDeficit = createMemo(() => {
-    if (fundingIssues().length === 0) return null;
-    const ideal = appState.balance?.ideal_balance?.wxhopr;
-    const current = totalWxhoprHopli();
-    if (ideal === undefined || current === undefined) return null;
-    const diff = ideal - current;
-    return diff > 0n ? diff : null;
-  });
+  const wxhoprDeficit = createMemo(() =>
+    deriveWxhoprDeficit(appState.balance, fundingIssues())
+  );
 
-  const xdaiDeficit = createMemo(() => {
-    if (fundingIssues().length === 0) return null;
-    const ideal = appState.balance?.ideal_balance?.xdai;
-    const current = appState.balance?.node;
-    if (ideal === undefined || current === undefined) return null;
-    const diff = ideal - current;
-    return diff > 0n ? diff : null;
-  });
+  const xdaiDeficit = createMemo(() =>
+    deriveXdaiDeficit(appState.balance, fundingIssues())
+  );
 
   return (
     <div class="p-4 w-full flex flex-col gap-2 items-center">
@@ -117,7 +109,10 @@ export default function Usage() {
           {
             /* The daemon's issue text only shows while the thresholds agree
               something is wrong — a funded Safe/EOA whose channels are still
-              being opened must not read as a red warning. */
+              being opened must not read as a red warning. Red additionally
+              requires a real balance response: the daemon's issues alone
+              (shown while the first balance is still loading) are blind to
+              EOA funds and only warrant amber. */
           }
           <Show
             when={overallStatus() !== "Sufficient" &&
@@ -126,7 +121,7 @@ export default function Usage() {
             {(description) => (
               <div
                 class={`px-4 py-2 rounded-lg text-sm font-medium ${
-                  overallStatus() === "Empty"
+                  overallStatus() === "Empty" && !isBalanceLoading()
                     ? "bg-red-100 text-red-800"
                     : "bg-amber-100 text-amber-800"
                 }`}

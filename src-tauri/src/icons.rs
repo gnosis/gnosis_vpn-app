@@ -249,13 +249,14 @@ fn worst(a: FundsLevel, b: FundsLevel) -> FundsLevel {
     }
 }
 
-// None until the daemon reports capacity allocations.
+// None only while the daemon has computed no capacity data at all; the
+// allocations include node EOA funds as the node_eoa entry.
 fn traffic_level(balance: &BalanceResponse) -> Option<FundsLevel> {
-    let entries = balance.capacity_allocations.as_ref()?;
-    let total = entries
+    let total = balance
+        .capacity_allocations
+        .as_deref()?
         .iter()
         .map(|e| e.capacity.byte_capacity)
-        .chain(balance.node_capacity.as_ref().map(|c| c.byte_capacity))
         .fold(0u64, u64::saturating_add);
     Some(if total < TRAFFIC_EMPTY_BELOW_BYTES {
         FundsLevel::Empty
@@ -520,11 +521,7 @@ mod tests {
         }
     }
 
-    fn balance(
-        allocation_bytes: Option<Vec<u64>>,
-        node_capacity_bytes: Option<u64>,
-        node_wei: &str,
-    ) -> BalanceResponse {
+    fn balance(allocation_bytes: Option<Vec<u64>>, node_wei: &str) -> BalanceResponse {
         BalanceResponse {
             node: node_wei.to_string(),
             safe: "0".to_string(),
@@ -545,7 +542,6 @@ mod tests {
                     })
                     .collect()
             }),
-            node_capacity: node_capacity_bytes.map(capacity),
         }
     }
 
@@ -562,7 +558,7 @@ mod tests {
             FundsLevel::Sufficient
         );
         // even a drained balance is ignored outside Running
-        let drained = balance(Some(vec![0]), None, "0");
+        let drained = balance(Some(vec![0]), "0");
         assert_eq!(
             funds_level(&RunMode::NotRunning, Some(&drained)),
             FundsLevel::Sufficient
@@ -617,20 +613,17 @@ mod tests {
             (5 * GIB, FundsLevel::Sufficient),
         ];
         for (bytes, expected) in cases {
-            let b = balance(Some(vec![bytes]), None, XDAI_OK);
+            let b = balance(Some(vec![bytes]), XDAI_OK);
             assert_eq!(funds_level(&mode, Some(&b)), expected, "bytes = {bytes}");
         }
     }
 
     #[test]
-    fn traffic_counts_node_capacity_and_all_allocations() {
+    fn traffic_counts_all_allocations() {
         let mode = running(vec![]);
         // 2 GiB in the safe + 1.5 GiB in a channel + 1.5 GiB on the node EOA = 5 GiB
-        let b = balance(
-            Some(vec![2 * GIB, GIB + GIB / 2]),
-            Some(GIB + GIB / 2),
-            XDAI_OK,
-        );
+        // (the node EOA arrives as just another allocation entry)
+        let b = balance(Some(vec![2 * GIB, GIB + GIB / 2, GIB + GIB / 2]), XDAI_OK);
         assert_eq!(funds_level(&mode, Some(&b)), FundsLevel::Sufficient);
     }
 
@@ -638,7 +631,7 @@ mod tests {
     fn balance_thresholds_override_stale_issues() {
         // daemon still reports ChannelsOutOfFunds, but capacity says >= 5 GiB
         let mode = running(vec![FundingIssue::ChannelsOutOfFunds]);
-        let b = balance(Some(vec![6 * GIB]), None, XDAI_OK);
+        let b = balance(Some(vec![6 * GIB]), XDAI_OK);
         assert_eq!(funds_level(&mode, Some(&b)), FundsLevel::Sufficient);
     }
 
@@ -652,7 +645,7 @@ mod tests {
             ("3500000000000000", FundsLevel::Sufficient),
         ];
         for (wei, expected) in cases {
-            let b = balance(Some(vec![6 * GIB]), None, wei);
+            let b = balance(Some(vec![6 * GIB]), wei);
             assert_eq!(funds_level(&mode, Some(&b)), expected, "node = {wei}");
         }
     }
@@ -661,10 +654,10 @@ mod tests {
     fn worst_of_traffic_and_gas_wins() {
         let mode = running(vec![]);
         // plenty of traffic, no gas
-        let b = balance(Some(vec![6 * GIB]), None, "0");
+        let b = balance(Some(vec![6 * GIB]), "0");
         assert_eq!(funds_level(&mode, Some(&b)), FundsLevel::Empty);
         // plenty of gas, no traffic
-        let b = balance(Some(vec![0]), None, XDAI_OK);
+        let b = balance(Some(vec![0]), XDAI_OK);
         assert_eq!(funds_level(&mode, Some(&b)), FundsLevel::Empty);
     }
 
@@ -672,8 +665,21 @@ mod tests {
     fn missing_allocations_fall_back_to_issues_for_traffic() {
         // balance polled but capacity allocations not yet computed by the daemon
         let mode = running(vec![FundingIssue::SafeLowOnFunds]);
-        let b = balance(None, None, XDAI_OK);
+        let b = balance(None, XDAI_OK);
         assert_eq!(funds_level(&mode, Some(&b)), FundsLevel::Low);
+    }
+
+    #[test]
+    fn node_eoa_allocation_decides_traffic_over_stale_issues() {
+        // freshly deposited EOA funds arrive as an allocation entry — the
+        // channel-scoped issues must not paint this as empty
+        let mode = running(vec![FundingIssue::ChannelsOutOfFunds]);
+        let b = balance(Some(vec![6 * GIB]), XDAI_OK);
+        assert_eq!(funds_level(&mode, Some(&b)), FundsLevel::Sufficient);
+
+        // with allocations present, thresholds decide — not the issues
+        let b = balance(Some(vec![0]), XDAI_OK);
+        assert_eq!(funds_level(&mode, Some(&b)), FundsLevel::Empty);
     }
 
     #[test]

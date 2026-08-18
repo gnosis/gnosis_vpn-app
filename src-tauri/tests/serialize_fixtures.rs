@@ -315,7 +315,6 @@ fn generate_fixtures() {
         None,
         None,
         None,
-        None,
     ));
     write(&fixtures_dir, "balance_response.json", &balance_zero);
 
@@ -339,7 +338,6 @@ fn generate_fixtures() {
         &balances_with_funds,
         &HashMap::new(),
         None,
-        None,
         Some(ideal),
         Some(vec![
             FundingIssue::NodeLowOnFunds,
@@ -352,7 +350,7 @@ fn generate_fixtures() {
         &balance_with_issues,
     );
 
-    // balance_response — with capacity_allocations (Safe + Peer)
+    // balance_response — with capacity_allocations (NodeEoa + Safe + Peer)
     let mut capacity_map = HashMap::new();
     capacity_map.insert(
         CapacityAllocator::Safe,
@@ -372,18 +370,21 @@ fn generate_fixtures() {
             byte_capacity: 262_144,
         },
     );
+    // wxHOPR sitting on the node EOA, not yet swept into the Safe
+    capacity_map.insert(
+        CapacityAllocator::NodeEoa,
+        Capacity {
+            stake: Balance::<WxHOPR>::from(250_000_000_000_000_000u64), // 0.25 wxHOPR
+            expected_messages: 125,
+            min_guaranteed_messages: 12,
+            byte_capacity: 131_072,
+        },
+    );
     let balance_with_capacity = types::BalanceResponse::from(command::BalanceResponse::build(
         &balance_info(),
         &balances_with_funds,
         &HashMap::new(),
         Some(&capacity_map),
-        // wxHOPR sitting on the node EOA, not yet swept into the Safe
-        Some(Capacity {
-            stake: Balance::<WxHOPR>::from(250_000_000_000_000_000u64), // 0.25 wxHOPR
-            expected_messages: 125,
-            min_guaranteed_messages: 12,
-            byte_capacity: 131_072,
-        }),
         None,
         None,
     ));
