@@ -7,17 +7,19 @@
     "node_peer_id": "16Uiu2HAmTest",
     "safe_address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa"
   },
-  "funding_issues": [
-    "NodeLowOnFunds",
-    "SafeLowOnFunds"
-  ],
+  "funding_status": {
+    "traffic": "Low",
+    "gas": "Low",
+    "wxhopr_deficit": "1000000000000000000",
+    "xdai_deficit": "20000000000000000"
+  },
   "ideal_balance": {
     "wxhopr": "2000000000000000000",
     "xdai": "50000000000000000",
-    "channel_stakes": "1000000000000000000",
-    "fee_to_start": "500000000000000000",
-    "txs_to_start": 2,
-    "xdai_fee_per_tx": "5000000000000000"
+    "channel_stakes": "2000000000000000000",
+    "fee_to_start": "0",
+    "txs_to_start": 0,
+    "xdai_fee_per_tx": "50000000000000000"
   },
   "capacity_allocations": null
 }

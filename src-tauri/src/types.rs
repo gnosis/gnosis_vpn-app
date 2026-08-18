@@ -3,6 +3,7 @@ use gnosis_vpn_lib::command::{self, HoprInitStatus, HoprStatus};
 
 use serde::Serialize;
 
+use std::collections::HashMap;
 use std::fmt::{self, Display};
 
 // Sanitized library responses — only types that need reshaping for the UI layer live here.
@@ -66,10 +67,58 @@ pub struct TauriCapacity {
     pub byte_capacity: u64,
 }
 
+impl From<balance::Capacity> for TauriCapacity {
+    fn from(c: balance::Capacity) -> Self {
+        TauriCapacity {
+            stake: c.stake.amount().to_string(),
+            expected_messages: c.expected_messages,
+            min_guaranteed_messages: c.min_guaranteed_messages,
+            byte_capacity: c.byte_capacity,
+        }
+    }
+}
+
+// Mirror of balance::CapacityAllocations with stakes stringified; peer map
+// keyed by checksum address strings.
 #[derive(Clone, Debug, Serialize)]
-pub struct TauriCapacityEntry {
-    pub allocator: balance::CapacityAllocator,
-    pub capacity: TauriCapacity,
+pub struct TauriCapacityAllocations {
+    pub peer_allocations: HashMap<String, TauriCapacity>,
+    pub node: TauriCapacity,
+    pub safe: TauriCapacity,
+}
+
+impl From<balance::CapacityAllocations> for TauriCapacityAllocations {
+    fn from(a: balance::CapacityAllocations) -> Self {
+        TauriCapacityAllocations {
+            peer_allocations: a
+                .peer_allocations
+                .into_iter()
+                .map(|(addr, c)| (addr.to_checksum(), c.into()))
+                .collect(),
+            node: a.node.into(),
+            safe: a.safe.into(),
+        }
+    }
+}
+
+// Mirrors balance::FundingStatus but stringifies deficits, like the other balance fields.
+#[derive(Clone, Debug, Serialize)]
+pub struct TauriFundingStatus {
+    pub traffic: balance::FundingLevel,
+    pub gas: balance::FundingLevel,
+    pub wxhopr_deficit: Option<String>,
+    pub xdai_deficit: Option<String>,
+}
+
+impl From<balance::FundingStatus> for TauriFundingStatus {
+    fn from(s: balance::FundingStatus) -> Self {
+        TauriFundingStatus {
+            traffic: s.traffic,
+            gas: s.gas,
+            wxhopr_deficit: s.wxhopr_deficit.map(|d| d.amount().to_string()),
+            xdai_deficit: s.xdai_deficit.map(|d| d.amount().to_string()),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -78,9 +127,9 @@ pub struct BalanceResponse {
     pub safe: String,
     pub channels_out: String,
     pub info: command::Info,
-    pub funding_issues: Option<Vec<balance::FundingIssue>>,
+    pub funding_status: Option<TauriFundingStatus>,
     pub ideal_balance: Option<TauriBalanceRecommendation>,
-    pub capacity_allocations: Option<Vec<TauriCapacityEntry>>,
+    pub capacity_allocations: Option<TauriCapacityAllocations>,
 }
 
 // RunMode merges the library's Init+Warmup variants and flattens two optional
@@ -104,7 +153,7 @@ pub enum RunMode {
         last_error: Option<String>,
     },
     Running {
-        funding_issues: Option<Vec<balance::FundingIssue>>,
+        funding_status: Option<TauriFundingStatus>,
         hopr_status: Option<CombinedHoprStatus>,
     },
     Shutdown,
@@ -210,10 +259,10 @@ impl From<command::RunMode> for RunMode {
                 RunMode::Warmup { status, last_error }
             }
             command::RunMode::Running {
-                funding_issues,
+                funding_status,
                 hopr_status,
             } => RunMode::Running {
-                funding_issues,
+                funding_status: funding_status.map(Into::into),
                 hopr_status: hopr_status.map(|s| s.into()),
             },
             command::RunMode::Shutdown => RunMode::Shutdown,
@@ -235,26 +284,13 @@ impl From<command::BalanceResponse> for BalanceResponse {
             .sum::<balance::Balance<balance::WxHOPR>>()
             .amount()
             .to_string();
-        let capacity_allocations = br.capacity_allocations.map(|entries| {
-            entries
-                .into_iter()
-                .map(|e| TauriCapacityEntry {
-                    allocator: e.allocator,
-                    capacity: TauriCapacity {
-                        stake: e.capacity.stake.amount().to_string(),
-                        expected_messages: e.capacity.expected_messages,
-                        min_guaranteed_messages: e.capacity.min_guaranteed_messages,
-                        byte_capacity: e.capacity.byte_capacity,
-                    },
-                })
-                .collect()
-        });
+        let capacity_allocations = br.capacity_allocations.map(Into::into);
         BalanceResponse {
             node: br.node.amount().to_string(),
             safe: br.safe.amount().to_string(),
             channels_out,
             info: br.info,
-            funding_issues: br.funding_issues,
+            funding_status: br.funding_status.map(Into::into),
             ideal_balance: br.ideal_balance.map(Into::into),
             capacity_allocations,
         }

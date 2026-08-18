@@ -152,7 +152,7 @@ describe("BalanceResponseSchema", () => {
     expect(result.data.channels_out).toBe(0n);
   });
 
-  it("parses balance response with ideal_balance and funding_issues", () => {
+  it("parses balance response with ideal_balance and funding_status", () => {
     const result = BalanceResponseSchema.safeParse(balanceResponseWithIssues);
     expect(result.success).toBe(true);
     if (!result.success) return;
@@ -162,17 +162,22 @@ describe("BalanceResponseSchema", () => {
     expect(typeof result.data.ideal_balance!.xdai).toBe("bigint");
     expect(result.data.ideal_balance!.wxhopr - result.data.safe)
       .toBeGreaterThan(0n);
+    expect(result.data.funding_status).not.toBeNull();
+    expect(result.data.funding_status!.traffic).toBe("Low");
+    expect(typeof result.data.funding_status!.wxhopr_deficit).toBe("bigint");
   });
 
   it("parses balance response with capacity_allocations", () => {
     const result = BalanceResponseSchema.safeParse(balanceResponseWithCapacity);
     expect(result.success).toBe(true);
     if (!result.success) return;
-    expect(result.data.capacity_allocations).not.toBeNull();
-    expect(result.data.capacity_allocations!.length).toBeGreaterThan(0);
-    expect(typeof result.data.capacity_allocations![0].capacity.stake).toBe(
-      "bigint",
-    );
+    const caps = result.data.capacity_allocations;
+    expect(caps).not.toBeNull();
+    expect(typeof caps!.node.stake).toBe("bigint");
+    expect(typeof caps!.safe.stake).toBe("bigint");
+    const peers = Object.values(caps!.peer_allocations);
+    expect(peers.length).toBeGreaterThan(0);
+    expect(typeof peers[0].stake).toBe("bigint");
   });
 });
 

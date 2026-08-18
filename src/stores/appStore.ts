@@ -461,7 +461,9 @@ export function createAppStore(): AppStoreTuple {
             ? null
             : BalanceResponseSchema.safeParse(balEvent.payload.Ok);
           if (parsed === null) {
-            setState("balance", null);
+            // Transient daemon hiccup (Balance(Err) / WorkerOffline tick):
+            // keep the last-known balance instead of dropping the UI back to
+            // the issue-only fallback. criticalError still resets everything.
           } else if (parsed && parsed.success) {
             setState("balance", parsed.data);
           } else if (parsed) {

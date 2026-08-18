@@ -13,7 +13,10 @@ import FundsInfo from "../../components/FundsInfo.tsx";
 import { Show } from "solid-js";
 import {
   deriveNodeStatus,
-  deriveSafeStatus,
+  deriveOverallStatus,
+  deriveTrafficStatus,
+  deriveWxhoprDeficit,
+  deriveXdaiDeficit,
   describeCriticalIssue,
 } from "../../utils/funding.ts";
 import {
@@ -36,23 +39,33 @@ export default function Usage() {
       ? appState.runMode.PreparingSafe
       : null);
 
-  const fundingIssues = createMemo(() =>
+  const runModeStatus = createMemo(() =>
     isRunningRunMode(appState.runMode)
-      ? (appState.runMode.Running.funding_issues ?? [])
-      : []
+      ? appState.runMode.Running.funding_status
+      : null
   );
 
   const effectiveCredit = createMemo(() => {
     const b = appState.balance;
     if (!b) return null;
-    return computeEffectiveCredit(b.capacity_allocations ?? []);
+    return computeEffectiveCredit(b);
   });
 
   const totalWxhoprHopli = createMemo(() => {
     const b = appState.balance;
-    if (!b?.capacity_allocations) return undefined;
-    return sumCapacityStake(b.capacity_allocations);
+    if (!b) return undefined;
+    return sumCapacityStake(b);
   });
+
+  const trafficStatus = createMemo(() =>
+    deriveTrafficStatus(appState.balance, runModeStatus())
+  );
+  const gasStatus = createMemo(() =>
+    deriveNodeStatus(appState.balance, runModeStatus())
+  );
+  const overallStatus = createMemo(() =>
+    deriveOverallStatus(appState.balance, runModeStatus())
+  );
 
   const wxhoprRaw = () =>
     preparingSafe()?.node_wxhopr ?? totalWxhoprHopli() ?? 0n;
@@ -61,27 +74,12 @@ export default function Usage() {
 
   const isBalanceLoading = () => appState.balance === null;
 
-  const wxhoprDeficit = createMemo(() => {
-    if (fundingIssues().length === 0) return null;
-    const ideal = appState.balance?.ideal_balance?.wxhopr;
-    const current = totalWxhoprHopli();
-    if (ideal === undefined || current === undefined) return null;
-    const diff = ideal - current;
-    return diff > 0n ? diff : null;
-  });
+  const wxhoprDeficit = createMemo(() =>
+    deriveWxhoprDeficit(appState.balance, runModeStatus())
+  );
 
-  const xdaiDeficit = createMemo(() => {
-    if (fundingIssues().length === 0) return null;
-    const ideal = appState.balance?.ideal_balance?.xdai;
-    const current = appState.balance?.node;
-    if (ideal === undefined || current === undefined) return null;
-    const diff = ideal - current;
-    return diff > 0n ? diff : null;
-  });
-
-  const criticalIssue = createMemo(() => fundingIssues()[0]);
-  const isCriticalLevel = createMemo(() =>
-    criticalIssue() === "Unfunded" || criticalIssue() === "ChannelsOutOfFunds"
+  const xdaiDeficit = createMemo(() =>
+    deriveXdaiDeficit(appState.balance, runModeStatus())
   );
 
   return (
@@ -108,11 +106,22 @@ export default function Usage() {
           </div>
         </Match>
         <Match when={isRunningRunMode(appState.runMode) || preparingSafe()}>
-          <Show when={describeCriticalIssue(fundingIssues())}>
+          {
+            /* The daemon's issue text only shows while the thresholds agree
+              something is wrong — a funded Safe/EOA whose channels are still
+              being opened must not read as a red warning. Red additionally
+              requires a real balance response: the daemon's issues alone
+              (shown while the first balance is still loading) are blind to
+              EOA funds and only warrant amber. */
+          }
+          <Show
+            when={overallStatus() !== "Sufficient" &&
+              describeCriticalIssue(appState.balance, runModeStatus())}
+          >
             {(description) => (
               <div
                 class={`px-4 py-2 rounded-lg text-sm font-medium ${
-                  isCriticalLevel()
+                  overallStatus() === "Empty" && !isBalanceLoading()
                     ? "bg-red-100 text-red-800"
                     : "bg-amber-100 text-amber-800"
                 }`}
@@ -142,7 +151,7 @@ export default function Usage() {
                   label="Traffic"
                   {...humanWxhoprParts(wxhoprRaw())}
                   tooltip={<>{wxhoprDecimal(wxhoprRaw())} wxHOPR</>}
-                  status={deriveSafeStatus(fundingIssues())}
+                  status={trafficStatus()}
                   subline={
                     // Explicit null check + assertion instead of Show's
                     // narrowing callback: credit can be 0n, which is falsy
@@ -155,7 +164,7 @@ export default function Usage() {
                       >
                         <span
                           class={`text-xs font-normal ${
-                            deriveSafeStatus(fundingIssues()) === "Empty"
+                            trafficStatus() === "Empty"
                               ? "text-vpn-red"
                               : "text-text-secondary"
                           }`}
@@ -171,7 +180,7 @@ export default function Usage() {
                   amount={humanXdai(xdaiRaw())}
                   unit="xDAI"
                   tooltip={<>{formatXdai(xdaiRaw(), 18)} xDAI</>}
-                  status={deriveNodeStatus(fundingIssues())}
+                  status={gasStatus()}
                 />
               </div>
             </Show>

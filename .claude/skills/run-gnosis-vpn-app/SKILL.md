@@ -49,9 +49,9 @@ The fixture drives the app's real logic — edit a copy, don't force UI state in
 source:
 
 - `cached_state.status.Ok.run_mode` — `{"Running": {...}}` reaches the main
-  screen; `funding_issues: ["SafeLowOnFunds"]` shows the low-balance banner
-  (`"Unfunded"` etc. → "empty" variant; see `FundingIssueSchema` in
-  `src/services/vpnService.ts`).
+  screen; `funding_status: {"traffic": "Low", "gas": "Good", ...}` shows the
+  low-balance banner (`"Empty"` on either axis → the "empty" variant; see
+  `FundingStatusSchema` in `src/services/vpnService.ts`).
 - `destination.meta.flag` — optional ISO 3166-1 alpha-2 code (e.g. `"SE"`,
   `"BR"`) placed inside each destination's `meta` object; when present and
   `settings.flagDisplay` is not `"none"`, the UI renders the country flag next

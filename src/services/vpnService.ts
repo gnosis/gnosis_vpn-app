@@ -163,20 +163,22 @@ export const DisconnectResponseSchema = z.union([
 ]);
 export type DisconnectResponse = z.infer<typeof DisconnectResponseSchema>;
 
-export const FundingIssueSchema = z.enum([
-  "Unfunded",
-  "ChannelsOutOfFunds",
-  "SafeOutOfFunds",
-  "SafeLowOnFunds",
-  "NodeUnderfunded",
-  "NodeLowOnFunds",
-]);
-export type FundingIssue = z.infer<typeof FundingIssueSchema>;
-
 // Hopli amounts arrive as raw wei integer strings (e.g. "1000000000000000000").
 // Transforming to bigint at the boundary catches malformed values early and
 // removes the need for BigInt() calls throughout the codebase.
 const BigIntStringSchema = z.string().transform((s) => BigInt(s));
+
+export const FundingLevelSchema = z.enum(["Good", "Low", "Empty"]);
+export type FundingLevel = z.infer<typeof FundingLevelSchema>;
+
+// Traffic/gas health, already pooled by the daemon, plus how much more is needed.
+export const FundingStatusSchema = z.object({
+  traffic: FundingLevelSchema,
+  gas: FundingLevelSchema,
+  wxhopr_deficit: BigIntStringSchema.nullable(),
+  xdai_deficit: BigIntStringSchema.nullable(),
+});
+export type FundingStatus = z.infer<typeof FundingStatusSchema>;
 
 export const BalanceRecommendationSchema = z.object({
   wxhopr: BigIntStringSchema,
@@ -188,12 +190,6 @@ export const BalanceRecommendationSchema = z.object({
 });
 export type BalanceRecommendation = z.infer<typeof BalanceRecommendationSchema>;
 
-export const CapacityAllocatorSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("safe") }),
-  z.object({ type: z.literal("peer"), address: z.string() }),
-]);
-export type CapacityAllocator = z.infer<typeof CapacityAllocatorSchema>;
-
 export const CapacitySchema = z.object({
   stake: BigIntStringSchema,
   expected_messages: z.number(),
@@ -202,11 +198,15 @@ export const CapacitySchema = z.object({
 });
 export type Capacity = z.infer<typeof CapacitySchema>;
 
-export const CapacityEntrySchema = z.object({
-  allocator: CapacityAllocatorSchema,
-  capacity: CapacitySchema,
+// Mirror of the daemon's CapacityAllocations struct: open outgoing channels
+// keyed by checksum address, wxHOPR on the node EOA (not yet swept into the
+// Safe), and the unallocated Safe balance.
+export const CapacityAllocationsSchema = z.object({
+  peer_allocations: z.record(z.string(), CapacitySchema),
+  node: CapacitySchema,
+  safe: CapacitySchema,
 });
-export type CapacityEntry = z.infer<typeof CapacityEntrySchema>;
+export type CapacityAllocations = z.infer<typeof CapacityAllocationsSchema>;
 
 export const PreparingSafeSchema = z.object({
   node_address: z.string(),
@@ -254,7 +254,7 @@ export const WarmupSchema = z.object({
 export type Warmup = z.infer<typeof WarmupSchema>;
 
 export const RunningSchema = z.object({
-  funding_issues: z.array(FundingIssueSchema).nullable(),
+  funding_status: FundingStatusSchema.nullable(),
   hopr_status: WarmupStatusSchema.nullable(),
 });
 export type Running = z.infer<typeof RunningSchema>;
@@ -293,9 +293,9 @@ export const BalanceResponseSchema = z.object({
   safe: BigIntStringSchema,
   channels_out: BigIntStringSchema,
   info: InfoSchema,
-  funding_issues: z.array(FundingIssueSchema).nullable(),
+  funding_status: FundingStatusSchema.nullable(),
   ideal_balance: BalanceRecommendationSchema.nullable(),
-  capacity_allocations: z.array(CapacityEntrySchema).nullable(),
+  capacity_allocations: CapacityAllocationsSchema.nullable(),
 });
 export type BalanceResponse = z.infer<typeof BalanceResponseSchema>;
 

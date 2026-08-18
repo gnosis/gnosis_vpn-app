@@ -103,6 +103,16 @@ export function formatXdai(
   );
 }
 
+/** Format a wxHOPR hopli amount (18-decimal base unit) as a decimal string
+ * without trailing zeros — the same math as {@link formatXdai}. */
+export function formatWxhopr(
+  value: string | number | bigint,
+  fractionDigits = 2,
+  rounding: Rounding = "floor",
+): string {
+  return formatXdai(value, fractionDigits, rounding);
+}
+
 /** Format a wxHOPR hopli amount as a full decimal wxHOPR value without trailing zeros. */
 export function wxhoprDecimal(
   hopli: string | bigint | null | undefined,
@@ -124,6 +134,10 @@ function toSubscript(n: number): string {
 /** Significant digits shown for a compact token amount (wxHOPR and xDAI alike). */
 const COMPACT_SIG_FIGS = 3;
 
+/** Ceiled ("send at least") amounts never show more than this many fraction
+ * digits, as long as the value is big enough (>= 0.001) to survive the cut. */
+const MAX_CEIL_FRACTION_DIGITS = 3;
+
 /**
  * Format an 18-decimal base-unit amount as a compact decimal string.
  *
@@ -134,7 +148,9 @@ const COMPACT_SIG_FIGS = 3;
  * subscript counts the leading zeros after the decimal point.
  *
  * With `rounding: "ceil"` the value is rounded up at the same display
- * precision instead of truncated.
+ * precision instead of truncated, additionally capped at
+ * `MAX_CEIL_FRACTION_DIGITS` for values >= 0.001 (e.g. 0.0100…03 → `0.011`);
+ * smaller dust amounts keep the sig-figs/subscript notation.
  */
 function formatCompactAmount(
   raw: bigint,
@@ -151,9 +167,12 @@ function formatCompactAmount(
     // this precision). Carry that crosses `flooredThreshold` — e.g.
     // 0.9999 → 1 — is handled by re-picking the branch for the ceiled value.
     const fracStr = (raw % denom).toString().padStart(18, "0");
+    const leading = fracStr.search(/[1-9]/);
     const precision = raw >= flooredThreshold
       ? 2
-      : fracStr.search(/[1-9]/) + COMPACT_SIG_FIGS;
+      : leading <= 2
+      ? Math.min(leading + COMPACT_SIG_FIGS, MAX_CEIL_FRACTION_DIGITS)
+      : leading + COMPACT_SIG_FIGS;
     return formatCompactAmount(
       ceilToFractionDigits(raw, precision),
       flooredThreshold,

@@ -336,6 +336,7 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
         let guard = polling_state.lock().map_err(|e| e.to_string())?;
         (guard.cancel.clone(), guard.trigger.clone())
     };
+    let bal_trigger = trigger.clone();
 
     let app = app_handle.clone();
     let join_handle = tauri::async_runtime::spawn(async move {
@@ -357,9 +358,17 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
                     if let Ok(Some(ref status)) = result {
                         let conn_state = status.into();
 
+                        // Funding level needs the balance poll's data; use the latest cached response.
+                        let cached_balance = app.state::<AppStateCache>().balance.borrow().clone();
+                        let balance = cached_balance
+                            .as_ref()
+                            .and_then(|res| res.as_ref().ok())
+                            .and_then(|opt| opt.as_ref());
+                        let level = icons::funds_level(&status.run_mode, balance);
+
                         let icon_state = app.state::<Arc<Mutex<icons::IconState>>>();
                         let new_dock_icon = match icon_state.lock() {
-                            Ok(mut guard) => guard.apply_status(&conn_state, &status.run_mode),
+                            Ok(mut guard) => guard.apply_status(&conn_state, level),
                             Err(e) => {
                                 eprintln!("Failed to lock icon state: {}", e);
                                 None
@@ -368,7 +377,7 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
 
                         // during animation, the heartbeat logic owns app and tray icon changes
                         if !icons::is_animating_state(&conn_state) {
-                            icons::update_tray_icon(&app, &app.state::<TrayIconState>(), &conn_state, icons::funds_level(&status.run_mode));
+                            icons::update_tray_icon(&app, &app.state::<TrayIconState>(), &conn_state, level);
 
                             if let Some(icon_name) = new_dock_icon {
                                 if let Err(e) = set_app_icon(app.clone(), icon_name).await {
@@ -444,6 +453,9 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
                     tick_timeout.as_mut().reset(Instant::now() + delay);
                     app_bal.state::<AppStateCache>().balance.send_replace(Some(result.clone()));
                     let _ = app_bal.emit("balance", result);
+                    // Nudge the status loop so the tray funding level picks up
+                    // the fresh balance without waiting for its next tick.
+                    bal_trigger.notify_one();
                 }
             }
         }

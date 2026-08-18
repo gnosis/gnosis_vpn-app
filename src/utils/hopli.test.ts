@@ -145,6 +145,13 @@ describe("humanWxhopr with ceil rounding (send-at-least amounts)", () => {
     expect(humanWxhopr(123456n * 10n ** 12n, "ceil")).toBe("0.124 wxHOPR");
   });
 
+  it("caps values >= 0.001 at 3 fraction digits", () => {
+    // 0.0100000000320008 — key-binding fee plus dust-sized channel stakes —
+    // must read "0.011", not the 4-digit "0.0101".
+    expect(humanWxhopr(10000000032000800n, "ceil")).toBe("0.011 wxHOPR");
+    expect(humanWxhopr(123n * 10n ** 13n, "ceil")).toBe("0.002 wxHOPR");
+  });
+
   it("rounds up in subscript-zero notation", () => {
     expect(humanWxhopr(349n * 10n ** 10n + 1n, "ceil")).toBe("0.0₅35 wxHOPR");
   });
