@@ -14,7 +14,7 @@ use gnosis_vpn_lib::route_health::{
 };
 use gnosis_vpn_lib::{command, connection};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
 fn address() -> Address {
@@ -92,7 +92,7 @@ fn route_health_view(state: RouteHealthState) -> RouteHealthView {
     }
 }
 
-fn write(dir: &PathBuf, name: &str, val: &impl serde::Serialize) {
+fn write(dir: &Path, name: &str, val: &impl serde::Serialize) {
     let path = dir.join(name);
     let json = serde_json::to_string_pretty(val).expect("serialization failed");
     std::fs::write(&path, format!("{json}\n")).expect("failed to write fixture");
