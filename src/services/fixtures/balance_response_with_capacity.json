@@ -9,40 +9,26 @@
   },
   "funding_issues": null,
   "ideal_balance": null,
-  "capacity_allocations": [
-    {
-      "allocator": {
-        "type": "node_eoa"
-      },
-      "capacity": {
-        "stake": "250000000000000000",
-        "expected_messages": 125,
-        "min_guaranteed_messages": 12,
-        "byte_capacity": 131072
-      }
-    },
-    {
-      "allocator": {
-        "type": "safe"
-      },
-      "capacity": {
-        "stake": "2000000000000000000",
-        "expected_messages": 1000,
-        "min_guaranteed_messages": 100,
-        "byte_capacity": 1048576
-      }
-    },
-    {
-      "allocator": {
-        "type": "peer",
-        "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa"
-      },
-      "capacity": {
+  "capacity_allocations": {
+    "peer_allocations": {
+      "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa": {
         "stake": "500000000000000000",
         "expected_messages": 250,
         "min_guaranteed_messages": 25,
         "byte_capacity": 262144
       }
+    },
+    "node": {
+      "stake": "250000000000000000",
+      "expected_messages": 125,
+      "min_guaranteed_messages": 12,
+      "byte_capacity": 131072
+    },
+    "safe": {
+      "stake": "2000000000000000000",
+      "expected_messages": 1000,
+      "min_guaranteed_messages": 100,
+      "byte_capacity": 1048576
     }
-  ]
+  }
 }

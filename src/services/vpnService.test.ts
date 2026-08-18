@@ -168,11 +168,13 @@ describe("BalanceResponseSchema", () => {
     const result = BalanceResponseSchema.safeParse(balanceResponseWithCapacity);
     expect(result.success).toBe(true);
     if (!result.success) return;
-    expect(result.data.capacity_allocations).not.toBeNull();
-    expect(result.data.capacity_allocations!.length).toBeGreaterThan(0);
-    expect(typeof result.data.capacity_allocations![0].capacity.stake).toBe(
-      "bigint",
-    );
+    const caps = result.data.capacity_allocations;
+    expect(caps).not.toBeNull();
+    expect(typeof caps!.node.stake).toBe("bigint");
+    expect(typeof caps!.safe.stake).toBe("bigint");
+    const peers = Object.values(caps!.peer_allocations);
+    expect(peers.length).toBeGreaterThan(0);
+    expect(typeof peers[0].stake).toBe("bigint");
   });
 });
 

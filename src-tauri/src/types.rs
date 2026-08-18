@@ -3,6 +3,7 @@ use gnosis_vpn_lib::command::{self, HoprInitStatus, HoprStatus};
 
 use serde::Serialize;
 
+use std::collections::HashMap;
 use std::fmt::{self, Display};
 
 // Sanitized library responses — only types that need reshaping for the UI layer live here.
@@ -77,10 +78,27 @@ impl From<balance::Capacity> for TauriCapacity {
     }
 }
 
+// Mirror of balance::CapacityAllocations with stakes stringified; peer map
+// keyed by checksum address strings.
 #[derive(Clone, Debug, Serialize)]
-pub struct TauriCapacityEntry {
-    pub allocator: balance::CapacityAllocator,
-    pub capacity: TauriCapacity,
+pub struct TauriCapacityAllocations {
+    pub peer_allocations: HashMap<String, TauriCapacity>,
+    pub node: TauriCapacity,
+    pub safe: TauriCapacity,
+}
+
+impl From<balance::CapacityAllocations> for TauriCapacityAllocations {
+    fn from(a: balance::CapacityAllocations) -> Self {
+        TauriCapacityAllocations {
+            peer_allocations: a
+                .peer_allocations
+                .into_iter()
+                .map(|(addr, c)| (addr.to_checksum(), c.into()))
+                .collect(),
+            node: a.node.into(),
+            safe: a.safe.into(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -91,7 +109,7 @@ pub struct BalanceResponse {
     pub info: command::Info,
     pub funding_issues: Option<Vec<balance::FundingIssue>>,
     pub ideal_balance: Option<TauriBalanceRecommendation>,
-    pub capacity_allocations: Option<Vec<TauriCapacityEntry>>,
+    pub capacity_allocations: Option<TauriCapacityAllocations>,
 }
 
 // RunMode merges the library's Init+Warmup variants and flattens two optional
@@ -246,15 +264,7 @@ impl From<command::BalanceResponse> for BalanceResponse {
             .sum::<balance::Balance<balance::WxHOPR>>()
             .amount()
             .to_string();
-        let capacity_allocations = br.capacity_allocations.map(|entries| {
-            entries
-                .into_iter()
-                .map(|e| TauriCapacityEntry {
-                    allocator: e.allocator,
-                    capacity: e.capacity.into(),
-                })
-                .collect()
-        });
+        let capacity_allocations = br.capacity_allocations.map(Into::into);
         BalanceResponse {
             node: br.node.amount().to_string(),
             safe: br.safe.amount().to_string(),

@@ -250,13 +250,14 @@ fn worst(a: FundsLevel, b: FundsLevel) -> FundsLevel {
 }
 
 // None only while the daemon has computed no capacity data at all; the
-// allocations include node EOA funds as the node_eoa entry.
+// allocations carry node EOA and Safe funds alongside the open channels.
 fn traffic_level(balance: &BalanceResponse) -> Option<FundsLevel> {
-    let total = balance
-        .capacity_allocations
-        .as_deref()?
-        .iter()
-        .map(|e| e.capacity.byte_capacity)
+    let caps = balance.capacity_allocations.as_ref()?;
+    let total = caps
+        .peer_allocations
+        .values()
+        .map(|c| c.byte_capacity)
+        .chain([caps.node.byte_capacity, caps.safe.byte_capacity])
         .fold(0u64, u64::saturating_add);
     Some(if total < TRAFFIC_EMPTY_BELOW_BYTES {
         FundsLevel::Empty
@@ -501,8 +502,8 @@ pub fn start_icon_heartbeat(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{TauriCapacity, TauriCapacityEntry};
-    use gnosis_vpn_lib::balance::{Address, CapacityAllocator};
+    use crate::types::{TauriCapacity, TauriCapacityAllocations};
+    use gnosis_vpn_lib::balance::Address;
     use gnosis_vpn_lib::command;
 
     fn running(issues: Vec<FundingIssue>) -> RunMode {
@@ -533,14 +534,16 @@ mod tests {
             },
             funding_issues: None,
             ideal_balance: None,
-            capacity_allocations: allocation_bytes.map(|bytes| {
-                bytes
+            // the byte totals go into peer entries; node and safe stay zero —
+            // traffic_level only cares about the sum across all three parts
+            capacity_allocations: allocation_bytes.map(|bytes| TauriCapacityAllocations {
+                peer_allocations: bytes
                     .into_iter()
-                    .map(|b| TauriCapacityEntry {
-                        allocator: CapacityAllocator::Safe,
-                        capacity: capacity(b),
-                    })
-                    .collect()
+                    .enumerate()
+                    .map(|(i, b)| (format!("0x{i:040x}"), capacity(b)))
+                    .collect(),
+                node: capacity(0),
+                safe: capacity(0),
             }),
         }
     }
@@ -670,9 +673,9 @@ mod tests {
     }
 
     #[test]
-    fn node_eoa_allocation_decides_traffic_over_stale_issues() {
-        // freshly deposited EOA funds arrive as an allocation entry — the
-        // channel-scoped issues must not paint this as empty
+    fn allocations_decide_traffic_over_stale_issues() {
+        // freshly deposited EOA funds arrive inside the allocations struct —
+        // the channel-scoped issues must not paint this as empty
         let mode = running(vec![FundingIssue::ChannelsOutOfFunds]);
         let b = balance(Some(vec![6 * GIB]), XDAI_OK);
         assert_eq!(funds_level(&mode, Some(&b)), FundsLevel::Sufficient);

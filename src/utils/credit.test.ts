@@ -7,7 +7,7 @@ import {
 import type {
   BalanceResponse,
   Capacity,
-  CapacityEntry,
+  CapacityAllocations,
 } from "@src/services/vpnService.ts";
 
 const BYTES_PER_MB = 1_048_576n;
@@ -22,16 +22,19 @@ function makeCapacity(byte_capacity: number, stake = 0n): Capacity {
   };
 }
 
-function makeEntry(
-  byte_capacity: number,
-  stake = 0n,
-  allocator: CapacityEntry["allocator"] = { type: "safe" },
-): CapacityEntry {
-  return { allocator, capacity: makeCapacity(byte_capacity, stake) };
+function makeAllocations(
+  parts: Partial<CapacityAllocations>,
+): CapacityAllocations {
+  return {
+    peer_allocations: {},
+    node: makeCapacity(0),
+    safe: makeCapacity(0),
+    ...parts,
+  };
 }
 
 function makeBalance(
-  capacity_allocations: CapacityEntry[] | null,
+  capacity_allocations: CapacityAllocations | null,
 ): BalanceResponse {
   return {
     node: 0n,
@@ -45,78 +48,75 @@ function makeBalance(
 }
 
 describe("computeEffectiveCredit", () => {
-  it("returns 0 for empty allocations", () => {
-    expect(computeEffectiveCredit(makeBalance([]))).toBe(0n);
+  it("returns 0 for all-zero allocations", () => {
+    expect(computeEffectiveCredit(makeBalance(makeAllocations({})))).toBe(0n);
   });
 
   it("returns 0 when allocations are missing", () => {
     expect(computeEffectiveCredit(makeBalance(null))).toBe(0n);
   });
 
-  it("sums bytes from a single safe allocation", () => {
-    expect(computeEffectiveCredit(makeBalance([makeEntry(1_000_000)]))).toBe(
-      1_000_000n,
-    );
+  it("sums bytes from the safe part", () => {
+    expect(
+      computeEffectiveCredit(
+        makeBalance(makeAllocations({ safe: makeCapacity(1_000_000) })),
+      ),
+    ).toBe(1_000_000n);
   });
 
   it("sums bytes from a single peer allocation", () => {
     expect(
       computeEffectiveCredit(
-        makeBalance([
-          makeEntry(500_000, 0n, { type: "peer", address: "0xabc" }),
-        ]),
+        makeBalance(
+          makeAllocations({ peer_allocations: { "0xabc": makeCapacity(500_000) } }),
+        ),
       ),
     ).toBe(500_000n);
   });
 
-  it("sums bytes across mixed safe and peer allocations", () => {
-    const entries = [
-      makeEntry(1_000_000),
-      makeEntry(500_000, 0n, { type: "peer", address: "0xabc" }),
-      makeEntry(250_000),
-    ];
-    expect(computeEffectiveCredit(makeBalance(entries))).toBe(1_750_000n);
+  it("sums bytes across safe and peer allocations", () => {
+    const allocations = makeAllocations({
+      safe: makeCapacity(1_000_000),
+      peer_allocations: {
+        "0xabc": makeCapacity(500_000),
+        "0xdef": makeCapacity(250_000),
+      },
+    });
+    expect(computeEffectiveCredit(makeBalance(allocations))).toBe(1_750_000n);
   });
 
-  it("includes the node EOA allocation entry", () => {
-    expect(
-      computeEffectiveCredit(
-        makeBalance([
-          makeEntry(1_000_000),
-          makeEntry(500_000, 0n, { type: "node_eoa" }),
-        ]),
-      ),
-    ).toBe(1_500_000n);
+  it("includes the node EOA part", () => {
+    const allocations = makeAllocations({
+      safe: makeCapacity(1_000_000),
+      node: makeCapacity(500_000),
+    });
+    expect(computeEffectiveCredit(makeBalance(allocations))).toBe(1_500_000n);
   });
 });
 
 describe("sumCapacityStake", () => {
-  it("returns 0 for empty allocations", () => {
-    expect(sumCapacityStake(makeBalance([]))).toBe(0n);
+  it("returns 0 for all-zero allocations", () => {
+    expect(sumCapacityStake(makeBalance(makeAllocations({})))).toBe(0n);
   });
 
   it("sums stake across safe and peer allocations", () => {
-    const entries = [
-      makeEntry(0, 1_000_000_000_000_000_000n),
-      makeEntry(0, 500_000_000_000_000_000n, {
-        type: "peer",
-        address: "0xabc",
-      }),
-    ];
-    expect(sumCapacityStake(makeBalance(entries))).toBe(
+    const allocations = makeAllocations({
+      safe: makeCapacity(0, 1_000_000_000_000_000_000n),
+      peer_allocations: { "0xabc": makeCapacity(0, 500_000_000_000_000_000n) },
+    });
+    expect(sumCapacityStake(makeBalance(allocations))).toBe(
       1_500_000_000_000_000_000n,
     );
   });
 
   it("includes the node EOA stake", () => {
-    expect(
-      sumCapacityStake(
-        makeBalance([
-          makeEntry(0, 1_000_000_000_000_000_000n),
-          makeEntry(0, 500_000_000_000_000_000n, { type: "node_eoa" }),
-        ]),
-      ),
-    ).toBe(1_500_000_000_000_000_000n);
+    const allocations = makeAllocations({
+      safe: makeCapacity(0, 1_000_000_000_000_000_000n),
+      node: makeCapacity(0, 500_000_000_000_000_000n),
+    });
+    expect(sumCapacityStake(makeBalance(allocations))).toBe(
+      1_500_000_000_000_000_000n,
+    );
   });
 });
 

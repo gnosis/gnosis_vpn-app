@@ -28,8 +28,8 @@ export type StatusText = "Sufficient" | "Low" | "Empty" | string;
  * The daemon's funding issues remain as fallback only while there is no
  * capacity data at all (no balance yet, or a fresh daemon that has not
  * computed capacity_allocations). As soon as allocations are present the
- * thresholds win — node EOA funds count toward traffic via the node_eoa
- * allocation entry.
+ * thresholds win — node EOA funds count toward traffic via the struct's
+ * `node` part.
  *
  * Keep thresholds in sync with src-tauri/src/icons.rs (tray icon).
  */

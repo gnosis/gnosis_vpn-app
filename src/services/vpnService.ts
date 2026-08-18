@@ -188,14 +188,6 @@ export const BalanceRecommendationSchema = z.object({
 });
 export type BalanceRecommendation = z.infer<typeof BalanceRecommendationSchema>;
 
-export const CapacityAllocatorSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("safe") }),
-  z.object({ type: z.literal("peer"), address: z.string() }),
-  // wxHOPR on the node EOA, deposited but not yet swept into the Safe.
-  z.object({ type: z.literal("node_eoa") }),
-]);
-export type CapacityAllocator = z.infer<typeof CapacityAllocatorSchema>;
-
 export const CapacitySchema = z.object({
   stake: BigIntStringSchema,
   expected_messages: z.number(),
@@ -204,11 +196,15 @@ export const CapacitySchema = z.object({
 });
 export type Capacity = z.infer<typeof CapacitySchema>;
 
-export const CapacityEntrySchema = z.object({
-  allocator: CapacityAllocatorSchema,
-  capacity: CapacitySchema,
+// Mirror of the daemon's CapacityAllocations struct: open outgoing channels
+// keyed by checksum address, wxHOPR on the node EOA (not yet swept into the
+// Safe), and the unallocated Safe balance.
+export const CapacityAllocationsSchema = z.object({
+  peer_allocations: z.record(z.string(), CapacitySchema),
+  node: CapacitySchema,
+  safe: CapacitySchema,
 });
-export type CapacityEntry = z.infer<typeof CapacityEntrySchema>;
+export type CapacityAllocations = z.infer<typeof CapacityAllocationsSchema>;
 
 export const PreparingSafeSchema = z.object({
   node_address: z.string(),
@@ -297,7 +293,7 @@ export const BalanceResponseSchema = z.object({
   info: InfoSchema,
   funding_issues: z.array(FundingIssueSchema).nullable(),
   ideal_balance: BalanceRecommendationSchema.nullable(),
-  capacity_allocations: z.array(CapacityEntrySchema).nullable(),
+  capacity_allocations: CapacityAllocationsSchema.nullable(),
 });
 export type BalanceResponse = z.infer<typeof BalanceResponseSchema>;
 

@@ -20,31 +20,31 @@ name = "gnosis_vpn_app_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2.6.2", features = [] }
+tauri-build = { version = "2.6.3", features = [] }
 
 [dependencies]
 # TODO(release): repoint to the gnosis_vpn-client main rev once branch
-# mj/node-wxhopr-capacity (node-EOA funds as the `node_eoa` capacity allocation) merges.
-gnosis_vpn-lib = { git = "https://github.com/gnosis/gnosis_vpn-client.git", rev = "85bf1b078a00264a148a490977eb580d4dbea971" }
-liblzma = { version = "0.4.6", default-features = false, features = ["static"] }
-serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.149"
-tauri = { version = "2.11.2", features = ["tray-icon", "image-png"] }
-tauri-plugin-single-instance = "2.4.2"
+# mj/node-wxhopr-capacity (capacity_allocations as a struct: peer_allocations/node/safe) merges.
+gnosis_vpn-lib = { git = "https://github.com/gnosis/gnosis_vpn-client.git", rev = "5054d95b34ead059234411a5a6e08487e81317c8" }
+liblzma = { version = "0.4.7", default-features = false, features = ["static"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+tauri = { version = "2.11.5", features = ["tray-icon", "image-png"] }
+tauri-plugin-single-instance = "2.4.3"
 tauri-plugin-opener = "2.5.4"
-tauri-plugin-dialog = "2.7.1"
+tauri-plugin-dialog = "2.7.2"
 dark-light = "2.0"
 reqwest = { version = "0.13.4", features = ["json"] }
 semver = "1.0.28"
-tokio = { version = "1.52.3", features = ["time", "rt", "sync"] }
-tokio-util = { version = "0.7.17", features = ["rt"] }
+tokio = { version = "1.53.1", features = ["time", "rt", "sync", "process"] }
+tokio-util = { version = "0.7.19", features = ["rt"] }
 zstd = "0.13.3"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 ashpd = { version = "0.10", default-features = false }
-futures-core = { version = "0.3", default-features = false }
+futures-core = { version = "0.3.33", default-features = false }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-cocoa = "0.26"
-objc = "0.2"
+cocoa = "0.26.1"
+objc = "0.2.7"
 dispatch = "0.2"

@@ -13,25 +13,18 @@ import {
 import type {
   BalanceResponse,
   Capacity,
-  CapacityEntry,
+  CapacityAllocations,
 } from "@src/services/vpnService.ts";
 
 const XDAI_OK = 10_000_000_000_000_000n; // 0.01 xDAI
 
-function makeCapacity(byte_capacity: number): Capacity {
+function makeCapacity(byte_capacity: number, stake = 0n): Capacity {
   return {
-    stake: 0n,
+    stake,
     expected_messages: 0,
     min_guaranteed_messages: 0,
     byte_capacity,
   };
-}
-
-function makeEntry(
-  byte_capacity: number,
-  allocator: CapacityEntry["allocator"] = { type: "safe" },
-): CapacityEntry {
-  return { allocator, capacity: makeCapacity(byte_capacity) };
 }
 
 function makeBalance(opts: {
@@ -41,13 +34,16 @@ function makeBalance(opts: {
   stake?: bigint;
   ideal?: { wxhopr?: bigint; xdai?: bigint };
 }): BalanceResponse {
-  const entries = (opts.allocationBytes ?? []).map((b) => makeEntry(b));
-  if (opts.nodeEoaBytes !== undefined) {
-    entries.push(makeEntry(opts.nodeEoaBytes, { type: "node_eoa" }));
-  }
-  if (opts.stake !== undefined && entries.length > 0) {
-    entries[0].capacity.stake = opts.stake;
-  }
+  // allocation bytes become the safe part plus peer entries; the safe part
+  // also carries the optional stake — only the sums matter to the helpers
+  const [safeBytes = 0, ...peerBytes] = opts.allocationBytes ?? [];
+  const allocations: CapacityAllocations = {
+    peer_allocations: Object.fromEntries(
+      peerBytes.map((b, i) => [`0x${i}`, makeCapacity(b)]),
+    ),
+    node: makeCapacity(opts.nodeEoaBytes ?? 0),
+    safe: makeCapacity(safeBytes, opts.stake ?? 0n),
+  };
   return {
     node: opts.node ?? XDAI_OK,
     safe: 0n,
@@ -64,7 +60,7 @@ function makeBalance(opts: {
         xdai_fee_per_tx: 0n,
       }
       : null,
-    capacity_allocations: opts.allocationBytes === null ? null : entries,
+    capacity_allocations: opts.allocationBytes === null ? null : allocations,
   };
 }
 
@@ -116,9 +112,9 @@ describe("deriveTrafficStatus", () => {
     expect(deriveTrafficStatus(balance, ["SafeLowOnFunds"])).toBe("Low");
   });
 
-  it("counts freshly deposited EOA funds via the node_eoa entry", () => {
+  it("counts freshly deposited EOA funds via the node part", () => {
     // Freshly deposited funds sit on the node EOA before the sweep; they
-    // arrive as the node_eoa allocation entry, and the daemon's
+    // arrive as the allocations struct's node part, and the daemon's
     // channel-scoped issues must not paint that as empty.
     const funded = makeBalance({
       allocationBytes: [],
