@@ -103,6 +103,16 @@ export function formatXdai(
   );
 }
 
+/** Format a wxHOPR hopli amount (18-decimal base unit) as a decimal string
+ * without trailing zeros — the same math as {@link formatXdai}. */
+export function formatWxhopr(
+  value: string | number | bigint,
+  fractionDigits = 2,
+  rounding: Rounding = "floor",
+): string {
+  return formatXdai(value, fractionDigits, rounding);
+}
+
 /** Format a wxHOPR hopli amount as a full decimal wxHOPR value without trailing zeros. */
 export function wxhoprDecimal(
   hopli: string | bigint | null | undefined,

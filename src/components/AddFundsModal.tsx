@@ -1,5 +1,5 @@
 import { Show } from "solid-js";
-import { formatXdai, humanWxhopr, wxhoprDecimal } from "../utils/hopli.ts";
+import { formatWxhopr, formatXdai, wxhoprDecimal } from "../utils/hopli.ts";
 import FundingAddress from "./address/FundingAddress.tsx";
 import Button from "./common/Button.tsx";
 import { Modal } from "./common/Modal.tsx";
@@ -20,7 +20,7 @@ export default function AddFundsModal(props: {
   // display doesn't already spell it out verbatim.
   const wxhoprExact = (deficit: bigint): string | null => {
     const exact = wxhoprDecimal(deficit);
-    return humanWxhopr(deficit, "ceil") === `${exact} wxHOPR` ? null : exact;
+    return formatWxhopr(deficit, 3, "ceil") === exact ? null : exact;
   };
   const xdaiExact = (deficit: bigint): string | null => {
     const exact = formatXdai(deficit, 18);
@@ -52,7 +52,7 @@ export default function AddFundsModal(props: {
               <Show when={props.wxhoprDeficit}>
                 {(deficit) => (
                   <div class="font-mono">
-                    +{humanWxhopr(deficit(), "ceil")}
+                    +{formatWxhopr(deficit(), 3, "ceil")} wxHOPR
                     <Show when={wxhoprExact(deficit())}>
                       {(exact) => (
                         <>
