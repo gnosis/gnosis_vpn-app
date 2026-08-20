@@ -43,24 +43,20 @@ export function evaluateUpdate(input: {
 }
 
 /**
- * Decides whether a newly detected package install should reset the channel
- * preference. Returns the channel to store, or `undefined` to keep the
- * current preference.
+ * Decides whether the stored channel preference needs to be rewritten for the
+ * installed package. Returns the channel to store, or `undefined` when the
+ * preference already matches.
  *
- * Only an update that actually crossed channels resets the preference — a
- * pending user switch (preference ≠ installed channel, same package) must
- * survive. When `installedVersion` is null the previous channel is unknown
- * (either a fresh install or the first run after this marker was introduced),
- * so a stored preference is left alone and only an unset one is filled in.
+ * The installed package is authoritative — the switcher is read-only, so a
+ * preference that disagrees with it is always stale, never a pending user
+ * switch. Reasons it can disagree: an update that crossed channels, a
+ * reinstall from the other channel, or a value left over from before the
+ * preference was kept in sync at all.
  */
 export function resolveChannelResync(input: {
   packageVersion: string;
-  installedVersion: string | null;
   channel: UpdateChannel | null;
 }): UpdateChannel | undefined {
-  const { packageVersion: pkg, installedVersion: recorded, channel } = input;
-  const installed = detectChannel(pkg);
-  const channelChanged = recorded != null &&
-    detectChannel(recorded) !== installed;
-  return channelChanged || !channel ? installed : undefined;
+  const installed = detectChannel(input.packageVersion);
+  return input.channel === installed ? undefined : installed;
 }

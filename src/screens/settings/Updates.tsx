@@ -106,10 +106,10 @@ export default function Updates() {
     return ver ? detectChannel(ver) : null;
   });
 
-  // The preference (settings.channel) is kept in sync with the installed
-  // package by the appStore resync effect, so it is normally set here.
+  // The installed package is authoritative; the persisted preference only
+  // fills in while the daemon hasn't reported a version yet.
   const effectiveChannel = createMemo<UpdateChannel>(() =>
-    settings.channel ?? installedChannel() ?? "stable"
+    installedChannel() ?? settings.channel ?? "stable"
   );
 
   const latestVersion = createMemo(() =>
@@ -120,7 +120,7 @@ export default function Updates() {
     evaluateUpdate({
       packageVersion: packageVersion(),
       manifest: settings.updateManifest ?? null,
-      channel: settings.channel,
+      channel: effectiveChannel(),
       dismissedVersion: settings.dismissedUpdateVersion,
     }).isUpToDate
   );

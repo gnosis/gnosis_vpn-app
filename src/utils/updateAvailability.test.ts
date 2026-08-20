@@ -320,12 +320,13 @@ describe("dismissed version", () => {
 });
 
 describe("resolveChannelResync", () => {
-  it("keeps a stored preference when no previous install is recorded", () => {
-    // First run after the marker was introduced: the previous channel is
-    // unknown, so a pending switch to snapshot must not be reset to stable.
+  it("keeps a preference that already matches the installed package", () => {
     expect(resolveChannelResync({
       packageVersion: "0.8.0",
-      installedVersion: null,
+      channel: "stable",
+    })).toBeUndefined();
+    expect(resolveChannelResync({
+      packageVersion: "2026.08.20+build.013814",
       channel: "snapshot",
     })).toBeUndefined();
   });
@@ -333,42 +334,24 @@ describe("resolveChannelResync", () => {
   it("fills in an unset preference from the installed package", () => {
     expect(resolveChannelResync({
       packageVersion: "0.8.0",
-      installedVersion: null,
       channel: null,
     })).toBe("stable");
     expect(resolveChannelResync({
       packageVersion: "0.8.0-rc.1",
-      installedVersion: null,
       channel: null,
     })).toBe("snapshot");
   });
 
-  it("follows the installed package when the update crossed channels", () => {
+  it("overrides a preference that contradicts the installed package", () => {
+    // The switcher is read-only, so a disagreeing preference is always stale —
+    // e.g. a "stable" value left over on a machine running a snapshot build.
     expect(resolveChannelResync({
-      packageVersion: "0.8.0-rc.1",
-      installedVersion: "0.7.5",
+      packageVersion: "2026.08.20+build.013814",
       channel: "stable",
     })).toBe("snapshot");
     expect(resolveChannelResync({
       packageVersion: "0.8.0",
-      installedVersion: "0.7.5-rc.1",
       channel: "snapshot",
-    })).toBe("stable");
-  });
-
-  it("keeps a pending switch when the package stayed on one channel", () => {
-    expect(resolveChannelResync({
-      packageVersion: "0.8.0",
-      installedVersion: "0.7.5",
-      channel: "snapshot",
-    })).toBeUndefined();
-  });
-
-  it("fills in an unset preference on a same-channel update", () => {
-    expect(resolveChannelResync({
-      packageVersion: "0.8.0",
-      installedVersion: "0.7.5",
-      channel: null,
     })).toBe("stable");
   });
 });

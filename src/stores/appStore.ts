@@ -594,23 +594,23 @@ export function createAppStore(): AppStoreTuple {
   // results. Always applies the helper output (even when isUpToDate is
   // undefined) so a channel switch that lands on a missing release clears
   // any stale banner state.
-  // Detect a new installed package (the app restarts through updates, so
-  // this compares against a persisted marker) and let resolveChannelResync
-  // decide whether the channel preference follows it.
+  // Keep the persisted channel preference and install marker in step with the
+  // package the daemon reports (the app restarts through updates, so the
+  // marker is what tells a new install apart from a relaunch).
   createEffect(() => {
-    // Wait for the real snapshot: acting on DEFAULT_SETTINGS would mistake
-    // every launch for a first run and clobber the stored preference.
+    // Wait for the real snapshot: acting on DEFAULT_SETTINGS would write the
+    // defaults back over the stored preference.
     if (!settingsActions.hydrated()) return;
     const pkg = state.serviceInfo?.package_version;
-    if (!pkg || pkg === settings.installedVersion) return;
-    void settingsActions.syncInstalledVersion(
-      pkg,
-      resolveChannelResync({
-        packageVersion: pkg,
-        installedVersion: settings.installedVersion,
-        channel: settings.channel,
-      }),
-    );
+    if (!pkg) return;
+    // A preference contradicting the installed package is stale even when the
+    // package itself is unchanged — repair it instead of skipping.
+    const channel = resolveChannelResync({
+      packageVersion: pkg,
+      channel: settings.channel,
+    });
+    if (pkg === settings.installedVersion && !channel) return;
+    void settingsActions.syncInstalledVersion(pkg, channel);
   });
 
   createEffect(() => {
