@@ -589,22 +589,12 @@ export function createAppStore(): AppStoreTuple {
     },
   } as const;
 
-  // Both windows derive update state locally via the same helper — settings
-  // sync through the rust-owned settings store, so both compute identical
-  // results. Always applies the helper output (even when isUpToDate is
-  // undefined) so a channel switch that lands on a missing release clears
-  // any stale banner state.
   // Keep the persisted channel preference and install marker in step with the
-  // package the daemon reports (the app restarts through updates, so the
-  // marker is what tells a new install apart from a relaunch).
+  // package the daemon reports.
   createEffect(() => {
-    // Wait for the real snapshot: acting on DEFAULT_SETTINGS would write the
-    // defaults back over the stored preference.
-    if (!settingsActions.hydrated()) return;
+    if (!settingsActions.hydrated()) return; // avoid clobbering stored prefs with defaults
     const pkg = state.serviceInfo?.package_version;
     if (!pkg) return;
-    // A preference contradicting the installed package is stale even when the
-    // package itself is unchanged — repair it instead of skipping.
     const channel = resolveChannelResync({
       packageVersion: pkg,
       channel: settings.channel,

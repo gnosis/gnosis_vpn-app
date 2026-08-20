@@ -42,17 +42,7 @@ export function evaluateUpdate(input: {
   };
 }
 
-/**
- * Decides whether the stored channel preference needs to be rewritten for the
- * installed package. Returns the channel to store, or `undefined` when the
- * preference already matches.
- *
- * The installed package is authoritative — the switcher is read-only, so a
- * preference that disagrees with it is always stale, never a pending user
- * switch. Reasons it can disagree: an update that crossed channels, a
- * reinstall from the other channel, or a value left over from before the
- * preference was kept in sync at all.
- */
+/** Returns the channel to store, or `undefined` when the preference already matches the installed package. */
 export function resolveChannelResync(input: {
   packageVersion: string;
   channel: UpdateChannel | null;

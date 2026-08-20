@@ -106,8 +106,7 @@ export default function Updates() {
     return ver ? detectChannel(ver) : null;
   });
 
-  // The installed package is authoritative; the persisted preference only
-  // fills in while the daemon hasn't reported a version yet.
+  // Installed package is authoritative; preference fills in until daemon reports a version.
   const effectiveChannel = createMemo<UpdateChannel>(() =>
     installedChannel() ?? settings.channel ?? "stable"
   );
