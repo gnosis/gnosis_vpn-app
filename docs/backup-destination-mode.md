@@ -1,14 +1,18 @@
-# Main-screen destination mode
+# Main-screen destination mode (backup implementation)
+
+This document describes `backupDestinationMode.ts`, the previous
+`destinationMode` implementation kept around as a working fallback while a new
+design (see `src/stores/destinationMode.ts`) is built to replace it.
 
 The main screen's "which destination is shown/targeted" behavior is modeled in
 `appStore` as a single list-based model, `DestinationModel`, defined in
-`src/stores/destinationMode.ts`. The history banner's list _is_ the model — an
-ordered, partly auto-populated and partly user-populated list of destinations
-(`entries`), with exactly one `activeId` pointing at the member that
-Connect/Disconnect would act on. A `phase` — `auto`, `selected`, or `connecting`
-— governs how `entries`/`activeId` evolve. This document is the reviewable state
-diagram for that model; the transition table below is the source of truth
-(numbers match rule numbers used in code comments).
+`src/stores/backupDestinationMode.ts`. The history banner's list _is_ the model
+— an ordered, partly auto-populated and partly user-populated list of
+destinations (`entries`), with exactly one `activeId` pointing at the member
+that Connect/Disconnect would act on. A `phase` — `auto`, `selected`, or
+`connecting` — governs how `entries`/`activeId` evolve. This document is the
+reviewable state diagram for that model; the transition table below is the
+source of truth (numbers match rule numbers used in code comments).
 
 ```mermaid
 stateDiagram-v2

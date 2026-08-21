@@ -19,7 +19,7 @@ import SegmentedControl from "@src/components/common/SegmentedControl.tsx";
 import CheckUpdateModal from "@src/components/CheckUpdateModal.tsx";
 import InstallUpdateModal from "@src/components/InstallUpdateModal.tsx";
 import { useAppStore } from "@src/stores/appStore.ts";
-import { resolveConnectTarget } from "@src/stores/destinationMode.ts";
+import { resolveConnectTarget } from "@src/stores/backupDestinationMode.ts";
 import {
   type UpdateChannel,
   type UpdateManifest,

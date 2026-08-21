@@ -2,7 +2,7 @@ import type {
   Destination,
   DestinationState,
 } from "@src/services/vpnService.ts";
-import type { DestinationModel } from "@src/stores/destinationMode.ts";
+import type { DestinationModel } from "@src/stores/backupDestinationMode.ts";
 import { getSortLatencyMs, isReadyToConnect } from "@src/utils/exitHealth.ts";
 
 /** Sort by latency ascending; no-latency entries go last, then A–Z. */
