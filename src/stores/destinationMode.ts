@@ -1,4 +1,4 @@
-import type { Store as SolidStore } from "solid-js/store";
+import { createStore, type Store as SolidStore } from "solid-js/store";
 
 import type {
   ConnectedInfo,
@@ -57,9 +57,25 @@ export interface DestinationModeHandle {
   applyUserInput: (event: UserInputEvent) => void;
 }
 
+function initialModel(settings: DestinationModeSettings): DestinationMode {
+  return {
+    entries: {},
+    sequence: [],
+    active: null,
+    mode: "auto",
+    nextKey: 0,
+    preferredLocation: settings.preferredLocation,
+    lastConnectedDestination: settings.lastConnectedDestination,
+  };
+}
+
 export function createDestinationMode(
-  _settings: DestinationModeSettings,
+  settings: DestinationModeSettings,
 ): DestinationModeHandle {
+  const [model, _setModel] = createStore<DestinationMode>(
+    initialModel(settings),
+  );
+
   function applyUserInput(event: UserInputEvent): void {
     switch (event.type) {
       case "pickDestination":
@@ -70,9 +86,7 @@ export function createDestinationMode(
   }
 
   return {
-    get model(): SolidStore<DestinationMode> {
-      throw new Error("not implemented");
-    },
+    model,
     applyStatusUpdate: (_status: ModeAppState) => {
       throw new Error("not implemented");
     },
