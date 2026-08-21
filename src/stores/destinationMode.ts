@@ -60,5 +60,22 @@ export interface DestinationModeHandle {
 export function createDestinationMode(
   _settings: DestinationModeSettings,
 ): DestinationModeHandle {
-  throw new Error("not implemented");
+  function applyUserInput(event: UserInputEvent): void {
+    switch (event.type) {
+      case "pickDestination":
+        throw new Error("not implemented");
+      case "setActiveEntry":
+        throw new Error("not implemented");
+    }
+  }
+
+  return {
+    get model(): SolidStore<DestinationMode> {
+      throw new Error("not implemented");
+    },
+    applyStatusUpdate: (_status: ModeAppState) => {
+      throw new Error("not implemented");
+    },
+    applyUserInput,
+  };
 }
