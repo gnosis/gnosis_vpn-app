@@ -109,7 +109,7 @@ export function formatConnectionPhase(phase: UpPhase | DownPhase): string {
     case "Init":
       return "Initializing";
     case "ResolvingBlokliIps":
-      return "Resolving server IPs";
+      return "Locating network gateway";
     case "GeneratingWg":
       return "Generating WireGuard public key";
     case "OpeningBridge":
