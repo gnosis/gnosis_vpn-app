@@ -1,72 +1,82 @@
-import type { FundingIssue } from "@src/services/vpnService.ts";
+import type {
+  BalanceResponse,
+  FundingStatus,
+} from "@src/services/vpnService.ts";
 
 export type StatusText = "Sufficient" | "Low" | "Empty" | string;
 
-/**
- * Global funding state priority (highest to lowest):
- *
- * Critical (Cannot Work):
- *   1. Unfunded           - Initial state, nothing funded
- *   2. ChannelsOutOfFunds - No traffic possible
- *                           Affects BOTH Safe & EOA: Safe empty (no wxHOPR) OR EOA empty (can't pay for chain ops)
- *
- * Warning (Degraded):
- *   3. SafeOutOfFunds     - Cannot top up channels (< 10 wxHOPR in Safe)
- *   4. NodeUnderfunded    - Cannot open/top up channels (< 0.0075 xDai)
- *
- * Low (Preventive):
- *   5. SafeLowOnFunds     - Warning before SafeOutOfFunds
- *   6. NodeLowOnFunds     - Warning before NodeUnderfunded
- */
+// balance's funding_status (fresher) wins; runModeStatus is the pre-balance fallback.
+function resolveFundingStatus(
+  balance: BalanceResponse | null,
+  runModeStatus: FundingStatus | null,
+): FundingStatus | null {
+  return balance?.funding_status ?? runModeStatus ?? null;
+}
 
-export function deriveSafeStatus(issues: FundingIssue[]): StatusText {
-  if (
-    issues.includes("Unfunded") ||
-    issues.includes("ChannelsOutOfFunds") ||
-    issues.includes("SafeOutOfFunds")
-  ) return "Empty";
-  if (issues.includes("SafeLowOnFunds")) return "Low";
+function toStatusText(level: FundingStatus["traffic"]): StatusText {
+  return level === "Good" ? "Sufficient" : level;
+}
+
+export function deriveTrafficStatus(
+  balance: BalanceResponse | null,
+  runModeStatus: FundingStatus | null,
+): StatusText {
+  const status = resolveFundingStatus(balance, runModeStatus);
+  return status ? toStatusText(status.traffic) : "Sufficient";
+}
+
+export function deriveNodeStatus(
+  balance: BalanceResponse | null,
+  runModeStatus: FundingStatus | null,
+): StatusText {
+  const status = resolveFundingStatus(balance, runModeStatus);
+  return status ? toStatusText(status.gas) : "Sufficient";
+}
+
+// Worst of traffic and gas status — the wallet icon must flag either problem.
+export function deriveOverallStatus(
+  balance: BalanceResponse | null,
+  runModeStatus: FundingStatus | null,
+): StatusText {
+  const traffic = deriveTrafficStatus(balance, runModeStatus);
+  const gas = deriveNodeStatus(balance, runModeStatus);
+  if (traffic === "Empty" || gas === "Empty") return "Empty";
+  if (traffic === "Low" || gas === "Low") return "Low";
   return "Sufficient";
 }
 
-// Worst of Safe and Node status — the wallet icon must flag either problem.
-export function deriveOverallStatus(issues: FundingIssue[]): StatusText {
-  const safe = deriveSafeStatus(issues);
-  const node = deriveNodeStatus(issues);
-  if (safe === "Empty" || node === "Empty") return "Empty";
-  if (safe === "Low" || node === "Low") return "Low";
-  return "Sufficient";
+// Daemon already gates these to null while the corresponding level is Good.
+export function deriveWxhoprDeficit(
+  balance: BalanceResponse | null,
+  runModeStatus: FundingStatus | null,
+): bigint | null {
+  return resolveFundingStatus(balance, runModeStatus)?.wxhopr_deficit ?? null;
 }
 
-export function deriveNodeStatus(issues: FundingIssue[]): StatusText {
-  if (
-    issues.includes("Unfunded") ||
-    issues.includes("ChannelsOutOfFunds") ||
-    issues.includes("NodeUnderfunded")
-  ) return "Empty";
-  if (issues.includes("NodeLowOnFunds")) return "Low";
-  return "Sufficient";
+export function deriveXdaiDeficit(
+  balance: BalanceResponse | null,
+  runModeStatus: FundingStatus | null,
+): bigint | null {
+  return resolveFundingStatus(balance, runModeStatus)?.xdai_deficit ?? null;
 }
 
-// Backend orders issues by priority, so issues[0] is always the most critical.
-export function describeCriticalIssue(issues: FundingIssue[]): string | null {
-  if (issues.length === 0) return null;
-  return getIssueDescription(issues[0]);
-}
+const LEVEL_SEVERITY = { Empty: 2, Low: 1, Good: 0 } as const;
 
-function getIssueDescription(issue: FundingIssue): string {
-  switch (issue) {
-    case "Unfunded":
-      return "System not funded - cannot work at all";
-    case "ChannelsOutOfFunds":
-      return "Channels out of funds - no traffic possible (Safe or EOA empty)";
-    case "SafeOutOfFunds":
-      return "Safe out of funds - cannot top up channels";
-    case "SafeLowOnFunds":
-      return "Safe low on funds - top up soon";
-    case "NodeUnderfunded":
-      return "Node underfunded - cannot manage channels";
-    case "NodeLowOnFunds":
-      return "Node low on funds - top up soon";
-  }
+// Daemon only hands back the two pooled levels, so the message is per-resource.
+export function describeCriticalIssue(
+  balance: BalanceResponse | null,
+  runModeStatus: FundingStatus | null,
+): string | null {
+  const status = resolveFundingStatus(balance, runModeStatus);
+  if (!status) return null;
+
+  const trafficIsWorse =
+    LEVEL_SEVERITY[status.traffic] >= LEVEL_SEVERITY[status.gas];
+  const worstLevel = trafficIsWorse ? status.traffic : status.gas;
+  if (worstLevel === "Good") return null;
+
+  const urgency = worstLevel === "Empty" ? "empty" : "low";
+  return trafficIsWorse
+    ? `Traffic funds are ${urgency} — top up wxHOPR`
+    : `Gas is ${urgency} — top up xDAI`;
 }

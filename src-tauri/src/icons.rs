@@ -9,10 +9,8 @@ use tauri::{AppHandle, Manager, tray::TrayIcon};
 
 use tokio::time::sleep;
 
-use gnosis_vpn_lib::balance::FundingIssue;
-
 use crate::commands::set_app_icon;
-use crate::types::{ConnectionState, RunMode};
+use crate::types::{BalanceResponse, ConnectionState, RunMode};
 
 // App icon constants
 pub const APP_ICON_CONNECTED: &str = "app-icon-connected.png";
@@ -183,14 +181,14 @@ impl IconState {
     pub fn apply_status(
         &mut self,
         conn_state: &ConnectionState,
-        run_mode: &RunMode,
+        level: FundsLevel,
     ) -> Option<String> {
-        self.funds_level = funds_level(run_mode);
+        self.funds_level = level;
         self.is_animating = is_animating_state(conn_state);
         if self.is_animating {
             return None;
         }
-        let icon_name = determine_app_icon(conn_state, run_mode);
+        let icon_name = determine_app_icon(conn_state, level);
         if self.current_icon == icon_name {
             return None;
         }
@@ -216,39 +214,36 @@ pub enum FundsLevel {
     Empty,
 }
 
-// Mirrors deriveOverallStatus in src/utils/funding.ts — keep both in sync.
-pub fn funds_level(run_mode: &RunMode) -> FundsLevel {
-    let issues = match run_mode {
-        RunMode::Running {
-            funding_issues: Some(issues),
-            ..
-        } => issues,
+impl From<gnosis_vpn_lib::balance::FundingLevel> for FundsLevel {
+    fn from(level: gnosis_vpn_lib::balance::FundingLevel) -> Self {
+        match level {
+            gnosis_vpn_lib::balance::FundingLevel::Good => FundsLevel::Sufficient,
+            gnosis_vpn_lib::balance::FundingLevel::Low => FundsLevel::Low,
+            gnosis_vpn_lib::balance::FundingLevel::Empty => FundsLevel::Empty,
+        }
+    }
+}
+
+// Prefers the balance poll's fresher status, falling back to the status poll's.
+pub fn funds_level(run_mode: &RunMode, balance: Option<&BalanceResponse>) -> FundsLevel {
+    let run_mode_status = match run_mode {
+        RunMode::Running { funding_status, .. } => funding_status.as_ref(),
         _ => return FundsLevel::Sufficient,
     };
+    let Some(status) = balance
+        .and_then(|b| b.funding_status.as_ref())
+        .or(run_mode_status)
+    else {
+        return FundsLevel::Sufficient;
+    };
+    worst(status.traffic.into(), status.gas.into())
+}
 
-    let is_empty = issues.iter().any(|i| {
-        matches!(
-            i,
-            FundingIssue::Unfunded
-                | FundingIssue::ChannelsOutOfFunds
-                | FundingIssue::SafeOutOfFunds
-                | FundingIssue::NodeUnderfunded
-        )
-    });
-    if is_empty {
-        return FundsLevel::Empty;
-    }
-
-    let is_low = issues.iter().any(|i| {
-        matches!(
-            i,
-            FundingIssue::SafeLowOnFunds | FundingIssue::NodeLowOnFunds
-        )
-    });
-    if is_low {
-        FundsLevel::Low
-    } else {
-        FundsLevel::Sufficient
+fn worst(a: FundsLevel, b: FundsLevel) -> FundsLevel {
+    match (a, b) {
+        (FundsLevel::Empty, _) | (_, FundsLevel::Empty) => FundsLevel::Empty,
+        (FundsLevel::Low, _) | (_, FundsLevel::Low) => FundsLevel::Low,
+        _ => FundsLevel::Sufficient,
     }
 }
 
@@ -313,8 +308,7 @@ pub fn update_icon_name_if_changed(current: &Mutex<String>, next: &str) -> bool 
     }
 }
 
-pub fn determine_app_icon(connection_state: &ConnectionState, run_mode: &RunMode) -> String {
-    let level = funds_level(run_mode);
+pub fn determine_app_icon(connection_state: &ConnectionState, level: FundsLevel) -> String {
     let icon = match connection_state {
         ConnectionState::Connected(_) => match level {
             FundsLevel::Sufficient => APP_ICON_CONNECTED,
@@ -440,56 +434,87 @@ pub fn start_icon_heartbeat(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::TauriFundingStatus;
+    use gnosis_vpn_lib::balance::{Address, FundingLevel as LibFundingLevel};
+    use gnosis_vpn_lib::command;
 
-    fn running(issues: Vec<FundingIssue>) -> RunMode {
+    fn running(status: Option<TauriFundingStatus>) -> RunMode {
         RunMode::Running {
-            funding_issues: Some(issues),
+            funding_status: status,
             hopr_status: None,
+        }
+    }
+
+    fn status(traffic: LibFundingLevel, gas: LibFundingLevel) -> TauriFundingStatus {
+        TauriFundingStatus {
+            traffic,
+            gas,
+            wxhopr_deficit: None,
+            xdai_deficit: None,
+        }
+    }
+
+    fn balance(status: Option<TauriFundingStatus>) -> BalanceResponse {
+        BalanceResponse {
+            node: "0".to_string(),
+            safe: "0".to_string(),
+            channels_out: "0".to_string(),
+            info: command::Info {
+                node_address: Address::from([0u8; 20]),
+                node_peer_id: String::new(),
+                safe_address: Address::from([0u8; 20]),
+            },
+            funding_status: status,
+            ideal_balance: None,
+            capacity_allocations: None,
         }
     }
 
     #[test]
     fn funds_level_ignores_non_running_modes() {
-        assert_eq!(funds_level(&RunMode::NotRunning), FundsLevel::Sufficient);
-        assert_eq!(funds_level(&RunMode::Shutdown), FundsLevel::Sufficient);
-    }
-
-    #[test]
-    fn funds_level_classifies_issues() {
-        assert_eq!(funds_level(&running(vec![])), FundsLevel::Sufficient);
         assert_eq!(
-            funds_level(&running(vec![FundingIssue::SafeLowOnFunds])),
-            FundsLevel::Low
+            funds_level(&RunMode::NotRunning, None),
+            FundsLevel::Sufficient
         );
         assert_eq!(
-            funds_level(&running(vec![FundingIssue::NodeLowOnFunds])),
-            FundsLevel::Low
+            funds_level(&RunMode::Shutdown, None),
+            FundsLevel::Sufficient
         );
+        // even a drained balance is ignored outside Running
+        let drained = balance(Some(status(LibFundingLevel::Empty, LibFundingLevel::Empty)));
         assert_eq!(
-            funds_level(&running(vec![FundingIssue::Unfunded])),
-            FundsLevel::Empty
-        );
-        assert_eq!(
-            funds_level(&running(vec![FundingIssue::ChannelsOutOfFunds])),
-            FundsLevel::Empty
-        );
-        assert_eq!(
-            funds_level(&running(vec![FundingIssue::SafeOutOfFunds])),
-            FundsLevel::Empty
-        );
-        assert_eq!(
-            funds_level(&running(vec![FundingIssue::NodeUnderfunded])),
-            FundsLevel::Empty
+            funds_level(&RunMode::NotRunning, Some(&drained)),
+            FundsLevel::Sufficient
         );
     }
 
     #[test]
-    fn funds_level_empty_wins_over_low() {
-        let mode = running(vec![
-            FundingIssue::SafeLowOnFunds,
-            FundingIssue::SafeOutOfFunds,
-        ]);
-        assert_eq!(funds_level(&mode), FundsLevel::Empty);
+    fn funds_level_sufficient_when_no_status_anywhere_yet() {
+        assert_eq!(funds_level(&running(None), None), FundsLevel::Sufficient);
+    }
+
+    #[test]
+    fn funds_level_reads_worst_of_traffic_and_gas_from_balance() {
+        let mode = running(None);
+        let b = balance(Some(status(LibFundingLevel::Good, LibFundingLevel::Low)));
+        assert_eq!(funds_level(&mode, Some(&b)), FundsLevel::Low);
+
+        let b = balance(Some(status(LibFundingLevel::Empty, LibFundingLevel::Good)));
+        assert_eq!(funds_level(&mode, Some(&b)), FundsLevel::Empty);
+    }
+
+    #[test]
+    fn funds_level_falls_back_to_run_mode_status_without_balance() {
+        let mode = running(Some(status(LibFundingLevel::Low, LibFundingLevel::Good)));
+        assert_eq!(funds_level(&mode, None), FundsLevel::Low);
+    }
+
+    #[test]
+    fn funds_level_prefers_balance_status_over_run_mode_status() {
+        // stale run-mode status says Empty, fresher balance status wins.
+        let mode = running(Some(status(LibFundingLevel::Empty, LibFundingLevel::Empty)));
+        let b = balance(Some(status(LibFundingLevel::Good, LibFundingLevel::Good)));
+        assert_eq!(funds_level(&mode, Some(&b)), FundsLevel::Sufficient);
     }
 
     #[test]
@@ -498,46 +523,46 @@ mod tests {
         let connecting = ConnectionState::Connecting("x".into());
         let disconnected = ConnectionState::Disconnected;
 
-        let sufficient = running(vec![]);
-        let low = running(vec![FundingIssue::NodeLowOnFunds]);
-        let empty = running(vec![FundingIssue::Unfunded]);
+        let sufficient = FundsLevel::Sufficient;
+        let low = FundsLevel::Low;
+        let empty = FundsLevel::Empty;
 
         assert_eq!(
-            determine_app_icon(&connected, &sufficient),
+            determine_app_icon(&connected, sufficient),
             APP_ICON_CONNECTED
         );
         assert_eq!(
-            determine_app_icon(&connected, &low),
+            determine_app_icon(&connected, low),
             APP_ICON_CONNECTED_LOW_FUNDS
         );
         assert_eq!(
-            determine_app_icon(&connected, &empty),
+            determine_app_icon(&connected, empty),
             APP_ICON_CONNECTED_OUT_OF_FUNDS
         );
 
         assert_eq!(
-            determine_app_icon(&connecting, &sufficient),
+            determine_app_icon(&connecting, sufficient),
             APP_ICON_CONNECTING_1
         );
         assert_eq!(
-            determine_app_icon(&connecting, &low),
+            determine_app_icon(&connecting, low),
             APP_ICON_CONNECTING_LOW_FUNDS_1
         );
         assert_eq!(
-            determine_app_icon(&connecting, &empty),
+            determine_app_icon(&connecting, empty),
             APP_ICON_CONNECTING_OUT_OF_FUNDS_1
         );
 
         assert_eq!(
-            determine_app_icon(&disconnected, &sufficient),
+            determine_app_icon(&disconnected, sufficient),
             APP_ICON_DISCONNECTED
         );
         assert_eq!(
-            determine_app_icon(&disconnected, &low),
+            determine_app_icon(&disconnected, low),
             APP_ICON_DISCONNECTED_LOW_FUNDS
         );
         assert_eq!(
-            determine_app_icon(&disconnected, &empty),
+            determine_app_icon(&disconnected, empty),
             APP_ICON_DISCONNECTED_OUT_OF_FUNDS
         );
     }

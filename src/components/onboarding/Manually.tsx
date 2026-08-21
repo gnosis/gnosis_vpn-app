@@ -111,7 +111,7 @@ export default function Manually() {
                 <div class="text-sm text-text-secondary">
                   Send at least{" "}
                   <span class="select-text cursor-text">
-                    {formatXdai(rec().xdai, 4, "ceil")}
+                    {formatXdai(rec().xdai, 3, "ceil")}
                   </span>{" "}
                   xDAI
                 </div>

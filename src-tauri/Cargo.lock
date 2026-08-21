@@ -3419,7 +3419,7 @@ dependencies = [
 [[package]]
 name = "edgli"
 version = "4.1.0"
-source = "git+https://github.com/hoprnet/edge-client.git?rev=81ec6d62c48f17bff7ad15f4fba804715db758c1#81ec6d62c48f17bff7ad15f4fba804715db758c1"
+source = "git+https://github.com/hoprnet/edge-client.git?rev=f472e2677b2aee85817ba868ba31b91da84f1b44#f472e2677b2aee85817ba868ba31b91da84f1b44"
 dependencies = [
  "anyhow",
  "async-signal",
@@ -4371,7 +4371,7 @@ dependencies = [
 
 [[package]]
 name = "gnosis_vpn-app"
-version = "0.34.1"
+version = "0.35.2"
 dependencies = [
  "ashpd",
  "cocoa",
@@ -4397,8 +4397,8 @@ dependencies = [
 
 [[package]]
 name = "gnosis_vpn-lib"
-version = "0.94.2"
-source = "git+https://github.com/gnosis/gnosis_vpn-client.git?rev=5cb6d3f4d67a83fbbd60bd3c4985b8a218cebe8e#5cb6d3f4d67a83fbbd60bd3c4985b8a218cebe8e"
+version = "0.95.0"
+source = "git+https://github.com/gnosis/gnosis_vpn-client.git?rev=bb680872c20a077487ced99e70553e8c38465f1e#bb680872c20a077487ced99e70553e8c38465f1e"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4416,7 +4416,6 @@ dependencies = [
  "ipnetwork",
  "libc",
  "mnl",
- "multiaddr",
  "neptun",
  "nftnl",
  "objc2 0.6.4",
@@ -4847,7 +4846,8 @@ dependencies = [
 [[package]]
 name = "hopr-api"
 version = "2.0.0"
-source = "git+https://github.com/hoprnet/hopr-api?rev=ee65b340cf09fd6031735477cc1171d7610694a3#ee65b340cf09fd6031735477cc1171d7610694a3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b888d2f2d08002d003db1789f732c812ebe2709375780cc6b12eeba09930452c"
 dependencies = [
  "async-trait",
  "atomic_enum",
@@ -4884,7 +4884,8 @@ dependencies = [
 [[package]]
 name = "hopr-chain-connector"
 version = "0.22.2"
-source = "git+https://github.com/hoprnet/hopr-impls?rev=ad0fd7e4b35ac462846011ec7446fd404f5bcf44#ad0fd7e4b35ac462846011ec7446fd404f5bcf44"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a053b62b7fb08927b8bc1f271018c122151d8bafbdcd3e0081a09322b13fcdae"
 dependencies = [
  "ahash",
  "anyhow",
@@ -4914,7 +4915,7 @@ dependencies = [
 [[package]]
 name = "hopr-crypto-packet"
 version = "1.4.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=kauki%2Ffix%2Fsession%2Funreliable-frame-head-of-line#70448b900f03069cd24a077f046df8603166b4eb"
+source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#adefa298ade3d61c45f194000e4feca2cc073a26"
 dependencies = [
  "bimap",
  "const-hex",
@@ -4932,7 +4933,8 @@ dependencies = [
 [[package]]
 name = "hopr-ct-full-network"
 version = "0.4.0"
-source = "git+https://github.com/hoprnet/hopr-impls?rev=ad0fd7e4b35ac462846011ec7446fd404f5bcf44#ad0fd7e4b35ac462846011ec7446fd404f5bcf44"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d7985d0e77c83e9ae107dcc53012eeb736b83edeb83cf3522a3d1b7ab1e66fa9"
 dependencies = [
  "anyhow",
  "cfg-if",
@@ -4949,7 +4951,7 @@ dependencies = [
 [[package]]
 name = "hopr-lib"
 version = "4.0.4"
-source = "git+https://github.com/hoprnet/hoprnet?branch=kauki%2Ffix%2Fsession%2Funreliable-frame-head-of-line#70448b900f03069cd24a077f046df8603166b4eb"
+source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#adefa298ade3d61c45f194000e4feca2cc073a26"
 dependencies = [
  "anyhow",
  "async-broadcast",
@@ -4980,7 +4982,8 @@ dependencies = [
 [[package]]
 name = "hopr-network-graph"
 version = "0.5.0"
-source = "git+https://github.com/hoprnet/hopr-impls?rev=ad0fd7e4b35ac462846011ec7446fd404f5bcf44#ad0fd7e4b35ac462846011ec7446fd404f5bcf44"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1104069d205e792651562e8648e2403f815169c4c822ba00678b82fa1911fa2e"
 dependencies = [
  "anyhow",
  "bimap",
@@ -5000,7 +5003,7 @@ dependencies = [
 [[package]]
 name = "hopr-protocol-app"
 version = "1.0.1"
-source = "git+https://github.com/hoprnet/hoprnet?branch=kauki%2Ffix%2Fsession%2Funreliable-frame-head-of-line#70448b900f03069cd24a077f046df8603166b4eb"
+source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#adefa298ade3d61c45f194000e4feca2cc073a26"
 dependencies = [
  "hopr-crypto-packet",
  "hopr-types",
@@ -5012,8 +5015,8 @@ dependencies = [
 
 [[package]]
 name = "hopr-protocol-hopr"
-version = "6.0.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=kauki%2Ffix%2Fsession%2Funreliable-frame-head-of-line#70448b900f03069cd24a077f046df8603166b4eb"
+version = "6.1.0"
+source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#adefa298ade3d61c45f194000e4feca2cc073a26"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5042,7 +5045,7 @@ dependencies = [
 [[package]]
 name = "hopr-protocol-session"
 version = "1.5.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=kauki%2Ffix%2Fsession%2Funreliable-frame-head-of-line#70448b900f03069cd24a077f046df8603166b4eb"
+source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#adefa298ade3d61c45f194000e4feca2cc073a26"
 dependencies = [
  "aquamarine",
  "asynchronous-codec",
@@ -5073,7 +5076,7 @@ dependencies = [
 [[package]]
 name = "hopr-protocol-start"
 version = "1.1.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=kauki%2Ffix%2Fsession%2Funreliable-frame-head-of-line#70448b900f03069cd24a077f046df8603166b4eb"
+source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#adefa298ade3d61c45f194000e4feca2cc073a26"
 dependencies = [
  "aquamarine",
  "flagset",
@@ -5088,7 +5091,8 @@ dependencies = [
 [[package]]
 name = "hopr-strategy"
 version = "0.28.0"
-source = "git+https://github.com/hoprnet/hopr-strategy?rev=272f41000cd6e1bec9e2d08e2cd85f37aa804ea9#272f41000cd6e1bec9e2d08e2cd85f37aa804ea9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "88b80cfdf4632f8ffc73ad4d5c9bfadaa14783c7f4bf44c7ac7e9940fcd03137"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5116,7 +5120,8 @@ dependencies = [
 [[package]]
 name = "hopr-ticket-manager"
 version = "0.5.2"
-source = "git+https://github.com/hoprnet/hopr-impls?rev=ad0fd7e4b35ac462846011ec7446fd404f5bcf44#ad0fd7e4b35ac462846011ec7446fd404f5bcf44"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cbedcb10d008c7a1831ceb89c213ab2a0242405e24d99886839553fca725ca89"
 dependencies = [
  "ahash",
  "anyhow",
@@ -5137,8 +5142,8 @@ dependencies = [
 
 [[package]]
 name = "hopr-transport"
-version = "0.45.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=kauki%2Ffix%2Fsession%2Funreliable-frame-head-of-line#70448b900f03069cd24a077f046df8603166b4eb"
+version = "0.48.0"
+source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#adefa298ade3d61c45f194000e4feca2cc073a26"
 dependencies = [
  "ahash",
  "anyhow",
@@ -5181,7 +5186,7 @@ dependencies = [
 [[package]]
 name = "hopr-transport-mixer"
 version = "0.4.1"
-source = "git+https://github.com/hoprnet/hoprnet?branch=kauki%2Ffix%2Fsession%2Funreliable-frame-head-of-line#70448b900f03069cd24a077f046df8603166b4eb"
+source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#adefa298ade3d61c45f194000e4feca2cc073a26"
 dependencies = [
  "futures",
  "futures-timer",
@@ -5198,7 +5203,8 @@ dependencies = [
 [[package]]
 name = "hopr-transport-p2p"
 version = "0.9.5"
-source = "git+https://github.com/hoprnet/hopr-impls?rev=ad0fd7e4b35ac462846011ec7446fd404f5bcf44#ad0fd7e4b35ac462846011ec7446fd404f5bcf44"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1e9a987efe3013cf7f3809d5f87aec29d5588a695a6af718dd406f5d0f5806b"
 dependencies = [
  "async-broadcast",
  "async-trait",
@@ -5219,7 +5225,7 @@ dependencies = [
 [[package]]
 name = "hopr-transport-probe"
 version = "0.8.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=kauki%2Ffix%2Fsession%2Funreliable-frame-head-of-line#70448b900f03069cd24a077f046df8603166b4eb"
+source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#adefa298ade3d61c45f194000e4feca2cc073a26"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5244,8 +5250,8 @@ dependencies = [
 
 [[package]]
 name = "hopr-transport-session"
-version = "0.27.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=kauki%2Ffix%2Fsession%2Funreliable-frame-head-of-line#70448b900f03069cd24a077f046df8603166b4eb"
+version = "0.28.0"
+source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#adefa298ade3d61c45f194000e4feca2cc073a26"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5277,7 +5283,7 @@ dependencies = [
 [[package]]
 name = "hopr-transport-tag-allocator"
 version = "0.1.1"
-source = "git+https://github.com/hoprnet/hoprnet?branch=kauki%2Ffix%2Fsession%2Funreliable-frame-head-of-line#70448b900f03069cd24a077f046df8603166b4eb"
+source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#adefa298ade3d61c45f194000e4feca2cc073a26"
 dependencies = [
  "hopr-protocol-app",
  "serde",
@@ -5353,7 +5359,8 @@ dependencies = [
 [[package]]
 name = "hopr-utilities"
 version = "0.9.0"
-source = "git+https://github.com/hoprnet/hopr-utilities?rev=68e648be4aa9f1442c75df4006a53db414932f7e#68e648be4aa9f1442c75df4006a53db414932f7e"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7de9a46fe251a9aa6ee3ab7e2edd7720ac6f09ad4f01566dd6c056913615cc43"
 dependencies = [
  "arrayvec",
  "auto_impl",
@@ -5386,7 +5393,7 @@ dependencies = [
 [[package]]
 name = "hopr-utils-session"
 version = "1.2.1"
-source = "git+https://github.com/hoprnet/hoprnet?branch=kauki%2Ffix%2Fsession%2Funreliable-frame-head-of-line#70448b900f03069cd24a077f046df8603166b4eb"
+source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#adefa298ade3d61c45f194000e4feca2cc073a26"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6307,18 +6314,18 @@ dependencies = [
 
 [[package]]
 name = "liblzma"
-version = "0.4.6"
+version = "0.4.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6033b77c21d1f56deeae8014eb9fbe7bdf1765185a6c508b5ca82eeaed7f899"
+checksum = "2fe0a34ca854fd4f20c07f696fc8675aec78f87d88d29f5e10257a7490a1b2e1"
 dependencies = [
  "liblzma-sys",
 ]
 
 [[package]]
 name = "liblzma-sys"
-version = "0.4.6"
+version = "0.4.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1a60851d15cd8c5346eca4ab8babff585be2ae4bc8097c067291d3ffe2add3b6"
+checksum = "a0dad045e4b1b7b170be4b60b54b780cafb4490165461bac7d1cf7b703f61d5f"
 dependencies = [
  "cc",
  "libc",
@@ -8034,7 +8041,7 @@ checksum = "7704264c7d31443a8dc10dcb3301457980be49b9e5bffef7a41fd0e7c0f4e823"
 dependencies = [
  "rand 0.9.4",
  "socket2 0.6.4",
- "thiserror 1.0.69",
+ "thiserror 2.0.20",
  "tokio",
 ]
 
@@ -9452,7 +9459,7 @@ checksum = "7bd22781911de0ca6debda95f073c8f18bec65d1a94f1fa9573f3102e514cea4"
 dependencies = [
  "ahash",
  "annotate-snippets",
- "base64 0.22.1",
+ "base64 0.21.7",
  "encoding_rs_io",
  "getrandom 0.3.4",
  "granit-parser",
@@ -10284,9 +10291,9 @@ checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
 
 [[package]]
 name = "tauri"
-version = "2.11.3"
+version = "2.11.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c2616f96cb644bf2c5c456d9de4d5d5100e592d7424c74d8b55c5cb96e359e93"
+checksum = "667b20e2726d572dea2de7370da16e188eb06008faf9a92fab7cdc46791190b5"
 dependencies = [
  "anyhow",
  "bytes",
@@ -10414,9 +10421,9 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-dialog"
-version = "2.7.1"
+version = "2.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "65981abb771e74e571a38196c3baa11c459379164791eba0e67abc1a5fac9884"
+checksum = "b2d3c1dbe38037e7f590cdf2492594d5ceebe031e7bc7e827509b22a999d2940"
 dependencies = [
  "log",
  "raw-window-handle",
@@ -10478,14 +10485,15 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-single-instance"
-version = "2.4.2"
+version = "2.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c8f29386f5e9fdc699182388a33ee80a56de436d91b67459e86afef426282af"
+checksum = "b3214becf9ef5783c0ae99a3bb25adf5353a7a16ebf53e74b909e29205735c6c"
 dependencies = [
  "serde",
  "serde_json",
  "tauri",
  "thiserror 2.0.20",
+ "tokio",
  "tracing",
  "windows-sys 0.60.2",
  "zbus",
@@ -10518,9 +10526,9 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime-wry"
-version = "2.11.3"
+version = "2.11.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fe41e015bf8fc4d6477ff4926a0ef769dc64ff34c7b0038b6f7cacae892acb5c"
+checksum = "4e6fac707727b7a2f48e4ded90976324267371073edbb415ffb73bb0458d203f"
 dependencies = [
  "gtk",
  "http",

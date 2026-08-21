@@ -9,10 +9,10 @@
       "balance_recommendation": {
         "wxhopr": "10000000000000000000",
         "xdai": "100000000000000000",
-        "channel_stakes": "5000000000000000000",
-        "fee_to_start": "1000000000000000000",
+        "channel_stakes": "9990000000000000000",
+        "fee_to_start": "10000000000000000",
         "txs_to_start": 3,
-        "xdai_fee_per_tx": "10000000000000000"
+        "xdai_fee_per_tx": "100000000000000000"
       }
     }
   },

@@ -2,8 +2,8 @@ use gnosis_vpn_app_lib::settings::{FlagDisplay, Settings, SortOrder, UpdateChann
 use gnosis_vpn_app_lib::types;
 use gnosis_vpn_app_lib::update_install::InstallStatus;
 use gnosis_vpn_lib::balance::{
-    Balance, BalanceRecommendation, Balances, Capacity, CapacityAllocator, FundingIssue, WxHOPR,
-    XDai,
+    Balance, BalanceRecommendation, Balances, Capacity, CapacityAllocations, FundingLevel,
+    FundingStatus, WxHOPR, XDai,
 };
 use gnosis_vpn_lib::check_update;
 use gnosis_vpn_lib::command::RouteHealthView;
@@ -14,7 +14,7 @@ use gnosis_vpn_lib::route_health::{
 };
 use gnosis_vpn_lib::{command, connection};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
 fn address() -> Address {
@@ -92,7 +92,7 @@ fn route_health_view(state: RouteHealthState) -> RouteHealthView {
     }
 }
 
-fn write(dir: &PathBuf, name: &str, val: &impl serde::Serialize) {
+fn write(dir: &Path, name: &str, val: &impl serde::Serialize) {
     let path = dir.join(name);
     let json = serde_json::to_string_pretty(val).expect("serialization failed");
     std::fs::write(&path, format!("{json}\n")).expect("failed to write fixture");
@@ -130,7 +130,7 @@ fn generate_fixtures() {
         &fixtures_dir,
         "status_running.json",
         &status_base(types::RunMode::Running {
-            funding_issues: None,
+            funding_status: None,
             hopr_status: None,
         }),
     );
@@ -161,10 +161,10 @@ fn generate_fixtures() {
         balance_recommendation: Some(Box::new(BalanceRecommendation {
             wxhopr: Balance::<WxHOPR>::from(10_000_000_000_000_000_000u64), // 10 wxHOPR
             xdai: Balance::<XDai>::from(100_000_000_000_000_000u64),        // 0.1 xDAI
-            channel_stakes: Balance::<WxHOPR>::from(5_000_000_000_000_000_000u64), // 5 wxHOPR
-            fee_to_start: Balance::<WxHOPR>::from(1_000_000_000_000_000_000u64), // 1 wxHOPR
+            channel_stakes: Balance::<WxHOPR>::from(9_990_000_000_000_000_000u64), // 9.99 wxHOPR
+            fee_to_start: Balance::<WxHOPR>::from(10_000_000_000_000_000u64), // 0.01 wxHOPR
             txs_to_start: 3,
-            xdai_fee_per_tx: Balance::<XDai>::from(10_000_000_000_000_000u64), // 0.01 xDAI
+            xdai_fee_per_tx: Balance::<XDai>::from(100_000_000_000_000_000u64), // 0.1 xDAI
         })),
     });
     write(
@@ -318,7 +318,7 @@ fn generate_fixtures() {
     ));
     write(&fixtures_dir, "balance_response.json", &balance_zero);
 
-    // balance_response — with ideal_balance and a funding issue
+    // balance_response — with ideal_balance and a low funding status
     // 1 wxHOPR = 10^18 wei, 0.05 xDAI = 5 * 10^16 wei
     let balances_with_funds = Balances {
         node_xdai: Balance::<XDai>::from(30_000_000_000_000_000u64), // 0.03 xDAI
@@ -328,10 +328,16 @@ fn generate_fixtures() {
     let ideal = BalanceRecommendation {
         wxhopr: Balance::<WxHOPR>::from(2_000_000_000_000_000_000u64), // 2 wxHOPR
         xdai: Balance::<XDai>::from(50_000_000_000_000_000u64),        // 0.05 xDAI
-        channel_stakes: Balance::<WxHOPR>::from(1_000_000_000_000_000_000u64), // 1 wxHOPR
-        fee_to_start: Balance::<WxHOPR>::from(500_000_000_000_000_000u64), // 0.5 wxHOPR
-        txs_to_start: 2,
-        xdai_fee_per_tx: Balance::<XDai>::from(5_000_000_000_000_000u64), // 0.005 xDAI
+        channel_stakes: Balance::<WxHOPR>::from(2_000_000_000_000_000_000u64), // 2 wxHOPR
+        fee_to_start: Balance::<WxHOPR>::zero(), // key already bound while running
+        txs_to_start: 0,
+        xdai_fee_per_tx: Balance::<XDai>::from(50_000_000_000_000_000u64), // 0.05 xDAI
+    };
+    let funding_status = FundingStatus {
+        traffic: FundingLevel::Low,
+        gas: FundingLevel::Low,
+        wxhopr_deficit: Some(Balance::<WxHOPR>::from(1_000_000_000_000_000_000u64)), // 1 wxHOPR
+        xdai_deficit: Some(Balance::<XDai>::from(20_000_000_000_000_000u64)),        // 0.02 xDAI
     };
     let balance_with_issues = types::BalanceResponse::from(command::BalanceResponse::build(
         &balance_info(),
@@ -339,10 +345,7 @@ fn generate_fixtures() {
         &HashMap::new(),
         None,
         Some(ideal),
-        Some(vec![
-            FundingIssue::NodeLowOnFunds,
-            FundingIssue::SafeLowOnFunds,
-        ]),
+        Some(funding_status),
     ));
     write(
         &fixtures_dir,
@@ -350,31 +353,36 @@ fn generate_fixtures() {
         &balance_with_issues,
     );
 
-    // balance_response — with capacity_allocations (Safe + Peer)
-    let mut capacity_map = HashMap::new();
-    capacity_map.insert(
-        CapacityAllocator::Safe,
-        Capacity {
+    // balance_response — with capacity_allocations (one open channel + Safe + node EOA)
+    let capacity_allocations = CapacityAllocations {
+        peer_allocations: HashMap::from([(
+            address(),
+            Capacity {
+                stake: Balance::<WxHOPR>::from(500_000_000_000_000_000u64), // 0.5 wxHOPR
+                expected_messages: 250,
+                min_guaranteed_messages: 25,
+                byte_capacity: 262_144,
+            },
+        )]),
+        // wxHOPR sitting on the node EOA, not yet swept into the Safe
+        node: Capacity {
+            stake: Balance::<WxHOPR>::from(250_000_000_000_000_000u64), // 0.25 wxHOPR
+            expected_messages: 125,
+            min_guaranteed_messages: 12,
+            byte_capacity: 131_072,
+        },
+        safe: Capacity {
             stake: Balance::<WxHOPR>::from(2_000_000_000_000_000_000u64), // 2 wxHOPR
             expected_messages: 1000,
             min_guaranteed_messages: 100,
             byte_capacity: 1_048_576,
         },
-    );
-    capacity_map.insert(
-        CapacityAllocator::Peer(address()),
-        Capacity {
-            stake: Balance::<WxHOPR>::from(500_000_000_000_000_000u64), // 0.5 wxHOPR
-            expected_messages: 250,
-            min_guaranteed_messages: 25,
-            byte_capacity: 262_144,
-        },
-    );
+    };
     let balance_with_capacity = types::BalanceResponse::from(command::BalanceResponse::build(
         &balance_info(),
         &balances_with_funds,
         &HashMap::new(),
-        Some(&capacity_map),
+        Some(&capacity_allocations),
         None,
         None,
     ));
