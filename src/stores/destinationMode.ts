@@ -17,7 +17,7 @@ export interface Entry {
 }
 
 // "uninitialized" isn't a separate tag — `active === null` covers it.
-export type Mode = "auto" | "selected" | "connecting";
+export type Mode = "auto" | "selected" | "live";
 
 export interface DestinationMode {
   entries: Record<string, Entry>;
@@ -79,6 +79,7 @@ export function createDestinationMode(
   function applyUserInput(event: UserInputEvent): void {
     switch (event.type) {
       case "pickDestination":
+        // find id in availableDestinations; ignore input if not found
         throw new Error("not implemented");
       case "setActiveEntry":
         throw new Error("not implemented");
