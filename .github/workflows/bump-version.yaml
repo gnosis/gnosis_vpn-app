@@ -175,14 +175,7 @@ jobs:
             echo "src-tauri/src/commands.rs still lacks the new COMPATIBLE_VERSIONS list after the substitution" >&2
             exit 1
           fi
-      # Refreshes Cargo.lock with the bumped app version and, when client_ref
-      # changed, fully re-resolves gnosis_vpn-lib's dependency subtree to the
-      # new rev — without compiling. -p gnosis_vpn-app alone only syncs that
-      # one lock entry (like `cargo update --workspace` would, since it's the
-      # sole workspace member); a bare `cargo update -p gnosis_vpn-lib`
-      # without --recursive can fail to pick up transitively-required bumps
-      # (e.g. a newer tokio) because it leaves already-locked shared deps
-      # alone, so the client-ref path forces a real re-resolution instead.
+      # --recursive re-resolves gnosis_vpn-lib's subtree; without it, a rev bump can leave transitive deps (e.g. tokio) locked stale and cargo update fails.
       - name: Update Cargo.lock
         shell: bash
         env:
