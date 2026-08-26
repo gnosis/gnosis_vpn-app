@@ -21,7 +21,7 @@ use crate::types::{BalanceResponse, ConnectionState, StatusResponse};
 use crate::{AppStateCache, BalancePollingHandle, PollingExit, StatusPollingHandle};
 
 /// Semver requirements for compatible client versions, e.g. "0.93" (any 0.93.x) — never ">=" or ">", which would match all future versions and disable this check.
-const COMPATIBLE_VERSIONS: &[&str] = &["0.95"];
+const COMPATIBLE_VERSIONS: &[&str] = &["0.95", "0.96"];
 
 fn version_matches(version: &str, requirements: &[&str]) -> bool {
     let Ok(version) = semver::Version::parse(version.trim()) else {
