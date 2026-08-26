@@ -71,8 +71,7 @@ nix develop --command cargo update -p gnosis_vpn-lib --recursive --manifest-path
 
 The first call only refreshes the app's own lock entry. The second forces a real
 re-resolution of `gnosis_vpn-lib`'s entire dependency subtree — `--recursive` is
-what makes this reliable: a bare `cargo update -p
-gnosis_vpn-lib` (or
+what makes this reliable: a bare `cargo update -p gnosis_vpn-lib` (or
 `--workspace`, which doesn't touch `gnosis_vpn-lib` at all) leaves every other
 already-locked dependency alone, so when the new rev transitively needs a newer
 version of something shared (e.g. `tokio`) it can fail instead of bumping it:
