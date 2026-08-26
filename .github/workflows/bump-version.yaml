@@ -20,7 +20,7 @@ on:
         required: false
         type: string
       supported_client_versions:
-        description: "Comma-separated compatible gnosis_vpn-client service versions, e.g. '>=0.93.0' or '0.93, 0.94' (empty: keep current)"
+        description: "Comma-separated compatible gnosis_vpn-client service versions, e.g. '0.93' or '0.93, 0.94' (empty: keep current)"
         required: false
         type: string
 concurrency:
@@ -151,9 +151,11 @@ jobs:
           SUPPORTED_CLIENT_VERSIONS: ${{ inputs.supported_client_versions }}
         run: |
           # Entries must be semver requirements commands.rs can parse:
-          # bare "0.93" (any 0.93.x) or one of < <= = >= > ^ ~ plus a version,
-          # e.g. ">=0.93.0" for 0.93.0 and everything after.
-          req_pattern='^([<>]=?|[=^~])?[0-9]+(\.[0-9]+){0,2}$'
+          # bare "0.93" (any 0.93.x) or one of < <= = ^ ~ plus a version.
+          # ">=" and ">" are deliberately not allowed: an open-ended
+          # requirement matches every future version and silently disables
+          # the compatibility check instead of enforcing it.
+          req_pattern='^([<]=?|[=^~])?[0-9]+(\.[0-9]+){0,2}$'
           joined=""
           IFS=',' read -ra raw_entries <<< "${SUPPORTED_CLIENT_VERSIONS}"
           for entry in "${raw_entries[@]}"; do
