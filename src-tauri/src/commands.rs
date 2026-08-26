@@ -20,10 +20,7 @@ use crate::tray;
 use crate::types::{BalanceResponse, ConnectionState, StatusResponse};
 use crate::{AppStateCache, BalancePollingHandle, PollingExit, StatusPollingHandle};
 
-/// Semver requirements for compatible gnosis_vpn-client service versions,
-/// e.g. "0.93" (any 0.93.x). Never use an open-ended operator like ">=" or
-/// ">" here: it would match every future version and silently disable this
-/// check instead of gating on it.
+/// Semver requirements for compatible client versions, e.g. "0.93" (any 0.93.x) — never ">=" or ">", which would match all future versions and disable this check.
 const COMPATIBLE_VERSIONS: &[&str] = &["0.95"];
 
 fn version_matches(version: &str, requirements: &[&str]) -> bool {
@@ -638,9 +635,7 @@ mod tests {
         }
     }
 
-    // ">="/">" match every future version, silently disabling the check.
-    // Guards against the bump-version workflow (or a manual edit)
-    // reintroducing that pattern — see COMPATIBLE_VERSIONS' doc comment.
+    // ">="/">" would match all future versions, silently disabling this check.
     #[test]
     fn compatible_versions_never_use_open_ended_operators() {
         for req in COMPATIBLE_VERSIONS {
