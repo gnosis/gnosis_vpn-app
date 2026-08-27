@@ -85,10 +85,9 @@ export function createDestinationMode(
   function applyUserInput(event: UserInputEvent): void {
     switch (event.type) {
       case "pickDestination":
+      case "setActiveEntry":
         pickDestination(event.id);
         return;
-      case "setActiveEntry":
-        throw new Error("not implemented");
     }
   }
 
