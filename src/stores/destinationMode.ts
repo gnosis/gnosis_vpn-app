@@ -94,6 +94,7 @@ export function createDestinationMode(
   return {
     model,
     applyStatusUpdate: (_status: ModeAppState) => {
+      // derive entries/sequence from availableDestinations; active/mode from connected/connecting/reconnecting
       throw new Error("not implemented");
     },
     applyUserInput,
