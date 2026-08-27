@@ -77,8 +77,9 @@ export function createDestinationMode(
   );
 
   function pickDestination(id: string): void {
-    if (!(id in model.entries)) return;
-    setModel("active", id);
+    if (id in model.entries) {
+      setModel("active", id);
+    }
   }
 
   function applyUserInput(event: UserInputEvent): void {
