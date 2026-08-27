@@ -72,15 +72,20 @@ function initialModel(settings: DestinationModeSettings): DestinationMode {
 export function createDestinationMode(
   settings: DestinationModeSettings,
 ): DestinationModeHandle {
-  const [model, _setModel] = createStore<DestinationMode>(
+  const [model, setModel] = createStore<DestinationMode>(
     initialModel(settings),
   );
+
+  function pickDestination(id: string): void {
+    if (!(id in model.entries)) return;
+    setModel("active", id);
+  }
 
   function applyUserInput(event: UserInputEvent): void {
     switch (event.type) {
       case "pickDestination":
-        // find id in availableDestinations; ignore input if not found
-        throw new Error("not implemented");
+        pickDestination(event.id);
+        return;
       case "setActiveEntry":
         throw new Error("not implemented");
     }
