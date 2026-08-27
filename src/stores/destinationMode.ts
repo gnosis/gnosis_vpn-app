@@ -91,12 +91,39 @@ export function createDestinationMode(
     }
   }
 
+  function applyStatusUpdateAuto(_status: ModeAppState): void {
+    // rank availableDestinations, arm/commit/cancel an auto-switch candidate
+    throw new Error("not implemented");
+  }
+
+  function applyStatusUpdateSelected(_status: ModeAppState): void {
+    // watch active entry's readiness; revert to auto if it drops
+    throw new Error("not implemented");
+  }
+
+  function applyStatusUpdateLive(_status: ModeAppState): void {
+    // derive active/entries from connected/connecting/reconnecting
+    throw new Error("not implemented");
+  }
+
+  function applyStatusUpdate(status: ModeAppState): void {
+    switch (model.mode) {
+      case "auto":
+        applyStatusUpdateAuto(status);
+        return;
+      case "selected":
+        applyStatusUpdateSelected(status);
+        return;
+      case "live":
+        applyStatusUpdateLive(status);
+        return;
+    }
+  }
+
+
   return {
     model,
-    applyStatusUpdate: (_status: ModeAppState) => {
-      // derive entries/sequence from availableDestinations; active/mode from connected/connecting/reconnecting
-      throw new Error("not implemented");
-    },
+    applyStatusUpdate,
     applyUserInput,
   };
 }
