@@ -1,6 +1,7 @@
 import type {
   Destination,
   DestinationState,
+  Slots,
 } from "@src/services/vpnService.ts";
 import type { DestinationModel } from "@src/stores/backupDestinationMode.ts";
 import { getSortLatencyMs, isReadyToConnect } from "@src/utils/exitHealth.ts";
@@ -79,6 +80,60 @@ export function sortAlphaDestinations(
     );
     if (aReady !== bReady) return aReady ? -1 : 1;
     return destinationLabel(a).localeCompare(destinationLabel(b));
+  });
+}
+
+function getSlots(state: DestinationState): Slots | null {
+  const routeState = state.route_health?.state;
+  if (
+    routeState?.state !== "ReadyToConnect" && routeState?.state !== "Connecting"
+  ) {
+    return null;
+  }
+  return routeState.exit.health.slots;
+}
+
+const CONNECTED_CLIENT_LATENCY_MALUS_MS = 100;
+
+/** Latency with a per-connected-client malus, for comparing destinations of unequal capacity. */
+function capacityAdjustedLatencyMs(
+  state: DestinationState,
+  slots: Slots | null,
+): number | null {
+  const latencyMs = getSortLatencyMs(state);
+  if (latencyMs === null) return null;
+  return latencyMs +
+    (slots?.connected ?? 0) * CONNECTED_CLIENT_LATENCY_MALUS_MS;
+}
+
+/** Sort ids: full destinations last, then by latency (malus-adjusted when capacity differs). */
+export function sortByCapacityAwareLatency(
+  destinations: Record<string, DestinationState>,
+): string[] {
+  return Object.keys(destinations).sort((idA, idB) => {
+    const stateA = destinations[idA];
+    const stateB = destinations[idB];
+    const slotsA = getSlots(stateA);
+    const slotsB = getSlots(stateB);
+
+    const isFullA = slotsA !== null && slotsA.available <= 0;
+    const isFullB = slotsB !== null && slotsB.available <= 0;
+    if (isFullA !== isFullB) return isFullA ? 1 : -1;
+
+    const sameCapacity =
+      (slotsA?.available ?? null) === (slotsB?.available ?? null);
+    const msA = sameCapacity
+      ? getSortLatencyMs(stateA)
+      : capacityAdjustedLatencyMs(stateA, slotsA);
+    const msB = sameCapacity
+      ? getSortLatencyMs(stateB)
+      : capacityAdjustedLatencyMs(stateB, slotsB);
+    if (msA !== null && msB !== null) return msA - msB;
+    if (msA !== null) return -1;
+    if (msB !== null) return 1;
+    return destinationLabel(stateA.destination).localeCompare(
+      destinationLabel(stateB.destination),
+    );
   });
 }
 
