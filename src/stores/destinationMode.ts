@@ -86,7 +86,7 @@ export interface DestinationModeHandle {
 }
 
 function isDestinationReadyToConnect(destState?: DestinationState): boolean {
-  isReadyToConnect(destState?.route_health ?? undefined);
+  return isReadyToConnect(destState?.route_health ?? undefined);
 }
 
 function initialModel(settings: DestinationModeSettings): DestinationMode {
