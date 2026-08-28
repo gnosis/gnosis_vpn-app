@@ -31,18 +31,20 @@ export interface AutoPending {
   settleAt: number;
 }
 
-export type Mode =
-  | {
-      mode: "auto";
-      pending: AutoPending | null;
-    }
-  | {
-      mode: "selected";
-      autoRevertAt: number;
-    }
-  | {
-      mode: "live";
-    };
+export type AutoMode = {
+  mode: "auto";
+  pending: AutoPending | null;
+};
+
+export type SelectedMode = {
+  mode: "selected";
+  autoRevertAt: number;
+};
+
+export type LiveMode = {
+  mode: "live";
+};
+export type Mode = AutoMode | SelectedMode | LiveMode;
 
 export interface DestinationMode {
   entries: Record<string, Entry>;
@@ -139,7 +141,7 @@ export function createDestinationMode(
     }
   }
 
-  function applyStatusUpdateAuto(status: ModeAppState): void {
+  function applyStatusUpdateAuto(status: ModeAppState, mode: AutoMode): void {
     const bestDestination = sortByCapacityAwareLatency(status.destinations)[0];
     // ensure baseline data is still available, if not adjust
     const availableIds = new Set(status.availableDestinations.map((d) => d.id));
@@ -154,7 +156,7 @@ export function createDestinationMode(
     }
 
     // ensure pending candidate is still available, if not cancel
-    let newMode = model.mode;
+    let newMode = mode;
     if (newMode.mode === "auto" && newMode.pending)
       if (!availableIds.has(newMode.pending.candidateId)) {
         clearPendingTimer();
@@ -177,10 +179,10 @@ export function createDestinationMode(
         // fresh or some weird data came in which we treat as fresh
         if (!newActive && newPreferredLocation) {
           // CL: find preferredLocation in availableDestinations with readyToConnect state and set newActive
-          newPreferredLocation == null;
+          newPreferredLocation = null;
         } else if (!newActive && newLastConnectedDestination) {
           // CL: find newLastConnectedDestination in availableDestinations with readyToConnect state and set newActive
-          newLastConnectedDestination == null;
+          newLastConnectedDestination = null;
         } else
           // best destination will become pending
           if (newMode.pending === null) {
@@ -218,12 +220,15 @@ export function createDestinationMode(
     });
   }
 
-  function applyStatusUpdateSelected(_status: ModeAppState): void {
+  function applyStatusUpdateSelected(
+    _status: ModeAppState,
+    mode: SelectedMode,
+  ): void {
     // watch active entry's readiness; revert to auto if it drops
     throw new Error("not implemented");
   }
 
-  function applyStatusUpdateLive(_status: ModeAppState): void {
+  function applyStatusUpdateLive(_status: ModeAppState, mode: LiveMode): void {
     // derive active/entries from connected/connecting/reconnecting
     throw new Error("not implemented");
   }
@@ -233,15 +238,15 @@ export function createDestinationMode(
     // if not live, stay in user/auto mode as is
     // if not live and model.mode was live, switch to auto mode
     // switch (newMode)
-    switch (model.mode) {
+    switch (model.mode.mode) {
       case "auto":
-        applyStatusUpdateAuto(status);
+        applyStatusUpdateAuto(status, model.mode);
         return;
       case "selected":
-        applyStatusUpdateSelected(status);
+        applyStatusUpdateSelected(status, model.mode);
         return;
       case "live":
-        applyStatusUpdateLive(status);
+        applyStatusUpdateLive(status, model.mode);
         return;
     }
   }
