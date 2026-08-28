@@ -7,12 +7,15 @@ import type {
   DestinationState,
   ReconnectingInfo,
 } from "@src/services/vpnService.ts";
+import { sortByCapacityAwareLatency } from "@src/utils/destinations.ts";
 
 export type Origin = "auto" | "user";
 
-// Must stay in sync with backupDestinationMode.ts's timing constants until this store replaces it.
+// Countdown timeout before starting switch animation
 export const SWITCH_COUNTDOWN_MS = 5_000;
-export const SWITCH_CROSSOVER_MS = 500;
+// Switch animation will take 333ms shrink/growth and 666ms slide left
+// so after half of the slide animation the new one is considered active
+export const SWITCH_CROSSOVER_MS = 666;
 
 export interface Entry {
   origin: Origin;
@@ -48,7 +51,7 @@ export interface DestinationMode {
   mode: Mode;
   // Monotonic, never reused — avoids a re-added id colliding with a stale render key.
   nextKey: number;
-  // From DestinationModeSettings, fixed at creation — never touched by applyStatusUpdate.
+  // From DestinationModeSettings, fixed at creation, then consumed during status updates
   preferredLocation: string | null;
   lastConnectedDestination: string | null;
 }
@@ -84,7 +87,10 @@ function initialModel(settings: DestinationModeSettings): DestinationMode {
     entries: {},
     sequence: [],
     active: null,
-    mode: "auto",
+    mode: {
+      mode: "auto",
+      pending: null,
+    },
     nextKey: 0,
     preferredLocation: settings.preferredLocation,
     lastConnectedDestination: settings.lastConnectedDestination,
@@ -100,33 +106,25 @@ export function createDestinationMode(
 
   let pendingTimer: ReturnType<typeof setTimeout> | undefined;
   const clearPendingTimer = () => {
-    if (pendingTimer) {
-      clearTimeout(pendingTimer);
-      pendingTimer = undefined;
-    }
+    clearTimeout(pendingTimer);
+    pendingTimer = undefined;
   };
 
-  // Flips `active` off this timer alone; reads candidateId from the model so a late retarget still commits correctly.
   function commitPendingCandidate(): void {
-    pendingTimer = undefined;
     if (model.mode.mode !== "auto" || model.mode.pending === null) return;
-    setModel("active", model.mode.pending.candidateId);
-    setModel("mode", "pending", null);
+    setActive(model.mode.pending.candidateId);
+    setModel("mode", { mode: "auto", pending: null });
   }
 
-  // Starts the countdown and schedules this store's own commit — not wired to a caller yet.
-  function armPendingCandidate(candidateId: string): void {
+  function armPendingCandidate(): void {
     clearPendingTimer();
-    const countdownEndsAt = Date.now() + SWITCH_COUNTDOWN_MS;
-    const settleAt = countdownEndsAt + SWITCH_CROSSOVER_MS;
-    setModel("mode", "pending", { candidateId, countdownEndsAt, settleAt });
     pendingTimer = setTimeout(
       commitPendingCandidate,
       SWITCH_COUNTDOWN_MS + SWITCH_CROSSOVER_MS,
     );
   }
 
-  function pickDestination(id: string): void {
+  function setActive(id: string): void {
     if (id in model.entries) {
       setModel("active", id);
     }
@@ -136,18 +134,68 @@ export function createDestinationMode(
     switch (event.type) {
       case "pickDestination":
       case "setActiveEntry":
-        pickDestination(event.id);
+        setActive(event.id);
         return;
     }
   }
 
   function applyStatusUpdateAuto(status: ModeAppState): void {
-    //      let newEntries = mode.entries; // filtered by available distination
-    //   let newSequence = mode.sequence // filtered by still available entries ids
-    //      let newActive = mode.active; // if active still in new entries, otherwise null
-    //      if !newActive {
-    //          // newActive = sortByCapacityAwareLatency top entry
-    //      }
+    const bestDestination = sortByCapacityAwareLatency(status.destinations)[0];
+    // ensure baseline data is still available, if not adjust
+    const availableIds = new Set(status.availableDestinations.map((d) => d.id));
+    const newEntries = Object.fromEntries(
+      Object.entries(model.entries).filter(([id]) => availableIds.has(id)),
+    );
+    const newSequence = model.sequence.filter((id) => availableIds.has(id));
+    let newActive =
+      model.active && availableIds.has(model.active) ? model.active : null;
+    if (!newActive) {
+      newActive = bestDestination ?? null;
+    }
+
+    // ensure pending candidate is still available, if not cancel
+    let newMode = model.mode;
+    if (newMode.mode === "auto" && newMode.pending)
+      if (!availableIds.has(newMode.pending.candidateId)) {
+        clearPendingTimer();
+        newMode = { mode: "auto", pending: null };
+      }
+
+    // no best destination
+    if (bestDestination === undefined) {
+      clearPendingTimer();
+      newMode = { mode: "auto", pending: null };
+      // best destination already active
+    } else if (newActive === bestDestination) {
+      clearPendingTimer();
+      newMode = { mode: "auto", pending: null };
+      // no candidate pending, start countdown to switch
+    } else if (newMode.pending === null) {
+      const countdownEndsAt = Date.now() + SWITCH_COUNTDOWN_MS;
+      const settleAt = countdownEndsAt + SWITCH_CROSSOVER_MS;
+      newMode = {
+        mode: "auto",
+        pending: { candidateId: bestDestination, countdownEndsAt, settleAt },
+      };
+      armPendingCandidate();
+      // candidate pending, but different from best destination, restart countdown
+    } else if (newMode.pending.candidateId !== bestDestination) {
+      newMode = {
+        mode: "auto",
+        pending: {
+          candidateId: bestDestination,
+          countdownEndsAt: newMode.pending.countdownEndsAt,
+          settleAt: newMode.pending.settleAt,
+        },
+      };
+    }
+
+    setModel({
+      entries: newEntries,
+      sequence: newSequence,
+      active: newActive,
+      mode: newMode,
+    });
   }
 
   function applyStatusUpdateSelected(_status: ModeAppState): void {
