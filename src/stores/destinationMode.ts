@@ -156,9 +156,6 @@ export function createDestinationMode(
     const newSequence = model.sequence.filter((id) => availableIds.has(id));
     let newActive =
       model.active && availableIds.has(model.active) ? model.active : null;
-    if (!newActive) {
-      newActive = bestDestination ?? null;
-    }
 
     // ensure pending candidate is still available, if not cancel
     let newMode = mode;
@@ -170,6 +167,7 @@ export function createDestinationMode(
 
     let newPreferredLocation = model.preferredLocation;
     let newLastConnectedDestination = model.lastConnectedDestination;
+    let newNextKey = model.nextKey;
 
     // no best destination
     if (bestDestination === undefined) {
@@ -183,18 +181,37 @@ export function createDestinationMode(
       } else
         // fresh or some weird data came in which we treat as fresh
         if (!newActive && newPreferredLocation) {
-          if (status.destinations[newPreferredLocation]) {
+          if (
+            isDestinationReadyToConnect(
+              status.destinations[newPreferredLocation],
+            )
+          ) {
             newActive = newPreferredLocation;
           }
           newPreferredLocation = null;
         } else if (!newActive && newLastConnectedDestination) {
-          if (status.destinations[newLastConnectedDestination]) {
+          if (
+            isDestinationReadyToConnect(
+              status.destinations[newLastConnectedDestination],
+            )
+          ) {
             newActive = newLastConnectedDestination;
           }
           newLastConnectedDestination = null;
         } else
           // best destination will become pending
           if (newMode.pending === null) {
+            if (!(bestDestination in newEntries)) {
+              newEntries[bestDestination] = {
+                origin: "auto",
+                key: newNextKey++,
+              };
+              const staleIndex = newSequence.indexOf(bestDestination);
+              if (staleIndex !== -1) {
+                newSequence.splice(staleIndex, 1);
+              }
+              newSequence.push(bestDestination);
+            }
             const countdownEndsAt = Date.now() + SWITCH_COUNTDOWN_MS;
             const settleAt = countdownEndsAt + SWITCH_CROSSOVER_MS;
             newMode = {
@@ -208,7 +225,10 @@ export function createDestinationMode(
             armPendingCandidate();
           } else
             // update pending with actual best destination
-            if (newMode.pending.candidateId !== bestDestination) {
+            if (
+              newMode.pending.candidateId !== bestDestination &&
+              Date.now() < newMode.pending.countdownEndsAt
+            ) {
               newMode = {
                 mode: "auto",
                 pending: {
@@ -224,6 +244,7 @@ export function createDestinationMode(
       sequence: newSequence,
       active: newActive,
       mode: newMode,
+      nextKey: newNextKey,
       preferredLocation: newPreferredLocation,
       lastConnectedDestination: newLastConnectedDestination,
     });
