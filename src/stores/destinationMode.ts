@@ -8,6 +8,7 @@ import type {
   ReconnectingInfo,
 } from "@src/services/vpnService.ts";
 import { sortByCapacityAwareLatency } from "@src/utils/destinations.ts";
+import { isReadyToConnect } from "@src/utils/exitHealth.ts";
 
 export type Origin = "auto" | "user";
 
@@ -82,6 +83,10 @@ export interface DestinationModeHandle {
   applyStatusUpdate: (status: ModeAppState) => void;
   // Called once per user action (pick from list, scroll/settle on a card, ...).
   applyUserInput: (event: UserInputEvent) => void;
+}
+
+function isDestinationReadyToConnect(destState?: DestinationState): boolean {
+  isReadyToConnect(destState?.route_health ?? undefined);
 }
 
 function initialModel(settings: DestinationModeSettings): DestinationMode {
@@ -178,10 +183,14 @@ export function createDestinationMode(
       } else
         // fresh or some weird data came in which we treat as fresh
         if (!newActive && newPreferredLocation) {
-          // CL: find preferredLocation in availableDestinations with readyToConnect state and set newActive
+          if (status.destinations[newPreferredLocation]) {
+            newActive = newPreferredLocation;
+          }
           newPreferredLocation = null;
         } else if (!newActive && newLastConnectedDestination) {
-          // CL: find newLastConnectedDestination in availableDestinations with readyToConnect state and set newActive
+          if (status.destinations[newLastConnectedDestination]) {
+            newActive = newLastConnectedDestination;
+          }
           newLastConnectedDestination = null;
         } else
           // best destination will become pending
