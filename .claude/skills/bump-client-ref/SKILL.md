@@ -62,13 +62,19 @@ shape), `settings.rs`, `icons.rs`, `platform/macos.rs`, `lib.rs`. Also check:
 gnosis_vpn-lib = { git = "https://github.com/gnosis/gnosis_vpn-client.git", rev = "<new-rev>" }
 ```
 
-Try the same command CI uses first:
+Run the same commands CI uses:
 
 ```bash
-nix develop --command cargo update --workspace --manifest-path src-tauri/Cargo.toml
+nix develop --command cargo update -p gnosis_vpn-app --manifest-path src-tauri/Cargo.toml
+nix develop --command cargo update -p gnosis_vpn-lib --recursive --manifest-path src-tauri/Cargo.toml
 ```
 
-**This can fail** with something like:
+The first call only refreshes the app's own lock entry. The second forces a real
+re-resolution of `gnosis_vpn-lib`'s entire dependency subtree — `--recursive` is
+what makes this reliable: a bare `cargo update -p gnosis_vpn-lib` (or
+`--workspace`, which doesn't touch `gnosis_vpn-lib` at all) leaves every other
+already-locked dependency alone, so when the new rev transitively needs a newer
+version of something shared (e.g. `tokio`) it can fail instead of bumping it:
 
 ```
 error: failed to select a version for `tokio`.
@@ -77,15 +83,9 @@ versions that meet the requirements `^1.53.1` are: 1.53.1
 previously selected package `tokio v1.52.3` ... locked to 1.52.3
 ```
 
-`--workspace` deliberately restricts updates to workspace-member versions and
-leaves every other locked dependency alone (per the comment above the equivalent
-CI step) — so it won't bump `tokio` (or whatever else) even though the new
-`gnosis_vpn-lib` needs a newer one transitively. Fix by explicitly including the
-blocking crate(s):
-
-```bash
-nix develop --command cargo update -p gnosis_vpn-lib -p tokio --manifest-path src-tauri/Cargo.toml
-```
+`--recursive` avoids this by letting cargo freely re-resolve the whole subtree,
+which also prunes any now-orphaned entries (e.g. a stale `base64` version)
+instead of leaving them behind.
 
 Expect a _large_ lockfile diff when the client pulls in hoprnet/edge-client
 bumps (dozens of transitive crates) — that's normal, not a mistake. Don't try to
