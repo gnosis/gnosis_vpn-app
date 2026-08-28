@@ -10,14 +10,36 @@ import type {
 
 export type Origin = "auto" | "user";
 
+// Must stay in sync with backupDestinationMode.ts's timing constants until this store replaces it.
+export const SWITCH_COUNTDOWN_MS = 5_000;
+export const SWITCH_CROSSOVER_MS = 500;
+
 export interface Entry {
   origin: Origin;
   // Render/reconcile identity — see backupDestinationMode's DestinationEntry.key.
   key: number;
 }
 
-// "uninitialized" isn't a separate tag — `active === null` covers it.
-export type Mode = "auto" | "selected" | "live";
+export interface AutoPending {
+  candidateId: string;
+  // when the countdown expires
+  countdownEndsAt: number;
+  // countdownEndsAt + SWITCH_CROSSOVER_MS
+  settleAt: number;
+}
+
+export type Mode =
+  | {
+      mode: "auto";
+      pending: AutoPending | null;
+    }
+  | {
+      mode: "selected";
+      autoRevertAt: number;
+    }
+  | {
+      mode: "live";
+    };
 
 export interface DestinationMode {
   entries: Record<string, Entry>;
@@ -76,6 +98,34 @@ export function createDestinationMode(
     initialModel(settings),
   );
 
+  let pendingTimer: ReturnType<typeof setTimeout> | undefined;
+  const clearPendingTimer = () => {
+    if (pendingTimer) {
+      clearTimeout(pendingTimer);
+      pendingTimer = undefined;
+    }
+  };
+
+  // Flips `active` off this timer alone; reads candidateId from the model so a late retarget still commits correctly.
+  function commitPendingCandidate(): void {
+    pendingTimer = undefined;
+    if (model.mode.mode !== "auto" || model.mode.pending === null) return;
+    setModel("active", model.mode.pending.candidateId);
+    setModel("mode", "pending", null);
+  }
+
+  // Starts the countdown and schedules this store's own commit — not wired to a caller yet.
+  function armPendingCandidate(candidateId: string): void {
+    clearPendingTimer();
+    const countdownEndsAt = Date.now() + SWITCH_COUNTDOWN_MS;
+    const settleAt = countdownEndsAt + SWITCH_CROSSOVER_MS;
+    setModel("mode", "pending", { candidateId, countdownEndsAt, settleAt });
+    pendingTimer = setTimeout(
+      commitPendingCandidate,
+      SWITCH_COUNTDOWN_MS + SWITCH_CROSSOVER_MS,
+    );
+  }
+
   function pickDestination(id: string): void {
     if (id in model.entries) {
       setModel("active", id);
@@ -91,9 +141,13 @@ export function createDestinationMode(
     }
   }
 
-  function applyStatusUpdateAuto(_status: ModeAppState): void {
-    // rank availableDestinations, arm/commit/cancel an auto-switch candidate
-    throw new Error("not implemented");
+  function applyStatusUpdateAuto(status: ModeAppState): void {
+    //      let newEntries = mode.entries; // filtered by available distination
+    //   let newSequence = mode.sequence // filtered by still available entries ids
+    //      let newActive = mode.active; // if active still in new entries, otherwise null
+    //      if !newActive {
+    //          // newActive = sortByCapacityAwareLatency top entry
+    //      }
   }
 
   function applyStatusUpdateSelected(_status: ModeAppState): void {
@@ -107,6 +161,10 @@ export function createDestinationMode(
   }
 
   function applyStatusUpdate(status: ModeAppState): void {
+    // let newMode = // determine mode from status, if connecting/reconnecintg/connected -> live
+    // if not live, stay in user/auto mode as is
+    // if not live and model.mode was live, switch to auto mode
+    // switch (newMode)
     switch (model.mode) {
       case "auto":
         applyStatusUpdateAuto(status);
@@ -119,7 +177,6 @@ export function createDestinationMode(
         return;
     }
   }
-
 
   return {
     model,
