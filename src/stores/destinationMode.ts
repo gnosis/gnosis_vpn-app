@@ -161,40 +161,60 @@ export function createDestinationMode(
         newMode = { mode: "auto", pending: null };
       }
 
+    let newPreferredLocation = model.preferredLocation;
+    let newLastConnectedDestination = model.lastConnectedDestination;
+
     // no best destination
     if (bestDestination === undefined) {
       clearPendingTimer();
       newMode = { mode: "auto", pending: null };
+    } else
       // best destination already active
-    } else if (newActive === bestDestination) {
-      clearPendingTimer();
-      newMode = { mode: "auto", pending: null };
-      // no candidate pending, start countdown to switch
-    } else if (newMode.pending === null) {
-      const countdownEndsAt = Date.now() + SWITCH_COUNTDOWN_MS;
-      const settleAt = countdownEndsAt + SWITCH_CROSSOVER_MS;
-      newMode = {
-        mode: "auto",
-        pending: { candidateId: bestDestination, countdownEndsAt, settleAt },
-      };
-      armPendingCandidate();
-      // candidate pending, but different from best destination, restart countdown
-    } else if (newMode.pending.candidateId !== bestDestination) {
-      newMode = {
-        mode: "auto",
-        pending: {
-          candidateId: bestDestination,
-          countdownEndsAt: newMode.pending.countdownEndsAt,
-          settleAt: newMode.pending.settleAt,
-        },
-      };
-    }
+      if (newActive === bestDestination) {
+        clearPendingTimer();
+        newMode = { mode: "auto", pending: null };
+      } else
+        // fresh or some weird data came in which we treat as fresh
+        if (!newActive && newPreferredLocation) {
+          // CL: find preferredLocation in availableDestinations with readyToConnect state and set newActive
+          newPreferredLocation == null;
+        } else if (!newActive && newLastConnectedDestination) {
+          // CL: find newLastConnectedDestination in availableDestinations with readyToConnect state and set newActive
+          newLastConnectedDestination == null;
+        } else
+          // best destination will become pending
+          if (newMode.pending === null) {
+            const countdownEndsAt = Date.now() + SWITCH_COUNTDOWN_MS;
+            const settleAt = countdownEndsAt + SWITCH_CROSSOVER_MS;
+            newMode = {
+              mode: "auto",
+              pending: {
+                candidateId: bestDestination,
+                countdownEndsAt,
+                settleAt,
+              },
+            };
+            armPendingCandidate();
+          } else
+            // update pending with actual best destination
+            if (newMode.pending.candidateId !== bestDestination) {
+              newMode = {
+                mode: "auto",
+                pending: {
+                  candidateId: bestDestination,
+                  countdownEndsAt: newMode.pending.countdownEndsAt,
+                  settleAt: newMode.pending.settleAt,
+                },
+              };
+            }
 
     setModel({
       entries: newEntries,
       sequence: newSequence,
       active: newActive,
       mode: newMode,
+      preferredLocation: newPreferredLocation,
+      lastConnectedDestination: newLastConnectedDestination,
     });
   }
 
