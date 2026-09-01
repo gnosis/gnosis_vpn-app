@@ -11,11 +11,10 @@ import { useAppStore } from "@src/stores/appStore.ts";
 import {
   currentDisplayId,
   type DestinationEntry,
-  type DestinationModel,
+  orderedEntries,
   SWITCH_ANIMATE_MS,
-  SWITCH_COUNTDOWN_MS,
   SWITCH_CROSSOVER_MS,
-} from "@src/stores/backupDestinationMode.ts";
+} from "@src/stores/destinationMode.ts";
 import { cardTitle, isVpnActive } from "@src/utils/destinations.ts";
 import DetailCard from "./DetailCard.tsx";
 import ExitNodeList from "./ExitNodeList.tsx";
@@ -398,25 +397,8 @@ export default function LocationBanner() {
     }
   });
 
-  // Entries in history order (oldest -> newest); empty before startup
-  // resolves. While connecting, a freshly user-picked entry immediately
-  // supersedes the outgoing (still technically connected) one it's meant to
-  // replace — a display-only decision: the data model deliberately keeps
-  // both until the backend actually confirms the switch (see
-  // docs/destination-mode.md rule 14), so a pick that never completes can't
-  // strand the real connection off the model entirely. Only the entry the
-  // freshest pick is superseding is hidden this way — older history stays
-  // visible, and the hidden card reappears if the pick doesn't pan out and
-  // the backend keeps reporting the original connection.
-  const modeEntries = () => {
-    const mode = appState.mode;
-    if (mode.phase === "uninitialized") return [];
-    const { entries, activeId } = mode;
-    if (mode.phase !== "connecting" || entries.length < 2) return entries;
-    const last = entries[entries.length - 1];
-    if (last.origin !== "user" || last.id === activeId) return entries;
-    return entries.filter((e) => e.id !== activeId);
-  };
+  // Entries in history order (oldest -> newest); empty until the first status update.
+  const modeEntries = () => orderedEntries(appState.mode);
 
   // Must match the mount fade's `duration-700` below — a removed entry
   // (e.g. a cancelled auto-switch candidate) fades out over the same
@@ -510,8 +492,8 @@ export default function LocationBanner() {
       const container = containerRef;
       queueMicrotask(() => {
         if (containerRef !== container) return;
-        const mode = appState.mode;
-        const isUnsettledCandidate = mode.phase === "auto" &&
+        const mode = appState.mode.mode;
+        const isUnsettledCandidate = mode.mode === "auto" &&
           mode.pending?.candidateId === lastId;
         if (!isUnsettledCandidate) {
           void runSuppressed(() => Promise.resolve(jumpToLatest(container)));
@@ -521,92 +503,13 @@ export default function LocationBanner() {
     return lastId;
   }, undefined);
 
-  // Keeps the pre-revert title ("Selected Location") on screen through the
-  // auto candidate-detection window after a `selected` -> `auto` revert
-  // (rule 11/16), instead of instantly flipping to "Best Location" only to
-  // maybe slide away to a different card a moment later — see
-  // docs/destination-mode.md's note on this delay. Cleared once its card is
-  // provably done deciding: it moved on to a different (better) card, or the
-  // flat SWITCH_COUNTDOWN_MS deadline passed with no pending candidate left
-  // to resolve.
-  const [revealHold, setRevealHold] = createSignal<
-    { activeId: string; holdEndsAt: number } | null
-  >(null);
-
-  const releaseHoldIfSettled = () => {
-    const hold = revealHold();
-    if (!hold) return;
-    const mode = appState.mode;
-    if (mode.phase !== "auto" || mode.activeId !== hold.activeId) {
-      setRevealHold(null);
-      return;
-    }
-    if (mode.pending === null && Date.now() >= hold.holdEndsAt) {
-      setRevealHold(null);
-    }
-  };
-
-  createEffect((prevPhase: DestinationModel["phase"] | undefined) => {
-    const mode = appState.mode;
-    if (prevPhase === "selected" && mode.phase === "auto") {
-      const activeId = mode.activeId;
-      // Armed synchronously (not deferred) so isRevertHold masks entries/
-      // pending's torn-read gap immediately — see the jumpToLatest note
-      // above for why this component's mirrored mode can briefly show
-      // `entries` with a fresh candidate appended but `pending` still null.
-      // Without the immediate arm, that gap reads as plain `auto` with no
-      // candidate (cardTitle("auto") = "Best Location"), which then latches
-      // into DestinationCard's fade before `pending` catches up a tick
-      // later — and the fade's own "skip no-op" then swallows the correction
-      // back, since it arrives while `displayTitle` hasn't moved yet either.
-      setRevealHold({ activeId, holdEndsAt: Date.now() + SWITCH_COUNTDOWN_MS });
-      // Once the whole synchronous cascade above has actually settled,
-      // re-check: `pending` staying null means rules 5-8 never started a
-      // real candidate (best is already active, or none exists) — nothing to
-      // hold for, so release right away instead of waiting out the full
-      // window.
-      queueMicrotask(() => {
-        const settled = appState.mode;
-        if (settled.phase !== "auto" || settled.activeId !== activeId) return;
-        if (settled.pending === null) setRevealHold(null);
-      });
-      // The deadline passing is a pure time event, not a store change — the
-      // reactive effect below only re-checks on the next entries/pending/
-      // activeId change, which may not happen right at the deadline (e.g. no
-      // candidate ever shows up).
-      const timer = setTimeout(releaseHoldIfSettled, SWITCH_COUNTDOWN_MS);
-      onCleanup(() => clearTimeout(timer));
-    }
-    return mode.phase;
-  }, undefined);
-
-  createEffect(() => {
-    const mode = appState.mode;
-    if (mode.phase === "auto") {
-      // Read so this reruns when a pending candidate commits (activeId
-      // changes) or cancels (pending -> null) after the flat deadline above
-      // already elapsed while it was still in flight.
-      mode.activeId;
-      mode.pending;
-    }
-    releaseHoldIfSettled();
-  });
-
-  // Title is resolved per entry, not once globally — only the live active
-  // card and its pending candidate (the "next" card, about to become
-  // active) may ever read "Best Location". Every other entry is history:
-  // reached by a manual pick/scroll or long superseded, so it always reads
-  // "Selected Location" regardless of the current global phase. Without
-  // this, dragging back through older cards while the strip is in `auto`
-  // made every one of them flash "Best Location", since the old uniform
-  // title was just `cardTitle(mode.phase)` applied to every card alike.
+  // Per-entry, not global — only the active card and its pending candidate ever read "Best Location".
   const titleFor = (entry: DestinationEntry): string => {
-    const mode = appState.mode;
-    if (mode.phase === "uninitialized") return "";
-
-    const isActive = entry.id === mode.activeId;
-    const isPendingCandidate = mode.phase === "auto" &&
-      mode.pending?.candidateId === entry.id;
+    const active = appState.mode.active;
+    const mode = appState.mode.mode;
+    const pending = mode.mode === "auto" ? mode.pending : null;
+    const isActive = entry.id === active;
+    const isPendingCandidate = pending?.candidateId === entry.id;
 
     if (!isActive) {
       // The pending candidate previews as "Best Location" while it's still
@@ -614,18 +517,8 @@ export default function LocationBanner() {
       return isPendingCandidate ? cardTitle("auto") : cardTitle("selected");
     }
 
-    const hold = revealHold();
-    const isRevertHold = hold !== null && mode.phase === "auto" &&
-      mode.activeId === hold.activeId;
-    // A pending candidate — found fresh mid-`auto`, not just post-revert —
-    // is just as much an open question as the revert-hold above: until it
-    // either commits (a new card, already reading "Best Location") or
-    // cancels, the still-active card isn't provably the best anymore
-    // either, so it reads "Selected Location" too.
-    const isEvaluatingCandidate = mode.phase === "auto" &&
-      mode.pending !== null;
-    const isHeld = isRevertHold || isEvaluatingCandidate;
-    return cardTitle(isHeld ? "selected" : mode.phase);
+    // A pending candidate means even the active card isn't provably best anymore.
+    return cardTitle(pending !== null ? "selected" : "auto");
   };
 
   // Rule 7's UI half: once a pending candidate's countdown (the headline
@@ -635,10 +528,11 @@ export default function LocationBanner() {
   // rather than reacting to the commit itself, since entries/activeId don't
   // change at countdownEndsAt (only at settleAt, after this animation ends).
   createEffect(() => {
-    const mode = appState.mode;
-    if (mode.phase !== "auto" || !mode.pending || !containerRef) return;
+    const mode = appState.mode.mode;
+    if (mode.mode !== "auto" || !mode.pending || !containerRef) return;
     const { candidateId, countdownEndsAt } = mode.pending;
-    const outgoingId = mode.activeId;
+    const outgoingId = appState.mode.active;
+    if (!outgoingId) return;
     const container = containerRef;
     const timer = setTimeout(() => {
       void runSuppressed(() =>
@@ -692,9 +586,8 @@ export default function LocationBanner() {
                     fadeTitle={entry.id === currentDisplayId(appState.mode)}
                     switchEndsAt={entry.id ===
                           currentDisplayId(appState.mode) &&
-                        appState.mode.phase === "auto"
-                      ? appState.mode.pending?.countdownEndsAt ??
-                        revealHold()?.holdEndsAt ?? null
+                        appState.mode.mode.mode === "auto"
+                      ? appState.mode.mode.pending?.countdownEndsAt ?? null
                       : null}
                     onOpenList={() => setShowList(true)}
                   />

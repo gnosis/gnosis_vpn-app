@@ -28,9 +28,11 @@ import {
   VPNService,
 } from "@src/services/vpnService.ts";
 import {
-  createBackupDestinationMode,
-  type DestinationModel,
-} from "@src/stores/backupDestinationMode.ts";
+  createDestinationMode,
+  type DestinationMode,
+  type DestinationModeHandle,
+  type ModeAppState,
+} from "@src/stores/destinationMode.ts";
 import { useLogsStore } from "@src/stores/logsStore.ts";
 import {
   destinationLabel,
@@ -70,7 +72,7 @@ export interface AppState {
   balance: BalanceResponse | null;
   // The history banner's list and active pointer — see
   // docs/destination-mode.md.
-  mode: DestinationModel;
+  mode: DestinationMode;
 }
 
 type AppActions = {
@@ -117,7 +119,15 @@ function initialState(): AppState {
     availableVersion: null,
     targetDestination: null,
     balance: null,
-    mode: { phase: "uninitialized" },
+    mode: {
+      entries: {},
+      sequence: [],
+      active: null,
+      mode: { mode: "auto", pending: null },
+      nextKey: 0,
+      preferredLocation: null,
+      lastConnectedDestination: null,
+    },
   };
 }
 
@@ -212,13 +222,26 @@ export function createAppStore(): AppStoreTuple {
   const logStatus = (response: StatusResponse) =>
     logActions.appendStatus(response);
 
-  // `state` itself already has the fields these need (availableDestinations/
-  // destinations/connected/connecting/reconnecting), so it's passed directly
-  // rather than mirrored into a separate copy first.
-  const [mode, modeActions] = createBackupDestinationMode(state, settings);
+  // destinationMode.ts snapshots settings once at creation, so wait for real hydrated values.
+  let destinationMode: DestinationModeHandle | undefined;
+  // A status can arrive before hydration; replay it once the handle exists.
+  let pendingModeAppState: ModeAppState | undefined;
 
+  // Creates once, then only mirrors — must never call applyStatusUpdate here, or this effect (which reads destinationMode.model) retriggers itself forever.
   createEffect(() => {
-    batch(() => setState("mode", reconcile({ ...mode }, { key: "key" })));
+    if (!destinationMode) {
+      if (!settingsActions.hydrated()) return;
+      destinationMode = createDestinationMode({
+        preferredLocation: settings.preferredLocation,
+        lastConnectedDestination: settings.lastConnectedDestination,
+      });
+      if (pendingModeAppState) {
+        destinationMode.applyStatusUpdate(pendingModeAppState);
+      }
+    }
+    batch(() =>
+      setState("mode", reconcile({ ...destinationMode!.model }, { key: "key" }))
+    );
   });
 
   const criticalError = (message: string) => {
@@ -279,6 +302,15 @@ export function createAppStore(): AppStoreTuple {
     setState("disconnecting", reconcile(response.disconnecting));
     setState("vpnStatus", deriveVPNStatus(response));
     setState("availableDestinations", availableDestinations);
+
+    pendingModeAppState = {
+      availableDestinations,
+      destinations,
+      connected: response.connected,
+      connecting: response.connecting,
+      reconnecting: response.reconnecting,
+    };
+    destinationMode?.applyStatusUpdate(pendingModeAppState);
   };
 
   const logStateChange = (
@@ -524,8 +556,10 @@ export function createAppStore(): AppStoreTuple {
       }
     },
 
-    setActiveEntry: (id: string) => modeActions.setActiveEntry(id),
-    pickDestination: (id: string) => modeActions.pickDestination(id),
+    setActiveEntry: (id: string) =>
+      destinationMode?.applyUserInput({ type: "setActiveEntry", id }),
+    pickDestination: (id: string) =>
+      destinationMode?.applyUserInput({ type: "pickDestination", id }),
   } as const;
 
   // Keep the persisted channel preference and install marker in step with the

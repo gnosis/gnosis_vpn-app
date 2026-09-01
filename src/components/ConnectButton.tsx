@@ -4,7 +4,7 @@ import { useAppStore } from "../stores/appStore.ts";
 import {
   currentDisplayId,
   resolveConnectTarget,
-} from "../stores/backupDestinationMode.ts";
+} from "../stores/destinationMode.ts";
 import { isReadyToConnect } from "../utils/exitHealth.ts";
 
 export default function ConnectButton() {
