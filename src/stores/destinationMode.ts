@@ -132,8 +132,11 @@ export function createDestinationMode(
   }
 
   function setActive(id: string): void {
-    if (id in model.entries) {
-      setModel("active", id);
+    if (!(id in model.entries)) return;
+    setModel("active", id);
+    // preferred gets one shot ever; any path to active spends it
+    if (id === model.preferredLocation) {
+      setModel("preferredLocation", null);
     }
   }
 
@@ -154,42 +157,71 @@ export function createDestinationMode(
       Object.entries(model.entries).filter(([id]) => availableIds.has(id)),
     );
     const newSequence = model.sequence.filter((id) => availableIds.has(id));
-    let newActive =
-      model.active && availableIds.has(model.active) ? model.active : null;
+    let newActive = model.active && availableIds.has(model.active)
+      ? model.active
+      : null;
 
     // ensure pending candidate is still available, if not cancel
     let newMode = mode;
-    if (newMode.mode === "auto" && newMode.pending)
-      if (!availableIds.has(newMode.pending.candidateId)) {
-        clearPendingTimer();
-        newMode = { mode: "auto", pending: null };
-      }
+    if (newMode.pending && !availableIds.has(newMode.pending.candidateId)) {
+      clearPendingTimer();
+      newMode = { mode: "auto", pending: null };
+    }
 
     let newPreferredLocation = model.preferredLocation;
     let newLastConnectedDestination = model.lastConnectedDestination;
     let newNextKey = model.nextKey;
 
+    // one lifetime shot for preferred; only counts once routable, not merely configured
+    const routablePreferredLocation = (): string | null =>
+      newPreferredLocation !== null &&
+        isDestinationReadyToConnect(status.destinations[newPreferredLocation])
+        ? newPreferredLocation
+        : null;
+
+    // moves the pending slot to candidateId, dropping the old one's entry; leaves timing alone
+    const swapPendingEntry = (candidateId: string) => {
+      const staleId = newMode.pending?.candidateId ?? null;
+      if (staleId !== null && staleId !== candidateId) {
+        delete newEntries[staleId];
+        const staleIndex = newSequence.indexOf(staleId);
+        if (staleIndex !== -1) newSequence.splice(staleIndex, 1);
+      }
+      if (!(candidateId in newEntries)) {
+        newEntries[candidateId] = { origin: "auto", key: newNextKey++ };
+      }
+      const existingIndex = newSequence.indexOf(candidateId);
+      if (existingIndex !== -1) newSequence.splice(existingIndex, 1);
+      newSequence.push(candidateId);
+    };
+
+    // arms a fresh countdown for candidateId; used for a new pending and for a preferred hijack
+    const armPending = (candidateId: string): AutoMode => {
+      swapPendingEntry(candidateId);
+      const countdownEndsAt = Date.now() + SWITCH_COUNTDOWN_MS;
+      const settleAt = countdownEndsAt + SWITCH_CROSSOVER_MS;
+      armPendingCandidate();
+      return {
+        mode: "auto",
+        pending: { candidateId, countdownEndsAt, settleAt },
+      };
+    };
+
     // no best destination
     if (bestDestination === undefined) {
       clearPendingTimer();
       newMode = { mode: "auto", pending: null };
-    } else
-      // best destination already active
-      if (newActive === bestDestination) {
-        clearPendingTimer();
-        newMode = { mode: "auto", pending: null };
-      } else
-        // fresh or some weird data came in which we treat as fresh
-        if (!newActive && newPreferredLocation) {
-          if (
-            isDestinationReadyToConnect(
-              status.destinations[newPreferredLocation],
-            )
-          ) {
-            newActive = newPreferredLocation;
-          }
+    } else {
+      let skipArmThisTick = false;
+
+      // fresh or some weird data came in which we treat as fresh
+      if (!newActive) {
+        const preferred = routablePreferredLocation();
+        if (preferred) {
+          newActive = preferred;
           newPreferredLocation = null;
-        } else if (!newActive && newLastConnectedDestination) {
+          skipArmThisTick = true;
+        } else if (newLastConnectedDestination) {
           if (
             isDestinationReadyToConnect(
               status.destinations[newLastConnectedDestination],
@@ -198,46 +230,41 @@ export function createDestinationMode(
             newActive = newLastConnectedDestination;
           }
           newLastConnectedDestination = null;
-        } else
+          skipArmThisTick = true;
+        }
+      }
+
+      if (!skipArmThisTick) {
+        // preferred wins over bestDestination whenever routable and unspent
+        const preferred = routablePreferredLocation();
+        const effectiveCandidate = preferred ?? bestDestination;
+
+        if (newActive === effectiveCandidate) {
+          // best destination already active
+          clearPendingTimer();
+          newMode = { mode: "auto", pending: null };
+        } else if (newMode.pending === null) {
           // best destination will become pending
-          if (newMode.pending === null) {
-            if (!(bestDestination in newEntries)) {
-              newEntries[bestDestination] = {
-                origin: "auto",
-                key: newNextKey++,
-              };
-              const staleIndex = newSequence.indexOf(bestDestination);
-              if (staleIndex !== -1) {
-                newSequence.splice(staleIndex, 1);
-              }
-              newSequence.push(bestDestination);
-            }
-            const countdownEndsAt = Date.now() + SWITCH_COUNTDOWN_MS;
-            const settleAt = countdownEndsAt + SWITCH_CROSSOVER_MS;
+          newMode = armPending(effectiveCandidate);
+        } else if (newMode.pending.candidateId !== effectiveCandidate) {
+          if (preferred) {
+            // hijack: preferred always restarts the countdown fresh.
+            newMode = armPending(effectiveCandidate);
+          } else if (Date.now() < newMode.pending.countdownEndsAt) {
+            // update pending with actual best destination
+            swapPendingEntry(effectiveCandidate);
             newMode = {
               mode: "auto",
-              pending: {
-                candidateId: bestDestination,
-                countdownEndsAt,
-                settleAt,
-              },
+              pending: { ...newMode.pending, candidateId: effectiveCandidate },
             };
-            armPendingCandidate();
-          } else
-            // update pending with actual best destination
-            if (
-              newMode.pending.candidateId !== bestDestination &&
-              Date.now() < newMode.pending.countdownEndsAt
-            ) {
-              newMode = {
-                mode: "auto",
-                pending: {
-                  candidateId: bestDestination,
-                  countdownEndsAt: newMode.pending.countdownEndsAt,
-                  settleAt: newMode.pending.settleAt,
-                },
-              };
-            }
+          }
+        }
+      }
+    }
+
+    if (newActive !== null && newActive === newPreferredLocation) {
+      newPreferredLocation = null;
+    }
 
     setModel({
       entries: newEntries,
