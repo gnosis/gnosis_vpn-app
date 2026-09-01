@@ -234,6 +234,15 @@ pub async fn set_app_icon(app: AppHandle, icon_name: String) -> Result<(), Strin
 }
 
 #[tauri::command]
+pub async fn write_debug_snapshot(path: String, content: String) -> Result<(), String> {
+    let path = PathBuf::from(path);
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    std::fs::write(&path, content).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub async fn compress_logs(log_path: String, dest_path: String) -> Result<(), String> {
     let log_file = PathBuf::from(log_path)
         .canonicalize()

@@ -12,6 +12,7 @@ import { StatusIndicator } from "../../components/status/StatusIndicator.tsx";
 import Navigation from "../../components/Navigation.tsx";
 import LocationBanner from "../../components/exitNode/LocationBanner.tsx";
 import ConnectButton from "../../components/ConnectButton.tsx";
+import DebugSnapshotButton from "../../components/DebugSnapshotButton.tsx";
 import StatusHero from "../../components/status/StatusHero.tsx";
 import StatusLine from "../../components/status/StatusLine.tsx";
 import ConnectionStatus from "../../components/status/ConnectionStatus.tsx";
@@ -143,7 +144,8 @@ export function MainScreen() {
         </div>
         <StatusLine heightPx={connectorHeight()} bottomPx={connectorBottom()} />
       </main>
-      <div class="mt-4 w-full z-10">
+      <div class="mt-4 w-full z-10 flex flex-col gap-2">
+        {import.meta.env.DEV && <DebugSnapshotButton />}
         <ConnectButton />
       </div>
       <ConnectionStatus />

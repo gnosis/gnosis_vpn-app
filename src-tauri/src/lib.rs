@@ -22,7 +22,7 @@ pub mod update_install;
 
 use commands::{
     check_update, compress_logs, connect, disconnect, get_cached_state, get_platform,
-    run_initialization_loop, set_app_icon, stop_client,
+    run_initialization_loop, set_app_icon, stop_client, write_debug_snapshot,
 };
 use gnosis_vpn_lib::command::InfoResponse;
 use gnosis_vpn_lib::{command, socket::root as root_socket};
@@ -406,6 +406,7 @@ pub fn run() {
             connect,
             disconnect,
             compress_logs,
+            write_debug_snapshot,
             set_app_icon,
             get_initial_theme,
             check_update,
