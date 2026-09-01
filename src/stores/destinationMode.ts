@@ -193,13 +193,18 @@ export function createDestinationMode(
         ? newPreferredLocation
         : null;
 
+    // removes a candidate's transient entry/sequence slot (a pending candidate that never committed)
+    const removeEntry = (id: string) => {
+      delete newEntries[id];
+      const index = newSequence.indexOf(id);
+      if (index !== -1) newSequence.splice(index, 1);
+    };
+
     // moves the pending slot to candidateId, dropping the old one's entry; leaves timing alone
     const swapPendingEntry = (candidateId: string) => {
       const staleId = newMode.pending?.candidateId ?? null;
       if (staleId !== null && staleId !== candidateId) {
-        delete newEntries[staleId];
-        const staleIndex = newSequence.indexOf(staleId);
-        if (staleIndex !== -1) newSequence.splice(staleIndex, 1);
+        removeEntry(staleId);
       }
       if (!(candidateId in newEntries)) {
         newEntries[candidateId] = { origin: "auto", key: newNextKey++ };
@@ -207,6 +212,14 @@ export function createDestinationMode(
       const existingIndex = newSequence.indexOf(candidateId);
       if (existingIndex !== -1) newSequence.splice(existingIndex, 1);
       newSequence.push(candidateId);
+    };
+
+    // drops the pending candidate's entry when it's abandoned uncommitted, e.g. reverting to active
+    const dropPendingEntry = () => {
+      const staleId = newMode.pending?.candidateId ?? null;
+      if (staleId !== null && staleId !== newActive) {
+        removeEntry(staleId);
+      }
     };
 
     // arms a fresh countdown for candidateId; used for a new pending and for a preferred hijack
@@ -223,6 +236,7 @@ export function createDestinationMode(
 
     // no best destination
     if (bestDestination === undefined) {
+      dropPendingEntry();
       clearPendingTimer();
       newMode = { mode: "auto", pending: null };
     } else {
@@ -254,7 +268,8 @@ export function createDestinationMode(
         const effectiveCandidate = preferred ?? bestDestination;
 
         if (newActive === effectiveCandidate) {
-          // best destination already active
+          // best destination already active; drop any stale pending entry left over from before
+          dropPendingEntry();
           clearPendingTimer();
           newMode = { mode: "auto", pending: null };
         } else if (newMode.pending === null) {

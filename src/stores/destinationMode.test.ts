@@ -267,6 +267,71 @@ describe("preferred location — one-shot promotion (auto mode)", () => {
   });
 });
 
+describe("pending candidate cleanup (auto mode)", () => {
+  it("drops the pending candidate's entry when the active destination becomes best again before commit", async () => {
+    const handle = setup();
+
+    handle.applyStatusUpdate(statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    await vi.advanceTimersByTimeAsync(SETTLE_MS);
+    expect(handle.model.active).toBe("uk");
+
+    // "usa" overtakes on latency and becomes pending
+    handle.applyStatusUpdate(statusFor({
+      uk: makeReadyToConnect("uk", 50),
+      usa: makeReadyToConnect("usa", 10),
+    }));
+    expect(handle.model.mode).toMatchObject({
+      pending: { candidateId: "usa" },
+    });
+    expect(handle.model.entries["usa"]).toBeDefined();
+
+    // before commit, "uk" (already active) becomes best again
+    await vi.advanceTimersByTimeAsync(SWITCH_COUNTDOWN_MS / 2);
+    handle.applyStatusUpdate(statusFor({
+      uk: makeReadyToConnect("uk", 5),
+      usa: makeReadyToConnect("usa", 10),
+    }));
+
+    expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
+    expect(handle.model.active).toBe("uk");
+    expect(handle.model.entries["usa"]).toBeUndefined();
+    expect(handle.model.sequence).not.toContain("usa");
+  });
+
+  it("drops the pending candidate's entry when health data briefly disappears (bestDestination undefined, but still available)", async () => {
+    const handle = setup();
+
+    handle.applyStatusUpdate(statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    await vi.advanceTimersByTimeAsync(SETTLE_MS);
+    expect(handle.model.active).toBe("uk");
+
+    handle.applyStatusUpdate(statusFor({
+      uk: makeReadyToConnect("uk", 50),
+      usa: makeReadyToConnect("usa", 10),
+    }));
+    expect(handle.model.entries["usa"]).toBeDefined();
+
+    // destinations are still known/available, but the health-data record is
+    // empty this tick — sortByCapacityAwareLatency([]) has no [0], so
+    // bestDestination is undefined even though "usa" isn't evicted by the
+    // availableIds filter.
+    handle.applyStatusUpdate({
+      availableDestinations: [
+        makeReadyToConnect("uk", 50).destination,
+        makeReadyToConnect("usa", 10).destination,
+      ],
+      destinations: {},
+      connected: null,
+      connecting: null,
+      reconnecting: null,
+    });
+
+    expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
+    expect(handle.model.entries["usa"]).toBeUndefined();
+    expect(handle.model.sequence).not.toContain("usa");
+  });
+});
+
 describe("lastConnectedDestination — unchanged, cold-start-only fallback", () => {
   it("is tried once at cold start regardless of readiness outcome, even when not ready", () => {
     const handle = setup({ lastConnectedDestination: "last" });
