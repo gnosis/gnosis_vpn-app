@@ -109,7 +109,7 @@ export function formatConnectionPhase(phase: UpPhase | DownPhase): string {
     case "Init":
       return "Initializing";
     case "ResolvingBlokliIps":
-      return "Resolving server IPs";
+      return "Locating network gateway";
     case "GeneratingWg":
       return "Generating WireGuard public key";
     case "OpeningBridge":
@@ -119,7 +119,7 @@ export function formatConnectionPhase(phase: UpPhase | DownPhase): string {
     case "OpeningPing":
       return "Opening ping session";
     case "GatherPeerIps":
-      return "Gathering peer IPs";
+      return "Gathering peers";
     case "KillswitchLockdown":
       return "Activating kill switch";
     case "EstablishWgTunnel":

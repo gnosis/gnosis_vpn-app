@@ -20,7 +20,7 @@ on:
         required: false
         type: string
       supported_client_versions:
-        description: "Comma-separated compatible gnosis_vpn-client service versions, e.g. '>=0.93.0' or '0.93, 0.94' (empty: keep current)"
+        description: "Comma-separated compatible gnosis_vpn-client service versions, e.g. '0.93' or '0.93, 0.94' (empty: keep current)"
         required: false
         type: string
 concurrency:
@@ -150,10 +150,8 @@ jobs:
         env:
           SUPPORTED_CLIENT_VERSIONS: ${{ inputs.supported_client_versions }}
         run: |
-          # Entries must be semver requirements commands.rs can parse:
-          # bare "0.93" (any 0.93.x) or one of < <= = >= > ^ ~ plus a version,
-          # e.g. ">=0.93.0" for 0.93.0 and everything after.
-          req_pattern='^([<>]=?|[=^~])?[0-9]+(\.[0-9]+){0,2}$'
+          # Semver requirements commands.rs can parse (bare "0.93", or < <= = ^ ~); ">="/">" are rejected since they'd match every future version and disable the check.
+          req_pattern='^([<]=?|[=^~])?[0-9]+(\.[0-9]+){0,2}$'
           joined=""
           IFS=',' read -ra raw_entries <<< "${SUPPORTED_CLIENT_VERSIONS}"
           for entry in "${raw_entries[@]}"; do
@@ -177,18 +175,17 @@ jobs:
             echo "src-tauri/src/commands.rs still lacks the new COMPATIBLE_VERSIONS list after the substitution" >&2
             exit 1
           fi
-      # Equivalent of running `deno task tauri dev` locally and cancelling it:
-      # refreshes Cargo.lock with the bumped app version and, when client_ref
-      # changed, re-resolves gnosis_vpn-lib to the new rev — without compiling.
-      # --workspace only syncs workspace-member versions (unlike a bare
-      # `cargo update`); every other locked dependency version stays put.
+      # --recursive re-resolves gnosis_vpn-lib's subtree; without it, a rev bump can leave transitive deps (e.g. tokio) locked stale and cargo update fails.
       - name: Update Cargo.lock
         shell: bash
         env:
           NEW_VERSION: ${{ steps.version.outputs.new_version }}
           CLIENT_REV: ${{ steps.client-ref.outputs.rev }}
         run: |
-          nix develop --command cargo update --workspace --manifest-path src-tauri/Cargo.toml
+          nix develop --command cargo update -p gnosis_vpn-app --manifest-path src-tauri/Cargo.toml
+          if [[ -n "${CLIENT_REV}" ]]; then
+            nix develop --command cargo update -p gnosis_vpn-lib --recursive --manifest-path src-tauri/Cargo.toml
+          fi
           if ! grep -A1 '^name = "gnosis_vpn-app"$' src-tauri/Cargo.lock | grep -q "^version = \"${NEW_VERSION}\"$"; then
             echo "src-tauri/Cargo.lock still lacks gnosis_vpn-app ${NEW_VERSION} after the update" >&2
             exit 1

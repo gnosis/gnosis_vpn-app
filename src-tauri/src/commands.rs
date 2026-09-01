@@ -20,19 +20,22 @@ use crate::tray;
 use crate::types::{BalanceResponse, ConnectionState, StatusResponse};
 use crate::{AppStateCache, BalancePollingHandle, PollingExit, StatusPollingHandle};
 
-/// Semver requirements for compatible gnosis_vpn-client service versions,
-/// e.g. "0.93" (any 0.93.x) or ">=0.93.0" (0.93.0 and all later versions).
-const COMPATIBLE_VERSIONS: &[&str] = &["0.95"];
+/// Semver requirements for compatible client versions, e.g. "0.93" (any 0.93.x) — never ">=" or ">", which would match all future versions and disable this check.
+const COMPATIBLE_VERSIONS: &[&str] = &["0.95", "0.96"];
 
-fn is_version_compatible(version: &str) -> bool {
+fn version_matches(version: &str, requirements: &[&str]) -> bool {
     let Ok(version) = semver::Version::parse(version.trim()) else {
         return false;
     };
-    COMPATIBLE_VERSIONS.iter().any(|req| {
+    requirements.iter().any(|req| {
         semver::VersionReq::parse(req)
             .map(|req| req.matches(&version))
             .unwrap_or(false)
     })
+}
+
+fn is_version_compatible(version: &str) -> bool {
+    version_matches(version, COMPATIBLE_VERSIONS)
 }
 
 /// OS name for the frontend ("macos", "linux", …) — it has no runtime
@@ -632,23 +635,26 @@ mod tests {
         }
     }
 
+    // ">="/">" would match all future versions, silently disabling this check.
     #[test]
-    fn plain_requirement_matches_its_minor_series() {
-        assert!(is_version_compatible("0.94.0"));
-        assert!(is_version_compatible(" 0.94.5 "));
-        assert!(!is_version_compatible("0.93.9"));
-        assert!(!is_version_compatible("0.95.0"));
-        assert!(!is_version_compatible("0.940.0"));
-        assert!(!is_version_compatible("not-a-version"));
-        assert!(!is_version_compatible(""));
+    fn compatible_versions_never_use_open_ended_operators() {
+        for req in COMPATIBLE_VERSIONS {
+            assert!(
+                !req.trim_start().starts_with('>'),
+                "open-ended requirement in COMPATIBLE_VERSIONS: {req}"
+            );
+        }
     }
 
     #[test]
-    fn minimum_requirement_matches_all_later_versions() {
-        let min = semver::VersionReq::parse(">=0.93.0").unwrap();
-        for version in ["0.93.0", "0.93.7", "0.94.0", "1.2.3"] {
-            assert!(min.matches(&semver::Version::parse(version).unwrap()));
-        }
-        assert!(!min.matches(&semver::Version::parse("0.92.9").unwrap()));
+    fn plain_requirement_matches_its_minor_series() {
+        let requirements = ["0.94"];
+        assert!(version_matches("0.94.0", &requirements));
+        assert!(version_matches(" 0.94.5 ", &requirements));
+        assert!(!version_matches("0.93.9", &requirements));
+        assert!(!version_matches("0.95.0", &requirements));
+        assert!(!version_matches("0.940.0", &requirements));
+        assert!(!version_matches("not-a-version", &requirements));
+        assert!(!version_matches("", &requirements));
     }
 }
