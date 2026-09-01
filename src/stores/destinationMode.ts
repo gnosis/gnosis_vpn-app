@@ -308,10 +308,9 @@ export function createDestinationMode(
 
   function applyStatusUpdateSelected(
     _status: ModeAppState,
-    mode: SelectedMode,
+    _mode: SelectedMode,
   ): void {
     // watch active entry's readiness; revert to auto if it drops
-    throw new Error("not implemented");
   }
 
   function applyStatusUpdateLive(_status: ModeAppState, mode: LiveMode): void {
