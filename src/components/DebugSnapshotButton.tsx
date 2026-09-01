@@ -5,7 +5,7 @@ import { useAppStore } from "../stores/appStore.ts";
 
 let runDir: string | null = null;
 function getRunDir(): string {
-  if (!runDir) runDir = `/tmp/runtime${Date.now()}`;
+  if (!runDir) runDir = `/tmp/run-${Date.now()}`;
   return runDir;
 }
 
