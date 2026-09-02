@@ -267,6 +267,36 @@ describe("preferred location — one-shot promotion (auto mode)", () => {
   });
 });
 
+describe("mode derived from status", () => {
+  it("a backend connection state takes priority over the local mode", () => {
+    const handle = setup();
+    const destinations = { uk: makeReadyToConnect("uk", 50) };
+
+    expect(() =>
+      handle.applyStatusUpdate({
+        ...statusFor(destinations),
+        connecting: { destination_id: "uk", since: 0, phase: "Init" },
+      })
+    ).toThrow("not implemented");
+  });
+
+  it("prunes entries the backend no longer offers", async () => {
+    const handle = setup();
+
+    handle.applyStatusUpdate(statusFor({
+      uk: makeReadyToConnect("uk", 50),
+      usa: makeReadyToConnect("usa", 10),
+    }));
+    await vi.advanceTimersByTimeAsync(SETTLE_MS);
+    expect(handle.model.active).toBe("usa");
+
+    handle.applyStatusUpdate(statusFor({ uk: makeReadyToConnect("uk", 50) }));
+
+    expect(handle.model.entries["usa"]).toBeUndefined();
+    expect(handle.model.sequence).not.toContain("usa");
+  });
+});
+
 describe("pending candidate cleanup (auto mode)", () => {
   it("drops the pending candidate's entry when the active destination becomes best again before commit", async () => {
     const handle = setup();

@@ -93,6 +93,14 @@ export interface DestinationModeHandle {
   applyUserInput: (event: UserInputEvent) => void;
 }
 
+/** Model slice re-checked against what the backend still offers, plus the id set it was filtered against. */
+interface Baseline {
+  entries: Record<string, Entry>;
+  sequence: string[];
+  active: string | null;
+  availableIds: Set<string>;
+}
+
 function isDestinationReadyToConnect(destState?: DestinationState): boolean {
   return isReadyToConnect(destState?.route_health ?? undefined);
 }
@@ -163,21 +171,36 @@ export function createDestinationMode(
     }
   }
 
-  function applyStatusUpdateAuto(status: ModeAppState, mode: AutoMode): void {
-    const bestDestination = sortByCapacityAwareLatency(status.destinations)[0];
-    // ensure baseline data is still available, if not adjust
+  function sanitizedBaseline(status: ModeAppState): Baseline {
     const availableIds = new Set(status.availableDestinations.map((d) => d.id));
-    const newEntries = Object.fromEntries(
-      Object.entries(model.entries).filter(([id]) => availableIds.has(id)),
-    );
-    const newSequence = model.sequence.filter((id) => availableIds.has(id));
-    let newActive = model.active && availableIds.has(model.active)
-      ? model.active
-      : null;
+    return {
+      entries: Object.fromEntries(
+        Object.entries(model.entries).filter(([id]) => availableIds.has(id)),
+      ),
+      sequence: model.sequence.filter((id) => availableIds.has(id)),
+      active: model.active && availableIds.has(model.active)
+        ? model.active
+        : null,
+      availableIds,
+    };
+  }
+
+  function applyStatusUpdateAuto(
+    status: ModeAppState,
+    baseline: Baseline,
+    mode: AutoMode,
+  ): void {
+    const bestDestination = sortByCapacityAwareLatency(status.destinations)[0];
+    // mutated in place below, then written back in one go
+    const newEntries = baseline.entries;
+    const newSequence = baseline.sequence;
+    let newActive = baseline.active;
 
     // ensure pending candidate is still available, if not cancel
     let newMode = mode;
-    if (newMode.pending && !availableIds.has(newMode.pending.candidateId)) {
+    if (
+      newMode.pending && !baseline.availableIds.has(newMode.pending.candidateId)
+    ) {
       clearPendingTimer();
       newMode = { mode: "auto", pending: null };
     }
@@ -242,7 +265,7 @@ export function createDestinationMode(
     } else {
       let skipArmThisTick = false;
 
-      // fresh or some weird data came in which we treat as fresh
+      // no active id — cold start, or the caller sent us here because it vanished
       if (!newActive) {
         const preferred = routablePreferredLocation();
         if (preferred) {
@@ -308,32 +331,55 @@ export function createDestinationMode(
 
   function applyStatusUpdateSelected(
     _status: ModeAppState,
-    _mode: SelectedMode,
+    baseline: Baseline,
+    mode: SelectedMode,
   ): void {
-    // watch active entry's readiness; revert to auto if it drops
+    // TODO: autoRevertAt handling; for now only the sanity check lands
+    setModel({
+      entries: baseline.entries,
+      sequence: baseline.sequence,
+      active: baseline.active,
+      mode,
+    });
   }
 
-  function applyStatusUpdateLive(_status: ModeAppState, mode: LiveMode): void {
-    // derive active/entries from connected/connecting/reconnecting
+  function applyStatusUpdateLive(
+    _status: ModeAppState,
+    _baseline: Baseline,
+    _liveId: string,
+  ): void {
+    // TODO: derive active/entries from liveId; must also clearPendingTimer()
     throw new Error("not implemented");
   }
 
   function applyStatusUpdate(status: ModeAppState): void {
-    // let newMode = // determine mode from status, if connecting/reconnecintg/connected -> live
-    // if not live, stay in user/auto mode as is
-    // if not live and model.mode was live, switch to auto mode
-    // switch (newMode)
-    switch (model.mode.mode) {
-      case "auto":
-        applyStatusUpdateAuto(status, model.mode);
-        return;
-      case "selected":
-        applyStatusUpdateSelected(status, model.mode);
-        return;
-      case "live":
-        applyStatusUpdateLive(status, model.mode);
-        return;
+    const baseline = sanitizedBaseline(status);
+    const mode = model.mode;
+
+    // the backend's own connection state outranks any locally derived mode
+    const liveId = status.connected?.destination_id ??
+      status.connecting?.destination_id ??
+      status.reconnecting?.destination_id ??
+      null;
+    if (liveId !== null) {
+      applyStatusUpdateLive(status, baseline, liveId);
+      return;
     }
+
+    // selected only survives while its destination is still there
+    if (mode.mode === "selected" && baseline.active !== null) {
+      if (!isDestinationReadyToConnect(status.destinations[baseline.active])) {
+        throw new Error("selected destination is no longer ready to connect");
+      }
+      applyStatusUpdateSelected(status, baseline, mode);
+      return;
+    }
+
+    // auto also absorbs a fresh start and dropping out of live
+    const autoMode: AutoMode = mode.mode === "auto"
+      ? mode
+      : { mode: "auto", pending: null };
+    applyStatusUpdateAuto(status, baseline, autoMode);
   }
 
   return {
@@ -359,7 +405,8 @@ export function resolveConnectTarget(
   now: number,
 ): string | null {
   if (
-    model.mode.mode === "auto" && model.mode.pending &&
+    model.mode.mode === "auto" &&
+    model.mode.pending &&
     now >= model.mode.pending.settleAt
   ) {
     return model.mode.pending.candidateId;
