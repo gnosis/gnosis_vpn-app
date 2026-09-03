@@ -68,6 +68,25 @@ function animateScrollLeft(
   });
 }
 
+// Hands scroll-behavior/snap back to CSS after a programmatic move, re-pinning
+// the landed position: WebKitGTK may re-snap to its *remembered* card the
+// moment mandatory snap returns, yanking the strip off the card we just
+// settled on (the horizontal jitter when a drag ends outside the window).
+function restoreScrollStyles(container: HTMLDivElement, to: number) {
+  container.style.scrollSnapType = "";
+  container.scrollLeft = to;
+  container.style.scrollBehavior = "";
+  // re-snap can land a frame later; correct it once if it moved the strip
+  requestAnimationFrame(() => {
+    if (Math.abs(container.scrollLeft - to) <= 1) return;
+    console.debug("[banner] snap restore displaced", {
+      from: container.scrollLeft,
+      to,
+    });
+    container.scrollLeft = to;
+  });
+}
+
 // Manually picking a destination from the list is already a deliberate,
 // already-seen choice — jump straight to its card instead of replaying the
 // pulse-then-slide reserved for an unattended auto-switch. scroll-behavior
@@ -78,8 +97,7 @@ function jumpToLatest(container: HTMLDivElement) {
   container.style.scrollBehavior = "auto";
   container.style.scrollSnapType = "none";
   container.scrollLeft = container.scrollWidth - container.clientWidth;
-  container.style.scrollBehavior = "";
-  container.style.scrollSnapType = "";
+  restoreScrollStyles(container, container.scrollLeft);
 }
 
 // Where scrollLeft must land for `card` to sit centered in `container` —
@@ -136,14 +154,14 @@ async function animateAutoSwitch(
   if (!card) return;
   container.style.scrollBehavior = "auto";
   container.style.scrollSnapType = "none";
+  const to = centeredScrollLeft(container, card);
   await animateScrollLeft(
     container,
-    centeredScrollLeft(container, card),
+    to,
     SWITCH_ANIMATE_MS - CARD_PULSE_MS,
     isCancelled,
   );
-  container.style.scrollBehavior = "";
-  container.style.scrollSnapType = "";
+  restoreScrollStyles(container, to);
 }
 
 export default function LocationBanner() {
@@ -160,12 +178,17 @@ export default function LocationBanner() {
   // grace period) so the settle listeners below don't mistake our own
   // animation for a user swipe — see commitSlideTo's doc comment for why
   // that distinction matters.
-  let suppressSettle = false;
+  // Depth-counted: suppression windows overlap (e.g. a settle racing jumpToLatest), and a boolean would lift too early
+  let suppressDepth = 0;
+  const suppressSettle = () => suppressDepth > 0;
   const runSuppressed = async (fn: () => Promise<void> | void) => {
-    suppressSettle = true;
-    await fn();
-    await new Promise((resolve) => setTimeout(resolve, SETTLE_GRACE_MS));
-    suppressSettle = false;
+    suppressDepth++;
+    try {
+      await fn();
+      await new Promise((resolve) => setTimeout(resolve, SETTLE_GRACE_MS));
+    } finally {
+      suppressDepth--;
+    }
   };
 
   // Touch already gets native pan-to-scroll from the browser. Mouse/pen
@@ -213,13 +236,6 @@ export default function LocationBanner() {
 
   const handlePointerMove = (e: PointerEvent) => {
     if (dragStartX === undefined || !containerRef) return;
-    // WebKitGTK delivers garbage coords under capture once the cursor exits the window — end the gesture at the edge
-    const leftWindow = e.clientX <= 0 || e.clientY <= 0 ||
-      e.clientX >= globalThis.innerWidth || e.clientY >= globalThis.innerHeight;
-    if (leftWindow) {
-      endDrag();
-      return;
-    }
     const dx = e.clientX - dragStartX;
     if (!didDrag) {
       if (Math.abs(dx) < DRAG_THRESHOLD_PX) return;
@@ -267,14 +283,9 @@ export default function LocationBanner() {
     await runSuppressed(async () => {
       container.style.scrollBehavior = "auto";
       container.style.scrollSnapType = "none";
-      await animateScrollLeft(
-        container,
-        centeredScrollLeft(container, card),
-        SETTLE_ANIMATE_MS,
-        () => !mounted,
-      );
-      container.style.scrollBehavior = "";
-      container.style.scrollSnapType = "";
+      const to = centeredScrollLeft(container, card);
+      await animateScrollLeft(container, to, SETTLE_ANIMATE_MS, () => !mounted);
+      restoreScrollStyles(container, to);
     });
     commitSlideTo(id);
   };
@@ -299,14 +310,9 @@ export default function LocationBanner() {
     void runSuppressed(async () => {
       container.style.scrollBehavior = "auto";
       container.style.scrollSnapType = "none";
-      await animateScrollLeft(
-        container,
-        centeredScrollLeft(container, card),
-        SWITCH_ANIMATE_MS,
-        () => !mounted,
-      );
-      container.style.scrollBehavior = "";
-      container.style.scrollSnapType = "";
+      const to = centeredScrollLeft(container, card);
+      await animateScrollLeft(container, to, SWITCH_ANIMATE_MS, () => !mounted);
+      restoreScrollStyles(container, to);
     }).finally(() => clearTimeout(commitTimer));
   };
 
@@ -374,14 +380,14 @@ export default function LocationBanner() {
   let scrollDebounceTimer: ReturnType<typeof setTimeout> | undefined;
 
   const handleSettledScroll = () => {
-    if (suppressSettle || dragStartX !== undefined || !containerRef) return;
+    if (suppressSettle() || dragStartX !== undefined || !containerRef) return;
     const id = nearestCardId(containerRef);
     if (id) commitSlideTo(id);
   };
 
   const handleScroll = () => {
     if (supportsScrollEnd) return;
-    if (suppressSettle || dragStartX !== undefined) return;
+    if (suppressSettle() || dragStartX !== undefined) return;
     clearTimeout(scrollDebounceTimer);
     scrollDebounceTimer = setTimeout(
       handleSettledScroll,
