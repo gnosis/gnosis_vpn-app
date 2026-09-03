@@ -208,12 +208,9 @@ export default function LocationBanner() {
   const handlePointerDown = (e: PointerEvent) => {
     if (!containerRef || e.pointerType === "touch") return;
     // WebKitGTK edge-autoscrolls the scroller during a native mouse drag once the cursor leaves it, fighting our scrollLeft writes (= the jitter) — cancel the engine's own gesture
+    // (also suppresses click-focus: deliberate, programmatic focus() here painted a focus ring; keyboard users still Tab to the cards)
     e.preventDefault();
     const target = e.target instanceof Element ? e.target : null;
-    // preventDefault above also suppresses click-focus; re-focus by hand (sans focus-scroll) so arrow-key nav keeps working after a click
-    target?.closest<HTMLElement>("[data-destination-id]")?.focus({
-      preventScroll: true,
-    });
     pendingClickTarget =
       target?.closest<HTMLElement>('button, [role="button"]') ??
         null;
