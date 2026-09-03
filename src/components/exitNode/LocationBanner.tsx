@@ -68,10 +68,7 @@ function animateScrollLeft(
   });
 }
 
-// Hands scroll-behavior/snap back to CSS after a programmatic move, re-pinning
-// the landed position: WebKitGTK may re-snap to its *remembered* card the
-// moment mandatory snap returns, yanking the strip off the card we just
-// settled on (the horizontal jitter when a drag ends outside the window).
+// Hands scroll styles back to CSS while re-pinning the landed position — WebKitGTK's returning mandatory snap can yank the strip to its remembered card
 function restoreScrollStyles(container: HTMLDivElement, to: number) {
   container.style.scrollSnapType = "";
   container.scrollLeft = to;
