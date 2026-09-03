@@ -215,18 +215,17 @@ export function createDestinationMode(
 
   // takes the place of the card the user opened the list from, keeping the rest of the strip
   function replaceActiveWithPick(id: string): void {
+    // early return on corrupted data or same location selection
     const outgoing = model.active;
-    // nothing to replace before a first card exists
-    if (outgoing === null) return;
+    if (outgoing === null || outgoing === id) {
+      return;
+    }
 
     const newEntries = { ...model.entries };
-    if (outgoing !== id) delete newEntries[outgoing];
-    // always a fresh key — reconcile() would otherwise reposition the old card instead of mounting one
+    delete newEntries[outgoing];
     newEntries[id] = { origin: "user", key: model.nextKey };
-
-    // same slot, same order — only the outgoing id is swapped out
     const newSequence = model.sequence.map((entryId) =>
-      entryId === outgoing ? id : entryId
+      entryId === outgoing ? id : entryId,
     );
 
     setModel({
@@ -262,9 +261,8 @@ export function createDestinationMode(
         Object.entries(model.entries).filter(([id]) => availableIds.has(id)),
       ),
       sequence: model.sequence.filter((id) => availableIds.has(id)),
-      active: model.active && availableIds.has(model.active)
-        ? model.active
-        : null,
+      active:
+        model.active && availableIds.has(model.active) ? model.active : null,
       availableIds,
     };
   }
@@ -283,7 +281,8 @@ export function createDestinationMode(
     // ensure pending candidate is still available, if not cancel
     let newMode = mode;
     if (
-      newMode.pending && !baseline.availableIds.has(newMode.pending.candidateId)
+      newMode.pending &&
+      !baseline.availableIds.has(newMode.pending.candidateId)
     ) {
       clearPendingTimer();
       newMode = { mode: "auto", pending: null };
@@ -296,7 +295,7 @@ export function createDestinationMode(
     // one lifetime shot for preferred; only counts once routable, not merely configured
     const routablePreferredLocation = (): string | null =>
       newPreferredLocation !== null &&
-        isDestinationReadyToConnect(status.destinations[newPreferredLocation])
+      isDestinationReadyToConnect(status.destinations[newPreferredLocation])
         ? newPreferredLocation
         : null;
 
@@ -436,9 +435,10 @@ export function createDestinationMode(
     let newNextKey = model.nextKey;
 
     // a speculative candidate that never committed has no reason to linger
-    const pendingId = model.mode.mode === "auto"
-      ? model.mode.pending?.candidateId ?? null
-      : null;
+    const pendingId =
+      model.mode.mode === "auto"
+        ? (model.mode.pending?.candidateId ?? null)
+        : null;
     if (pendingId !== null && pendingId !== liveId) {
       removeEntry(newEntries, newSequence, pendingId);
     }
@@ -456,9 +456,8 @@ export function createDestinationMode(
       mode: { mode: "live" },
       nextKey: newNextKey,
       // preferred gets one shot ever; any path to active spends it
-      preferredLocation: liveId === model.preferredLocation
-        ? null
-        : model.preferredLocation,
+      preferredLocation:
+        liveId === model.preferredLocation ? null : model.preferredLocation,
       // only ever consulted while active is null, which it no longer is
       lastConnectedDestination: null,
     });
@@ -469,7 +468,8 @@ export function createDestinationMode(
     const mode = model.mode;
 
     // the backend's own connection state outranks any locally derived mode
-    const liveId = status.connected?.destination_id ??
+    const liveId =
+      status.connected?.destination_id ??
       status.connecting?.destination_id ??
       status.reconnecting?.destination_id ??
       null;
@@ -492,9 +492,8 @@ export function createDestinationMode(
 
     // auto absorbs the rest: fresh start or a destination that vanished
     clearRevertTimer();
-    const autoMode: AutoMode = mode.mode === "auto"
-      ? mode
-      : { mode: "auto", pending: null };
+    const autoMode: AutoMode =
+      mode.mode === "auto" ? mode : { mode: "auto", pending: null };
     applyStatusUpdateAuto(status, baseline, autoMode);
   }
 
