@@ -138,6 +138,8 @@ function expectInvariants(model: DestinationMode): void {
   if (pending !== null) {
     expect(model.listOpen || model.dragging, "8: no pending while suspended")
       .toBe(false);
+    expect(active, "9: nothing to switch away from without an active entry")
+      .not.toBeNull();
   }
 }
 

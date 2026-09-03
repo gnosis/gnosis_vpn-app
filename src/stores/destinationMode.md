@@ -143,6 +143,13 @@ Asserted after every transition, and in every test:
 6. every entry satisfies `wasActive || id === pending?.candidateId`
 7. keys are unique and never reused; `nextKey` is strictly monotonic
 8. `pending !== null` ⇒ `!suspended`
+9. `pending !== null` ⇒ `active !== null`
+
+Invariant 9 is the one that pins cold start down. A countdown is a switch _away
+from_ something, so there is nothing to arm until an entry is active — cold
+start promotes first, and auto only ever arms afterwards. Invariant 4 does not
+cover this: it compares the candidate against `active`, which passes vacuously
+when `active` is null.
 
 ## Events
 
@@ -234,9 +241,13 @@ Direct promotion, no countdown, entry minted with `wasActive: true`:
    Then drop the field unconditionally; it is consulted once per app launch and
    never again.
 2. otherwise `effectiveCandidate`, so an unspent ready preferred location lands
-   immediately with no startup animation.
+   immediately with no startup animation, and a plain start lands on the best
+   destination.
 
-Precedence: `lastConnected > preferred > sortHead`.
+Precedence: `lastConnected > preferred > sortHead`. Promotion is unconditional:
+as long as the backend offers anything at all, a status update leaves `active`
+set. `active` is null only when there are no destinations, and then there is no
+candidate to arm either.
 
 ### The preferred location
 
