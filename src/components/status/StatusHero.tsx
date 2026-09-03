@@ -17,7 +17,11 @@ const BLINK_MS = 260;
 // Owl paths lifted from public/gnosis.svg (75x75); pupils are separate so they can blink.
 function OwlSvg(props: { blink?: Eye | null; class?: string }): JSX.Element {
   return (
-    <svg viewBox="0 0 75 75" class={`h-24 w-24 ${props.class ?? ""}`}>
+    <svg
+      viewBox="0 0 75 75"
+      class={`h-24 w-24 ${props.class ?? ""}`}
+      aria-hidden="true"
+    >
       <path
         class="owl-pupil"
         classList={{ "owl-blink": props.blink === "left" }}
@@ -75,8 +79,8 @@ export function StatusHero() {
       setBlink(null);
       return;
     }
-    let openTimer: ReturnType<typeof setTimeout>;
-    let closeTimer: ReturnType<typeof setTimeout>;
+    let openTimer: ReturnType<typeof setTimeout> | undefined;
+    let closeTimer: ReturnType<typeof setTimeout> | undefined;
     const scheduleBlink = () => {
       openTimer = setTimeout(() => {
         setBlink(Math.random() < 0.5 ? "left" : "right");
@@ -97,10 +101,26 @@ export function StatusHero() {
   const modePair = createMemo<[Mode, Mode | undefined]>(
     (prev) => [mode(), prev?.[0]],
   );
-  const morphing = () => {
+  const morphStarted = () => {
     const [current, previous] = modePair();
     return current === "connected" && previous === "connecting";
   };
+
+  // check-pop is the last morph animation to finish: 750ms delay + 400ms run
+  const MORPH_TOTAL_MS = 1150;
+  // Bounds the morph window — modePair never recomputes while mode stays
+  // "connected", so without this the faded-out owl would stay mounted and
+  // animating behind the checkmark indefinitely.
+  const [morphEnded, setMorphEnded] = createSignal(false);
+  const morphing = () => morphStarted() && !morphEnded();
+  createEffect(() => {
+    if (!morphStarted()) {
+      setMorphEnded(false);
+      return;
+    }
+    const timer = setTimeout(() => setMorphEnded(true), MORPH_TOTAL_MS);
+    onCleanup(() => clearTimeout(timer));
+  });
 
   // While morphing, the owl stays mounted at animated opacity 0 until mode changes
   const showOwl = () => mode() !== "connected" || morphing();
@@ -152,6 +172,7 @@ export function StatusHero() {
             viewBox="0 0 137 96"
             class="h-24 absolute"
             classList={{ "check-pop-entry": morphing() }}
+            aria-hidden="true"
           >
             <path
               d="M6 55.4L37.4286 87L130.5 6"
