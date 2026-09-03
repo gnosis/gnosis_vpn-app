@@ -25,7 +25,7 @@ import UnreachableDialog from "./UnreachableDialog.tsx";
 export default function ExitNodeList(props: {
   // Viewport Y the open animation expands from (the button that opened us).
   originY: number;
-  onClose: () => void;
+  onClose: (reason: "selected" | "canceled") => void;
 }) {
   const [appState, appActions] = useAppStore();
   const [settings, settingsActions] = useSettingsStore();
@@ -42,7 +42,7 @@ export default function ExitNodeList(props: {
       } else if (query()) {
         setQuery("");
       } else {
-        props.onClose();
+        props.onClose("canceled");
       }
     }
   }
@@ -116,7 +116,7 @@ export default function ExitNodeList(props: {
       if (currentDisplayId(appState.mode) !== id) {
         appActions.pickDestination(id);
       }
-      props.onClose();
+      props.onClose("selected");
       return;
     }
     if (!isAvailable(id)) {
@@ -125,7 +125,7 @@ export default function ExitNodeList(props: {
     }
     appActions.pickDestination(id);
     if (vpnActive()) void appActions.connect(id);
-    props.onClose();
+    props.onClose("selected");
   };
 
   const sortOptions = [
@@ -143,7 +143,7 @@ export default function ExitNodeList(props: {
           type="button"
           class="rounded-md p-1 hover:bg-bg-surface absolute left-2 my-auto"
           aria-label="Back"
-          onClick={() => props.onClose()}
+          onClick={() => props.onClose("canceled")}
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"

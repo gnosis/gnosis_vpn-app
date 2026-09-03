@@ -85,7 +85,9 @@ export interface DestinationModeSettings {
 
 export type UserInputEvent =
   | { type: "pickDestination"; id: string }
-  | { type: "setActiveEntry"; id: string };
+  | { type: "setActiveEntry"; id: string }
+  | { type: "listOpened" }
+  | { type: "listClosed"; canceled: boolean };
 
 export interface DestinationModeHandle {
   model: SolidStore<DestinationMode>;
@@ -154,9 +156,14 @@ export function createDestinationMode(
     revertTimer = undefined;
   };
 
+  // open list suspends all auto transitions; modeAtOpen is what a canceled close restores
+  let listOpen = false;
+  let modeAtOpen: Mode["mode"] | null = null;
+
   // entries/sequence/active all stay put — only the mode falls back
   function revertToAuto(): void {
     revertTimer = undefined;
+    if (listOpen) return;
     if (model.mode.mode !== "selected") return;
     // a top-level write replaces the mode; setModel("mode", ...) would merge
     setModel({ mode: { mode: "auto", pending: null } });
@@ -243,6 +250,43 @@ export function createDestinationMode(
     });
   }
 
+  function openList(): void {
+    listOpen = true;
+    modeAtOpen = model.mode.mode;
+    clearPendingTimer();
+    clearRevertTimer();
+
+    // an uncommitted candidate has no business surviving the suspension
+    const pending = model.mode.mode === "auto" ? model.mode.pending : null;
+    if (pending === null) return;
+    const newEntries = { ...model.entries };
+    const newSequence = [...model.sequence];
+    removeEntry(newEntries, newSequence, pending.candidateId);
+    setModel({
+      entries: newEntries,
+      sequence: newSequence,
+      mode: { mode: "auto", pending: null },
+    });
+  }
+
+  function closeList(canceled: boolean): void {
+    listOpen = false;
+    const restoreMode = canceled ? modeAtOpen : "selected";
+    modeAtOpen = null;
+
+    // a live connection outranks whatever the list did; status updates own it
+    if (model.mode.mode === "live" || restoreMode === "live") return;
+
+    if (restoreMode === "selected" && model.active !== null) {
+      setModel({ mode: startSelectedMode() });
+      return;
+    }
+    // auto from start — the next status tick arms a fresh countdown
+    clearPendingTimer();
+    clearRevertTimer();
+    setModel({ mode: { mode: "auto", pending: null } });
+  }
+
   function applyUserInput(event: UserInputEvent): void {
     switch (event.type) {
       case "pickDestination":
@@ -255,6 +299,12 @@ export function createDestinationMode(
           mode: startSelectedMode(),
           preferredLocation: spendPreferred(event.id),
         });
+        return;
+      case "listOpened":
+        openList();
+        return;
+      case "listClosed":
+        closeList(event.canceled);
         return;
     }
   }
@@ -499,6 +549,16 @@ export function createDestinationMode(
       return;
     }
 
+    // list open: auto transitions suspended — only backend live state may move things
+    if (listOpen) {
+      setModel({
+        entries: baseline.entries,
+        sequence: baseline.sequence,
+        active: baseline.active,
+      });
+      return;
+    }
+
     // only the flat deadline or a vanished destination ends a selection, never readiness
     if (mode.mode === "selected" && baseline.active !== null) {
       applyStatusUpdateSelected(status, baseline, mode);
@@ -516,6 +576,8 @@ export function createDestinationMode(
   function reset(newSettings: DestinationModeSettings): void {
     clearPendingTimer();
     clearRevertTimer();
+    listOpen = false;
+    modeAtOpen = null;
     setModel(initialModel(newSettings));
   }
 

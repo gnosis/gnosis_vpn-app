@@ -686,3 +686,116 @@ describe("user selection — a pick already in the strip", () => {
     expect(handle.model.mode.mode).toBe("selected");
   });
 });
+
+describe("exit-node list open — auto transitions suspended", () => {
+  const SLOW = { slow: makeReadyToConnect("slow", 100) };
+  const SLOW_AND_FAST = { ...SLOW, fast: makeReadyToConnect("fast", 10) };
+
+  // steady state: "slow" active in auto mode, nothing pending
+  async function setupActiveSlow() {
+    const handle = setup();
+    handle.applyStatusUpdate(statusFor(SLOW));
+    await vi.advanceTimersByTimeAsync(SETTLE_MS);
+    expect(handle.model.active).toBe("slow");
+    return handle;
+  }
+
+  it("opening cancels an armed pending, drops its entry, and nothing commits", async () => {
+    const handle = await setupActiveSlow();
+    handle.applyStatusUpdate(statusFor(SLOW_AND_FAST));
+    expect(handle.model.mode).toMatchObject({
+      mode: "auto",
+      pending: { candidateId: "fast" },
+    });
+
+    handle.applyUserInput({ type: "listOpened" });
+
+    expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
+    expect(orderedEntries(handle.model).map((e) => e.id)).not.toContain(
+      "fast",
+    );
+    await vi.advanceTimersByTimeAsync(SETTLE_MS);
+    expect(handle.model.active).toBe("slow");
+  });
+
+  it("status updates while open never arm a pending", async () => {
+    const handle = await setupActiveSlow();
+    handle.applyUserInput({ type: "listOpened" });
+
+    handle.applyStatusUpdate(statusFor(SLOW_AND_FAST));
+
+    expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
+    await vi.advanceTimersByTimeAsync(SETTLE_MS);
+    expect(handle.model.active).toBe("slow");
+  });
+
+  it("the backend's live state still moves active while open", async () => {
+    const handle = await setupActiveSlow();
+    handle.applyUserInput({ type: "listOpened" });
+
+    handle.applyStatusUpdate(connectedTo("fast", SLOW_AND_FAST));
+
+    expect(handle.model.active).toBe("fast");
+    expect(handle.model.mode).toEqual({ mode: "live" });
+  });
+
+  it("canceled close from auto resumes auto from start", async () => {
+    const handle = await setupActiveSlow();
+    handle.applyUserInput({ type: "listOpened" });
+
+    handle.applyUserInput({ type: "listClosed", canceled: true });
+    expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
+
+    handle.applyStatusUpdate(statusFor(SLOW_AND_FAST));
+    expect(handle.model.mode).toMatchObject({
+      mode: "auto",
+      pending: { candidateId: "fast" },
+    });
+    await vi.advanceTimersByTimeAsync(SETTLE_MS);
+    expect(handle.model.active).toBe("fast");
+  });
+
+  it("canceled close from selected restores selected with a fresh revert", async () => {
+    const handle = await setupActiveSlow();
+    handle.applyUserInput({ type: "pickDestination", id: "uk" });
+    expect(handle.model.mode.mode).toBe("selected");
+
+    handle.applyUserInput({ type: "listOpened" });
+    // frozen: neither the timer nor the deadline may revert while open
+    await vi.advanceTimersByTimeAsync(SELECTED_AUTO_REVERT_MS * 2);
+    handle.applyStatusUpdate(statusFor({
+      ...SLOW_AND_FAST,
+      uk: makeReadyToConnect("uk", 200),
+    }));
+    expect(handle.model.mode.mode).toBe("selected");
+
+    handle.applyUserInput({ type: "listClosed", canceled: true });
+    expect(handle.model.mode.mode).toBe("selected");
+    expect(handle.model.active).toBe("uk");
+
+    // the restored selection reverts on its own fresh deadline
+    await vi.advanceTimersByTimeAsync(SELECTED_AUTO_REVERT_MS);
+    expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
+  });
+
+  it("selection close after a pick stays selected on the pick", async () => {
+    const handle = await setupActiveSlow();
+    handle.applyUserInput({ type: "listOpened" });
+
+    handle.applyUserInput({ type: "pickDestination", id: "uk" });
+    handle.applyUserInput({ type: "listClosed", canceled: false });
+
+    expect(handle.model.active).toBe("uk");
+    expect(handle.model.mode.mode).toBe("selected");
+  });
+
+  it("selection close without a pick enters selected on the current active", async () => {
+    const handle = await setupActiveSlow();
+    handle.applyUserInput({ type: "listOpened" });
+
+    handle.applyUserInput({ type: "listClosed", canceled: false });
+
+    expect(handle.model.active).toBe("slow");
+    expect(handle.model.mode.mode).toBe("selected");
+  });
+});

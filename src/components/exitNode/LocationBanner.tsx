@@ -615,6 +615,7 @@ export default function LocationBanner() {
                       : null}
                     onOpenList={(originY) => {
                       setListOriginY(originY);
+                      appActions.destinationListOpened();
                       setShowList(true);
                     }}
                   />
@@ -630,7 +631,10 @@ export default function LocationBanner() {
         <Show when={showList()}>
           <ExitNodeList
             originY={listOriginY()}
-            onClose={() => setShowList(false)}
+            onClose={(reason) => {
+              appActions.destinationListClosed(reason === "canceled");
+              setShowList(false);
+            }}
           />
         </Show>
       </Portal>

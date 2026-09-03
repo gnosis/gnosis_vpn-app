@@ -82,6 +82,8 @@ type AppActions = {
   disconnect: () => Promise<void>;
   setActiveEntry: (id: string) => void;
   pickDestination: (id: string) => void;
+  destinationListOpened: () => void;
+  destinationListClosed: (canceled: boolean) => void;
 };
 
 type AppStoreTuple = readonly [Store<AppState>, AppActions];
@@ -573,6 +575,10 @@ export function createAppStore(): AppStoreTuple {
       destinationMode?.applyUserInput({ type: "setActiveEntry", id }),
     pickDestination: (id: string) =>
       destinationMode?.applyUserInput({ type: "pickDestination", id }),
+    destinationListOpened: () =>
+      destinationMode?.applyUserInput({ type: "listOpened" }),
+    destinationListClosed: (canceled: boolean) =>
+      destinationMode?.applyUserInput({ type: "listClosed", canceled }),
   } as const;
 
   // Keep the persisted channel preference and install marker in step with the
