@@ -9,13 +9,9 @@ import ExitNodeListButton from "./ExitNodeListButton.tsx";
 // midpoint, once the outgoing text has fully faded out.
 const TITLE_FADE_MS = 300;
 
-// Card height comes from content + padding, not a fixed constant — the
-// title row's height stays the same whether the switching spinner is
-// mounted or not (text-xs's line-height comfortably exceeds the spinner's
-// 12px), so MainScreen's connector-bar math (driven by this row's live
-// getBoundingClientRect()) never sees it jump.
-// Its slot is reserved even when idle, so neither the ring nor the title moves the other.
-// Slot mirrors Flag's w-7 — ring centred on the flag, title aligned with the name.
+// The countdown ring sits beside the button, centred across both rows by the outer flex.
+// Mounted only while counting down, so an idle card's label keeps its full width.
+// At 36px it stays under the text column's 52px, so the card height MainScreen measures never moves.
 export default function DestinationCard(props: {
   destinationState: DestinationState;
   title: string;
@@ -74,26 +70,27 @@ export default function DestinationCard(props: {
 
   return (
     <div class="flex w-full shrink-0 items-center justify-between gap-2 rounded-2xl bg-slate-700 px-3 py-3.5">
-      <div class="flex flex-col gap-4 min-w-0">
-        <div class="flex items-center gap-1.5">
-          <span class="flex h-3 w-7 shrink-0 justify-center">
-            <Show when={props.switchEndsAt} keyed>
-              {(endsAt) => <SwitchSpinner endsAt={endsAt} />}
-            </Show>
-          </span>
-          <span
-            class="text-xs text-text-secondary transition-opacity ease-out"
-            style={{ "transition-duration": `${TITLE_FADE_MS}ms` }}
-            classList={{ "opacity-0": faded() }}
-          >
-            {displayTitle()}
-          </span>
-        </div>
+      <div class="flex flex-1 flex-col gap-4 min-w-0">
+        <span
+          class="text-xs text-text-secondary transition-opacity ease-out"
+          style={{ "transition-duration": `${TITLE_FADE_MS}ms` }}
+          classList={{ "opacity-0": faded() }}
+        >
+          {displayTitle()}
+        </span>
         <span class="flex items-center gap-1.5 min-w-0 text-xs font-semibold text-text-primary">
           <Flag code={destination().meta.flag ?? ""} />
           <span class="truncate">{destinationLabel(destination())}</span>
         </span>
       </div>
+      <Show when={props.switchEndsAt} keyed>
+        {/* Sole definition of the ring's size — SwitchSpinner just fills this slot. */}
+        {(endsAt) => (
+          <span class="h-9 w-9 shrink-0">
+            <SwitchSpinner endsAt={endsAt} />
+          </span>
+        )}
+      </Show>
       <ExitNodeListButton onClick={props.onOpenList} />
     </div>
   );
