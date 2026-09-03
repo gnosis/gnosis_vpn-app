@@ -258,9 +258,10 @@ export default function Updates() {
 
   const handleConnectAndCheck = () => {
     setShowCheckModal(false);
-    setPendingConnectCheck(true);
     const id = resolveConnectTarget(appState.mode, Date.now());
-    if (id) void appActions.connect(id);
+    if (!id) return;
+    setPendingConnectCheck(true);
+    void appActions.connect(id);
   };
 
   // After "Connect and check": once VPN reaches Connected, fire the check.
@@ -328,9 +329,10 @@ export default function Updates() {
         }}
         onConnectAndInstall={() => {
           setShowInstallModal(false);
-          setPendingConnectInstall(true);
           const id = resolveConnectTarget(appState.mode, Date.now());
-          if (id) void appActions.connect(id);
+          if (!id) return;
+          setPendingConnectInstall(true);
+          void appActions.connect(id);
         }}
       />
       <Toggle
