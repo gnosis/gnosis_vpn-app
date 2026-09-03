@@ -160,6 +160,8 @@ async function animateAutoSwitch(
 export default function LocationBanner() {
   const [appState, appActions] = useAppStore();
   const [showList, setShowList] = createSignal(false);
+  // Viewport Y of the button that opened the list — the expand animation's origin.
+  const [listOriginY, setListOriginY] = createSignal(0);
 
   let containerRef: HTMLDivElement | undefined;
   let mounted = true;
@@ -611,7 +613,10 @@ export default function LocationBanner() {
                         appState.mode.mode.mode === "auto"
                       ? appState.mode.mode.pending?.countdownEndsAt ?? null
                       : null}
-                    onOpenList={() => setShowList(true)}
+                    onOpenList={(originY) => {
+                      setListOriginY(originY);
+                      setShowList(true);
+                    }}
                   />
                 </div>
               )}
@@ -623,7 +628,10 @@ export default function LocationBanner() {
 
       <Portal>
         <Show when={showList()}>
-          <ExitNodeList onClose={() => setShowList(false)} />
+          <ExitNodeList
+            originY={listOriginY()}
+            onClose={() => setShowList(false)}
+          />
         </Show>
       </Portal>
     </>

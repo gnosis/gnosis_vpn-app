@@ -26,7 +26,7 @@ export default function DestinationCard(props: {
   // candidate is found). Non-active cards just preview "Best"/"Selected" as
   // the pending candidate changes, and snap instead.
   fadeTitle: boolean;
-  onOpenList: () => void;
+  onOpenList: (originY: number) => void;
 }) {
   const destination = () => props.destinationState.destination;
 
