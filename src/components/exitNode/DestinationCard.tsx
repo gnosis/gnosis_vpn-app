@@ -17,6 +17,7 @@ const TITLE_SETTLE_MS = 3_000;
 // mounted or not (text-xs's line-height comfortably exceeds the spinner's
 // 12px), so MainScreen's connector-bar math (driven by this row's live
 // getBoundingClientRect()) never sees it jump.
+// Its slot is reserved even when idle, so neither the ring nor the title moves the other.
 export default function DestinationCard(props: {
   destinationState: DestinationState;
   title: string;
@@ -92,6 +93,11 @@ export default function DestinationCard(props: {
     <div class="flex w-full shrink-0 items-center justify-between gap-2 rounded-2xl bg-slate-700 px-3 py-3.5">
       <div class="flex flex-col gap-4 min-w-0">
         <div class="flex items-center gap-1.5">
+          <span class="h-3 w-3 shrink-0">
+            <Show when={props.switchEndsAt} keyed>
+              {(endsAt) => <SwitchSpinner endsAt={endsAt} />}
+            </Show>
+          </span>
           <span
             class="text-xs text-text-secondary transition-opacity ease-out"
             style={{ "transition-duration": `${TITLE_FADE_MS}ms` }}
@@ -99,9 +105,6 @@ export default function DestinationCard(props: {
           >
             {displayTitle()}
           </span>
-          <Show when={props.switchEndsAt} keyed>
-            {(endsAt) => <SwitchSpinner endsAt={endsAt} />}
-          </Show>
         </div>
         <span class="flex items-center gap-1.5 min-w-0 text-xs font-semibold text-text-primary">
           <Flag code={destination().meta.flag ?? ""} />
