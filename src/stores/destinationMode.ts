@@ -93,6 +93,8 @@ export interface DestinationModeHandle {
   applyStatusUpdate: (status: ModeAppState) => void;
   // Called once per user action (pick from list, scroll/settle on a card, ...).
   applyUserInput: (event: UserInputEvent) => void;
+  // Clears pending timers and reinitializes the model in place — e.g. after a critical error.
+  reset: (settings: DestinationModeSettings) => void;
 }
 
 /** Model slice re-checked against what the backend still offers, plus the id set it was filtered against. */
@@ -325,6 +327,14 @@ export function createDestinationMode(
       }
     };
 
+    // registers a destination promoted straight to active with no history entry yet
+    const addEntry = (id: string) => {
+      if (!(id in newEntries)) {
+        newEntries[id] = { origin: "auto", key: newNextKey++ };
+        newSequence.push(id);
+      }
+    };
+
     // arms a fresh countdown for candidateId; used for a new pending and for a preferred hijack
     const armPending = (candidateId: string): AutoMode => {
       swapPendingEntry(candidateId);
@@ -349,6 +359,7 @@ export function createDestinationMode(
       if (!newActive) {
         const preferred = routablePreferredLocation();
         if (preferred) {
+          addEntry(preferred);
           newActive = preferred;
           newPreferredLocation = null;
           skipArmThisTick = true;
@@ -358,6 +369,7 @@ export function createDestinationMode(
               status.destinations[newLastConnectedDestination],
             )
           ) {
+            addEntry(newLastConnectedDestination);
             newActive = newLastConnectedDestination;
           }
           newLastConnectedDestination = null;
@@ -501,10 +513,17 @@ export function createDestinationMode(
     applyStatusUpdateAuto(status, baseline, autoMode);
   }
 
+  function reset(newSettings: DestinationModeSettings): void {
+    clearPendingTimer();
+    clearRevertTimer();
+    setModel(initialModel(newSettings));
+  }
+
   return {
     model,
     applyStatusUpdate,
     applyUserInput,
+    reset,
   };
 }
 

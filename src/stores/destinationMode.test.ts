@@ -8,6 +8,7 @@ import {
   createDestinationMode,
   type DestinationModeSettings,
   type ModeAppState,
+  orderedEntries,
   SELECTED_AUTO_REVERT_MS,
   SWITCH_COUNTDOWN_MS,
   SWITCH_CROSSOVER_MS,
@@ -102,6 +103,7 @@ describe("preferred location — one-shot promotion (auto mode)", () => {
     expect(handle.model.active).toBe("p");
     expect(handle.model.preferredLocation).toBeNull();
     expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
+    expect(orderedEntries(handle.model).map((e) => e.id)).toContain("p");
   });
 
   it("cold start: an unready preferred location does not spend the shot and falls through to bestDestination", () => {
@@ -551,6 +553,7 @@ describe("lastConnectedDestination — unchanged, cold-start-only fallback", () 
 
     expect(handle.model.active).toBe("last");
     expect(handle.model.lastConnectedDestination).toBeNull();
+    expect(orderedEntries(handle.model).map((e) => e.id)).toContain("last");
   });
 });
 
