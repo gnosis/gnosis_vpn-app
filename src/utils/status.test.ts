@@ -46,8 +46,6 @@ const BASE_APP_STATE: AppState = {
   reconnecting: null,
   disconnecting: [],
   isLoading: false,
-  destination: null,
-  selectedId: null,
   runMode: null,
   vpnStatus: "ServiceUnavailable",
   warmupStatus: "",
@@ -57,6 +55,15 @@ const BASE_APP_STATE: AppState = {
   availableVersion: null,
   targetDestination: null,
   balance: null,
+  mode: {
+    entries: {},
+    sequence: [],
+    active: null,
+    mode: { mode: "auto", pending: null },
+    nextKey: 0,
+    preferredLocation: null,
+    lastConnectedDestination: null,
+  },
 };
 
 const BALANCE_RECOMMENDATION: BalanceRecommendation = {
