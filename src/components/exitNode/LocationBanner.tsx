@@ -213,9 +213,7 @@ export default function LocationBanner() {
 
   const handlePointerMove = (e: PointerEvent) => {
     if (dragStartX === undefined || !containerRef) return;
-    // WebKitGTK reports garbage coordinates once the cursor leaves the window
-    // mid-drag (pointer capture keeps delivering events) — treat crossing the
-    // window edge as the end of the gesture instead of feeding them in.
+    // WebKitGTK delivers garbage coords under capture once the cursor exits the window — end the gesture at the edge
     const leftWindow = e.clientX <= 0 || e.clientY <= 0 ||
       e.clientX >= globalThis.innerWidth || e.clientY >= globalThis.innerHeight;
     if (leftWindow) {

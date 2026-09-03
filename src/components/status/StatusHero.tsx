@@ -108,9 +108,7 @@ export function StatusHero() {
 
   // check-pop is the last morph animation to finish: 750ms delay + 400ms run
   const MORPH_TOTAL_MS = 1150;
-  // Bounds the morph window — modePair never recomputes while mode stays
-  // "connected", so without this the faded-out owl would stay mounted and
-  // animating behind the checkmark indefinitely.
+  // Bounds the morph — modePair never recomputes while connected, so the faded-out owl would otherwise stay mounted forever
   const [morphEnded, setMorphEnded] = createSignal(false);
   const morphing = () => morphStarted() && !morphEnded();
   createEffect(() => {
