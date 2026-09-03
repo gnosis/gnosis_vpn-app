@@ -553,3 +553,100 @@ describe("lastConnectedDestination — unchanged, cold-start-only fallback", () 
     expect(handle.model.lastConnectedDestination).toBeNull();
   });
 });
+
+describe("user selection", () => {
+  // committed strip of [uk, usa] with "de" armed as the next auto candidate
+  async function stripWithPendingCandidate() {
+    const handle = setup();
+    const two = {
+      uk: makeReadyToConnect("uk", 50),
+      usa: makeReadyToConnect("usa", 10),
+    };
+    handle.applyStatusUpdate(statusFor({ uk: two.uk }));
+    await vi.advanceTimersByTimeAsync(SETTLE_MS);
+    handle.applyStatusUpdate(statusFor(two));
+    await vi.advanceTimersByTimeAsync(SETTLE_MS);
+    const three = { ...two, de: makeReadyToConnect("de", 5) };
+    handle.applyStatusUpdate(statusFor(three));
+    return { handle, three };
+  }
+
+  it("slider select enters selected, keeps the strip, and cancels the pending switch", async () => {
+    const { handle } = await stripWithPendingCandidate();
+    expect(handle.model.active).toBe("usa");
+
+    handle.applyUserInput({ type: "setActiveEntry", id: "uk" });
+
+    expect(handle.model.active).toBe("uk");
+    expect(handle.model.mode).toEqual({
+      mode: "selected",
+      autoRevertAt: Date.now() + SELECTED_AUTO_REVERT_MS,
+    });
+    expect(handle.model.sequence).toEqual(["uk", "usa", "de"]);
+
+    // the cancelled countdown must not commit "de" behind the selection
+    await vi.advanceTimersByTimeAsync(SETTLE_MS);
+    expect(handle.model.active).toBe("uk");
+  });
+
+  it("holds the selection against a better destination, then reverts to auto", async () => {
+    const { handle, three } = await stripWithPendingCandidate();
+    handle.applyUserInput({ type: "setActiveEntry", id: "uk" });
+
+    handle.applyStatusUpdate(statusFor(three));
+    expect(handle.model.active).toBe("uk");
+    expect(handle.model.mode.mode).toBe("selected");
+
+    await vi.advanceTimersByTimeAsync(SELECTED_AUTO_REVERT_MS);
+    expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
+    expect(handle.model.active).toBe("uk");
+
+    handle.applyStatusUpdate(statusFor(three));
+    expect(handle.model.mode).toMatchObject({ pending: { candidateId: "de" } });
+  });
+
+  it("list pick takes the outgoing card's slot, keeping the strip's order and length", async () => {
+    const { handle } = await stripWithPendingCandidate();
+    const nextKey = handle.model.nextKey;
+
+    handle.applyUserInput({ type: "pickDestination", id: "fr" });
+
+    expect(handle.model.sequence).toEqual(["uk", "fr", "de"]);
+    expect(handle.model.entries["usa"]).toBeUndefined();
+    expect(handle.model.entries["fr"]).toEqual({
+      origin: "user",
+      key: nextKey,
+    });
+    expect(handle.model.nextKey).toBe(nextKey + 1);
+    expect(handle.model.active).toBe("fr");
+    expect(handle.model.mode.mode).toBe("selected");
+  });
+
+  it("list pick is a no-op before a first card exists", () => {
+    const handle = setup();
+
+    handle.applyUserInput({ type: "pickDestination", id: "uk" });
+
+    expect(handle.model.active).toBeNull();
+    expect(handle.model.sequence).toEqual([]);
+    expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
+  });
+
+  it("spends the preferred location's one shot when it is picked", async () => {
+    const handle = setup({ preferredLocation: "p" });
+
+    handle.applyStatusUpdate(statusFor({
+      p: makeUnavailable("p"),
+      uk: makeReadyToConnect("uk", 50),
+    }));
+    await vi.advanceTimersByTimeAsync(SETTLE_MS);
+    expect(handle.model.active).toBe("uk");
+    expect(handle.model.preferredLocation).toBe("p");
+
+    handle.applyUserInput({ type: "pickDestination", id: "p" });
+
+    expect(handle.model.active).toBe("p");
+    expect(handle.model.sequence).toEqual(["p"]);
+    expect(handle.model.preferredLocation).toBeNull();
+  });
+});

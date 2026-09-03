@@ -161,18 +161,23 @@ export function createDestinationMode(
   }
 
   // the one place `selected` is constructed, so its deadline can never be forgotten
-  function enterSelected(baseline: Baseline, id: string): void {
+  function startSelectedMode(): SelectedMode {
     clearPendingTimer();
     clearRevertTimer();
     revertTimer = setTimeout(revertToAuto, SELECTED_AUTO_REVERT_MS);
+    return {
+      mode: "selected",
+      autoRevertAt: Date.now() + SELECTED_AUTO_REVERT_MS,
+    };
+  }
+
+  // entries/sequence/active all come from the caller — only the mode is minted here
+  function enterSelected(baseline: Baseline, id: string): void {
     setModel({
       entries: baseline.entries,
       sequence: baseline.sequence,
       active: id,
-      mode: {
-        mode: "selected",
-        autoRevertAt: Date.now() + SELECTED_AUTO_REVERT_MS,
-      },
+      mode: startSelectedMode(),
     });
   }
 
@@ -198,18 +203,54 @@ export function createDestinationMode(
     if (!(id in model.entries)) return;
     batch(() => {
       setModel("active", id);
-      // preferred gets one shot ever; any path to active spends it
       if (id === model.preferredLocation) {
         setModel("preferredLocation", null);
       }
     });
   }
 
+  // preferred gets one shot ever; any path to active spends it
+  const spendPreferred = (id: string) =>
+    id === model.preferredLocation ? null : model.preferredLocation;
+
+  // takes the place of the card the user opened the list from, keeping the rest of the strip
+  function replaceActiveWithPick(id: string): void {
+    const outgoing = model.active;
+    // nothing to replace before a first card exists
+    if (outgoing === null) return;
+
+    const newEntries = { ...model.entries };
+    if (outgoing !== id) delete newEntries[outgoing];
+    // always a fresh key — reconcile() would otherwise reposition the old card instead of mounting one
+    newEntries[id] = { origin: "user", key: model.nextKey };
+
+    // same slot, same order — only the outgoing id is swapped out
+    const newSequence = model.sequence.map((entryId) =>
+      entryId === outgoing ? id : entryId
+    );
+
+    setModel({
+      entries: newEntries,
+      sequence: newSequence,
+      active: id,
+      mode: startSelectedMode(),
+      nextKey: model.nextKey + 1,
+      preferredLocation: spendPreferred(id),
+    });
+  }
+
   function applyUserInput(event: UserInputEvent): void {
     switch (event.type) {
       case "pickDestination":
+        replaceActiveWithPick(event.id);
+        return;
+      // sliding only moves the marker; history stays as it is
       case "setActiveEntry":
-        setActive(event.id);
+        setModel({
+          active: event.id,
+          mode: startSelectedMode(),
+          preferredLocation: spendPreferred(event.id),
+        });
         return;
     }
   }
