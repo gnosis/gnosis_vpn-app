@@ -1,11 +1,8 @@
 import { createMemo } from "solid-js";
 import Button from "./common/Button.tsx";
 import { useAppStore } from "../stores/appStore.ts";
-import {
-  currentDisplayId,
-  resolveConnectTarget,
-} from "../stores/destinationMode.ts";
-import { isReadyToConnect } from "../utils/exitHealth.ts";
+import { effectiveActive } from "../stores/destinationMode.ts";
+import { isReady } from "../utils/destinations.ts";
 
 export default function ConnectButton() {
   const [appState, appActions] = useAppStore();
@@ -17,9 +14,9 @@ export default function ConnectButton() {
   );
   const label = createMemo(() => (isActive() ? "Disconnect" : "Connect"));
 
-  // Display-only — ignores an in-flight auto pending candidate, which is an
-  // acceptable simplification here since it's not the actual connect target.
-  const displayedId = createMemo(() => currentDisplayId(appState.mode));
+  const displayedId = createMemo(() =>
+    effectiveActive(appState.mode, Date.now())
+  );
 
   const targetDestinationState = createMemo(() => {
     const id = displayedId();
@@ -27,7 +24,7 @@ export default function ConnectButton() {
   });
 
   const isTargetReady = createMemo(() =>
-    isReadyToConnect(targetDestinationState()?.route_health ?? undefined)
+    isReady(targetDestinationState(), null)
   );
 
   const handleClick = async () => {
@@ -35,10 +32,8 @@ export default function ConnectButton() {
       if (isActive()) {
         await appActions.disconnect();
       } else {
-        // Resolved fresh at click time, not memoized — a memo only
-        // recomputes when `mode` changes, not when wall-clock time crosses
-        // an auto pending candidate's settleAt.
-        const id = resolveConnectTarget(appState.mode, Date.now());
+        // Resolved fresh at click time: a memo recomputes on `mode`, not on the clock crossing settleAt.
+        const id = effectiveActive(appState.mode, Date.now());
         if (id) await appActions.connect(id);
       }
     } catch (error) {

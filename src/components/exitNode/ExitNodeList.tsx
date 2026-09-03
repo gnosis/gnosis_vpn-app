@@ -11,13 +11,13 @@ import {
 } from "solid-js";
 import type { DestinationState } from "@src/services/vpnService.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
-import { currentDisplayId } from "@src/stores/destinationMode.ts";
+import { effectiveActive } from "@src/stores/destinationMode.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import {
   destinationLabel,
   isVpnActive,
   sortAlphaDestinations,
-  sortByHealthScore,
+  sortByCapacityAwareLatency,
 } from "@src/utils/destinations.ts";
 import ExitNodeCard from "./ExitNodeCard.tsx";
 import UnreachableDialog from "./UnreachableDialog.tsx";
@@ -54,17 +54,23 @@ export default function ExitNodeList(props: {
   });
   onCleanup(() => document.removeEventListener("keydown", handleKeyDown));
 
+  const liveId = () =>
+    appState.connected?.destination_id ??
+      appState.connecting?.destination_id ??
+      appState.reconnecting?.destination_id ??
+      null;
+
   const sortedDestinations = createMemo(() => {
     if (settings.exitNodeSortOrder === "alpha") {
       return sortAlphaDestinations(
         appState.availableDestinations,
         appState.destinations,
+        liveId(),
       );
     }
-    return sortByHealthScore(
-      appState.availableDestinations,
-      appState.destinations,
-    );
+    // the same ranking auto picks from, so the list's head is the destination it would choose
+    return sortByCapacityAwareLatency(appState.destinations, liveId())
+      .map((id) => appState.destinations[id].destination);
   });
 
   // frozenList updates only on membership changes or explicit sort-order toggles;
@@ -211,7 +217,8 @@ export default function ExitNodeList(props: {
                     destination: dest,
                     route_health: null,
                   } as DestinationState)}
-              isSelected={currentDisplayId(appState.mode) === dest.id}
+              isSelected={effectiveActive(appState.mode, Date.now()) ===
+                dest.id}
               nowSec={nowSec}
               onClick={() => handleCardClick(dest.id)}
             />

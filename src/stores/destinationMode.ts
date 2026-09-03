@@ -8,6 +8,7 @@ import type {
   ReconnectingInfo,
 } from "@src/services/vpnService.ts";
 import {
+  type CardPhase,
   isReady,
   sortByCapacityAwareLatency,
 } from "@src/utils/destinations.ts";
@@ -466,22 +467,14 @@ export function effectiveActive(
   return candidateId;
 }
 
-/** What's currently shown, ignoring an in-flight pending candidate. */
-export function currentDisplayId(model: DestinationMode): string | null {
-  return model.active;
-}
-
-/** What Connect should target now: the outgoing destination before settleAt, the incoming one at/after it. */
-export function resolveConnectTarget(
-  model: DestinationMode,
-  now: number,
-): string | null {
-  if (
-    model.mode.mode === "auto" &&
-    model.mode.pending &&
-    now >= model.mode.pending.settleAt
-  ) {
-    return model.mode.pending.candidateId;
+/** Which label a card wears — "Best Location" is auto's own word, so a selection never wears it. */
+export function cardPhaseFor(model: DestinationMode, id: string): CardPhase {
+  const pending = model.mode.mode === "auto" ? model.mode.pending : null;
+  // a candidate previews auto's label while it is still only peeking
+  if (id !== model.active) {
+    return pending?.candidateId === id ? "auto" : "selected";
   }
-  return model.active;
+  if (model.mode.mode === "live") return "connecting";
+  // a candidate means even the active card is no longer provably best
+  return model.mode.mode === "auto" && pending === null ? "auto" : "selected";
 }

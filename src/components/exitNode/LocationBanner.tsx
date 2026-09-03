@@ -5,16 +5,19 @@ import {
   onCleanup,
   onMount,
   Show,
+  untrack,
 } from "solid-js";
 import { Portal } from "solid-js/web";
 import { useAppStore } from "@src/stores/appStore.ts";
 import {
-  currentDisplayId,
+  cardPhaseFor,
   type DestinationEntry,
+  effectiveActive,
   orderedEntries,
   SWITCH_ANIMATE_MS,
   SWITCH_CROSSOVER_MS,
 } from "@src/stores/destinationMode.ts";
+import { reconcileStrip } from "@src/utils/cardStrip.ts";
 import { cardTitle, isVpnActive } from "@src/utils/destinations.ts";
 import DetailCard from "./DetailCard.tsx";
 import ExitNodeList from "./ExitNodeList.tsx";
@@ -80,17 +83,17 @@ function restoreScrollStyles(container: HTMLDivElement, to: number) {
   });
 }
 
-// Manually picking a destination from the list is already a deliberate,
-// already-seen choice — jump straight to its card instead of replaying the
-// pulse-then-slide reserved for an unattended auto-switch. scroll-behavior
-// must be overridden too, not just scroll-snap — the container's
-// scroll-smooth class would otherwise animate this scrollLeft write exactly
-// like a user-driven scroll.
-function jumpToLatest(container: HTMLDivElement) {
+// An already-deliberate choice jumps rather than replaying the auto-switch slide; scroll-behavior needs overriding too, or scroll-smooth animates the write like a swipe.
+function jumpToCard(container: HTMLDivElement, id: string): void {
+  const card = container.querySelector<HTMLElement>(
+    `[data-destination-id="${id}"]`,
+  );
+  if (!card) return;
   container.style.scrollBehavior = "auto";
   container.style.scrollSnapType = "none";
-  container.scrollLeft = container.scrollWidth - container.clientWidth;
-  restoreScrollStyles(container, container.scrollLeft);
+  const to = centeredScrollLeft(container, card);
+  container.scrollLeft = to;
+  restoreScrollStyles(container, to);
 }
 
 // Where scrollLeft must land for `card` to sit centered in `container` —
@@ -159,7 +162,8 @@ async function animateAutoSwitch(
 
 export default function LocationBanner() {
   const [appState, appActions] = useAppStore();
-  const [showList, setShowList] = createSignal(false);
+  // The model can close the list itself — an unsolicited connection, or a prune taking the active card.
+  const showList = () => appState.mode.listOpen;
   // Viewport Y of the button that opened the list — the expand animation's origin.
   const [listOriginY, setListOriginY] = createSignal(0);
 
@@ -173,7 +177,7 @@ export default function LocationBanner() {
   // grace period) so the settle listeners below don't mistake our own
   // animation for a user swipe — see commitSlideTo's doc comment for why
   // that distinction matters.
-  // Depth-counted: suppression windows overlap (e.g. a settle racing jumpToLatest), and a boolean would lift too early
+  // Depth-counted: suppression windows overlap (e.g. a settle racing a jump), and a boolean would lift too early
   let suppressDepth = 0;
   const suppressSettle = () => suppressDepth > 0;
   const runSuppressed = async (fn: () => Promise<void> | void) => {
@@ -238,6 +242,7 @@ export default function LocationBanner() {
     if (!didDrag) {
       if (Math.abs(dx) < DRAG_THRESHOLD_PX) return;
       didDrag = true;
+      appActions.dragStarted();
       // Both need overriding for the drag to track the pointer 1:1: smooth
       // scroll-behavior animates every step instead of jumping straight to
       // it, and mandatory scroll-snap silently reverts any scrollLeft that
@@ -248,24 +253,19 @@ export default function LocationBanner() {
     containerRef.scrollLeft = dragStartScrollLeft - dx;
   };
 
-  // Picking a destination this way — settling on it, whether by drag
-  // release, native touch swipe, or arrow key — always means "make this the
-  // active destination", the same intent as scrolling to a card in
-  // docs/destination-mode.md's rule 10. If a connection is already live,
-  // re-pointing the display isn't enough (setActiveEntry is a no-op while
-  // connecting by design — see rule 13): a real connect() has to retarget
-  // it, and the model catches up once the backend confirms (rule 12).
+  // Always reaches the model, even landing back where it started — the gesture suspended auto and only this ends it.
   const commitSlideTo = (id: string) => {
-    if (currentDisplayId(appState.mode) === id) return;
-    if (isVpnActive(appState.vpnStatus, appState.targetDestination)) {
-      // Mirrors ExitNodeList's handleCardClick: only attempt a retarget for
-      // a destination we actually still know about — a stale id is a peek,
-      // not a connect attempt.
-      if (!appState.availableDestinations.some((d) => d.id === id)) return;
-      void appActions.connect(id);
-    } else {
-      appActions.slideCommitted(id);
-    }
+    const wasElsewhere = effectiveActive(appState.mode, Date.now()) !== id;
+    // a stale id is a peek at a vanished card, not a connect attempt
+    const stillOffered = appState.availableDestinations.some((d) =>
+      d.id === id
+    );
+    appActions.slideCommitted(id);
+
+    if (!wasElsewhere || !stillOffered) return;
+    // re-pointing the display cannot retarget a live tunnel; only a real connect can
+    if (!isVpnActive(appState.vpnStatus, appState.targetDestination)) return;
+    void appActions.connect(id);
   };
 
   // Animates the strip to center `id`'s card, then commits it — shared by
@@ -384,8 +384,10 @@ export default function LocationBanner() {
   };
 
   const handleScroll = () => {
-    if (supportsScrollEnd) return;
     if (suppressSettle() || dragStartX !== undefined) return;
+    // a touch swipe suspends auto for its duration, same as a mouse drag
+    if (!appState.mode.dragging) appActions.dragStarted();
+    if (supportsScrollEnd) return;
     clearTimeout(scrollDebounceTimer);
     scrollDebounceTimer = setTimeout(
       handleSettledScroll,
@@ -409,7 +411,7 @@ export default function LocationBanner() {
   });
 
   // Entries in history order (oldest -> newest); empty until the first status update.
-  const modeEntries = () => orderedEntries(appState.mode);
+  const entriesInOrder = () => orderedEntries(appState.mode);
 
   // Must match the mount fade's `duration-700` below — a removed entry
   // (e.g. a cancelled auto-switch candidate) fades out over the same
@@ -426,29 +428,27 @@ export default function LocationBanner() {
     new Set(),
   );
 
+  const activeId = () => appState.mode.active;
+
   const activeKey = (): number | null => {
     const active = appState.mode.active;
     return active === null ? null : appState.mode.entries[active]?.key ?? null;
   };
 
   createEffect((prev: { keys: number[]; activeKey: number | null }) => {
-    const nextEntries = modeEntries();
-    const nextKeys = nextEntries.map((e) => e.key);
-    const removedKeys = prev.keys.filter((key) => !nextKeys.includes(key));
-    const arrived = nextKeys.some((key) => !prev.keys.includes(key));
+    const modelEntries = entriesInOrder();
+    // untracked: this effect follows the model, not the list it writes back
+    const frame = reconcileStrip(
+      untrack(displayEntries),
+      modelEntries,
+      prev.keys,
+      prev.activeKey,
+    );
+    setDisplayEntries(frame.shown);
 
-    // A pick replaces the active card inside its own slot, so that one card is
-    // gone at once; anything else that left still fades out where it sat.
-    const replacedKey = arrived ? prev.activeKey : null;
-    const fadingKeys = removedKeys.filter((key) => key !== replacedKey);
-
-    if (fadingKeys.length > 0) {
-      setExitingKeys((cur) => {
-        const next = new Set(cur);
-        fadingKeys.forEach((key) => next.add(key));
-        return next;
-      });
-      for (const key of fadingKeys) {
+    if (frame.fadingKeys.length > 0) {
+      setExitingKeys((cur) => new Set([...cur, ...frame.fadingKeys]));
+      for (const key of frame.fadingKeys) {
         setTimeout(() => {
           setExitingKeys((cur) => {
             if (!cur.has(key)) return cur;
@@ -461,84 +461,31 @@ export default function LocationBanner() {
       }
     }
 
-    setDisplayEntries((cur) => {
-      // reuse existing slot objects so <For> repositions instead of remounting
-      const existing = new Map(cur.map((e) => [e.key, e]));
-      const next = nextEntries.map((e) => existing.get(e.key) ?? e);
-      // a card still fading out keeps its slot, so its neighbours don't reshuffle
-      const fading = cur.filter((e) =>
-        !nextKeys.includes(e.key) && e.key !== replacedKey
-      );
-      for (const entry of fading) {
-        next.splice(Math.min(cur.indexOf(entry), next.length), 0, entry);
-      }
-      return next;
-    });
-
-    return { keys: nextKeys, activeKey: activeKey() };
-  }, { keys: modeEntries().map((e) => e.key), activeKey: activeKey() });
+    return { keys: modelEntries.map((e) => e.key), activeKey: activeKey() };
+  }, { keys: entriesInOrder().map((e) => e.key), activeKey: activeKey() });
 
   const slideToAdjacent = (id: string, direction: 1 | -1) => {
-    const order = modeEntries().map((e) => e.id);
+    const order = entriesInOrder().map((e) => e.id);
     const nextId = order[order.indexOf(id) + direction];
     if (nextId) void animateSettleTo(nextId);
   };
 
-  // Tracking the last id (not just order.length) also catches a reselected
-  // historical entry moving to the end, which leaves the length unchanged.
-  //
-  // A rule-5 candidate append (mode.pending.candidateId === lastId, not yet
-  // activeId) is deliberately excluded here — during its 5s countdown
-  // nothing about the strip should move; it just sits there peeking until
-  // either the countdown effect below slides to it, or it reverts and
-  // disappears again. Every other new-last-entry case (a pick, a startup/
-  // connecting landing) is already-active the instant it appears, so a
-  // straight jump is enough — the pulse-then-slide announcement is reserved
-  // for the timed auto-switch.
-  //
-  // The isUnsettledCandidate check is deferred to a microtask rather than
-  // read inline here — entries/pending are two separate store writes within
-  // one model transition, mirrored into this component's store through an
-  // intermediate reconcile() bridge (appStore's mode → state.mode), and that
-  // bridge can flush this very effect while only one of the two has landed.
-  // Queuing the decision lets the whole synchronous reactive cascade settle
-  // first, so it reads entries/pending as they'll actually stay.
-  createEffect((prevLastId: string | null | undefined) => {
-    const order = modeEntries().map((e) => e.id);
-    const lastId = order.length > 0 ? order[order.length - 1] : null;
-    if (prevLastId !== undefined && lastId !== prevLastId && containerRef) {
+  // The strip centres the active card, which is not necessarily the last one; an auto switch animates itself, so only changes we did not animate jump here.
+  // Microtask-deferred: entries and mode are two store writes in one transition and this effect can run between them.
+  createEffect((prevActiveId: string | null | undefined) => {
+    const activeId = appState.mode.active;
+    if (prevActiveId !== undefined && activeId !== prevActiveId && activeId) {
       const container = containerRef;
       queueMicrotask(() => {
-        if (containerRef !== container) return;
-        const mode = appState.mode.mode;
-        const isUnsettledCandidate = mode.mode === "auto" &&
-          mode.pending?.candidateId === lastId;
-        if (!isUnsettledCandidate) {
-          void runSuppressed(() => Promise.resolve(jumpToLatest(container)));
-        }
+        if (!container || containerRef !== container) return;
+        if (suppressSettle()) return;
+        void runSuppressed(() =>
+          Promise.resolve(jumpToCard(container, activeId))
+        );
       });
     }
-    return lastId;
+    return activeId;
   }, undefined);
-
-  // Per-entry, not global. "Best Location" is auto mode's own label — a user
-  // selection reads "Selected Location" even when it is the best destination.
-  const titleFor = (entry: DestinationEntry): string => {
-    const mode = appState.mode.mode;
-    const pending = mode.mode === "auto" ? mode.pending : null;
-
-    if (entry.id !== appState.mode.active) {
-      // a pending candidate previews as "Best Location" while it is still peeking
-      return pending?.candidateId === entry.id
-        ? cardTitle("auto")
-        : cardTitle("selected");
-    }
-
-    if (mode.mode === "live") return cardTitle("connecting");
-    // a pending candidate means even the active card isn't provably best anymore
-    if (mode.mode === "auto" && pending === null) return cardTitle("auto");
-    return cardTitle("selected");
-  };
 
   // Rule 7's UI half: once a pending candidate's countdown (the headline
   // SwitchSpinner) elapses, play the pulse-then-slide switch so it lands
@@ -588,8 +535,7 @@ export default function LocationBanner() {
                   classList={{
                     "opacity-0": exitingKeys().has(entry.key),
                     // the card the user just chose must not fade in under them
-                    "starting:opacity-0": entry.id !==
-                      currentDisplayId(appState.mode),
+                    "starting:opacity-0": entry.id !== activeId(),
                   }}
                   aria-label="Exit node, use left and right arrow keys to browse"
                   tabIndex={0}
@@ -606,17 +552,15 @@ export default function LocationBanner() {
                 >
                   <DetailCard
                     destinationState={ds()}
-                    title={titleFor(entry)}
-                    fadeTitle={entry.id === currentDisplayId(appState.mode)}
-                    switchEndsAt={entry.id ===
-                          currentDisplayId(appState.mode) &&
+                    title={cardTitle(cardPhaseFor(appState.mode, entry.id))}
+                    fadeTitle={entry.id === activeId()}
+                    switchEndsAt={entry.id === activeId() &&
                         appState.mode.mode.mode === "auto"
                       ? appState.mode.mode.pending?.countdownEndsAt ?? null
                       : null}
                     onOpenList={(originY) => {
                       setListOriginY(originY);
                       appActions.destinationListOpened();
-                      setShowList(true);
                     }}
                   />
                 </div>
@@ -631,10 +575,7 @@ export default function LocationBanner() {
         <Show when={showList()}>
           <ExitNodeList
             originY={listOriginY()}
-            onClose={(picked) => {
-              appActions.destinationListClosed(picked);
-              setShowList(false);
-            }}
+            onClose={(picked) => appActions.destinationListClosed(picked)}
           />
         </Show>
       </Portal>

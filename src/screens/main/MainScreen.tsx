@@ -1,9 +1,4 @@
-import {
-  createEffect,
-  createMemo,
-  createSignal,
-  Show,
-} from "solid-js";
+import { createEffect, createMemo, createSignal, Show } from "solid-js";
 import { useAppStore } from "../../stores/appStore.ts";
 import { useSettingsStore } from "../../stores/settingsStore.ts";
 import { StatusIndicator } from "../../components/status/StatusIndicator.tsx";

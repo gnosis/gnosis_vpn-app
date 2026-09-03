@@ -19,7 +19,7 @@ import SegmentedControl from "@src/components/common/SegmentedControl.tsx";
 import CheckUpdateModal from "@src/components/CheckUpdateModal.tsx";
 import InstallUpdateModal from "@src/components/InstallUpdateModal.tsx";
 import { useAppStore } from "@src/stores/appStore.ts";
-import { resolveConnectTarget } from "@src/stores/destinationMode.ts";
+import { effectiveActive } from "@src/stores/destinationMode.ts";
 import {
   type UpdateChannel,
   type UpdateManifest,
@@ -258,7 +258,7 @@ export default function Updates() {
 
   const handleConnectAndCheck = () => {
     setShowCheckModal(false);
-    const id = resolveConnectTarget(appState.mode, Date.now());
+    const id = effectiveActive(appState.mode, Date.now());
     if (!id) return;
     setPendingConnectCheck(true);
     void appActions.connect(id);
@@ -329,7 +329,7 @@ export default function Updates() {
         }}
         onConnectAndInstall={() => {
           setShowInstallModal(false);
-          const id = resolveConnectTarget(appState.mode, Date.now());
+          const id = effectiveActive(appState.mode, Date.now());
           if (!id) return;
           setPendingConnectInstall(true);
           void appActions.connect(id);

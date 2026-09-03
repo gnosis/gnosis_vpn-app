@@ -16,8 +16,8 @@ import {
   getHopCount,
   getLastCheckedEpoch,
   hasHealthContent,
-  isReadyToConnect,
 } from "@src/utils/exitHealth.ts";
+import { isReady } from "@src/utils/destinations.ts";
 import HopsIcon from "./HopsIcon.tsx";
 import Stat from "./Stat.tsx";
 import Tag from "../common/Tag.tsx";
@@ -86,10 +86,9 @@ export default function ExitNodeCard(props: {
     return formatSecondsAgo(diff);
   };
 
-  // Allow click on active/transitioning nodes to acknowledge selection,
-  // bypassing the health check since the tunnel is already established.
+  // A live or transitioning node stays clickable: its tunnel exists and the slot it fills is ours.
   const isClickable = () =>
-    isReadyToConnect(routeHealth() ?? undefined) || isConnected() ||
+    isReady(props.destinationState(), null) || isConnected() ||
     isConnecting() || isReconnecting() || isDisconnecting();
 
   return (

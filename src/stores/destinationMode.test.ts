@@ -5,6 +5,7 @@ import type {
   DestinationState,
 } from "@src/services/vpnService.ts";
 import {
+  cardPhaseFor,
   createDestinationMode,
   type DestinationMode,
   type DestinationModeHandle,
@@ -1246,6 +1247,48 @@ describe("connectIssued", () => {
 
     expect(handle.model.active).toBe("uk");
     expect(handle.model.mode).toMatchObject({ mode: "selected" });
+  });
+});
+
+describe("cardPhaseFor — which label a card wears", () => {
+  it("gives the active card auto's label only while nothing is pending", () => {
+    const handle = setup();
+    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+
+    expect(cardPhaseFor(handle.model, "uk")).toBe("auto");
+  });
+
+  it("demotes the active card once a candidate is armed", () => {
+    const handle = setup();
+    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor(UK_USA));
+
+    expect(cardPhaseFor(handle.model, "uk"), "no longer provably best")
+      .toBe("selected");
+    expect(cardPhaseFor(handle.model, "usa"), "the candidate previews it")
+      .toBe("auto");
+  });
+
+  it("reads as connecting while live, whichever card is asked about", () => {
+    const handle = setup();
+    step(handle, connectedTo("uk", { uk: makeReadyToConnect("uk", 50) }));
+
+    expect(cardPhaseFor(handle.model, "uk")).toBe("connecting");
+  });
+
+  it("calls a user selection selected, even when it is the best destination", () => {
+    const handle = setup();
+    stripWithHistory(handle);
+    handle.applyUserInput({ type: "slideCommitted", id: "usa" });
+
+    expect(cardPhaseFor(handle.model, "usa")).toBe("selected");
+  });
+
+  it("labels every non-active card selected when nothing is pending", () => {
+    const handle = setup();
+    stripWithHistory(handle);
+
+    expect(cardPhaseFor(handle.model, "uk")).toBe("selected");
   });
 });
 

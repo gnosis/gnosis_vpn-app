@@ -3,26 +3,7 @@ import type {
   DestinationState,
   Slots,
 } from "@src/services/vpnService.ts";
-import { getSortLatencyMs, isReadyToConnect } from "@src/utils/exitHealth.ts";
-
-/** Sort by latency ascending; no-latency entries go last, then A–Z. */
-export function sortByStartupLatency(
-  available: Destination[],
-  destinations: Record<string, DestinationState>,
-): Destination[] {
-  return [...available].sort((a, b) => {
-    const msA = destinations[a.id]
-      ? getSortLatencyMs(destinations[a.id])
-      : null;
-    const msB = destinations[b.id]
-      ? getSortLatencyMs(destinations[b.id])
-      : null;
-    if (msA !== null && msB !== null) return msA - msB;
-    if (msA !== null) return -1;
-    if (msB !== null) return 1;
-    return destinationLabel(a).localeCompare(destinationLabel(b));
-  });
-}
+import { getSortLatencyMs } from "@src/utils/exitHealth.ts";
 
 export function getPreferredAvailabilityChangeMessage(
   previous: Destination[],
@@ -39,44 +20,15 @@ export function getPreferredAvailabilityChangeMessage(
     : `Preferred location ${preferredId} currently unavailable.`;
 }
 
-/** Sort: ReadyToConnect/Connecting first (latency ascending), all others after (A–Z). */
-export function sortByHealthScore(
-  available: Destination[],
-  destinations: Record<string, DestinationState>,
-): Destination[] {
-  return [...available].sort((a, b) => {
-    const aReady = isReadyToConnect(
-      destinations[a.id]?.route_health ?? undefined,
-    );
-    const bReady = isReadyToConnect(
-      destinations[b.id]?.route_health ?? undefined,
-    );
-    if (aReady !== bReady) return aReady ? -1 : 1;
-    const msA = destinations[a.id]
-      ? getSortLatencyMs(destinations[a.id])
-      : null;
-    const msB = destinations[b.id]
-      ? getSortLatencyMs(destinations[b.id])
-      : null;
-    if (msA !== null && msB !== null) return msA - msB;
-    if (msA !== null) return -1;
-    if (msB !== null) return 1;
-    return destinationLabel(a).localeCompare(destinationLabel(b));
-  });
-}
-
 /** Sort: ReadyToConnect/Connecting first (A–Z within tier), all others after (A–Z). */
 export function sortAlphaDestinations(
   available: Destination[],
   destinations: Record<string, DestinationState>,
+  liveId: string | null = null,
 ): Destination[] {
   return [...available].sort((a, b) => {
-    const aReady = isReadyToConnect(
-      destinations[a.id]?.route_health ?? undefined,
-    );
-    const bReady = isReadyToConnect(
-      destinations[b.id]?.route_health ?? undefined,
-    );
+    const aReady = isReadyForDisplay(destinations[a.id], liveId);
+    const bReady = isReadyForDisplay(destinations[b.id], liveId);
     if (aReady !== bReady) return aReady ? -1 : 1;
     return destinationLabel(a).localeCompare(destinationLabel(b));
   });
@@ -98,11 +50,14 @@ const CONNECTED_CLIENT_LATENCY_MALUS_MS = 100;
 function capacityAdjustedLatencyMs(
   state: DestinationState,
   slots: Slots | null,
+  liveId: string | null,
 ): number | null {
   const latencyMs = getSortLatencyMs(state);
   if (latencyMs === null) return null;
+  const occupiedByUs = state.destination.id === liveId ? 1 : 0;
   return latencyMs +
-    (slots?.connected ?? 0) * CONNECTED_CLIENT_LATENCY_MALUS_MS;
+    Math.max(0, (slots?.connected ?? 0) - occupiedByUs) *
+      CONNECTED_CLIENT_LATENCY_MALUS_MS;
 }
 
 /** Slots free for us — our own session must not count against the destination we are on. */
@@ -125,6 +80,15 @@ export function isReady(
   return (freeSlots(state, liveId) ?? 0) > 0;
 }
 
+/** What the list may present as usable — the destination we are on always qualifies. */
+export function isReadyForDisplay(
+  state: DestinationState | undefined,
+  liveId: string | null,
+): boolean {
+  if (!state) return false;
+  return state.destination.id === liveId || isReady(state, liveId);
+}
+
 /** Capacity of a destination — `available` alone is free slots and drifts with load. */
 function totalSlots(slots: Slots | null): number | null {
   return slots === null ? null : slots.available + slots.connected;
@@ -133,6 +97,7 @@ function totalSlots(slots: Slots | null): number | null {
 /** Sort ids: full destinations last, then by latency (malus-adjusted when capacity differs). */
 export function sortByCapacityAwareLatency(
   destinations: Record<string, DestinationState>,
+  liveId: string | null = null,
 ): string[] {
   return Object.keys(destinations).sort((idA, idB) => {
     const stateA = destinations[idA];
@@ -140,17 +105,17 @@ export function sortByCapacityAwareLatency(
     const slotsA = getSlots(stateA);
     const slotsB = getSlots(stateB);
 
-    const isFullA = slotsA !== null && slotsA.available <= 0;
-    const isFullB = slotsB !== null && slotsB.available <= 0;
+    const isFullA = (freeSlots(stateA, liveId) ?? 1) <= 0;
+    const isFullB = (freeSlots(stateB, liveId) ?? 1) <= 0;
     if (isFullA !== isFullB) return isFullA ? 1 : -1;
 
     const sameCapacity = totalSlots(slotsA) === totalSlots(slotsB);
     const msA = sameCapacity
       ? getSortLatencyMs(stateA)
-      : capacityAdjustedLatencyMs(stateA, slotsA);
+      : capacityAdjustedLatencyMs(stateA, slotsA, liveId);
     const msB = sameCapacity
       ? getSortLatencyMs(stateB)
-      : capacityAdjustedLatencyMs(stateB, slotsB);
+      : capacityAdjustedLatencyMs(stateB, slotsB, liveId);
     if (msA !== null && msB !== null) return msA - msB;
     if (msA !== null) return -1;
     if (msB !== null) return 1;
@@ -158,27 +123,6 @@ export function sortByCapacityAwareLatency(
       destinationLabel(stateB.destination),
     );
   });
-}
-
-export function resolveAutoDestination(
-  available: Destination[],
-  destinations: Record<string, DestinationState>,
-  preferredLocation: string | null,
-): Destination | null {
-  const candidates = sortByHealthScore(available, destinations);
-  if (candidates.length === 0) return null;
-  if (preferredLocation) {
-    const preferred = candidates.find((d) => d.id === preferredLocation);
-    if (
-      preferred &&
-      isReadyToConnect(
-        destinations[preferredLocation]?.route_health ?? undefined,
-      )
-    ) {
-      return preferred;
-    }
-  }
-  return candidates[0] ?? null;
 }
 
 /** Whether a VPN session is live enough that switching destinations should
@@ -222,9 +166,4 @@ export function cardTitle(phase: CardPhase): string {
     case "uninitialized":
       return "";
   }
-}
-
-// Auto's label can land a whole status poll before the candidate that revokes it — the one title change DestinationCard holds, so that reversal can cancel it.
-export function holdsTitleChange(next: string, isActiveCard: boolean): boolean {
-  return isActiveCard && next === cardTitle("auto");
 }

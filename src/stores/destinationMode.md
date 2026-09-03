@@ -107,12 +107,11 @@ destination we are connected to would read as full. `connectedClients` applies
 the same discount to the sort's capacity malus. Only the numbers
 `sortByCapacityAwareLatency` reads change; its ordering rules are untouched.
 
-**`effectiveActive` is the only reader.** `currentDisplayId` and
-`resolveConnectTarget` are both this function, so the visible card and the
-connect target cannot disagree. The commit is defined by the clock crossing
-`settleAt`; the store write merely re-renders it. The `isStale` guard keeps a
-slept-through pending — one the next `statusUpdate` will discard — from being
-reported as active in the meantime.
+**`effectiveActive` is the only reader.** Display and connect target are the
+same function, so the visible card and what Connect targets cannot disagree. The
+commit is defined by the clock crossing `settleAt`; the store write merely
+re-renders it. The `isStale` guard keeps a slept-through pending — one the next
+`statusUpdate` will discard — from being reported as active in the meantime.
 
 ## The sweep
 
