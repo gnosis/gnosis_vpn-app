@@ -1,4 +1,3 @@
-import { batch } from "solid-js";
 import { createStore, type Store as SolidStore } from "solid-js/store";
 
 import type {
@@ -8,8 +7,10 @@ import type {
   DestinationState,
   ReconnectingInfo,
 } from "@src/services/vpnService.ts";
-import { sortByCapacityAwareLatency } from "@src/utils/destinations.ts";
-import { isReadyToConnect } from "@src/utils/exitHealth.ts";
+import {
+  isReady,
+  sortByCapacityAwareLatency,
+} from "@src/utils/destinations.ts";
 
 // Countdown timeout before starting switch animation
 export const SWITCH_COUNTDOWN_MS = 5_000;
@@ -106,44 +107,61 @@ export interface DestinationModeHandle {
   reset: (settings: DestinationModeSettings) => void;
 }
 
-/** Model slice re-checked against what the backend still offers, plus the id set it was filtered against. */
-interface Baseline {
-  entries: Record<string, Entry>;
-  sequence: string[];
-  active: string | null;
-  availableIds: Set<string>;
-}
-
-function isDestinationReadyToConnect(destState?: DestinationState): boolean {
-  return isReadyToConnect(destState?.route_health ?? undefined);
-}
-
-/** Drops a destination's entry/sequence slot — e.g. a pending candidate that never committed. */
-function removeEntry(
-  entries: Record<string, Entry>,
-  sequence: string[],
-  id: string,
-): void {
-  delete entries[id];
-  const index = sequence.indexOf(id);
-  if (index !== -1) sequence.splice(index, 1);
-}
-
 function initialModel(settings: DestinationModeSettings): DestinationMode {
   return {
     entries: {},
     sequence: [],
     active: null,
-    mode: {
-      mode: "auto",
-      pending: null,
-    },
+    mode: { mode: "auto", pending: null },
+    nextKey: 0,
     listOpen: false,
     dragging: false,
-    nextKey: 0,
     preferredLocation: settings.preferredLocation,
     lastConnectedDestination: settings.lastConnectedDestination,
   };
+}
+
+function liveIdOf(status: ModeAppState): string | null {
+  return status.connected?.destination_id ??
+    status.connecting?.destination_id ??
+    status.reconnecting?.destination_id ??
+    null;
+}
+
+/** Mints the entry if it is new; appends so history reads oldest to newest. */
+function ensureEntry(draft: DestinationMode, id: string): void {
+  if (id in draft.entries) return;
+  draft.entries[id] = { key: draft.nextKey++, wasActive: false };
+  draft.sequence.push(id);
+}
+
+/** The only way an entry becomes active, so `wasActive` and the preferred shot can never be missed. */
+function makeActive(draft: DestinationMode, id: string): void {
+  ensureEntry(draft, id);
+  draft.entries[id] = { ...draft.entries[id], wasActive: true };
+  draft.active = id;
+  if (draft.preferredLocation === id) draft.preferredLocation = null;
+}
+
+function selectedMode(): SelectedMode {
+  return {
+    mode: "selected",
+    autoRevertAt: Date.now() + SELECTED_AUTO_REVERT_MS,
+  };
+}
+
+const AUTO_IDLE: AutoMode = { mode: "auto", pending: null };
+
+/** Every entry is either history or the current candidate — anything else is dropped. */
+function sweep(draft: DestinationMode): void {
+  const candidateId = draft.mode.mode === "auto"
+    ? draft.mode.pending?.candidateId ?? null
+    : null;
+  for (const [id, entry] of Object.entries(draft.entries)) {
+    if (entry.wasActive || id === candidateId) continue;
+    delete draft.entries[id];
+  }
+  draft.sequence = draft.sequence.filter((id) => id in draft.entries);
 }
 
 export function createDestinationMode(
@@ -154,443 +172,272 @@ export function createDestinationMode(
   );
 
   let pendingTimer: ReturnType<typeof setTimeout> | undefined;
-  const clearPendingTimer = () => {
-    clearTimeout(pendingTimer);
-    pendingTimer = undefined;
-  };
-
   let revertTimer: ReturnType<typeof setTimeout> | undefined;
-  const clearRevertTimer = () => {
+
+  // A working copy every transition mutates; `mode` and each Entry are replaced, never edited in place.
+  function draftOf(): DestinationMode {
+    return {
+      ...model,
+      entries: { ...model.entries },
+      sequence: [...model.sequence],
+    };
+  }
+
+  function commit(draft: DestinationMode): void {
+    sweep(draft);
+    setModel(draft);
+    syncTimers();
+  }
+
+  // Timers are derived from the deadlines rather than set alongside them, so no path can forget one.
+  function syncTimers(): void {
+    clearTimeout(pendingTimer);
     clearTimeout(revertTimer);
+    pendingTimer = undefined;
     revertTimer = undefined;
-  };
 
-  // open list suspends all auto transitions; modeAtOpen is what a canceled close restores
-  let listOpen = false;
-  let modeAtOpen: Mode["mode"] | null = null;
-
-  // entries/sequence/active all stay put — only the mode falls back
-  function revertToAuto(): void {
-    revertTimer = undefined;
-    if (listOpen) return;
-    if (model.mode.mode !== "selected") return;
-    // a top-level write replaces the mode; setModel("mode", ...) would merge
-    setModel({ mode: { mode: "auto", pending: null } });
-  }
-
-  // the one place `selected` is constructed, so its deadline can never be forgotten
-  function startSelectedMode(): SelectedMode {
-    clearPendingTimer();
-    clearRevertTimer();
-    revertTimer = setTimeout(revertToAuto, SELECTED_AUTO_REVERT_MS);
-    return {
-      mode: "selected",
-      autoRevertAt: Date.now() + SELECTED_AUTO_REVERT_MS,
-    };
-  }
-
-  // entries/sequence/active all come from the caller — only the mode is minted here
-  function enterSelected(baseline: Baseline, id: string): void {
-    setModel({
-      entries: baseline.entries,
-      sequence: baseline.sequence,
-      active: id,
-      mode: startSelectedMode(),
-    });
-  }
-
-  function commitPendingCandidate(): void {
-    if (model.mode.mode !== "auto" || model.mode.pending === null) return;
-    const candidateId = model.mode.pending.candidateId;
-    // must land together — a reader seeing one change without the other would tear.
-    batch(() => {
-      setActive(candidateId);
-      setModel("mode", { mode: "auto", pending: null });
-    });
-  }
-
-  function armPendingCandidate(): void {
-    clearPendingTimer();
-    pendingTimer = setTimeout(
-      commitPendingCandidate,
-      SWITCH_COUNTDOWN_MS + SWITCH_CROSSOVER_MS,
-    );
-  }
-
-  function setActive(id: string): void {
-    if (!(id in model.entries)) return;
-    batch(() => {
-      setModel("active", id);
-      if (id === model.preferredLocation) {
-        setModel("preferredLocation", null);
-      }
-    });
-  }
-
-  // preferred gets one shot ever; any path to active spends it
-  const spendPreferred = (id: string) =>
-    id === model.preferredLocation ? null : model.preferredLocation;
-
-  // takes the place of the card the user opened the list from, keeping the rest of the strip
-  function replaceActiveWithPick(id: string): void {
-    // early return on corrupted data or same location selection
-    const outgoing = model.active;
-    if (outgoing === null || outgoing === id) {
+    const mode = model.mode;
+    if (mode.mode === "auto" && mode.pending !== null) {
+      const delay = Math.max(0, mode.pending.settleAt - Date.now());
+      pendingTimer = setTimeout(onSettleDeadline, delay);
       return;
     }
-
-    const newEntries = { ...model.entries };
-    delete newEntries[outgoing];
-    // always a fresh key — reconcile() would otherwise reposition the old card instead of mounting one
-    newEntries[id] = { key: model.nextKey, wasActive: true };
-
-    // the pick takes the outgoing slot; a copy of it elsewhere in the strip goes
-    const newSequence = model.sequence
-      .filter((entryId) => entryId !== id)
-      .map((entryId) => (entryId === outgoing ? id : entryId));
-
-    setModel({
-      entries: newEntries,
-      sequence: newSequence,
-      active: id,
-      mode: startSelectedMode(),
-      nextKey: model.nextKey + 1,
-      preferredLocation: spendPreferred(id),
-    });
+    if (mode.mode === "selected" && mode.autoRevertAt !== null) {
+      const delay = Math.max(0, mode.autoRevertAt - Date.now());
+      revertTimer = setTimeout(onRevertDeadline, delay);
+    }
   }
 
-  function openList(): void {
-    listOpen = true;
-    modeAtOpen = model.mode.mode;
-    clearPendingTimer();
-    clearRevertTimer();
-
-    // an uncommitted candidate has no business surviving the suspension
-    const pending = model.mode.mode === "auto" ? model.mode.pending : null;
-    if (pending === null) return;
-    const newEntries = { ...model.entries };
-    const newSequence = [...model.sequence];
-    removeEntry(newEntries, newSequence, pending.candidateId);
-    setModel({
-      entries: newEntries,
-      sequence: newSequence,
-      mode: { mode: "auto", pending: null },
-    });
-  }
-
-  function closeList(picked: string | null): void {
-    listOpen = false;
-    if (picked !== null) replaceActiveWithPick(picked);
-    const restoreMode = picked === null ? modeAtOpen : "selected";
-    modeAtOpen = null;
-
-    // a live connection outranks whatever the list did; status updates own it
-    if (model.mode.mode === "live" || restoreMode === "live") return;
-
-    if (restoreMode === "selected" && model.active !== null) {
-      setModel({ mode: startSelectedMode() });
+  function onSettleDeadline(): void {
+    const draft = draftOf();
+    if (draft.mode.mode !== "auto" || draft.mode.pending === null) return;
+    if (Date.now() < draft.mode.pending.settleAt) {
+      syncTimers();
       return;
     }
-    // auto from start — the next status tick arms a fresh countdown
-    clearPendingTimer();
-    clearRevertTimer();
-    setModel({ mode: { mode: "auto", pending: null } });
+    makeActive(draft, draft.mode.pending.candidateId);
+    draft.mode = AUTO_IDLE;
+    commit(draft);
   }
 
-  function applyUserInput(event: UserInputEvent): void {
-    switch (event.type) {
-      case "listOpened":
-        openList();
-        return;
-      case "listClosed":
-        closeList(event.picked);
-        return;
-      // TODO(spec): dragStarted and connectIssued are unimplemented — see destinationMode.md
-      case "dragStarted":
-        return;
-      case "slideCommitted":
-        setModel({
-          active: event.id,
-          mode: startSelectedMode(),
-          preferredLocation: spendPreferred(event.id),
-        });
-        return;
-      case "connectIssued":
-        return;
+  function onRevertDeadline(): void {
+    const draft = draftOf();
+    if (draft.mode.mode !== "selected" || draft.mode.autoRevertAt === null) {
+      return;
     }
+    if (Date.now() < draft.mode.autoRevertAt) {
+      syncTimers();
+      return;
+    }
+    draft.mode = AUTO_IDLE;
+    commit(draft);
   }
 
-  function sanitizedBaseline(status: ModeAppState): Baseline {
-    const availableIds = new Set(status.availableDestinations.map((d) => d.id));
-    return {
-      entries: Object.fromEntries(
-        Object.entries(model.entries).filter(([id]) => availableIds.has(id)),
-      ),
-      sequence: model.sequence.filter((id) => availableIds.has(id)),
-      active: model.active && availableIds.has(model.active)
-        ? model.active
-        : null,
-      availableIds,
-    };
+  /** Preferred outranks the sort head while unspent and ready — it is an input, not a transition. */
+  function effectiveCandidate(status: ModeAppState, draft: DestinationMode) {
+    const preferred = draft.preferredLocation;
+    if (preferred !== null && isReady(status.destinations[preferred], null)) {
+      return preferred;
+    }
+    return sortByCapacityAwareLatency(status.destinations)[0] ?? null;
   }
 
-  function applyStatusUpdateAuto(
+  /** No countdown: there is nothing to switch away from until something is active. */
+  function coldStart(
+    draft: DestinationMode,
     status: ModeAppState,
-    baseline: Baseline,
-    mode: AutoMode,
+    candidate: string | null,
   ): void {
-    const bestDestination = sortByCapacityAwareLatency(status.destinations)[0];
-    // mutated in place below, then written back in one go
-    const newEntries = baseline.entries;
-    const newSequence = baseline.sequence;
-    let newActive = baseline.active;
+    const last = draft.lastConnectedDestination;
+    // consulted once per app launch, whether or not it can be used
+    draft.lastConnectedDestination = null;
+    const offered = last !== null &&
+      status.availableDestinations.some((d) => d.id === last);
+    const promoted = offered ? last : candidate;
+    if (promoted === null) return;
+    makeActive(draft, promoted);
+  }
 
-    // ensure pending candidate is still available, if not cancel
-    let newMode = mode;
-    if (
-      newMode.pending &&
-      !baseline.availableIds.has(newMode.pending.candidateId)
-    ) {
-      clearPendingTimer();
-      newMode = { mode: "auto", pending: null };
+  function applyAuto(draft: DestinationMode, status: ModeAppState): void {
+    const now = Date.now();
+    let pending = draft.mode.mode === "auto" ? draft.mode.pending : null;
+
+    // the clock decides the commit, not the timer that may never have run
+    if (pending !== null && now >= pending.settleAt) {
+      const sleptThrough = now - pending.settleAt > STATUS_POLL_MS;
+      if (!sleptThrough) makeActive(draft, pending.candidateId);
+      pending = null;
     }
+    draft.mode = { mode: "auto", pending };
 
-    let newPreferredLocation = model.preferredLocation;
-    let newLastConnectedDestination = model.lastConnectedDestination;
-    let newNextKey = model.nextKey;
+    const candidate = effectiveCandidate(status, draft);
 
-    // one lifetime shot for preferred; only counts once routable, not merely configured
-    const routablePreferredLocation = (): string | null =>
-      newPreferredLocation !== null &&
-        isDestinationReadyToConnect(status.destinations[newPreferredLocation])
-        ? newPreferredLocation
-        : null;
-
-    // moves the pending slot to candidateId
-    const swapPendingEntry = (candidateId: string): void => {
-      const stale = newMode.pending;
-      if (stale && stale.candidateId !== candidateId) {
-        removeEntry(newEntries, newSequence, stale.candidateId);
-      }
-      // already a history card — leave it in its slot, don't re-append
-      if (candidateId in newEntries) return;
-      newEntries[candidateId] = { key: newNextKey++, wasActive: false };
-      newSequence.push(candidateId);
-    };
-
-    // drops the pending candidate's entry when it's abandoned uncommitted, e.g. reverting to active
-    const dropPendingEntry = () => {
-      const stale = newMode.pending;
-      if (stale && stale.candidateId !== newActive) {
-        removeEntry(newEntries, newSequence, stale.candidateId);
-      }
-    };
-
-    // registers a destination promoted straight to active with no history entry yet
-    const addEntry = (id: string) => {
-      if (!(id in newEntries)) {
-        newEntries[id] = { key: newNextKey++, wasActive: true };
-        newSequence.push(id);
-      }
-    };
-
-    // arms a fresh countdown for candidateId; used for a new pending and for a preferred hijack
-    const armPending = (candidateId: string): AutoMode => {
-      swapPendingEntry(candidateId);
-      const countdownEndsAt = Date.now() + SWITCH_COUNTDOWN_MS;
-      const settleAt = countdownEndsAt + SWITCH_CROSSOVER_MS;
-      armPendingCandidate();
-      return {
+    if (draft.active === null) {
+      // a countdown switches away from something; cold start has nothing to switch away from
+      draft.mode = AUTO_IDLE;
+      coldStart(draft, status, candidate);
+      return;
+    }
+    const worthSwitchingTo = candidate !== null &&
+      candidate !== draft.active &&
+      isReady(status.destinations[candidate], null);
+    if (!worthSwitchingTo) {
+      draft.mode = AUTO_IDLE;
+      return;
+    }
+    if (pending === null) {
+      ensureEntry(draft, candidate);
+      const countdownEndsAt = now + SWITCH_COUNTDOWN_MS;
+      draft.mode = {
         mode: "auto",
-        pending: { candidateId, countdownEndsAt, settleAt },
+        pending: {
+          candidateId: candidate,
+          countdownEndsAt,
+          settleAt: countdownEndsAt + SWITCH_CROSSOVER_MS,
+        },
       };
-    };
-
-    // no best destination
-    if (bestDestination === undefined) {
-      dropPendingEntry();
-      clearPendingTimer();
-      newMode = { mode: "auto", pending: null };
-    } else {
-      let skipArmThisTick = false;
-
-      // no active id — cold start, or the caller sent us here because it vanished
-      if (!newActive) {
-        const preferred = routablePreferredLocation();
-        if (preferred) {
-          addEntry(preferred);
-          newActive = preferred;
-          newPreferredLocation = null;
-          skipArmThisTick = true;
-        } else if (newLastConnectedDestination) {
-          if (
-            isDestinationReadyToConnect(
-              status.destinations[newLastConnectedDestination],
-            )
-          ) {
-            addEntry(newLastConnectedDestination);
-            newActive = newLastConnectedDestination;
-          }
-          newLastConnectedDestination = null;
-          skipArmThisTick = true;
-        }
-      }
-
-      if (!skipArmThisTick) {
-        // preferred wins over bestDestination whenever routable and unspent
-        const preferred = routablePreferredLocation();
-        const effectiveCandidate = preferred ?? bestDestination;
-
-        if (newActive === effectiveCandidate) {
-          // best destination already active; drop any stale pending entry left over from before
-          dropPendingEntry();
-          clearPendingTimer();
-          newMode = { mode: "auto", pending: null };
-        } else if (newMode.pending === null) {
-          // best destination will become pending
-          newMode = armPending(effectiveCandidate);
-        } else if (newMode.pending.candidateId !== effectiveCandidate) {
-          if (preferred) {
-            // hijack: preferred always restarts the countdown fresh.
-            newMode = armPending(effectiveCandidate);
-          } else if (Date.now() < newMode.pending.countdownEndsAt) {
-            // update pending with actual best destination
-            swapPendingEntry(effectiveCandidate);
-            newMode = {
-              mode: "auto",
-              pending: {
-                ...newMode.pending,
-                candidateId: effectiveCandidate,
-              },
-            };
-          }
-        }
-      }
-    }
-
-    if (newActive !== null && newActive === newPreferredLocation) {
-      newPreferredLocation = null;
-    }
-
-    setModel({
-      entries: newEntries,
-      sequence: newSequence,
-      active: newActive,
-      mode: newMode,
-      nextKey: newNextKey,
-      preferredLocation: newPreferredLocation,
-      lastConnectedDestination: newLastConnectedDestination,
-    });
-  }
-
-  function applyStatusUpdateSelected(
-    status: ModeAppState,
-    baseline: Baseline,
-    mode: SelectedMode,
-  ): void {
-    // the deadline, not the timer, is the source of truth — timers get throttled
-    if (mode.autoRevertAt !== null && Date.now() >= mode.autoRevertAt) {
-      clearRevertTimer();
-      applyStatusUpdateAuto(status, baseline, { mode: "auto", pending: null });
       return;
     }
-    setModel({
-      entries: baseline.entries,
-      sequence: baseline.sequence,
-      active: baseline.active,
-      mode,
-    });
-  }
-
-  function applyStatusUpdateLive(baseline: Baseline, liveId: string): void {
-    // nothing derived locally outranks a real connection — a countdown least of all
-    clearPendingTimer();
-    clearRevertTimer();
-
-    // mutated in place below, then written back in one go
-    const newEntries = baseline.entries;
-    const newSequence = baseline.sequence;
-    let newNextKey = model.nextKey;
-
-    // a speculative candidate that never committed has no reason to linger
-    const pendingId = model.mode.mode === "auto"
-      ? (model.mode.pending?.candidateId ?? null)
-      : null;
-    if (pendingId !== null && pendingId !== liveId) {
-      removeEntry(newEntries, newSequence, pendingId);
-    }
-
-    // what we're connected to stays in entries even once no longer offered
-    if (!(liveId in newEntries)) {
-      newEntries[liveId] = { key: newNextKey++, wasActive: true };
-      newSequence.push(liveId);
-    }
-
-    setModel({
-      entries: newEntries,
-      sequence: newSequence,
-      active: liveId,
-      mode: { mode: "live" },
-      nextKey: newNextKey,
-      // preferred gets one shot ever; any path to active spends it
-      preferredLocation: liveId === model.preferredLocation
-        ? null
-        : model.preferredLocation,
-      // only ever consulted while active is null, which it no longer is
-      lastConnectedDestination: null,
-    });
+    if (pending.candidateId === candidate) return;
+    // inside the crossover the view is already sliding somewhere specific
+    if (now >= pending.countdownEndsAt) return;
+    ensureEntry(draft, candidate);
+    draft.mode = {
+      mode: "auto",
+      pending: { ...pending, candidateId: candidate },
+    };
   }
 
   function applyStatusUpdate(status: ModeAppState): void {
-    const baseline = sanitizedBaseline(status);
-    const mode = model.mode;
+    const draft = draftOf();
+    const availableIds = new Set(status.availableDestinations.map((d) => d.id));
 
-    // the backend's own connection state outranks any locally derived mode
-    const liveId = status.connected?.destination_id ??
-      status.connecting?.destination_id ??
-      status.reconnecting?.destination_id ??
-      null;
+    for (const id of Object.keys(draft.entries)) {
+      if (availableIds.has(id)) continue;
+      delete draft.entries[id];
+    }
+    draft.sequence = draft.sequence.filter((id) => id in draft.entries);
+    if (draft.active !== null && !(draft.active in draft.entries)) {
+      draft.active = null;
+    }
+
+    const liveId = liveIdOf(status);
     if (liveId !== null) {
-      applyStatusUpdateLive(baseline, liveId);
+      makeActive(draft, liveId);
+      draft.mode = { mode: "live" };
+      // a connection we did not start from the list should not leave it covering the screen
+      draft.listOpen = false;
+      commit(draft);
       return;
     }
 
-    // leaving live parks on the last live id; teardown is UI feedback only
-    if (mode.mode === "live" && baseline.active !== null) {
-      enterSelected(baseline, baseline.active);
+    if (draft.mode.mode === "live") {
+      draft.mode = draft.active === null ? AUTO_IDLE : selectedMode();
+      commit(draft);
       return;
     }
 
-    // list open: auto transitions suspended — only backend live state may move things
-    if (listOpen) {
-      setModel({
-        entries: baseline.entries,
-        sequence: baseline.sequence,
-        active: baseline.active,
-      });
-      return;
+    // a mode whose subject the prune removed cannot survive it
+    if (draft.active === null && draft.mode.mode === "selected") {
+      draft.mode = AUTO_IDLE;
+    }
+    if (
+      draft.mode.mode === "auto" && draft.mode.pending !== null &&
+      !(draft.mode.pending.candidateId in draft.entries)
+    ) {
+      draft.mode = AUTO_IDLE;
     }
 
-    // only the flat deadline or a vanished destination ends a selection, never readiness
-    if (mode.mode === "selected" && baseline.active !== null) {
-      applyStatusUpdateSelected(status, baseline, mode);
-      return;
+    if (draft.listOpen || draft.dragging) {
+      if (draft.active !== null) {
+        commit(draft);
+        return;
+      }
+      // nothing left to suspend over
+      draft.listOpen = false;
+      draft.dragging = false;
     }
 
-    // auto absorbs the rest: fresh start or a destination that vanished
-    clearRevertTimer();
-    const autoMode: AutoMode = mode.mode === "auto"
-      ? mode
-      : { mode: "auto", pending: null };
-    applyStatusUpdateAuto(status, baseline, autoMode);
+    if (draft.mode.mode === "selected") {
+      const { autoRevertAt } = draft.mode;
+      if (autoRevertAt === null || Date.now() < autoRevertAt) {
+        commit(draft);
+        return;
+      }
+      draft.mode = AUTO_IDLE;
+    }
+
+    applyAuto(draft, status);
+    commit(draft);
+  }
+
+  /** The pick takes the outgoing card's slot, so the strip keeps its order and never repeats an id. */
+  function pickDestination(draft: DestinationMode, id: string): void {
+    const outgoing = draft.active;
+    if (outgoing !== null && outgoing !== id) {
+      delete draft.entries[outgoing];
+      draft.sequence = draft.sequence
+        .filter((entryId) => entryId !== id)
+        .map((entryId) => (entryId === outgoing ? id : entryId));
+      // a fresh key mounts the card instead of sliding the old one into place
+      draft.entries[id] = { key: draft.nextKey++, wasActive: true };
+      draft.active = id;
+      if (draft.preferredLocation === id) draft.preferredLocation = null;
+    } else {
+      makeActive(draft, id);
+    }
+    // a connect issued on the way out outranks the list
+    if (draft.mode.mode !== "live") draft.mode = selectedMode();
+  }
+
+  function applyUserInput(event: UserInputEvent): void {
+    const draft = draftOf();
+    switch (event.type) {
+      case "listOpened":
+        draft.listOpen = true;
+        if (draft.mode.mode === "auto") draft.mode = AUTO_IDLE;
+        if (draft.mode.mode === "selected") {
+          draft.mode = { mode: "selected", autoRevertAt: null };
+        }
+        break;
+      case "listClosed":
+        draft.listOpen = false;
+        if (event.picked !== null) {
+          pickDestination(draft, event.picked);
+        } else if (draft.mode.mode === "selected") {
+          draft.mode = selectedMode();
+        }
+        break;
+      case "dragStarted":
+        draft.dragging = true;
+        if (draft.mode.mode === "auto") draft.mode = AUTO_IDLE;
+        // touching the strip is a selection from the first movement, with the clock stopped
+        if (draft.active !== null) {
+          draft.mode = { mode: "selected", autoRevertAt: null };
+        }
+        break;
+      case "slideCommitted":
+        draft.dragging = false;
+        if (!(event.id in draft.entries)) {
+          // the card went away mid-drag; resume rather than point at nothing
+          if (draft.mode.mode === "selected") draft.mode = selectedMode();
+          break;
+        }
+        makeActive(draft, event.id);
+        draft.mode = selectedMode();
+        break;
+      case "connectIssued":
+        // we are ahead of the service; the next status response is expected to confirm
+        makeActive(draft, event.id);
+        draft.mode = { mode: "live" };
+        break;
+    }
+    commit(draft);
   }
 
   function reset(newSettings: DestinationModeSettings): void {
-    clearPendingTimer();
-    clearRevertTimer();
-    listOpen = false;
-    modeAtOpen = null;
     setModel(initialModel(newSettings));
+    syncTimers();
   }
 
   return {

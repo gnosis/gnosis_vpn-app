@@ -248,6 +248,7 @@ describe("statusUpdate — live", () => {
       uk: makeReadyToConnect("uk", 50),
       usa: makeReadyToConnect("usa", 10),
     };
+    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
     step(handle, statusFor(destinations));
     expect(handle.model.mode).toMatchObject({
       pending: { candidateId: "usa" },
@@ -994,6 +995,7 @@ describe("listClosed — cancelled", () => {
       uk: makeReadyToConnect("uk", 50),
       usa: makeReadyToConnect("usa", 10),
     };
+    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
     step(handle, statusFor(destinations));
     handle.applyUserInput({ type: "listOpened" });
 
@@ -1165,14 +1167,7 @@ describe("dragStarted and slideCommitted", () => {
 
   it("settles onto a card with a fresh deadline", () => {
     const handle = setup();
-    step(
-      handle,
-      statusFor({
-        uk: makeReadyToConnect("uk", 50),
-        usa: makeReadyToConnect("usa", 10),
-      }),
-    );
-    vi.advanceTimersByTime(SETTLE_MS);
+    stripWithHistory(handle);
 
     handle.applyUserInput({ type: "dragStarted" });
     expect(handle.model.dragging, "otherwise the settle proves nothing").toBe(
@@ -1211,8 +1206,7 @@ describe("dragStarted and slideCommitted", () => {
       }),
     );
 
-    // slide onto the peeking candidate rather than waiting for it
-    handle.applyUserInput({ type: "dragStarted" });
+    // a tap on the peeking candidate, not a drag — a drag clears the pending first
     handle.applyUserInput({ type: "slideCommitted", id: "usa" });
 
     expect(handle.model.entries["usa"]).toMatchObject({ wasActive: true });
@@ -1285,64 +1279,67 @@ describe("invariants hold under randomized traffic", () => {
 
   const IDS = ["a", "b", "c", "d"];
 
-  it.each([1, 2, 3, 4, 5])("survives sequence seed %i", (seed) => {
-    const random = mulberry32(seed);
-    const handle = setup({ preferredLocation: "c" });
+  it.each(Array.from({ length: 25 }, (_, i) => i + 1))(
+    "survives sequence seed %i",
+    (seed) => {
+      const random = mulberry32(seed);
+      const handle = setup({ preferredLocation: "c" });
 
-    for (let stepIndex = 0; stepIndex < 60; stepIndex++) {
-      const offered = IDS.filter(() => random() > 0.25);
-      const destinations: Record<string, DestinationState> = {};
-      for (const id of offered) {
-        const roll = random();
-        destinations[id] = roll < 0.15
-          ? makeUnavailable(id)
-          : roll < 0.3
-          ? makeFull(id, Math.floor(random() * 100))
-          : makeReadyToConnect(id, Math.floor(random() * 100));
+      for (let stepIndex = 0; stepIndex < 60; stepIndex++) {
+        const offered = IDS.filter(() => random() > 0.25);
+        const destinations: Record<string, DestinationState> = {};
+        for (const id of offered) {
+          const roll = random();
+          destinations[id] = roll < 0.15
+            ? makeUnavailable(id)
+            : roll < 0.3
+            ? makeFull(id, Math.floor(random() * 100))
+            : makeReadyToConnect(id, Math.floor(random() * 100));
+        }
+
+        const liveRoll = random();
+        const liveId = offered.length > 0
+          ? offered[Math.floor(random() * offered.length)]
+          : null;
+        const status = liveRoll < 0.2 && liveId !== null
+          ? connectedTo(liveId, destinations)
+          : statusFor(destinations);
+
+        handle.applyStatusUpdate(status);
+        expectInvariants(handle.model);
+
+        const action = random();
+        if (action < 0.1) {
+          handle.applyUserInput({ type: "listOpened" });
+        } else if (action < 0.2) {
+          handle.applyUserInput({
+            type: "listClosed",
+            picked: random() < 0.5
+              ? null
+              : IDS[Math.floor(random() * IDS.length)],
+          });
+        } else if (action < 0.3) {
+          handle.applyUserInput({ type: "dragStarted" });
+        } else if (action < 0.4) {
+          handle.applyUserInput({
+            type: "slideCommitted",
+            id: IDS[Math.floor(random() * IDS.length)],
+          });
+        } else if (action < 0.45) {
+          handle.applyUserInput({
+            type: "connectIssued",
+            id: IDS[Math.floor(random() * IDS.length)],
+          });
+        }
+        expectInvariants(handle.model);
+
+        vi.advanceTimersByTime(Math.floor(random() * 4_000));
+        expectInvariants(handle.model);
       }
 
-      const liveRoll = random();
-      const liveId = offered.length > 0
-        ? offered[Math.floor(random() * offered.length)]
-        : null;
-      const status = liveRoll < 0.2 && liveId !== null
-        ? connectedTo(liveId, destinations)
-        : statusFor(destinations);
-
-      handle.applyStatusUpdate(status);
-      expectInvariants(handle.model);
-
-      const action = random();
-      if (action < 0.1) {
-        handle.applyUserInput({ type: "listOpened" });
-      } else if (action < 0.2) {
-        handle.applyUserInput({
-          type: "listClosed",
-          picked: random() < 0.5
-            ? null
-            : IDS[Math.floor(random() * IDS.length)],
-        });
-      } else if (action < 0.3) {
-        handle.applyUserInput({ type: "dragStarted" });
-      } else if (action < 0.4) {
-        handle.applyUserInput({
-          type: "slideCommitted",
-          id: IDS[Math.floor(random() * IDS.length)],
-        });
-      } else if (action < 0.45) {
-        handle.applyUserInput({
-          type: "connectIssued",
-          id: IDS[Math.floor(random() * IDS.length)],
-        });
-      }
-      expectInvariants(handle.model);
-
-      vi.advanceTimersByTime(Math.floor(random() * 4_000));
-      expectInvariants(handle.model);
-    }
-
-    // the flat view the carousel consumes must stay consistent with the store
-    expect(orderedEntries(handle.model).map((e) => e.id))
-      .toEqual(handle.model.sequence);
-  });
+      // the flat view the carousel consumes must stay consistent with the store
+      expect(orderedEntries(handle.model).map((e) => e.id))
+        .toEqual(handle.model.sequence);
+    },
+  );
 });

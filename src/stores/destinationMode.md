@@ -234,7 +234,9 @@ not necessarily the last card** — readers must not assume it is.
 ### Cold start
 
 `active === null`: at launch, or mid-session after a prune or a service restart.
-Direct promotion, no countdown, entry minted with `wasActive: true`:
+Any armed pending is discarded first — a countdown is a switch away from
+something, and there is nothing to switch away from. Then direct promotion, no
+countdown, entry minted with `wasActive: true`:
 
 1. `lastConnectedDestination` if it matches an offered destination — no
    readiness or capacity check, it is simply where the last session left off.

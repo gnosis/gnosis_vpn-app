@@ -105,6 +105,26 @@ function capacityAdjustedLatencyMs(
     (slots?.connected ?? 0) * CONNECTED_CLIENT_LATENCY_MALUS_MS;
 }
 
+/** Slots free for us — our own session must not count against the destination we are on. */
+export function freeSlots(
+  state: DestinationState,
+  liveId: string | null,
+): number | null {
+  const slots = getSlots(state);
+  if (slots === null) return null;
+  return slots.available + (state.destination.id === liveId ? 1 : 0);
+}
+
+/** Connectable right now: a ready state and a slot to take. */
+export function isReady(
+  state: DestinationState | undefined,
+  liveId: string | null,
+): boolean {
+  if (!state) return false;
+  if (state.route_health?.state.state !== "ReadyToConnect") return false;
+  return (freeSlots(state, liveId) ?? 0) > 0;
+}
+
 /** Capacity of a destination — `available` alone is free slots and drifts with load. */
 function totalSlots(slots: Slots | null): number | null {
   return slots === null ? null : slots.available + slots.connected;
