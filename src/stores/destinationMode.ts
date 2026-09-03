@@ -25,8 +25,7 @@ export const SELECTED_AUTO_REVERT_MS = 10_000;
 
 export interface Entry {
   origin: Origin;
-  // Render/reconcile identity, distinct from `id` (a re-picked destination
-  // gets a fresh key so it mounts as a new card instead of reconciling).
+  // Render/reconcile identity, distinct from `id` — lets a re-pick mount fresh.
   key: number;
 }
 
