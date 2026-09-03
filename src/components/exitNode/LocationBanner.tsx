@@ -76,10 +76,6 @@ function restoreScrollStyles(container: HTMLDivElement, to: number) {
   // re-snap can land a frame later; correct it once if it moved the strip
   requestAnimationFrame(() => {
     if (Math.abs(container.scrollLeft - to) <= 1) return;
-    console.debug("[banner] snap restore displaced", {
-      from: container.scrollLeft,
-      to,
-    });
     container.scrollLeft = to;
   });
 }
@@ -211,7 +207,13 @@ export default function LocationBanner() {
 
   const handlePointerDown = (e: PointerEvent) => {
     if (!containerRef || e.pointerType === "touch") return;
+    // WebKitGTK edge-autoscrolls the scroller during a native mouse drag once the cursor leaves it, fighting our scrollLeft writes (= the jitter) — cancel the engine's own gesture
+    e.preventDefault();
     const target = e.target instanceof Element ? e.target : null;
+    // preventDefault above also suppresses click-focus; re-focus by hand (sans focus-scroll) so arrow-key nav keeps working after a click
+    target?.closest<HTMLElement>("[data-destination-id]")?.focus({
+      preventScroll: true,
+    });
     pendingClickTarget =
       target?.closest<HTMLElement>('button, [role="button"]') ??
         null;
