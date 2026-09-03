@@ -526,6 +526,7 @@ export function createAppStore(): AppStoreTuple {
 
     connect: async (targetId: string) => {
       setState("isLoading", true);
+      // only for the log line — connecting to an unknown destination is a service-wide no-op
       const selected = state.availableDestinations.find(
         (d) => d.id === targetId,
       );
