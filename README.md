@@ -150,27 +150,6 @@ scripts (preinst/postinst) that the production package from
 [`gnosis/gnosis_vpn`](https://github.com/gnosis/gnosis_vpn) adds, but the
 installed binary is identical to the one shipped there.
 
-#### Debug state snapshots
-
-Off by default. Start the app with `--debug-snapshot` to get a **Snapshot**
-button above _Connect_ that dumps the full frontend app state as pretty JSON:
-
-```bash
-gnosis_vpn-app --debug-snapshot             # installed binary
-deno task tauri dev -- -- --debug-snapshot  # dev server; app arguments follow the second --
-```
-
-Each run writes into a fresh `/tmp/run-<timestamp>/`:
-
-- `state-NNN.json` — one file per click on **Snapshot**
-- `autotrans-NNNN.json` — one file per app-state change, recorded automatically
-  while the main screen is mounted
-
-Useful for capturing destination-mode reproductions. Without the flag the button
-stays hidden and the `write_debug_snapshot` command refuses to write, so nothing
-reaches disk. The dumps contain the whole app state — balances, destinations,
-settings — as plain text under `/tmp`.
-
 ### Code Signing (macOS)
 
 To convert a developer certificate so it can be used by tauri build flow, follow

@@ -21,9 +21,8 @@ pub mod types;
 pub mod update_install;
 
 use commands::{
-    DebugSnapshot, check_update, compress_logs, connect, debug_snapshot_enabled,
-    debug_snapshot_from_args, disconnect, get_cached_state, get_platform, run_initialization_loop,
-    set_app_icon, stop_client, write_debug_snapshot,
+    check_update, compress_logs, connect, disconnect, get_cached_state, get_platform,
+    run_initialization_loop, set_app_icon, stop_client,
 };
 use gnosis_vpn_lib::command::InfoResponse;
 use gnosis_vpn_lib::{command, socket::root as root_socket};
@@ -196,9 +195,6 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
-            let args: Vec<String> = std::env::args().collect();
-            app.manage(DebugSnapshot::new(debug_snapshot_from_args(&args)));
-
             // Load settings (settings.json) before any UI decisions
             let settings_path = app.path().app_data_dir()?.join("settings.json");
             app.manage(SettingsStore::load(settings_path));
@@ -410,8 +406,6 @@ pub fn run() {
             connect,
             disconnect,
             compress_logs,
-            write_debug_snapshot,
-            debug_snapshot_enabled,
             set_app_icon,
             get_initial_theme,
             check_update,

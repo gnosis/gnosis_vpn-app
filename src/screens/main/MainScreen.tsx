@@ -1,20 +1,17 @@
 import {
   createEffect,
   createMemo,
-  createResource,
   createSignal,
   onCleanup,
   onMount,
   Show,
 } from "solid-js";
-import { invoke } from "@tauri-apps/api/core";
 import { useAppStore } from "../../stores/appStore.ts";
 import { useSettingsStore } from "../../stores/settingsStore.ts";
 import { StatusIndicator } from "../../components/status/StatusIndicator.tsx";
 import Navigation from "../../components/Navigation.tsx";
 import LocationBanner from "../../components/exitNode/LocationBanner.tsx";
 import ConnectButton from "../../components/ConnectButton.tsx";
-import DebugSnapshotButton from "../../components/DebugSnapshotButton.tsx";
 import StatusHero from "../../components/status/StatusHero.tsx";
 import StatusLine from "../../components/status/StatusLine.tsx";
 import ConnectionStatus from "../../components/status/ConnectionStatus.tsx";
@@ -33,11 +30,6 @@ const [dismissedBalanceStatus, setDismissedBalanceStatus] = createSignal<
 export function MainScreen() {
   const [appState] = useAppStore();
   const [, settingsActions] = useSettingsStore();
-
-  // Rust owns the --debug-snapshot flag; the webview cannot read argv itself.
-  const [debugSnapshot] = createResource(() =>
-    invoke<boolean>("debug_snapshot_enabled").catch(() => false)
-  );
 
   const runModeStatus = createMemo(() =>
     isRunningRunMode(appState.runMode)
@@ -151,8 +143,7 @@ export function MainScreen() {
         </div>
         <StatusLine heightPx={connectorHeight()} bottomPx={connectorBottom()} />
       </main>
-      <div class="mt-4 w-full z-10 flex flex-col gap-2">
-        {debugSnapshot() && <DebugSnapshotButton />}
+      <div class="mt-4 w-full z-10">
         <ConnectButton />
       </div>
       <ConnectionStatus />

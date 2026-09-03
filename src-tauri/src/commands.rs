@@ -233,60 +233,6 @@ pub async fn set_app_icon(app: AppHandle, icon_name: String) -> Result<(), Strin
     }
 }
 
-/// Opt-in via CLI flag: the debug tooling dumps the whole app state to disk.
-pub const DEBUG_SNAPSHOT_FLAG: &str = "--debug-snapshot";
-
-pub struct DebugSnapshot {
-    enabled: bool,
-    // owned by Rust, never by the frontend, so a snapshot write can't escape it
-    run_dir: PathBuf,
-}
-
-impl DebugSnapshot {
-    pub fn new(enabled: bool) -> Self {
-        let millis = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_millis();
-        Self {
-            enabled,
-            run_dir: std::env::temp_dir().join(format!("run-{millis}")),
-        }
-    }
-}
-
-// Matched anywhere in argv — tauri dev forwards app arguments after its own.
-pub fn debug_snapshot_from_args(args: &[String]) -> bool {
-    args.iter().any(|arg| arg == DEBUG_SNAPSHOT_FLAG)
-}
-
-// Separators are the containment check; "", "." and ".." only trade an opaque EISDIR for a clear error.
-fn is_plain_file_name(name: &str) -> bool {
-    !name.is_empty() && name != "." && name != ".." && !name.contains('/') && !name.contains('\\')
-}
-
-// The webview cannot see argv, so it has to ask before rendering the button.
-#[tauri::command]
-pub fn debug_snapshot_enabled(state: State<DebugSnapshot>) -> bool {
-    state.enabled
-}
-
-#[tauri::command]
-pub async fn write_debug_snapshot(
-    state: State<'_, DebugSnapshot>,
-    file_name: String,
-    content: String,
-) -> Result<(), String> {
-    if !state.enabled {
-        return Err(format!("debug snapshots need {DEBUG_SNAPSHOT_FLAG}"));
-    }
-    if !is_plain_file_name(&file_name) {
-        return Err("file_name must be a plain file name".to_string());
-    }
-    std::fs::create_dir_all(&state.run_dir).map_err(|e| e.to_string())?;
-    std::fs::write(state.run_dir.join(file_name), content).map_err(|e| e.to_string())
-}
-
 #[tauri::command]
 pub async fn compress_logs(log_path: String, dest_path: String) -> Result<(), String> {
     let log_file = PathBuf::from(log_path)
@@ -676,31 +622,6 @@ fn pick_startup_target(
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn debug_snapshot_flag_is_recognized_anywhere_in_argv() {
-        let with_flag = ["gnosis_vpn-app".to_string(), "--debug-snapshot".to_string()];
-        let without = ["gnosis_vpn-app".to_string(), "--debug".to_string()];
-        assert!(debug_snapshot_from_args(&with_flag));
-        assert!(!debug_snapshot_from_args(&without));
-        assert!(!debug_snapshot_from_args(&[]));
-    }
-
-    #[test]
-    fn only_plain_file_names_are_accepted_for_snapshots() {
-        assert!(is_plain_file_name("autotrans-0001.json"));
-        for rejected in [
-            "",
-            ".",
-            "..",
-            "a/b",
-            "a\\b",
-            "/etc/passwd",
-            "../escape.json",
-        ] {
-            assert!(!is_plain_file_name(rejected), "accepted {rejected:?}");
-        }
-    }
 
     // The list is rewritten by the bump-version workflow; a malformed entry
     // would otherwise only surface as a silent runtime mismatch.
