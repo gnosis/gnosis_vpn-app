@@ -5,6 +5,8 @@ import type {
   Slots,
 } from "@src/services/vpnService.ts";
 import {
+  cardTitle,
+  holdsTitleChange,
   isVpnActive,
   resolveAutoDestination,
   sortAlphaDestinations,
@@ -338,5 +340,24 @@ describe("sortByCapacityAwareLatency", () => {
         alpha: makeUnavailable("alpha"),
       }),
     ).toEqual(["alpha", "zeta"]);
+  });
+});
+
+describe("holdsTitleChange", () => {
+  it("holds a change to auto's label on the active card", () => {
+    expect(holdsTitleChange(cardTitle("auto"), true)).toBe(true);
+  });
+
+  it("lets the selected label through — it is what ends the flash", () => {
+    expect(holdsTitleChange(cardTitle("selected"), true)).toBe(false);
+  });
+
+  it("lets connection state through, so the label never lags a connect", () => {
+    expect(holdsTitleChange(cardTitle("connecting"), true)).toBe(false);
+  });
+
+  it("never holds on a peeking card, which snaps its preview", () => {
+    expect(holdsTitleChange(cardTitle("auto"), false)).toBe(false);
+    expect(holdsTitleChange(cardTitle("selected"), false)).toBe(false);
   });
 });

@@ -203,3 +203,8 @@ export function cardTitle(phase: CardPhase): string {
       return "";
   }
 }
+
+// Auto's label can land a whole status poll before the candidate that revokes it — the one title change DestinationCard holds, so that reversal can cancel it.
+export function holdsTitleChange(next: string, isActiveCard: boolean): boolean {
+  return isActiveCard && next === cardTitle("auto");
+}

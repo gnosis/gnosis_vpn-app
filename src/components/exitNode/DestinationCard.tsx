@@ -1,6 +1,6 @@
-import { createEffect, createSignal, on, Show } from "solid-js";
+import { createEffect, createSignal, on, onCleanup, Show } from "solid-js";
 import type { DestinationState } from "@src/services/vpnService.ts";
-import { destinationLabel } from "@src/utils/destinations.ts";
+import { destinationLabel, holdsTitleChange } from "@src/utils/destinations.ts";
 import Flag from "../Flag.tsx";
 import SwitchSpinner from "./SwitchSpinner.tsx";
 import ExitNodeListButton from "./ExitNodeListButton.tsx";
@@ -8,6 +8,9 @@ import ExitNodeListButton from "./ExitNodeListButton.tsx";
 // How long each leg of the title cross-fade takes — text swaps at the
 // midpoint, once the outgoing text has fully faded out.
 const TITLE_FADE_MS = 300;
+
+// Outlasts the 2.3s status poll (src-tauri/src/commands.rs) whose lateness is what makes a held title ambiguous.
+const TITLE_SETTLE_MS = 3_000;
 
 // Card height comes from content + padding, not a fixed constant — the
 // title row's height stays the same whether the switching spinner is
@@ -33,6 +36,25 @@ export default function DestinationCard(props: {
   const [displayTitle, setDisplayTitle] = createSignal(props.title);
   const [faded, setFaded] = createSignal(false);
 
+  let settleTimer: ReturnType<typeof setTimeout> | undefined;
+  const clearSettleTimer = () => {
+    clearTimeout(settleTimer);
+    settleTimer = undefined;
+  };
+  onCleanup(clearSettleTimer);
+
+  const showTitle = (title: string) => {
+    if (!props.fadeTitle) {
+      setDisplayTitle(title);
+      return;
+    }
+    setFaded(true);
+    setTimeout(() => {
+      setDisplayTitle(title);
+      setFaded(false);
+    }, TITLE_FADE_MS);
+  };
+
   // Snaps (no fade) on the effect's first run rather than using `on`'s
   // `defer: true` — a newly-mounted card's title can already have moved on
   // from the value `createSignal(props.title)` captured at construction
@@ -52,17 +74,17 @@ export default function DestinationCard(props: {
       // when the recomputed text is unchanged (e.g. LocationBanner's
       // reveal-hold re-deriving the same "Selected Location" string) — skip
       // the fade rather than flashing the text out and back in for a no-op
-      // change.
-      if (title === displayTitle()) return;
-      if (!props.fadeTitle) {
-        setDisplayTitle(title);
+      // change. Landing back on the painted title is also a held change cancelling itself.
+      if (title === displayTitle()) {
+        clearSettleTimer();
         return;
       }
-      setFaded(true);
-      setTimeout(() => {
-        setDisplayTitle(title);
-        setFaded(false);
-      }, TITLE_FADE_MS);
+      clearSettleTimer();
+      if (holdsTitleChange(title, props.fadeTitle)) {
+        settleTimer = setTimeout(() => showTitle(title), TITLE_SETTLE_MS);
+        return;
+      }
+      showTitle(title);
     }),
   );
 
