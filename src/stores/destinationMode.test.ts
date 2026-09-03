@@ -650,3 +650,36 @@ describe("user selection", () => {
     expect(handle.model.preferredLocation).toBeNull();
   });
 });
+
+describe("user selection — a pick already in the strip", () => {
+  it("drops the existing copy and re-adds it in the outgoing slot with a fresh key", async () => {
+    const handle = setup();
+    const two = {
+      uk: makeReadyToConnect("uk", 50),
+      usa: makeReadyToConnect("usa", 10),
+    };
+    handle.applyStatusUpdate(statusFor({ uk: two.uk }));
+    await vi.advanceTimersByTimeAsync(SETTLE_MS);
+    handle.applyStatusUpdate(statusFor(two));
+    await vi.advanceTimersByTimeAsync(SETTLE_MS);
+    handle.applyStatusUpdate(
+      statusFor({ ...two, de: makeReadyToConnect("de", 5) }),
+    );
+    expect(handle.model.sequence).toEqual(["uk", "usa", "de"]);
+    expect(handle.model.active).toBe("usa");
+    const staleKey = handle.model.entries["de"].key;
+    const nextKey = handle.model.nextKey;
+
+    handle.applyUserInput({ type: "pickDestination", id: "de" });
+
+    expect(handle.model.sequence).toEqual(["uk", "de"]);
+    expect(handle.model.entries["usa"]).toBeUndefined();
+    expect(handle.model.entries["de"]).toEqual({
+      origin: "user",
+      key: nextKey,
+    });
+    expect(handle.model.entries["de"].key).not.toBe(staleKey);
+    expect(handle.model.active).toBe("de");
+    expect(handle.model.mode.mode).toBe("selected");
+  });
+});

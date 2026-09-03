@@ -223,10 +223,13 @@ export function createDestinationMode(
 
     const newEntries = { ...model.entries };
     delete newEntries[outgoing];
+    // always a fresh key — reconcile() would otherwise reposition the old card instead of mounting one
     newEntries[id] = { origin: "user", key: model.nextKey };
-    const newSequence = model.sequence.map((entryId) =>
-      entryId === outgoing ? id : entryId,
-    );
+
+    // the pick takes the outgoing slot; a copy of it elsewhere in the strip goes
+    const newSequence = model.sequence
+      .filter((entryId) => entryId !== id)
+      .map((entryId) => (entryId === outgoing ? id : entryId));
 
     setModel({
       entries: newEntries,
@@ -261,8 +264,9 @@ export function createDestinationMode(
         Object.entries(model.entries).filter(([id]) => availableIds.has(id)),
       ),
       sequence: model.sequence.filter((id) => availableIds.has(id)),
-      active:
-        model.active && availableIds.has(model.active) ? model.active : null,
+      active: model.active && availableIds.has(model.active)
+        ? model.active
+        : null,
       availableIds,
     };
   }
@@ -295,7 +299,7 @@ export function createDestinationMode(
     // one lifetime shot for preferred; only counts once routable, not merely configured
     const routablePreferredLocation = (): string | null =>
       newPreferredLocation !== null &&
-      isDestinationReadyToConnect(status.destinations[newPreferredLocation])
+        isDestinationReadyToConnect(status.destinations[newPreferredLocation])
         ? newPreferredLocation
         : null;
 
@@ -435,10 +439,9 @@ export function createDestinationMode(
     let newNextKey = model.nextKey;
 
     // a speculative candidate that never committed has no reason to linger
-    const pendingId =
-      model.mode.mode === "auto"
-        ? (model.mode.pending?.candidateId ?? null)
-        : null;
+    const pendingId = model.mode.mode === "auto"
+      ? (model.mode.pending?.candidateId ?? null)
+      : null;
     if (pendingId !== null && pendingId !== liveId) {
       removeEntry(newEntries, newSequence, pendingId);
     }
@@ -456,8 +459,9 @@ export function createDestinationMode(
       mode: { mode: "live" },
       nextKey: newNextKey,
       // preferred gets one shot ever; any path to active spends it
-      preferredLocation:
-        liveId === model.preferredLocation ? null : model.preferredLocation,
+      preferredLocation: liveId === model.preferredLocation
+        ? null
+        : model.preferredLocation,
       // only ever consulted while active is null, which it no longer is
       lastConnectedDestination: null,
     });
@@ -468,8 +472,7 @@ export function createDestinationMode(
     const mode = model.mode;
 
     // the backend's own connection state outranks any locally derived mode
-    const liveId =
-      status.connected?.destination_id ??
+    const liveId = status.connected?.destination_id ??
       status.connecting?.destination_id ??
       status.reconnecting?.destination_id ??
       null;
@@ -492,8 +495,9 @@ export function createDestinationMode(
 
     // auto absorbs the rest: fresh start or a destination that vanished
     clearRevertTimer();
-    const autoMode: AutoMode =
-      mode.mode === "auto" ? mode : { mode: "auto", pending: null };
+    const autoMode: AutoMode = mode.mode === "auto"
+      ? mode
+      : { mode: "auto", pending: null };
     applyStatusUpdateAuto(status, baseline, autoMode);
   }
 
