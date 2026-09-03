@@ -1,11 +1,13 @@
 import {
   createEffect,
   createMemo,
+  createResource,
   createSignal,
   onCleanup,
   onMount,
   Show,
 } from "solid-js";
+import { invoke } from "@tauri-apps/api/core";
 import { useAppStore } from "../../stores/appStore.ts";
 import { useSettingsStore } from "../../stores/settingsStore.ts";
 import { StatusIndicator } from "../../components/status/StatusIndicator.tsx";
@@ -31,6 +33,11 @@ const [dismissedBalanceStatus, setDismissedBalanceStatus] = createSignal<
 export function MainScreen() {
   const [appState] = useAppStore();
   const [, settingsActions] = useSettingsStore();
+
+  // Rust owns the --debug-snapshot flag; the webview cannot read argv itself.
+  const [debugSnapshot] = createResource(() =>
+    invoke<boolean>("debug_snapshot_enabled").catch(() => false)
+  );
 
   const runModeStatus = createMemo(() =>
     isRunningRunMode(appState.runMode)
@@ -145,7 +152,7 @@ export function MainScreen() {
         <StatusLine heightPx={connectorHeight()} bottomPx={connectorBottom()} />
       </main>
       <div class="mt-4 w-full z-10 flex flex-col gap-2">
-        {import.meta.env.DEV && <DebugSnapshotButton />}
+        {debugSnapshot() && <DebugSnapshotButton />}
         <ConnectButton />
       </div>
       <ConnectionStatus />

@@ -50,6 +50,7 @@
     get_cached_state: () => fixture.cached_state,
     get_initial_theme: () => fixture.theme ?? "dark",
     get_platform: () => fixture.platform ?? "linux",
+    debug_snapshot_enabled: () => fixture.debugSnapshot ?? false,
     get_install_status: () => fixture.installStatus ?? null,
     get_toolkit_version: () => fixture.toolkitVersion ?? null,
     install_update: () => {

@@ -233,8 +233,31 @@ pub async fn set_app_icon(app: AppHandle, icon_name: String) -> Result<(), Strin
     }
 }
 
+/// Opt-in via CLI flag: the debug tooling dumps the whole app state to disk.
+pub const DEBUG_SNAPSHOT_FLAG: &str = "--debug-snapshot";
+
+pub struct DebugSnapshot(pub bool);
+
+// Matched anywhere in argv — tauri dev forwards app arguments after its own.
+pub fn debug_snapshot_from_args(args: &[String]) -> bool {
+    args.iter().any(|arg| arg == DEBUG_SNAPSHOT_FLAG)
+}
+
+// The webview cannot see argv, so it has to ask before rendering the button.
 #[tauri::command]
-pub async fn write_debug_snapshot(path: String, content: String) -> Result<(), String> {
+pub fn debug_snapshot_enabled(state: State<DebugSnapshot>) -> bool {
+    state.0
+}
+
+#[tauri::command]
+pub async fn write_debug_snapshot(
+    state: State<'_, DebugSnapshot>,
+    path: String,
+    content: String,
+) -> Result<(), String> {
+    if !state.0 {
+        return Err(format!("debug snapshots need {DEBUG_SNAPSHOT_FLAG}"));
+    }
     let path = PathBuf::from(path);
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
@@ -631,6 +654,15 @@ fn pick_startup_target(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn debug_snapshot_flag_is_recognized_anywhere_in_argv() {
+        let with_flag = ["gnosis_vpn-app".to_string(), "--debug-snapshot".to_string()];
+        let without = ["gnosis_vpn-app".to_string(), "--debug".to_string()];
+        assert!(debug_snapshot_from_args(&with_flag));
+        assert!(!debug_snapshot_from_args(&without));
+        assert!(!debug_snapshot_from_args(&[]));
+    }
 
     // The list is rewritten by the bump-version workflow; a malformed entry
     // would otherwise only surface as a silent runtime mismatch.
