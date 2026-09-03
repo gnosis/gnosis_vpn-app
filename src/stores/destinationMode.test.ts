@@ -8,6 +8,7 @@ import {
   createDestinationMode,
   type DestinationModeSettings,
   type ModeAppState,
+  SELECTED_AUTO_REVERT_MS,
   SWITCH_COUNTDOWN_MS,
   SWITCH_CROSSOVER_MS,
 } from "./destinationMode.ts";
@@ -60,6 +61,16 @@ function statusFor(
     connected: null,
     connecting: null,
     reconnecting: null,
+  };
+}
+
+function connectedTo(
+  id: string,
+  destinations: Record<string, DestinationState>,
+): ModeAppState {
+  return {
+    ...statusFor(destinations),
+    connected: { destination_id: id, since: 0 },
   };
 }
 
@@ -268,16 +279,34 @@ describe("preferred location — one-shot promotion (auto mode)", () => {
 });
 
 describe("mode derived from status", () => {
-  it("a backend connection state takes priority over the local mode", () => {
+  it("a backend connection state takes priority over the local mode", async () => {
     const handle = setup();
-    const destinations = { uk: makeReadyToConnect("uk", 50) };
+    const destinations = {
+      uk: makeReadyToConnect("uk", 50),
+      usa: makeReadyToConnect("usa", 10),
+    };
 
-    expect(() =>
-      handle.applyStatusUpdate({
-        ...statusFor(destinations),
-        connecting: { destination_id: "uk", since: 0, phase: "Init" },
-      })
-    ).toThrow("not implemented");
+    // auto has just armed a countdown toward the faster "usa"
+    handle.applyStatusUpdate(statusFor(destinations));
+    expect(handle.model.mode).toMatchObject({
+      pending: { candidateId: "usa" },
+    });
+
+    handle.applyStatusUpdate({
+      ...statusFor(destinations),
+      connecting: { destination_id: "uk", since: 0, phase: "Init" },
+    });
+
+    expect(handle.model.active).toBe("uk");
+    expect(handle.model.mode).toEqual({ mode: "live" });
+    // the candidate never committed, so its speculative entry goes with it
+    expect(handle.model.entries["usa"]).toBeUndefined();
+    expect(handle.model.sequence).toEqual(["uk"]);
+
+    // the disarmed countdown must not fire behind the live connection
+    await vi.advanceTimersByTimeAsync(SETTLE_MS);
+    expect(handle.model.active).toBe("uk");
+    expect(handle.model.mode).toEqual({ mode: "live" });
   });
 
   it("prunes entries the backend no longer offers", async () => {
@@ -294,6 +323,114 @@ describe("mode derived from status", () => {
 
     expect(handle.model.entries["usa"]).toBeUndefined();
     expect(handle.model.sequence).not.toContain("usa");
+  });
+});
+
+describe("live mode — the backend's own connection state", () => {
+  it("keeps a destination the backend no longer offers as the active entry", () => {
+    const handle = setup();
+
+    handle.applyStatusUpdate({
+      ...statusFor({ uk: makeReadyToConnect("uk", 50) }),
+      connected: { destination_id: "gone", since: 0 },
+    });
+
+    expect(handle.model.active).toBe("gone");
+    expect(handle.model.entries["gone"]).toMatchObject({ origin: "auto" });
+    expect(handle.model.sequence).toContain("gone");
+  });
+
+  it("follows a backend retarget, keeping the destination it switched away from", () => {
+    const handle = setup();
+    const destinations = {
+      uk: makeReadyToConnect("uk", 50),
+      usa: makeReadyToConnect("usa", 10),
+    };
+
+    handle.applyStatusUpdate(connectedTo("uk", destinations));
+    handle.applyStatusUpdate(connectedTo("usa", destinations));
+
+    expect(handle.model.active).toBe("usa");
+    expect(handle.model.sequence).toEqual(["uk", "usa"]);
+  });
+
+  it("reuses an existing entry rather than minting a fresh render key for it", () => {
+    const handle = setup();
+    const destinations = {
+      uk: makeReadyToConnect("uk", 50),
+      usa: makeReadyToConnect("usa", 10),
+    };
+
+    handle.applyStatusUpdate(connectedTo("uk", destinations));
+    handle.applyStatusUpdate(connectedTo("usa", destinations));
+    const ukKey = handle.model.entries["uk"].key;
+
+    handle.applyStatusUpdate(connectedTo("uk", destinations));
+
+    expect(handle.model.entries["uk"].key).toBe(ukKey);
+    expect(handle.model.sequence).toEqual(["uk", "usa"]);
+  });
+
+  it("spends the preferred location's one shot and drops the cold-start fallback", () => {
+    const handle = setup({
+      preferredLocation: "p",
+      lastConnectedDestination: "old",
+    });
+
+    handle.applyStatusUpdate(connectedTo("p", { p: makeReadyToConnect("p") }));
+
+    expect(handle.model.preferredLocation).toBeNull();
+    expect(handle.model.lastConnectedDestination).toBeNull();
+  });
+});
+
+describe("leaving live — selected, then the flat revert to auto", () => {
+  it("parks on the last live destination, then falls back to auto after the deadline", async () => {
+    const handle = setup();
+    const destinations = {
+      uk: makeReadyToConnect("uk", 50),
+      usa: makeReadyToConnect("usa", 10),
+    };
+
+    handle.applyStatusUpdate(connectedTo("uk", destinations));
+    handle.applyStatusUpdate(statusFor(destinations));
+
+    expect(handle.model.active).toBe("uk");
+    expect(handle.model.mode).toEqual({
+      mode: "selected",
+      autoRevertAt: Date.now() + SELECTED_AUTO_REVERT_MS,
+    });
+
+    // a faster destination does not pull selected away before its deadline
+    handle.applyStatusUpdate(statusFor(destinations));
+    expect(handle.model.active).toBe("uk");
+    expect(handle.model.mode.mode).toBe("selected");
+
+    await vi.advanceTimersByTimeAsync(SELECTED_AUTO_REVERT_MS);
+
+    expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
+    expect(handle.model.active).toBe("uk");
+    expect(handle.model.sequence).toEqual(["uk"]);
+  });
+
+  it("falls through to auto when the destination it parked on stops being routable", () => {
+    const handle = setup();
+
+    handle.applyStatusUpdate(
+      connectedTo("uk", { uk: makeReadyToConnect("uk", 50) }),
+    );
+    handle.applyStatusUpdate(statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    expect(handle.model.mode.mode).toBe("selected");
+
+    handle.applyStatusUpdate(statusFor({
+      uk: makeUnavailable("uk"),
+      usa: makeReadyToConnect("usa", 10),
+    }));
+
+    expect(handle.model.mode).toMatchObject({
+      mode: "auto",
+      pending: { candidateId: "usa" },
+    });
   });
 });
 

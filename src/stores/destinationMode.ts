@@ -20,6 +20,8 @@ export const SWITCH_COUNTDOWN_MS = 5_000;
 export const SWITCH_CROSSOVER_MS = 666;
 // Total duration of the (UI-owned) slide animation once a switch starts.
 export const SWITCH_ANIMATE_MS = 1_000;
+// Flat, unconditional deadline for a selected destination to fall back to auto.
+export const SELECTED_AUTO_REVERT_MS = 10_000;
 
 export interface Entry {
   origin: Origin;
@@ -105,6 +107,17 @@ function isDestinationReadyToConnect(destState?: DestinationState): boolean {
   return isReadyToConnect(destState?.route_health ?? undefined);
 }
 
+/** Drops a destination's entry/sequence slot — e.g. a pending candidate that never committed. */
+function removeEntry(
+  entries: Record<string, Entry>,
+  sequence: string[],
+  id: string,
+): void {
+  delete entries[id];
+  const index = sequence.indexOf(id);
+  if (index !== -1) sequence.splice(index, 1);
+}
+
 function initialModel(settings: DestinationModeSettings): DestinationMode {
   return {
     entries: {},
@@ -132,6 +145,36 @@ export function createDestinationMode(
     clearTimeout(pendingTimer);
     pendingTimer = undefined;
   };
+
+  let revertTimer: ReturnType<typeof setTimeout> | undefined;
+  const clearRevertTimer = () => {
+    clearTimeout(revertTimer);
+    revertTimer = undefined;
+  };
+
+  // entries/sequence/active all stay put — only the mode falls back
+  function revertToAuto(): void {
+    revertTimer = undefined;
+    if (model.mode.mode !== "selected") return;
+    // a top-level write replaces the mode; setModel("mode", ...) would merge
+    setModel({ mode: { mode: "auto", pending: null } });
+  }
+
+  // the one place `selected` is constructed, so its deadline can never be forgotten
+  function enterSelected(baseline: Baseline, id: string): void {
+    clearPendingTimer();
+    clearRevertTimer();
+    revertTimer = setTimeout(revertToAuto, SELECTED_AUTO_REVERT_MS);
+    setModel({
+      entries: baseline.entries,
+      sequence: baseline.sequence,
+      active: id,
+      mode: {
+        mode: "selected",
+        autoRevertAt: Date.now() + SELECTED_AUTO_REVERT_MS,
+      },
+    });
+  }
 
   function commitPendingCandidate(): void {
     if (model.mode.mode !== "auto" || model.mode.pending === null) return;
@@ -216,18 +259,11 @@ export function createDestinationMode(
         ? newPreferredLocation
         : null;
 
-    // removes a candidate's transient entry/sequence slot (a pending candidate that never committed)
-    const removeEntry = (id: string) => {
-      delete newEntries[id];
-      const index = newSequence.indexOf(id);
-      if (index !== -1) newSequence.splice(index, 1);
-    };
-
     // moves the pending slot to candidateId, dropping the old one's entry; leaves timing alone
     const swapPendingEntry = (candidateId: string) => {
       const staleId = newMode.pending?.candidateId ?? null;
       if (staleId !== null && staleId !== candidateId) {
-        removeEntry(staleId);
+        removeEntry(newEntries, newSequence, staleId);
       }
       if (!(candidateId in newEntries)) {
         newEntries[candidateId] = { origin: "auto", key: newNextKey++ };
@@ -241,7 +277,7 @@ export function createDestinationMode(
     const dropPendingEntry = () => {
       const staleId = newMode.pending?.candidateId ?? null;
       if (staleId !== null && staleId !== newActive) {
-        removeEntry(staleId);
+        removeEntry(newEntries, newSequence, staleId);
       }
     };
 
@@ -330,11 +366,16 @@ export function createDestinationMode(
   }
 
   function applyStatusUpdateSelected(
-    _status: ModeAppState,
+    status: ModeAppState,
     baseline: Baseline,
     mode: SelectedMode,
   ): void {
-    // TODO: autoRevertAt handling; for now only the sanity check lands
+    // the deadline, not the timer, is the source of truth — timers get throttled
+    if (Date.now() >= mode.autoRevertAt) {
+      clearRevertTimer();
+      applyStatusUpdateAuto(status, baseline, { mode: "auto", pending: null });
+      return;
+    }
     setModel({
       entries: baseline.entries,
       sequence: baseline.sequence,
@@ -343,13 +384,43 @@ export function createDestinationMode(
     });
   }
 
-  function applyStatusUpdateLive(
-    _status: ModeAppState,
-    _baseline: Baseline,
-    _liveId: string,
-  ): void {
-    // TODO: derive active/entries from liveId; must also clearPendingTimer()
-    throw new Error("not implemented");
+  function applyStatusUpdateLive(baseline: Baseline, liveId: string): void {
+    // nothing derived locally outranks a real connection — a countdown least of all
+    clearPendingTimer();
+    clearRevertTimer();
+
+    // mutated in place below, then written back in one go
+    const newEntries = baseline.entries;
+    const newSequence = baseline.sequence;
+    let newNextKey = model.nextKey;
+
+    // a speculative candidate that never committed has no reason to linger
+    const pendingId = model.mode.mode === "auto"
+      ? model.mode.pending?.candidateId ?? null
+      : null;
+    if (pendingId !== null && pendingId !== liveId) {
+      removeEntry(newEntries, newSequence, pendingId);
+    }
+
+    // what we're connected to stays in entries even once no longer offered
+    if (!(liveId in newEntries)) {
+      newEntries[liveId] = { origin: "auto", key: newNextKey++ };
+      newSequence.push(liveId);
+    }
+
+    setModel({
+      entries: newEntries,
+      sequence: newSequence,
+      active: liveId,
+      mode: { mode: "live" },
+      nextKey: newNextKey,
+      // preferred gets one shot ever; any path to active spends it
+      preferredLocation: liveId === model.preferredLocation
+        ? null
+        : model.preferredLocation,
+      // only ever consulted while active is null, which it no longer is
+      lastConnectedDestination: null,
+    });
   }
 
   function applyStatusUpdate(status: ModeAppState): void {
@@ -362,20 +433,26 @@ export function createDestinationMode(
       status.reconnecting?.destination_id ??
       null;
     if (liveId !== null) {
-      applyStatusUpdateLive(status, baseline, liveId);
+      applyStatusUpdateLive(baseline, liveId);
       return;
     }
 
-    // selected only survives while its destination is still there
+    // leaving live parks on the last live id; teardown is UI feedback only
+    if (mode.mode === "live" && baseline.active !== null) {
+      enterSelected(baseline, baseline.active);
+      return;
+    }
+
+    // selected only survives while its destination is still there and routable
     if (mode.mode === "selected" && baseline.active !== null) {
-      if (!isDestinationReadyToConnect(status.destinations[baseline.active])) {
-        throw new Error("selected destination is no longer ready to connect");
+      if (isDestinationReadyToConnect(status.destinations[baseline.active])) {
+        applyStatusUpdateSelected(status, baseline, mode);
+        return;
       }
-      applyStatusUpdateSelected(status, baseline, mode);
-      return;
     }
 
-    // auto also absorbs a fresh start and dropping out of live
+    // auto absorbs the rest: fresh start, vanished or unroutable destination
+    clearRevertTimer();
     const autoMode: AutoMode = mode.mode === "auto"
       ? mode
       : { mode: "auto", pending: null };
