@@ -135,7 +135,7 @@ export default function ExitNodeList(props: {
 
   return (
     <div
-      class="fixed inset-0 z-100 bg-bg-primary flex flex-col outline-none scale-y-100 opacity-100 transition-[scale,opacity] duration-300 ease-out starting:scale-y-0 starting:opacity-0 motion-reduce:transition-none"
+      class="fixed inset-0 z-100 bg-bg-primary flex flex-col outline-none list-expand-in"
       style={{ "transform-origin": `50% ${props.originY}px` }}
     >
       <div class="flex items-center w-full gap-2 px-3 py-3 border-b border-border shrink-0">

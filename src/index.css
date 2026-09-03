@@ -268,7 +268,8 @@ select {
 @media (prefers-reduced-motion: reduce) {
   .owl-blink,
   .check-draw,
-  .check-pop-entry {
+  .check-pop-entry,
+  .list-expand-in {
     animation: none;
   }
   .owl-fill-layer {
@@ -301,6 +302,22 @@ select {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* Expands from the opening button (origin inlined); keyframed transform because WebKitGTK won't animate standalone `scale` from @starting-style. */
+.list-expand-in {
+  animation: list-expand-in 300ms ease-out both;
+}
+
+@keyframes list-expand-in {
+  from {
+    opacity: 0;
+    transform: scaleY(0);
+  }
+  to {
+    opacity: 1;
+    transform: scaleY(1);
   }
 }
 
