@@ -537,13 +537,21 @@ export function createAppStore(): AppStoreTuple {
 
       try {
         await VPNService.connect(targetId);
-        await settingsActions.setLastConnectedDestination(targetId);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         log(message);
         setState("error", message);
-      } finally {
         setState("isLoading", false);
+        return;
+      }
+      setState("isLoading", false);
+
+      // best-effort — losing this only affects which destination auto-reconnect tries next
+      try {
+        await settingsActions.setLastConnectedDestination(targetId);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        log(`Failed to persist last connected destination: ${message}`);
       }
     },
 
