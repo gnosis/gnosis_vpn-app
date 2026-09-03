@@ -510,22 +510,23 @@ export default function LocationBanner() {
     return lastId;
   }, undefined);
 
-  // Per-entry, not global — only the active card and its pending candidate ever read "Best Location".
+  // Per-entry, not global. "Best Location" is auto mode's own label — a user
+  // selection reads "Selected Location" even when it is the best destination.
   const titleFor = (entry: DestinationEntry): string => {
-    const active = appState.mode.active;
     const mode = appState.mode.mode;
     const pending = mode.mode === "auto" ? mode.pending : null;
-    const isActive = entry.id === active;
-    const isPendingCandidate = pending?.candidateId === entry.id;
 
-    if (!isActive) {
-      // The pending candidate previews as "Best Location" while it's still
-      // just peeking, ahead of actually becoming active.
-      return isPendingCandidate ? cardTitle("auto") : cardTitle("selected");
+    if (entry.id !== appState.mode.active) {
+      // a pending candidate previews as "Best Location" while it is still peeking
+      return pending?.candidateId === entry.id
+        ? cardTitle("auto")
+        : cardTitle("selected");
     }
 
-    // A pending candidate means even the active card isn't provably best anymore.
-    return cardTitle(pending !== null ? "selected" : "auto");
+    if (mode.mode === "live") return cardTitle("connecting");
+    // a pending candidate means even the active card isn't provably best anymore
+    if (mode.mode === "auto" && pending === null) return cardTitle("auto");
+    return cardTitle("selected");
   };
 
   // Rule 7's UI half: once a pending candidate's countdown (the headline
