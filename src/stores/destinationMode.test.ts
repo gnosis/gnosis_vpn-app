@@ -413,7 +413,7 @@ describe("leaving live — selected, then the flat revert to auto", () => {
     expect(handle.model.sequence).toEqual(["uk"]);
   });
 
-  it("falls through to auto when the destination it parked on stops being routable", () => {
+  it("holds selected for its full deadline even once the destination stops being routable", async () => {
     const handle = setup();
 
     handle.applyStatusUpdate(
@@ -422,15 +422,43 @@ describe("leaving live — selected, then the flat revert to auto", () => {
     handle.applyStatusUpdate(statusFor({ uk: makeReadyToConnect("uk", 50) }));
     expect(handle.model.mode.mode).toBe("selected");
 
-    handle.applyStatusUpdate(statusFor({
+    const unroutableUk = statusFor({
       uk: makeUnavailable("uk"),
       usa: makeReadyToConnect("usa", 10),
-    }));
+    });
+    handle.applyStatusUpdate(unroutableUk);
 
+    // readiness does not shorten the window, and nothing is armed behind it
+    expect(handle.model.mode.mode).toBe("selected");
+    expect(handle.model.active).toBe("uk");
+
+    await vi.advanceTimersByTimeAsync(SELECTED_AUTO_REVERT_MS);
+
+    // the revert only swaps the mode — the auto pass runs on the next tick
+    expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
+    expect(handle.model.active).toBe("uk");
+
+    handle.applyStatusUpdate(unroutableUk);
     expect(handle.model.mode).toMatchObject({
       mode: "auto",
       pending: { candidateId: "usa" },
     });
+  });
+
+  it("falls through to auto immediately when the destination it parked on vanishes", () => {
+    const handle = setup();
+
+    handle.applyStatusUpdate(
+      connectedTo("uk", { uk: makeReadyToConnect("uk", 50) }),
+    );
+    handle.applyStatusUpdate(statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    expect(handle.model.mode.mode).toBe("selected");
+
+    handle.applyStatusUpdate(statusFor({ usa: makeReadyToConnect("usa", 10) }));
+
+    expect(handle.model.mode.mode).toBe("auto");
+    expect(handle.model.entries["uk"]).toBeUndefined();
+    expect(handle.model.sequence).not.toContain("uk");
   });
 });
 

@@ -443,15 +443,13 @@ export function createDestinationMode(
       return;
     }
 
-    // selected only survives while its destination is still there and routable
+    // only the flat deadline or a vanished destination ends a selection, never readiness
     if (mode.mode === "selected" && baseline.active !== null) {
-      if (isDestinationReadyToConnect(status.destinations[baseline.active])) {
-        applyStatusUpdateSelected(status, baseline, mode);
-        return;
-      }
+      applyStatusUpdateSelected(status, baseline, mode);
+      return;
     }
 
-    // auto absorbs the rest: fresh start, vanished or unroutable destination
+    // auto absorbs the rest: fresh start or a destination that vanished
     clearRevertTimer();
     const autoMode: AutoMode = mode.mode === "auto"
       ? mode
