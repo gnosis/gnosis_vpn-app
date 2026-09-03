@@ -405,14 +405,9 @@ export default function LocationBanner() {
   // duration it would have faded in with, instead of vanishing instantly.
   const CARD_EXIT_FADE_MS = 700;
 
-  // What <For> actually renders: `modeEntries()` plus any entry that just
-  // dropped out of it, kept around (and marked via `exitingKeys`) until its
-  // fade-out finishes. New entries need no such bookkeeping — their fade-in
-  // is handled entirely by the starting:opacity-0 CSS below, so they can join
-  // immediately. Tracked by `entry.key` rather than destination id — picking
-  // a destination that's already elsewhere in history mints a fresh key for
-  // it (see pickDestination), so it mounts here as a new card instead of
-  // reconciling into, and silently repositioning, the old one.
+  // What <For> renders: the model's entries, plus ones that just dropped out of
+  // it, kept in their old slot until their fade-out finishes. Keyed by
+  // `entry.key`, not destination id — a re-picked destination gets a fresh key.
   const [displayEntries, setDisplayEntries] = createSignal<DestinationEntry[]>(
     [],
   );
@@ -420,18 +415,29 @@ export default function LocationBanner() {
     new Set(),
   );
 
-  createEffect((prevKeys: number[]) => {
+  const activeKey = (): number | null => {
+    const active = appState.mode.active;
+    return active === null ? null : appState.mode.entries[active]?.key ?? null;
+  };
+
+  createEffect((prev: { keys: number[]; activeKey: number | null }) => {
     const nextEntries = modeEntries();
     const nextKeys = nextEntries.map((e) => e.key);
-    const removedKeys = prevKeys.filter((key) => !nextKeys.includes(key));
+    const removedKeys = prev.keys.filter((key) => !nextKeys.includes(key));
+    const arrived = nextKeys.some((key) => !prev.keys.includes(key));
 
-    if (removedKeys.length > 0) {
+    // A pick replaces the active card inside its own slot, so that one card is
+    // gone at once; anything else that left still fades out where it sat.
+    const replacedKey = arrived ? prev.activeKey : null;
+    const fadingKeys = removedKeys.filter((key) => key !== replacedKey);
+
+    if (fadingKeys.length > 0) {
       setExitingKeys((cur) => {
         const next = new Set(cur);
-        removedKeys.forEach((key) => next.add(key));
+        fadingKeys.forEach((key) => next.add(key));
         return next;
       });
-      for (const key of removedKeys) {
+      for (const key of fadingKeys) {
         setTimeout(() => {
           setExitingKeys((cur) => {
             if (!cur.has(key)) return cur;
@@ -444,21 +450,22 @@ export default function LocationBanner() {
       }
     }
 
-    // Preserve existing slots (including ones still fading out) rather than
-    // appending everything anew, so a removal doesn't reshuffle neighbors.
     setDisplayEntries((cur) => {
-      const stillPresent = cur.filter((e) =>
-        nextKeys.includes(e.key) || removedKeys.includes(e.key)
+      // reuse existing slot objects so <For> repositions instead of remounting
+      const existing = new Map(cur.map((e) => [e.key, e]));
+      const next = nextEntries.map((e) => existing.get(e.key) ?? e);
+      // a card still fading out keeps its slot, so its neighbours don't reshuffle
+      const fading = cur.filter((e) =>
+        !nextKeys.includes(e.key) && e.key !== replacedKey
       );
-      const stillPresentKeys = stillPresent.map((e) => e.key);
-      const withNew = nextEntries.filter((e) =>
-        !stillPresentKeys.includes(e.key)
-      );
-      return [...stillPresent, ...withNew];
+      for (const entry of fading) {
+        next.splice(Math.min(cur.indexOf(entry), next.length), 0, entry);
+      }
+      return next;
     });
 
-    return nextKeys;
-  }, modeEntries().map((e) => e.key));
+    return { keys: nextKeys, activeKey: activeKey() };
+  }, { keys: modeEntries().map((e) => e.key), activeKey: activeKey() });
 
   const slideToAdjacent = (id: string, direction: 1 | -1) => {
     const order = modeEntries().map((e) => e.id);
@@ -565,8 +572,13 @@ export default function LocationBanner() {
               {(ds) => (
                 <div
                   data-destination-id={entry.id}
-                  class="relative w-[calc(100%-36px)] shrink-0 snap-center transition-opacity duration-700 ease-out starting:opacity-0"
-                  classList={{ "opacity-0": exitingKeys().has(entry.key) }}
+                  class="relative w-[calc(100%-36px)] shrink-0 snap-center transition-opacity duration-700 ease-out"
+                  classList={{
+                    "opacity-0": exitingKeys().has(entry.key),
+                    // the card the user just chose must not fade in under them
+                    "starting:opacity-0": entry.id !==
+                      currentDisplayId(appState.mode),
+                  }}
                   aria-label="Exit node, use left and right arrow keys to browse"
                   tabIndex={0}
                   onKeyDown={(e) => {
