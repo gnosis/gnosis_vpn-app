@@ -197,7 +197,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let args: Vec<String> = std::env::args().collect();
-            app.manage(DebugSnapshot(debug_snapshot_from_args(&args)));
+            app.manage(DebugSnapshot::new(debug_snapshot_from_args(&args)));
 
             // Load settings (settings.json) before any UI decisions
             let settings_path = app.path().app_data_dir()?.join("settings.json");

@@ -3,12 +3,6 @@ import { invoke } from "@tauri-apps/api/core";
 import Button from "./common/Button.tsx";
 import { useAppStore } from "../stores/appStore.ts";
 
-let runDir: string | null = null;
-function getRunDir(): string {
-  if (!runDir) runDir = `/tmp/run-${Date.now()}`;
-  return runDir;
-}
-
 // appState.balance holds wei amounts as BigInt, which JSON.stringify rejects outright.
 function stringifyState(appState: unknown): string {
   return JSON.stringify(
@@ -20,10 +14,7 @@ function stringifyState(appState: unknown): string {
 
 async function persistSnapshot(fileName: string, content: string) {
   try {
-    await invoke("write_debug_snapshot", {
-      path: `${getRunDir()}/${fileName}`,
-      content,
-    });
+    await invoke("write_debug_snapshot", { fileName, content });
   } catch (error) {
     console.error("Failed to write debug snapshot:", error);
   }

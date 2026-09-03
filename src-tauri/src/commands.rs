@@ -236,7 +236,24 @@ pub async fn set_app_icon(app: AppHandle, icon_name: String) -> Result<(), Strin
 /// Opt-in via CLI flag: the debug tooling dumps the whole app state to disk.
 pub const DEBUG_SNAPSHOT_FLAG: &str = "--debug-snapshot";
 
-pub struct DebugSnapshot(pub bool);
+pub struct DebugSnapshot {
+    enabled: bool,
+    // owned by Rust, never by the frontend, so a snapshot write can't escape it
+    run_dir: PathBuf,
+}
+
+impl DebugSnapshot {
+    pub fn new(enabled: bool) -> Self {
+        let millis = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis();
+        Self {
+            enabled,
+            run_dir: std::env::temp_dir().join(format!("run-{millis}")),
+        }
+    }
+}
 
 // Matched anywhere in argv — tauri dev forwards app arguments after its own.
 pub fn debug_snapshot_from_args(args: &[String]) -> bool {
@@ -246,23 +263,23 @@ pub fn debug_snapshot_from_args(args: &[String]) -> bool {
 // The webview cannot see argv, so it has to ask before rendering the button.
 #[tauri::command]
 pub fn debug_snapshot_enabled(state: State<DebugSnapshot>) -> bool {
-    state.0
+    state.enabled
 }
 
 #[tauri::command]
 pub async fn write_debug_snapshot(
     state: State<'_, DebugSnapshot>,
-    path: String,
+    file_name: String,
     content: String,
 ) -> Result<(), String> {
-    if !state.0 {
+    if !state.enabled {
         return Err(format!("debug snapshots need {DEBUG_SNAPSHOT_FLAG}"));
     }
-    let path = PathBuf::from(path);
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    if file_name.contains('/') || file_name.contains('\\') || file_name == ".." {
+        return Err("file_name must be a plain file name".to_string());
     }
-    std::fs::write(&path, content).map_err(|e| e.to_string())
+    std::fs::create_dir_all(&state.run_dir).map_err(|e| e.to_string())?;
+    std::fs::write(state.run_dir.join(file_name), content).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
