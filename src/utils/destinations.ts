@@ -105,6 +105,11 @@ function capacityAdjustedLatencyMs(
     (slots?.connected ?? 0) * CONNECTED_CLIENT_LATENCY_MALUS_MS;
 }
 
+/** Capacity of a destination — `available` alone is free slots and drifts with load. */
+function totalSlots(slots: Slots | null): number | null {
+  return slots === null ? null : slots.available + slots.connected;
+}
+
 /** Sort ids: full destinations last, then by latency (malus-adjusted when capacity differs). */
 export function sortByCapacityAwareLatency(
   destinations: Record<string, DestinationState>,
@@ -119,8 +124,7 @@ export function sortByCapacityAwareLatency(
     const isFullB = slotsB !== null && slotsB.available <= 0;
     if (isFullA !== isFullB) return isFullA ? 1 : -1;
 
-    const sameCapacity =
-      (slotsA?.available ?? null) === (slotsB?.available ?? null);
+    const sameCapacity = totalSlots(slotsA) === totalSlots(slotsB);
     const msA = sameCapacity
       ? getSortLatencyMs(stateA)
       : capacityAdjustedLatencyMs(stateA, slotsA);

@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 import type {
   Destination,
   DestinationState,
+  Slots,
 } from "@src/services/vpnService.ts";
 import {
   isVpnActive,
   resolveAutoDestination,
   sortAlphaDestinations,
+  sortByCapacityAwareLatency,
   sortByHealthScore,
 } from "./destinations.ts";
 
@@ -20,6 +22,7 @@ const BASE_DESTINATION: Destination = {
 function makeReadyToConnect(
   id: string,
   pingNanos = 50_000_000,
+  slots: Slots = { available: 5, connected: 2 },
 ): DestinationState {
   return {
     destination: { ...BASE_DESTINATION, id },
@@ -31,7 +34,7 @@ function makeReadyToConnect(
           versions: { versions: [], latest: "" },
           ping_rtt: pingNanos / 1_000_000,
           health: {
-            slots: { available: 5, connected: 2 },
+            slots,
             load_avg: { one: 0.5, five: 0.5, fifteen: 0.5, nproc: 4 },
           },
         },
@@ -278,5 +281,62 @@ describe("sortByHealthScore", () => {
 
     expect(sorted[0].id).toBe("ready");
     expect(sorted[1].id).toBe("unreachable");
+  });
+});
+
+describe("sortByCapacityAwareLatency", () => {
+  it("sorts by raw latency when both have the same total slots", () => {
+    // busy has 4 connected clients, so a malus would have pushed it behind idle
+    expect(
+      sortByCapacityAwareLatency({
+        idle: makeReadyToConnect("idle", 60_000_000, {
+          available: 8,
+          connected: 0,
+        }),
+        busy: makeReadyToConnect("busy", 20_000_000, {
+          available: 4,
+          connected: 4,
+        }),
+      }),
+    ).toEqual(["busy", "idle"]);
+  });
+
+  it("applies the connected-client malus when total slots differ", () => {
+    expect(
+      sortByCapacityAwareLatency({
+        small: makeReadyToConnect("small", 20_000_000, {
+          available: 1,
+          connected: 4,
+        }),
+        large: makeReadyToConnect("large", 60_000_000, {
+          available: 9,
+          connected: 1,
+        }),
+      }),
+    ).toEqual(["large", "small"]);
+  });
+
+  it("sorts full destinations last regardless of latency", () => {
+    expect(
+      sortByCapacityAwareLatency({
+        full: makeReadyToConnect("full", 10_000_000, {
+          available: 0,
+          connected: 7,
+        }),
+        slow: makeReadyToConnect("slow", 200_000_000, {
+          available: 3,
+          connected: 4,
+        }),
+      }),
+    ).toEqual(["slow", "full"]);
+  });
+
+  it("falls back to the label when neither has latency data", () => {
+    expect(
+      sortByCapacityAwareLatency({
+        zeta: makeUnavailable("zeta"),
+        alpha: makeUnavailable("alpha"),
+      }),
+    ).toEqual(["alpha", "zeta"]);
   });
 });
