@@ -25,7 +25,8 @@ export const SELECTED_AUTO_REVERT_MS = 10_000;
 
 export interface Entry {
   origin: Origin;
-  // Render/reconcile identity — see backupDestinationMode's DestinationEntry.key.
+  // Render/reconcile identity, distinct from `id` (a re-picked destination
+  // gets a fresh key so it mounts as a new card instead of reconciling).
   key: number;
 }
 
@@ -69,7 +70,7 @@ export interface DestinationMode {
   lastConnectedDestination: string | null;
 }
 
-/** The slice of AppState a status update carries; defined locally, not imported from backupDestinationMode.ts. */
+/** The slice of AppState a status update carries. */
 export interface ModeAppState {
   availableDestinations: Destination[];
   destinations: Record<string, DestinationState>;

@@ -166,11 +166,10 @@ Each run writes into a fresh `/tmp/run-<timestamp>/`:
 - `autotrans-NNNN.json` — one file per app-state change, recorded automatically
   while the main screen is mounted
 
-Useful for capturing destination-mode reproductions (see
-`docs/backup-destination-mode.md`). Without the flag the button stays hidden and
-the `write_debug_snapshot` command refuses to write, so nothing reaches disk.
-The dumps contain the whole app state — balances, destinations, settings — as
-plain text under `/tmp`.
+Useful for capturing destination-mode reproductions. Without the flag the button
+stays hidden and the `write_debug_snapshot` command refuses to write, so nothing
+reaches disk. The dumps contain the whole app state — balances, destinations,
+settings — as plain text under `/tmp`.
 
 ### Code Signing (macOS)
 
