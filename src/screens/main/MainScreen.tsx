@@ -2,8 +2,6 @@ import {
   createEffect,
   createMemo,
   createSignal,
-  onCleanup,
-  onMount,
   Show,
 } from "solid-js";
 import { useAppStore } from "../../stores/appStore.ts";
@@ -13,7 +11,6 @@ import Navigation from "../../components/Navigation.tsx";
 import LocationBanner from "../../components/exitNode/LocationBanner.tsx";
 import ConnectButton from "../../components/ConnectButton.tsx";
 import StatusHero from "../../components/status/StatusHero.tsx";
-import StatusLine from "../../components/status/StatusLine.tsx";
 import ConnectionStatus from "../../components/status/ConnectionStatus.tsx";
 import { openSettingsWindow } from "../../utils/settingsWindow.ts";
 import { isRunningRunMode } from "../../services/vpnService.ts";
@@ -52,42 +49,6 @@ export function MainScreen() {
       ? "Your balance is empty"
       : "Your balance is low";
 
-  let mainRef!: HTMLDivElement;
-  let exitAnchorRef!: HTMLDivElement;
-  const [connectorHeight, setConnectorHeight] = createSignal(0);
-  const [connectorBottom, setConnectorBottom] = createSignal(0);
-
-  const computeConnectorHeight = () => {
-    if (!mainRef || !exitAnchorRef) return;
-    const mainRect = mainRef.getBoundingClientRect();
-    const exitRect = exitAnchorRef.getBoundingClientRect();
-    const exitCenterY = exitRect.top + exitRect.height / 2;
-    // Bar grows from the viewport bottom up to the exit node center,
-    // passing behind the button and ConnectionStatus text.
-    // bottomPx offsets the bar below main's bottom edge (positive when main
-    // overflows the viewport, negative when it falls short).
-    const bottomPx = Math.round(mainRect.bottom - globalThis.innerHeight);
-    const heightPx = Math.max(
-      0,
-      Math.round(globalThis.innerHeight - exitCenterY),
-    );
-    setConnectorBottom(bottomPx);
-    setConnectorHeight(heightPx);
-  };
-
-  onMount(() => {
-    computeConnectorHeight();
-    const handler = () => computeConnectorHeight();
-    globalThis.addEventListener("resize", handler);
-    onCleanup(() => globalThis.removeEventListener("resize", handler));
-  });
-
-  createEffect(() => {
-    void appState.vpnStatus;
-    const rafId = requestAnimationFrame(() => computeConnectorHeight());
-    onCleanup(() => cancelAnimationFrame(rafId));
-  });
-
   return (
     <div class="flex w-full flex-col h-full py-6 px-4">
       <div class="flex flex-row justify-between z-60">
@@ -125,23 +86,16 @@ export function MainScreen() {
         </div>
       </div>
 
-      <main
-        ref={mainRef}
-        class="flex w-full flex-1 flex-col items-center relative min-h-0"
-      >
+      <main class="flex w-full flex-1 flex-col items-center relative min-h-0">
         <StatusHero />
         {
           /* -mx-4 cancels the screen's own px-4 so the carousel's edge-peek
             (LocationBanner.tsx) can bleed all the way to the true window
             border instead of stopping at the page margin. */
         }
-        <div
-          ref={exitAnchorRef}
-          class="-mx-4 self-stretch flex justify-center z-10"
-        >
+        <div class="-mx-4 self-stretch flex justify-center z-10">
           <LocationBanner />
         </div>
-        <StatusLine heightPx={connectorHeight()} bottomPx={connectorBottom()} />
       </main>
       <div class="mt-4 w-full z-10">
         <ConnectButton />

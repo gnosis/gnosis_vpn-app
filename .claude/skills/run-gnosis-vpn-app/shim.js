@@ -39,6 +39,14 @@
   // update-install flow (macOS): install_update replays fixture.installScript
   // (or this default) as update-install-status events, mirroring the Rust
   // command streaming the gnosis_vpn-update binary's NDJSON phases.
+  // On-demand event firing for driver `eval` steps (mount time varies, timers can't be trusted)
+  globalThis.__GVPN_FIRE_EVENT__ = fireEvent;
+
+  // Replays fixture.statusScript steps as "status" events ({Ok: StatusResponse} payloads); delays must exceed mount time so listeners exist
+  for (const step of fixture.statusScript ?? []) {
+    setTimeout(() => fireEvent("status", step.status), step.delay);
+  }
+
   const defaultInstallScript = [
     { delay: 100, status: { kind: "Checking" } },
     { delay: 400, status: { kind: "Downloading" } },
