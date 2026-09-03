@@ -69,6 +69,17 @@ source:
   full Checking→Downloading→Installing→Completed run; a
   `{ "kind": "Failed", "stage": "...", "error": "..." }` step shows the inline
   error). `installStatus` seeds `get_install_status` for testing re-hydration.
+- `statusScript` — steps replayed as `status` events, e.g.
+  `[{ "delay": 1500, "status": { "Ok": { ...full StatusResponse... } } }]` (same
+  `{Ok:...}` wrapper as `cached_state.status`). Use it to drive state
+  transitions (connecting phases, connected) mid-run; delays must exceed app
+  mount time (~1s) so the store's listener is registered.
+- On-demand events: the shim exposes
+  `globalThis.__GVPN_FIRE_EVENT__(event, payload)` for `eval` steps —
+  deterministic alternative to `statusScript` when exact timing relative to
+  screenshots matters (mount time varies seconds between runs). Stash payloads
+  in a custom fixture key (unknown keys are ignored) and fire them:
+  `eval "__GVPN_FIRE_EVENT__('status', __GVPN_FIXTURE__.myStates.connected)"`.
 - `toolkitVersion` — value returned by `get_toolkit_version` (default `null`,
   shown as "—" in the Updates tab's hidden version details).
 - `windowLabel: "settings"` renders the settings window instead (use
