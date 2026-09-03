@@ -264,7 +264,7 @@ export default function LocationBanner() {
       if (!appState.availableDestinations.some((d) => d.id === id)) return;
       void appActions.connect(id);
     } else {
-      appActions.setActiveEntry(id);
+      appActions.slideCommitted(id);
     }
   };
 
@@ -631,8 +631,8 @@ export default function LocationBanner() {
         <Show when={showList()}>
           <ExitNodeList
             originY={listOriginY()}
-            onClose={(reason) => {
-              appActions.destinationListClosed(reason === "canceled");
+            onClose={(picked) => {
+              appActions.destinationListClosed(picked);
               setShowList(false);
             }}
           />

@@ -11,8 +11,6 @@ import type {
 import { sortByCapacityAwareLatency } from "@src/utils/destinations.ts";
 import { isReadyToConnect } from "@src/utils/exitHealth.ts";
 
-export type Origin = "auto" | "user";
-
 // Countdown timeout before starting switch animation
 export const SWITCH_COUNTDOWN_MS = 5_000;
 // Switch animation will take 333ms shrink/growth and 666ms slide left
@@ -22,11 +20,14 @@ export const SWITCH_CROSSOVER_MS = 666;
 export const SWITCH_ANIMATE_MS = 1_000;
 // Flat, unconditional deadline for a selected destination to fall back to auto.
 export const SELECTED_AUTO_REVERT_MS = 10_000;
+// Service poll cadence (src-tauri/src/commands.rs); bounds how late a deadline may be honoured.
+export const STATUS_POLL_MS = 2_300;
 
 export interface Entry {
-  origin: Origin;
   // Render/reconcile identity, distinct from `id` — lets a re-pick mount fresh.
   key: number;
+  // The sweep's sole justification for an entry: history stays, a bare candidate does not.
+  wasActive: boolean;
 }
 
 // Flat, view-friendly shape — hides the entries-Record + sequence-array split below.
@@ -40,8 +41,6 @@ export interface AutoPending {
   countdownEndsAt: number;
   // countdownEndsAt + SWITCH_CROSSOVER_MS
   settleAt: number;
-  // entry was minted for this pending — abandonment removes it; a pre-existing card stays put
-  addedForPending: boolean;
 }
 
 export type AutoMode = {
@@ -51,7 +50,8 @@ export type AutoMode = {
 
 export type SelectedMode = {
   mode: "selected";
-  autoRevertAt: number;
+  // null while suspended — an open list or a finger on the strip stops the clock
+  autoRevertAt: number | null;
 };
 
 export type LiveMode = {
@@ -66,6 +66,9 @@ export interface DestinationMode {
   mode: Mode;
   // Monotonic, never reused — avoids a re-added id colliding with a stale render key.
   nextKey: number;
+  // Both suspend auto; in the store rather than the view so tests can reach them.
+  listOpen: boolean;
+  dragging: boolean;
   // From DestinationModeSettings, fixed at creation, then consumed during status updates
   preferredLocation: string | null;
   lastConnectedDestination: string | null;
@@ -86,10 +89,12 @@ export interface DestinationModeSettings {
 }
 
 export type UserInputEvent =
-  | { type: "pickDestination"; id: string }
-  | { type: "setActiveEntry"; id: string }
   | { type: "listOpened" }
-  | { type: "listClosed"; canceled: boolean };
+  // picked === null is a cancel; an id is the destination chosen from the list
+  | { type: "listClosed"; picked: string | null }
+  | { type: "dragStarted" }
+  | { type: "slideCommitted"; id: string }
+  | { type: "connectIssued"; id: string };
 
 export interface DestinationModeHandle {
   model: SolidStore<DestinationMode>;
@@ -133,6 +138,8 @@ function initialModel(settings: DestinationModeSettings): DestinationMode {
       mode: "auto",
       pending: null,
     },
+    listOpen: false,
+    dragging: false,
     nextKey: 0,
     preferredLocation: settings.preferredLocation,
     lastConnectedDestination: settings.lastConnectedDestination,
@@ -235,7 +242,7 @@ export function createDestinationMode(
     const newEntries = { ...model.entries };
     delete newEntries[outgoing];
     // always a fresh key — reconcile() would otherwise reposition the old card instead of mounting one
-    newEntries[id] = { origin: "user", key: model.nextKey };
+    newEntries[id] = { key: model.nextKey, wasActive: true };
 
     // the pick takes the outgoing slot; a copy of it elsewhere in the strip goes
     const newSequence = model.sequence
@@ -263,10 +270,7 @@ export function createDestinationMode(
     if (pending === null) return;
     const newEntries = { ...model.entries };
     const newSequence = [...model.sequence];
-    // only a card minted for this pending goes; a history card keeps its slot
-    if (pending.addedForPending) {
-      removeEntry(newEntries, newSequence, pending.candidateId);
-    }
+    removeEntry(newEntries, newSequence, pending.candidateId);
     setModel({
       entries: newEntries,
       sequence: newSequence,
@@ -274,9 +278,10 @@ export function createDestinationMode(
     });
   }
 
-  function closeList(canceled: boolean): void {
+  function closeList(picked: string | null): void {
     listOpen = false;
-    const restoreMode = canceled ? modeAtOpen : "selected";
+    if (picked !== null) replaceActiveWithPick(picked);
+    const restoreMode = picked === null ? modeAtOpen : "selected";
     modeAtOpen = null;
 
     // a live connection outranks whatever the list did; status updates own it
@@ -294,22 +299,23 @@ export function createDestinationMode(
 
   function applyUserInput(event: UserInputEvent): void {
     switch (event.type) {
-      case "pickDestination":
-        replaceActiveWithPick(event.id);
+      case "listOpened":
+        openList();
         return;
-      // sliding only moves the marker; history stays as it is
-      case "setActiveEntry":
+      case "listClosed":
+        closeList(event.picked);
+        return;
+      // TODO(spec): dragStarted and connectIssued are unimplemented — see destinationMode.md
+      case "dragStarted":
+        return;
+      case "slideCommitted":
         setModel({
           active: event.id,
           mode: startSelectedMode(),
           preferredLocation: spendPreferred(event.id),
         });
         return;
-      case "listOpened":
-        openList();
-        return;
-      case "listClosed":
-        closeList(event.canceled);
+      case "connectIssued":
         return;
     }
   }
@@ -360,25 +366,22 @@ export function createDestinationMode(
         ? newPreferredLocation
         : null;
 
-    // moves the pending slot to candidateId; returns whether its entry was newly minted
-    const swapPendingEntry = (candidateId: string): boolean => {
+    // moves the pending slot to candidateId
+    const swapPendingEntry = (candidateId: string): void => {
       const stale = newMode.pending;
-      if (stale && stale.candidateId !== candidateId && stale.addedForPending) {
+      if (stale && stale.candidateId !== candidateId) {
         removeEntry(newEntries, newSequence, stale.candidateId);
       }
       // already a history card — leave it in its slot, don't re-append
-      if (candidateId in newEntries) return false;
-      newEntries[candidateId] = { origin: "auto", key: newNextKey++ };
+      if (candidateId in newEntries) return;
+      newEntries[candidateId] = { key: newNextKey++, wasActive: false };
       newSequence.push(candidateId);
-      return true;
     };
 
     // drops the pending candidate's entry when it's abandoned uncommitted, e.g. reverting to active
     const dropPendingEntry = () => {
       const stale = newMode.pending;
-      if (
-        stale && stale.addedForPending && stale.candidateId !== newActive
-      ) {
+      if (stale && stale.candidateId !== newActive) {
         removeEntry(newEntries, newSequence, stale.candidateId);
       }
     };
@@ -386,20 +389,20 @@ export function createDestinationMode(
     // registers a destination promoted straight to active with no history entry yet
     const addEntry = (id: string) => {
       if (!(id in newEntries)) {
-        newEntries[id] = { origin: "auto", key: newNextKey++ };
+        newEntries[id] = { key: newNextKey++, wasActive: true };
         newSequence.push(id);
       }
     };
 
     // arms a fresh countdown for candidateId; used for a new pending and for a preferred hijack
     const armPending = (candidateId: string): AutoMode => {
-      const addedForPending = swapPendingEntry(candidateId);
+      swapPendingEntry(candidateId);
       const countdownEndsAt = Date.now() + SWITCH_COUNTDOWN_MS;
       const settleAt = countdownEndsAt + SWITCH_CROSSOVER_MS;
       armPendingCandidate();
       return {
         mode: "auto",
-        pending: { candidateId, countdownEndsAt, settleAt, addedForPending },
+        pending: { candidateId, countdownEndsAt, settleAt },
       };
     };
 
@@ -452,13 +455,12 @@ export function createDestinationMode(
             newMode = armPending(effectiveCandidate);
           } else if (Date.now() < newMode.pending.countdownEndsAt) {
             // update pending with actual best destination
-            const addedForPending = swapPendingEntry(effectiveCandidate);
+            swapPendingEntry(effectiveCandidate);
             newMode = {
               mode: "auto",
               pending: {
                 ...newMode.pending,
                 candidateId: effectiveCandidate,
-                addedForPending,
               },
             };
           }
@@ -487,7 +489,7 @@ export function createDestinationMode(
     mode: SelectedMode,
   ): void {
     // the deadline, not the timer, is the source of truth — timers get throttled
-    if (Date.now() >= mode.autoRevertAt) {
+    if (mode.autoRevertAt !== null && Date.now() >= mode.autoRevertAt) {
       clearRevertTimer();
       applyStatusUpdateAuto(status, baseline, { mode: "auto", pending: null });
       return;
@@ -520,7 +522,7 @@ export function createDestinationMode(
 
     // what we're connected to stays in entries even once no longer offered
     if (!(liveId in newEntries)) {
-      newEntries[liveId] = { origin: "auto", key: newNextKey++ };
+      newEntries[liveId] = { key: newNextKey++, wasActive: true };
       newSequence.push(liveId);
     }
 
@@ -602,6 +604,19 @@ export function createDestinationMode(
 /** `entries`/`sequence` as a flat, ordered list — the shape the view wants. */
 export function orderedEntries(model: DestinationMode): DestinationEntry[] {
   return model.sequence.map((id) => ({ id, ...model.entries[id] }));
+}
+
+/** The one reader of what we are on: past settleAt the candidate has won, unless it is stale enough that the next status update will discard it. */
+export function effectiveActive(
+  model: DestinationMode,
+  now: number,
+): string | null {
+  if (model.mode.mode !== "auto" || model.mode.pending === null) {
+    return model.active;
+  }
+  const { candidateId, settleAt } = model.mode.pending;
+  if (now < settleAt || now - settleAt > STATUS_POLL_MS) return model.active;
+  return candidateId;
 }
 
 /** What's currently shown, ignoring an in-flight pending candidate. */

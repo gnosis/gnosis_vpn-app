@@ -25,7 +25,8 @@ import UnreachableDialog from "./UnreachableDialog.tsx";
 export default function ExitNodeList(props: {
   // Viewport Y the open animation expands from (the button that opened us).
   originY: number;
-  onClose: (reason: "selected" | "canceled") => void;
+  // the destination chosen, or null when the list was dismissed
+  onClose: (picked: string | null) => void;
 }) {
   const [appState, appActions] = useAppStore();
   const [settings, settingsActions] = useSettingsStore();
@@ -42,7 +43,7 @@ export default function ExitNodeList(props: {
       } else if (query()) {
         setQuery("");
       } else {
-        props.onClose("canceled");
+        props.onClose(null);
       }
     }
   }
@@ -113,19 +114,15 @@ export default function ExitNodeList(props: {
       appState.reconnecting?.destination_id === id ||
       appState.disconnecting.some((d) => d.destination_id === id)
     ) {
-      if (currentDisplayId(appState.mode) !== id) {
-        appActions.pickDestination(id);
-      }
-      props.onClose("selected");
+      props.onClose(id);
       return;
     }
     if (!isAvailable(id)) {
       setShowUnreachable(true);
       return;
     }
-    appActions.pickDestination(id);
     if (vpnActive()) void appActions.connect(id);
-    props.onClose("selected");
+    props.onClose(id);
   };
 
   const sortOptions = [
@@ -143,7 +140,7 @@ export default function ExitNodeList(props: {
           type="button"
           class="rounded-md p-1 hover:bg-bg-surface absolute left-2 my-auto"
           aria-label="Back"
-          onClick={() => props.onClose("canceled")}
+          onClick={() => props.onClose(null)}
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"

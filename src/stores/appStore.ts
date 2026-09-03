@@ -80,10 +80,10 @@ type AppActions = {
   setScreen: (screen: AppScreen) => void;
   connect: (targetId: string) => Promise<void>;
   disconnect: () => Promise<void>;
-  setActiveEntry: (id: string) => void;
-  pickDestination: (id: string) => void;
+  slideCommitted: (id: string) => void;
+  dragStarted: () => void;
   destinationListOpened: () => void;
-  destinationListClosed: (canceled: boolean) => void;
+  destinationListClosed: (picked: string | null) => void;
 };
 
 type AppStoreTuple = readonly [Store<AppState>, AppActions];
@@ -127,6 +127,8 @@ function initialState(): AppState {
       active: null,
       mode: { mode: "auto", pending: null },
       nextKey: 0,
+      listOpen: false,
+      dragging: false,
       preferredLocation: null,
       lastConnectedDestination: null,
     },
@@ -538,6 +540,7 @@ export function createAppStore(): AppStoreTuple {
         log(`Connecting to ${name} - ${short}`);
       }
 
+      destinationMode?.applyUserInput({ type: "connectIssued", id: targetId });
       try {
         await VPNService.connect(targetId);
       } catch (error) {
@@ -571,14 +574,13 @@ export function createAppStore(): AppStoreTuple {
       }
     },
 
-    setActiveEntry: (id: string) =>
-      destinationMode?.applyUserInput({ type: "setActiveEntry", id }),
-    pickDestination: (id: string) =>
-      destinationMode?.applyUserInput({ type: "pickDestination", id }),
+    slideCommitted: (id: string) =>
+      destinationMode?.applyUserInput({ type: "slideCommitted", id }),
+    dragStarted: () => destinationMode?.applyUserInput({ type: "dragStarted" }),
     destinationListOpened: () =>
       destinationMode?.applyUserInput({ type: "listOpened" }),
-    destinationListClosed: (canceled: boolean) =>
-      destinationMode?.applyUserInput({ type: "listClosed", canceled }),
+    destinationListClosed: (picked: string | null) =>
+      destinationMode?.applyUserInput({ type: "listClosed", picked }),
   } as const;
 
   // Keep the persisted channel preference and install marker in step with the

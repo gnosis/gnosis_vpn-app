@@ -60,6 +60,8 @@ const BASE_APP_STATE: AppState = {
     sequence: [],
     active: null,
     mode: { mode: "auto", pending: null },
+    listOpen: false,
+    dragging: false,
     nextKey: 0,
     preferredLocation: null,
     lastConnectedDestination: null,
