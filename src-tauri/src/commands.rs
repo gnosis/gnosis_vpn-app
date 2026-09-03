@@ -260,6 +260,11 @@ pub fn debug_snapshot_from_args(args: &[String]) -> bool {
     args.iter().any(|arg| arg == DEBUG_SNAPSHOT_FLAG)
 }
 
+// Separators are the containment check; "", "." and ".." only trade an opaque EISDIR for a clear error.
+fn is_plain_file_name(name: &str) -> bool {
+    !name.is_empty() && name != "." && name != ".." && !name.contains('/') && !name.contains('\\')
+}
+
 // The webview cannot see argv, so it has to ask before rendering the button.
 #[tauri::command]
 pub fn debug_snapshot_enabled(state: State<DebugSnapshot>) -> bool {
@@ -275,7 +280,7 @@ pub async fn write_debug_snapshot(
     if !state.enabled {
         return Err(format!("debug snapshots need {DEBUG_SNAPSHOT_FLAG}"));
     }
-    if file_name.contains('/') || file_name.contains('\\') || file_name == ".." {
+    if !is_plain_file_name(&file_name) {
         return Err("file_name must be a plain file name".to_string());
     }
     std::fs::create_dir_all(&state.run_dir).map_err(|e| e.to_string())?;
@@ -679,6 +684,22 @@ mod tests {
         assert!(debug_snapshot_from_args(&with_flag));
         assert!(!debug_snapshot_from_args(&without));
         assert!(!debug_snapshot_from_args(&[]));
+    }
+
+    #[test]
+    fn only_plain_file_names_are_accepted_for_snapshots() {
+        assert!(is_plain_file_name("autotrans-0001.json"));
+        for rejected in [
+            "",
+            ".",
+            "..",
+            "a/b",
+            "a\\b",
+            "/etc/passwd",
+            "../escape.json",
+        ] {
+            assert!(!is_plain_file_name(rejected), "accepted {rejected:?}");
+        }
     }
 
     // The list is rewritten by the bump-version workflow; a malformed entry
