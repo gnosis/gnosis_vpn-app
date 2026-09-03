@@ -251,6 +251,10 @@ export function createAppStore(): AppStoreTuple {
     setState(reconcile(initialState()));
     setState("serviceInfo", savedServiceInfo);
     setState("error", message);
+    destinationMode?.reset({
+      preferredLocation: settings.preferredLocation,
+      lastConnectedDestination: settings.lastConnectedDestination,
+    });
   };
 
   const processStatusResponse = (response: StatusResponse) => {
