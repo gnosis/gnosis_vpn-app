@@ -529,6 +529,118 @@ describe("pending candidate cleanup (auto mode)", () => {
   });
 });
 
+describe("auto mode — pending candidate already in the strip", () => {
+  // live connects build [uk, usa]; leaving live parks selected on usa, then reverts to auto
+  async function autoStrip(ukPing: number, usaPing = 10) {
+    const handle = setup();
+    const destinations = {
+      uk: makeReadyToConnect("uk", ukPing),
+      usa: makeReadyToConnect("usa", usaPing),
+    };
+    handle.applyStatusUpdate(connectedTo("uk", destinations));
+    handle.applyStatusUpdate(connectedTo("usa", destinations));
+    handle.applyStatusUpdate(statusFor(destinations));
+    await vi.advanceTimersByTimeAsync(SELECTED_AUTO_REVERT_MS);
+    expect(handle.model.sequence).toEqual(["uk", "usa"]);
+    expect(handle.model.active).toBe("usa");
+    expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
+    return { handle, destinations };
+  }
+
+  it("keeps the candidate in its slot through the countdown and after commit", async () => {
+    const { handle, destinations } = await autoStrip(5);
+
+    handle.applyStatusUpdate(statusFor(destinations));
+
+    expect(handle.model.mode).toMatchObject({ pending: { candidateId: "uk" } });
+    expect(handle.model.sequence).toEqual(["uk", "usa"]);
+    expect(handle.model.active).toBe("usa");
+    const ukKey = handle.model.entries["uk"].key;
+
+    await vi.advanceTimersByTimeAsync(SETTLE_MS);
+    expect(handle.model.active).toBe("uk");
+    expect(handle.model.sequence).toEqual(["uk", "usa"]);
+    expect(handle.model.entries["uk"].key).toBe(ukKey);
+  });
+
+  it("keeps the candidate's card when the countdown reverts to the active destination", async () => {
+    const { handle, destinations } = await autoStrip(5);
+    handle.applyStatusUpdate(statusFor(destinations));
+    expect(handle.model.mode).toMatchObject({ pending: { candidateId: "uk" } });
+
+    // "usa" (still active) regains the lead before commit
+    await vi.advanceTimersByTimeAsync(SWITCH_COUNTDOWN_MS / 2);
+    handle.applyStatusUpdate(statusFor({
+      uk: makeReadyToConnect("uk", 50),
+      usa: makeReadyToConnect("usa", 10),
+    }));
+
+    expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
+    expect(handle.model.sequence).toEqual(["uk", "usa"]);
+    await vi.advanceTimersByTimeAsync(SETTLE_MS);
+    expect(handle.model.active).toBe("usa");
+  });
+
+  it("keeps the candidate's card when the exit-node list opens mid-countdown", async () => {
+    const { handle, destinations } = await autoStrip(5);
+    handle.applyStatusUpdate(statusFor(destinations));
+    expect(handle.model.mode).toMatchObject({ pending: { candidateId: "uk" } });
+
+    handle.applyUserInput({ type: "listOpened" });
+
+    expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
+    expect(handle.model.sequence).toEqual(["uk", "usa"]);
+  });
+
+  it("stays in its slot when displaced by a new candidate mid-countdown", async () => {
+    const { handle, destinations } = await autoStrip(5);
+    handle.applyStatusUpdate(statusFor(destinations));
+    expect(handle.model.mode).toMatchObject({ pending: { candidateId: "uk" } });
+
+    await vi.advanceTimersByTimeAsync(SWITCH_COUNTDOWN_MS / 2);
+    handle.applyStatusUpdate(statusFor({
+      ...destinations,
+      de: makeReadyToConnect("de", 1),
+    }));
+
+    // displaced "uk" keeps its history slot; the new candidate appends
+    expect(handle.model.mode).toMatchObject({ pending: { candidateId: "de" } });
+    expect(handle.model.sequence).toEqual(["uk", "usa", "de"]);
+
+    await vi.advanceTimersByTimeAsync(SETTLE_MS);
+    expect(handle.model.active).toBe("de");
+  });
+
+  it("still drops a displaced synthetic candidate when a pre-existing one takes over", async () => {
+    const { handle } = await autoStrip(50);
+
+    // "de" is brand new — its entry is minted for the pending
+    handle.applyStatusUpdate(statusFor({
+      uk: makeReadyToConnect("uk", 50),
+      usa: makeReadyToConnect("usa", 10),
+      de: makeReadyToConnect("de", 1),
+    }));
+    expect(handle.model.mode).toMatchObject({ pending: { candidateId: "de" } });
+    expect(handle.model.sequence).toEqual(["uk", "usa", "de"]);
+
+    // "uk" overtakes mid-countdown — synthetic "de" goes, "uk" stays in slot 0
+    await vi.advanceTimersByTimeAsync(SWITCH_COUNTDOWN_MS / 2);
+    handle.applyStatusUpdate(statusFor({
+      uk: makeReadyToConnect("uk", 1),
+      usa: makeReadyToConnect("usa", 10),
+      de: makeReadyToConnect("de", 5),
+    }));
+
+    expect(handle.model.mode).toMatchObject({ pending: { candidateId: "uk" } });
+    expect(handle.model.sequence).toEqual(["uk", "usa"]);
+    expect(handle.model.entries["de"]).toBeUndefined();
+
+    await vi.advanceTimersByTimeAsync(SETTLE_MS);
+    expect(handle.model.active).toBe("uk");
+    expect(handle.model.sequence).toEqual(["uk", "usa"]);
+  });
+});
+
 describe("lastConnectedDestination — unchanged, cold-start-only fallback", () => {
   it("is tried once at cold start regardless of readiness outcome, even when not ready", () => {
     const handle = setup({ lastConnectedDestination: "last" });

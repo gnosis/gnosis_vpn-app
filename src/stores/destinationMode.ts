@@ -40,6 +40,8 @@ export interface AutoPending {
   countdownEndsAt: number;
   // countdownEndsAt + SWITCH_CROSSOVER_MS
   settleAt: number;
+  // entry was minted for this pending — abandonment removes it; a pre-existing card stays put
+  addedForPending: boolean;
 }
 
 export type AutoMode = {
@@ -261,7 +263,10 @@ export function createDestinationMode(
     if (pending === null) return;
     const newEntries = { ...model.entries };
     const newSequence = [...model.sequence];
-    removeEntry(newEntries, newSequence, pending.candidateId);
+    // only a card minted for this pending goes; a history card keeps its slot
+    if (pending.addedForPending) {
+      removeEntry(newEntries, newSequence, pending.candidateId);
+    }
     setModel({
       entries: newEntries,
       sequence: newSequence,
@@ -355,25 +360,26 @@ export function createDestinationMode(
         ? newPreferredLocation
         : null;
 
-    // moves the pending slot to candidateId, dropping the old one's entry; leaves timing alone
-    const swapPendingEntry = (candidateId: string) => {
-      const staleId = newMode.pending?.candidateId ?? null;
-      if (staleId !== null && staleId !== candidateId) {
-        removeEntry(newEntries, newSequence, staleId);
+    // moves the pending slot to candidateId; returns whether its entry was newly minted
+    const swapPendingEntry = (candidateId: string): boolean => {
+      const stale = newMode.pending;
+      if (stale && stale.candidateId !== candidateId && stale.addedForPending) {
+        removeEntry(newEntries, newSequence, stale.candidateId);
       }
-      if (!(candidateId in newEntries)) {
-        newEntries[candidateId] = { origin: "auto", key: newNextKey++ };
-      }
-      const existingIndex = newSequence.indexOf(candidateId);
-      if (existingIndex !== -1) newSequence.splice(existingIndex, 1);
+      // already a history card — leave it in its slot, don't re-append
+      if (candidateId in newEntries) return false;
+      newEntries[candidateId] = { origin: "auto", key: newNextKey++ };
       newSequence.push(candidateId);
+      return true;
     };
 
     // drops the pending candidate's entry when it's abandoned uncommitted, e.g. reverting to active
     const dropPendingEntry = () => {
-      const staleId = newMode.pending?.candidateId ?? null;
-      if (staleId !== null && staleId !== newActive) {
-        removeEntry(newEntries, newSequence, staleId);
+      const stale = newMode.pending;
+      if (
+        stale && stale.addedForPending && stale.candidateId !== newActive
+      ) {
+        removeEntry(newEntries, newSequence, stale.candidateId);
       }
     };
 
@@ -387,13 +393,13 @@ export function createDestinationMode(
 
     // arms a fresh countdown for candidateId; used for a new pending and for a preferred hijack
     const armPending = (candidateId: string): AutoMode => {
-      swapPendingEntry(candidateId);
+      const addedForPending = swapPendingEntry(candidateId);
       const countdownEndsAt = Date.now() + SWITCH_COUNTDOWN_MS;
       const settleAt = countdownEndsAt + SWITCH_CROSSOVER_MS;
       armPendingCandidate();
       return {
         mode: "auto",
-        pending: { candidateId, countdownEndsAt, settleAt },
+        pending: { candidateId, countdownEndsAt, settleAt, addedForPending },
       };
     };
 
@@ -446,10 +452,14 @@ export function createDestinationMode(
             newMode = armPending(effectiveCandidate);
           } else if (Date.now() < newMode.pending.countdownEndsAt) {
             // update pending with actual best destination
-            swapPendingEntry(effectiveCandidate);
+            const addedForPending = swapPendingEntry(effectiveCandidate);
             newMode = {
               mode: "auto",
-              pending: { ...newMode.pending, candidateId: effectiveCandidate },
+              pending: {
+                ...newMode.pending,
+                candidateId: effectiveCandidate,
+                addedForPending,
+              },
             };
           }
         }
