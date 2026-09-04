@@ -193,9 +193,11 @@ always offers what we are connected to.
 
 **2. Live.** `liveId !== null` → `active = liveId` (`wasActive`), pending
 cleared, mode `live`, sweep. The entry is minted if the prune removed it, so
-invariant 3 survives even if that guarantee is ever broken. If `listOpen`, close
-the list — a connection we did not initiate from the list should not leave the
-list covering it.
+invariant 3 survives even if that guarantee is ever broken. If `listOpen` and we
+were not already live, close the list — a connection we did not initiate should
+not leave the list covering it. A list opened over a live connection stays open,
+polls included: the user opened it deliberately, and picking from it issues a
+new connect (see `listClosed(picked)`).
 
 **3. Leaving live.** `mode === "live" && liveId === null` → `selected` on the
 destination we were connected to, with a fresh `SELECTED_AUTO_REVERT_MS`, then
