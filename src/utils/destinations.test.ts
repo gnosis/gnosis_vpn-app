@@ -163,8 +163,8 @@ describe("sortAlphaDestinations", () => {
 });
 
 describe("sortByCapacityAwareLatency", () => {
-  it("sorts by raw latency when both have the same total slots", () => {
-    // busy has 4 connected clients, so a malus would have pushed it behind idle
+  it("applies the malus even when total slots are equal", () => {
+    // busy is 40ms faster, but its 4 connected clients cost 400ms
     expect(
       sortByCapacityAwareLatency({
         idle: makeReadyToConnect("idle", 60_000_000, {
@@ -176,7 +176,7 @@ describe("sortByCapacityAwareLatency", () => {
           connected: 4,
         }),
       }),
-    ).toEqual(["busy", "idle"]);
+    ).toEqual(["idle", "busy"]);
   });
 
   it("applies the connected-client malus when total slots differ", () => {

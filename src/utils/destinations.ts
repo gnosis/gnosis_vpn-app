@@ -46,7 +46,7 @@ function getSlots(state: DestinationState): Slots | null {
 
 const CONNECTED_CLIENT_LATENCY_MALUS_MS = 100;
 
-/** Latency with a per-connected-client malus, for comparing destinations of unequal capacity. */
+/** Latency plus a malus per connected client; our own connection doesn't count. */
 function capacityAdjustedLatencyMs(
   state: DestinationState,
   slots: Slots | null,
@@ -89,12 +89,14 @@ export function isReadyForDisplay(
   return state.destination.id === liveId || isReady(state, liveId);
 }
 
-/** Capacity of a destination — `available` alone is free slots and drifts with load. */
-function totalSlots(slots: Slots | null): number | null {
-  return slots === null ? null : slots.available + slots.connected;
+/** Ready non-full → ready full → not ready. Full nodes still beat unreachable ones. */
+function capacityTier(state: DestinationState, liveId: string | null): number {
+  const free = freeSlots(state, liveId);
+  if (free === null) return 2;
+  return free <= 0 ? 1 : 0;
 }
 
-/** Sort ids: full destinations last, then by latency (malus-adjusted when capacity differs). */
+/** Sort ids: ready non-full first, then ready-but-full, then the rest; ready tiers by malus-adjusted latency. */
 export function sortByCapacityAwareLatency(
   destinations: Record<string, DestinationState>,
   liveId: string | null = null,
@@ -102,20 +104,13 @@ export function sortByCapacityAwareLatency(
   return Object.keys(destinations).sort((idA, idB) => {
     const stateA = destinations[idA];
     const stateB = destinations[idB];
-    const slotsA = getSlots(stateA);
-    const slotsB = getSlots(stateB);
 
-    const isFullA = (freeSlots(stateA, liveId) ?? 1) <= 0;
-    const isFullB = (freeSlots(stateB, liveId) ?? 1) <= 0;
-    if (isFullA !== isFullB) return isFullA ? 1 : -1;
+    const tierA = capacityTier(stateA, liveId);
+    const tierB = capacityTier(stateB, liveId);
+    if (tierA !== tierB) return tierA - tierB;
 
-    const sameCapacity = totalSlots(slotsA) === totalSlots(slotsB);
-    const msA = sameCapacity
-      ? getSortLatencyMs(stateA)
-      : capacityAdjustedLatencyMs(stateA, slotsA, liveId);
-    const msB = sameCapacity
-      ? getSortLatencyMs(stateB)
-      : capacityAdjustedLatencyMs(stateB, slotsB, liveId);
+    const msA = capacityAdjustedLatencyMs(stateA, getSlots(stateA), liveId);
+    const msB = capacityAdjustedLatencyMs(stateB, getSlots(stateB), liveId);
     if (msA !== null && msB !== null) return msA - msB;
     if (msA !== null) return -1;
     if (msB !== null) return 1;
