@@ -300,6 +300,45 @@ describe("statusUpdate — live", () => {
     expect(handle.model.listOpen).toBe(false);
   });
 
+  it("keeps a list opened while connecting open across polls", () => {
+    const handle = setup();
+    const destinations = { uk: makeReadyToConnect("uk", 50) };
+    step(handle, connectingTo("uk", destinations));
+
+    input(handle, { type: "listOpened" });
+    step(handle, connectingTo("uk", destinations));
+
+    expect(
+      handle.model.listOpen,
+      "the user opened it over live; polls must not close it",
+    )
+      .toBe(true);
+  });
+
+  it("keeps a list opened while connected open across polls", () => {
+    const handle = setup();
+    const destinations = { uk: makeReadyToConnect("uk", 50) };
+    step(handle, connectedTo("uk", destinations));
+
+    input(handle, { type: "listOpened" });
+    step(handle, connectedTo("uk", destinations));
+
+    expect(handle.model.listOpen).toBe(true);
+  });
+
+  it("keeps the list open when the backend switches destination under us", () => {
+    const handle = setup();
+    step(handle, connectedTo("uk", UK_USA));
+
+    input(handle, { type: "listOpened" });
+    step(handle, connectedTo("usa", UK_USA));
+
+    expect(handle.model.listOpen, "only entering live closes the list").toBe(
+      true,
+    );
+    expect(handle.model.active).toBe("usa");
+  });
+
   it("outranks a drag in progress", () => {
     const handle = setup();
     const destinations = { uk: makeReadyToConnect("uk", 50) };
@@ -1555,6 +1594,8 @@ describe("invariants hold under randomized traffic", () => {
           : null;
         const status = liveRoll < 0.2 && liveId !== null
           ? connectedTo(liveId, destinations)
+          : liveRoll < 0.3 && liveId !== null
+          ? connectingTo(liveId, destinations)
           : statusFor(destinations);
 
         step(handle, status);
