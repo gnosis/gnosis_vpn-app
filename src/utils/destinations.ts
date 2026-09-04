@@ -120,6 +120,23 @@ export function sortByCapacityAwareLatency(
   });
 }
 
+/** Connect-on-startup pick: where the last session left off, else the preferred location, else the best — each only while ready. */
+export function pickStartupTarget(
+  destinations: Record<string, DestinationState>,
+  preferred: string | null,
+  lastConnected: string | null = null,
+): string | null {
+  if (lastConnected !== null && isReady(destinations[lastConnected], null)) {
+    return lastConnected;
+  }
+  if (preferred !== null && isReady(destinations[preferred], null)) {
+    return preferred;
+  }
+  const readyIds = sortByCapacityAwareLatency(destinations)
+    .filter((id) => isReady(destinations[id], null));
+  return readyIds[0] ?? null;
+}
+
 /** Whether a VPN session is live enough that switching destinations should
  * retarget it via connect() rather than just re-pointing the display. Includes
  * Disconnecting only when it still has a target — a plain disconnect has none. */

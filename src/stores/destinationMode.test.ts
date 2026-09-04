@@ -105,6 +105,7 @@ function setup(settings: Partial<DestinationModeSettings> = {}) {
   return createDestinationMode({
     preferredLocation: null,
     lastConnectedDestination: null,
+    connectOnStartup: false,
     ...settings,
   });
 }
@@ -362,8 +363,40 @@ describe("statusUpdate — live", () => {
     step(handle, connectedTo("usa", destinations));
 
     expect(handle.model.active).toBe("usa");
-    expect(handle.model.entries["uk"], "where we came from stays as history")
-      .toBeDefined();
+    // a connection we did not start is not auto proposing anything, so it replaces
+    expect(handle.model.sequence, "only auto lengthens the strip")
+      .toEqual(["usa"]);
+    expect(handle.model.entries["uk"]).toBeUndefined();
+  });
+
+  it("keeps the card the strip already had when the backend lands on it", () => {
+    const handle = setup();
+    stripWithHistory(handle);
+
+    step(handle, connectedTo("uk", UK_USA));
+
+    expect(handle.model.active).toBe("uk");
+    expect(
+      handle.model.sequence,
+      "auto put usa there; the backend may not evict it",
+    )
+      .toEqual(["uk", "usa"]);
+  });
+
+  it("takes the outgoing slot even under a finger", () => {
+    const handle = setup();
+    stripWithHistory(handle);
+    const withDe = { ...UK_USA, de: makeReadyToConnect("de", 30) };
+
+    input(handle, { type: "dragStarted" });
+    step(handle, connectedTo("de", withDe));
+
+    // sparing the outgoing card would leave de nowhere to go but the strip's end
+    expect(handle.model.sequence).toEqual(["uk", "de"]);
+    expect(handle.model.active).toBe("de");
+
+    input(handle, { type: "slideCommitted", id: "de" });
+    expect(handle.model.sequence).toEqual(["uk", "de"]);
   });
 });
 
@@ -810,8 +843,78 @@ describe("cold start", () => {
     );
 
     expect(handle.model.active).toBe("uk");
-    expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
+    // where the last session left off is the user's choice, not auto's proposal
+    expect(handle.model.mode).toEqual({
+      mode: "selected",
+      autoRevertAt: Date.now() + SELECTED_AUTO_REVERT_MS,
+    });
     expect(handle.model.lastConnectedDestination).toBeNull();
+  });
+
+  it("hands the lastConnected hold back to auto on the ordinary lease", () => {
+    const handle = setup({ lastConnectedDestination: "uk" });
+    step(handle, statusFor({ uk: makeUnavailable("uk") }));
+
+    vi.advanceTimersByTime(SELECTED_AUTO_REVERT_MS);
+    expectInvariants(handle.model);
+
+    expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
+  });
+
+  it("stays in auto when the promotion is merely the best destination", () => {
+    const handle = setup();
+
+    step(handle, statusFor({ usa: makeReadyToConnect("usa", 10) }));
+
+    expect(handle.model.active).toBe("usa");
+    expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
+  });
+
+  it("stays in auto when the promotion is a ready preferred location", () => {
+    const handle = setup({ preferredLocation: "fr" });
+
+    step(handle, statusFor({ fr: makeReadyToConnect("fr", 30) }));
+
+    expect(handle.model.active).toBe("fr");
+    // preferred is an input to the candidate, not a selection of its own
+    expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
+  });
+
+  it("holds the promotion when a startup connect is coming", () => {
+    const handle = setup({ connectOnStartup: true });
+
+    step(handle, statusFor({ uk: makeUnavailable("uk") }));
+
+    expect(handle.model.mode).toMatchObject({ mode: "selected" });
+  });
+
+  it("keeps the strip to one card until the startup connect replaces it", () => {
+    const handle = setup({ connectOnStartup: true });
+    // nothing ready yet, so the promotion is the unready sort head
+    step(
+      handle,
+      statusFor({ uk: makeUnavailable("uk"), usa: makeUnavailable("usa") }),
+    );
+    expect(handle.model.sequence).toEqual(["uk"]);
+
+    // usa becomes ready: the hold keeps auto from arming toward it in this poll
+    step(
+      handle,
+      statusFor({
+        uk: makeUnavailable("uk"),
+        usa: makeReadyToConnect("usa", 10),
+      }),
+    );
+    expect(
+      handle.model.sequence,
+      "auto must not mint a card the connect leaves behind",
+    )
+      .toEqual(["uk"]);
+
+    input(handle, { type: "connectIssued", id: "usa" });
+
+    expect(handle.model.sequence).toEqual(["usa"]);
+    expect(handle.model.active).toBe("usa");
   });
 
   it("outranks a ready preferred location", () => {
@@ -1214,13 +1317,33 @@ describe("listClosed — picked", () => {
         usa: makeReadyToConnect("usa", 10),
       }),
     );
+    // cold start lands on the faster usa, so uk is the pick that actually moves
+    const outgoingKey = handle.model.entries["usa"].key;
+
     input(handle, { type: "listOpened" });
     // the list issues connect before it closes
-    input(handle, { type: "connectIssued", id: "usa" });
-    input(handle, { type: "listClosed", picked: "usa" });
+    input(handle, { type: "connectIssued", id: "uk" });
+    input(handle, { type: "listClosed", picked: "uk" });
 
     expect(handle.model.mode).toEqual({ mode: "live" });
-    expect(handle.model.active).toBe("usa");
+    expect(handle.model.active).toBe("uk");
+    // the connect took usa's slot, so listClosed finds nothing left to do
+    expect(handle.model.sequence, "a pick never lengthens the strip")
+      .toEqual(["uk"]);
+    expect(handle.model.entries["uk"].key, "a swap mounts rather than slides")
+      .not.toBe(outgoingKey);
+  });
+
+  it("shortens the strip when the pick that connects is already in it", () => {
+    const handle = setup();
+    stripWithHistory(handle);
+
+    input(handle, { type: "listOpened" });
+    input(handle, { type: "connectIssued", id: "uk" });
+    input(handle, { type: "listClosed", picked: "uk" });
+
+    expect(handle.model.active).toBe("uk");
+    expect(handle.model.sequence).toEqual(["uk"]);
   });
 
   it("treats picking the already-active card as a cancel with a fresh deadline", () => {
@@ -1481,6 +1604,35 @@ describe("connectIssued", () => {
       .toBeUndefined();
   });
 
+  it("replaces the promotion when the startup connect disagrees with it", () => {
+    // cold start takes lastConnected regardless of readiness; pickStartupTarget needs ready
+    const handle = setup({ lastConnectedDestination: "uk" });
+    step(
+      handle,
+      statusFor({ uk: makeFull("uk", 50), usa: makeReadyToConnect("usa", 10) }),
+    );
+    expect(handle.model.sequence).toEqual(["uk"]);
+
+    input(handle, { type: "connectIssued", id: "usa" });
+
+    expect(handle.model.sequence, "one card at launch, not two").toEqual([
+      "usa",
+    ]);
+    expect(handle.model.active).toBe("usa");
+  });
+
+  it("keeps the outgoing card when connecting to one the strip already has", () => {
+    const handle = setup();
+    stripWithHistory(handle);
+
+    // the Connect button on a card auto put there, or a slide-then-connect
+    input(handle, { type: "connectIssued", id: "uk" });
+
+    expect(handle.model.active).toBe("uk");
+    expect(handle.model.sequence, "auto's own history is not a replacement")
+      .toEqual(["uk", "usa"]);
+  });
+
   it("leaves a failed attempt parked on the destination we tried", () => {
     const handle = setup();
     const destinations = {
@@ -1550,7 +1702,11 @@ describe("reset", () => {
       true,
     );
 
-    handle.reset({ preferredLocation: null, lastConnectedDestination: null });
+    handle.reset({
+      preferredLocation: null,
+      lastConnectedDestination: null,
+      connectOnStartup: false,
+    });
 
     expect(handle.model.listOpen).toBe(false);
     expect(handle.model.dragging).toBe(false);

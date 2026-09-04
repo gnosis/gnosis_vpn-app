@@ -48,6 +48,7 @@ interface DestinationMode {
   dragging: boolean;
   preferredLocation: string | null; // one shot, spent when it becomes active
   lastConnectedDestination: string | null; // dropped at the first cold start
+  connectOnStartup: boolean; // a connect is coming as soon as anything is ready
 }
 ```
 
@@ -140,6 +141,31 @@ unless the user settled on it. A never-active candidate was appended when minted
 and nothing appends behind it, so this orphan is always the last card;
 collecting it never shifts the others.
 
+## Taking the outgoing slot
+
+> Only auto lengthens the strip. Every other way of becoming active either lands
+> on a card that already exists or takes the outgoing `active`'s slot.
+
+```
+drop the outgoing entry, remove any other occurrence of id,
+put id where the outgoing sat, mint a fresh key, active = id (wasActive)
+```
+
+A fresh key so the card mounts rather than slides — a swap is not a move. With
+no `active` yet the rule degenerates to a plain mint, which is the only place it
+appends.
+
+A drag is no exception. The rule needs the outgoing card to vacate its slot, so
+sparing it would leave the newcomer nowhere to go but the end of the strip — and
+a strip that grew mid-drag would stay grown if the user then settled on the
+spared card. Step 2 already outranks suspension, so the surgery runs under the
+finger too.
+
+Used by [`listClosed(picked)`](#listclosedpicked-id),
+[`connectIssued`](#connectissuedid) and [statusUpdate step 2](#statusupdate).
+`sequence` is therefore appended to only by auto's arm and retarget, by cold
+start, and by this rule when there is no outgoing card to take.
+
 ## Invariants
 
 Asserted after every transition, and in every test:
@@ -192,12 +218,15 @@ Applied in this order:
 always offers what we are connected to.
 
 **2. Live.** `liveId !== null` → `active = liveId` (`wasActive`), pending
-cleared, mode `live`, sweep. The entry is minted if the prune removed it, so
-invariant 3 survives even if that guarantee is ever broken. If `listOpen` and we
-were not already live, close the list — a connection we did not initiate should
-not leave the list covering it. A list opened over a live connection stays open,
-polls included: the user opened it deliberately, and picking from it issues a
-new connect (see `listClosed(picked)`).
+cleared, mode `live`, sweep. A `liveId` that already has a card simply becomes
+active, keeping the outgoing card as the history auto put there; one with no
+card — the prune removed it, or the connection was started outside the app —
+[takes the outgoing slot](#taking-the-outgoing-slot) rather than being appended.
+Either way invariant 3 survives. If `listOpen` and we were not already live,
+close the list — a connection we did not initiate should not leave the list
+covering it. A list opened over a live connection stays open, polls included:
+the user opened it deliberately, and picking from it issues a new connect (see
+`listClosed(picked)`).
 
 **3. Leaving live.** `mode === "live" && liveId === null` → `selected` on the
 destination we were connected to, with a fresh `SELECTED_AUTO_REVERT_MS`, then
@@ -262,6 +291,25 @@ as long as the backend offers anything at all, a status update leaves `active`
 set. `active` is null only when there are no destinations, and then there is no
 candidate to arm either.
 
+**The promotion is a selection when the user made it.** `selected` with a fresh
+`SELECTED_AUTO_REVERT_MS` if the promoted id is `lastConnectedDestination`, or
+if `connectOnStartup` is armed; otherwise `auto`, as before. Where the last
+session left off is the user's choice, not auto's proposal, so auto may not
+slide you off it seconds after launch — the same reason
+[leaving live](#statusupdate) holds its card. And with a connect coming, holding
+keeps auto from arming toward the first destination to become ready in the very
+poll that the connect targets it, which would mint a card the connect then has
+to leave behind.
+
+A promotion onto `preferred` or the sort head stays in `auto`: the preferred
+location is an [input to the candidate](#the-preferred-location), never a
+selection of its own.
+
+The hold is the ordinary lease, so a backend that takes longer than
+`SELECTED_AUTO_REVERT_MS` to make anything ready hands back to auto before the
+startup connect fires. Accepted: after ten seconds of sitting there, an armed
+countdown is honest.
+
 ### The preferred location
 
 One shot, and only an input to which destination is the best candidate — never a
@@ -300,26 +348,22 @@ fresh `SELECTED_AUTO_REVERT_MS`.
 
 ## listClosed(picked id)
 
-Replace at index: put `id` where the outgoing `active` sat, remove any other
-occurrence of `id`, drop the outgoing entry, drop entries no longer in
-`sequence`, mint a fresh key so the card mounts rather than slides.
-`active = id` (`wasActive`).
+[Take the outgoing slot](#taking-the-outgoing-slot).
 
 ```
 sequence [a, b, c], active b, pick c  ->  sequence [a, c], active c
 ```
 
-The strip therefore shortens when the pick is already in it. Only automatic
-commits grow it.
+The strip therefore shortens when the pick is already in it, and a pick with no
+`active` yet mints the entry and becomes active.
 
 Mode is `selected` with a fresh deadline — **except when the pick also
-connects.** While connected, the list fires `pickDestination` → `connect` →
-`onClose`, so `connectIssued` has already entered `live` by the time this event
-arrives; the sequence edit applies and the mode write is skipped. Picking the
-destination that is already active is equivalent to cancelling, plus a fresh
-deadline.
-
-A pick with no `active` yet mints the entry, appends it, and becomes active.
+connects.** While connected, the list fires `connect` → `onClose`, so
+`connectIssued` has already taken the slot and entered `live` by the time this
+event arrives. `active` is then already `id`, so the sequence edit finds nothing
+to do and the mode write is skipped; the event is inert, and which of the two
+did the surgery does not matter. Picking the destination that is already active
+is equivalent to cancelling, plus a fresh deadline.
 
 ## dragStarted
 
@@ -355,6 +399,15 @@ survivor. The model guards anyway so a store-write race cannot violate invariant
 are ahead of the service, and the next status response is expected to confirm.
 Because live is inert, nothing can arm a countdown during the attempt.
 
+The strip never lengthens here.
+[Take the outgoing slot](#taking-the-outgoing-slot) when `listOpen` — a connect
+issued over the open list _is_ that list's pick, so it drops the duplicate copy
+too — or when `id` has no card at all, which is how a connect that disagrees
+with the promotion — connect-on-startup landing on the first ready destination
+rather than the unready one we promoted — stays a single card. Otherwise `id`
+already has a card and merely becomes active, leaving the outgoing card as the
+history auto put there.
+
 A failed connect needs no special handling: the next status response reports no
 connection, and _leaving live_ parks us in `selected` on the destination we
 tried.
@@ -371,6 +424,10 @@ tried.
   debounce on arming — not a change to the sort.
 - **Live is inert.** It never proposes a better destination; a live tunnel is
   never torn down automatically.
+- **Only auto lengthens the strip.** A card next to the active one means auto
+  proposed or committed a switch, so nothing else may append one — see
+  [taking the outgoing slot](#taking-the-outgoing-slot). A user's pick, an
+  optimistic connect and a connection started outside the app all replace.
 - **The model owns no animation.** It publishes state and deadlines; the view
   decides how to move. In particular the view may not assume a pending candidate
   is the last card.

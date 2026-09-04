@@ -8,6 +8,7 @@ import {
   isReady,
   isReadyForDisplay,
   isVpnActive,
+  pickStartupTarget,
   sortAlphaDestinations,
   sortByCapacityAwareLatency,
 } from "./destinations.ts";
@@ -284,5 +285,72 @@ describe("sortByCapacityAwareLatency", () => {
         alpha: makeUnavailable("alpha"),
       }),
     ).toEqual(["alpha", "zeta"]);
+  });
+});
+
+describe("pickStartupTarget — connect-on-startup pick", () => {
+  it("returns the preferred location when it is ready", () => {
+    const destinations = {
+      fast: makeReadyToConnect("fast", 10_000_000),
+      pref: makeReadyToConnect("pref", 200_000_000),
+    };
+
+    expect(pickStartupTarget(destinations, "pref")).toBe("pref");
+  });
+
+  it("starts where the last session left off, outranking preferred", () => {
+    const destinations = {
+      last: makeReadyToConnect("last", 200_000_000),
+      pref: makeReadyToConnect("pref", 10_000_000),
+    };
+
+    expect(pickStartupTarget(destinations, "pref", "last")).toBe("last");
+  });
+
+  it("falls back through preferred when the last session's destination is not ready", () => {
+    const destinations = {
+      last: makeUnavailable("last"),
+      pref: makeReadyToConnect("pref", 200_000_000),
+      fast: makeReadyToConnect("fast", 10_000_000),
+    };
+
+    expect(pickStartupTarget(destinations, "pref", "last")).toBe("pref");
+    expect(pickStartupTarget(destinations, null, "last")).toBe("fast");
+  });
+
+  it("falls back to the best ready destination when preferred is not ready", () => {
+    const destinations = {
+      pref: makeUnavailable("pref"),
+      slow: makeReadyToConnect("slow", 200_000_000),
+      fast: makeReadyToConnect("fast", 10_000_000),
+    };
+
+    expect(pickStartupTarget(destinations, "pref")).toBe("fast");
+    expect(pickStartupTarget(destinations, null)).toBe("fast");
+  });
+
+  it("ignores a preferred location that is full", () => {
+    const destinations = {
+      pref: makeReadyToConnect("pref", 10_000_000, {
+        available: 0,
+        connected: 5,
+      }),
+      open: makeReadyToConnect("open", 200_000_000),
+    };
+
+    expect(pickStartupTarget(destinations, "pref")).toBe("open");
+  });
+
+  it("never picks a destination that cannot take a connection", () => {
+    const destinations = {
+      full: makeReadyToConnect("full", 10_000_000, {
+        available: 0,
+        connected: 5,
+      }),
+      dead: makeUnavailable("dead"),
+    };
+
+    expect(pickStartupTarget(destinations, null)).toBeNull();
+    expect(pickStartupTarget({}, null)).toBeNull();
   });
 });

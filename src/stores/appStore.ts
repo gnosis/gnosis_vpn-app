@@ -37,6 +37,7 @@ import { useLogsStore } from "@src/stores/logsStore.ts";
 import {
   destinationLabel,
   getPreferredAvailabilityChangeMessage,
+  pickStartupTarget,
 } from "@src/utils/destinations.ts";
 
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
@@ -130,6 +131,7 @@ function initialState(): AppState {
       dragging: false,
       preferredLocation: null,
       lastConnectedDestination: null,
+      connectOnStartup: false,
     },
   };
 }
@@ -237,6 +239,7 @@ export function createAppStore(): AppStoreTuple {
       destinationMode = createDestinationMode({
         preferredLocation: settings.preferredLocation,
         lastConnectedDestination: settings.lastConnectedDestination,
+        connectOnStartup: settings.connectOnStartup,
       });
       if (pendingModeAppState) {
         destinationMode.applyStatusUpdate(pendingModeAppState);
@@ -257,6 +260,7 @@ export function createAppStore(): AppStoreTuple {
     destinationMode?.reset({
       preferredLocation: settings.preferredLocation,
       lastConnectedDestination: settings.lastConnectedDestination,
+      connectOnStartup: settings.connectOnStartup,
     });
   };
 
@@ -318,6 +322,32 @@ export function createAppStore(): AppStoreTuple {
       reconnecting: response.reconnecting,
     };
     destinationMode?.applyStatusUpdate(pendingModeAppState);
+    maybeConnectOnStartup(pendingModeAppState);
+  };
+
+  // One shot per launch, like preferredLocation: spent once a session is live or something is ready to connect.
+  let startupConnectDone = false;
+  const maybeConnectOnStartup = (status: ModeAppState) => {
+    if (startupConnectDone || !settingsActions.hydrated()) return;
+    if (!settings.connectOnStartup) {
+      startupConnectDone = true;
+      return;
+    }
+    const sessionLive = status.connected !== null ||
+      status.connecting !== null || status.reconnecting !== null;
+    if (sessionLive) {
+      startupConnectDone = true;
+      return;
+    }
+    const target = pickStartupTarget(
+      status.destinations,
+      settings.preferredLocation,
+      settings.lastConnectedDestination,
+    );
+    if (target === null) return;
+    startupConnectDone = true;
+    log("Connect on startup");
+    void actions.connect(target);
   };
 
   const logStateChange = (

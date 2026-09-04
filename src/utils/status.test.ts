@@ -65,6 +65,7 @@ const BASE_APP_STATE: AppState = {
     nextKey: 0,
     preferredLocation: null,
     lastConnectedDestination: null,
+    connectOnStartup: false,
   },
 };
 
