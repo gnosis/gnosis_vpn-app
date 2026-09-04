@@ -11,7 +11,6 @@ import {
   formatLoadAvg,
   formatRouting,
   formatSecondsAgo,
-  formatSlots,
   getConnectionState,
   getHopCount,
   getLastCheckedEpoch,
@@ -19,6 +18,7 @@ import {
 } from "@src/utils/exitHealth.ts";
 import { isReady } from "@src/utils/destinations.ts";
 import HopsIcon from "./HopsIcon.tsx";
+import SlotLoadStat from "./SlotLoadStat.tsx";
 import Stat from "./Stat.tsx";
 import Tag from "../common/Tag.tsx";
 import Flag from "../Flag.tsx";
@@ -62,11 +62,6 @@ export default function ExitNodeCard(props: {
   const latency = () => {
     const rh = routeHealth();
     return rh ? formatLatency(rh) : null;
-  };
-
-  const slots = () => {
-    const rh = routeHealth();
-    return rh ? formatSlots(rh) : null;
   };
 
   const loadAvg = () => {
@@ -165,13 +160,9 @@ export default function ExitNodeCard(props: {
               tooltip={<span>Time since last health check</span>}
             />
             <Show when={settings.showDetailedMetrics}>
+              <SlotLoadStat routeHealth={routeHealth()} />
               <Stat
-                label="Capacity"
-                value={slots()}
-                tooltip={<span>Available / total connection slots</span>}
-              />
-              <Stat
-                label="Load"
+                label="CPU Utilization"
                 value={loadAvg()}
                 tooltip={<span>Server load average. Lower is better.</span>}
               />

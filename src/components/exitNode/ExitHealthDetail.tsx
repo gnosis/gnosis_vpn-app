@@ -12,12 +12,12 @@ import type {
 import { useAppStore } from "@src/stores/appStore.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import {
+  formatConnectionStatus,
   formatExitHealthStatus,
   formatLatency,
   formatLoadAvg,
   formatRouting,
   formatSecondsAgo,
-  formatSlots,
   getConnectionState,
   getExitHealthColor,
   getHopCount,
@@ -25,6 +25,7 @@ import {
   type HealthColor,
 } from "@src/utils/exitHealth.ts";
 import HopsIcon from "./HopsIcon.tsx";
+import SlotLoadStat from "./SlotLoadStat.tsx";
 import Stat from "./Stat.tsx";
 import Tag from "../common/Tag.tsx";
 import ChevronIcon from "../common/ChevronIcon.tsx";
@@ -36,10 +37,7 @@ const statusColorClass: Record<HealthColor, string> = {
   gray: "text-text-muted",
 };
 
-/**
- * Expanded health detail panel shown below the location banner.
- * Displays latency, capacity, load, routing, and error info.
- */
+/** Expanded health detail panel below the location banner. */
 export default function ExitHealthDetail(
   props: { destinationState: DestinationState },
 ) {
@@ -53,7 +51,7 @@ export default function ExitHealthDetail(
 
   const destId = () => props.destinationState.destination.id;
 
-  // Derive connection label from top-level app state instead of per-destination field
+  // Top-level app state owns the live connection label.
   const connectionLabel = () =>
     getConnectionState(
       destId(),
@@ -80,36 +78,19 @@ export default function ExitHealthDetail(
     const rh = routeHealth();
     return rh ? formatLatency(rh) : null;
   };
-  const slots = () => {
-    const rh = routeHealth();
-    return rh ? formatSlots(rh) : null;
-  };
   const loadAvg = () => {
     const rh = routeHealth();
     return rh ? formatLoadAvg(rh) : null;
   };
   const route = () => formatRouting(routing());
-  // Stats (latency, capacity, load) only mean anything once the route is
-  // actually usable — everything else (checking, needs channel/peer,
-  // unreachable, ...) only ever gets a one-line status, no numbers, no
-  // expand affordance. This also means the panel auto-collapses to that
-  // status line if health degrades mid-expansion, and auto-restores the
-  // user's expand/collapse choice once it's usable again — the choice
-  // itself is never touched, only whether it's honored right now.
-  // Connecting/Reconnecting mean an action is in flight for this
-  // destination. route_health is a separate, less-frequently-polled check,
-  // so it can still read a stale "ReadyToConnect" from before the action
-  // started — don't let that stale snapshot keep the panel expanded while
-  // one is running. Disconnecting is deliberately excluded: it's treated as
-  // already disconnected here.
+  // Only usable routes keep the full stats panel, including mid-connect transitions.
   const isActionInFlight = () =>
     connectionLabel() === "Connecting" || connectionLabel() === "Reconnecting";
   const isGoodState = () =>
-    isConnected() ||
-    (!isActionInFlight() && routeHealth()?.state.state === "ReadyToConnect");
+    isConnected() || isActionInFlight() ||
+    routeHealth()?.state.state === "ReadyToConnect";
 
-  // Independent clock: ExitHealthDetail is mounted in MainScreen, outside ExitNodeList
-  // which runs its own clock. Both are intentionally separate mounts.
+  // Own clock: this panel mounts separately from ExitNodeList.
   const [nowSec, setNowSec] = createSignal(Date.now() / 1000);
   const tick = setInterval(() => setNowSec(Date.now() / 1000), 1000);
   onCleanup(() => clearInterval(tick));
@@ -123,9 +104,7 @@ export default function ExitHealthDetail(
     return formatSecondsAgo(diff);
   };
 
-  // A function (not a shared JSX value) so the collapsed and expanded
-  // layouts each get their own node — they never render together, but
-  // Solid's JSX nodes aren't safe to hand to two spots at once regardless.
+  // Return fresh nodes; sharing one JSX node between layouts is unsafe.
   const latencyTooltip = () => (
     <div class="space-y-1">
       <p class="text-white font-bold">Expected ~200ms</p>
@@ -140,56 +119,29 @@ export default function ExitHealthDetail(
     </div>
   );
 
-  // Shared between the good and fallback layouts so the hop count always
-  // sits next to whatever status/latency info is showing, not stacked above it.
+  // Reuse the hop pill so it stays beside the active status row.
   const hopsTag = () => (
     <Show when={route() && getHopCount(routing()) !== 1}>
       <Tag>
         <HopsIcon count={getHopCount(routing())} hideCount />
-        <span class="ml-1">{route()}</span>
+        {
+          /* Keep "2-hops" on one line beside Status. */
+        }
+        <span class="ml-1 whitespace-nowrap">{route()}</span>
       </Tag>
     </Show>
   );
 
-  // The hops pill lives in one spot next to Latency (collapsed) and a
-  // different one aligned under Capacity (expanded) — two different
-  // layouts, not two positions of the same one, so CSS alone can't tween
-  // between them. Instead we measure both and slide the same DOM node with
-  // a transform (a lightweight FLIP): capacityRef stays mounted at all
-  // times (only its row's height animates), so its column position is
-  // measurable even while collapsed.
-  let hopsRef: HTMLDivElement | undefined;
-  let capacityRef: HTMLDivElement | undefined;
-  const [hopsOffsetPx, setHopsOffsetPx] = createSignal(0);
-  const PILL_LEFT_PAD_PX = 8; // Tag's own px-2, canceled so the icon (not the pill's outline) lines up with Capacity
+  // Match fallback status colors in the stats row.
+  const connectionStatus = () => formatConnectionStatus(connectionLabel());
+  const connectionStatusClass = () => {
+    const s = connectionStatus();
+    if (s === "Connected") return "font-semibold text-vpn-light-green";
+    if (s === "Connecting") return "font-semibold text-vpn-yellow";
+    return "font-semibold text-text-primary";
+  };
 
-  createEffect(() => {
-    const expanded = settings.showDetailedMetrics;
-    latency(); // re-measure if the latency text's width changes
-    if (!expanded || !hopsRef || !capacityRef) {
-      setHopsOffsetPx(0);
-      return;
-    }
-    const hopsLeft = hopsRef.getBoundingClientRect().left;
-    const capacityLeft = capacityRef.getBoundingClientRect().left;
-    setHopsOffsetPx(capacityLeft - PILL_LEFT_PAD_PX - hopsLeft);
-  });
-
-  // The good/fallback swap below and the Checked/Capacity/Load panel used to
-  // collapse via a "grid-template-rows: 1fr 0fr" trick, animating between an
-  // 0fr and 1fr row on an auto-height parent. Chromium resolves that fine,
-  // but the app's real webview (WebKitGTK on Linux) doesn't reliably shrink
-  // the 0fr row to zero there, leaving the panel pinned open — a headless
-  // Chromium-only test can't catch this since it's an engine difference, not
-  // a logic bug. Measuring each block's own natural height via scrollHeight
-  // and transitioning max-height between concrete pixel values sidesteps the
-  // ambiguity entirely: every engine agrees on what a definite max-height
-  // transition should do.
-  // goodRowRef nests detailedStatsRef, which is itself max-height-animated —
-  // measuring goodRowRef's own scrollHeight would race against that child's
-  // DOM commit (a parent's scrollHeight reflects a clamped child's *current*
-  // rendered height, not its natural one). Measure the two parts
-  // independently instead and sum them; that's plain arithmetic, no race.
+  // Use separately measured max-heights because WebKitGTK misrenders 0fr/1fr collapse and nested reads race.
   let latencyRowRef: HTMLDivElement | undefined;
   let detailedStatsRef: HTMLDivElement | undefined;
   let fallbackRowRef: HTMLDivElement | undefined;
@@ -203,11 +155,12 @@ export default function ExitHealthDetail(
   createEffect(() => {
     latency();
     route();
+    connectionLabel();
     if (latencyRowRef) setLatencyRowHeightPx(latencyRowRef.scrollHeight);
   });
   createEffect(() => {
     lastChecked();
-    slots();
+    routeHealth();
     loadAvg();
     if (detailedStatsRef) {
       setDetailedStatsHeightPx(detailedStatsRef.scrollHeight);
@@ -219,9 +172,7 @@ export default function ExitHealthDetail(
     if (fallbackRowRef) setFallbackRowHeightPx(fallbackRowRef.scrollHeight);
   });
 
-  // The whole area south of the destination card toggles expand/collapse,
-  // not just the chevron — a bigger, more forgiving click/tap target. Only
-  // wired up in the good state: the fallback view has nothing to toggle.
+  // The whole lower row toggles the detailed panel in good states.
   const toggleDetailedMetrics = () =>
     void settingsActions.setShowDetailedMetrics(!settings.showDetailedMetrics);
 
@@ -249,11 +200,7 @@ export default function ExitHealthDetail(
           }}
         >
           {
-            /* Both branches stay mounted (never swapped via <Show>'s
-              unmount/mount) so the good-state/fallback height change can
-              animate — a <Show> swap has nothing left to clip once the old
-              branch is gone. Each one's own max-height (not a shared grid)
-              drives the collapse; see the scrollHeight effects above. */
+            /* Keep both branches mounted; unmounting leaves no DOM to animate. */
           }
           <div>
             <div
@@ -262,21 +209,35 @@ export default function ExitHealthDetail(
                 "max-height": isGoodState() ? `${goodRowHeightPx()}px` : "0px",
               }}
             >
-              <div class="min-w-0">
-                <div ref={latencyRowRef} class="flex items-center gap-2">
-                  <Stat
-                    label="Latency"
-                    value={latency()}
-                    valueClass="font-semibold text-text-primary"
-                    tooltip={latencyTooltip()}
-                  />
-                  <div
-                    ref={hopsRef}
-                    class="transition-transform duration-300 ease-out"
-                    style={{ transform: `translateX(${hopsOffsetPx()}px)` }}
-                  >
+              {
+                /* Fix the 3fr/2fr split to panel width so columns stay put. */
+              }
+              <div class="min-w-0 flex-1">
+                {
+                  /* Match the detailed grid's columns. */
+                }
+                {
+                  /* minmax(0, …) stops long values from widening a column. */
+                }
+                <div
+                  ref={latencyRowRef}
+                  class="grid grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-x-4"
+                >
+                  <div class="flex items-center gap-2">
+                    <Stat
+                      label="Latency"
+                      value={latency()}
+                      valueClass="font-semibold text-text-primary"
+                      tooltip={latencyTooltip()}
+                    />
                     {hopsTag()}
                   </div>
+                  <Stat
+                    label="Status"
+                    value={connectionStatus()}
+                    valueClass={connectionStatusClass()}
+                    tooltip={<span>State of the connection</span>}
+                  />
                 </div>
                 <div
                   ref={detailedStatsRef}
@@ -287,7 +248,7 @@ export default function ExitHealthDetail(
                       : "0px",
                   }}
                 >
-                  <div class="grid grid-cols-[3fr_2fr] gap-x-4 gap-y-2 pt-2 text-text-secondary">
+                  <div class="grid grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-x-4 gap-y-2 pt-2 text-text-secondary">
                     <div
                       class="transition-all duration-300 ease-out"
                       style={{
@@ -308,7 +269,6 @@ export default function ExitHealthDetail(
                       />
                     </div>
                     <div
-                      ref={capacityRef}
                       class="transition-all duration-300 ease-out"
                       style={{
                         opacity: settings.showDetailedMetrics ? 1 : 0,
@@ -320,13 +280,7 @@ export default function ExitHealthDetail(
                           : "0ms",
                       }}
                     >
-                      <Stat
-                        label="Capacity"
-                        value={slots()}
-                        tooltip={
-                          <span>Available / total connection slots</span>
-                        }
-                      />
+                      <SlotLoadStat routeHealth={routeHealth()} />
                     </div>
                     <div
                       class="col-span-2 transition-all duration-300 ease-out"
@@ -341,7 +295,7 @@ export default function ExitHealthDetail(
                       }}
                     >
                       <Stat
-                        label="Load"
+                        label="CPU Utilization"
                         value={loadAvg()}
                         valueClass="text-text-primary whitespace-nowrap"
                         tooltip={
@@ -353,14 +307,10 @@ export default function ExitHealthDetail(
                 </div>
               </div>
               {
-                /* Decorative now — the whole row above is the real toggle
-                  control; see aria-expanded/aria-label on the outer div. */
+                /* Decorative: the outer row handles toggling. */
               }
-              <span // Lines up with ExitNodeListButton's icon above (destination
-               // card's px-3 + button's px-7 + list icon's half-width, minus
-              // this icon's own half-width), despite the two rows having
-              // different edge insets.
-              class="shrink-0 mr-[38px] text-text-secondary">
+              {/* Align with the list button icon above. */}
+              <span class="shrink-0 mr-[38px] text-text-secondary">
                 <ChevronIcon
                   class={`w-4 h-3 transition-transform duration-200 ${
                     settings.showDetailedMetrics ? "rotate-180" : ""

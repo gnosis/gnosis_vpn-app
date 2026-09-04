@@ -217,9 +217,10 @@ export default function LocationBanner() {
     // (also suppresses click-focus: deliberate, programmatic focus() here painted a focus ring; keyboard users still Tab to the cards)
     e.preventDefault();
     const target = e.target instanceof Element ? e.target : null;
-    pendingClickTarget =
-      target?.closest<HTMLElement>('button, [role="button"]') ??
-        null;
+    // Ignore info-icon presses so they do not replay as health-row toggles.
+    pendingClickTarget = target?.closest("[data-info-icon]")
+      ? null
+      : target?.closest<HTMLElement>('button, [role="button"]') ?? null;
     pendingCardId =
       target?.closest<HTMLElement>("[data-destination-id]")?.dataset
         .destinationId ?? null;

@@ -135,6 +135,7 @@ select {
 
 @theme {
   --color-vpn-yellow: #ffc472;
+  --color-vpn-orange: #f97316;
   --color-vpn-dark-green: #083d1c;
   --color-vpn-light-green: #16a34a;
   --color-vpn-red: #ff7272;
