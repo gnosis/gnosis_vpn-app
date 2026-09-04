@@ -20,13 +20,10 @@ export function StatusIndicator(
       return { text: "Connected", color: "bg-vpn-light-green" };
     }
     if (appState.vpnStatus === "Connecting") {
-      return { text: "Connecting", color: "bg-vpn-yellow" };
-    }
-    if (appState.vpnStatus === "Disconnecting") {
-      return { text: "Disconnecting", color: "bg-vpn-yellow" };
+      return { text: "Connecting", color: "bg-text-primary" };
     }
     if (appState.vpnStatus === "Reconnecting") {
-      return { text: "Reconnecting", color: "bg-vpn-yellow" };
+      return { text: "Reconnecting", color: "bg-text-primary" };
     }
     if (appState.vpnStatus === "WorkerRestarting") {
       return { text: "Restarting...", color: "bg-vpn-yellow" };
