@@ -46,7 +46,8 @@ export function StatusIndicator(
       <div
         class={`flex flex-row gap-2 items-center justify-between py-2 ${containerClass}`}
       >
-        <div class={`w-3 h-3 rounded-2xl ${status().color}`} />
+        {/* -translate-y-px: line-box centering sits 1px below the bold caps' optical center */}
+        <div class={`w-3 h-3 rounded-2xl -translate-y-px ${status().color}`} />
         <p class="text-sm font-bold">{status().text}</p>
       </div>
     </Show>
