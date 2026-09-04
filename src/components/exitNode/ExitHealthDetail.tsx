@@ -35,6 +35,7 @@ const statusColorClass: Record<HealthColor, string> = {
   yellow: "text-vpn-yellow",
   red: "text-vpn-red",
   gray: "text-text-muted",
+  default: "text-text-primary",
 };
 
 /** Expanded health detail panel below the location banner. */
@@ -132,14 +133,11 @@ export default function ExitHealthDetail(
     </Show>
   );
 
-  // Match fallback status colors in the stats row.
   const connectionStatus = () => formatConnectionStatus(connectionLabel());
-  const connectionStatusClass = () => {
-    const s = connectionStatus();
-    if (s === "Connected") return "font-semibold text-vpn-light-green";
-    if (s === "Connecting") return "font-semibold text-vpn-yellow";
-    return "font-semibold text-text-primary";
-  };
+  const connectionStatusClass = () =>
+    connectionStatus() === "Connected"
+      ? "font-semibold text-vpn-light-green"
+      : "font-semibold text-text-primary";
 
   // Use separately measured max-heights because WebKitGTK misrenders 0fr/1fr collapse and nested reads race.
   let latencyRowRef: HTMLDivElement | undefined;
@@ -232,12 +230,13 @@ export default function ExitHealthDetail(
                     />
                     {hopsTag()}
                   </div>
-                  <Stat
-                    label="Status"
-                    value={connectionStatus()}
-                    valueClass={connectionStatusClass()}
-                    tooltip={<span>State of the connection</span>}
-                  />
+                  <Show when={connectionStatus() !== "Disconnected"}>
+                    <span class={`self-center ${connectionStatusClass()}`}>
+                      {/* visible "Status" label was dropped by design; keep it for screen readers */}
+                      <span class="sr-only">Connection status:</span>
+                      {connectionStatus()}
+                    </span>
+                  </Show>
                 </div>
                 <div
                   ref={detailedStatsRef}
