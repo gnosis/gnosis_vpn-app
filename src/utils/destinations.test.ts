@@ -248,6 +248,35 @@ describe("sortByCapacityAwareLatency", () => {
     expect(sortByCapacityAwareLatency(destinations, "here")[0]).toBe("here");
   });
 
+  it("exempts only one client for the destination we are on, not more", () => {
+    expect(
+      sortByCapacityAwareLatency({
+        live: makeReadyToConnect("live", 50_000_000, {
+          available: 4,
+          connected: 2,
+        }),
+        other: makeReadyToConnect("other", 50_000_000, {
+          available: 4,
+          connected: 0,
+        }),
+      }, "live")[0],
+    ).toBe("other");
+  });
+
+  it("places full destinations after non-full but before not-ready ones", () => {
+    // ids chosen so an alphabetical sort would invert the expected order
+    expect(
+      sortByCapacityAwareLatency({
+        "aaa-dead": makeUnavailable("aaa-dead"),
+        "bbb-full": makeReadyToConnect("bbb-full", 10_000_000, {
+          available: 0,
+          connected: 5,
+        }),
+        "ccc-open": makeReadyToConnect("ccc-open", 200_000_000),
+      }),
+    ).toEqual(["ccc-open", "bbb-full", "aaa-dead"]);
+  });
+
   it("falls back to the label when neither has latency data", () => {
     expect(
       sortByCapacityAwareLatency({
