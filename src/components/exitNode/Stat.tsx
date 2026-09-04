@@ -14,7 +14,11 @@ export default function Stat(props: {
           {props.label}
           <Show when={props.tooltip}>
             <Tooltip content={props.tooltip!}>
-              <span class="text-text-muted hover:text-text-primary cursor-help transition-colors">
+              <span
+                class="text-text-muted hover:text-text-primary cursor-help transition-colors"
+                data-info-icon
+                onClick={(e) => e.stopPropagation()}
+              >
                 &#9432;
               </span>
             </Tooltip>

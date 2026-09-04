@@ -217,9 +217,14 @@ export default function LocationBanner() {
     // (also suppresses click-focus: deliberate, programmatic focus() here painted a focus ring; keyboard users still Tab to the cards)
     e.preventDefault();
     const target = e.target instanceof Element ? e.target : null;
-    pendingClickTarget =
-      target?.closest<HTMLElement>('button, [role="button"]') ??
-        null;
+    // A stat's (i) icon is hover-only info sitting inside a role="button"
+    // row: replaying the tap on that row would toggle the health panel just
+    // because the pointer went down on the icon. Leaving the target null
+    // makes the tap a no-op on the current card (and still a switch when it
+    // lands on a peeking neighbor, via pendingCardId below).
+    pendingClickTarget = target?.closest("[data-info-icon]")
+      ? null
+      : target?.closest<HTMLElement>('button, [role="button"]') ?? null;
     pendingCardId =
       target?.closest<HTMLElement>("[data-destination-id]")?.dataset
         .destinationId ?? null;
