@@ -245,12 +245,13 @@ export function createDestinationMode(
   function onSettleDeadline(): void {
     const draft = draftOf();
     if (draft.mode.mode !== "auto" || draft.mode.pending === null) return;
+    // an early wake-up is not the deadline, so re-arm instead of letting it pass silently
     if (Date.now() < draft.mode.pending.settleAt) {
       syncTimers();
       return;
     }
-    makeActive(draft, draft.mode.pending.candidateId);
-    draft.mode = AUTO_IDLE;
+    // the same clock rules as every other path: a slept-through pending is discarded, not committed
+    commitDuePending(draft);
     commit(draft);
   }
 

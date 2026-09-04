@@ -658,6 +658,20 @@ describe("auto — arming", () => {
       pending: { candidateId: "usa" },
     });
   });
+
+  it("discards a pending its own timer slept through", async () => {
+    const handle = setup();
+    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor(UK_USA));
+
+    // the clock jumps with the pending timer, so it fires this late
+    vi.setSystemTime(Date.now() + STATUS_POLL_MS + 1);
+    await vi.advanceTimersByTimeAsync(SETTLE_MS);
+
+    expect(handle.model.active, "the clock decides, not the timer").toBe("uk");
+    expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
+    expectInvariants(handle.model);
+  });
 });
 
 describe("auto — retargeting and the freeze", () => {
