@@ -115,13 +115,14 @@ re-renders it. The `isStale` guard keeps a slept-through pending — one the nex
 
 ## The sweep
 
-> Every entry is either ever-active history, or the current pending candidate.
-> Nothing else may exist.
+> Every entry is either ever-active history, the current pending candidate, or —
+> while a drag is in progress — the candidate the drag interrupted. Nothing else
+> may exist.
 
 Run at the end of every transition:
 
 ```
-drop each id where !entries[id].wasActive && id !== pending?.candidateId
+unless dragging: drop each id where !entries[id].wasActive && id !== pending?.candidateId
 sequence = sequence.filter(id => id in entries)
 ```
 
@@ -129,6 +130,15 @@ This replaces per-path removal bookkeeping. A card minted for a candidate
 disappears when that candidate is abandoned, however it was abandoned; a card
 that was once active stays as history. No transition needs to remember which of
 the two it is dealing with.
+
+While dragging, the sweep spares everything: the strip must not change under the
+user's finger. This is safe because nothing can mint a stray entry mid-drag —
+invariant 8 forbids arming, and every other path marks what it touches
+`wasActive` — so the only orphan that can exist is the candidate the drag
+interrupted. Whatever ends the drag runs the next sweep, which collects it
+unless the user settled on it. A never-active candidate was appended when minted
+and nothing appends behind it, so this orphan is always the last card;
+collecting it never shifts the others.
 
 ## Invariants
 
@@ -139,7 +149,7 @@ Asserted after every transition, and in every test:
 3. `active === null || active in entries`
 4. `pending !== null` ⇒ its candidate is in `entries` and is not `active`
 5. `mode === "selected"` ⇒ `active !== null`
-6. every entry satisfies `wasActive || id === pending?.candidateId`
+6. every entry satisfies `wasActive || id === pending?.candidateId || dragging`
 7. keys are unique and never reused; `nextKey` is strictly monotonic
 8. `pending !== null` ⇒ `!suspended`
 9. `pending !== null` ⇒ `active !== null`
@@ -265,8 +275,17 @@ created, so a change in Settings applies at the next launch or after a
 
 ## listOpened
 
-Stop both timers, clear the pending, sweep, `listOpen = true`. In `selected`,
-set `autoRevertAt = null`.
+Stop both timers, drop the pending, sweep, `listOpen = true`. In `selected`, set
+`autoRevertAt = null`.
+
+Dropping the pending honours the clock: past `settleAt` and not stale, the
+switch has already happened — `effectiveActive` reports the candidate — so it is
+committed (`active = candidateId`, `wasActive`), not discarded. Discarding would
+snap the reported active back to the outgoing card, and whether the switch
+happened would depend on whether the settle timer beat the click. Stale, it is
+discarded exactly as `statusUpdate` would. The sweep still collects the
+candidate's card here: the list covers the carousel, so nothing vanishes in
+view.
 
 The mode is otherwise untouched, and needs no saved copy: `auto`-with-pending
 becomes `auto`-without, which is still `auto`, so the mode is its own memory of
@@ -302,9 +321,16 @@ A pick with no `active` yet mints the entry, appends it, and becomes active.
 
 ## dragStarted
 
-`selected` with `autoRevertAt = null`, `dragging = true`; clear the pending,
-stop the timers, sweep. Touching the strip is a selection from its first
-movement, and the deadline does not run while the finger is down.
+`selected` with `autoRevertAt = null`, `dragging = true`; drop the pending —
+committing it first when it is past `settleAt`, exactly as in `listOpened` — and
+stop the timers. Touching the strip is a selection from its first movement, and
+the deadline does not run while the finger is down.
+
+`entries` and `sequence` are untouched: the interrupted candidate's card
+survives the drag ([the sweep](#the-sweep) spares it while `dragging`), so the
+strip never changes under the finger and the user may settle on the very card
+the countdown was pointing at. Settling elsewhere lets the drag-ending sweep
+collect it.
 
 ## slideCommitted(id)
 
