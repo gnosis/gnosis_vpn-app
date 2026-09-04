@@ -13,10 +13,7 @@ const loadColorClass: Record<LoadLevel, string> = {
   high: "text-vpn-red",
 };
 
-/**
- * "Load" stat: share of the exit's connection slots in use, as a bold
- * percentage colored green (up to 50%), orange (up to 75%) or red (above).
- */
+/** Slot-usage stat, colored by the share of connection slots in use. */
 export default function SlotLoadStat(
   props: { routeHealth: RouteHealthView | null },
 ) {

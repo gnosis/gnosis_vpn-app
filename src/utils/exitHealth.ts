@@ -85,7 +85,7 @@ export function getSlotLoad(rhv: RouteHealthView): SlotLoad | null {
 /** Normalized load level relative to processor count. */
 export type LoadLevel = "low" | "medium" | "high";
 
-/** Load level for a slot-usage percentage: up to 50% low, up to 75% medium, above that high. */
+/** Slot-usage color band. */
 export function getSlotLoadLevel(percent: number): LoadLevel {
   if (percent <= 50) return "low";
   if (percent <= 75) return "medium";
@@ -216,8 +216,7 @@ export type ConnectionState =
 export function formatConnectionStatus(state: ConnectionState): string {
   if (state === "Connected") return "Connected";
   if (state === "Connecting" || state === "Reconnecting") return "Connecting";
-  // Disconnecting is treated as already disconnected, matching isGoodState
-  // in ExitHealthDetail.
+  // Treat disconnecting as already disconnected to match ExitHealthDetail.
   return "Disconnected";
 }
 

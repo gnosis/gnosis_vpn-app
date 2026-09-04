@@ -37,10 +37,7 @@ const statusColorClass: Record<HealthColor, string> = {
   gray: "text-text-muted",
 };
 
-/**
- * Expanded health detail panel shown below the location banner.
- * Displays latency, load, CPU Utilization, routing, and error info.
- */
+/** Expanded health detail panel below the location banner. */
 export default function ExitHealthDetail(
   props: { destinationState: DestinationState },
 ) {
@@ -54,7 +51,7 @@ export default function ExitHealthDetail(
 
   const destId = () => props.destinationState.destination.id;
 
-  // Derive connection label from top-level app state instead of per-destination field
+  // Top-level app state owns the live connection label.
   const connectionLabel = () =>
     getConnectionState(
       destId(),
@@ -86,26 +83,14 @@ export default function ExitHealthDetail(
     return rh ? formatLoadAvg(rh) : null;
   };
   const route = () => formatRouting(routing());
-  // Stats (latency, load, CPU Utilization) only mean anything once the route is
-  // actually usable — everything else (checking, needs channel/peer,
-  // unreachable, ...) only ever gets a one-line status, no numbers, no
-  // expand affordance. This also means the panel auto-collapses to that
-  // status line if health degrades mid-expansion, and auto-restores the
-  // user's expand/collapse choice once it's usable again — the choice
-  // itself is never touched, only whether it's honored right now.
-  // Connecting/Reconnecting (an action in flight for this destination) is
-  // deliberately a good state: the Status stat next to Latency reports the
-  // transition, and an open stats dropdown stays open through it instead of
-  // collapsing to the one-line fallback. Disconnecting is excluded: it's
-  // treated as already disconnected here.
+  // Only usable routes keep the full stats panel, including mid-connect transitions.
   const isActionInFlight = () =>
     connectionLabel() === "Connecting" || connectionLabel() === "Reconnecting";
   const isGoodState = () =>
     isConnected() || isActionInFlight() ||
     routeHealth()?.state.state === "ReadyToConnect";
 
-  // Independent clock: ExitHealthDetail is mounted in MainScreen, outside ExitNodeList
-  // which runs its own clock. Both are intentionally separate mounts.
+  // Own clock: this panel mounts separately from ExitNodeList.
   const [nowSec, setNowSec] = createSignal(Date.now() / 1000);
   const tick = setInterval(() => setNowSec(Date.now() / 1000), 1000);
   onCleanup(() => clearInterval(tick));
@@ -119,9 +104,7 @@ export default function ExitHealthDetail(
     return formatSecondsAgo(diff);
   };
 
-  // A function (not a shared JSX value) so the collapsed and expanded
-  // layouts each get their own node — they never render together, but
-  // Solid's JSX nodes aren't safe to hand to two spots at once regardless.
+  // Return fresh nodes; sharing one JSX node between layouts is unsafe.
   const latencyTooltip = () => (
     <div class="space-y-1">
       <p class="text-white font-bold">Expected ~200ms</p>
@@ -136,23 +119,20 @@ export default function ExitHealthDetail(
     </div>
   );
 
-  // Shared between the good and fallback layouts so the hop count always
-  // sits next to whatever status/latency info is showing, not stacked above it.
+  // Reuse the hop pill so it stays beside the active status row.
   const hopsTag = () => (
     <Show when={route() && getHopCount(routing()) !== 1}>
       <Tag>
         <HopsIcon count={getHopCount(routing())} hideCount />
         {
-          /* nowrap: "2-hops" would otherwise break at the hyphen now that
-          the pill shares its column with the Status stat */
+          /* Keep "2-hops" on one line beside Status. */
         }
         <span class="ml-1 whitespace-nowrap">{route()}</span>
       </Tag>
     </Show>
   );
 
-  // Connection status shown beside Latency, colored like the fallback tag:
-  // green while connected, yellow during a transition, plain otherwise.
+  // Match fallback status colors in the stats row.
   const connectionStatus = () => formatConnectionStatus(connectionLabel());
   const connectionStatusClass = () => {
     const s = connectionStatus();
@@ -161,21 +141,7 @@ export default function ExitHealthDetail(
     return "font-semibold text-text-primary";
   };
 
-  // The good/fallback swap below and the Checked/Load/CPU Utilization panel used to
-  // collapse via a "grid-template-rows: 1fr 0fr" trick, animating between an
-  // 0fr and 1fr row on an auto-height parent. Chromium resolves that fine,
-  // but the app's real webview (WebKitGTK on Linux) doesn't reliably shrink
-  // the 0fr row to zero there, leaving the panel pinned open — a headless
-  // Chromium-only test can't catch this since it's an engine difference, not
-  // a logic bug. Measuring each block's own natural height via scrollHeight
-  // and transitioning max-height between concrete pixel values sidesteps the
-  // ambiguity entirely: every engine agrees on what a definite max-height
-  // transition should do.
-  // goodRowRef nests detailedStatsRef, which is itself max-height-animated —
-  // measuring goodRowRef's own scrollHeight would race against that child's
-  // DOM commit (a parent's scrollHeight reflects a clamped child's *current*
-  // rendered height, not its natural one). Measure the two parts
-  // independently instead and sum them; that's plain arithmetic, no race.
+  // Use separately measured max-heights; WebKitGTK misrenders the old nested 0fr/1fr collapse.
   let latencyRowRef: HTMLDivElement | undefined;
   let detailedStatsRef: HTMLDivElement | undefined;
   let fallbackRowRef: HTMLDivElement | undefined;
@@ -206,9 +172,7 @@ export default function ExitHealthDetail(
     if (fallbackRowRef) setFallbackRowHeightPx(fallbackRowRef.scrollHeight);
   });
 
-  // The whole area south of the destination card toggles expand/collapse,
-  // not just the chevron — a bigger, more forgiving click/tap target. Only
-  // wired up in the good state: the fallback view has nothing to toggle.
+  // The whole lower row toggles the detailed panel in good states.
   const toggleDetailedMetrics = () =>
     void settingsActions.setShowDetailedMetrics(!settings.showDetailedMetrics);
 
@@ -236,11 +200,7 @@ export default function ExitHealthDetail(
           }}
         >
           {
-            /* Both branches stay mounted (never swapped via <Show>'s
-              unmount/mount) so the good-state/fallback height change can
-              animate — a <Show> swap has nothing left to clip once the old
-              branch is gone. Each one's own max-height (not a shared grid)
-              drives the collapse; see the scrollHeight effects above. */
+            /* Keep both branches mounted so max-height can animate between them. */
           }
           <div>
             <div
@@ -250,20 +210,14 @@ export default function ExitHealthDetail(
               }}
             >
               {
-                /* flex-1: fill the row so the grids' 3fr/2fr split is fixed
-                  by the panel width, not by whatever text happens to be
-                  rendered — otherwise Status/Load shift sideways whenever
-                  latency or the status label changes width. */
+                /* Fix the 3fr/2fr split to panel width so columns stay put. */
               }
               <div class="min-w-0 flex-1">
                 {
-                  /* Same column split as the detailed grid below, so Status
-                    lines up above Load and Latency above Checked. */
+                  /* Match the detailed grid's columns. */
                 }
                 {
-                  /* minmax(0,…): the split is a pure ratio of the panel
-                    width, never pushed by whatever text is in a column, so
-                    the columns hold still across connect/disconnect. */
+                  /* minmax(0, …) stops long values from widening a column. */
                 }
                 <div
                   ref={latencyRowRef}
@@ -353,14 +307,10 @@ export default function ExitHealthDetail(
                 </div>
               </div>
               {
-                /* Decorative now — the whole row above is the real toggle
-                  control; see aria-expanded/aria-label on the outer div. */
+                /* Decorative: the outer row handles toggling. */
               }
-              <span // Lines up with ExitNodeListButton's icon above (destination
-               // card's px-3 + button's px-7 + list icon's half-width, minus
-              // this icon's own half-width), despite the two rows having
-              // different edge insets.
-              class="shrink-0 mr-[38px] text-text-secondary">
+              {/* Align with the list button icon above. */}
+              <span class="shrink-0 mr-[38px] text-text-secondary">
                 <ChevronIcon
                   class={`w-4 h-3 transition-transform duration-200 ${
                     settings.showDetailedMetrics ? "rotate-180" : ""
