@@ -232,6 +232,8 @@ export default function ExitHealthDetail(
                   </div>
                   <Show when={connectionStatus() !== "Disconnected"}>
                     <span class={`self-center ${connectionStatusClass()}`}>
+                      {/* visible "Status" label was dropped by design; keep it for screen readers */}
+                      <span class="sr-only">{"Connection status: "}</span>
                       {connectionStatus()}
                     </span>
                   </Show>
