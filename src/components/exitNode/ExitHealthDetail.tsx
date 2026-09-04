@@ -142,8 +142,10 @@ export default function ExitHealthDetail(
     <Show when={route() && getHopCount(routing()) !== 1}>
       <Tag>
         <HopsIcon count={getHopCount(routing())} hideCount />
-        {/* nowrap: "2-hops" would otherwise break at the hyphen now that
-          the pill shares its column with the Status stat */}
+        {
+          /* nowrap: "2-hops" would otherwise break at the hyphen now that
+          the pill shares its column with the Status stat */
+        }
         <span class="ml-1 whitespace-nowrap">{route()}</span>
       </Tag>
     </Show>
