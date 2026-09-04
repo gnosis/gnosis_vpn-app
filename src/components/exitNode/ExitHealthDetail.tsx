@@ -132,14 +132,11 @@ export default function ExitHealthDetail(
     </Show>
   );
 
-  // Match fallback status colors in the stats row.
   const connectionStatus = () => formatConnectionStatus(connectionLabel());
-  const connectionStatusClass = () => {
-    const s = connectionStatus();
-    if (s === "Connected") return "font-semibold text-vpn-light-green";
-    if (s === "Connecting") return "font-semibold text-vpn-yellow";
-    return "font-semibold text-text-primary";
-  };
+  const connectionStatusClass = () =>
+    connectionStatus() === "Connected"
+      ? "font-semibold text-vpn-light-green"
+      : "font-semibold text-text-primary";
 
   // Use separately measured max-heights because WebKitGTK misrenders 0fr/1fr collapse and nested reads race.
   let latencyRowRef: HTMLDivElement | undefined;
@@ -234,9 +231,11 @@ export default function ExitHealthDetail(
                   </div>
                   <Stat
                     label="Status"
-                    value={connectionStatus()}
+                    hideLabel
+                    value={connectionStatus() === "Disconnected"
+                      ? null
+                      : connectionStatus()}
                     valueClass={connectionStatusClass()}
-                    tooltip={<span>State of the connection</span>}
                   />
                 </div>
                 <div
