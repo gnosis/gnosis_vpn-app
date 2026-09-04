@@ -47,7 +47,9 @@ pub const TRAY_ICON_DISCONNECTED_LOW_FUNDS: &str =
 pub const TRAY_ICON_DISCONNECTED_OUT_OF_FUNDS: &str =
     "tray-icons/tray-icon-disconnected-out-of-funds.png";
 
-// Linux tray icon constants (theme-independent, full-color app icon design)
+// Linux tray icon constants (theme-independent, full-color app icon design
+// with a circular rather than square backdrop, so it reads as a badge next
+// to flat symbolic tray icons; see derive-tray-icons.py)
 pub const TRAY_ICON_LINUX_CONNECTED: &str = "tray-icons/linux/connected.png";
 pub const TRAY_ICON_LINUX_CONNECTED_LOW_FUNDS: &str = "tray-icons/linux/connected-low-funds.png";
 pub const TRAY_ICON_LINUX_CONNECTED_OUT_OF_FUNDS: &str =
@@ -195,13 +197,11 @@ impl IconState {
     }
 }
 
-// Connection states rendered as the two-frame connecting animation.
+// Busy animation states; Disconnecting is excluded, a teardown reads as idle.
 pub fn is_animating_state(conn_state: &ConnectionState) -> bool {
     matches!(
         conn_state,
-        ConnectionState::Connecting(_)
-            | ConnectionState::Reconnecting(_)
-            | ConnectionState::Disconnecting
+        ConnectionState::Connecting(_) | ConnectionState::Reconnecting(_)
     )
 }
 
@@ -245,7 +245,7 @@ fn worst(a: FundsLevel, b: FundsLevel) -> FundsLevel {
     }
 }
 
-// Animation frame pair for the connecting/reconnecting/disconnecting states.
+// Animation frame pair for the connecting/reconnecting states.
 pub fn connecting_frames(level: FundsLevel) -> (&'static str, &'static str) {
     match level {
         FundsLevel::Sufficient => (APP_ICON_CONNECTING_1, APP_ICON_CONNECTING_2),
@@ -313,10 +313,10 @@ pub fn determine_app_icon(connection_state: &ConnectionState, level: FundsLevel)
             FundsLevel::Low => APP_ICON_CONNECTED_LOW_FUNDS,
             FundsLevel::Empty => APP_ICON_CONNECTED_OUT_OF_FUNDS,
         },
-        ConnectionState::Connecting(_)
-        | ConnectionState::Reconnecting(_)
-        | ConnectionState::Disconnecting => connecting_frames(level).0, // Will be animated by heartbeat
-        ConnectionState::Disconnected => match level {
+        ConnectionState::Connecting(_) | ConnectionState::Reconnecting(_) => {
+            connecting_frames(level).0 // Will be animated by heartbeat
+        }
+        ConnectionState::Disconnecting | ConnectionState::Disconnected => match level {
             FundsLevel::Sufficient => APP_ICON_DISCONNECTED,
             FundsLevel::Low => APP_ICON_DISCONNECTED_LOW_FUNDS,
             FundsLevel::Empty => APP_ICON_DISCONNECTED_OUT_OF_FUNDS,
@@ -333,10 +333,10 @@ pub fn determine_tray_icon(connection_state: &ConnectionState, level: FundsLevel
                 FundsLevel::Low => TRAY_ICON_LINUX_CONNECTED_LOW_FUNDS,
                 FundsLevel::Empty => TRAY_ICON_LINUX_CONNECTED_OUT_OF_FUNDS,
             },
-            ConnectionState::Connecting(_)
-            | ConnectionState::Reconnecting(_)
-            | ConnectionState::Disconnecting => connecting_tray_frames(level).0, // Will be animated by heartbeat
-            ConnectionState::Disconnected => match level {
+            ConnectionState::Connecting(_) | ConnectionState::Reconnecting(_) => {
+                connecting_tray_frames(level).0 // Will be animated by heartbeat
+            }
+            ConnectionState::Disconnecting | ConnectionState::Disconnected => match level {
                 FundsLevel::Sufficient => TRAY_ICON_LINUX_DISCONNECTED,
                 FundsLevel::Low => TRAY_ICON_LINUX_DISCONNECTED_LOW_FUNDS,
                 FundsLevel::Empty => TRAY_ICON_LINUX_DISCONNECTED_OUT_OF_FUNDS,
@@ -349,10 +349,10 @@ pub fn determine_tray_icon(connection_state: &ConnectionState, level: FundsLevel
                 FundsLevel::Low => TRAY_ICON_CONNECTED_LOW_FUNDS,
                 FundsLevel::Empty => TRAY_ICON_CONNECTED_OUT_OF_FUNDS,
             },
-            ConnectionState::Connecting(_)
-            | ConnectionState::Reconnecting(_)
-            | ConnectionState::Disconnecting => connecting_tray_frames(level).0, // Will be animated by heartbeat
-            ConnectionState::Disconnected => match level {
+            ConnectionState::Connecting(_) | ConnectionState::Reconnecting(_) => {
+                connecting_tray_frames(level).0 // Will be animated by heartbeat
+            }
+            ConnectionState::Disconnecting | ConnectionState::Disconnected => match level {
                 FundsLevel::Sufficient => TRAY_ICON_DISCONNECTED,
                 FundsLevel::Low => TRAY_ICON_DISCONNECTED_LOW_FUNDS,
                 FundsLevel::Empty => TRAY_ICON_DISCONNECTED_OUT_OF_FUNDS,
@@ -519,6 +519,8 @@ mod tests {
     fn app_icon_matrix() {
         let connected = ConnectionState::Connected("x".into());
         let connecting = ConnectionState::Connecting("x".into());
+        let reconnecting = ConnectionState::Reconnecting("x".into());
+        let disconnecting = ConnectionState::Disconnecting;
         let disconnected = ConnectionState::Disconnected;
 
         let sufficient = FundsLevel::Sufficient;
@@ -549,6 +551,25 @@ mod tests {
         assert_eq!(
             determine_app_icon(&connecting, empty),
             APP_ICON_CONNECTING_OUT_OF_FUNDS_1
+        );
+
+        assert_eq!(
+            determine_app_icon(&reconnecting, sufficient),
+            APP_ICON_CONNECTING_1
+        );
+
+        // disconnecting is not busy: it reads as disconnected
+        assert_eq!(
+            determine_app_icon(&disconnecting, sufficient),
+            APP_ICON_DISCONNECTED
+        );
+        assert_eq!(
+            determine_app_icon(&disconnecting, low),
+            APP_ICON_DISCONNECTED_LOW_FUNDS
+        );
+        assert_eq!(
+            determine_app_icon(&disconnecting, empty),
+            APP_ICON_DISCONNECTED_OUT_OF_FUNDS
         );
 
         assert_eq!(
@@ -598,7 +619,7 @@ mod tests {
             (
                 ConnectionState::Disconnecting,
                 FundsLevel::Empty,
-                "connecting-out-of-funds-1.png",
+                "disconnected-out-of-funds.png",
             ),
             (
                 ConnectionState::Disconnected,
@@ -623,6 +644,17 @@ mod tests {
                 "{icon} should end with {expected_suffix}"
             );
         }
+    }
+
+    #[test]
+    fn only_connecting_and_reconnecting_are_busy() {
+        assert!(is_animating_state(&ConnectionState::Connecting("x".into())));
+        assert!(is_animating_state(&ConnectionState::Reconnecting(
+            "x".into()
+        )));
+        assert!(!is_animating_state(&ConnectionState::Disconnecting));
+        assert!(!is_animating_state(&ConnectionState::Connected("x".into())));
+        assert!(!is_animating_state(&ConnectionState::Disconnected));
     }
 
     #[test]

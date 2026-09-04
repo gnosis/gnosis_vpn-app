@@ -50,6 +50,7 @@ export type FlagDisplay = z.infer<typeof FlagDisplaySchema>;
 
 export const SettingsSchema = z.object({
   preferredLocation: z.string().nullable(),
+  lastConnectedDestination: z.string().nullable(),
   connectOnStartup: z.boolean(),
   startMinimized: z.boolean(),
   updateCheck: z.boolean(),
@@ -59,6 +60,8 @@ export const SettingsSchema = z.object({
   channel: UpdateChannelSchema.nullable(),
   dismissedUpdateVersion: z.string().nullable(),
   installedVersion: z.string().nullable(),
+  // Name is legacy — now drives whether the exit-health details panel
+  // (chevron toggle) is expanded at all, not just its extra stat rows.
   showDetailedMetrics: z.boolean(),
   flagDisplay: FlagDisplaySchema,
 });
@@ -67,6 +70,7 @@ export type SettingsState = z.infer<typeof SettingsSchema>;
 // Shown until the first snapshot arrives; must match the Rust defaults.
 const DEFAULT_SETTINGS: SettingsState = {
   preferredLocation: null,
+  lastConnectedDestination: null,
   connectOnStartup: false,
   startMinimized: false,
   updateCheck: true,
@@ -85,6 +89,7 @@ type SettingsActions = {
   /** Reactive: true once the first real snapshot replaced DEFAULT_SETTINGS. */
   hydrated: () => boolean;
   setPreferredLocation: (id: string | null) => Promise<void>;
+  setLastConnectedDestination: (id: string | null) => Promise<void>;
   setConnectOnStartup: (enabled: boolean) => Promise<void>;
   setStartMinimized: (enabled: boolean) => Promise<void>;
   setUpdateCheck: (enabled: boolean) => Promise<void>;
@@ -172,6 +177,8 @@ export function createSettingsStore(): SettingsStoreTuple {
     },
     hydrated,
     setPreferredLocation: (id) => patch({ preferredLocation: id }),
+    setLastConnectedDestination: (id) =>
+      patch({ lastConnectedDestination: id }),
     setConnectOnStartup: (enabled) => patch({ connectOnStartup: enabled }),
     setStartMinimized: (enabled) => patch({ startMinimized: enabled }),
     setUpdateCheck: (enabled) => patch({ updateCheck: enabled }),

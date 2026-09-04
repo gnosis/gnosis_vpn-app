@@ -1,13 +1,11 @@
 import { createMemo } from "solid-js";
 import Button from "./common/Button.tsx";
 import { useAppStore } from "../stores/appStore.ts";
-import { useSettingsStore } from "../stores/settingsStore.ts";
-import { resolveAutoDestination } from "../utils/destinations.ts";
-import { isReadyToConnect } from "../utils/exitHealth.ts";
+import { effectiveActive } from "../stores/destinationMode.ts";
+import { isReady } from "../utils/destinations.ts";
 
 export default function ConnectButton() {
   const [appState, appActions] = useAppStore();
-  const [settings] = useSettingsStore();
 
   const isActive = createMemo(() =>
     appState.vpnStatus === "Connected" ||
@@ -16,23 +14,17 @@ export default function ConnectButton() {
   );
   const label = createMemo(() => (isActive() ? "Disconnect" : "Connect"));
 
-  const targetId = createMemo(() => {
-    if (appState.selectedId) return appState.selectedId;
-    return resolveAutoDestination(
-      appState.availableDestinations,
-      appState.destinations,
-      settings.preferredLocation,
-    )?.id ?? appState.availableDestinations[0]?.id;
-  });
-
-  const targetDestinationState = createMemo(() =>
-    Object.values(appState.destinations).find((ds) =>
-      ds.destination.id === (targetId() ?? "")
-    )
+  const displayedId = createMemo(() =>
+    effectiveActive(appState.mode, Date.now())
   );
 
+  const targetDestinationState = createMemo(() => {
+    const id = displayedId();
+    return id ? appState.destinations[id] : undefined;
+  });
+
   const isTargetReady = createMemo(() =>
-    isReadyToConnect(targetDestinationState()?.route_health ?? undefined)
+    isReady(targetDestinationState(), null)
   );
 
   const handleClick = async () => {
@@ -40,7 +32,9 @@ export default function ConnectButton() {
       if (isActive()) {
         await appActions.disconnect();
       } else {
-        await appActions.connect();
+        // Resolved fresh at click time: a memo recomputes on `mode`, not on the clock crossing settleAt.
+        const id = effectiveActive(appState.mode, Date.now());
+        if (id) await appActions.connect(id);
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

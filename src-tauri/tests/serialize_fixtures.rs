@@ -464,6 +464,7 @@ fn full_settings() -> Settings {
 
     Settings {
         preferred_location: Some("exit-1".to_string()),
+        last_connected_destination: Some("exit-1".to_string()),
         connect_on_startup: true,
         start_minimized: true,
         update_check: true,

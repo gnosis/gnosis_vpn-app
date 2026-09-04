@@ -60,8 +60,37 @@ export function formatSlots(rhv: RouteHealthView): string | null {
   return `${available}/${available + connected}`;
 }
 
+/** Share of an exit's connection slots currently in use. */
+export interface SlotLoad {
+  used: number;
+  total: number;
+  /** Whole-number percentage of slots in use, 0–100. */
+  percent: number;
+}
+
+/** Slot usage as a percentage. Null when unavailable or the exit has no slots. */
+export function getSlotLoad(rhv: RouteHealthView): SlotLoad | null {
+  const exit = getExitData(rhv.state);
+  if (!exit) return null;
+  const { available, connected } = exit.health.slots;
+  const total = available + connected;
+  if (total <= 0) return null;
+  return {
+    used: connected,
+    total,
+    percent: Math.round((connected / total) * 100),
+  };
+}
+
 /** Normalized load level relative to processor count. */
 export type LoadLevel = "low" | "medium" | "high";
+
+/** Slot-usage color band: <=50 low, <=75 medium, else high. */
+export function getSlotLoadLevel(percent: number): LoadLevel {
+  if (percent <= 50) return "low";
+  if (percent <= 75) return "medium";
+  return "high";
+}
 
 /** Determine load level from 1-minute load average relative to nproc. */
 export function getLoadLevel(rhv: RouteHealthView): LoadLevel | null {
@@ -182,6 +211,14 @@ export type ConnectionState =
   | "Reconnecting"
   | "Disconnecting"
   | "None";
+
+/** User-facing connection status for the detail panel's Status stat. */
+export function formatConnectionStatus(state: ConnectionState): string {
+  if (state === "Connected") return "Connected";
+  if (state === "Connecting" || state === "Reconnecting") return "Connecting";
+  // Treat disconnecting as already disconnected to match ExitHealthDetail.
+  return "Disconnected";
+}
 
 export function getConnectionState(
   destId: string,

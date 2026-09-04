@@ -1,4 +1,4 @@
-import { createEffect, createRoot } from "solid-js";
+import { batch, createEffect, createRoot } from "solid-js";
 import { createStore, reconcile, type Store } from "solid-js/store";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
@@ -27,11 +27,17 @@ import {
   StatusResponseSchema,
   VPNService,
 } from "@src/services/vpnService.ts";
+import {
+  createDestinationMode,
+  type DestinationMode,
+  type DestinationModeHandle,
+  type ModeAppState,
+} from "@src/stores/destinationMode.ts";
 import { useLogsStore } from "@src/stores/logsStore.ts";
 import {
   destinationLabel,
   getPreferredAvailabilityChangeMessage,
-  resolveAutoDestination,
+  pickStartupTarget,
 } from "@src/utils/destinations.ts";
 
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
@@ -56,8 +62,6 @@ export interface AppState {
   disconnecting: DisconnectingInfo[];
   isLoading: boolean;
   error?: string;
-  destination: Destination | null;
-  selectedId: string | null;
   runMode: RunMode | null;
   vpnStatus: string;
   warmupStatus: string;
@@ -67,14 +71,19 @@ export interface AppState {
   availableVersion: string | null;
   targetDestination: string | null;
   balance: BalanceResponse | null;
+  // The carousel's cards and active pointer — see docs/destinationMode.md
+  mode: DestinationMode;
 }
 
 type AppActions = {
   initializeApp: () => Promise<void>;
   setScreen: (screen: AppScreen) => void;
-  chooseDestination: (id: string | null) => void;
-  connect: () => Promise<void>;
+  connect: (targetId: string) => Promise<void>;
   disconnect: () => Promise<void>;
+  slideCommitted: (id: string) => void;
+  dragStarted: () => void;
+  destinationListOpened: () => void;
+  destinationListClosed: (picked: string | null) => void;
 };
 
 type AppStoreTuple = readonly [Store<AppState>, AppActions];
@@ -98,13 +107,11 @@ function initialState(): AppState {
     connecting: null,
     reconnecting: null,
     currentScreen: AppScreen.Initialization,
-    destination: null,
     destinations: {},
     disconnecting: [],
     error: undefined,
     isLoading: false,
     runMode: null,
-    selectedId: null,
     serviceInfo: null,
     vpnStatus: "ServiceUnavailable",
     warmupStatus: "",
@@ -114,6 +121,18 @@ function initialState(): AppState {
     availableVersion: null,
     targetDestination: null,
     balance: null,
+    mode: {
+      entries: {},
+      sequence: [],
+      active: null,
+      mode: { mode: "auto", pending: null },
+      nextKey: 0,
+      listOpen: false,
+      dragging: false,
+      preferredLocation: null,
+      lastConnectedDestination: null,
+      connectOnStartup: false,
+    },
   };
 }
 
@@ -121,9 +140,9 @@ function initialState(): AppState {
 // floor/ceiling are % values; durationMs is the expected phase duration.
 // Adjust durationMs when real-world timing data is available.
 const SYNC_PHASES = [
-  { floor: 0, ceiling: 25, durationMs: 30_000 }, // DeployingSafe
-  { floor: 25, ceiling: 40, durationMs: 30_000 }, // Warmup
-  { floor: 40, ceiling: 100, durationMs: 180_000 }, // Channels/peers delay
+  { floor: 0, ceiling: 30, durationMs: 30_000 }, // DeployingSafe
+  { floor: 30, ceiling: 50, durationMs: 20_000 }, // Warmup
+  { floor: 50, ceiling: 100, durationMs: 50_000 }, // Channels/peers delay
 ] as const;
 type SyncPhaseIndex = 0 | 1 | 2;
 
@@ -133,7 +152,6 @@ export function createAppStore(): AppStoreTuple {
   let unlistenServiceInfo: (() => void) | undefined;
   let unlistenStatusUpdate: (() => void) | undefined;
   let unlistenBalanceUpdate: (() => void) | undefined;
-  let connectedOnOpenDetected = false;
   let activeSyncPhase: SyncPhaseIndex | null = null;
   let syncPhaseStartTime = 0;
   let syncTimer: ReturnType<typeof setInterval> | undefined;
@@ -209,62 +227,41 @@ export function createAppStore(): AppStoreTuple {
   const logStatus = (response: StatusResponse) =>
     logActions.appendStatus(response);
 
+  // destinationMode.ts snapshots settings once at creation, so wait for real hydrated values.
+  let destinationMode: DestinationModeHandle | undefined;
+  // A status can arrive before hydration; replay it once the handle exists.
+  let pendingModeAppState: ModeAppState | undefined;
+
+  // Creates once, then only mirrors — must never call applyStatusUpdate here, or this effect (which reads destinationMode.model) retriggers itself forever.
+  createEffect(() => {
+    if (!destinationMode) {
+      if (!settingsActions.hydrated()) return;
+      destinationMode = createDestinationMode({
+        preferredLocation: settings.preferredLocation,
+        lastConnectedDestination: settings.lastConnectedDestination,
+        connectOnStartup: settings.connectOnStartup,
+      });
+      if (pendingModeAppState) {
+        destinationMode.applyStatusUpdate(pendingModeAppState);
+      }
+    }
+    batch(() =>
+      setState("mode", reconcile({ ...destinationMode!.model }, { key: "key" }))
+    );
+  });
+
   const criticalError = (message: string) => {
     log(message);
-    connectedOnOpenDetected = false;
     stopSyncProgress();
     const savedServiceInfo = state.serviceInfo;
     setState(reconcile(initialState()));
     setState("serviceInfo", savedServiceInfo);
     setState("error", message);
-  };
-
-  const applyDestinationSelection = () => {
-    // 1. Explicit user selection
-    if (state.selectedId) {
-      const dest = state.destinations[state.selectedId];
-      if (dest) {
-        setState("destination", dest.destination);
-        return;
-      }
-    }
-
-    // 2. Service already connected/connecting when app opened (one-time detection).
-    // Only runs until we've detected it once — avoids locking out "Random" mode
-    // after the user later chooses it and a connection succeeds.
-    if (!connectedOnOpenDetected) {
-      const activeId = state.connected?.destination_id ??
-        state.connecting?.destination_id ??
-        state.reconnecting?.destination_id;
-      const connectedEntry = activeId
-        ? state.destinations[activeId]
-        : undefined;
-      if (connectedEntry) {
-        connectedOnOpenDetected = true;
-        setState("selectedId", connectedEntry.destination.id);
-        setState("destination", connectedEntry.destination);
-        return;
-      }
-      // No connection found yet — mark as done once destinations are present
-      // so a fresh session doesn't keep probing after the user has interacted.
-      if (Object.values(state.destinations).length > 0) {
-        connectedOnOpenDetected = true;
-      }
-    }
-
-    // 3. Preferred location (if available).
-    // Only sets destination — not selectedId — so the user's "Auto" choice
-    // stays visible. connect() resolves preferredLocation independently via
-    // resolveAutoDestination.
-    if (settings.preferredLocation) {
-      const dest = state.destinations[settings.preferredLocation];
-      if (dest) {
-        setState("destination", dest.destination);
-        return;
-      }
-    }
-
-    setState("destination", null);
+    destinationMode?.reset({
+      preferredLocation: settings.preferredLocation,
+      lastConnectedDestination: settings.lastConnectedDestination,
+      connectOnStartup: settings.connectOnStartup,
+    });
   };
 
   const processStatusResponse = (response: StatusResponse) => {
@@ -316,7 +313,41 @@ export function createAppStore(): AppStoreTuple {
     setState("disconnecting", reconcile(response.disconnecting));
     setState("vpnStatus", deriveVPNStatus(response));
     setState("availableDestinations", availableDestinations);
-    applyDestinationSelection();
+
+    pendingModeAppState = {
+      availableDestinations,
+      destinations,
+      connected: response.connected,
+      connecting: response.connecting,
+      reconnecting: response.reconnecting,
+    };
+    destinationMode?.applyStatusUpdate(pendingModeAppState);
+    maybeConnectOnStartup(pendingModeAppState);
+  };
+
+  // One shot per launch, like preferredLocation: spent once a session is live or something is ready to connect.
+  let startupConnectDone = false;
+  const maybeConnectOnStartup = (status: ModeAppState) => {
+    if (startupConnectDone || !settingsActions.hydrated()) return;
+    if (!settings.connectOnStartup) {
+      startupConnectDone = true;
+      return;
+    }
+    const sessionLive = status.connected !== null ||
+      status.connecting !== null || status.reconnecting !== null;
+    if (sessionLive) {
+      startupConnectDone = true;
+      return;
+    }
+    const target = pickStartupTarget(
+      status.destinations,
+      settings.preferredLocation,
+      settings.lastConnectedDestination,
+    );
+    if (target === null) return;
+    startupConnectDone = true;
+    log("Connect on startup");
+    void actions.connect(target);
   };
 
   const logStateChange = (
@@ -390,7 +421,6 @@ export function createAppStore(): AppStoreTuple {
 
   const actions = {
     initializeApp: async () => {
-      connectedOnOpenDetected = false;
       stopSyncProgress();
       setState("syncProgress", 0);
       if (unlistenServiceInfo) {
@@ -527,51 +557,36 @@ export function createAppStore(): AppStoreTuple {
 
     setScreen: (screen: AppScreen) => setState("currentScreen", screen),
 
-    chooseDestination: (id: string | null) => {
-      setState("selectedId", id ?? null);
-      applyDestinationSelection();
-    },
-
-    connect: async () => {
+    connect: async (targetId: string) => {
       setState("isLoading", true);
-      const requestedId = state.selectedId;
-      const { id: targetId, reason: selectionReason } = requestedId
-        ? { id: requestedId, reason: "selected exit node" }
-        : {
-          id: resolveAutoDestination(
-            state.availableDestinations,
-            state.destinations,
-            settings.preferredLocation,
-          )?.id,
-          reason: "auto destination",
-        };
-
-      const reasonForLog = requestedId ? "selected exit node" : selectionReason;
-      if (targetId && reasonForLog !== "selected exit node") {
-        const selected = state.availableDestinations.find(
-          (d) => d.id === targetId,
-        );
-        if (!selected) {
-          setState("isLoading", false);
-          return;
-        }
+      // only for the log line — connecting to an unknown destination is a service-wide no-op
+      const selected = state.availableDestinations.find(
+        (d) => d.id === targetId,
+      );
+      if (selected) {
         const name = destinationLabel(selected);
         const short = shortAddress(selected.address);
-        const pretty = `${name} - ${short}`;
-        log(`Connecting to ${reasonForLog}: ${pretty}`);
+        log(`Connecting to ${name} - ${short}`);
       }
 
+      destinationMode?.applyUserInput({ type: "connectIssued", id: targetId });
       try {
-        if (targetId) {
-          await VPNService.connect(targetId);
-        }
-        applyDestinationSelection();
+        await VPNService.connect(targetId);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         log(message);
         setState("error", message);
-      } finally {
         setState("isLoading", false);
+        return;
+      }
+      setState("isLoading", false);
+
+      // best-effort — losing this only affects which destination auto-reconnect tries next
+      try {
+        await settingsActions.setLastConnectedDestination(targetId);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        log(`Failed to persist last connected destination: ${message}`);
       }
     },
 
@@ -587,6 +602,14 @@ export function createAppStore(): AppStoreTuple {
         setState("isLoading", false);
       }
     },
+
+    slideCommitted: (id: string) =>
+      destinationMode?.applyUserInput({ type: "slideCommitted", id }),
+    dragStarted: () => destinationMode?.applyUserInput({ type: "dragStarted" }),
+    destinationListOpened: () =>
+      destinationMode?.applyUserInput({ type: "listOpened" }),
+    destinationListClosed: (picked: string | null) =>
+      destinationMode?.applyUserInput({ type: "listClosed", picked }),
   } as const;
 
   // Keep the persisted channel preference and install marker in step with the
@@ -623,7 +646,7 @@ export function useAppStore(): AppStoreTuple {
   return appStore;
 }
 
-const MAXIMUM_DELAY_TIME = 5 * 60 * 1000; // 5 minutes
+const MAXIMUM_DELAY_TIME = 120 * 1000; // 2 minutes
 let initialDelay:
   | { delayingSince: number }
   | { neverRan: true }

@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import "flag-icons/css/flag-icons.min.css";
+@import "flag-icons/css/flag-icons.min.css" layer(components);
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* Local fonts */
@@ -135,6 +135,7 @@ select {
 
 @theme {
   --color-vpn-yellow: #ffc472;
+  --color-vpn-orange: #f97316;
   --color-vpn-dark-green: #083d1c;
   --color-vpn-light-green: #16a34a;
   --color-vpn-red: #ff7272;
@@ -197,148 +198,101 @@ select {
   }
 }
 
-/* Animated connector line from Connect button to ExitNode */
-.vpn-connector-line {
-  position: absolute;
-  left: 50%;
-  width: 20px;
-  border-radius: 10px 10px 0 0;
-  transform-origin: bottom center;
-  transform: translateX(-50%) scaleY(0);
-  z-index: 0;
-  overflow: hidden;
-  /* Fade to ~35% opacity at the bottom so ConnectionStatus text stays readable */
-  /* -webkit- prefix required for WebKit-based Tauri webviews (macOS/iOS) */
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    black 75%,
-    rgba(0, 0, 0, 0.35) 100%
-  );
-  mask-image: linear-gradient(to bottom, black 75%, rgba(0, 0, 0, 0.35) 100%);
-  /* Base (connected) look; overlay will fade during connecting */
-  background: linear-gradient(
-    to top,
-    var(--color-vpn-light-green, #16a34a),
-    var(--color-vpn-dark-green, #083d1c)
-  );
+/* Status owl (StatusHero) */
+.owl-pupil {
+  transform-box: fill-box;
+  transform-origin: center;
+  /* Smooth eye close when falling asleep */
+  transition: transform 200ms ease;
+}
+.owl-blink {
+  animation: owl-blink 240ms ease-in-out;
+}
+@keyframes owl-blink {
+  50% {
+    transform: scaleY(0.05);
+  }
+}
+.owl-asleep .owl-pupil {
+  transform: scaleY(0.05);
 }
 
-/* Overlay used to fade between connecting and connected */
-.vpn-connector-line::before {
-  content: "";
+/* Green owl duplicate revealed bottom-up; --owl-inset set inline per connect phase */
+.owl-fill-layer {
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    to top,
-    var(--color-vpn-yellow, #ffc472),
-    var(--color-vpn-dark-green, #083d1c)
-  );
-  opacity: 0;
-  transition: opacity 180ms linear;
-}
-
-.vpn-connector-line.connecting {
-  animation: vpn-grow 1.2s ease-out forwards, vpn-fade 3s ease-in-out infinite;
-}
-.vpn-connector-line.connecting::before {
-  opacity: 1;
-}
-
-.vpn-connector-line.connected {
-  transform: translateX(-50%) scaleY(1);
-}
-.vpn-connector-line.connected::before {
-  opacity: 0;
-}
-
-/* Disconnecting: static line with color fade animation, no shrinking */
-.vpn-connector-line.disconnecting-static {
-  background: linear-gradient(
-    to top,
-    var(--color-vpn-red, #ff7272),
-    var(--color-vpn-light-green, #16a34a),
-    var(--color-vpn-dark-green, #083d1c)
-  );
-  transform: translateX(-50%) scaleY(1);
-  animation: vpn-fade 3s ease-in-out infinite;
-}
-.vpn-connector-line.disconnecting-static::before {
-  background: linear-gradient(
-    to top,
-    var(--color-vpn-red, #ff7272),
-    var(--color-vpn-light-green, #16a34a),
-    var(--color-vpn-dark-green, #083d1c)
-  );
-  opacity: 1;
-}
-
-/* Disconnected (after Disconnecting): shrinking animation */
-.vpn-connector-line.disconnected-shrinking {
-  background: linear-gradient(
-    to top,
-    var(--color-vpn-red, #ff7272),
-    var(--color-vpn-light-green, #16a34a),
-    var(--color-vpn-dark-green, #083d1c)
-  );
-  animation: vpn-shrink 1s ease-in forwards;
-}
-.vpn-connector-line.disconnected-shrinking::before {
-  background: linear-gradient(
-    to top,
-    var(--color-vpn-red, #ff7272),
-    var(--color-vpn-light-green, #16a34a),
-    var(--color-vpn-dark-green, #083d1c)
-  );
-  opacity: 1;
-}
-
-@keyframes vpn-grow {
-  from {
-    transform: translateX(-50%) scaleY(0);
-  }
-  to {
-    transform: translateX(-50%) scaleY(1);
+  color: var(--color-vpn-light-green);
+  /* -webkit- prefix required for WebKit-based Tauri webviews (macOS/iOS) */
+  -webkit-clip-path: inset(var(--owl-inset, 100%) 0 0 0);
+  clip-path: inset(var(--owl-inset, 100%) 0 0 0);
+  transition: clip-path 700ms ease-out, -webkit-clip-path 700ms ease-out;
+  /* Signs of life during long phases */
+  animation: owl-fill-pulse 2.4s ease-in-out infinite;
+  @starting-style {
+    -webkit-clip-path: inset(100% 0 0 0);
+    clip-path: inset(100% 0 0 0);
   }
 }
-
-@keyframes vpn-shrink {
-  from {
-    transform: translateX(-50%) scaleY(1);
-  }
-  to {
-    transform: translateX(-50%) scaleY(0);
-  }
-}
-
-@keyframes vpn-fade {
-  0% {
-    opacity: 1;
-  }
+@keyframes owl-fill-pulse {
   50% {
-    opacity: 0.7;
+    opacity: 0.82;
   }
-  100% {
-    opacity: 1;
+}
+
+/* One-shot connecting -> connected morph */
+.owl-morph-out {
+  animation: owl-morph-out 350ms ease-in forwards;
+}
+@keyframes owl-morph-out {
+  to {
+    transform: scale(0.6);
+    opacity: 0;
   }
+}
+/* Base dashoffset stays 0 so reduced-motion still shows a full check */
+.check-draw {
+  stroke-dasharray: 100;
+  animation: check-draw 500ms ease-out 200ms both;
+}
+@keyframes check-draw {
+  from {
+    stroke-dashoffset: 100;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.check-pop-entry {
+  animation: check-pop 400ms ease-out 750ms both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .owl-blink,
+  .check-draw,
+  .check-pop-entry,
+  .list-expand-in {
+    animation: none;
+  }
+  .owl-fill-layer {
+    transition: none;
+    animation: none;
+  }
+  .owl-morph-out {
+    display: none;
+  }
+}
+
+/* Keeps touch/drag scrolling but hides the scrollbar chrome */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 .fade-in-up {
   animation: fade-in-up 240ms ease-out both;
-}
-
-.tooltip-bubble {
-  animation: tooltip-pop 160ms ease-out both;
-}
-
-@keyframes tooltip-pop {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) scale(1);
-  }
 }
 
 @keyframes fade-in-up {
@@ -349,6 +303,22 @@ select {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* Expands from the opening button (origin inlined); keyframed transform because WebKitGTK won't animate standalone `scale` from @starting-style. */
+.list-expand-in {
+  animation: list-expand-in 300ms ease-out both;
+}
+
+@keyframes list-expand-in {
+  from {
+    opacity: 0;
+    transform: scaleY(0);
+  }
+  to {
+    opacity: 1;
+    transform: scaleY(1);
   }
 }
 
@@ -366,6 +336,37 @@ select {
 
 .check-pop {
   animation: check-pop 400ms ease-out forwards;
+}
+
+/* Ring depletes clockwise from full to empty, like a countdown timer running
+ * out — duration and total dash length are set per-instance via inline
+ * animation-duration/--countdown-circumference. */
+.countdown-recede {
+  stroke-dashoffset: 0;
+  animation: countdown-recede linear forwards;
+}
+
+@keyframes countdown-recede {
+  to {
+    stroke-dashoffset: var(--countdown-circumference);
+  }
+}
+
+/* Signals "this card is about to change" right before it slides out. */
+@keyframes banner-card-pulse {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(0.8);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.banner-card-pulse {
+  animation: banner-card-pulse 600ms ease-in-out;
 }
 
 .system-window {

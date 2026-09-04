@@ -30,18 +30,20 @@ for svg in "$tray_svg_dir"/*.svg; do
     echo "rendered $tray_png_dir/$name.png"
 done
 
-# Linux tray icons: the app icon design as-is, at tray size.
+# Linux tray icons: full-color app icon design with a circular (rather than
+# square) backdrop — see derive-tray-icons.py.
+linux_svg_dir=src-tauri/icons/tray-icons/svg/linux
 linux_png_dir=src-tauri/icons/tray-icons/linux
 
 for state in disconnected connected; do
     for suffix in "" "-low-funds" "-out-of-funds"; do
-        rsvg-convert -w 201 -h 201 "$app_svg_dir/app-icon-$state$suffix.svg" -o "$linux_png_dir/$state$suffix.png"
+        rsvg-convert -w 201 -h 201 "$linux_svg_dir/$state$suffix.svg" -o "$linux_png_dir/$state$suffix.png"
         echo "rendered $linux_png_dir/$state$suffix.png"
     done
 done
 for suffix in "" "-low-funds" "-out-of-funds"; do
     for frame in 1 2; do
-        rsvg-convert -w 201 -h 201 "$app_svg_dir/app-icon-connecting$suffix-$frame.svg" -o "$linux_png_dir/connecting$suffix-$frame.png"
+        rsvg-convert -w 201 -h 201 "$linux_svg_dir/connecting$suffix-$frame.svg" -o "$linux_png_dir/connecting$suffix-$frame.png"
         echo "rendered $linux_png_dir/connecting$suffix-$frame.png"
     done
 done

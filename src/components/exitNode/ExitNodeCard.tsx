@@ -11,14 +11,14 @@ import {
   formatLoadAvg,
   formatRouting,
   formatSecondsAgo,
-  formatSlots,
   getConnectionState,
   getHopCount,
   getLastCheckedEpoch,
   hasHealthContent,
-  isReadyToConnect,
 } from "@src/utils/exitHealth.ts";
+import { isReady } from "@src/utils/destinations.ts";
 import HopsIcon from "./HopsIcon.tsx";
+import SlotLoadStat from "./SlotLoadStat.tsx";
 import Stat from "./Stat.tsx";
 import Tag from "../common/Tag.tsx";
 import Flag from "../Flag.tsx";
@@ -64,11 +64,6 @@ export default function ExitNodeCard(props: {
     return rh ? formatLatency(rh) : null;
   };
 
-  const slots = () => {
-    const rh = routeHealth();
-    return rh ? formatSlots(rh) : null;
-  };
-
   const loadAvg = () => {
     const rh = routeHealth();
     return rh ? formatLoadAvg(rh) : null;
@@ -86,10 +81,9 @@ export default function ExitNodeCard(props: {
     return formatSecondsAgo(diff);
   };
 
-  // Allow click on active/transitioning nodes to acknowledge selection,
-  // bypassing the health check since the tunnel is already established.
+  // A live or transitioning node stays clickable: its tunnel exists and the slot it fills is ours.
   const isClickable = () =>
-    isReadyToConnect(routeHealth() ?? undefined) || isConnected() ||
+    isReady(props.destinationState(), null) || isConnected() ||
     isConnecting() || isReconnecting() || isDisconnecting();
 
   return (
@@ -166,13 +160,9 @@ export default function ExitNodeCard(props: {
               tooltip={<span>Time since last health check</span>}
             />
             <Show when={settings.showDetailedMetrics}>
+              <SlotLoadStat routeHealth={routeHealth()} />
               <Stat
-                label="Capacity"
-                value={slots()}
-                tooltip={<span>Available / total connection slots</span>}
-              />
-              <Stat
-                label="Load"
+                label="CPU Utilization"
                 value={loadAvg()}
                 tooltip={<span>Server load average. Lower is better.</span>}
               />

@@ -11,17 +11,23 @@ import {
 } from "solid-js";
 import type { DestinationState } from "@src/services/vpnService.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
+import { effectiveActive } from "@src/stores/destinationMode.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import {
   destinationLabel,
-  resolveAutoDestination,
+  isVpnActive,
   sortAlphaDestinations,
-  sortByHealthScore,
+  sortByCapacityAwareLatency,
 } from "@src/utils/destinations.ts";
 import ExitNodeCard from "./ExitNodeCard.tsx";
 import UnreachableDialog from "./UnreachableDialog.tsx";
 
-export default function ExitNodeList(props: { onClose: () => void }) {
+export default function ExitNodeList(props: {
+  // Viewport Y the open animation expands from (the button that opened us).
+  originY: number;
+  // the destination chosen, or null when the list was dismissed
+  onClose: (picked: string | null) => void;
+}) {
   const [appState, appActions] = useAppStore();
   const [settings, settingsActions] = useSettingsStore();
 
@@ -37,7 +43,7 @@ export default function ExitNodeList(props: { onClose: () => void }) {
       } else if (query()) {
         setQuery("");
       } else {
-        props.onClose();
+        props.onClose(null);
       }
     }
   }
@@ -48,25 +54,23 @@ export default function ExitNodeList(props: { onClose: () => void }) {
   });
   onCleanup(() => document.removeEventListener("keydown", handleKeyDown));
 
-  const resolvedAutoDestination = createMemo(() =>
-    resolveAutoDestination(
-      appState.availableDestinations,
-      appState.destinations,
-      settings.preferredLocation,
-    )
-  );
+  const liveId = () =>
+    appState.connected?.destination_id ??
+      appState.connecting?.destination_id ??
+      appState.reconnecting?.destination_id ??
+      null;
 
   const sortedDestinations = createMemo(() => {
     if (settings.exitNodeSortOrder === "alpha") {
       return sortAlphaDestinations(
         appState.availableDestinations,
         appState.destinations,
+        liveId(),
       );
     }
-    return sortByHealthScore(
-      appState.availableDestinations,
-      appState.destinations,
-    );
+    // the same ranking auto picks from, so the list's head is the destination it would choose
+    return sortByCapacityAwareLatency(appState.destinations, liveId())
+      .map((id) => appState.destinations[id].destination);
   });
 
   // frozenList updates only on membership changes or explicit sort-order toggles;
@@ -97,15 +101,8 @@ export default function ExitNodeList(props: { onClose: () => void }) {
     return list.filter((d) => destinationLabel(d).toLowerCase().includes(q));
   });
 
-  // Includes Disconnecting so that switching destinations while tearing down
-  // the old tunnel still triggers connect(). When target_destination is null
-  // the backend has no connect intent (explicit disconnect) — just select.
   const vpnActive = () =>
-    appState.vpnStatus === "Connected" ||
-    appState.vpnStatus === "Connecting" ||
-    appState.vpnStatus === "Reconnecting" ||
-    (appState.vpnStatus === "Disconnecting" &&
-      appState.targetDestination !== null);
+    isVpnActive(appState.vpnStatus, appState.targetDestination);
 
   const isAvailable = (id: string) =>
     appState.availableDestinations.some((d) => d.id === id);
@@ -116,30 +113,6 @@ export default function ExitNodeList(props: { onClose: () => void }) {
   const tick = setInterval(() => setNowSec(Date.now() / 1000), 1000);
   onCleanup(() => clearInterval(tick));
 
-  const handleSelectAuto = () => {
-    if (appState.selectedId === null) {
-      props.onClose();
-      return;
-    }
-    if (
-      vpnActive() &&
-      (resolvedAutoDestination()?.id ===
-          (appState.connected?.destination_id ??
-            appState.connecting?.destination_id ??
-            appState.reconnecting?.destination_id) ||
-        appState.disconnecting.some(
-          (d) => d.destination_id === resolvedAutoDestination()?.id,
-        ))
-    ) {
-      appActions.chooseDestination(null);
-      props.onClose();
-      return;
-    }
-    appActions.chooseDestination(null);
-    if (vpnActive() && resolvedAutoDestination()) void appActions.connect();
-    props.onClose();
-  };
-
   const handleCardClick = (id: string) => {
     if (
       appState.connected?.destination_id === id ||
@@ -147,17 +120,15 @@ export default function ExitNodeList(props: { onClose: () => void }) {
       appState.reconnecting?.destination_id === id ||
       appState.disconnecting.some((d) => d.destination_id === id)
     ) {
-      if (appState.selectedId !== id) appActions.chooseDestination(id);
-      props.onClose();
+      props.onClose(id);
       return;
     }
     if (!isAvailable(id)) {
       setShowUnreachable(true);
       return;
     }
-    appActions.chooseDestination(id);
-    if (vpnActive()) void appActions.connect();
-    props.onClose();
+    if (vpnActive()) void appActions.connect(id);
+    props.onClose(id);
   };
 
   const sortOptions = [
@@ -166,13 +137,16 @@ export default function ExitNodeList(props: { onClose: () => void }) {
   ];
 
   return (
-    <div class="fixed inset-0 z-100 bg-bg-primary flex flex-col outline-none">
+    <div
+      class="fixed inset-0 z-100 bg-bg-primary flex flex-col outline-none list-expand-in"
+      style={{ "transform-origin": `50% ${props.originY}px` }}
+    >
       <div class="flex items-center w-full gap-2 px-3 py-3 border-b border-border shrink-0">
         <button
           type="button"
           class="rounded-md p-1 hover:bg-bg-surface absolute left-2 my-auto"
           aria-label="Back"
-          onClick={() => props.onClose()}
+          onClick={() => props.onClose(null)}
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -234,35 +208,6 @@ export default function ExitNodeList(props: { onClose: () => void }) {
         role="group"
         aria-label="Exit node options"
       >
-        <Show when={!query()}>
-          <div
-            class={`relative w-full bg-bg-surface-alt px-4 py-3 cursor-pointer hover:bg-bg-surface transition-colors ${
-              appState.selectedId === null ? "border-b border-border" : ""
-            }`}
-            onClick={handleSelectAuto}
-            onKeyDown={(e) => e.key === "Enter" && handleSelectAuto()}
-            role="button"
-            tabIndex={0}
-          >
-            <Show when={appState.selectedId === null}>
-              <div
-                class="absolute inset-y-0 left-0 w-1 bg-text-muted"
-                aria-hidden="true"
-              />
-            </Show>
-            <div class="flex flex-col">
-              <span class="font-semibold text-sm text-text-primary">Auto</span>
-              <Show when={resolvedAutoDestination()}>
-                {(dest) => (
-                  <span class="text-xs text-text-secondary break-all">
-                    {destinationLabel(dest())}
-                  </span>
-                )}
-              </Show>
-            </div>
-          </div>
-        </Show>
-
         <For each={filtered()}>
           {(dest) => (
             <ExitNodeCard
@@ -272,7 +217,8 @@ export default function ExitNodeList(props: { onClose: () => void }) {
                     destination: dest,
                     route_health: null,
                   } as DestinationState)}
-              isSelected={appState.selectedId === dest.id}
+              isSelected={effectiveActive(appState.mode, Date.now()) ===
+                dest.id}
               nowSec={nowSec}
               onClick={() => handleCardClick(dest.id)}
             />

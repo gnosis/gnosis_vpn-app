@@ -56,12 +56,16 @@ export const DisconnectingInfoSchema = z.object({
 });
 export type DisconnectingInfo = z.infer<typeof DisconnectingInfoSchema>;
 
-// ISO 3166-1 alpha-2: exactly two ASCII letters, normalized to lowercase.
+// ISO 3166-1 alpha-2, optionally followed by "-" and a subdivision suffix
+// (e.g. GB-SCT), normalized to lowercase. The suffix length isn't capped to
+// the standard's 1-3 chars: Flag.tsx falls back to the alpha-2 prefix for any
+// subdivision it has no art for, and a malformed suffix should fall back the
+// same way rather than have the whole flag dropped here.
 // .catch(undefined) silently drops any value that doesn't match so garbage
 // from the server never reaches the CSS class string in Flag.tsx.
 const FlagCodeSchema = z
   .string()
-  .regex(/^[a-zA-Z]{2}$/)
+  .regex(/^[a-zA-Z]{2}(-[a-zA-Z0-9]+)?$/)
   .transform((s) => s.toLowerCase())
   .optional()
   .catch(undefined);

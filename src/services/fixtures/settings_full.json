@@ -1,5 +1,6 @@
 {
   "preferredLocation": "exit-1",
+  "lastConnectedDestination": "exit-1",
   "connectOnStartup": true,
   "startMinimized": true,
   "updateCheck": true,
