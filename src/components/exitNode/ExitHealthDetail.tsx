@@ -229,14 +229,11 @@ export default function ExitHealthDetail(
                     />
                     {hopsTag()}
                   </div>
-                  <Stat
-                    label="Status"
-                    hideLabel
-                    value={connectionStatus() === "Disconnected"
-                      ? null
-                      : connectionStatus()}
-                    valueClass={connectionStatusClass()}
-                  />
+                  <Show when={connectionStatus() !== "Disconnected"}>
+                    <span class={`self-center ${connectionStatusClass()}`}>
+                      {connectionStatus()}
+                    </span>
+                  </Show>
                 </div>
                 <div
                   ref={detailedStatsRef}

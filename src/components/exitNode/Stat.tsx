@@ -6,17 +6,11 @@ export default function Stat(props: {
   value: string | null;
   valueClass?: string;
   tooltip?: JSX.Element;
-  hideLabel?: boolean;
 }) {
   return (
     <Show when={props.value}>
       <div class="flex flex-col">
-        {/* invisible (not removed) keeps the label line's height so values stay aligned */}
-        <span
-          class={`text-text-muted inline-flex items-center gap-1${
-            props.hideLabel ? " invisible" : ""
-          }`}
-        >
+        <span class="text-text-muted inline-flex items-center gap-1">
           {props.label}
           <Show when={props.tooltip}>
             <Tooltip content={props.tooltip!}>
