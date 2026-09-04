@@ -9,11 +9,6 @@ import type {
 /** Visual health color for a destination; "default" renders as plain text. */
 export type HealthColor = "green" | "yellow" | "red" | "gray" | "default";
 
-/** Whether the exit-health check is currently running (dot should pulse). */
-export function isExitHealthRunning(rhv: RouteHealthView): boolean {
-  return rhv.checking_since !== null;
-}
-
 /** Derive a simple color from route health state. */
 export function getExitHealthColor(rhv: RouteHealthView): HealthColor {
   const { state } = rhv;
@@ -49,14 +44,6 @@ export function formatLatency(rhv: RouteHealthView): string | null {
   const exit = getExitData(state);
   if (!exit) return null;
   return `${(exit.ping_rtt / 2).toFixed(0)} ms`;
-}
-
-/** Format slots as e.g. "3/10". Returns null when unavailable. */
-export function formatSlots(rhv: RouteHealthView): string | null {
-  const exit = getExitData(rhv.state);
-  if (!exit) return null;
-  const { available, connected } = exit.health.slots;
-  return `${available}/${available + connected}`;
 }
 
 /** Share of an exit's connection slots currently in use. */
