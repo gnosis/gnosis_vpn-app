@@ -332,10 +332,11 @@ export function createDestinationMode(
 
     const liveId = liveIdOf(status);
     if (liveId !== null) {
+      const enteringLive = draft.mode.mode !== "live";
       makeActive(draft, liveId);
       draft.mode = { mode: "live" };
-      // a connection we did not start from the list should not leave it covering the screen
-      draft.listOpen = false;
+      // only a connection that surprises us closes the list; one opened over live stays
+      if (enteringLive) draft.listOpen = false;
       commit(draft);
       return;
     }
