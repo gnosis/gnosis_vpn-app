@@ -14,6 +14,7 @@ const dotColorClass: Record<HealthColor, string> = {
   yellow: "bg-vpn-yellow",
   red: "bg-vpn-red",
   gray: "bg-text-muted",
+  default: "bg-text-primary",
 };
 
 /**

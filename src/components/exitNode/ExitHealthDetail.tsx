@@ -35,6 +35,7 @@ const statusColorClass: Record<HealthColor, string> = {
   yellow: "text-vpn-yellow",
   red: "text-vpn-red",
   gray: "text-text-muted",
+  default: "text-text-primary",
 };
 
 /** Expanded health detail panel below the location banner. */

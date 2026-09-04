@@ -6,8 +6,8 @@ import type {
   RouteHealthView,
 } from "@src/services/vpnService.ts";
 
-/** Visual health color for a destination. */
-export type HealthColor = "green" | "yellow" | "red" | "gray";
+/** Visual health color for a destination; "default" renders as plain text. */
+export type HealthColor = "green" | "yellow" | "red" | "gray" | "default";
 
 /** Whether the exit-health check is currently running (dot should pulse). */
 export function isExitHealthRunning(rhv: RouteHealthView): boolean {
@@ -17,9 +17,8 @@ export function isExitHealthRunning(rhv: RouteHealthView): boolean {
 /** Derive a simple color from route health state. */
 export function getExitHealthColor(rhv: RouteHealthView): HealthColor {
   const { state } = rhv;
-  if (state.state === "NeedsChannel" || state.state === "Routable") {
-    return "yellow";
-  }
+  if (state.state === "Routable") return "default";
+  if (state.state === "NeedsChannel") return "yellow";
   if (state.state === "Unrecoverable") return "red";
   if (state.state === "NeedsPeering") return "yellow";
   if (state.state === "ReadyToConnect") {
