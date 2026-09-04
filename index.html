@@ -11,13 +11,6 @@
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <style>
-    @font-face {
-      font-family: "Unica77";
-      src: url("/src/assets/fonts/Unica77LL-Bold.otf") format("opentype");
-      font-weight: 700;
-      font-style: normal;
-      font-display: swap;
-    }
     :root {
       --color-bg-primary: #111827;
       --color-text-primary: #f9fafb;
@@ -37,21 +30,14 @@
       display: flex;
       flex-direction: column;
       align-items: center;
+      justify-content: center;
       min-height: 100vh;
-      padding: 1.5rem 1.5rem 0;
+      padding: 0 1.5rem;
       box-sizing: border-box;
     }
     #root .loading-screen .logo-svg {
       width: 100%;
-      margin-top: 1.5rem;
       color: var(--color-text-primary);
-    }
-    #root .loading-screen .mvp-text {
-      font-family: "Unica77", sans-serif;
-      font-size: 2.25rem;
-      font-weight: bold;
-      color: var(--color-text-primary);
-      margin-top: 160px;
     }
     </style>
     <div id="root">
@@ -78,8 +64,6 @@
             fill="currentColor"
           />
         </svg>
-        <div class="mvp-text">El Dorado</div>
-        <div style="width: 100%; min-height: 3rem"></div>
       </div>
     </div>
 
