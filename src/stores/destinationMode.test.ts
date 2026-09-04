@@ -130,8 +130,10 @@ function expectInvariants(model: DestinationMode): void {
     expect(active, "5: selected implies an active entry").not.toBeNull();
   }
   for (const [id, entry] of Object.entries(entries)) {
-    const justified = entry.wasActive || id === pending?.candidateId;
-    expect(justified, `6: entry ${id} is history or the candidate`).toBe(true);
+    const justified = entry.wasActive || id === pending?.candidateId ||
+      model.dragging;
+    expect(justified, `6: entry ${id} is history, the candidate, or drag-held`)
+      .toBe(true);
   }
   const keys = Object.values(entries).map((e) => e.key);
   expect(new Set(keys).size, "7: render keys are unique").toBe(keys.length);
@@ -1224,8 +1226,80 @@ describe("dragStarted and slideCommitted", () => {
 
     expect(handle.model.dragging).toBe(true);
     expect(handle.model.mode).toEqual({ mode: "selected", autoRevertAt: null });
-    expect(handle.model.entries["usa"], "the candidate is swept")
-      .toBeUndefined();
+    expect(
+      handle.model.sequence,
+      "the strip must not change under the finger",
+    ).toEqual(["uk", "usa"]);
+  });
+
+  it("lets the user settle on the interrupted candidate", () => {
+    const handle = setup();
+    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor(UK_USA));
+
+    input(handle, { type: "dragStarted" });
+    input(handle, { type: "slideCommitted", id: "usa" });
+
+    expect(handle.model.active).toBe("usa");
+    expect(handle.model.entries["usa"]).toMatchObject({ wasActive: true });
+    expect(handle.model.sequence).toEqual(["uk", "usa"]);
+  });
+
+  it("collects the interrupted candidate when the user settles elsewhere", () => {
+    const handle = setup();
+    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor(UK_USA));
+
+    input(handle, { type: "dragStarted" });
+    input(handle, { type: "slideCommitted", id: "uk" });
+
+    expect(handle.model.active).toBe("uk");
+    expect(handle.model.sequence, "the drag-ending sweep collects the orphan")
+      .toEqual(["uk"]);
+  });
+
+  it("holds the interrupted candidate through a mid-drag status update", () => {
+    const handle = setup();
+    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor(UK_USA));
+
+    input(handle, { type: "dragStarted" });
+    step(handle, statusFor(UK_USA));
+
+    expect(handle.model.sequence).toEqual(["uk", "usa"]);
+    expect(handle.model.mode).toEqual({ mode: "selected", autoRevertAt: null });
+  });
+
+  it("lets the baseline prune drop the interrupted candidate mid-drag", () => {
+    const handle = setup();
+    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor(UK_USA));
+
+    input(handle, { type: "dragStarted" });
+    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    input(handle, { type: "slideCommitted", id: "usa" });
+
+    expect(handle.model.active, "the vanished card cannot be settled on")
+      .toBe("uk");
+    expect(handle.model.sequence).toEqual(["uk"]);
+  });
+
+  it("keeps the interrupted candidate while a connection lands mid-drag", () => {
+    const handle = setup();
+    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor(UK_USA));
+
+    input(handle, { type: "dragStarted" });
+    step(handle, connectedTo("uk", UK_USA));
+
+    expect(handle.model.mode).toEqual({ mode: "live" });
+    expect(handle.model.sequence, "the finger is still down").toEqual([
+      "uk",
+      "usa",
+    ]);
+
+    input(handle, { type: "slideCommitted", id: "uk" });
+    expect(handle.model.sequence).toEqual(["uk"]);
   });
 
   it("settles onto a card with a fresh deadline", () => {
@@ -1273,6 +1347,66 @@ describe("dragStarted and slideCommitted", () => {
 
     expect(handle.model.entries["usa"]).toMatchObject({ wasActive: true });
     expect(handle.model.mode).toMatchObject({ mode: "selected" });
+  });
+});
+
+describe("a due pending is committed, not discarded", () => {
+  /** Strip [uk] with a pending on usa, clock already past settleAt but the timer never fired. */
+  function duePending(handle: DestinationModeHandle, pastSettle = 0): void {
+    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor(UK_USA));
+    vi.setSystemTime(Date.now() + SETTLE_MS + pastSettle);
+  }
+
+  it("dragStarted lands on the candidate the clock already chose", () => {
+    const handle = setup();
+    duePending(handle);
+
+    input(handle, { type: "dragStarted" });
+
+    expect(handle.model.active, "effectiveActive already reported usa")
+      .toBe("usa");
+    expect(handle.model.entries["usa"]).toMatchObject({ wasActive: true });
+    expect(handle.model.mode).toEqual({ mode: "selected", autoRevertAt: null });
+  });
+
+  it("dragStarted discards a stale pending but its card outlives the drag", () => {
+    const handle = setup();
+    duePending(handle, STATUS_POLL_MS + 1);
+
+    input(handle, { type: "dragStarted" });
+
+    expect(handle.model.active).toBe("uk");
+    expect(handle.model.sequence, "still no card vanishes under the finger")
+      .toEqual(["uk", "usa"]);
+
+    input(handle, { type: "slideCommitted", id: "uk" });
+    expect(handle.model.sequence).toEqual(["uk"]);
+  });
+
+  it("listOpened lands on the candidate the clock already chose", () => {
+    const handle = setup();
+    duePending(handle);
+
+    input(handle, { type: "listOpened" });
+
+    expect(handle.model.active).toBe("usa");
+    expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
+    expect(handle.model.listOpen).toBe(true);
+  });
+
+  it("listOpened discards a stale pending and sweeps its card", () => {
+    const handle = setup();
+    duePending(handle, STATUS_POLL_MS + 1);
+
+    input(handle, { type: "listOpened" });
+
+    expect(handle.model.active).toBe("uk");
+    expect(
+      handle.model.sequence,
+      "the list covers the carousel; sweeping is fine",
+    )
+      .toEqual(["uk"]);
   });
 });
 
