@@ -1,4 +1,4 @@
-import { createEffect, createSignal, on, Show } from "solid-js";
+import { createEffect, createSignal, on, onCleanup, Show } from "solid-js";
 import type { DestinationState } from "@src/services/vpnService.ts";
 import { destinationLabel } from "@src/utils/destinations.ts";
 import Flag from "../Flag.tsx";
@@ -31,13 +31,19 @@ export default function DestinationCard(props: {
   const [displayTitle, setDisplayTitle] = createSignal(props.title);
   const [faded, setFaded] = createSignal(false);
 
+  // Only one fade in flight — a superseded timer would flash its stale title mid-fade.
+  let fadeTimer: ReturnType<typeof setTimeout> | undefined;
+  onCleanup(() => clearTimeout(fadeTimer));
+
   const showTitle = (title: string) => {
+    clearTimeout(fadeTimer);
     if (!props.fadeTitle) {
       setDisplayTitle(title);
+      setFaded(false);
       return;
     }
     setFaded(true);
-    setTimeout(() => {
+    fadeTimer = setTimeout(() => {
       setDisplayTitle(title);
       setFaded(false);
     }, TITLE_FADE_MS);
