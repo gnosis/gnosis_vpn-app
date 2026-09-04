@@ -29,7 +29,7 @@ export const STATUS_POLL_MS = 2_300;
 export interface Entry {
   // Render/reconcile identity, distinct from `id` — lets a re-pick mount fresh.
   key: number;
-  // The sweep's sole justification for an entry: history stays, a bare candidate does not.
+  // The sweep's justification for an entry: history stays, a bare candidate does not.
   wasActive: boolean;
 }
 
@@ -154,16 +154,28 @@ function selectedMode(): SelectedMode {
 
 const AUTO_IDLE: AutoMode = { mode: "auto", pending: null };
 
-/** Every entry is either history or the current candidate — anything else is dropped. */
+/** Every entry is either history, the current candidate, or drag-held — anything else is dropped. */
 function sweep(draft: DestinationMode): void {
   const candidateId = draft.mode.mode === "auto"
     ? draft.mode.pending?.candidateId ?? null
     : null;
   for (const [id, entry] of Object.entries(draft.entries)) {
-    if (entry.wasActive || id === candidateId) continue;
+    // dragging holds every card in place; whatever ends the drag collects the orphan
+    if (draft.dragging || entry.wasActive || id === candidateId) continue;
     delete draft.entries[id];
   }
   draft.sequence = draft.sequence.filter((id) => id in draft.entries);
+}
+
+/** Deadlines are truth: a pending past settleAt has already switched, so dropping it must commit it. */
+function commitDuePending(draft: DestinationMode): void {
+  if (draft.mode.mode !== "auto" || draft.mode.pending === null) return;
+  const { candidateId, settleAt } = draft.mode.pending;
+  const now = Date.now();
+  if (now < settleAt) return;
+  const sleptThrough = now - settleAt > STATUS_POLL_MS;
+  if (!sleptThrough) makeActive(draft, candidateId);
+  draft.mode = AUTO_IDLE;
 }
 
 export function createDestinationMode(
@@ -262,14 +274,9 @@ export function createDestinationMode(
 
   function applyAuto(draft: DestinationMode, status: ModeAppState): void {
     const now = Date.now();
-    let pending = draft.mode.mode === "auto" ? draft.mode.pending : null;
-
     // the clock decides the commit, not the timer that may never have run
-    if (pending !== null && now >= pending.settleAt) {
-      const sleptThrough = now - pending.settleAt > STATUS_POLL_MS;
-      if (!sleptThrough) makeActive(draft, pending.candidateId);
-      pending = null;
-    }
+    commitDuePending(draft);
+    const pending = draft.mode.mode === "auto" ? draft.mode.pending : null;
     draft.mode = { mode: "auto", pending };
 
     const candidate = effectiveCandidate(status, draft);
@@ -397,6 +404,7 @@ export function createDestinationMode(
     switch (event.type) {
       case "listOpened":
         draft.listOpen = true;
+        commitDuePending(draft);
         if (draft.mode.mode === "auto") draft.mode = AUTO_IDLE;
         if (draft.mode.mode === "selected") {
           draft.mode = { mode: "selected", autoRevertAt: null };
@@ -412,6 +420,7 @@ export function createDestinationMode(
         break;
       case "dragStarted":
         draft.dragging = true;
+        commitDuePending(draft);
         if (draft.mode.mode === "auto") draft.mode = AUTO_IDLE;
         // touching the strip is a selection from the first movement, with the clock stopped
         if (draft.active !== null) {
