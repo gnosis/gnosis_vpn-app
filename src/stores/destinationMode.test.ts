@@ -17,9 +17,10 @@ import {
   STATUS_POLL_MS,
   SWITCH_COUNTDOWN_MS,
   SWITCH_CROSSOVER_MS,
+  type UserInputEvent,
 } from "./destinationMode.ts";
 
-// Derived from destinationMode.md — where spec and implementation disagree, the spec wins and the case is expected to fail.
+// Derived from docs/destinationMode.md — where spec and implementation disagree, the spec wins and the case is expected to fail.
 
 const SETTLE_MS = SWITCH_COUNTDOWN_MS + SWITCH_CROSSOVER_MS;
 
@@ -108,7 +109,7 @@ function setup(settings: Partial<DestinationModeSettings> = {}) {
   });
 }
 
-/** The eight invariants from destinationMode.md — they must hold after every transition. */
+/** The nine invariants from docs/destinationMode.md — they must hold after every transition. */
 function expectInvariants(model: DestinationMode): void {
   const { entries, sequence, active, mode } = model;
   const pending = mode.mode === "auto" ? mode.pending : null;
@@ -147,6 +148,15 @@ function expectInvariants(model: DestinationMode): void {
 /** Applies a status update and re-checks the invariants, the way every case should. */
 function step(handle: DestinationModeHandle, status: ModeAppState): void {
   handle.applyStatusUpdate(status);
+  expectInvariants(handle.model);
+}
+
+/** Same, for user input — the invariants hold after every transition, not just status updates. */
+function input(
+  handle: DestinationModeHandle,
+  event: UserInputEvent,
+): void {
+  handle.applyUserInput(event);
   expectInvariants(handle.model);
 }
 
@@ -280,12 +290,25 @@ describe("statusUpdate — live", () => {
     const destinations = { uk: makeReadyToConnect("uk", 50) };
     step(handle, statusFor(destinations));
 
-    handle.applyUserInput({ type: "listOpened" });
+    input(handle, { type: "listOpened" });
     expect(handle.model.listOpen).toBe(true);
 
     step(handle, connectedTo("uk", destinations));
 
     expect(handle.model.listOpen).toBe(false);
+  });
+
+  it("outranks a drag in progress", () => {
+    const handle = setup();
+    const destinations = { uk: makeReadyToConnect("uk", 50) };
+    step(handle, statusFor(destinations));
+    input(handle, { type: "dragStarted" });
+
+    step(handle, connectedTo("uk", destinations));
+
+    expect(handle.model.mode).toEqual({ mode: "live" });
+    // only the list is closed; the finger is still down and the view still owes a slideCommitted
+    expect(handle.model.dragging).toBe(true);
   });
 
   it("retargets active when the backend switches destination under us", () => {
@@ -326,7 +349,7 @@ describe("statusUpdate — leaving live", () => {
     const handle = setup();
     const destinations = { uk: makeReadyToConnect("uk", 50) };
     step(handle, connectedTo("uk", destinations));
-    handle.applyUserInput({ type: "listOpened" });
+    input(handle, { type: "listOpened" });
 
     step(handle, statusFor(destinations));
 
@@ -338,7 +361,7 @@ describe("statusUpdate — suspension", () => {
   it("freezes the mode while the list is open", () => {
     const handle = setup();
     step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
-    handle.applyUserInput({ type: "listOpened" });
+    input(handle, { type: "listOpened" });
 
     step(
       handle,
@@ -357,7 +380,7 @@ describe("statusUpdate — suspension", () => {
   it("freezes the mode while dragging", () => {
     const handle = setup();
     step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
-    handle.applyUserInput({ type: "dragStarted" });
+    input(handle, { type: "dragStarted" });
 
     step(
       handle,
@@ -381,7 +404,7 @@ describe("statusUpdate — suspension", () => {
       }),
     );
     vi.advanceTimersByTime(SETTLE_MS);
-    handle.applyUserInput({ type: "listOpened" });
+    input(handle, { type: "listOpened" });
 
     step(handle, statusFor({ usa: makeReadyToConnect("usa", 10) }));
 
@@ -391,12 +414,23 @@ describe("statusUpdate — suspension", () => {
   it("ends the suspension and cold starts when the active is pruned away", () => {
     const handle = setup();
     step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
-    handle.applyUserInput({ type: "listOpened" });
+    input(handle, { type: "listOpened" });
 
     step(handle, statusFor({ fr: makeReadyToConnect("fr", 30) }));
 
     expect(handle.model.listOpen, "a list over a vanished card must close")
       .toBe(false);
+    expect(handle.model.active).toBe("fr");
+  });
+
+  it("ends a drag the same way when the active is pruned away", () => {
+    const handle = setup();
+    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    input(handle, { type: "dragStarted" });
+
+    step(handle, statusFor({ fr: makeReadyToConnect("fr", 30) }));
+
+    expect(handle.model.dragging).toBe(false);
     expect(handle.model.active).toBe("fr");
   });
 });
@@ -405,7 +439,7 @@ describe("statusUpdate — selected", () => {
   it("holds the selection even once the destination stops being ready", () => {
     const handle = setup();
     stripWithHistory(handle);
-    handle.applyUserInput({ type: "slideCommitted", id: "uk" });
+    input(handle, { type: "slideCommitted", id: "uk" });
 
     step(
       handle,
@@ -421,19 +455,21 @@ describe("statusUpdate — selected", () => {
 
   it("reverts on the deadline via the status update, not the timer", () => {
     const handle = setup();
-    const destinations = {
-      uk: makeReadyToConnect("uk", 50),
-      usa: makeReadyToConnect("usa", 10),
-    };
-    step(handle, statusFor(destinations));
-    vi.advanceTimersByTime(SETTLE_MS);
-    handle.applyUserInput({ type: "slideCommitted", id: "uk" });
+    stripWithHistory(handle);
+    input(handle, { type: "slideCommitted", id: "uk" });
+    expect(
+      handle.model.mode,
+      "the selection must land for the revert to mean anything",
+    )
+      .toMatchObject({ mode: "selected" });
 
     // the clock passes the deadline without the revert timer being allowed to run
     vi.setSystemTime(Date.now() + SELECTED_AUTO_REVERT_MS + 1);
-    step(handle, statusFor(destinations));
+    step(handle, statusFor(UK_USA));
 
     expect(handle.model.mode.mode).toBe("auto");
+    expect(handle.model.mode, "and auto is proposing again")
+      .toMatchObject({ pending: { candidateId: "usa" } });
   });
 });
 
@@ -632,6 +668,20 @@ describe("auto — retargeting and the freeze", () => {
     expect(handle.model.mode).toMatchObject({
       pending: { candidateId: "usa" },
     });
+
+    // the frozen switch commits; the ignored candidate gets its own countdown on the next poll
+    vi.setSystemTime(Date.now() + SWITCH_CROSSOVER_MS);
+    step(
+      handle,
+      statusFor({
+        uk: makeReadyToConnect("uk", 50),
+        usa: makeReadyToConnect("usa", 40),
+        fr: makeReadyToConnect("fr", 5),
+      }),
+    );
+
+    expect(handle.model.active).toBe("usa");
+    expect(handle.model.mode).toMatchObject({ pending: { candidateId: "fr" } });
   });
 });
 
@@ -797,6 +847,22 @@ describe("cold start", () => {
       .toEqual({ mode: "auto", pending: null });
   });
 
+  it("discards an armed pending and promotes directly when the active is pruned", () => {
+    const handle = setup();
+    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor(UK_USA));
+    expect(handle.model.mode).toMatchObject({
+      pending: { candidateId: "usa" },
+    });
+
+    // uk vanishes mid-countdown; a countdown with nothing to switch away from cannot survive
+    step(handle, statusFor({ usa: makeReadyToConnect("usa", 10) }));
+
+    expect(handle.model.active).toBe("usa");
+    expect(handle.model.mode, "promotion, not a countdown")
+      .toEqual({ mode: "auto", pending: null });
+  });
+
   it("promotes the sort head when there is nothing else to go on", () => {
     const handle = setup();
 
@@ -916,8 +982,8 @@ describe("preferred location", () => {
       }),
     );
 
-    handle.applyUserInput({ type: "listOpened" });
-    handle.applyUserInput({ type: "listClosed", picked: "uk" });
+    input(handle, { type: "listOpened" });
+    input(handle, { type: "listClosed", picked: "uk" });
 
     expect(
       handle.model.active,
@@ -953,20 +1019,19 @@ describe("listOpened", () => {
       }),
     );
 
-    handle.applyUserInput({ type: "listOpened" });
+    input(handle, { type: "listOpened" });
 
     expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
     expect(handle.model.entries["usa"]).toBeUndefined();
     expect(handle.model.listOpen).toBe(true);
-    expectInvariants(handle.model);
   });
 
   it("stops the selected deadline rather than letting it run out", () => {
     const handle = setup();
     stripWithHistory(handle);
-    handle.applyUserInput({ type: "slideCommitted", id: "uk" });
+    input(handle, { type: "slideCommitted", id: "uk" });
 
-    handle.applyUserInput({ type: "listOpened" });
+    input(handle, { type: "listOpened" });
 
     expect(handle.model.mode).toEqual({ mode: "selected", autoRevertAt: null });
   });
@@ -982,7 +1047,7 @@ describe("listOpened", () => {
       }),
     );
 
-    handle.applyUserInput({ type: "listOpened" });
+    input(handle, { type: "listOpened" });
 
     expect(handle.model.entries["uk"]).toBeDefined();
     expect(handle.model.sequence).toEqual(["uk", "usa"]);
@@ -998,9 +1063,9 @@ describe("listClosed — cancelled", () => {
     };
     step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
     step(handle, statusFor(destinations));
-    handle.applyUserInput({ type: "listOpened" });
+    input(handle, { type: "listOpened" });
 
-    handle.applyUserInput({ type: "listClosed", picked: null });
+    input(handle, { type: "listClosed", picked: null });
 
     expect(handle.model.listOpen).toBe(false);
     expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
@@ -1014,11 +1079,11 @@ describe("listClosed — cancelled", () => {
   it("restores a selection with a fresh deadline", () => {
     const handle = setup();
     stripWithHistory(handle);
-    handle.applyUserInput({ type: "slideCommitted", id: "uk" });
-    handle.applyUserInput({ type: "listOpened" });
+    input(handle, { type: "slideCommitted", id: "uk" });
+    input(handle, { type: "listOpened" });
 
     vi.setSystemTime(Date.now() + SELECTED_AUTO_REVERT_MS * 2);
-    handle.applyUserInput({ type: "listClosed", picked: null });
+    input(handle, { type: "listClosed", picked: null });
 
     expect(handle.model.mode).toEqual({
       mode: "selected",
@@ -1030,9 +1095,9 @@ describe("listClosed — cancelled", () => {
     const handle = setup();
     const destinations = { uk: makeReadyToConnect("uk", 50) };
     step(handle, connectedTo("uk", destinations));
-    handle.applyUserInput({ type: "listOpened" });
+    input(handle, { type: "listOpened" });
 
-    handle.applyUserInput({ type: "listClosed", picked: null });
+    input(handle, { type: "listClosed", picked: null });
 
     expect(handle.model.mode).toEqual({ mode: "live" });
   });
@@ -1053,13 +1118,12 @@ describe("listClosed — picked", () => {
     expect(handle.model.sequence).toEqual(["a", "b"]);
     expect(handle.model.active).toBe("b");
 
-    handle.applyUserInput({ type: "listOpened" });
-    handle.applyUserInput({ type: "listClosed", picked: "c" });
+    input(handle, { type: "listOpened" });
+    input(handle, { type: "listClosed", picked: "c" });
 
     // c takes b's slot, so a keeps its place and the strip does not grow
     expect(handle.model.active).toBe("c");
     expect(handle.model.sequence).toEqual(["a", "c"]);
-    expectInvariants(handle.model);
   });
 
   it("removes the duplicate copy when picking a card already in the strip", () => {
@@ -1067,8 +1131,8 @@ describe("listClosed — picked", () => {
     stripWithHistory(handle);
     expect(handle.model.sequence).toEqual(["uk", "usa"]);
 
-    handle.applyUserInput({ type: "listOpened" });
-    handle.applyUserInput({ type: "listClosed", picked: "uk" });
+    input(handle, { type: "listOpened" });
+    input(handle, { type: "listClosed", picked: "uk" });
 
     expect(handle.model.sequence).toEqual(["uk"]);
     expect(handle.model.active).toBe("uk");
@@ -1079,8 +1143,8 @@ describe("listClosed — picked", () => {
     stripWithHistory(handle);
     const oldKey = handle.model.entries["uk"].key;
 
-    handle.applyUserInput({ type: "listOpened" });
-    handle.applyUserInput({ type: "listClosed", picked: "uk" });
+    input(handle, { type: "listOpened" });
+    input(handle, { type: "listClosed", picked: "uk" });
 
     expect(handle.model.entries["uk"].key).not.toBe(oldKey);
   });
@@ -1094,8 +1158,8 @@ describe("listClosed — picked", () => {
         usa: makeReadyToConnect("usa", 10),
       }),
     );
-    handle.applyUserInput({ type: "listOpened" });
-    handle.applyUserInput({ type: "listClosed", picked: "uk" });
+    input(handle, { type: "listOpened" });
+    input(handle, { type: "listClosed", picked: "uk" });
 
     expect(handle.model.mode).toMatchObject({ mode: "selected" });
   });
@@ -1109,10 +1173,10 @@ describe("listClosed — picked", () => {
         usa: makeReadyToConnect("usa", 10),
       }),
     );
-    handle.applyUserInput({ type: "listOpened" });
+    input(handle, { type: "listOpened" });
     // the list issues connect before it closes
-    handle.applyUserInput({ type: "connectIssued", id: "usa" });
-    handle.applyUserInput({ type: "listClosed", picked: "usa" });
+    input(handle, { type: "connectIssued", id: "usa" });
+    input(handle, { type: "listClosed", picked: "usa" });
 
     expect(handle.model.mode).toEqual({ mode: "live" });
     expect(handle.model.active).toBe("usa");
@@ -1123,8 +1187,8 @@ describe("listClosed — picked", () => {
     step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
     const seqBefore = [...handle.model.sequence];
 
-    handle.applyUserInput({ type: "listOpened" });
-    handle.applyUserInput({ type: "listClosed", picked: "uk" });
+    input(handle, { type: "listOpened" });
+    input(handle, { type: "listClosed", picked: "uk" });
 
     expect(handle.model.sequence).toEqual(seqBefore);
     expect(handle.model.mode).toEqual({
@@ -1136,12 +1200,11 @@ describe("listClosed — picked", () => {
   it("mints and activates a pick made before any card exists", () => {
     const handle = setup();
 
-    handle.applyUserInput({ type: "listOpened" });
-    handle.applyUserInput({ type: "listClosed", picked: "uk" });
+    input(handle, { type: "listOpened" });
+    input(handle, { type: "listClosed", picked: "uk" });
 
     expect(handle.model.active).toBe("uk");
     expect(handle.model.sequence).toEqual(["uk"]);
-    expectInvariants(handle.model);
   });
 });
 
@@ -1157,24 +1220,23 @@ describe("dragStarted and slideCommitted", () => {
       }),
     );
 
-    handle.applyUserInput({ type: "dragStarted" });
+    input(handle, { type: "dragStarted" });
 
     expect(handle.model.dragging).toBe(true);
     expect(handle.model.mode).toEqual({ mode: "selected", autoRevertAt: null });
     expect(handle.model.entries["usa"], "the candidate is swept")
       .toBeUndefined();
-    expectInvariants(handle.model);
   });
 
   it("settles onto a card with a fresh deadline", () => {
     const handle = setup();
     stripWithHistory(handle);
 
-    handle.applyUserInput({ type: "dragStarted" });
+    input(handle, { type: "dragStarted" });
     expect(handle.model.dragging, "otherwise the settle proves nothing").toBe(
       true,
     );
-    handle.applyUserInput({ type: "slideCommitted", id: "uk" });
+    input(handle, { type: "slideCommitted", id: "uk" });
 
     expect(handle.model.active).toBe("uk");
     expect(handle.model.dragging).toBe(false);
@@ -1187,13 +1249,12 @@ describe("dragStarted and slideCommitted", () => {
   it("ends the drag without moving active when the card is gone", () => {
     const handle = setup();
     step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
-    handle.applyUserInput({ type: "dragStarted" });
+    input(handle, { type: "dragStarted" });
 
-    handle.applyUserInput({ type: "slideCommitted", id: "vanished" });
+    input(handle, { type: "slideCommitted", id: "vanished" });
 
     expect(handle.model.active).toBe("uk");
     expect(handle.model.dragging).toBe(false);
-    expectInvariants(handle.model);
   });
 
   it("marks a slid-to card as history so the sweep spares it", () => {
@@ -1208,7 +1269,7 @@ describe("dragStarted and slideCommitted", () => {
     );
 
     // a tap on the peeking candidate, not a drag — a drag clears the pending first
-    handle.applyUserInput({ type: "slideCommitted", id: "usa" });
+    input(handle, { type: "slideCommitted", id: "usa" });
 
     expect(handle.model.entries["usa"]).toMatchObject({ wasActive: true });
     expect(handle.model.mode).toMatchObject({ mode: "selected" });
@@ -1226,11 +1287,25 @@ describe("connectIssued", () => {
       }),
     );
 
-    handle.applyUserInput({ type: "connectIssued", id: "uk" });
+    input(handle, { type: "connectIssued", id: "uk" });
 
     expect(handle.model.active).toBe("uk");
     expect(handle.model.mode).toEqual({ mode: "live" });
-    expectInvariants(handle.model);
+  });
+
+  it("clears an armed pending, so nothing counts down during the attempt", () => {
+    const handle = setup();
+    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor(UK_USA));
+    expect(handle.model.mode).toMatchObject({
+      pending: { candidateId: "usa" },
+    });
+
+    input(handle, { type: "connectIssued", id: "uk" });
+
+    expect(handle.model.mode).toEqual({ mode: "live" });
+    expect(handle.model.entries["usa"], "the candidate never committed")
+      .toBeUndefined();
   });
 
   it("leaves a failed attempt parked on the destination we tried", () => {
@@ -1240,7 +1315,7 @@ describe("connectIssued", () => {
       usa: makeReadyToConnect("usa", 10),
     };
     step(handle, statusFor(destinations));
-    handle.applyUserInput({ type: "connectIssued", id: "uk" });
+    input(handle, { type: "connectIssued", id: "uk" });
 
     // the connect failed: the next status carries no connection at all
     step(handle, statusFor(destinations));
@@ -1279,7 +1354,7 @@ describe("cardPhaseFor — which label a card wears", () => {
   it("calls a user selection selected, even when it is the best destination", () => {
     const handle = setup();
     stripWithHistory(handle);
-    handle.applyUserInput({ type: "slideCommitted", id: "usa" });
+    input(handle, { type: "slideCommitted", id: "usa" });
 
     expect(cardPhaseFor(handle.model, "usa")).toBe("selected");
   });
@@ -1296,8 +1371,8 @@ describe("reset", () => {
   it("clears suspension along with everything else", () => {
     const handle = setup();
     step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
-    handle.applyUserInput({ type: "dragStarted" });
-    handle.applyUserInput({ type: "listOpened" });
+    input(handle, { type: "dragStarted" });
+    input(handle, { type: "listOpened" });
     expect(handle.model.listOpen, "otherwise the reset proves nothing").toBe(
       true,
     );
@@ -1348,33 +1423,31 @@ describe("invariants hold under randomized traffic", () => {
           ? connectedTo(liveId, destinations)
           : statusFor(destinations);
 
-        handle.applyStatusUpdate(status);
-        expectInvariants(handle.model);
+        step(handle, status);
 
         const action = random();
         if (action < 0.1) {
-          handle.applyUserInput({ type: "listOpened" });
+          input(handle, { type: "listOpened" });
         } else if (action < 0.2) {
-          handle.applyUserInput({
+          input(handle, {
             type: "listClosed",
             picked: random() < 0.5
               ? null
               : IDS[Math.floor(random() * IDS.length)],
           });
         } else if (action < 0.3) {
-          handle.applyUserInput({ type: "dragStarted" });
+          input(handle, { type: "dragStarted" });
         } else if (action < 0.4) {
-          handle.applyUserInput({
+          input(handle, {
             type: "slideCommitted",
             id: IDS[Math.floor(random() * IDS.length)],
           });
         } else if (action < 0.45) {
-          handle.applyUserInput({
+          input(handle, {
             type: "connectIssued",
             id: IDS[Math.floor(random() * IDS.length)],
           });
         }
-        expectInvariants(handle.model);
 
         vi.advanceTimersByTime(Math.floor(random() * 4_000));
         expectInvariants(handle.model);
