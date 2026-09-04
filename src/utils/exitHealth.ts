@@ -85,7 +85,7 @@ export function getSlotLoad(rhv: RouteHealthView): SlotLoad | null {
 /** Normalized load level relative to processor count. */
 export type LoadLevel = "low" | "medium" | "high";
 
-/** Slot-usage color band. */
+/** Slot-usage color band: <=50 low, <=75 medium, else high. */
 export function getSlotLoadLevel(percent: number): LoadLevel {
   if (percent <= 50) return "low";
   if (percent <= 75) return "medium";

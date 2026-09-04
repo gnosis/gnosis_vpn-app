@@ -141,7 +141,7 @@ export default function ExitHealthDetail(
     return "font-semibold text-text-primary";
   };
 
-  // Use separately measured max-heights; WebKitGTK misrenders the old nested 0fr/1fr collapse.
+  // Use separately measured max-heights because WebKitGTK misrenders 0fr/1fr collapse and nested reads race.
   let latencyRowRef: HTMLDivElement | undefined;
   let detailedStatsRef: HTMLDivElement | undefined;
   let fallbackRowRef: HTMLDivElement | undefined;
@@ -200,7 +200,7 @@ export default function ExitHealthDetail(
           }}
         >
           {
-            /* Keep both branches mounted so max-height can animate between them. */
+            /* Keep both branches mounted; unmounting leaves no DOM to animate. */
           }
           <div>
             <div
