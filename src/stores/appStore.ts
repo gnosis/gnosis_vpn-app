@@ -70,8 +70,7 @@ export interface AppState {
   availableVersion: string | null;
   targetDestination: string | null;
   balance: BalanceResponse | null;
-  // The history banner's list and active pointer — see
-  // docs/destination-mode.md.
+  // The carousel's cards and active pointer — see docs/destinationMode.md
   mode: DestinationMode;
 }
 

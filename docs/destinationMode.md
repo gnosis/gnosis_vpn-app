@@ -1,9 +1,9 @@
 # destinationMode — model specification
 
-Authoritative rules for `destinationMode.ts`. The store owns which destination
-the carousel shows, which card is "the one Connect will use", and when an
-unattended switch happens. It holds no DOM knowledge and performs no side
-effects: every input is one of six events, every output is store state.
+Authoritative rules for `src/stores/destinationMode.ts`. The store owns which
+destination the carousel shows, which card is "the one Connect will use", and
+when an unattended switch happens. It holds no DOM knowledge and performs no
+side effects: every input is one of six events, every output is store state.
 
 When this document and the code disagree, the document is right and the code is
 a bug. When this document and reality disagree, change the document first, then

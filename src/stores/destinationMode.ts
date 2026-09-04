@@ -1,3 +1,4 @@
+// Spec: docs/destinationMode.md — on disagreement the spec is right and this file has a bug.
 import { createStore, type Store as SolidStore } from "solid-js/store";
 
 import type {
