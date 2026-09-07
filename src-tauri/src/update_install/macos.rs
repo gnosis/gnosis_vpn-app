@@ -164,7 +164,9 @@ pub fn install_update(app: AppHandle, channel: String, force: bool) -> Result<()
                         saw_terminal |= status.is_terminal();
                         publish(&app, status);
                     }
-                    None => eprintln!("[update-install] unrecognized updater output: {line}"),
+                    None => {
+                        tracing::warn!(target: "update_install", line, "unrecognized updater output")
+                    }
                 }
             }
         }

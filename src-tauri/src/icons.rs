@@ -300,7 +300,7 @@ pub fn update_icon_name_if_changed(current: &Mutex<String>, next: &str) -> bool 
             }
         }
         Err(e) => {
-            eprintln!("Failed to lock current_icon mutex: {}", e);
+            tracing::warn!(error = %e, "failed to lock current_icon mutex");
             true
         }
     }
@@ -376,7 +376,7 @@ pub fn set_tray_icon_file(app: &AppHandle, tray_icon_state: &TrayIconState, icon
         return;
     }
     let Some(tray_image) = app.state::<IconCache>().tray_image(icon_name) else {
-        eprintln!("Tray icon not in cache: {icon_name}");
+        tracing::warn!(icon_name, "tray icon not in cache");
         return;
     };
     if let Ok(guard) = tray_icon_state.tray.lock() {
@@ -419,7 +419,7 @@ pub fn start_icon_heartbeat(
             }
 
             if let Err(e) = set_app_icon(app.clone(), icon_name.to_string()).await {
-                eprintln!("Failed to update dock icon in heartbeat: {}", e);
+                tracing::warn!(error = %e, "failed to update dock icon in heartbeat");
             }
 
             set_tray_icon_file(&app, &app.state::<TrayIconState>(), tray_icon_name);

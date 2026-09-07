@@ -13,6 +13,7 @@ use std::sync::{Arc, Mutex};
 
 mod commands;
 mod icons;
+mod logging;
 mod platform;
 pub mod settings;
 mod theme;
@@ -21,8 +22,8 @@ pub mod types;
 pub mod update_install;
 
 use commands::{
-    check_update, compress_logs, connect, disconnect, get_cached_state, get_platform,
-    run_initialization_loop, set_app_icon, stop_client,
+    check_update, connect, disconnect, export_logs, get_cached_state, get_platform,
+    log_from_frontend, run_initialization_loop, set_app_icon, stop_client,
 };
 use gnosis_vpn_lib::command::InfoResponse;
 use gnosis_vpn_lib::{command, socket::root as root_socket};
@@ -195,6 +196,16 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
+            // Logging first so everything below is captured; failure must not block startup.
+            match app.path().app_log_dir() {
+                Ok(dir) => {
+                    if let Err(e) = logging::init(&dir) {
+                        eprintln!("failed to initialize file logging: {e}");
+                    }
+                }
+                Err(e) => eprintln!("failed to resolve app log dir: {e}"),
+            }
+
             // Load settings (settings.json) before any UI decisions
             let settings_path = app.path().app_data_dir()?.join("settings.json");
             app.manage(SettingsStore::load(settings_path));
@@ -296,28 +307,33 @@ pub fn run() {
                 tauri::async_runtime::spawn(async move {
                     let socket = PathBuf::from(root_socket::DEFAULT_PATH);
                     let fallback = "Version: Something is wrong".to_string();
-                    let pkg: String =
-                        match root_socket::process_cmd(&socket, &command::Command::Info).await {
-                            Ok(command::Response::Info(info)) => {
-                                eprintln!(
-                                    "[about-panel] daemon Info.package_version = {:?}",
-                                    info.package_version
-                                );
-                                println!(
-                                    "[about-panel] daemon Info: {:?}",
-                                    info.package_version.as_deref().unwrap_or("<none>")
-                                );
-                                info.package_version.unwrap_or_else(|| fallback.clone())
-                            }
-                            Ok(other) => {
-                                eprintln!("[about-panel] unexpected daemon response: {:?}", other);
-                                fallback.clone()
-                            }
-                            Err(e) => {
-                                eprintln!("[about-panel] daemon call failed: {:?}", e);
-                                fallback.clone()
-                            }
-                        };
+                    let pkg: String = match root_socket::process_cmd(
+                        &socket,
+                        &command::Command::Info,
+                    )
+                    .await
+                    {
+                        Ok(command::Response::Info(info)) => {
+                            tracing::info!(
+                                target: "about_panel",
+                                package_version = ?info.package_version,
+                                "daemon info"
+                            );
+                            info.package_version.unwrap_or_else(|| fallback.clone())
+                        }
+                        Ok(other) => {
+                            tracing::warn!(
+                                target: "about_panel",
+                                response = ?other,
+                                "unexpected daemon response"
+                            );
+                            fallback.clone()
+                        }
+                        Err(e) => {
+                            tracing::warn!(target: "about_panel", error = ?e, "daemon call failed");
+                            fallback.clone()
+                        }
+                    };
                     install_macos_about_panel_override(&app_handle, pkg, icon_path);
                 });
             }
@@ -405,7 +421,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             connect,
             disconnect,
-            compress_logs,
+            export_logs,
+            log_from_frontend,
             set_app_icon,
             get_initial_theme,
             check_update,
@@ -453,7 +470,7 @@ pub fn run() {
 
                 // inform the client about the shutdown
                 if let Err(reason) = tauri::async_runtime::block_on(async { stop_client().await }) {
-                    eprintln!("Error stopping client on exit: {reason}");
+                    tracing::warn!(%reason, "error stopping client on exit");
                 }
             }
         });

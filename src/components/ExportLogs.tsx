@@ -4,11 +4,7 @@ import { downloadDir, join } from "@tauri-apps/api/path";
 import { VPNService } from "../services/vpnService.ts";
 import Button from "./common/Button.tsx";
 
-interface ExportLogsProps {
-  logs: string;
-}
-
-export default function ExportLogs(props: ExportLogsProps) {
+export default function ExportLogs() {
   const [loading, setLoading] = createSignal(false);
   const [savedPath, setSavedPath] = createSignal<string | null>(null);
   const [error, setError] = createSignal<string | null>(null);
@@ -44,7 +40,7 @@ export default function ExportLogs(props: ExportLogsProps) {
         setError("Export canceled");
         return;
       }
-      await VPNService.compressLogs(props.logs, dest);
+      await VPNService.exportLogs(dest);
       setSavedPath(dest);
     } catch (e) {
       setError(String(e instanceof Error ? e.message : e));

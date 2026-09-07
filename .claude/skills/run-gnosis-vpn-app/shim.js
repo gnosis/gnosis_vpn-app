@@ -79,6 +79,8 @@
           fixture.checkUpdateDelayMs ?? 2000,
         )
       ),
+    log_from_frontend: () => null,
+    export_logs: () => null,
     get_settings: () => ({ ...settings }),
     update_settings: ({ patch }) => {
       Object.assign(settings, patch);

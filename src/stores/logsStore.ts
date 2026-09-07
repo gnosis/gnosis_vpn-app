@@ -4,6 +4,7 @@ import {
   isPreparingSafeRunMode,
   isWarmupRunMode,
   type StatusResponse,
+  VPNService,
 } from "@src/services/vpnService.ts";
 import { destinationLabel } from "@src/utils/destinations.ts";
 import { shortAddress } from "../utils/shortAddress.ts";
@@ -23,6 +24,13 @@ type LogsActions = {
 type LogsStoreTuple = readonly [Store<LogsState>, LogsActions, () => void];
 
 export type LogEntry = { date: string; message: string };
+
+// Bounds the in-memory view; the full history lives in the app log file.
+const MAX_LOG_ENTRIES = 500;
+
+function appendCapped(existing: LogEntry[], entry: LogEntry): LogEntry[] {
+  return [...existing, entry].slice(-MAX_LOG_ENTRIES);
+}
 
 export function createLogsStore(): LogsStoreTuple {
   const [state, setState] = createStore<LogsState>({ logs: [] });
@@ -130,9 +138,12 @@ export function createLogsStore(): LogsStoreTuple {
         : "";
       if (lastMessage === message) return;
       const entry: LogEntry = { date: new Date().toISOString(), message };
-      setState("logs", (existing) => [...existing, entry]);
-      // Broadcast to other windows only from main window to avoid echo loops
-      if (isMainWindow) void emit("logs:append", entry);
+      setState("logs", (existing) => appendCapped(existing, entry));
+      // Both windows derive the same entries, so only main broadcasts and persists
+      if (isMainWindow) {
+        void emit("logs:append", entry);
+        VPNService.logToFile("info", message);
+      }
     },
 
     appendStatus: (response: StatusResponse) => {
@@ -156,7 +167,7 @@ export function createLogsStore(): LogsStoreTuple {
     ) {
       return;
     }
-    setState("logs", (existing) => [...existing, payload]);
+    setState("logs", (existing) => appendCapped(existing, payload));
   })
     .then((u) => unlisteners.push(u))
     .catch((e) => console.error("logs:append listener failed", e));

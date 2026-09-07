@@ -424,13 +424,18 @@ export class VPNService {
     }
   }
 
-  static async compressLogs(logPath: string, destPath: string): Promise<void> {
+  static async exportLogs(destPath: string): Promise<void> {
     try {
-      await invoke("compress_logs", { logPath, destPath });
+      await invoke("export_logs", { destPath });
     } catch (error) {
-      console.error("Failed to compress logs", error);
-      throw new Error(`Compress Logs Error: ${error}`);
+      console.error("Failed to export logs", error);
+      throw new Error(`Export Logs Error: ${error}`);
     }
+  }
+
+  // Fire-and-forget: log persistence must never break the caller.
+  static logToFile(level: "info" | "warn" | "error", message: string): void {
+    invoke("log_from_frontend", { level, message }).catch(() => {});
   }
 
   static getBestDestination(ds_states: StatusResponse["destinations"]): string {

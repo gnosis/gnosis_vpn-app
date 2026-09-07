@@ -168,7 +168,9 @@ fn lenient_from_map(map: serde_json::Map<String, Value>) -> Settings {
         let single = Value::Object([(key.clone(), value)].into_iter().collect());
         match serde_json::from_value::<SettingsPatch>(single) {
             Ok(patch) => settings.apply(patch),
-            Err(e) => eprintln!("settings: ignoring invalid value for '{key}': {e}"),
+            Err(e) => {
+                tracing::warn!(target: "settings", %key, error = %e, "ignoring invalid value")
+            }
         }
     }
     settings
@@ -201,19 +203,13 @@ impl SettingsStore {
             // missing file is the regular first run — start from defaults
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Settings::default(),
             Err(e) => {
-                eprintln!(
-                    "settings: cannot read {}, using defaults: {e}",
-                    path.display()
-                );
+                tracing::warn!(target: "settings", path = %path.display(), error = %e, "cannot read file, using defaults");
                 Settings::default()
             }
             Ok(bytes) => match serde_json::from_slice(&bytes) {
                 Ok(map) => lenient_from_map(map),
                 Err(e) => {
-                    eprintln!(
-                        "settings: cannot parse {}, using defaults: {e}",
-                        path.display()
-                    );
+                    tracing::warn!(target: "settings", path = %path.display(), error = %e, "cannot parse file, using defaults");
                     Settings::default()
                 }
             },
@@ -263,7 +259,7 @@ pub fn update_settings(
     patch: SettingsPatch,
 ) -> Result<Settings, String> {
     let snapshot = store.update(patch).map_err(|e| {
-        eprintln!("settings: failed to persist: {e}");
+        tracing::error!(target: "settings", error = %e, "failed to persist");
         e
     })?;
     let _ = app.emit("settings-changed", &snapshot);

@@ -7,8 +7,8 @@ use tokio_util::sync::CancellationToken;
 use zstd::stream::Encoder;
 
 use std::fs::File;
-use std::io::{self, BufReader};
-use std::path::PathBuf;
+use std::io::{self, BufReader, Write};
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::task::spawn_blocking;
@@ -232,12 +232,41 @@ pub async fn set_app_icon(app: AppHandle, icon_name: String) -> Result<(), Strin
     }
 }
 
+/// Routes frontend log lines into the app log file alongside Rust events.
 #[tauri::command]
-pub async fn compress_logs(log_path: String, dest_path: String) -> Result<(), String> {
-    let log_file = PathBuf::from(log_path)
-        .canonicalize()
-        .map_err(|e| format!("Cannot resolve log file path: {e}"))?;
+pub fn log_from_frontend(level: String, message: String) {
+    match level.as_str() {
+        "error" => tracing::error!(target: "frontend", "{message}"),
+        "warn" => tracing::warn!(target: "frontend", "{message}"),
+        "debug" => tracing::debug!(target: "frontend", "{message}"),
+        _ => tracing::info!(target: "frontend", "{message}"),
+    }
+}
 
+// The uploader accepts only one zstd frame of plain text — hence concatenation, not an archive.
+fn write_log_section(
+    encoder: &mut Encoder<'_, &File>,
+    title: &str,
+    path: &Path,
+) -> Result<(), String> {
+    writeln!(encoder, "===== {title} ({}) =====", path.display())
+        .map_err(|e| format!("Failed to write section header: {e}"))?;
+    match File::open(path) {
+        Ok(file) => {
+            io::copy(&mut BufReader::new(file), encoder)
+                .map_err(|e| format!("Failed to compress {title}: {e}"))?;
+        }
+        Err(e) => {
+            writeln!(encoder, "<unreadable: {e}>")
+                .map_err(|e| format!("Failed to write section note: {e}"))?;
+        }
+    }
+    writeln!(encoder).map_err(|e| format!("Failed to write section footer: {e}"))
+}
+
+/// Exports app + daemon logs as one uploader-compatible `.zst`; sources are never caller-supplied.
+#[tauri::command]
+pub async fn export_logs(app: AppHandle, dest_path: String) -> Result<(), String> {
     let dest_path_buf = PathBuf::from(dest_path);
     let dest_parent = dest_path_buf
         .parent()
@@ -255,23 +284,40 @@ pub async fn compress_logs(log_path: String, dest_path: String) -> Result<(), St
         dest_file_raw.with_added_extension("zst")
     };
 
-    spawn_blocking(move || {
-        let input_file =
-            File::open(log_file).map_err(|e| format!("Failed to open log file: {}", e))?;
-        let output_file =
-            File::create(dest_file).map_err(|e| format!("Failed to create output file: {}", e))?;
+    let app_logs = app
+        .path()
+        .app_log_dir()
+        .map(|dir| crate::logging::log_files(&dir))
+        .unwrap_or_default();
+    let daemon_log = app
+        .state::<AppStateCache>()
+        .service_info
+        .borrow()
+        .as_ref()
+        .and_then(|info| info.log_file.clone());
 
+    spawn_blocking(move || {
+        let output_file =
+            File::create(dest_file).map_err(|e| format!("Failed to create output file: {e}"))?;
         let mut encoder = Encoder::new(&output_file, 5)
-            .map_err(|e| format!("Failed to create zstd encoder: {}", e))?;
-        io::copy(&mut BufReader::new(input_file), &mut encoder)
-            .map_err(|e| format!("Failed to compress log file: {}", e))?;
+            .map_err(|e| format!("Failed to create zstd encoder: {e}"))?;
+
+        for path in &app_logs {
+            write_log_section(&mut encoder, "gnosis_vpn-app log", path)?;
+        }
+        match daemon_log {
+            Some(path) => write_log_section(&mut encoder, "gnosisvpn daemon log", &path)?,
+            None => writeln!(encoder, "===== gnosisvpn daemon log (unavailable) =====")
+                .map_err(|e| format!("Failed to write section header: {e}"))?,
+        }
+
         encoder
             .finish()
-            .map_err(|e| format!("Failed to finalize compression: {}", e))?;
+            .map_err(|e| format!("Failed to finalize compression: {e}"))?;
         Ok(())
     })
     .await
-    .map_err(|e| format!("compress_logs: blocking task panicked: {e}"))?
+    .map_err(|e| format!("export_logs: blocking task panicked: {e}"))?
 }
 
 pub async fn stop_client() -> Result<(), String> {
@@ -347,7 +393,7 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
         loop {
             tokio::select! {
                 _ = cancel.cancelled() => {
-                    println!("Status tick received cancellation signal, exiting...");
+                    tracing::debug!("status polling cancelled");
                     break PollingExit::Cancelled;
                 }
                 _ = trigger.notified() => {
@@ -371,7 +417,7 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
                         let new_dock_icon = match icon_state.lock() {
                             Ok(mut guard) => guard.apply_status(&conn_state, level),
                             Err(e) => {
-                                eprintln!("Failed to lock icon state: {}", e);
+                                tracing::warn!(error = %e, "failed to lock icon state");
                                 None
                             }
                         };
@@ -382,7 +428,7 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
 
                             if let Some(icon_name) = new_dock_icon {
                                 if let Err(e) = set_app_icon(app.clone(), icon_name).await {
-                                    eprintln!("Failed to update app icon: {}", e);
+                                    tracing::warn!(error = %e, "failed to update app icon");
                                 }
                             }
                         }

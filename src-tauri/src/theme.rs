@@ -68,7 +68,7 @@ fn spawn_gsettings_monitor(app: AppHandle) {
                 let line = match line_result {
                     Ok(l) => l,
                     Err(e) => {
-                        eprintln!("[theme] gsettings monitor read error: {e}");
+                        tracing::warn!(target: "theme", error = %e, "gsettings monitor read error");
                         break;
                     }
                 };
@@ -108,9 +108,7 @@ pub fn spawn_linux_theme_monitor(app: AppHandle) {
         let settings = match XdgSettings::new().await {
             Ok(s) => s,
             Err(e) => {
-                eprintln!(
-                    "[theme] XDG portal unavailable ({e}), falling back to gsettings monitor"
-                );
+                tracing::warn!(target: "theme", error = %e, "XDG portal unavailable, falling back to gsettings monitor");
                 spawn_gsettings_monitor(app);
                 return;
             }
@@ -118,9 +116,7 @@ pub fn spawn_linux_theme_monitor(app: AppHandle) {
         let stream = match settings.receive_color_scheme_changed().await {
             Ok(s) => s,
             Err(e) => {
-                eprintln!(
-                    "[theme] XDG portal subscription failed ({e}), falling back to gsettings monitor"
-                );
+                tracing::warn!(target: "theme", error = %e, "XDG portal subscription failed, falling back to gsettings monitor");
                 spawn_gsettings_monitor(app);
                 return;
             }
@@ -144,7 +140,7 @@ pub fn spawn_linux_theme_monitor(app: AppHandle) {
             }
         }
         // Stream ended (portal restart/disconnect) — fall back so monitoring continues.
-        eprintln!("[theme] XDG portal stream ended, falling back to gsettings monitor");
+        tracing::warn!(target: "theme", "XDG portal stream ended, falling back to gsettings monitor");
         spawn_gsettings_monitor(app);
     });
 }
@@ -162,7 +158,7 @@ pub fn system_theme() -> tauri::Theme {
 
     let mode = dark_light::detect()
         .map_err(|e| {
-            eprintln!("Failed to detect OS theme: {e}");
+            tracing::warn!(target: "theme", error = %e, "failed to detect OS theme");
         })
         .unwrap_or(dark_light::Mode::Unspecified);
 
