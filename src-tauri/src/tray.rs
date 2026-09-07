@@ -103,7 +103,8 @@ pub fn show_settings(app: &AppHandle, target: &str) {
         let target_owned = target.to_string();
         tauri::async_runtime::spawn(async move {
             sleep(Duration::from_millis(120)).await;
-            if let Err(e) = handle.emit("navigate", target_owned) {
+            // emit_to: a broadcast would also hit the main window's navigate listener
+            if let Err(e) = handle.emit_to("settings", "navigate", target_owned) {
                 tracing::warn!(target: "tray", error = %e, "cannot emit navigate to settings window");
             }
         });
@@ -144,11 +145,11 @@ pub fn show_settings_and_check(app: &AppHandle) {
                 }
             });
             sleep(Duration::from_millis(120)).await;
-            let _ = handle.emit("navigate", "updates");
+            let _ = handle.emit_to("settings", "navigate", "updates");
             // Ping covers the case where Updates.tsx is already mounted (no
             // remount, so its onMount-time ready emit won't fire again).
             sleep(Duration::from_millis(80)).await;
-            let _ = handle.emit("updates:ping", ());
+            let _ = handle.emit_to("settings", "updates:ping", ());
             // Wait until Updates.tsx signals its listener is attached (5 s fallback).
             if tokio::time::timeout(Duration::from_secs(5), rx)
                 .await
@@ -157,7 +158,7 @@ pub fn show_settings_and_check(app: &AppHandle) {
                 tracing::warn!(target: "tray", "updates-ready handshake timed out, requesting check anyway");
             }
             app_handle.unlisten(id);
-            let _ = handle.emit("updates:check", ());
+            let _ = handle.emit_to("settings", "updates:check", ());
         });
     }
 }

@@ -15,7 +15,8 @@ export async function openSettingsWindow(target?: SettingsTab) {
     await settingsWin.show();
     await settingsWin.setFocus();
     if (target) {
-      await settingsWin.emit("navigate", target);
+      // emitTo: a broadcast would also hit the main window's navigate listener
+      await settingsWin.emitTo("settings", "navigate", target);
     }
   } catch (e) {
     logError(`Failed to open settings window: ${e}`);

@@ -1,5 +1,5 @@
 import { createSignal, onCleanup, onMount } from "solid-js";
-import { listen } from "@tauri-apps/api/event";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import Settings from "../screens/settings/Settings.tsx";
 import Usage from "../screens/settings/Usage.tsx";
 import Updates from "../screens/settings/Updates.tsx";
@@ -21,14 +21,18 @@ export default function SettingsWindow() {
     void (async () => {
       // Attach navigate listener first so we don't miss events emitted by
       // the tray/Navigation while store init is still pending.
-      const unlisten = await listen<string>("navigate", (event) => {
-        const next = event.payload;
-        if (next === "settings" || next === "usage" || next === "updates") {
-          setTab(next);
-        } else {
-          logWarn(`Ignoring navigate event with invalid tab: ${next}`);
-        }
-      });
+      // window-scoped listen: a target-Any listener would also get emits aimed at the main window
+      const unlisten = await getCurrentWebviewWindow().listen<string>(
+        "navigate",
+        (event) => {
+          const next = event.payload;
+          if (next === "settings" || next === "usage" || next === "updates") {
+            setTab(next);
+          } else {
+            logWarn(`Ignoring navigate event with invalid tab: ${next}`);
+          }
+        },
+      );
       if (disposed) unlisten();
       else unlistenNavigate = unlisten;
 
