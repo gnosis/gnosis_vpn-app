@@ -27,7 +27,6 @@ pub fn init(log_dir: &Path) -> Result<String, String> {
         .build(log_dir)
         .map_err(|e| format!("cannot create rolling log file: {e}"))?;
     let (file_writer, guard) = tracing_appender::non_blocking(appender);
-    let _ = WORKER_GUARD.set(guard);
 
     let filter =
         EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(DEFAULT_LOG_FILTER));
@@ -38,6 +37,10 @@ pub fn init(log_dir: &Path) -> Result<String, String> {
         .with(filter)
         .try_init()
         .map_err(|e| format!("cannot set global subscriber: {e}"))?;
+    // Park the guard only once a subscriber owns the writer, so a failed init drops the worker.
+    WORKER_GUARD
+        .set(guard)
+        .map_err(|_| "logging already initialized".to_string())?;
     Ok(filter_desc)
 }
 
