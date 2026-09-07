@@ -58,7 +58,7 @@ export default function ExportLogs() {
         loading={loading()}
         onClick={onExport}
       >
-        Export service logs
+        Export logs
       </Button>
       <div class="w-full h-4 flex items-center justify-center">
         <Switch>
