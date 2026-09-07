@@ -42,8 +42,7 @@ export default function ExportLogs() {
         setError("Export canceled");
         return;
       }
-      await VPNService.exportLogs(dest);
-      setSavedPath(dest);
+      setSavedPath(await VPNService.exportLogs(dest));
     } catch (e) {
       setError(String(e instanceof Error ? e.message : e));
     } finally {

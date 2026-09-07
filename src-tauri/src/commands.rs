@@ -314,17 +314,18 @@ fn write_log_section(
 
 /// Exports app + daemon logs as one uploader-compatible `.zst`; sources are never caller-supplied.
 #[tauri::command]
-pub async fn export_logs(app: AppHandle, dest_path: String) -> Result<(), String> {
+pub async fn export_logs(app: AppHandle, dest_path: String) -> Result<String, String> {
     tracing::info!(target: "export", dest = %dest_path, "exporting logs");
     let result = export_logs_inner(app, dest_path).await;
     match &result {
-        Ok(()) => tracing::info!(target: "export", "log export finished"),
+        Ok(written) => tracing::info!(target: "export", path = %written, "log export finished"),
         Err(e) => tracing::warn!(target: "export", error = %e, "log export failed"),
     }
     result
 }
 
-async fn export_logs_inner(app: AppHandle, dest_path: String) -> Result<(), String> {
+/// Returns the path actually written, which may differ from `dest_path` by a `.zst` suffix.
+async fn export_logs_inner(app: AppHandle, dest_path: String) -> Result<String, String> {
     let dest_path_buf = PathBuf::from(dest_path);
     let dest_parent = dest_path_buf
         .parent()
@@ -336,11 +337,13 @@ async fn export_logs_inner(app: AppHandle, dest_path: String) -> Result<(), Stri
         .file_name()
         .ok_or_else(|| "Destination path must include a file name".to_string())?;
     let dest_file_raw = dest_dir.join(dest_file_name);
+    // The uploader regex-checks for a `.zst` filename, so repair a name the user stripped.
     let dest_file = if dest_file_raw.extension().and_then(|e| e.to_str()) == Some("zst") {
-        dest_file_raw.clone()
+        dest_file_raw
     } else {
         dest_file_raw.with_added_extension("zst")
     };
+    let written = dest_file.display().to_string();
 
     let app_logs = app
         .path()
@@ -360,7 +363,7 @@ async fn export_logs_inner(app: AppHandle, dest_path: String) -> Result<(), Stri
         "collected log sources",
     );
 
-    spawn_blocking(move || {
+    spawn_blocking(move || -> Result<(), String> {
         let output_file =
             File::create(dest_file).map_err(|e| format!("Failed to create output file: {e}"))?;
         let mut encoder = Encoder::new(&output_file, 5)
@@ -381,7 +384,9 @@ async fn export_logs_inner(app: AppHandle, dest_path: String) -> Result<(), Stri
         Ok(())
     })
     .await
-    .map_err(|e| format!("export_logs: blocking task panicked: {e}"))?
+    .map_err(|e| format!("export_logs: blocking task panicked: {e}"))??;
+
+    Ok(written)
 }
 
 pub async fn stop_client() -> Result<(), String> {

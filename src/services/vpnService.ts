@@ -426,9 +426,9 @@ export class VPNService {
   }
 
   // failures are logged by the backend's export_logs command
-  static async exportLogs(destPath: string): Promise<void> {
+  static async exportLogs(destPath: string): Promise<string> {
     try {
-      await invoke("export_logs", { destPath });
+      return await invoke<string>("export_logs", { destPath });
     } catch (error) {
       throw new Error(`Export Logs Error: ${error}`);
     }

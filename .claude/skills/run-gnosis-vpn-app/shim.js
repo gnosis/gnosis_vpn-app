@@ -80,7 +80,7 @@
         )
       ),
     log_from_frontend: () => null,
-    export_logs: () => null,
+    export_logs: (args) => args?.destPath ?? "/tmp/gnosis_vpn-export.log.zst",
     get_settings: () => ({ ...settings }),
     update_settings: ({ patch }) => {
       Object.assign(settings, patch);
