@@ -34,7 +34,7 @@
     "vite": "8.2.2",
     "vite-plugin-solid": "^2.11.14",
     "@tauri-apps/cli": "^2.11.4",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   },
   "overrides": {
     "eslint": {
