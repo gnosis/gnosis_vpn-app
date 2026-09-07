@@ -98,13 +98,20 @@ impl IconCache {
         } else {
             "tray-icons"
         };
-        Ok(Self {
+        let cache = Self {
             tray: load_images(&icons_dir.join(tray_subdir), &format!("{tray_subdir}/"))?,
             #[cfg(target_os = "macos")]
             app: load_bytes(&icons_dir.join("app-icons"))?,
             #[cfg(target_os = "linux")]
             app: load_images(&icons_dir.join("app-icons"), "")?,
-        })
+        };
+        tracing::info!(
+            dir = %icons_dir.display(),
+            tray_icons = cache.tray.len(),
+            app_icons = cache.app.len(),
+            "icon cache loaded",
+        );
+        Ok(cache)
     }
 
     pub fn tray_image(&self, icon_name: &str) -> Option<Image<'static>> {
@@ -379,10 +386,13 @@ pub fn set_tray_icon_file(app: &AppHandle, tray_icon_state: &TrayIconState, icon
         tracing::warn!(icon_name, "tray icon not in cache");
         return;
     };
-    if let Ok(guard) = tray_icon_state.tray.lock() {
-        let _ = guard.set_icon(Some(tray_image));
-        // this function only affects macOS and is a noop on other platforms
-        let _ = guard.set_icon_as_template(true);
+    match tray_icon_state.tray.lock() {
+        Ok(guard) => {
+            let _ = guard.set_icon(Some(tray_image));
+            // this function only affects macOS and is a noop on other platforms
+            let _ = guard.set_icon_as_template(true);
+        }
+        Err(e) => tracing::warn!(error = %e, "failed to lock tray icon"),
     }
 }
 
@@ -392,8 +402,11 @@ pub fn start_icon_heartbeat(
     icon_state: Arc<Mutex<IconState>>,
 ) -> tauri::async_runtime::JoinHandle<()> {
     tauri::async_runtime::spawn(async move {
+        tracing::info!("icon heartbeat started");
         // Only this task alternates the frames, so the toggle lives here.
         let mut show_second_frame = false;
+        // The animation ticks several times a second; log a repeating failure once.
+        let mut last_warn: Option<String> = None;
         loop {
             // Snapshot under one lock; never hold it across an await.
             let level = match icon_state.lock() {
@@ -418,8 +431,12 @@ pub fn start_icon_heartbeat(
                 guard.current_icon = icon_name.to_string();
             }
 
-            if let Err(e) = set_app_icon(app.clone(), icon_name.to_string()).await {
-                tracing::warn!(error = %e, "failed to update dock icon in heartbeat");
+            match set_app_icon(app.clone(), icon_name.to_string()).await {
+                Ok(()) => last_warn = None,
+                Err(e) => crate::commands::warn_on_change(
+                    &mut last_warn,
+                    format!("failed to set app icon in heartbeat: {e}"),
+                ),
             }
 
             set_tray_icon_file(&app, &app.state::<TrayIconState>(), tray_icon_name);

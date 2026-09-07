@@ -184,6 +184,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
             // A second instance was launched — bring the existing window to focus
+            tracing::info!("second instance launched, focusing existing window");
             #[cfg(target_os = "macos")]
             {
                 let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
@@ -218,28 +219,40 @@ pub fn run() {
             }
 
             // Load settings (settings.json) before any UI decisions
-            let settings_path = app.path().app_data_dir()?.join("settings.json");
-            let settings_store = SettingsStore::load(settings_path);
-            tracing::info!(target: "settings", settings = ?settings_store.current(), "loaded");
+            let settings_path = app
+                .path()
+                .app_data_dir()
+                .inspect_err(|e| tracing::error!(error = %e, "cannot resolve app data dir"))?
+                .join("settings.json");
+            let settings_store = SettingsStore::load(settings_path.clone());
+            tracing::info!(target: "settings", path = %settings_path.display(), settings = ?settings_store.current(), "loaded");
             app.manage(settings_store);
 
             // First step: OS theme for app windows (all OS) and tray icons (non-macOS only)
             let theme = system_theme();
+            tracing::info!(target: "theme", theme = ?theme, "initial os theme");
             app.manage(InitialTheme(theme));
 
             // Create tray menu
-            let menu = create_tray_menu(app.handle())?;
+            let menu = create_tray_menu(app.handle())
+                .inspect_err(|e| tracing::error!(error = %e, "cannot create tray menu"))?;
 
-            let icon_cache = icons::IconCache::load(&app.path().resource_dir()?)?;
+            let resource_dir = app
+                .path()
+                .resource_dir()
+                .inspect_err(|e| tracing::error!(error = %e, "cannot resolve resource dir"))?;
+            let icon_cache = icons::IconCache::load(&resource_dir)
+                .inspect_err(|e| tracing::error!(error = %e, "cannot load icon cache"))?;
 
             let icon_name: &str = determine_tray_icon(
                 &ConnectionState::Disconnected,
                 icons::FundsLevel::Sufficient,
             );
 
-            let icon = icon_cache
-                .tray_image(icon_name)
-                .ok_or_else(|| format!("Missing tray icon: {icon_name}"))?;
+            let icon = icon_cache.tray_image(icon_name).ok_or_else(|| {
+                tracing::error!(icon_name, "missing tray icon");
+                format!("Missing tray icon: {icon_name}")
+            })?;
 
             app.manage(icon_cache);
 
@@ -251,28 +264,43 @@ pub fn run() {
             let tray = builder
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "quit" => {
+                        tracing::info!(target: "tray", "quit requested, disconnecting");
                         let app_clone = app.clone();
                         tauri::async_runtime::spawn(async move {
                             let socket = PathBuf::from(root_socket::DEFAULT_PATH);
-                            let _ =
+                            if let Err(e) =
                                 root_socket::process_cmd(&socket, &command::Command::Disconnect)
-                                    .await;
+                                    .await
+                            {
+                                tracing::warn!(target: "tray", error = %e, "disconnect on quit failed");
+                            }
                             app_clone.exit(0);
                         });
                     }
                     "show" => {
+                        tracing::info!(target: "tray", "toggle main window");
                         toggle_main_window_visibility(app);
                     }
-                    "settings" => show_settings(app, "settings"),
-                    "usage" => show_settings(app, "usage"),
-                    "check_update" => show_settings_and_check(app),
-                    _ => {}
+                    "settings" => {
+                        tracing::info!(target: "tray", "settings requested");
+                        show_settings(app, "settings");
+                    }
+                    "usage" => {
+                        tracing::info!(target: "tray", "usage requested");
+                        show_settings(app, "usage");
+                    }
+                    "check_update" => {
+                        tracing::info!(target: "tray", "update check requested");
+                        show_settings_and_check(app);
+                    }
+                    other => tracing::warn!(target: "tray", id = other, "unknown tray menu item"),
                 })
                 .on_tray_icon_event(|tray, event| {
                     handle_tray_event(tray.app_handle(), event);
                 })
                 .show_menu_on_left_click(false)
-                .build(app)?;
+                .build(app)
+                .inspect_err(|e| tracing::error!(error = %e, "cannot create tray icon"))?;
 
             app.manage(TrayIconState {
                 tray: Mutex::new(tray),
@@ -293,7 +321,9 @@ pub fn run() {
             spawn_linux_theme_monitor(app.handle().clone());
 
             // Setup platform-specific functionality
-            let _ = Platform::setup_system_tray();
+            if let Err(e) = Platform::setup_system_tray() {
+                tracing::warn!(error = %e, "platform tray setup unavailable");
+            }
 
             // Prevent macOS App Nap from throttling the process when backgrounded.
             // The token must stay alive for the process lifetime; Tauri's managed
@@ -326,7 +356,8 @@ pub fn run() {
                     .await
                     {
                         Ok(command::Response::Info(info)) => {
-                            tracing::info!(
+                            // debug: the init loop's "initialized" line already records versions
+                            tracing::debug!(
                                 target: "about_panel",
                                 package_version = ?info.package_version,
                                 "daemon info"
@@ -342,7 +373,7 @@ pub fn run() {
                             fallback.clone()
                         }
                         Err(e) => {
-                            tracing::warn!(target: "about_panel", error = ?e, "daemon call failed");
+                            tracing::warn!(target: "about_panel", error = %e, "daemon call failed");
                             fallback.clone()
                         }
                     };
@@ -357,6 +388,7 @@ pub fn run() {
                 let window_clone = window.clone();
                 window.on_window_event(move |event| {
                     if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                        tracing::info!(target: "window", "main window close requested, hiding to tray");
                         api.prevent_close();
                         let _ = window_clone.hide();
                         #[cfg(target_os = "macos")]
@@ -373,6 +405,7 @@ pub fn run() {
                 let settings_clone = settings_window.clone();
                 settings_window.on_window_event(move |event| {
                     if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                        tracing::info!(target: "window", "settings window close requested, hiding");
                         api.prevent_close();
                         let _ = settings_clone.hide();
                     }
@@ -382,6 +415,7 @@ pub fn run() {
             // Decide initial window visibility based on settings
             if let Some(window) = app.get_webview_window("main") {
                 let start_minimized = app.state::<SettingsStore>().current().start_minimized;
+                tracing::info!(target: "window", start_minimized, "initial window visibility");
                 #[cfg(target_os = "macos")]
                 {
                     let policy = if start_minimized {
@@ -450,40 +484,53 @@ pub fn run() {
         .expect("error while building tauri application")
         .run(|app_handle, event| {
             if let tauri::RunEvent::Exit = event {
+                tracing::info!("shutting down");
                 // cancel query status loop and wait for it to finish
 
                 let state = app_handle.state::<Mutex<StatusPollingHandle>>();
-                let handle_opt = if let Ok(mut guard) = state.lock() {
-                    guard.cancel.cancel();
-                    guard.handle.take()
-                } else {
-                    None
+                let handle_opt = match state.lock() {
+                    Ok(mut guard) => {
+                        guard.cancel.cancel();
+                        guard.handle.take()
+                    }
+                    Err(e) => {
+                        tracing::warn!(error = %e, "status polling lock poisoned at exit");
+                        None
+                    }
                 };
                 if let Some(handle) = handle_opt {
                     let _ = tauri::async_runtime::block_on(handle);
                 }
 
                 let bal_state = app_handle.state::<Mutex<BalancePollingHandle>>();
-                let bal_handle_opt = if let Ok(mut guard) = bal_state.lock() {
-                    guard.cancel.cancel();
-                    guard.handle.take()
-                } else {
-                    None
+                let bal_handle_opt = match bal_state.lock() {
+                    Ok(mut guard) => {
+                        guard.cancel.cancel();
+                        guard.handle.take()
+                    }
+                    Err(e) => {
+                        tracing::warn!(error = %e, "balance polling lock poisoned at exit");
+                        None
+                    }
                 };
                 if let Some(handle) = bal_handle_opt {
                     let _ = tauri::async_runtime::block_on(handle);
                 }
 
-                if let Ok(mut guard) = app_handle.state::<HeartbeatHandle>().0.lock() {
-                    if let Some(handle) = guard.take() {
-                        handle.abort();
+                match app_handle.state::<HeartbeatHandle>().0.lock() {
+                    Ok(mut guard) => {
+                        if let Some(handle) = guard.take() {
+                            handle.abort();
+                        }
                     }
+                    Err(e) => tracing::warn!(error = %e, "heartbeat lock poisoned at exit"),
                 }
 
                 // inform the client about the shutdown
                 if let Err(reason) = tauri::async_runtime::block_on(async { stop_client().await }) {
-                    tracing::warn!(%reason, "error stopping client on exit");
+                    tracing::warn!(error = %reason, "error stopping client on exit");
                 }
+                tracing::info!("exit complete");
             }
         });
 }

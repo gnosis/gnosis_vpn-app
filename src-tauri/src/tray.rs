@@ -39,9 +39,14 @@ pub fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Erro
 }
 
 pub fn toggle_main_window_visibility(app: &AppHandle) {
-    if let Some(window) = app.get_webview_window("main") {
+    let Some(window) = app.get_webview_window("main") else {
+        tracing::warn!(target: "tray", "main window missing, cannot toggle visibility");
+        return;
+    };
+    {
         let is_visible = window.is_visible().unwrap_or(false);
         let is_focused = window.is_focused().unwrap_or(false);
+        tracing::info!(target: "window", show = !is_visible || !is_focused, "toggling main window");
         if !is_visible || !is_focused {
             #[cfg(target_os = "macos")]
             {
@@ -77,7 +82,11 @@ pub fn handle_tray_event(app: &AppHandle, event: TrayIconEvent) {
 }
 
 pub fn show_settings(app: &AppHandle, target: &str) {
-    if let Some(window) = app.get_webview_window("settings") {
+    let Some(window) = app.get_webview_window("settings") else {
+        tracing::warn!(target: "tray", "settings window missing");
+        return;
+    };
+    {
         #[cfg(target_os = "macos")]
         {
             let main_visible = app
@@ -94,13 +103,19 @@ pub fn show_settings(app: &AppHandle, target: &str) {
         let target_owned = target.to_string();
         tauri::async_runtime::spawn(async move {
             sleep(Duration::from_millis(120)).await;
-            let _ = handle.emit("navigate", target_owned);
+            if let Err(e) = handle.emit("navigate", target_owned) {
+                tracing::warn!(target: "tray", error = %e, "cannot emit navigate to settings window");
+            }
         });
     }
 }
 
 pub fn show_settings_and_check(app: &AppHandle) {
-    if let Some(window) = app.get_webview_window("settings") {
+    let Some(window) = app.get_webview_window("settings") else {
+        tracing::warn!(target: "tray", "settings window missing");
+        return;
+    };
+    {
         #[cfg(target_os = "macos")]
         {
             let main_visible = app
@@ -135,7 +150,12 @@ pub fn show_settings_and_check(app: &AppHandle) {
             sleep(Duration::from_millis(80)).await;
             let _ = handle.emit("updates:ping", ());
             // Wait until Updates.tsx signals its listener is attached (5 s fallback).
-            let _ = tokio::time::timeout(Duration::from_secs(5), rx).await;
+            if tokio::time::timeout(Duration::from_secs(5), rx)
+                .await
+                .is_err()
+            {
+                tracing::warn!(target: "tray", "updates-ready handshake timed out, requesting check anyway");
+            }
             app_handle.unlisten(id);
             let _ = handle.emit("updates:check", ());
         });

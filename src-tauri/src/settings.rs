@@ -107,6 +107,53 @@ pub struct SettingsPatch {
     pub flag_display: Option<FlagDisplay>,
 }
 
+impl SettingsPatch {
+    /// Names of the fields this patch sets — for the update log line.
+    fn changed_keys(&self) -> Vec<&'static str> {
+        let mut keys = Vec::new();
+        if self.preferred_location.is_some() {
+            keys.push("preferred_location");
+        }
+        if self.last_connected_destination.is_some() {
+            keys.push("last_connected_destination");
+        }
+        if self.connect_on_startup.is_some() {
+            keys.push("connect_on_startup");
+        }
+        if self.start_minimized.is_some() {
+            keys.push("start_minimized");
+        }
+        if self.update_check.is_some() {
+            keys.push("update_check");
+        }
+        if self.exit_node_sort_order.is_some() {
+            keys.push("exit_node_sort_order");
+        }
+        if self.last_checked_at.is_some() {
+            keys.push("last_checked_at");
+        }
+        if self.update_manifest.is_some() {
+            keys.push("update_manifest");
+        }
+        if self.channel.is_some() {
+            keys.push("channel");
+        }
+        if self.dismissed_update_version.is_some() {
+            keys.push("dismissed_update_version");
+        }
+        if self.installed_version.is_some() {
+            keys.push("installed_version");
+        }
+        if self.show_detailed_metrics.is_some() {
+            keys.push("show_detailed_metrics");
+        }
+        if self.flag_display.is_some() {
+            keys.push("flag_display");
+        }
+        keys
+    }
+}
+
 fn double_option<'de, T, D>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
 where
     T: Deserialize<'de>,
@@ -201,7 +248,10 @@ impl SettingsStore {
     pub fn load(path: PathBuf) -> Self {
         let settings = match std::fs::read(&path) {
             // missing file is the regular first run — start from defaults
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Settings::default(),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                tracing::info!(target: "settings", path = %path.display(), "no settings file, using defaults");
+                Settings::default()
+            }
             Err(e) => {
                 tracing::warn!(target: "settings", path = %path.display(), error = %e, "cannot read file, using defaults");
                 Settings::default()
@@ -230,20 +280,25 @@ impl SettingsStore {
     /// On failure the update is rejected wholesale; the mirrors receive no
     /// event, so their controls visibly snap back.
     pub fn update(&self, patch: SettingsPatch) -> Result<Settings, String> {
+        let keys = patch.changed_keys();
         let mut guard = self.lock();
         let mut updated = guard.clone();
         updated.apply(patch);
-        persist(&self.path, &updated)?;
+        persist(&self.path, &updated).inspect_err(|e| {
+            tracing::error!(target: "settings", path = %self.path.display(), ?keys, error = %e, "failed to persist");
+        })?;
         *guard = updated.clone();
+        tracing::info!(target: "settings", ?keys, "settings updated");
         Ok(updated)
     }
 
     fn lock(&self) -> MutexGuard<'_, Settings> {
         // a poisoned lock cannot leave Settings logically broken
         // (apply is plain field assignments), so recover instead of erroring
-        self.settings
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+        self.settings.lock().unwrap_or_else(|poisoned| {
+            tracing::warn!(target: "settings", "settings lock poisoned, recovering");
+            poisoned.into_inner()
+        })
     }
 }
 
@@ -258,11 +313,11 @@ pub fn update_settings(
     store: State<'_, SettingsStore>,
     patch: SettingsPatch,
 ) -> Result<Settings, String> {
-    let snapshot = store.update(patch).map_err(|e| {
-        tracing::error!(target: "settings", error = %e, "failed to persist");
-        e
-    })?;
-    let _ = app.emit("settings-changed", &snapshot);
+    // failures are logged inside SettingsStore::update, with path context
+    let snapshot = store.update(patch)?;
+    if let Err(e) = app.emit("settings-changed", &snapshot) {
+        tracing::warn!(target: "settings", error = %e, "cannot broadcast settings change");
+    }
     Ok(snapshot)
 }
 

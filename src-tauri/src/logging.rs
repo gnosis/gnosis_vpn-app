@@ -43,8 +43,12 @@ pub fn init(log_dir: &Path) -> Result<String, String> {
 
 /// App log files in `log_dir`, oldest first (the date suffix sorts chronologically).
 pub fn log_files(log_dir: &Path) -> Vec<PathBuf> {
-    let Ok(entries) = std::fs::read_dir(log_dir) else {
-        return Vec::new();
+    let entries = match std::fs::read_dir(log_dir) {
+        Ok(entries) => entries,
+        Err(e) => {
+            tracing::warn!(dir = %log_dir.display(), error = %e, "cannot read log dir");
+            return Vec::new();
+        }
     };
     let mut files: Vec<PathBuf> = entries
         .flatten()
