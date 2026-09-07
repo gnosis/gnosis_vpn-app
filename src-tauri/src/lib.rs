@@ -264,7 +264,6 @@ pub fn run() {
                         toggle_main_window_visibility(app);
                     }
                     "settings" => show_settings(app, "settings"),
-                    "logs" => show_settings(app, "logs"),
                     "usage" => show_settings(app, "usage"),
                     "check_update" => show_settings_and_check(app),
                     _ => {}

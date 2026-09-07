@@ -1,14 +1,13 @@
 import { createSignal, onCleanup, onMount } from "solid-js";
-import { emit, listen } from "@tauri-apps/api/event";
+import { listen } from "@tauri-apps/api/event";
 import Settings from "../screens/settings/Settings.tsx";
 import Usage from "../screens/settings/Usage.tsx";
-import Logs from "../screens/settings/Logs.tsx";
 import Updates from "../screens/settings/Updates.tsx";
 import Tabs from "@src/components/common/Tabs.tsx";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
 
-type GlobalTab = "settings" | "usage" | "logs" | "updates";
+type GlobalTab = "settings" | "usage" | "updates";
 
 export default function SettingsWindow() {
   const [tab, setTab] = createSignal<GlobalTab>("settings");
@@ -23,10 +22,7 @@ export default function SettingsWindow() {
       // the tray/Navigation while store init is still pending.
       const unlisten = await listen<string>("navigate", (event) => {
         const next = event.payload;
-        if (
-          next === "settings" || next === "usage" || next === "logs" ||
-          next === "updates"
-        ) {
+        if (next === "settings" || next === "usage" || next === "updates") {
           setTab(next);
         }
       });
@@ -39,7 +35,6 @@ export default function SettingsWindow() {
         appActions.initializeApp(),
         settingsActions.load(),
       ]);
-      void emit("logs:request-snapshot");
     })();
   });
 
@@ -54,7 +49,6 @@ export default function SettingsWindow() {
         tabs={[
           { id: "settings", label: "Settings" },
           { id: "usage", label: "Usage" },
-          { id: "logs", label: "Logs" },
           { id: "updates", label: "Updates" },
         ]}
         activeId={tab()}
@@ -64,8 +58,6 @@ export default function SettingsWindow() {
         ? <Settings />
         : tab() === "usage"
         ? <Usage />
-        : tab() === "logs"
-        ? <Logs />
         : <Updates />}
     </div>
   );

@@ -10,6 +10,7 @@ import {
   destinationLabelById,
 } from "@src/utils/destinations.ts";
 import { Show } from "solid-js";
+import ExportLogs from "@src/components/ExportLogs.tsx";
 
 const FLAG_DISPLAY_OPTIONS: { id: FlagDisplay; label: string }[] = [
   { id: "none", label: "Off" },
@@ -79,6 +80,7 @@ export default function Settings() {
         />
       </label>
       <div class="grow" />
+      <ExportLogs />
     </div>
   );
 }

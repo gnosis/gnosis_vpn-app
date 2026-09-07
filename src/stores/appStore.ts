@@ -33,7 +33,7 @@ import {
   type DestinationModeHandle,
   type ModeAppState,
 } from "@src/stores/destinationMode.ts";
-import { useLogsStore } from "@src/stores/logsStore.ts";
+import { logMessage as log, logStatus } from "@src/utils/appLog.ts";
 import {
   destinationLabel,
   getPreferredAvailabilityChangeMessage,
@@ -222,10 +222,6 @@ export function createAppStore(): AppStoreTuple {
   };
 
   const [settings, settingsActions] = useSettingsStore();
-  const [, logActions] = useLogsStore();
-  const log = (content: string) => logActions.append(content);
-  const logStatus = (response: StatusResponse) =>
-    logActions.appendStatus(response);
 
   // destinationMode.ts snapshots settings once at creation, so wait for real hydrated values.
   let destinationMode: DestinationModeHandle | undefined;

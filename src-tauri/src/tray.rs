@@ -18,7 +18,6 @@ pub fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Erro
         MenuItem::with_id(app, "status", "Status: Disconnected", false, None::<&str>)?;
     let show_item = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
     let settings_item = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
-    let logs_item = MenuItem::with_id(app, "logs", "Logs", true, None::<&str>)?;
     let usage_item = MenuItem::with_id(app, "usage", "Usage", true, None::<&str>)?;
     let check_update_item =
         MenuItem::with_id(app, "check_update", "Check update", true, None::<&str>)?;
@@ -32,7 +31,6 @@ pub fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Erro
         .separator()
         .item(&show_item)
         .item(&settings_item)
-        .item(&logs_item)
         .item(&usage_item)
         .item(&check_update_item)
         .separator()

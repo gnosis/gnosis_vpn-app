@@ -5,7 +5,7 @@ import {
   onCleanup,
   Show,
 } from "solid-js";
-import { useLogsStore } from "../../stores/logsStore.ts";
+import { logMessage as log } from "../../utils/appLog.ts";
 import { explorerUrl } from "../../utils/explorerUrl.ts";
 import { shortAddress } from "../../utils/shortAddress.ts";
 import QrCode from "./QrCode.tsx";
@@ -42,9 +42,6 @@ export default function FundingAddress(
   onCleanup(() => {
     clearTimeout(copyTimeout);
   });
-
-  const [, logActions] = useLogsStore();
-  const log = (message: string) => logActions.append(message);
 
   createEffect(() => {
     if (!props.qrVisible || isMissing()) {
