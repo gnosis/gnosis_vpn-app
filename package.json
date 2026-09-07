@@ -31,7 +31,7 @@
     "eslint": "^10.8.1",
     "prettier": "^3.9.6",
     "typescript": "^6.0.3",
-    "vite": "8.2.1",
+    "vite": "8.2.2",
     "vite-plugin-solid": "^2.11.14",
     "@tauri-apps/cli": "^2.11.4",
     "vitest": "^4.1.10"
