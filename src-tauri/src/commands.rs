@@ -296,7 +296,12 @@ fn write_log_section(
     title: &str,
     path: &Path,
 ) -> Result<(), String> {
-    writeln!(encoder, "===== {title} ({}) =====", path.display())
+    // Bundles get shared with support, so name the source file without its absolute path.
+    let source = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("unknown");
+    writeln!(encoder, "===== {title} ({source}) =====")
         .map_err(|e| format!("Failed to write section header: {e}"))?;
     match File::open(path) {
         Ok(file) => {
@@ -760,6 +765,29 @@ mod tests {
                 "open-ended requirement in COMPATIBLE_VERSIONS: {req}"
             );
         }
+    }
+
+    #[test]
+    fn write_log_section_names_the_file_without_its_directory() {
+        let dir = std::env::temp_dir().join("gnosis_vpn-app-write-log-section");
+        std::fs::create_dir_all(&dir).unwrap();
+        let source = dir.join("gnosis_vpn-app.2026-09-07.log");
+        std::fs::write(&source, "line one\n").unwrap();
+        let dest = dir.join("out.zst");
+
+        let out = File::create(&dest).unwrap();
+        let mut encoder = Encoder::new(&out, 1).unwrap();
+        write_log_section(&mut encoder, "gnosis_vpn-app log", &source).unwrap();
+        encoder.finish().unwrap();
+
+        let bytes = std::fs::read(&dest).unwrap();
+        let text = String::from_utf8(zstd::decode_all(&bytes[..]).unwrap()).unwrap();
+
+        assert!(text.starts_with("===== gnosis_vpn-app log (gnosis_vpn-app.2026-09-07.log) ====="));
+        assert!(!text.contains(dir.to_str().unwrap()));
+        assert!(text.contains("line one"));
+
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]
