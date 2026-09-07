@@ -198,17 +198,30 @@ pub fn run() {
         .setup(|app| {
             // Logging first so everything below is captured; failure must not block startup.
             match app.path().app_log_dir() {
-                Ok(dir) => {
-                    if let Err(e) = logging::init(&dir) {
-                        eprintln!("failed to initialize file logging: {e}");
+                Ok(dir) => match logging::init(&dir) {
+                    Ok(filter) => {
+                        let pkg = app.package_info();
+                        tracing::info!(
+                            name = %pkg.name,
+                            version = %pkg.version,
+                            os = std::env::consts::OS,
+                            arch = std::env::consts::ARCH,
+                            args = ?std::env::args().collect::<Vec<_>>(),
+                            log_filter = %filter,
+                            log_dir = %dir.display(),
+                            "starting",
+                        );
                     }
-                }
+                    Err(e) => eprintln!("failed to initialize file logging: {e}"),
+                },
                 Err(e) => eprintln!("failed to resolve app log dir: {e}"),
             }
 
             // Load settings (settings.json) before any UI decisions
             let settings_path = app.path().app_data_dir()?.join("settings.json");
-            app.manage(SettingsStore::load(settings_path));
+            let settings_store = SettingsStore::load(settings_path);
+            tracing::info!(target: "settings", settings = ?settings_store.current(), "loaded");
+            app.manage(settings_store);
 
             // First step: OS theme for app windows (all OS) and tray icons (non-macOS only)
             let theme = system_theme();

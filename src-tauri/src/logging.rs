@@ -15,7 +15,8 @@ const MAX_LOG_FILES: usize = 7;
 static WORKER_GUARD: OnceLock<WorkerGuard> = OnceLock::new();
 
 /// Global tracing subscriber: rotating file plus stdout; `RUST_LOG` overrides "info".
-pub fn init(log_dir: &Path) -> Result<(), String> {
+/// Returns the effective filter so the startup line can record it.
+pub fn init(log_dir: &Path) -> Result<String, String> {
     std::fs::create_dir_all(log_dir).map_err(|e| format!("cannot create log dir: {e}"))?;
 
     let appender = RollingFileAppender::builder()
@@ -30,12 +31,14 @@ pub fn init(log_dir: &Path) -> Result<(), String> {
 
     let filter =
         EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(DEFAULT_LOG_FILTER));
+    let filter_desc = filter.to_string();
     tracing_subscriber::registry()
         .with(fmt::layer().with_writer(file_writer).with_ansi(false))
         .with(fmt::layer())
         .with(filter)
         .try_init()
-        .map_err(|e| format!("cannot set global subscriber: {e}"))
+        .map_err(|e| format!("cannot set global subscriber: {e}"))?;
+    Ok(filter_desc)
 }
 
 /// App log files in `log_dir`, oldest first (the date suffix sorts chronologically).
