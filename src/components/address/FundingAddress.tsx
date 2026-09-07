@@ -5,7 +5,7 @@ import {
   onCleanup,
   Show,
 } from "solid-js";
-import { logMessage as log } from "../../utils/appLog.ts";
+import { logWarn } from "../../utils/appLog.ts";
 import { explorerUrl } from "../../utils/explorerUrl.ts";
 import { shortAddress } from "../../utils/shortAddress.ts";
 import QrCode from "./QrCode.tsx";
@@ -67,7 +67,7 @@ export default function FundingAddress(
     })
       .then(setQrDataUrl)
       .catch((error) => {
-        log(`Error generating QR code: ${String(error)}`);
+        logWarn(`Funding address: error generating QR code: ${String(error)}`);
         setQrDataUrl(undefined);
       });
   });
@@ -82,7 +82,7 @@ export default function FundingAddress(
         copyTimeout = undefined;
       }, 1500);
     } catch (error) {
-      log(`Error copying address: ${String(error)}`);
+      logWarn(`Error copying address: ${String(error)}`);
     }
   }
 
@@ -90,7 +90,7 @@ export default function FundingAddress(
     try {
       await opener.openUrl(explorerUrl(address()));
     } catch (error) {
-      log(`Error opening explorer: ${String(error)}`);
+      logWarn(`Error opening explorer: ${String(error)}`);
     }
   }
 

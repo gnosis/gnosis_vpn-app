@@ -7,6 +7,15 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { onCleanup, onMount } from "solid-js";
+import { logError, logWarn } from "@src/utils/appLog.ts";
+
+// Last-resort trail for errors nothing else caught (e.g. the async init IIFEs).
+globalThis.addEventListener("error", (e) => {
+  logError(`Uncaught error: ${e.message} (${e.filename}:${e.lineno})`);
+});
+globalThis.addEventListener("unhandledrejection", (e) => {
+  logError(`Unhandled rejection: ${e.reason}`);
+});
 
 function screenFromLabel(label: string) {
   if (label === "settings") {
@@ -47,7 +56,7 @@ function applyTheme(theme: string) {
           applyTheme(initial);
           initialApplied = true;
         } catch (e) {
-          console.error("[theme] initial theme fetch failed", e);
+          logWarn(`[theme] initial theme fetch failed: ${e}`);
         }
 
         // Each block is isolated so a failure in one does not skip the others.
@@ -67,7 +76,7 @@ function applyTheme(theme: string) {
           mq.addEventListener("change", handleMediaChange);
           mqCleanup = () => mq.removeEventListener("change", handleMediaChange);
         } catch (e) {
-          console.error("[theme] matchMedia setup failed", e);
+          logWarn(`[theme] matchMedia setup failed: ${e}`);
         }
 
         // macOS/Windows: keep frontend in sync when Tauri reports a theme change.
@@ -79,7 +88,7 @@ function applyTheme(theme: string) {
             },
           );
         } catch (e) {
-          console.error("[theme] onThemeChanged setup failed", e);
+          logWarn(`[theme] onThemeChanged setup failed: ${e}`);
         }
 
         // Linux: backend emits "os-theme-changed" via XDG Desktop Portal / gsettings fallback.
@@ -92,7 +101,7 @@ function applyTheme(theme: string) {
             },
           );
         } catch (e) {
-          console.error("[theme] os-theme-changed listener setup failed", e);
+          logWarn(`[theme] os-theme-changed listener setup failed: ${e}`);
         }
 
         return () => {

@@ -2,6 +2,7 @@ import { createSignal, Match, Switch } from "solid-js";
 import { save } from "@tauri-apps/plugin-dialog";
 import { downloadDir, join } from "@tauri-apps/api/path";
 import { VPNService } from "../services/vpnService.ts";
+import { logInfo } from "@src/utils/appLog.ts";
 import Button from "./common/Button.tsx";
 
 export default function ExportLogs() {
@@ -37,6 +38,7 @@ export default function ExportLogs() {
         filters: [{ name: "Zstandard archive", extensions: ["zst"] }],
       });
       if (!dest) {
+        logInfo("Log export canceled in save dialog");
         setError("Export canceled");
         return;
       }

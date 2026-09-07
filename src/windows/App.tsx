@@ -13,6 +13,7 @@ import {
   runBackgroundCheck,
   setPendingCheckAfterConnect,
 } from "@src/utils/updateChecker.ts";
+import { logError, logWarn } from "@src/utils/appLog.ts";
 
 const validScreens = [
   "main",
@@ -39,7 +40,10 @@ function handleNavigate(
   setScreen: (s: ValidScreen) => void,
 ): void {
   const screen = typeof payload === "string" ? payload : payload.screen;
-  if (!isValidScreen(screen)) return;
+  if (!isValidScreen(screen)) {
+    logWarn(`Ignoring navigate event with invalid screen: ${screen}`);
+    return;
+  }
   setScreen(screen);
   if (screen === "onboarding") {
     const step = typeof payload === "string" ? undefined : payload.step;
@@ -169,7 +173,7 @@ function App() {
       );
       if (disposed) unlisten();
       else unlistenNavigate = unlisten;
-    })();
+    })().catch((e) => logError(`Main window initialization failed: ${e}`));
   });
 
   onCleanup(() => {

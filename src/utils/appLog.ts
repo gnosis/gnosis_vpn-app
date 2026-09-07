@@ -9,8 +9,31 @@ import { destinationLabel } from "@src/utils/destinations.ts";
 import { shortAddress } from "./shortAddress.ts";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
-// Both windows derive the same log lines from their own polling; only main persists.
-const isMainWindow = getCurrentWindow().label === "main";
+// Both windows derive the same status log lines from their own polling; only main persists those.
+// try/catch: outside a Tauri webview (tests, shims) there is no window handle.
+const isMainWindow = (() => {
+  try {
+    return getCurrentWindow().label === "main";
+  } catch {
+    return false;
+  }
+})();
+
+// Leveled logger: mirrors to devtools and persists via the backend bridge (any window).
+export function logInfo(message: string): void {
+  console.info(message);
+  VPNService.logToFile("info", message);
+}
+
+export function logWarn(message: string): void {
+  console.warn(message);
+  VPNService.logToFile("warn", message);
+}
+
+export function logError(message: string): void {
+  console.error(message);
+  VPNService.logToFile("error", message);
+}
 
 let lastMessage: string | undefined;
 
@@ -35,37 +58,15 @@ function buildLogContent(
   const rm = response.run_mode;
   const dests = response.destinations;
   const { connected, connecting, reconnecting, disconnecting } = response;
-  // Build a keyed map for ID-based lookups
-  const destMap = Object.fromEntries(
-    dests.map((ds) => [ds.destination.id, ds]),
-  );
 
-  if (connected) {
-    const dest = destMap[connected.destination_id]?.destination;
-    const where = dest ? destinationLabel(dest) : connected.destination_id;
-    const addr = dest ? shortAddress(dest.address) : "";
-    const connDisplay = addr ? `${where} - ${addr}` : where;
-    content = `Connected: ${connDisplay}`;
-  } else if (reconnecting) {
-    const dest = destMap[reconnecting.destination_id]?.destination;
-    const where = dest ? destinationLabel(dest) : reconnecting.destination_id;
-    const addr = dest ? shortAddress(dest.address) : "";
-    const connDisplay = addr ? `${where} - ${addr}` : where;
-    content = `Reconnecting: ${connDisplay} - ${reconnecting.phase}`;
-  } else if (connecting) {
-    const dest = destMap[connecting.destination_id]?.destination;
-    const where = dest ? destinationLabel(dest) : connecting.destination_id;
-    const addr = dest ? shortAddress(dest.address) : "";
-    const connDisplay = addr ? `${where} - ${addr}` : where;
-    content = `Connecting: ${connDisplay} - ${connecting.phase}`;
-  } else if (disconnecting.length > 0) {
-    const d = disconnecting[0];
-    const dest = destMap[d.destination_id]?.destination;
-    const where = dest ? destinationLabel(dest) : d.destination_id;
-    const addr = dest ? shortAddress(dest.address) : "";
-    const connDisplay = addr ? `${where} - ${addr}` : where;
-    content = `Disconnecting: ${connDisplay} - ${d.phase}`;
-  } else if (typeof rm === "object" && "Running" in rm) {
+  // Session transitions (connect/reconnect/disconnect) are logged by appStore's logStateChange.
+  const inTransition = connected || connecting || reconnecting ||
+    disconnecting.length > 0;
+  if (inTransition) {
+    return undefined;
+  }
+
+  if (typeof rm === "object" && "Running" in rm) {
     // Running but no active connection
     const lastWasDisconnected = Boolean(
       lastMessage && lastMessage.startsWith("Disconnected"),
@@ -97,7 +98,9 @@ function buildLogContent(
     content = `Warmup: ${formatWarmupStatus(rm.Warmup.status)}`;
   } else {
     const destinationCount = response.destinations.length;
-    content = `status: Unknown, destinations: ${destinationCount}`;
+    content = `status: Unknown (run_mode: ${
+      JSON.stringify(rm)
+    }), destinations: ${destinationCount}`;
   }
   return content;
 }

@@ -33,7 +33,13 @@ import {
   type DestinationModeHandle,
   type ModeAppState,
 } from "@src/stores/destinationMode.ts";
-import { logMessage as log, logStatus } from "@src/utils/appLog.ts";
+import {
+  logError,
+  logInfo,
+  logMessage as log,
+  logStatus,
+  logWarn,
+} from "@src/utils/appLog.ts";
 import {
   destinationLabel,
   getPreferredAvailabilityChangeMessage,
@@ -188,6 +194,7 @@ export function createAppStore(): AppStoreTuple {
   // When entering sync for the first time mid-process, animate from 0 to the phase floor.
   const enterSyncPhase = (next: SyncPhaseIndex | null) => {
     if (next === null || activeSyncPhase === next) return;
+    logInfo(`Sync phase ${next} entered`);
     if (activeSyncPhase !== null && next > activeSyncPhase) {
       catchUpTarget = SYNC_PHASES[next].floor;
     } else if (activeSyncPhase === null && next > 0) {
@@ -202,6 +209,7 @@ export function createAppStore(): AppStoreTuple {
 
   // Animate to 100% then transition to the next screen.
   const completeSyncAndTransition = (screen: AppScreen) => {
+    logInfo(`Sync complete, transitioning to ${screen} screen`);
     pendingScreenTransition = screen;
     catchUpTarget = 100;
     if (!syncTimer) {
@@ -247,7 +255,8 @@ export function createAppStore(): AppStoreTuple {
   });
 
   const criticalError = (message: string) => {
-    log(message);
+    // status errors repeat every poll tick; log only when the message changes
+    if (state.error !== message) logError(message);
     stopSyncProgress();
     const savedServiceInfo = state.serviceInfo;
     setState(reconcile(initialState()));
@@ -499,6 +508,7 @@ export function createAppStore(): AppStoreTuple {
             criticalError(`Invalid balance response: ${issues}`);
           }
         } else {
+          // backend already persists balance failures; devtools only
           console.error("Balance polling error", balEvent.payload.Err);
         }
       };
@@ -510,7 +520,7 @@ export function createAppStore(): AppStoreTuple {
         );
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
-        console.error("Failed to listen for balance updates: " + errorMsg);
+        logError("Failed to listen for balance updates: " + errorMsg);
       }
 
       try {
@@ -533,7 +543,7 @@ export function createAppStore(): AppStoreTuple {
             event: "balance",
           });
         } catch (err) {
-          console.warn("Failed to hydrate balance:", err);
+          logWarn(`Failed to hydrate balance: ${err}`);
         }
         if (cached.service_info) {
           const parsed = ServiceInfoSchema.safeParse(cached.service_info);
@@ -547,7 +557,7 @@ export function createAppStore(): AppStoreTuple {
           }
         }
       } catch (err) {
-        console.warn("get_cached_state unavailable:", err);
+        logWarn(`get_cached_state unavailable: ${err}`);
       }
     },
 
@@ -570,7 +580,7 @@ export function createAppStore(): AppStoreTuple {
         await VPNService.connect(targetId);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        log(message);
+        logError(message);
         setState("error", message);
         setState("isLoading", false);
         return;
@@ -582,7 +592,7 @@ export function createAppStore(): AppStoreTuple {
         await settingsActions.setLastConnectedDestination(targetId);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        log(`Failed to persist last connected destination: ${message}`);
+        logWarn(`Failed to persist last connected destination: ${message}`);
       }
     },
 
@@ -592,7 +602,7 @@ export function createAppStore(): AppStoreTuple {
         await VPNService.disconnect();
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        log(message);
+        logError(message);
         setState("error", message);
       } finally {
         setState("isLoading", false);
@@ -684,6 +694,7 @@ function determineScreenAndStatus(
       // leads to continue delay until maximum time is reached
       if (Date.now() - initialDelay.delayingSince > MAXIMUM_DELAY_TIME) {
         // if the delay reason persists for too long, move on to main screen
+        logWarn(`Initial sync still "${delay}" after 2 minutes, moving on`);
         initialDelay = { alreadyRan: true };
         return [AppScreen.Main, "Moving on", null];
       }
@@ -751,7 +762,7 @@ function incomingStatusEvent(event: StatusEvent): StatusResponse | void {
       throw new Error(`Invalid status response: ${issues}`);
     }
   } else {
-    console.error("Error processing status update", rawRes.Err);
+    // the caller routes this through criticalError, which logs it
     throw new Error(rawRes.Err);
   }
 }

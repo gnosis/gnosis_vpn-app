@@ -6,6 +6,7 @@ import Updates from "../screens/settings/Updates.tsx";
 import Tabs from "@src/components/common/Tabs.tsx";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
+import { logError, logWarn } from "@src/utils/appLog.ts";
 
 type GlobalTab = "settings" | "usage" | "updates";
 
@@ -24,6 +25,8 @@ export default function SettingsWindow() {
         const next = event.payload;
         if (next === "settings" || next === "usage" || next === "updates") {
           setTab(next);
+        } else {
+          logWarn(`Ignoring navigate event with invalid tab: ${next}`);
         }
       });
       if (disposed) unlisten();
@@ -35,7 +38,7 @@ export default function SettingsWindow() {
         appActions.initializeApp(),
         settingsActions.load(),
       ]);
-    })();
+    })().catch((e) => logError(`Settings window initialization failed: ${e}`));
   });
 
   onCleanup(() => {

@@ -1,4 +1,5 @@
 import { createSignal, onCleanup } from "solid-js";
+import { logWarn } from "@src/utils/appLog.ts";
 import { Modal } from "./Modal.tsx";
 import copyIcon from "@assets/icons/copy.svg";
 import checkmarkIcon from "@assets/icons/checkmark.svg";
@@ -27,9 +28,10 @@ export default function HowToUpdateModal(props: {
         setCopied(false);
         copyTimeout = undefined;
       }, 1500);
-    } catch {
+    } catch (e) {
       // Clipboard can be unavailable (e.g. denied permissions); the commands
-      // are still visible for manual copy, so silently ignore.
+      // are still visible for manual copy, so no UI error.
+      logWarn(`Failed to copy update command: ${e}`);
     }
   };
 

@@ -7,6 +7,7 @@ import {
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { z } from "zod";
+import { logError } from "@src/utils/appLog.ts";
 
 // ==========================================
 // Zod Schemas & Inferred Types
@@ -127,7 +128,7 @@ export function createSettingsStore(): SettingsStoreTuple {
       const issues = parsed.error.issues
         .map((i) => `${i.path.join(".") || "root"}: ${i.message}`)
         .join("; ");
-      console.error(`Invalid settings snapshot: ${issues}`);
+      logError(`Invalid settings snapshot: ${issues}`);
       return;
     }
     setState(reconcile(parsed.data));
@@ -153,7 +154,7 @@ export function createSettingsStore(): SettingsStoreTuple {
       applySnapshot(await invoke<unknown>("get_settings"));
       setHydrated(true);
     } catch (e) {
-      console.error("Failed to load settings:", e);
+      logError(`Failed to load settings: ${e}`);
     } finally {
       hydrating = false;
     }
@@ -166,7 +167,7 @@ export function createSettingsStore(): SettingsStoreTuple {
     try {
       await invoke("update_settings", { patch: entries });
     } catch (e) {
-      console.error("Failed to update settings", Object.keys(entries), e);
+      logError(`Failed to update settings ${JSON.stringify(entries)}: ${e}`);
     }
   };
 
