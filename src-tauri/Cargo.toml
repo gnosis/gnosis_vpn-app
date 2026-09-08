@@ -1,6 +1,6 @@
 [package]
 name = "gnosis_vpn-app"
-version = "0.35.4"
+version = "0.100.0"
 description = "Gnosis VPN UI Application"
 authors = ["HOPR"]
 edition = "2021"
@@ -23,7 +23,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2.6.3", features = [] }
 
 [dependencies]
-gnosis_vpn-lib = { git = "https://github.com/gnosis/gnosis_vpn-client.git", rev = "53cb11757a1871dd182efaafb65fe555e6639866" }
+gnosis_vpn-lib = { git = "https://github.com/gnosis/gnosis_vpn-client.git", rev = "0e49e3774df2e34f5327e6f781ec28d56f507c59" }
 liblzma = { version = "0.4.8", default-features = false, features = ["static"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
