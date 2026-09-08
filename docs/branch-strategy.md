@@ -6,14 +6,15 @@ The app embeds `gnosis_vpn-lib` from
 [gnosis_vpn-client](https://github.com/gnosis/gnosis_vpn-client), which split
 into a stable hoprd v4 line and an experimental hoprd v5 line with changing
 APIs. The app mirrors that split so each line keeps compiling against — and
-stays protocol-compatible with — its client line.
+stays protocol-compatible with — its client line. Each line tracks its client
+branch; `Cargo.lock` pins the exact rev, advanced via `cargo update`.
 
 ## Lines
 
-| Line              | Versions                   | Tracks client     | `gnosis_vpn-lib` pin          |
-| ----------------- | -------------------------- | ----------------- | ----------------------------- |
-| `release/hoprdv4` | `0.3x.y`, kept `< 0.100.0` | `release/hoprdv4` | `branch = "release/hoprdv4"`  |
-| `main`            | `0.100.0` and up           | `main`            | `rev = "<sha>"`, bumped by PR |
+| Line              | Versions                   | Tracks client     | `gnosis_vpn-lib` pin         |
+| ----------------- | -------------------------- | ----------------- | ---------------------------- |
+| `release/hoprdv4` | `0.3x.y`, kept `< 0.100.0` | `release/hoprdv4` | `branch = "release/hoprdv4"` |
+| `main`            | `0.100.0` and up           | `main`            | `branch = "main"`            |
 
 ## Publishing
 
