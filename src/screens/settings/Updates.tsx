@@ -28,6 +28,7 @@ import {
 import { detectChannel } from "@src/utils/version.ts";
 import { evaluateUpdate } from "@src/utils/updateAvailability.ts";
 import { getPlatform } from "@src/utils/platform.ts";
+import { logInfo, logWarn } from "@src/utils/appLog.ts";
 import {
   getInstallStatus,
   type InstallStatus,
@@ -89,10 +90,12 @@ export default function Updates() {
       });
       await settingsActions.setUpdateCheckResult(manifest, Date.now());
     } catch (e) {
+      // failures are logged by the backend's check_update command
       if (e === "VpnNotConnected") {
+        logInfo("Update check needs VPN, asking user how to proceed");
         setShowCheckModal(true);
       }
-      // TODO: surface other errors
+      // TODO: surface other errors in the UI
     } finally {
       setChecking(false);
     }
@@ -228,6 +231,12 @@ export default function Updates() {
       if (parsed.success) {
         sawLiveInstallEvent = true;
         applyInstallStatus(parsed.data);
+      } else {
+        logWarn(
+          `Install status event schema mismatch: ${
+            JSON.stringify(event.payload)
+          }`,
+        );
       }
     }).then((unlisten) => {
       if (disposed) {

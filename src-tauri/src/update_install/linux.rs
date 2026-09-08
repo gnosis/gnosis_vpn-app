@@ -10,5 +10,6 @@ pub async fn get_toolkit_version() -> Option<String> {
 
 #[tauri::command]
 pub fn install_update(_app: AppHandle, _channel: String, _force: bool) -> Result<(), String> {
+    tracing::warn!(target: "update_install", "install requested on unsupported platform");
     Err("UnsupportedPlatform".to_string())
 }

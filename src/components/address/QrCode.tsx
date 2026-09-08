@@ -1,7 +1,7 @@
 import { createEffect, createSignal, onCleanup, Show } from "solid-js";
 import { Portal } from "solid-js/web";
 import QRCode from "qrcode";
-import { useLogsStore } from "../../stores/logsStore.ts";
+import { logWarn } from "../../utils/appLog.ts";
 import { shortAddress } from "../../utils/shortAddress.ts";
 
 type QrCodeProps = {
@@ -14,9 +14,6 @@ type QrCodeProps = {
 
 export default function QrCode(props: QrCodeProps) {
   const [qrDataUrl, setQrDataUrl] = createSignal<string | undefined>();
-
-  const [, logActions] = useLogsStore();
-  const log = (message: string) => logActions.append(message);
 
   createEffect(() => {
     if (!props.open || !props.value) {
@@ -35,7 +32,7 @@ export default function QrCode(props: QrCodeProps) {
       })
       .catch((error) => {
         if (!cancelled) {
-          log(`Error generating QR code: ${String(error)}`);
+          logWarn(`QR modal: error generating QR code: ${String(error)}`);
           setQrDataUrl(undefined);
         }
       });

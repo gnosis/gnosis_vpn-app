@@ -13,6 +13,7 @@ use std::sync::{Arc, Mutex};
 
 mod commands;
 mod icons;
+mod logging;
 mod platform;
 pub mod settings;
 mod theme;
@@ -21,8 +22,8 @@ pub mod types;
 pub mod update_install;
 
 use commands::{
-    check_update, compress_logs, connect, disconnect, get_cached_state, get_platform,
-    run_initialization_loop, set_app_icon, stop_client,
+    check_update, connect, disconnect, export_logs, get_cached_state, get_platform,
+    log_from_frontend, run_initialization_loop, set_app_icon, stop_client,
 };
 use gnosis_vpn_lib::command::InfoResponse;
 use gnosis_vpn_lib::{command, socket::root as root_socket};
@@ -183,6 +184,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
             // A second instance was launched — bring the existing window to focus
+            tracing::info!("second instance launched, focusing existing window");
             #[cfg(target_os = "macos")]
             {
                 let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
@@ -195,27 +197,62 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
+            // Logging first so everything below is captured; failure must not block startup.
+            match app.path().app_log_dir() {
+                Ok(dir) => match logging::init(&dir) {
+                    Ok(filter) => {
+                        let pkg = app.package_info();
+                        tracing::info!(
+                            name = %pkg.name,
+                            version = %pkg.version,
+                            os = std::env::consts::OS,
+                            arch = std::env::consts::ARCH,
+                            args = ?std::env::args().collect::<Vec<_>>(),
+                            log_filter = %filter,
+                            log_dir = %dir.display(),
+                            "starting",
+                        );
+                    }
+                    Err(e) => eprintln!("failed to initialize file logging: {e}"),
+                },
+                Err(e) => eprintln!("failed to resolve app log dir: {e}"),
+            }
+
             // Load settings (settings.json) before any UI decisions
-            let settings_path = app.path().app_data_dir()?.join("settings.json");
-            app.manage(SettingsStore::load(settings_path));
+            let settings_path = app
+                .path()
+                .app_data_dir()
+                .inspect_err(|e| tracing::error!(error = %e, "cannot resolve app data dir"))?
+                .join("settings.json");
+            let settings_store = SettingsStore::load(settings_path.clone());
+            tracing::info!(target: "settings", path = %settings_path.display(), settings = ?settings_store.current(), "loaded");
+            app.manage(settings_store);
 
             // First step: OS theme for app windows (all OS) and tray icons (non-macOS only)
             let theme = system_theme();
+            tracing::info!(target: "theme", theme = ?theme, "initial os theme");
             app.manage(InitialTheme(theme));
 
             // Create tray menu
-            let menu = create_tray_menu(app.handle())?;
+            let menu = create_tray_menu(app.handle())
+                .inspect_err(|e| tracing::error!(error = %e, "cannot create tray menu"))?;
 
-            let icon_cache = icons::IconCache::load(&app.path().resource_dir()?)?;
+            let resource_dir = app
+                .path()
+                .resource_dir()
+                .inspect_err(|e| tracing::error!(error = %e, "cannot resolve resource dir"))?;
+            let icon_cache = icons::IconCache::load(&resource_dir)
+                .inspect_err(|e| tracing::error!(error = %e, "cannot load icon cache"))?;
 
             let icon_name: &str = determine_tray_icon(
                 &ConnectionState::Disconnected,
                 icons::FundsLevel::Sufficient,
             );
 
-            let icon = icon_cache
-                .tray_image(icon_name)
-                .ok_or_else(|| format!("Missing tray icon: {icon_name}"))?;
+            let icon = icon_cache.tray_image(icon_name).ok_or_else(|| {
+                tracing::error!(icon_name, "missing tray icon");
+                format!("Missing tray icon: {icon_name}")
+            })?;
 
             app.manage(icon_cache);
 
@@ -227,29 +264,43 @@ pub fn run() {
             let tray = builder
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "quit" => {
+                        tracing::info!(target: "tray", "quit requested, disconnecting");
                         let app_clone = app.clone();
                         tauri::async_runtime::spawn(async move {
                             let socket = PathBuf::from(root_socket::DEFAULT_PATH);
-                            let _ =
+                            if let Err(e) =
                                 root_socket::process_cmd(&socket, &command::Command::Disconnect)
-                                    .await;
+                                    .await
+                            {
+                                tracing::warn!(target: "tray", error = %e, "disconnect on quit failed");
+                            }
                             app_clone.exit(0);
                         });
                     }
                     "show" => {
+                        tracing::info!(target: "tray", "toggle main window");
                         toggle_main_window_visibility(app);
                     }
-                    "settings" => show_settings(app, "settings"),
-                    "logs" => show_settings(app, "logs"),
-                    "usage" => show_settings(app, "usage"),
-                    "check_update" => show_settings_and_check(app),
-                    _ => {}
+                    "settings" => {
+                        tracing::info!(target: "tray", "settings requested");
+                        show_settings(app, "settings");
+                    }
+                    "usage" => {
+                        tracing::info!(target: "tray", "usage requested");
+                        show_settings(app, "usage");
+                    }
+                    "check_update" => {
+                        tracing::info!(target: "tray", "update check requested");
+                        show_settings_and_check(app);
+                    }
+                    other => tracing::warn!(target: "tray", id = other, "unknown tray menu item"),
                 })
                 .on_tray_icon_event(|tray, event| {
                     handle_tray_event(tray.app_handle(), event);
                 })
                 .show_menu_on_left_click(false)
-                .build(app)?;
+                .build(app)
+                .inspect_err(|e| tracing::error!(error = %e, "cannot create tray icon"))?;
 
             app.manage(TrayIconState {
                 tray: Mutex::new(tray),
@@ -270,7 +321,9 @@ pub fn run() {
             spawn_linux_theme_monitor(app.handle().clone());
 
             // Setup platform-specific functionality
-            let _ = Platform::setup_system_tray();
+            if let Err(e) = Platform::setup_system_tray() {
+                tracing::warn!(error = %e, "platform tray setup unavailable");
+            }
 
             // Prevent macOS App Nap from throttling the process when backgrounded.
             // The token must stay alive for the process lifetime; Tauri's managed
@@ -296,28 +349,34 @@ pub fn run() {
                 tauri::async_runtime::spawn(async move {
                     let socket = PathBuf::from(root_socket::DEFAULT_PATH);
                     let fallback = "Version: Something is wrong".to_string();
-                    let pkg: String =
-                        match root_socket::process_cmd(&socket, &command::Command::Info).await {
-                            Ok(command::Response::Info(info)) => {
-                                eprintln!(
-                                    "[about-panel] daemon Info.package_version = {:?}",
-                                    info.package_version
-                                );
-                                println!(
-                                    "[about-panel] daemon Info: {:?}",
-                                    info.package_version.as_deref().unwrap_or("<none>")
-                                );
-                                info.package_version.unwrap_or_else(|| fallback.clone())
-                            }
-                            Ok(other) => {
-                                eprintln!("[about-panel] unexpected daemon response: {:?}", other);
-                                fallback.clone()
-                            }
-                            Err(e) => {
-                                eprintln!("[about-panel] daemon call failed: {:?}", e);
-                                fallback.clone()
-                            }
-                        };
+                    let pkg: String = match root_socket::process_cmd(
+                        &socket,
+                        &command::Command::Info,
+                    )
+                    .await
+                    {
+                        Ok(command::Response::Info(info)) => {
+                            // debug: the init loop's "initialized" line already records versions
+                            tracing::debug!(
+                                target: "about_panel",
+                                package_version = ?info.package_version,
+                                "daemon info"
+                            );
+                            info.package_version.unwrap_or_else(|| fallback.clone())
+                        }
+                        Ok(other) => {
+                            tracing::warn!(
+                                target: "about_panel",
+                                response = ?other,
+                                "unexpected daemon response"
+                            );
+                            fallback.clone()
+                        }
+                        Err(e) => {
+                            tracing::warn!(target: "about_panel", error = %e, "daemon call failed");
+                            fallback.clone()
+                        }
+                    };
                     install_macos_about_panel_override(&app_handle, pkg, icon_path);
                 });
             }
@@ -329,6 +388,7 @@ pub fn run() {
                 let window_clone = window.clone();
                 window.on_window_event(move |event| {
                     if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                        tracing::info!(target: "window", "main window close requested, hiding to tray");
                         api.prevent_close();
                         let _ = window_clone.hide();
                         #[cfg(target_os = "macos")]
@@ -345,6 +405,7 @@ pub fn run() {
                 let settings_clone = settings_window.clone();
                 settings_window.on_window_event(move |event| {
                     if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                        tracing::info!(target: "window", "settings window close requested, hiding");
                         api.prevent_close();
                         let _ = settings_clone.hide();
                     }
@@ -354,6 +415,7 @@ pub fn run() {
             // Decide initial window visibility based on settings
             if let Some(window) = app.get_webview_window("main") {
                 let start_minimized = app.state::<SettingsStore>().current().start_minimized;
+                tracing::info!(target: "window", start_minimized, "initial window visibility");
                 #[cfg(target_os = "macos")]
                 {
                     let policy = if start_minimized {
@@ -405,7 +467,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             connect,
             disconnect,
-            compress_logs,
+            export_logs,
+            log_from_frontend,
             set_app_icon,
             get_initial_theme,
             check_update,
@@ -421,40 +484,53 @@ pub fn run() {
         .expect("error while building tauri application")
         .run(|app_handle, event| {
             if let tauri::RunEvent::Exit = event {
+                tracing::info!("shutting down");
                 // cancel query status loop and wait for it to finish
 
                 let state = app_handle.state::<Mutex<StatusPollingHandle>>();
-                let handle_opt = if let Ok(mut guard) = state.lock() {
-                    guard.cancel.cancel();
-                    guard.handle.take()
-                } else {
-                    None
+                let handle_opt = match state.lock() {
+                    Ok(mut guard) => {
+                        guard.cancel.cancel();
+                        guard.handle.take()
+                    }
+                    Err(e) => {
+                        tracing::warn!(error = %e, "status polling lock poisoned at exit");
+                        None
+                    }
                 };
                 if let Some(handle) = handle_opt {
                     let _ = tauri::async_runtime::block_on(handle);
                 }
 
                 let bal_state = app_handle.state::<Mutex<BalancePollingHandle>>();
-                let bal_handle_opt = if let Ok(mut guard) = bal_state.lock() {
-                    guard.cancel.cancel();
-                    guard.handle.take()
-                } else {
-                    None
+                let bal_handle_opt = match bal_state.lock() {
+                    Ok(mut guard) => {
+                        guard.cancel.cancel();
+                        guard.handle.take()
+                    }
+                    Err(e) => {
+                        tracing::warn!(error = %e, "balance polling lock poisoned at exit");
+                        None
+                    }
                 };
                 if let Some(handle) = bal_handle_opt {
                     let _ = tauri::async_runtime::block_on(handle);
                 }
 
-                if let Ok(mut guard) = app_handle.state::<HeartbeatHandle>().0.lock() {
-                    if let Some(handle) = guard.take() {
-                        handle.abort();
+                match app_handle.state::<HeartbeatHandle>().0.lock() {
+                    Ok(mut guard) => {
+                        if let Some(handle) = guard.take() {
+                            handle.abort();
+                        }
                     }
+                    Err(e) => tracing::warn!(error = %e, "heartbeat lock poisoned at exit"),
                 }
 
                 // inform the client about the shutdown
                 if let Err(reason) = tauri::async_runtime::block_on(async { stop_client().await }) {
-                    eprintln!("Error stopping client on exit: {reason}");
+                    tracing::warn!(error = %reason, "error stopping client on exit");
                 }
+                tracing::info!("exit complete");
             }
         });
 }

@@ -1,5 +1,6 @@
 import { createSignal } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
+import { logInfo } from "@src/utils/appLog.ts";
 import {
   type UpdateManifest,
   useSettingsStore,
@@ -22,7 +23,9 @@ export async function runBackgroundCheck(): Promise<void> {
     });
     await settingsActions.setUpdateCheckResult(manifest, Date.now());
   } catch (e) {
+    // other failures are logged by the backend's check_update command
     if (e === "VpnNotConnected") {
+      logInfo("Update check deferred until VPN connects");
       setPendingCheckAfterConnect(true);
     }
   }

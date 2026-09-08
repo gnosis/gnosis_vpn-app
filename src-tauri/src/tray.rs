@@ -18,7 +18,6 @@ pub fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Erro
         MenuItem::with_id(app, "status", "Status: Disconnected", false, None::<&str>)?;
     let show_item = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
     let settings_item = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
-    let logs_item = MenuItem::with_id(app, "logs", "Logs", true, None::<&str>)?;
     let usage_item = MenuItem::with_id(app, "usage", "Usage", true, None::<&str>)?;
     let check_update_item =
         MenuItem::with_id(app, "check_update", "Check update", true, None::<&str>)?;
@@ -32,7 +31,6 @@ pub fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Erro
         .separator()
         .item(&show_item)
         .item(&settings_item)
-        .item(&logs_item)
         .item(&usage_item)
         .item(&check_update_item)
         .separator()
@@ -41,9 +39,14 @@ pub fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Erro
 }
 
 pub fn toggle_main_window_visibility(app: &AppHandle) {
-    if let Some(window) = app.get_webview_window("main") {
+    let Some(window) = app.get_webview_window("main") else {
+        tracing::warn!(target: "tray", "main window missing, cannot toggle visibility");
+        return;
+    };
+    {
         let is_visible = window.is_visible().unwrap_or(false);
         let is_focused = window.is_focused().unwrap_or(false);
+        tracing::info!(target: "window", show = !is_visible || !is_focused, "toggling main window");
         if !is_visible || !is_focused {
             #[cfg(target_os = "macos")]
             {
@@ -79,7 +82,11 @@ pub fn handle_tray_event(app: &AppHandle, event: TrayIconEvent) {
 }
 
 pub fn show_settings(app: &AppHandle, target: &str) {
-    if let Some(window) = app.get_webview_window("settings") {
+    let Some(window) = app.get_webview_window("settings") else {
+        tracing::warn!(target: "tray", "settings window missing");
+        return;
+    };
+    {
         #[cfg(target_os = "macos")]
         {
             let main_visible = app
@@ -96,13 +103,20 @@ pub fn show_settings(app: &AppHandle, target: &str) {
         let target_owned = target.to_string();
         tauri::async_runtime::spawn(async move {
             sleep(Duration::from_millis(120)).await;
-            let _ = handle.emit("navigate", target_owned);
+            // emit_to: a broadcast would also hit the main window's navigate listener
+            if let Err(e) = handle.emit_to("settings", "navigate", target_owned) {
+                tracing::warn!(target: "tray", error = %e, "cannot emit navigate to settings window");
+            }
         });
     }
 }
 
 pub fn show_settings_and_check(app: &AppHandle) {
-    if let Some(window) = app.get_webview_window("settings") {
+    let Some(window) = app.get_webview_window("settings") else {
+        tracing::warn!(target: "tray", "settings window missing");
+        return;
+    };
+    {
         #[cfg(target_os = "macos")]
         {
             let main_visible = app
@@ -131,15 +145,20 @@ pub fn show_settings_and_check(app: &AppHandle) {
                 }
             });
             sleep(Duration::from_millis(120)).await;
-            let _ = handle.emit("navigate", "updates");
+            let _ = handle.emit_to("settings", "navigate", "updates");
             // Ping covers the case where Updates.tsx is already mounted (no
             // remount, so its onMount-time ready emit won't fire again).
             sleep(Duration::from_millis(80)).await;
-            let _ = handle.emit("updates:ping", ());
+            let _ = handle.emit_to("settings", "updates:ping", ());
             // Wait until Updates.tsx signals its listener is attached (5 s fallback).
-            let _ = tokio::time::timeout(Duration::from_secs(5), rx).await;
+            if tokio::time::timeout(Duration::from_secs(5), rx)
+                .await
+                .is_err()
+            {
+                tracing::warn!(target: "tray", "updates-ready handshake timed out, requesting check anyway");
+            }
             app_handle.unlisten(id);
-            let _ = handle.emit("updates:check", ());
+            let _ = handle.emit_to("settings", "updates:check", ());
         });
     }
 }

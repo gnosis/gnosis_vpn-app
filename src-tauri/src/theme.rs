@@ -36,15 +36,21 @@ fn linux_theme_from_portal() -> Option<tauri::Theme> {
         let _ = tx.send(result);
     });
     // Fall back immediately if the portal is slow or unavailable — caller falls through to dark_light::detect().
-    rx.recv_timeout(std::time::Duration::from_millis(PORTAL_TIMEOUT_MS))
+    let theme = rx
+        .recv_timeout(std::time::Duration::from_millis(PORTAL_TIMEOUT_MS))
         .ok()
-        .flatten()
+        .flatten();
+    if theme.is_none() {
+        tracing::debug!(target: "theme", "XDG portal theme query timed out or unavailable");
+    }
+    theme
 }
 
 /// Fallback theme monitor for environments without a working XDG Desktop Portal.
 /// Watches gsettings color-scheme and gtk-theme keys and emits "os-theme-changed".
 #[cfg(target_os = "linux")]
 fn spawn_gsettings_monitor(app: AppHandle) {
+    tracing::info!(target: "theme", "starting gsettings theme monitor");
     fn run_monitor(
         app: AppHandle,
         key: &'static str,
@@ -58,9 +64,13 @@ fn spawn_gsettings_monitor(app: AppHandle) {
                 .spawn()
             {
                 Ok(c) => c,
-                Err(_) => return,
+                Err(e) => {
+                    tracing::warn!(target: "theme", %key, error = %e, "cannot spawn gsettings monitor");
+                    return;
+                }
             };
             let Some(stdout) = child.stdout.take() else {
+                tracing::warn!(target: "theme", %key, "gsettings monitor has no stdout");
                 return;
             };
             let reader = std::io::BufReader::new(stdout);
@@ -68,11 +78,12 @@ fn spawn_gsettings_monitor(app: AppHandle) {
                 let line = match line_result {
                     Ok(l) => l,
                     Err(e) => {
-                        eprintln!("[theme] gsettings monitor read error: {e}");
+                        tracing::warn!(target: "theme", error = %e, "gsettings monitor read error");
                         break;
                     }
                 };
                 if let Some(theme) = to_theme(&line) {
+                    tracing::info!(target: "theme", theme, %key, "os theme changed");
                     let _ = app.emit("os-theme-changed", theme);
                 }
             }
@@ -108,9 +119,7 @@ pub fn spawn_linux_theme_monitor(app: AppHandle) {
         let settings = match XdgSettings::new().await {
             Ok(s) => s,
             Err(e) => {
-                eprintln!(
-                    "[theme] XDG portal unavailable ({e}), falling back to gsettings monitor"
-                );
+                tracing::warn!(target: "theme", cause = "portal unavailable", error = %e, "falling back to gsettings monitor");
                 spawn_gsettings_monitor(app);
                 return;
             }
@@ -118,9 +127,7 @@ pub fn spawn_linux_theme_monitor(app: AppHandle) {
         let stream = match settings.receive_color_scheme_changed().await {
             Ok(s) => s,
             Err(e) => {
-                eprintln!(
-                    "[theme] XDG portal subscription failed ({e}), falling back to gsettings monitor"
-                );
+                tracing::warn!(target: "theme", cause = "portal subscription failed", error = %e, "falling back to gsettings monitor");
                 spawn_gsettings_monitor(app);
                 return;
             }
@@ -133,6 +140,7 @@ pub fn spawn_linux_theme_monitor(app: AppHandle) {
             // emits NoPreference rather than PreferLight.
             let is_dark = matches!(color_scheme, ColorScheme::PreferDark);
             let theme_str = if is_dark { "dark" } else { "light" };
+            tracing::info!(target: "theme", theme = theme_str, "os theme changed");
             let _ = app.emit("os-theme-changed", theme_str);
             let theme = if is_dark {
                 tauri::Theme::Dark
@@ -144,7 +152,7 @@ pub fn spawn_linux_theme_monitor(app: AppHandle) {
             }
         }
         // Stream ended (portal restart/disconnect) — fall back so monitoring continues.
-        eprintln!("[theme] XDG portal stream ended, falling back to gsettings monitor");
+        tracing::warn!(target: "theme", cause = "portal stream ended", "falling back to gsettings monitor");
         spawn_gsettings_monitor(app);
     });
 }
@@ -162,7 +170,7 @@ pub fn system_theme() -> tauri::Theme {
 
     let mode = dark_light::detect()
         .map_err(|e| {
-            eprintln!("Failed to detect OS theme: {e}");
+            tracing::warn!(target: "theme", error = %e, "failed to detect OS theme");
         })
         .unwrap_or(dark_light::Mode::Unspecified);
 

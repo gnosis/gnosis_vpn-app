@@ -6,13 +6,15 @@ import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import Onboarding from "../screens/main/Onboarding.tsx";
 import Synchronization from "../screens/main/Synchronization.tsx";
 import Initialization from "../screens/main/Initialization.tsx";
-import { emit, listen } from "@tauri-apps/api/event";
+import { emit } from "@tauri-apps/api/event";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import {
   AUTO_CHECK_INTERVAL_MS,
   pendingCheckAfterConnect,
   runBackgroundCheck,
   setPendingCheckAfterConnect,
 } from "@src/utils/updateChecker.ts";
+import { logError, logWarn } from "@src/utils/appLog.ts";
 
 const validScreens = [
   "main",
@@ -39,7 +41,10 @@ function handleNavigate(
   setScreen: (s: ValidScreen) => void,
 ): void {
   const screen = typeof payload === "string" ? payload : payload.screen;
-  if (!isValidScreen(screen)) return;
+  if (!isValidScreen(screen)) {
+    logWarn(`Ignoring navigate event with invalid screen: ${screen}`);
+    return;
+  }
   setScreen(screen);
   if (screen === "onboarding") {
     const step = typeof payload === "string" ? undefined : payload.step;
@@ -157,7 +162,8 @@ function App() {
       await settingsActions.load();
       await appActions.initializeApp();
 
-      const unlisten = await listen<NavigatePayload>(
+      // window-scoped listen: a target-Any listener would also get emits aimed at the settings window
+      const unlisten = await getCurrentWebviewWindow().listen<NavigatePayload>(
         "navigate",
         ({ payload }) =>
           handleNavigate(payload, (s) => {
@@ -169,7 +175,7 @@ function App() {
       );
       if (disposed) unlisten();
       else unlistenNavigate = unlisten;
-    })();
+    })().catch((e) => logError(`Main window initialization failed: ${e}`));
   });
 
   onCleanup(() => {

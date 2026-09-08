@@ -1,6 +1,5 @@
 import settingsIcon from "@assets/icons/tab-settings.svg";
 import usageIcon from "@assets/icons/tab-wallet.svg";
-import logsIcon from "@assets/icons/tab-logs.svg";
 import updatesIcon from "@assets/icons/tab-updates.svg";
 
 export default function TabLabel(props: { label: string }) {
@@ -10,8 +9,6 @@ export default function TabLabel(props: { label: string }) {
         return settingsIcon;
       case "Usage":
         return usageIcon;
-      case "Logs":
-        return logsIcon;
       case "Updates":
         return updatesIcon;
     }

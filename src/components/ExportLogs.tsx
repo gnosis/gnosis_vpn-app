@@ -2,13 +2,10 @@ import { createSignal, Match, Switch } from "solid-js";
 import { save } from "@tauri-apps/plugin-dialog";
 import { downloadDir, join } from "@tauri-apps/api/path";
 import { VPNService } from "../services/vpnService.ts";
+import { logInfo } from "@src/utils/appLog.ts";
 import Button from "./common/Button.tsx";
 
-interface ExportLogsProps {
-  logs: string;
-}
-
-export default function ExportLogs(props: ExportLogsProps) {
+export default function ExportLogs() {
   const [loading, setLoading] = createSignal(false);
   const [savedPath, setSavedPath] = createSignal<string | null>(null);
   const [error, setError] = createSignal<string | null>(null);
@@ -41,11 +38,11 @@ export default function ExportLogs(props: ExportLogsProps) {
         filters: [{ name: "Zstandard archive", extensions: ["zst"] }],
       });
       if (!dest) {
+        logInfo("Log export canceled in save dialog");
         setError("Export canceled");
         return;
       }
-      await VPNService.compressLogs(props.logs, dest);
-      setSavedPath(dest);
+      setSavedPath(await VPNService.exportLogs(dest));
     } catch (e) {
       setError(String(e instanceof Error ? e.message : e));
     } finally {
@@ -62,7 +59,7 @@ export default function ExportLogs(props: ExportLogsProps) {
         loading={loading()}
         onClick={onExport}
       >
-        Export service logs
+        Export logs
       </Button>
       <div class="w-full h-4 flex items-center justify-center">
         <Switch>

@@ -1,14 +1,14 @@
 import { createSignal, onCleanup, onMount } from "solid-js";
-import { emit, listen } from "@tauri-apps/api/event";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import Settings from "../screens/settings/Settings.tsx";
 import Usage from "../screens/settings/Usage.tsx";
-import Logs from "../screens/settings/Logs.tsx";
 import Updates from "../screens/settings/Updates.tsx";
 import Tabs from "@src/components/common/Tabs.tsx";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
+import { logError, logWarn } from "@src/utils/appLog.ts";
 
-type GlobalTab = "settings" | "usage" | "logs" | "updates";
+type GlobalTab = "settings" | "usage" | "updates";
 
 export default function SettingsWindow() {
   const [tab, setTab] = createSignal<GlobalTab>("settings");
@@ -21,15 +21,18 @@ export default function SettingsWindow() {
     void (async () => {
       // Attach navigate listener first so we don't miss events emitted by
       // the tray/Navigation while store init is still pending.
-      const unlisten = await listen<string>("navigate", (event) => {
-        const next = event.payload;
-        if (
-          next === "settings" || next === "usage" || next === "logs" ||
-          next === "updates"
-        ) {
-          setTab(next);
-        }
-      });
+      // window-scoped listen: a target-Any listener would also get emits aimed at the main window
+      const unlisten = await getCurrentWebviewWindow().listen<string>(
+        "navigate",
+        (event) => {
+          const next = event.payload;
+          if (next === "settings" || next === "usage" || next === "updates") {
+            setTab(next);
+          } else {
+            logWarn(`Ignoring navigate event with invalid tab: ${next}`);
+          }
+        },
+      );
       if (disposed) unlisten();
       else unlistenNavigate = unlisten;
 
@@ -39,8 +42,7 @@ export default function SettingsWindow() {
         appActions.initializeApp(),
         settingsActions.load(),
       ]);
-      void emit("logs:request-snapshot");
-    })();
+    })().catch((e) => logError(`Settings window initialization failed: ${e}`));
   });
 
   onCleanup(() => {
@@ -54,7 +56,6 @@ export default function SettingsWindow() {
         tabs={[
           { id: "settings", label: "Settings" },
           { id: "usage", label: "Usage" },
-          { id: "logs", label: "Logs" },
           { id: "updates", label: "Updates" },
         ]}
         activeId={tab()}
@@ -64,8 +65,6 @@ export default function SettingsWindow() {
         ? <Settings />
         : tab() === "usage"
         ? <Usage />
-        : tab() === "logs"
-        ? <Logs />
         : <Updates />}
     </div>
   );

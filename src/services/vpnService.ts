@@ -388,19 +388,24 @@ export function isRunningRunMode(
 // ==========================================
 
 export class VPNService {
+  // Schema mismatches are frontend-only knowledge; persist them before rethrowing.
+  private static logZodIssues(context: string, error: z.ZodError): void {
+    const issues = error.issues
+      .map((i) => `${i.path.join(".") || "root"}: ${i.message}`)
+      .join("; ");
+    VPNService.logToFile("error", `${context} schema mismatch: ${issues}`);
+  }
+
   static async connect(id: string): Promise<ConnectResponse> {
     let rawRes;
     try {
       rawRes = await invoke("connect", { id });
       return ConnectResponseSchema.parse(rawRes);
     } catch (error) {
+      // callers log the rethrown message; only the schema detail is added here
       if (error instanceof z.ZodError) {
         console.error("Issues with ConnectResponseSchema", rawRes);
-        for (const i of error.issues) {
-          console.error("Type error:", i);
-        }
-      } else {
-        console.error("Connect error:", error);
+        VPNService.logZodIssues("connect response", error);
       }
       throw new Error(`Connect error: ${error}`);
     }
@@ -414,23 +419,24 @@ export class VPNService {
     } catch (error) {
       if (error instanceof z.ZodError) {
         console.error("Issues with DisconnectResponseSchema", rawRes);
-        for (const i of error.issues) {
-          console.error("Type error:", i);
-        }
-      } else {
-        console.error("Disconnect error:", error);
+        VPNService.logZodIssues("disconnect response", error);
       }
       throw new Error(`Disconnect error: ${error}`);
     }
   }
 
-  static async compressLogs(logPath: string, destPath: string): Promise<void> {
+  // failures are logged by the backend's export_logs command
+  static async exportLogs(destPath: string): Promise<string> {
     try {
-      await invoke("compress_logs", { logPath, destPath });
+      return await invoke<string>("export_logs", { destPath });
     } catch (error) {
-      console.error("Failed to compress logs", error);
-      throw new Error(`Compress Logs Error: ${error}`);
+      throw new Error(`Export Logs Error: ${error}`);
     }
+  }
+
+  // Fire-and-forget: log persistence must never break the caller.
+  static logToFile(level: "info" | "warn" | "error", message: string): void {
+    invoke("log_from_frontend", { level, message }).catch(() => {});
   }
 
   static getBestDestination(ds_states: StatusResponse["destinations"]): string {

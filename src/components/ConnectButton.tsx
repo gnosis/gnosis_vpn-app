@@ -3,6 +3,7 @@ import Button from "./common/Button.tsx";
 import { useAppStore } from "../stores/appStore.ts";
 import { effectiveActive } from "../stores/destinationMode.ts";
 import { isReady } from "../utils/destinations.ts";
+import { logError } from "../utils/appLog.ts";
 
 export default function ConnectButton() {
   const [appState, appActions] = useAppStore();
@@ -37,8 +38,9 @@ export default function ConnectButton() {
         if (id) await appActions.connect(id);
       }
     } catch (error) {
+      // safety net — store actions handle their own errors
       const message = error instanceof Error ? error.message : String(error);
-      console.error("Failed to connect to VPN:", message);
+      logError(`Connect button action failed: ${message}`);
     }
   };
 

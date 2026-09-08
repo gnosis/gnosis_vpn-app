@@ -56,9 +56,18 @@ fn parse_line(line: &str) -> Option<InstallStatus> {
 
 /// Store the status (re-hydration + in-progress guard) and broadcast it.
 fn publish(app: &AppHandle, status: InstallStatus) {
+    match &status {
+        InstallStatus::Failed { stage, error } => {
+            tracing::error!(target: "update_install", %stage, %error, "install failed")
+        }
+        other => tracing::info!(target: "update_install", status = ?other, "install status"),
+    }
     let state: State<UpdateInstallState> = app.state();
-    if let Ok(mut guard) = state.0.lock() {
-        *guard = Some(status.clone());
+    match state.0.lock() {
+        Ok(mut guard) => *guard = Some(status.clone()),
+        Err(e) => {
+            tracing::warn!(target: "update_install", error = %e, "install status lock poisoned")
+        }
     }
     let _ = app.emit(INSTALL_STATUS_EVENT, &status);
 }
@@ -76,6 +85,7 @@ pub async fn get_toolkit_version() -> Option<String> {
         .run_stdout(Logs::Suppress)
         .await
         .ok()?;
+    tracing::debug!(target: "update_install", %version, "toolkit version");
     (!version.is_empty()).then_some(version)
 }
 
@@ -91,6 +101,7 @@ pub fn install_update(app: AppHandle, channel: String, force: bool) -> Result<()
     const STDERR_TAIL_LINES: usize = 10;
 
     if channel != "stable" && channel != "snapshot" {
+        tracing::warn!(target: "update_install", %channel, "rejected invalid update channel");
         return Err("InvalidChannel".to_string());
     }
 
@@ -100,12 +111,14 @@ pub fn install_update(app: AppHandle, channel: String, force: bool) -> Result<()
         let state: State<UpdateInstallState> = app.state();
         let mut guard = state.0.lock().map_err(|e| e.to_string())?;
         if matches!(&*guard, Some(s) if !s.is_terminal()) {
+            tracing::warn!(target: "update_install", "install already in progress, rejecting");
             return Err("InstallInProgress".to_string());
         }
         *guard = Some(InstallStatus::Checking);
     }
     let _ = app.emit(INSTALL_STATUS_EVENT, &InstallStatus::Checking);
 
+    tracing::info!(target: "update_install", updater = UPDATER_PATH, %channel, force, "starting updater");
     // The installer's sudoers rule lets gnosisvpn-group members run this
     // without a password; -n fails fast instead of prompting if it's missing.
     let mut cmd = Command::new("sudo");
@@ -164,12 +177,17 @@ pub fn install_update(app: AppHandle, channel: String, force: bool) -> Result<()
                         saw_terminal |= status.is_terminal();
                         publish(&app, status);
                     }
-                    None => eprintln!("[update-install] unrecognized updater output: {line}"),
+                    None => {
+                        tracing::warn!(target: "update_install", line, "unrecognized updater output")
+                    }
                 }
             }
         }
         let exit = child.wait();
-        let tail = stderr_tail.join().unwrap_or_default();
+        let tail = stderr_tail.join().unwrap_or_else(|_| {
+            tracing::warn!(target: "update_install", "stderr reader thread panicked");
+            String::new()
+        });
         // sudo refused, process killed, or output never parsed: synthesize
         // the terminal status the frontend and the guard rely on.
         if !saw_terminal {

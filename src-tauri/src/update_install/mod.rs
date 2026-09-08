@@ -28,7 +28,13 @@ pub struct UpdateInstallState(pub Mutex<Option<InstallStatus>>);
 
 #[tauri::command]
 pub fn get_install_status(state: State<'_, UpdateInstallState>) -> Option<InstallStatus> {
-    state.0.lock().ok().and_then(|guard| (*guard).clone())
+    match state.0.lock() {
+        Ok(guard) => (*guard).clone(),
+        Err(e) => {
+            tracing::warn!(target: "update_install", error = %e, "install status lock poisoned");
+            None
+        }
+    }
 }
 
 #[cfg(target_os = "macos")]

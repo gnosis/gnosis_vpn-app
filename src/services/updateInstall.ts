@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { z } from "zod";
 import { type UpdateChannel } from "@src/stores/settingsStore.ts";
+import { logWarn } from "@src/utils/appLog.ts";
 
 // Wire types for the `install_update` flow (src-tauri/src/update_install.rs).
 // The Rust side runs the bundled gnosis_vpn-update binary (macOS-only) and
@@ -35,5 +36,9 @@ export async function getInstallStatus(): Promise<InstallStatus | null> {
   const raw = await invoke<unknown>("get_install_status");
   if (raw == null) return null;
   const parsed = InstallStatusSchema.safeParse(raw);
-  return parsed.success ? parsed.data : null;
+  if (!parsed.success) {
+    logWarn(`Install status schema mismatch: ${JSON.stringify(raw)}`);
+    return null;
+  }
+  return parsed.data;
 }

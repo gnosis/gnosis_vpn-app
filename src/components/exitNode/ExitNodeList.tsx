@@ -13,6 +13,7 @@ import type { DestinationState } from "@src/services/vpnService.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { effectiveActive } from "@src/stores/destinationMode.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
+import { logInfo, logWarn } from "@src/utils/appLog.ts";
 import {
   destinationLabel,
   isVpnActive,
@@ -120,13 +121,16 @@ export default function ExitNodeList(props: {
       appState.reconnecting?.destination_id === id ||
       appState.disconnecting.some((d) => d.destination_id === id)
     ) {
+      logInfo(`Destination ${id} already active, closing list`);
       props.onClose(id);
       return;
     }
     if (!isAvailable(id)) {
+      logWarn(`Unreachable destination selected: ${id}`);
       setShowUnreachable(true);
       return;
     }
+    logInfo(`Destination selected from list: ${id}`);
     if (vpnActive()) void appActions.connect(id);
     props.onClose(id);
   };
