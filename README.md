@@ -218,6 +218,12 @@ Run linting locally via:
 nix develop --command deno lint --fix
 ```
 
+## Branches
+
+`main` is the experimental line (hoprd v5 client); `release/hoprdv4` is the
+stable maintenance line (hoprd v4 client). See
+[docs/branch-strategy.md](docs/branch-strategy.md).
+
 ## Dependency Updates
 
 Renovate runs on Renovate's `schedule:earlyMondays` preset with a 14-day minimum
