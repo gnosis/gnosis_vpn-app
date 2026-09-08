@@ -1,51 +1,12 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended", "schedule:earlyMondays"],
-  "baseBranchPatterns": ["main", "/^release\\/.*/"],
-  "useBaseBranchConfig": "merge",
-  "pinDigests": true,
-  "prCreation": "immediate",
-  "semanticCommits": "enabled",
-  "rangeStrategy": "bump",
-  "vulnerabilityAlerts": { "enabled": true },
-  "minimumReleaseAge": "14 days",
-  "nix": { "enabled": true },
   "packageRules": [
     {
-      "matchManagers": ["github-actions"],
-      "groupName": "github-actions",
-      "commitMessageTopic": "GitHub Actions"
-    },
-    {
-      "matchManagers": ["nix"],
-      "groupName": "nix flake updates",
-      "pinDigests": false
-    },
-    {
-      "description": "Disable gnosis_vpn-client git ref bumps — updated manually",
-      "matchManagers": ["cargo"],
-      "matchPackageNames": ["gnosis_vpn-lib"],
+      "description": "Stable line: everything off by default; vulnerabilityAlerts re-enables CVE fixes.",
+      "matchPackageNames": ["*"],
       "enabled": false
-    },
-    {
-      "matchManagers": ["cargo"],
-      "matchUpdateTypes": ["patch"],
-      "groupName": "rust crates (patch)"
-    },
-    {
-      "matchManagers": ["cargo"],
-      "matchUpdateTypes": ["minor"],
-      "groupName": "rust crates (minor)"
-    },
-    {
-      "matchManagers": ["npm"],
-      "matchUpdateTypes": ["patch"],
-      "groupName": "npm packages (patch)"
-    },
-    {
-      "matchManagers": ["npm"],
-      "matchUpdateTypes": ["minor"],
-      "groupName": "npm packages (minor)"
     }
-  ]
+  ],
+  "vulnerabilityAlerts": { "enabled": true, "minimumReleaseAge": null }
 }

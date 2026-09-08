@@ -15,10 +15,11 @@ on:
         description: Explicit version X.Y.Z (overrides release_type)
         required: false
         type: string
-      client_ref:
-        description: "gnosis_vpn-client ref (tag, branch or commit) to pin in src-tauri/Cargo.toml (empty: keep current)"
+      update_client:
+        description: "Advance gnosis_vpn-lib to the tip of the client branch pinned in src-tauri/Cargo.toml"
         required: false
-        type: string
+        type: boolean
+        default: false
       supported_client_versions:
         description: "Comma-separated compatible gnosis_vpn-client service versions, e.g. '0.93' or '0.93, 0.94' (empty: keep current)"
         required: false
@@ -116,34 +117,6 @@ jobs:
             echo "package.json still lacks version ${NEW_VERSION} after the substitution" >&2
             exit 1
           fi
-      - name: Update client ref
-        id: client-ref
-        if: inputs.client_ref != ''
-        shell: bash
-        env:
-          CLIENT_REF: ${{ inputs.client_ref }}
-        run: |
-          repo_url="https://github.com/gnosis/gnosis_vpn-client.git"
-          # Peeled tag entries (^{}) list last, so END picks the commit an
-          # annotated tag points at rather than the tag object itself.
-          rev=$(git ls-remote "${repo_url}" \
-            "refs/tags/${CLIENT_REF}" "refs/tags/${CLIENT_REF}^{}" "refs/heads/${CLIENT_REF}" \
-            | awk 'END {print $1}')
-          if [[ -z "${rev}" ]]; then
-            if [[ "${CLIENT_REF}" =~ ^[0-9a-f]{7,40}$ ]]; then
-              rev="${CLIENT_REF}"
-            else
-              echo "client_ref '${CLIENT_REF}' is neither a tag/branch on ${repo_url} nor a commit hash" >&2
-              exit 1
-            fi
-          fi
-          echo "Pinning gnosis_vpn-client to ${rev}"
-          sed -i -E "/^gnosis_vpn-lib[[:space:]]*=.*gnosis_vpn-client/ s|rev = \"[^\"]+\"|rev = \"${rev}\"|" src-tauri/Cargo.toml
-          if ! grep -qE "^gnosis_vpn-lib.*rev = \"${rev}\"" src-tauri/Cargo.toml; then
-            echo "src-tauri/Cargo.toml still lacks rev ${rev} after the substitution" >&2
-            exit 1
-          fi
-          echo "rev=${rev}" >> "$GITHUB_OUTPUT"
       - name: Update supported client versions
         if: inputs.supported_client_versions != ''
         shell: bash
@@ -175,23 +148,19 @@ jobs:
             echo "src-tauri/src/commands.rs still lacks the new COMPATIBLE_VERSIONS list after the substitution" >&2
             exit 1
           fi
-      # --recursive re-resolves gnosis_vpn-lib's subtree; without it, a rev bump can leave transitive deps (e.g. tokio) locked stale and cargo update fails.
+      # --recursive re-resolves gnosis_vpn-lib's subtree; without it, a branch-tip bump can leave transitive deps (e.g. tokio) locked stale and cargo update fails.
       - name: Update Cargo.lock
         shell: bash
         env:
           NEW_VERSION: ${{ steps.version.outputs.new_version }}
-          CLIENT_REV: ${{ steps.client-ref.outputs.rev }}
+          UPDATE_CLIENT: ${{ inputs.update_client }}
         run: |
           nix develop --command cargo update -p gnosis_vpn-app --manifest-path src-tauri/Cargo.toml
-          if [[ -n "${CLIENT_REV}" ]]; then
+          if [[ "${UPDATE_CLIENT}" == "true" ]]; then
             nix develop --command cargo update -p gnosis_vpn-lib --recursive --manifest-path src-tauri/Cargo.toml
           fi
           if ! grep -A1 '^name = "gnosis_vpn-app"$' src-tauri/Cargo.lock | grep -q "^version = \"${NEW_VERSION}\"$"; then
             echo "src-tauri/Cargo.lock still lacks gnosis_vpn-app ${NEW_VERSION} after the update" >&2
-            exit 1
-          fi
-          if [[ -n "${CLIENT_REV}" ]] && ! grep -q "rev=${CLIENT_REV}" src-tauri/Cargo.lock; then
-            echo "src-tauri/Cargo.lock still lacks gnosis_vpn-lib rev ${CLIENT_REV} after the update" >&2
             exit 1
           fi
       # Keeps the treefmt check in `nix flake check` green: taplo re-formats
