@@ -100,6 +100,16 @@ describe("StatusResponseSchema", () => {
       StatusResponseSchema.safeParse(statusRouteHealthVariants).success,
     ).toBe(true);
   });
+
+  // Hand-written: the pinned Rust type cannot emit a null phase yet, the daemon will.
+  it("parses a reconnect reported without a phase", () => {
+    const waiting = {
+      ...statusRunning,
+      target_destination: "test-exit",
+      reconnecting: { destination_id: "test-exit", since: 0, phase: null },
+    };
+    expect(StatusResponseSchema.safeParse(waiting).success).toBe(true);
+  });
 });
 
 describe("ConnectResponseSchema", () => {

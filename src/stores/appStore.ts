@@ -388,7 +388,10 @@ export function createAppStore(): AppStoreTuple {
         : nextReconnecting.destination_id;
       const short = dest ? shortAddress(dest.address) : "";
       const display = short ? `${label} - ${short}` : label;
-      log(`Reconnecting: ${display} - ${nextReconnecting.phase}`);
+      const phaseSuffix = nextReconnecting.phase
+        ? ` - ${nextReconnecting.phase}`
+        : "";
+      log(`Reconnecting: ${display}${phaseSuffix}`);
     }
 
     const connectedId = response.connected?.destination_id;

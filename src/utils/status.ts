@@ -8,6 +8,8 @@ import {
   type UpPhase,
 } from "@src/services/vpnService.ts";
 import type { AppState } from "@src/stores/appStore.ts";
+import { destinationLabel } from "@src/utils/destinations.ts";
+import { formatExitHealthStatus } from "@src/utils/exitHealth.ts";
 
 export function isConnected(response: StatusResponse): boolean {
   return response.connected !== null;
@@ -71,6 +73,8 @@ export function deriveVPNStatus(
     if (response.connected) return "Connected";
     if (response.connecting) return "Connecting";
     if (response.disconnecting.length > 0) return "Disconnecting";
+    // Target kept with nothing in flight: still reconnecting, retried on route health.
+    if (response.target_destination !== null) return "Reconnecting";
     return "Disconnected";
   }
 
@@ -138,4 +142,20 @@ export function formatConnectionPhase(phase: UpPhase | DownPhase): string {
     case "ClosingBridge":
       return "Closing bridge session";
   }
+}
+
+/** Why a reconnect is waiting, from the route health the status already carries. */
+export function waitingForRouteMessage(
+  state: AppState,
+  destinationId: string,
+): string {
+  const destState = state.destinations[destinationId];
+  const label = destState
+    ? destinationLabel(destState.destination)
+    : destinationId;
+  const health = destState?.route_health;
+  if (health && health.state.state === "Unrecoverable") {
+    return `Route to ${label}: ${formatExitHealthStatus(health)}`;
+  }
+  return `Waiting for route to ${label}`;
 }
