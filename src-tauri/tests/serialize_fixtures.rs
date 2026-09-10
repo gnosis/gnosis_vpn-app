@@ -135,6 +135,28 @@ fn generate_fixtures() {
         }),
     );
 
+    // A reconnect with no attempt in flight: the daemon holds the target and waits on route health.
+    write(
+        &fixtures_dir,
+        "status_reconnect_waiting.json",
+        &types::StatusResponse {
+            run_mode: types::RunMode::Running {
+                funding_status: None,
+                hopr_status: None,
+            },
+            destinations: vec![],
+            target_destination: Some("test-exit".to_string()),
+            connected: None,
+            connecting: None,
+            reconnecting: Some(command::ReconnectingInfo {
+                destination_id: "test-exit".to_string(),
+                since: SystemTime::UNIX_EPOCH,
+                phase: None,
+            }),
+            disconnecting: vec![],
+        },
+    );
+
     // PreparingSafe — no balance_recommendation
     let preparing_safe_zero = types::RunMode::from(command::RunMode::PreparingSafe {
         node_address: address(),
@@ -205,7 +227,7 @@ fn generate_fixtures() {
             reconnecting: Some(command::ReconnectingInfo {
                 destination_id: "test-exit".to_string(),
                 since: SystemTime::UNIX_EPOCH,
-                phase: connection::UpPhase::Init,
+                phase: Some(connection::UpPhase::Init),
             }),
             disconnecting: vec![command::DisconnectingInfo {
                 destination_id: "test-exit".to_string(),

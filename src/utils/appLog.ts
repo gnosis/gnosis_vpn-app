@@ -5,7 +5,10 @@ import {
   type StatusResponse,
   VPNService,
 } from "@src/services/vpnService.ts";
-import { destinationLabel } from "@src/utils/destinations.ts";
+import {
+  destinationLabel,
+  destinationLabelById,
+} from "@src/utils/destinations.ts";
 import { shortAddress } from "./shortAddress.ts";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
@@ -60,13 +63,23 @@ function buildLogContent(
   const { connected, connecting, reconnecting, disconnecting } = response;
 
   // Session transitions (connect/reconnect/disconnect) are logged by appStore's logStateChange.
-  const inTransition = connected || connecting || reconnecting ||
+  const inTransition = connected || connecting || reconnecting?.phase ||
     disconnecting.length > 0;
   if (inTransition) {
     return undefined;
   }
 
   if (typeof rm === "object" && "Running" in rm) {
+    // Reconnect held back by route health: phase-less or parked (target only), not idle.
+    const waitingId = reconnecting?.destination_id ??
+      response.target_destination;
+    if (waitingId !== null) {
+      const label = destinationLabelById(
+        waitingId,
+        dests.map((ds) => ds.destination),
+      );
+      return `Reconnecting: ${label} - waiting for route`;
+    }
     // Running but no active connection
     const lastWasDisconnected = Boolean(
       lastMessage && lastMessage.startsWith("Disconnected"),

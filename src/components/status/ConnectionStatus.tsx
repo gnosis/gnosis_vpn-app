@@ -1,27 +1,34 @@
 import { createMemo, Show } from "solid-js";
 import { useAppStore } from "../../stores/appStore.ts";
 import type { AppState } from "../../stores/appStore.ts";
-import { formatConnectionPhase } from "../../utils/status.ts";
+import {
+  formatConnectionPhase,
+  waitingForRouteMessage,
+} from "../../utils/status.ts";
 import { destinationLabel } from "../../utils/destinations.ts";
 
 /**
  * Derives a single-line connection status message from the top-level state.
  *
  * Priority:
- *  1. Reconnecting → "{phase}" or "Reconnecting to {location}"
+ *  1. Reconnecting → "{phase}", or "Waiting for route to {location}" with none in flight
  *  2. Connecting   → "{phase}" or "Connecting to {location}"
  *  3. Connected    → "Connected to {location}"
  *  4. Disconnecting (only when nothing is connecting) → "{phase}" or "Disconnecting from {location}"
  */
 function deriveStatus(appState: AppState): string | undefined {
-  if (appState.reconnecting) {
-    const dest = appState.destinations[appState.reconnecting.destination_id]
-      ?.destination;
-    const label = dest
-      ? destinationLabel(dest)
-      : appState.reconnecting.destination_id;
-    const phaseLabel = formatConnectionPhase(appState.reconnecting.phase);
-    return phaseLabel !== appState.reconnecting.phase
+  const reconnecting = appState.reconnecting;
+  // No phase: either a phase-less reconnect (waiting on route health) or only a parked target.
+  const reconnectingId = reconnecting?.destination_id ??
+    (appState.vpnStatus === "Reconnecting" ? appState.targetDestination : null);
+  if (reconnectingId !== null) {
+    if (!reconnecting?.phase) {
+      return waitingForRouteMessage(appState, reconnectingId);
+    }
+    const dest = appState.destinations[reconnectingId]?.destination;
+    const label = dest ? destinationLabel(dest) : reconnectingId;
+    const phaseLabel = formatConnectionPhase(reconnecting.phase);
+    return phaseLabel !== reconnecting.phase
       ? phaseLabel
       : `Reconnecting to ${label}`;
   }

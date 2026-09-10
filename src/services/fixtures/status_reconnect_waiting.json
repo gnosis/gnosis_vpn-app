@@ -1,0 +1,18 @@
+{
+  "run_mode": {
+    "Running": {
+      "funding_status": null,
+      "hopr_status": null
+    }
+  },
+  "destinations": [],
+  "target_destination": "test-exit",
+  "connected": null,
+  "connecting": null,
+  "reconnecting": {
+    "destination_id": "test-exit",
+    "since": 0,
+    "phase": null
+  },
+  "disconnecting": []
+}
