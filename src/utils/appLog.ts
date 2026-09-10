@@ -5,7 +5,10 @@ import {
   type StatusResponse,
   VPNService,
 } from "@src/services/vpnService.ts";
-import { destinationLabel } from "@src/utils/destinations.ts";
+import {
+  destinationLabel,
+  destinationLabelById,
+} from "@src/utils/destinations.ts";
 import { shortAddress } from "./shortAddress.ts";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
@@ -67,6 +70,14 @@ function buildLogContent(
   }
 
   if (typeof rm === "object" && "Running" in rm) {
+    // Target kept with nothing in flight: parked reconnect, not idle.
+    if (response.target_destination !== null) {
+      const label = destinationLabelById(
+        response.target_destination,
+        dests.map((ds) => ds.destination),
+      );
+      return `Reconnecting: ${label} - waiting for route`;
+    }
     // Running but no active connection
     const lastWasDisconnected = Boolean(
       lastMessage && lastMessage.startsWith("Disconnected"),
