@@ -20,6 +20,7 @@ import statusPreparingSafeWithRecommendation from "./fixtures/status_preparing_s
 import statusDeployingSafe from "./fixtures/status_deploying_safe.json";
 import statusRestarting from "./fixtures/status_restarting.json";
 import statusWithConnections from "./fixtures/status_with_connections.json";
+import statusReconnectWaiting from "./fixtures/status_reconnect_waiting.json";
 import statusRouteHealthVariants from "./fixtures/status_route_health_variants.json";
 import connectNotFound from "./fixtures/connect_destination_not_found.json";
 import connectConnecting from "./fixtures/connect_connecting.json";
@@ -101,14 +102,10 @@ describe("StatusResponseSchema", () => {
     ).toBe(true);
   });
 
-  // Hand-written: the pinned Rust type cannot emit a null phase yet, the daemon will.
   it("parses a reconnect reported without a phase", () => {
-    const waiting = {
-      ...statusRunning,
-      target_destination: "test-exit",
-      reconnecting: { destination_id: "test-exit", since: 0, phase: null },
-    };
-    expect(StatusResponseSchema.safeParse(waiting).success).toBe(true);
+    const parsed = StatusResponseSchema.safeParse(statusReconnectWaiting);
+    expect(parsed.success).toBe(true);
+    expect(parsed.data?.reconnecting?.phase).toBe(null);
   });
 });
 
