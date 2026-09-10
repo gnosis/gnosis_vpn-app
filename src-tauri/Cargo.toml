@@ -23,8 +23,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2.6.3", features = [] }
 
 [dependencies]
-# TODO: back to branch = "main" once GNO-709 step 1b merges; pinned to the unmerged branch
-gnosis_vpn-lib = { git = "https://github.com/gnosis/gnosis_vpn-client.git", rev = "697dd9785dbef8ea969b3c433b375bf990428ca3" }
+gnosis_vpn-lib = { git = "https://github.com/gnosis/gnosis_vpn-client.git", branch = "main" }
 liblzma = { version = "0.4.8", default-features = false, features = ["static"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
