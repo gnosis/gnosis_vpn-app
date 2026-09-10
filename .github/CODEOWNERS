@@ -4,5 +4,5 @@
 # CI, release and signing pipeline.
 /.github/ @esterlus @ausias-armesto @mjadach-iv
 
-# Changing ownership itself stays with org admins.
-/.github/CODEOWNERS @gnosis/ext-hopr-admin
+# Changing ownership itself stays with org admins; @esterlus listed directly to survive group changes.
+/.github/CODEOWNERS @esterlus @gnosis/ext-hopr-admin
