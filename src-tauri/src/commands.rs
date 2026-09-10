@@ -716,7 +716,12 @@ async fn query_status() -> (bool, Duration, Result<Option<StatusResponse>, Strin
                 return (true, Duration::from_secs(5), Ok(Some(resp)));
             }
 
-            let is_in_transition = resp.connecting.is_some() || resp.reconnecting.is_some();
+            // A reconnect with no phase can last indefinitely; only poll fast for real progress.
+            let is_in_transition = resp.connecting.is_some()
+                || resp
+                    .reconnecting
+                    .as_ref()
+                    .is_some_and(|r| r.phase.is_some());
             if is_in_transition {
                 (false, Duration::from_millis(222), Ok(Some(resp)))
             } else {

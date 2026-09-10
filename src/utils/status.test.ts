@@ -1,17 +1,22 @@
 import { describe, expect, it } from "vitest";
 import type {
   BalanceRecommendation,
+  Destination,
   PreparingSafe,
+  RouteHealthView,
+  RunMode,
   StatusResponse,
 } from "@src/services/vpnService.ts";
 import type { AppState } from "@src/stores/appStore.ts";
 import {
+  deriveVPNStatus,
   isConnected,
   isConnecting,
   isDisconnected,
   isDisconnecting,
   isWxHOPRTransferred,
   isXDAITransferred,
+  waitingForRouteMessage,
 } from "./status.ts";
 
 const BASE: StatusResponse = {
@@ -34,6 +39,24 @@ const DISCONNECTING_INFO = {
   destination_id: "dest-1",
   since: 0,
   phase: "Disconnecting" as const,
+};
+
+const RUNNING: RunMode = {
+  Running: { funding_status: null, hopr_status: null },
+};
+
+// What the daemon sends once it reports a reconnect without a phase.
+const PHASELESS_RECONNECTING_INFO = {
+  destination_id: "dest-1",
+  since: 0,
+  phase: null,
+};
+
+const DESTINATION: Destination = {
+  id: "dest-1",
+  meta: { location: "Brazil" },
+  address: "0xexit",
+  routing: 1,
 };
 
 const BASE_APP_STATE: AppState = {
@@ -162,6 +185,12 @@ describe("isDisconnected", () => {
       false,
     );
   });
+
+  it("returns false when a parked reconnect target remains", () => {
+    expect(isDisconnected({ ...BASE, target_destination: "dest-1" })).toBe(
+      false,
+    );
+  });
 });
 
 describe("isXDAITransferred", () => {
@@ -239,5 +268,120 @@ describe("isWxHOPRTransferred", () => {
       node_wxhopr: BALANCE_RECOMMENDATION.wxhopr + 1n,
     });
     expect(isWxHOPRTransferred(state)).toBe(true);
+  });
+});
+
+function appStateWithRouteHealth(
+  routeHealth: RouteHealthView | null,
+): AppState {
+  return {
+    ...BASE_APP_STATE,
+    destinations: {
+      "dest-1": { destination: DESTINATION, route_health: routeHealth },
+    },
+  };
+}
+
+function routeHealth(state: RouteHealthView["state"]): RouteHealthView {
+  return {
+    state,
+    last_error: null,
+    checking_since: null,
+    consecutive_failures: 0,
+  };
+}
+
+describe("deriveVPNStatus", () => {
+  it("reports Reconnecting when a target is kept with nothing in flight", () => {
+    expect(
+      deriveVPNStatus({
+        ...BASE,
+        run_mode: RUNNING,
+        target_destination: "dest-1",
+      }),
+    ).toBe("Reconnecting");
+  });
+
+  it("reports Reconnecting for a reconnect sent without a phase", () => {
+    expect(
+      deriveVPNStatus({
+        ...BASE,
+        run_mode: RUNNING,
+        target_destination: "dest-1",
+        reconnecting: PHASELESS_RECONNECTING_INFO,
+      }),
+    ).toBe("Reconnecting");
+  });
+
+  it("reports Disconnected when no target remains", () => {
+    expect(deriveVPNStatus({ ...BASE, run_mode: RUNNING })).toBe(
+      "Disconnected",
+    );
+  });
+
+  it("keeps Disconnecting while a teardown is still in flight", () => {
+    expect(
+      deriveVPNStatus({
+        ...BASE,
+        run_mode: RUNNING,
+        target_destination: "dest-1",
+        disconnecting: [DISCONNECTING_INFO],
+      }),
+    ).toBe("Disconnecting");
+  });
+
+  it("keeps Connecting while a target is set", () => {
+    expect(
+      deriveVPNStatus({
+        ...BASE,
+        run_mode: RUNNING,
+        target_destination: "dest-1",
+        connecting: CONNECTING_INFO,
+      }),
+    ).toBe("Connecting");
+  });
+
+  it("keeps Connected while a target is set", () => {
+    expect(
+      deriveVPNStatus({
+        ...BASE,
+        run_mode: RUNNING,
+        target_destination: "dest-1",
+        connected: { destination_id: "dest-1", since: 0 },
+      }),
+    ).toBe("Connected");
+  });
+});
+
+describe("waitingForRouteMessage", () => {
+  it("says it is waiting while route health is still recoverable", () => {
+    const state = appStateWithRouteHealth(
+      routeHealth({ state: "NeedsPeering", has_channel: false }),
+    );
+    expect(waitingForRouteMessage(state, "dest-1")).toBe(
+      "Waiting for route to dest-1 - Brazil",
+    );
+  });
+
+  it("names the reason once the route is unrecoverable", () => {
+    const state = appStateWithRouteHealth(
+      routeHealth({ state: "Unrecoverable", reason: "InvalidPath" }),
+    );
+    expect(waitingForRouteMessage(state, "dest-1")).toBe(
+      "Route to dest-1 - Brazil: Connection impossible",
+    );
+  });
+
+  it("waits when there is no route health at all", () => {
+    expect(waitingForRouteMessage(appStateWithRouteHealth(null), "dest-1"))
+      .toBe(
+        "Waiting for route to dest-1 - Brazil",
+      );
+  });
+
+  it("falls back to the id for an unknown destination", () => {
+    expect(waitingForRouteMessage(BASE_APP_STATE, "dest-9")).toBe(
+      "Waiting for route to dest-9",
+    );
   });
 });
