@@ -61,6 +61,16 @@ describe("logStatus", () => {
     );
   });
 
+  it("logs a phase-less reconnect as waiting for route", () => {
+    logStatus({
+      ...status("dest-1"),
+      reconnecting: { destination_id: "dest-1", since: 0, phase: null },
+    });
+    expect(loggedMessage()).toBe(
+      "Reconnecting: dest-1 - Brazil - waiting for route",
+    );
+  });
+
   it("logs disconnected when no target is left over", () => {
     logStatus(status(null));
     expect(loggedMessage()).toMatch(/^Disconnected\. Available:/);

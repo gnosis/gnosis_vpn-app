@@ -372,8 +372,10 @@ export function createAppStore(): AppStoreTuple {
       state.reconnecting?.destination_id !== nextReconnecting?.destination_id;
     const reconnectingPhaseChanged =
       state.reconnecting?.phase !== nextReconnecting?.phase;
+    // Phase-less reconnects (waiting on route health) are logged by appLog's logStatus.
     if (
-      nextReconnecting && (reconnectingIdChanged || reconnectingPhaseChanged)
+      nextReconnecting?.phase &&
+      (reconnectingIdChanged || reconnectingPhaseChanged)
     ) {
       const dest = destinations[nextReconnecting.destination_id]?.destination;
       const label = dest
@@ -381,10 +383,7 @@ export function createAppStore(): AppStoreTuple {
         : nextReconnecting.destination_id;
       const short = dest ? shortAddress(dest.address) : "";
       const display = short ? `${label} - ${short}` : label;
-      const phaseSuffix = nextReconnecting.phase
-        ? ` - ${nextReconnecting.phase}`
-        : "";
-      log(`Reconnecting: ${display}${phaseSuffix}`);
+      log(`Reconnecting: ${display} - ${nextReconnecting.phase}`);
     }
 
     const connectedId = response.connected?.destination_id;

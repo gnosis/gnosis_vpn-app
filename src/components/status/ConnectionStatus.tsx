@@ -18,7 +18,7 @@ import { destinationLabel } from "../../utils/destinations.ts";
  */
 function deriveStatus(appState: AppState): string | undefined {
   const reconnecting = appState.reconnecting;
-  // Without a phase the daemon reports no reconnect, only the target it still holds.
+  // No phase: either a phase-less reconnect (waiting on route health) or only a parked target.
   const reconnectingId = reconnecting?.destination_id ??
     (appState.vpnStatus === "Reconnecting" ? appState.targetDestination : null);
   if (reconnectingId !== null) {

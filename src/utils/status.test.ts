@@ -185,6 +185,12 @@ describe("isDisconnected", () => {
       false,
     );
   });
+
+  it("returns false when a parked reconnect target remains", () => {
+    expect(isDisconnected({ ...BASE, target_destination: "dest-1" })).toBe(
+      false,
+    );
+  });
 });
 
 describe("isXDAITransferred", () => {

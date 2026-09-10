@@ -28,7 +28,9 @@ export function isDisconnected(response: StatusResponse): boolean {
     response.connected === null &&
     response.connecting === null &&
     response.reconnecting === null &&
-    response.disconnecting.length === 0
+    response.disconnecting.length === 0 &&
+    // A parked reconnect target means the daemon still intends to reconnect.
+    response.target_destination === null
   );
 }
 

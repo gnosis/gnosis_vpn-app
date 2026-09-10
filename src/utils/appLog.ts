@@ -63,17 +63,19 @@ function buildLogContent(
   const { connected, connecting, reconnecting, disconnecting } = response;
 
   // Session transitions (connect/reconnect/disconnect) are logged by appStore's logStateChange.
-  const inTransition = connected || connecting || reconnecting ||
+  const inTransition = connected || connecting || reconnecting?.phase ||
     disconnecting.length > 0;
   if (inTransition) {
     return undefined;
   }
 
   if (typeof rm === "object" && "Running" in rm) {
-    // Target kept with nothing in flight: parked reconnect, not idle.
-    if (response.target_destination !== null) {
+    // Reconnect held back by route health: phase-less or parked (target only), not idle.
+    const waitingId = reconnecting?.destination_id ??
+      response.target_destination;
+    if (waitingId !== null) {
       const label = destinationLabelById(
-        response.target_destination,
+        waitingId,
         dests.map((ds) => ds.destination),
       );
       return `Reconnecting: ${label} - waiting for route`;
