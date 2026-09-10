@@ -15,9 +15,6 @@ import {
   type Destination,
   type DestinationState,
   type DisconnectingInfo,
-  formatWarmupStatus,
-  isDeployingSafeRunMode,
-  isPreparingSafeRunMode,
   isWarmupRunMode,
   type ReconnectingInfo,
   type RunMode,
@@ -49,13 +46,14 @@ import {
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import { deriveVPNStatus } from "@src/utils/status.ts";
 import { shortAddress } from "../utils/shortAddress.ts";
+import {
+  AppScreen,
+  createScreenSelector,
+  detectSyncPhase,
+  type SyncPhaseIndex,
+} from "@src/stores/screenSelector.ts";
 
-export enum AppScreen {
-  Initialization = "initialization",
-  Main = "main",
-  Onboarding = "onboarding",
-  Synchronization = "synchronization",
-}
+export { AppScreen };
 
 export interface AppState {
   currentScreen: AppScreen;
@@ -150,7 +148,6 @@ const SYNC_PHASES = [
   { floor: 30, ceiling: 50, durationMs: 20_000 }, // Warmup
   { floor: 50, ceiling: 100, durationMs: 50_000 }, // Channels/peers delay
 ] as const;
-type SyncPhaseIndex = 0 | 1 | 2;
 
 export function createAppStore(): AppStoreTuple {
   const [state, setState] = createStore<AppState>(initialState());
@@ -163,6 +160,7 @@ export function createAppStore(): AppStoreTuple {
   let syncTimer: ReturnType<typeof setInterval> | undefined;
   let catchUpTarget: number | null = null;
   let pendingScreenTransition: AppScreen | null = null;
+  const selectScreen = createScreenSelector();
 
   const CATCH_UP_SPEED = 6.6; // % per 100ms tick
   const TICK_INTERVAL = 100; // ms
@@ -278,9 +276,7 @@ export function createAppStore(): AppStoreTuple {
       }
     }
 
-    const [screen, warmupStatus, stuckSince] = determineScreenAndStatus(
-      response,
-    );
+    const [screen, warmupStatus, syncRecoveryDeadline] = selectScreen(response);
     if (screen === AppScreen.Synchronization) {
       enterSyncPhase(detectSyncPhase(response));
     } else if (
@@ -305,10 +301,7 @@ export function createAppStore(): AppStoreTuple {
       setState("currentScreen", screen);
     }
     setState("warmupStatus", warmupStatus);
-    setState(
-      "syncRecoveryDeadline",
-      stuckSince !== null ? stuckSince + MAXIMUM_DELAY_TIME : null,
-    );
+    setState("syncRecoveryDeadline", syncRecoveryDeadline);
     setState("runMode", reconcile(response.run_mode));
     setState("destinations", reconcile(destinations));
     setState("targetDestination", response.target_destination);
@@ -653,100 +646,6 @@ const appStore = createRoot(() => createAppStore());
 
 export function useAppStore(): AppStoreTuple {
   return appStore;
-}
-
-const MAXIMUM_DELAY_TIME = 120 * 1000; // 2 minutes
-let initialDelay:
-  | { delayingSince: number }
-  | { neverRan: true }
-  | {
-    alreadyRan: true;
-  } = { neverRan: true };
-function determineScreenAndStatus(
-  status: StatusResponse,
-): [AppScreen, string, number | null] {
-  const runMode = status.run_mode;
-  if (runMode === "Shutdown") {
-    return [AppScreen.Main, "Shutdown", null];
-  }
-  if (isPreparingSafeRunMode(runMode)) {
-    return [AppScreen.Onboarding, "Onboarding", null];
-  }
-  if (isDeployingSafeRunMode(runMode)) {
-    return [AppScreen.Synchronization, "Safe deployment ongoing", null];
-  }
-  if (isWarmupRunMode(runMode)) {
-    return [
-      AppScreen.Synchronization,
-      formatWarmupStatus(runMode.Warmup.status),
-      null,
-    ];
-  }
-  // delay initial screen as long as no interaction makes sense
-  const delay = findDelayReason(status.destinations);
-  if (delay) {
-    // delay proposed and never ran
-    if ("neverRan" in initialDelay) {
-      // leads to start delay
-      const delayingSince = Date.now();
-      initialDelay = { delayingSince };
-      return [AppScreen.Synchronization, delay, delayingSince];
-    }
-    // delay proposed and already in delay
-    if ("delayingSince" in initialDelay) {
-      // leads to continue delay until maximum time is reached
-      if (Date.now() - initialDelay.delayingSince > MAXIMUM_DELAY_TIME) {
-        // if the delay reason persists for too long, move on to main screen
-        logWarn(`Initial sync still "${delay}" after 2 minutes, moving on`);
-        initialDelay = { alreadyRan: true };
-        return [AppScreen.Main, "Moving on", null];
-      }
-      return [AppScreen.Synchronization, delay, initialDelay.delayingSince];
-    }
-    // delay proposed but already ran
-    if ("alreadyRan" in initialDelay) {
-      // leads to main screen
-      return [AppScreen.Main, "Moving on", null];
-    }
-  }
-  // no delay proposed - treat as if already ran
-  initialDelay = { alreadyRan: true };
-  return [AppScreen.Main, "Moving on", null];
-}
-
-function findDelayReason(destinations: DestinationState[]): string | null {
-  let missingPeers = 0;
-  let missingChannels = 0;
-  for (const ds of destinations) {
-    if (!ds.route_health) continue;
-    const s = ds.route_health.state;
-
-    if (s.state === "ReadyToConnect" || s.state === "Connecting") return null;
-    if (s.state === "NeedsChannel") missingChannels++;
-    else if (s.state === "NeedsPeering") {
-      missingPeers++;
-      if (!s.has_channel) missingChannels++;
-    }
-  }
-  if (missingPeers > 0 && missingPeers >= missingChannels) {
-    return `Looking for ${missingPeers} more peer${
-      missingPeers > 1 ? "s" : ""
-    }`;
-  }
-  if (missingChannels > 0) {
-    return `Setting up ${missingChannels} more channel${
-      missingChannels > 1 ? "s" : ""
-    }`;
-  }
-  return null;
-}
-
-function detectSyncPhase(response: StatusResponse): SyncPhaseIndex | null {
-  const { run_mode, destinations } = response;
-  if (isDeployingSafeRunMode(run_mode)) return 0;
-  if (isWarmupRunMode(run_mode)) return 1;
-  if (findDelayReason(Object.values(destinations))) return 2;
-  return null;
 }
 
 function incomingStatusEvent(event: StatusEvent): StatusResponse | void {
