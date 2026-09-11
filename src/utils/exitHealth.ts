@@ -32,18 +32,24 @@ function getExitData(state: RouteHealthState): ExitHealthData | null {
   return null;
 }
 
-/** Format one-way latency as e.g. "42 ms". Returns null when unavailable.
+/** One-way latency in whole ms, as displayed. Returns null when unavailable.
  * Prefers tunnel_ping_rtt once the tunnel is up; falls back to exit ping_rtt.
  * Both are round-trip times, so we halve to get one-way latency. */
-export function formatLatency(rhv: RouteHealthView): string | null {
+export function getLatencyMs(rhv: RouteHealthView): number | null {
   const { state } = rhv;
   if (state.state === "Connecting") {
     const rtt = state.tunnel_ping_rtt ?? state.exit.ping_rtt;
-    return `${(rtt / 2).toFixed(0)} ms`;
+    return Math.round(rtt / 2);
   }
   const exit = getExitData(state);
   if (!exit) return null;
-  return `${(exit.ping_rtt / 2).toFixed(0)} ms`;
+  return Math.round(exit.ping_rtt / 2);
+}
+
+/** Format one-way latency as e.g. "42 ms". Returns null when unavailable. */
+export function formatLatency(rhv: RouteHealthView): string | null {
+  const ms = getLatencyMs(rhv);
+  return ms === null ? null : `${ms} ms`;
 }
 
 /** Share of an exit's connection slots currently in use. */
@@ -75,6 +81,13 @@ export type LoadLevel = "low" | "medium" | "high";
 export function getSlotLoadLevel(percent: number): LoadLevel {
   if (percent <= 50) return "low";
   if (percent <= 75) return "medium";
+  return "high";
+}
+
+/** Latency color band, graded like load: <500 low, <=1100 medium, else high. */
+export function getLatencyLevel(ms: number): LoadLevel {
+  if (ms < 500) return "low";
+  if (ms <= 1100) return "medium";
   return "high";
 }
 

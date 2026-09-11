@@ -75,7 +75,7 @@ export default function DestinationCard(props: {
   );
 
   return (
-    <div class="flex w-full shrink-0 items-center justify-between gap-2 rounded-2xl bg-slate-700 px-3 py-3.5">
+    <div class="flex w-full shrink-0 items-center justify-between gap-2 rounded-2xl bg-bg-card px-3 py-3.5">
       <div class="flex flex-1 flex-col gap-4 min-w-0">
         <span
           class="text-xs text-text-secondary transition-opacity ease-out"

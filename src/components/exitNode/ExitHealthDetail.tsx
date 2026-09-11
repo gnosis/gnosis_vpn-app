@@ -22,8 +22,11 @@ import {
   getExitHealthColor,
   getHopCount,
   getLastCheckedEpoch,
+  getLatencyLevel,
+  getLatencyMs,
   type HealthColor,
 } from "@src/utils/exitHealth.ts";
+import { levelValueClass } from "./levelColor.ts";
 import HopsIcon from "./HopsIcon.tsx";
 import SlotLoadStat from "./SlotLoadStat.tsx";
 import Stat from "./Stat.tsx";
@@ -31,9 +34,9 @@ import Tag from "../common/Tag.tsx";
 import ChevronIcon from "../common/ChevronIcon.tsx";
 
 const statusColorClass: Record<HealthColor, string> = {
-  green: "text-vpn-light-green",
-  yellow: "text-vpn-yellow",
-  red: "text-vpn-red",
+  green: "text-text-green",
+  yellow: "text-text-yellow",
+  red: "text-text-red",
   gray: "text-text-muted",
   default: "text-text-primary",
 };
@@ -78,6 +81,14 @@ export default function ExitHealthDetail(
   const latency = () => {
     const rh = routeHealth();
     return rh ? formatLatency(rh) : null;
+  };
+  // Graded on the same ramp as Load, so the two stats read alike.
+  const latencyClass = () => {
+    const rh = routeHealth();
+    const ms = rh ? getLatencyMs(rh) : null;
+    return ms === null
+      ? "font-semibold text-text-primary"
+      : levelValueClass(getLatencyLevel(ms));
   };
   const loadAvg = () => {
     const rh = routeHealth();
@@ -136,7 +147,7 @@ export default function ExitHealthDetail(
   const connectionStatus = () => formatConnectionStatus(connectionLabel());
   const connectionStatusClass = () =>
     connectionStatus() === "Connected"
-      ? "font-semibold text-vpn-light-green"
+      ? "font-semibold text-text-green"
       : "font-semibold text-text-primary";
 
   // Use separately measured max-heights because WebKitGTK misrenders 0fr/1fr collapse and nested reads race.
@@ -225,7 +236,7 @@ export default function ExitHealthDetail(
                     <Stat
                       label="Latency"
                       value={latency()}
-                      valueClass="font-semibold text-text-primary"
+                      valueClass={latencyClass()}
                       tooltip={latencyTooltip()}
                     />
                     {hopsTag()}
@@ -263,7 +274,7 @@ export default function ExitHealthDetail(
                       <Stat
                         label="Checked"
                         value={lastChecked()}
-                        valueClass="font-semibold text-text-primary"
+                        valueClass="text-text-primary"
                         tooltip={<span>Time since last health check</span>}
                       />
                     </div>
