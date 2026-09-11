@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   formatConnectionStatus,
+  getLatencyLevel,
+  getLatencyMs,
   getSlotLoad,
   getSlotLoadLevel,
 } from "./exitHealth.ts";
@@ -20,6 +22,39 @@ function readyWithSlots(available: number, connected: number): RouteHealthView {
         },
       },
     },
+    last_error: null,
+    checking_since: null,
+    consecutive_failures: 0,
+  };
+}
+
+function connecting(
+  tunnelPingRtt: number | null,
+  exitPingRtt: number,
+): RouteHealthView {
+  return {
+    state: {
+      state: "Connecting",
+      tunnel_ping_rtt: tunnelPingRtt,
+      exit: {
+        checked_at: 0,
+        versions: { versions: ["1"], latest: "1" },
+        ping_rtt: exitPingRtt,
+        health: {
+          slots: { available: 1, connected: 1 },
+          load_avg: { one: 0, five: 0, fifteen: 0, nproc: 1 },
+        },
+      },
+    },
+    last_error: null,
+    checking_since: null,
+    consecutive_failures: 0,
+  };
+}
+
+function routable(): RouteHealthView {
+  return {
+    state: { state: "Routable" },
     last_error: null,
     checking_since: null,
     consecutive_failures: 0,
@@ -47,13 +82,7 @@ describe("getSlotLoad", () => {
   });
 
   it("is null when there is no exit health data", () => {
-    const rhv: RouteHealthView = {
-      state: { state: "Routable" },
-      last_error: null,
-      checking_since: null,
-      consecutive_failures: 0,
-    };
-    expect(getSlotLoad(rhv)).toBeNull();
+    expect(getSlotLoad(routable())).toBeNull();
   });
 });
 
@@ -71,6 +100,42 @@ describe("getSlotLoadLevel", () => {
   it("is high above 75%", () => {
     expect(getSlotLoadLevel(76)).toBe("high");
     expect(getSlotLoadLevel(100)).toBe("high");
+  });
+});
+
+describe("getLatencyMs", () => {
+  it("prefers the tunnel rtt while connecting", () => {
+    expect(getLatencyMs(connecting(300, 900))).toBe(150);
+  });
+
+  it("falls back to the exit rtt when the tunnel has no sample yet", () => {
+    expect(getLatencyMs(connecting(null, 900))).toBe(450);
+  });
+
+  it("halves the exit rtt once ready to connect", () => {
+    expect(getLatencyMs(readyWithSlots(1, 1))).toBe(50);
+  });
+
+  it("is null when there is no exit data", () => {
+    expect(getLatencyMs(routable())).toBeNull();
+  });
+});
+
+describe("getLatencyLevel", () => {
+  it("is low below 500 ms", () => {
+    expect(getLatencyLevel(0)).toBe("low");
+    expect(getLatencyLevel(499)).toBe("low");
+  });
+
+  it("is medium from 500 ms up to and including 1100 ms", () => {
+    expect(getLatencyLevel(500)).toBe("medium");
+    expect(getLatencyLevel(750)).toBe("medium");
+    expect(getLatencyLevel(1100)).toBe("medium");
+  });
+
+  it("is high above 1100 ms", () => {
+    expect(getLatencyLevel(1101)).toBe("high");
+    expect(getLatencyLevel(5000)).toBe("high");
   });
 });
 

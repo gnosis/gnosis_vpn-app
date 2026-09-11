@@ -143,7 +143,7 @@ export function StatusHero() {
       >
         <Show when={showOwl()}>
           <div
-            class="relative text-text-primary"
+            class="relative text-owl"
             classList={{
               "opacity-40": mode() === "sleeping",
               "owl-morph-out": morphing(),
