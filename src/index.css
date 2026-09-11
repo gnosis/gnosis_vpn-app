@@ -139,6 +139,7 @@ select {
   --color-vpn-dark-green: #083d1c;
   --color-vpn-light-green: #16a34a;
   --color-vpn-red: #ff7272;
+  --color-vpn-purple: #4335df;
 
   --color-bg-primary: var(--color-bg-primary);
   --color-bg-surface: var(--color-bg-surface);
@@ -217,25 +218,57 @@ select {
   transform: scaleY(0.05);
 }
 
-/* Green owl duplicate revealed bottom-up; --owl-inset set inline per connect phase */
+/* Owl duplicate revealed bottom-up, greening as it fills; vars set inline per phase */
 .owl-fill-layer {
   position: absolute;
   inset: 0;
+  /* Plain green is the fallback where color-mix is unsupported */
   color: var(--color-vpn-light-green);
+  color: color-mix(
+    in oklab,
+    var(--color-vpn-light-green) var(--owl-fill-pct, 0%),
+    var(--color-vpn-purple)
+  );
   /* -webkit- prefix required for WebKit-based Tauri webviews (macOS/iOS) */
   -webkit-clip-path: inset(var(--owl-inset, 100%) 0 0 0);
   clip-path: inset(var(--owl-inset, 100%) 0 0 0);
-  transition: clip-path 700ms ease-out, -webkit-clip-path 700ms ease-out;
-  /* Signs of life during long phases */
-  animation: owl-fill-pulse 2.4s ease-in-out infinite;
+  /* Eases the color across the discrete phase steps */
+  transition: clip-path 700ms ease-out, -webkit-clip-path 700ms ease-out,
+    color 700ms ease-out;
   @starting-style {
     -webkit-clip-path: inset(100% 0 0 0);
     clip-path: inset(100% 0 0 0);
   }
 }
-@keyframes owl-fill-pulse {
-  50% {
-    opacity: 0.82;
+
+/* Same band as .progress-shimmer, swept up the owl instead of across the bar */
+.owl-shimmer {
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(
+    0deg,
+    transparent 25%,
+    rgba(255, 255, 255, 0.35) 50%,
+    transparent 75%
+  );
+  background-size: 100% 200%;
+  /* Confines the band to the owl silhouette; -webkit- prefix for WebKitGTK */
+  -webkit-mask-image: url("/gnosis.svg");
+  mask-image: url("/gnosis.svg");
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  animation: owl-shimmer 1.8s ease-in-out infinite;
+}
+@keyframes owl-shimmer {
+  from {
+    background-position: 0 200%;
+  }
+  to {
+    background-position: 0 -200%;
   }
 }
 
@@ -275,6 +308,8 @@ select {
   }
   .owl-fill-layer {
     transition: none;
+  }
+  .owl-shimmer {
     animation: none;
   }
   .owl-morph-out {
