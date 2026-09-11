@@ -158,11 +158,9 @@ export function StatusHero() {
                 class="owl-fill-layer"
                 style={{
                   "--owl-inset": `${100 - fillPct()}%`,
-                  "--owl-fill-pct": `${fillPct()}%`,
                 }}
               >
                 <OwlSvg />
-                <div class="owl-shimmer" />
               </div>
             </Show>
           </div>
