@@ -27,7 +27,7 @@ export default function Flag(props: { code: string; pinned?: boolean }) {
     <span
       class={`w-7 h-5 rounded-sm shrink-0 ${
         visible()
-          ? `ring-1 ring-inset ring-slate-950 fi fi-${resolvedCode()}`
+          ? `ring-1 ring-inset ring-black/15 dark:ring-slate-950 fi fi-${resolvedCode()}`
           : ""
       }${grayscale() ? " grayscale" : ""}${pinned() ? PINNED_OUTLINE : ""}`}
       title={pinned() ? "Flag set in your configuration" : undefined}

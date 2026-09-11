@@ -17,11 +17,14 @@ import {
   getConnectionState,
   getHopCount,
   getLastCheckedEpoch,
+  getLatencyLevel,
+  getLatencyMs,
   hasHealthContent,
 } from "@src/utils/exitHealth.ts";
 import { isReady } from "@src/utils/destinations.ts";
 import DestinationLabel from "./DestinationLabel.tsx";
 import HopsIcon from "./HopsIcon.tsx";
+import { levelValueClass } from "./levelColor.ts";
 import SlotLoadStat from "./SlotLoadStat.tsx";
 import Stat from "./Stat.tsx";
 import Tag from "../common/Tag.tsx";
@@ -71,6 +74,12 @@ export default function ExitNodeCard(props: {
   const latency = () => {
     const rh = routeHealth();
     return rh ? formatLatency(rh) : null;
+  };
+  // Graded on the same ramp as Load, so the two stats read alike.
+  const latencyClass = () => {
+    const rh = routeHealth();
+    const ms = rh ? getLatencyMs(rh) : null;
+    return ms === null ? undefined : levelValueClass(getLatencyLevel(ms));
   };
 
   const loadAvg = () => {
@@ -168,6 +177,7 @@ export default function ExitNodeCard(props: {
             <Stat
               label="Latency"
               value={latency()}
+              valueClass={latencyClass()}
               tooltip={
                 <div class="space-y-1">
                   <p class="text-white font-bold">Expected ~200ms</p>

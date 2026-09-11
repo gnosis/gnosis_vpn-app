@@ -198,7 +198,7 @@ export default function ExitNodeList(props: {
                 class={`text-xs px-2 py-0.5 rounded-md font-semibold transition-colors ${
                   settings.exitNodeSortOrder === order
                     ? "bg-accent text-accent-text"
-                    : "bg-white/8 text-text-secondary hover:text-text-primary"
+                    : "bg-black/5 dark:bg-white/8 text-text-secondary hover:text-text-primary"
                 }`}
                 onClick={() => void settingsActions.setExitNodeSortOrder(order)}
               >

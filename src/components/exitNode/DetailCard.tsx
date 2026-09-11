@@ -15,7 +15,7 @@ export default function DetailCard(props: {
   onOpenList: (originY: number) => void;
 }) {
   return (
-    <div class="w-full bg-slate-800 rounded-2xl p-1.5">
+    <div class="w-full bg-bg-card-outer rounded-2xl p-1.5">
       <DestinationCard
         destinationState={props.destinationState}
         title={props.title}
