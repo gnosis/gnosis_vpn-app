@@ -5,20 +5,24 @@ import type {
   Slots,
 } from "@src/services/vpnService.ts";
 import {
+  destinationLabel,
+  destinationTitle,
+  isConfigPinned,
   isReady,
   isReadyForDisplay,
   isVpnActive,
   pickStartupTarget,
+  sanitizeMetaText,
   sortAlphaDestinations,
   sortByCapacityAwareLatency,
 } from "./destinations.ts";
+import { makeDestination } from "@src/testing/destinations.ts";
 
-const BASE_DESTINATION: Destination = {
+const BASE_DESTINATION: Destination = makeDestination({
   id: "a",
-  meta: { location: "EU" },
   address: "0x1234",
-  routing: 1,
-};
+  meta: { location: "EU" },
+});
 
 function makeReadyToConnect(
   id: string,
@@ -352,5 +356,96 @@ describe("pickStartupTarget — connect-on-startup pick", () => {
 
     expect(pickStartupTarget(destinations, null)).toBeNull();
     expect(pickStartupTarget({}, null)).toBeNull();
+  });
+});
+
+// Mirrors the client's `Destination::title` so the app and gvpn-ctl name an exit the same way.
+describe("destinationTitle", () => {
+  it("is the config key without a name", () => {
+    expect(destinationTitle(makeDestination({ id: "my-exit" }))).toBe(
+      "my-exit",
+    );
+  });
+
+  it("brackets the config key next to the name", () => {
+    const dest = makeDestination({
+      id: "my-exit",
+      meta: { name: "Frankfurt-1" },
+    });
+    expect(destinationTitle(dest)).toBe("Frankfurt-1(my-exit)");
+  });
+
+  it("is the name alone for a discovered destination, whose key is only the address", () => {
+    const dest = makeDestination({
+      id: "0xabc",
+      source: "Discovered",
+      meta: { name: "Frankfurt-1" },
+    });
+    expect(destinationTitle(dest)).toBe("Frankfurt-1");
+  });
+
+  it("collapses when name and key match", () => {
+    const dest = makeDestination({
+      id: "Frankfurt-1",
+      meta: { name: "Frankfurt-1" },
+    });
+    expect(destinationTitle(dest)).toBe("Frankfurt-1");
+  });
+
+  it("puts the location after the title in the label", () => {
+    const dest = makeDestination({
+      id: "my-exit",
+      meta: { name: "Frankfurt-1", location: "Germany" },
+    });
+    expect(destinationLabel(dest)).toBe("Frankfurt-1(my-exit) - Germany");
+  });
+});
+
+describe("sanitizeMetaText", () => {
+  it("strips control and bidi-override characters", () => {
+    expect(sanitizeMetaText("\u001b[2K\u202eGermany\u200b")).toBe("[2KGermany");
+  });
+
+  it("elides after 64 code points, counting characters rather than UTF-16 units", () => {
+    const long = "\u{1F1E9}".repeat(70);
+    const shown = sanitizeMetaText(long);
+    expect(Array.from(shown)).toHaveLength(65);
+    expect(shown.endsWith("\u2026")).toBe(true);
+  });
+
+  it("leaves a short plain value alone", () => {
+    expect(sanitizeMetaText("Germany")).toBe("Germany");
+  });
+});
+
+// The ctl's rule: (c) marks configuration's own values, and only where config and discovery mix.
+describe("isConfigPinned", () => {
+  const pinnedLocation = { configured_meta: { location: "Germany" } };
+
+  it("marks a value configuration set on a configured-and-discovered destination", () => {
+    const dest = makeDestination({
+      source: "ConfiguredAndDiscovered",
+      meta: { location: "Germany" },
+      overrides: pinnedLocation,
+    });
+    expect(isConfigPinned(dest, "location")).toBe(true);
+    expect(isConfigPinned(dest, "name")).toBe(false);
+  });
+
+  it("marks nothing on a config-only destination, where every value is config's by definition", () => {
+    const dest = makeDestination({
+      source: "Configured",
+      meta: { location: "Germany" },
+      overrides: pinnedLocation,
+    });
+    expect(isConfigPinned(dest, "location")).toBe(false);
+  });
+
+  it("marks nothing on a discovered-only destination", () => {
+    const dest = makeDestination({
+      source: "Discovered",
+      meta: { location: "Germany" },
+    });
+    expect(isConfigPinned(dest, "location")).toBe(false);
   });
 });

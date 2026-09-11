@@ -23,7 +23,8 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2.6.3", features = [] }
 
 [dependencies]
-gnosis_vpn-lib = { git = "https://github.com/gnosis/gnosis_vpn-client.git", branch = "main" }
+# Temporary rev pin on the unmerged client branch este/config-v7; restore `branch = "main"` once it lands.
+gnosis_vpn-lib = { git = "https://github.com/gnosis/gnosis_vpn-client.git", rev = "8c314adfc0e447f3c28454ce7ff15883a247633e" }
 liblzma = { version = "0.4.8", default-features = false, features = ["static"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"

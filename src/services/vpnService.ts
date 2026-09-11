@@ -71,13 +71,43 @@ const FlagCodeSchema = z
   .optional()
   .catch(undefined);
 
+// Operator-published labels: the keys the client recognizes, plus everything else it kept.
+const MetaSchema = z.object({
+  name: z.string().nullable(),
+  location: z.string().nullable(),
+  flag: FlagCodeSchema,
+  description: z.string().nullable(),
+  other: z.record(z.string(), z.string()),
+});
+
+export const DestinationSourceSchema = z.enum([
+  "Configured",
+  "Discovered",
+  "ConfiguredAndDiscovered",
+]);
+export type DestinationSource = z.infer<typeof DestinationSourceSchema>;
+
+// What configuration pinned for this destination; every key present is a pin.
+const OverridesSchema = z.object({
+  configured_meta: z.record(z.string(), z.string()),
+  configured_gnosis_vpn_server: z.string().nullable(),
+  configured_wireguard_server: z.string().nullable(),
+});
+
 export const DestinationSchema = z.object({
   id: z.string(),
-  meta: z
-    .object({ location: z.string(), flag: FlagCodeSchema })
-    .catchall(z.string()),
+  meta: MetaSchema,
   address: z.string(),
   routing: z.number(),
+  gnosis_vpn_server: z.string(),
+  wireguard_server: z.string(),
+  source: DestinationSourceSchema,
+  // Absent from an older daemon's payload, where nothing was overridable.
+  overrides: OverridesSchema.default({
+    configured_meta: {},
+    configured_gnosis_vpn_server: null,
+    configured_wireguard_server: null,
+  }),
 });
 export type Destination = z.infer<typeof DestinationSchema>;
 

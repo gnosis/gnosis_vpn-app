@@ -18,6 +18,7 @@ import {
   isXDAITransferred,
   waitingForRouteMessage,
 } from "./status.ts";
+import { makeDestination } from "@src/testing/destinations.ts";
 
 const BASE: StatusResponse = {
   run_mode: "NotRunning",
@@ -52,12 +53,9 @@ const PHASELESS_RECONNECTING_INFO = {
   phase: null,
 };
 
-const DESTINATION: Destination = {
-  id: "dest-1",
+const DESTINATION: Destination = makeDestination({
   meta: { location: "Brazil" },
-  address: "0xexit",
-  routing: 1,
-};
+});
 
 const BASE_APP_STATE: AppState = {
   currentScreen: "initialization" as AppState["currentScreen"],
