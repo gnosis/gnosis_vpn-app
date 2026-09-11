@@ -37,8 +37,7 @@ fn destination() -> Destination {
     )
 }
 
-/// A configured exit that discovery also reports, with the location pinned by configuration.
-/// A single pin keeps the fixture stable: `configured_meta` is a HashMap with no fixed key order.
+/// A c+d exit with one pinned label; a second pin would make the HashMap's key order flaky.
 fn pinned_destination() -> Destination {
     let mut pinned = HashMap::new();
     pinned.insert("location".to_string(), "Germany".to_string());
