@@ -1,17 +1,8 @@
 import { createMemo } from "solid-js";
 import type { RouteHealthView } from "@src/services/vpnService.ts";
-import {
-  getSlotLoad,
-  getSlotLoadLevel,
-  type LoadLevel,
-} from "@src/utils/exitHealth.ts";
+import { getSlotLoad, getSlotLoadLevel } from "@src/utils/exitHealth.ts";
+import { levelValueClass } from "./levelColor.ts";
 import Stat from "./Stat.tsx";
-
-const loadColorClass: Record<LoadLevel, string> = {
-  low: "text-vpn-light-green",
-  medium: "text-vpn-orange",
-  high: "text-vpn-red",
-};
 
 /** Slot-usage stat, colored by the share of connection slots in use. */
 export default function SlotLoadStat(
@@ -25,10 +16,8 @@ export default function SlotLoadStat(
     const l = load();
     return l ? `${l.percent}%` : null;
   };
-  const valueClass = () => {
-    const level = getSlotLoadLevel(load()?.percent ?? 0);
-    return `font-semibold ${loadColorClass[level]}`;
-  };
+  const valueClass = () =>
+    levelValueClass(getSlotLoadLevel(load()?.percent ?? 0));
   const slotsInUse = () => {
     const l = load();
     return l ? ` (${l.used} of ${l.total})` : "";

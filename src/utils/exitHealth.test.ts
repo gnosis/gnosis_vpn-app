@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   formatConnectionStatus,
+  getLatencyLevel,
   getSlotLoad,
   getSlotLoadLevel,
 } from "./exitHealth.ts";
@@ -71,6 +72,24 @@ describe("getSlotLoadLevel", () => {
   it("is high above 75%", () => {
     expect(getSlotLoadLevel(76)).toBe("high");
     expect(getSlotLoadLevel(100)).toBe("high");
+  });
+});
+
+describe("getLatencyLevel", () => {
+  it("is low below 500 ms", () => {
+    expect(getLatencyLevel(0)).toBe("low");
+    expect(getLatencyLevel(499)).toBe("low");
+  });
+
+  it("is medium from 500 ms up to and including 1100 ms", () => {
+    expect(getLatencyLevel(500)).toBe("medium");
+    expect(getLatencyLevel(750)).toBe("medium");
+    expect(getLatencyLevel(1100)).toBe("medium");
+  });
+
+  it("is high above 1100 ms", () => {
+    expect(getLatencyLevel(1101)).toBe("high");
+    expect(getLatencyLevel(5000)).toBe("high");
   });
 });
 

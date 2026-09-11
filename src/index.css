@@ -65,9 +65,12 @@ select {
   --color-border: #e5e7eb;
 
   /* Accent color - used for buttons, icon buttons, popups, and dropdown highlights */
-  --color-accent: #000000;
+  --color-accent: #1b2534;
   --color-accent-text: #ffffff;
-  --color-accent-hover: #2e2929;
+  --color-accent-hover: #141b26;
+
+  /* Status owl (StatusHero) - brand mark, tracked apart from body text */
+  --color-owl: #1b2534;
 
   /* Secondary button colors */
   --color-btn-secondary-bg: #374151;
@@ -104,6 +107,9 @@ select {
   --color-accent: #4335df;
   --color-accent-text: #f9fafb;
   --color-accent-hover: #2c20ab;
+
+  /* Status owl - the accent is barely legible on a dark surface, so it stays near-white */
+  --color-owl: var(--color-text-primary);
 
   /* Secondary button colors */
   --color-btn-secondary-bg: #4b5563;
@@ -165,6 +171,8 @@ select {
   --color-accent: var(--color-accent);
   --color-accent-text: var(--color-accent-text);
   --color-accent-hover: var(--color-accent-hover);
+
+  --color-owl: var(--color-owl);
 
   --color-btn-secondary-bg: var(--color-btn-secondary-bg);
   --color-btn-secondary-text: var(--color-btn-secondary-text);
