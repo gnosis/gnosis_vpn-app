@@ -110,7 +110,7 @@ function setup(settings: Partial<DestinationModeSettings> = {}) {
   });
 }
 
-/** The nine invariants from docs/destinationMode.md — they must hold after every transition. */
+/** The ten invariants from docs/destinationMode.md — they must hold after every transition. */
 function expectInvariants(model: DestinationMode): void {
   const { entries, sequence, active, mode } = model;
   const pending = mode.mode === "auto" ? mode.pending : null;
@@ -145,6 +145,11 @@ function expectInvariants(model: DestinationMode): void {
       .toBe(false);
     expect(active, "9: nothing to switch away from without an active entry")
       .not.toBeNull();
+  }
+  if (mode.mode === "live") {
+    expect(active, "10: live implies an active entry").not.toBeNull();
+    expect(sequence, "10: live shows nothing but the live card")
+      .toEqual([active]);
   }
 }
 
@@ -369,21 +374,23 @@ describe("statusUpdate — live", () => {
     expect(handle.model.entries["uk"]).toBeUndefined();
   });
 
-  it("keeps the card the strip already had when the backend lands on it", () => {
+  it("collapses the strip to the live card, keeping its key", () => {
     const handle = setup();
     stripWithHistory(handle);
+    const ukKey = handle.model.entries["uk"].key;
 
     step(handle, connectedTo("uk", UK_USA));
 
     expect(handle.model.active).toBe("uk");
-    expect(
-      handle.model.sequence,
-      "auto put usa there; the backend may not evict it",
-    )
-      .toEqual(["uk", "usa"]);
+    expect(handle.model.sequence, "live shows nothing but itself").toEqual([
+      "uk",
+    ]);
+    expect(handle.model.entries["uk"].key, "the card stays mounted").toBe(
+      ukKey,
+    );
   });
 
-  it("takes the outgoing slot even under a finger", () => {
+  it("collapses even under a finger", () => {
     const handle = setup();
     stripWithHistory(handle);
     const withDe = { ...UK_USA, de: makeReadyToConnect("de", 30) };
@@ -391,12 +398,24 @@ describe("statusUpdate — live", () => {
     input(handle, { type: "dragStarted" });
     step(handle, connectedTo("de", withDe));
 
-    // sparing the outgoing card would leave de nowhere to go but the strip's end
-    expect(handle.model.sequence).toEqual(["uk", "de"]);
+    // the connection state is never frozen by a drag, so the strip snaps under it
+    expect(handle.model.sequence).toEqual(["de"]);
     expect(handle.model.active).toBe("de");
 
     input(handle, { type: "slideCommitted", id: "de" });
-    expect(handle.model.sequence).toEqual(["uk", "de"]);
+    expect(handle.model.sequence).toEqual(["de"]);
+  });
+
+  it("collapses when the backend switches under an open list", () => {
+    const handle = setup();
+    stripWithHistory(handle);
+    step(handle, connectedTo("usa", UK_USA));
+    input(handle, { type: "listOpened" });
+
+    step(handle, connectedTo("uk", UK_USA));
+
+    expect(handle.model.sequence).toEqual(["uk"]);
+    expect(handle.model.listOpen).toBe(true);
   });
 });
 
@@ -417,6 +436,27 @@ describe("statusUpdate — leaving live", () => {
     await vi.advanceTimersByTimeAsync(SELECTED_AUTO_REVERT_MS);
     step(handle, statusFor(destinations));
     expect(handle.model.mode.mode).toBe("auto");
+  });
+
+  it("starts from the one live card and lets only auto rebuild history", async () => {
+    const handle = setup();
+    stripWithHistory(handle);
+    step(handle, connectedTo("uk", UK_USA));
+
+    step(handle, statusFor(UK_USA));
+
+    expect(handle.model.sequence, "the collapse outlives the connection")
+      .toEqual(["uk"]);
+    expect(handle.model.mode).toMatchObject({ mode: "selected" });
+
+    await vi.advanceTimersByTimeAsync(SELECTED_AUTO_REVERT_MS);
+    step(handle, statusFor(UK_USA));
+
+    expect(handle.model.mode).toMatchObject({
+      pending: { candidateId: "usa" },
+    });
+    expect(handle.model.sequence, "auto's arm is what lengthens the strip")
+      .toEqual(["uk", "usa"]);
   });
 
   it("does not close the list", () => {
@@ -1460,7 +1500,7 @@ describe("dragStarted and slideCommitted", () => {
     expect(handle.model.sequence).toEqual(["uk"]);
   });
 
-  it("keeps the interrupted candidate while a connection lands mid-drag", () => {
+  it("drops the interrupted candidate when a connection lands mid-drag", () => {
     const handle = setup();
     step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
     step(handle, statusFor(UK_USA));
@@ -1469,10 +1509,9 @@ describe("dragStarted and slideCommitted", () => {
     step(handle, connectedTo("uk", UK_USA));
 
     expect(handle.model.mode).toEqual({ mode: "live" });
-    expect(handle.model.sequence, "the finger is still down").toEqual([
-      "uk",
-      "usa",
-    ]);
+    expect(handle.model.sequence, "live does not wait for the finger").toEqual(
+      ["uk"],
+    );
 
     input(handle, { type: "slideCommitted", id: "uk" });
     expect(handle.model.sequence).toEqual(["uk"]);
@@ -1635,16 +1674,33 @@ describe("connectIssued", () => {
     expect(handle.model.active).toBe("usa");
   });
 
-  it("keeps the outgoing card when connecting to one the strip already has", () => {
+  it("drops the outgoing card when connecting to one the strip already has", () => {
     const handle = setup();
     stripWithHistory(handle);
+    const ukKey = handle.model.entries["uk"].key;
 
     // the Connect button on a card auto put there, or a slide-then-connect
     input(handle, { type: "connectIssued", id: "uk" });
 
     expect(handle.model.active).toBe("uk");
-    expect(handle.model.sequence, "auto's own history is not a replacement")
-      .toEqual(["uk", "usa"]);
+    expect(handle.model.sequence, "live shows nothing but itself").toEqual([
+      "uk",
+    ]);
+    expect(handle.model.entries["uk"].key, "the pressed card stays mounted")
+      .toBe(ukKey);
+  });
+
+  it("collapses to a fresh card when connecting to one the strip lacks", () => {
+    const handle = setup();
+    stripWithHistory(handle);
+    const usedKeys = Object.values(handle.model.entries).map((e) => e.key);
+
+    input(handle, { type: "connectIssued", id: "de" });
+
+    expect(handle.model.sequence).toEqual(["de"]);
+    expect(usedKeys, "a card that never existed mounts fresh").not.toContain(
+      handle.model.entries["de"].key,
+    );
   });
 
   it("leaves a failed attempt parked on the destination we tried", () => {
