@@ -11,13 +11,17 @@ export function resolveFlagCode(code: string): string | undefined {
   return KNOWN_FLAG_CODES.has(parentCode) ? parentCode : undefined;
 }
 
-export default function Flag(props: { code: string }) {
+// A dashed outline is the flag's `(c)` mark; ring-* is a box-shadow and cannot be dashed.
+const PINNED_OUTLINE = " outline outline-1 outline-dashed outline-offset-1";
+
+export default function Flag(props: { code: string; pinned?: boolean }) {
   const [settings] = useSettingsStore();
 
   const resolvedCode = () => resolveFlagCode(props.code);
   const visible = () =>
     resolvedCode() !== undefined && settings.flagDisplay !== "none";
   const grayscale = () => settings.flagDisplay === "mono";
+  const pinned = () => visible() && props.pinned === true;
 
   return (
     <span
@@ -25,7 +29,8 @@ export default function Flag(props: { code: string }) {
         visible()
           ? `ring-1 ring-inset ring-slate-950 fi fi-${resolvedCode()}`
           : ""
-      }${grayscale() ? " grayscale" : ""}`}
+      }${grayscale() ? " grayscale" : ""}${pinned() ? PINNED_OUTLINE : ""}`}
+      title={pinned() ? "Flag set in your configuration" : undefined}
       aria-hidden="true"
     />
   );

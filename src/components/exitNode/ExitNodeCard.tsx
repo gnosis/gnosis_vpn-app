@@ -5,7 +5,7 @@ import type {
 } from "@src/services/vpnService.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
-import { destinationLabel } from "@src/utils/destinations.ts";
+import { isConfigPinned } from "@src/utils/destinations.ts";
 import {
   formatLatency,
   formatLoadAvg,
@@ -17,6 +17,7 @@ import {
   hasHealthContent,
 } from "@src/utils/exitHealth.ts";
 import { isReady } from "@src/utils/destinations.ts";
+import DestinationLabel from "./DestinationLabel.tsx";
 import HopsIcon from "./HopsIcon.tsx";
 import SlotLoadStat from "./SlotLoadStat.tsx";
 import Stat from "./Stat.tsx";
@@ -122,10 +123,17 @@ export default function ExitNodeCard(props: {
       <div class="min-w-0 flex-1 px-4 py-3">
         <div class="flex flex-wrap items-start justify-between gap-1.5 mb-1">
           <span class="flex items-center gap-1.5 font-semibold text-sm text-text-primary min-w-0">
-            <Flag code={props.destinationState().destination.meta.flag ?? ""} />
-            <span class="break-all">
-              {destinationLabel(props.destinationState().destination)}
-            </span>
+            <Flag
+              code={props.destinationState().destination.meta.flag ?? ""}
+              pinned={isConfigPinned(
+                props.destinationState().destination,
+                "flag",
+              )}
+            />
+            <DestinationLabel
+              destination={props.destinationState().destination}
+              class="break-all"
+            />
           </span>
           <Show when={route() && hopCount() !== 1}>
             <Tag>
