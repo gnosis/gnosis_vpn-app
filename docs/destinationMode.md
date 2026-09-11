@@ -387,9 +387,11 @@ collect it.
 `active = id` (`wasActive`), `dragging = false`, `selected` with a fresh
 deadline. An automatic commit is the different case: it stays in `auto`.
 
-While `live`, this also issues a connect to `id` — see `connectIssued`. In
-practice live holds a single card (invariant 10), so a settle can only land on
-the live card itself, which connects nothing.
+A settle never connects, live or not. Connects come from the list
+(`listClosed(picked)`) and the Connect button only. While `live` the model holds
+a single card (invariant 10); the only other cards the view can still show are
+ones fading out after the collapse, and settling on one is inert — the strip
+snaps back to the live card once the ghost unmounts.
 
 An id absent from `entries` cannot normally arrive: a prune removes the card
 from `sequence`, the view re-renders, and the scroller can only settle on a
