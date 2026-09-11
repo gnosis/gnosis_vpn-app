@@ -15,7 +15,7 @@ import { effectiveActive } from "@src/stores/destinationMode.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import { logInfo, logWarn } from "@src/utils/appLog.ts";
 import {
-  destinationLabel,
+  destinationSearchText,
   isVpnActive,
   sortAlphaDestinations,
   sortByCapacityAwareLatency,
@@ -99,7 +99,9 @@ export default function ExitNodeList(props: {
     const q = query().toLowerCase();
     const list = frozenList();
     if (!q) return list;
-    return list.filter((d) => destinationLabel(d).toLowerCase().includes(q));
+    return list.filter((d) =>
+      destinationSearchText(d).toLowerCase().includes(q)
+    );
   });
 
   const vpnActive = () =>

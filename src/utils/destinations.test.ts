@@ -7,6 +7,7 @@ import type {
 import {
   destinationDescription,
   destinationLabel,
+  destinationSearchText,
   destinationTitle,
   isConfigPinned,
   isReady,
@@ -434,6 +435,21 @@ describe("destinationDescription", () => {
   it("elides past 64 characters", () => {
     const dest = makeDestination({ meta: { description: "a".repeat(70) } });
     expect(destinationDescription(dest)).toBe("a".repeat(64) + "\u2026");
+  });
+});
+
+describe("destinationSearchText", () => {
+  it("appends the description so a search can reach it", () => {
+    const dest = makeDestination({
+      id: "my-exit",
+      meta: { location: "Germany", description: "no logs kept" },
+    });
+    expect(destinationSearchText(dest)).toBe("my-exit - Germany no logs kept");
+  });
+
+  it("is just the label when no description was published", () => {
+    const dest = makeDestination({ id: "my-exit" });
+    expect(destinationSearchText(dest)).toBe("my-exit");
   });
 });
 

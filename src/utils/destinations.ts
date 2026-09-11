@@ -187,6 +187,13 @@ export function destinationLabel(d: Destination): string {
   return loc ? `${title} - ${loc}` : title;
 }
 
+/** Label plus description, so the list's search reaches operator blurbs too. */
+export function destinationSearchText(d: Destination): string {
+  const label = destinationLabel(d);
+  const description = destinationDescription(d);
+  return description ? `${label} ${description}` : label;
+}
+
 export type PinnableMeta = "name" | "location" | "flag" | "description";
 
 /** Configuration set this value; only meaningful where config and discovery mix, as on a config-only entry every value is config's. */
