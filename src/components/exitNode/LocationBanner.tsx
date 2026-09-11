@@ -12,13 +12,12 @@ import { useAppStore } from "@src/stores/appStore.ts";
 import {
   cardPhaseFor,
   type DestinationEntry,
-  effectiveActive,
   orderedEntries,
   SWITCH_ANIMATE_MS,
   SWITCH_CROSSOVER_MS,
 } from "@src/stores/destinationMode.ts";
 import { reconcileStrip } from "@src/utils/cardStrip.ts";
-import { cardTitle, isVpnActive } from "@src/utils/destinations.ts";
+import { cardTitle } from "@src/utils/destinations.ts";
 import DetailCard from "./DetailCard.tsx";
 import ExitNodeList from "./ExitNodeList.tsx";
 
@@ -175,8 +174,7 @@ export default function LocationBanner() {
 
   // Set for the duration of any scrollLeft write *we* make (plus a trailing
   // grace period) so the settle listeners below don't mistake our own
-  // animation for a user swipe — see commitSlideTo's doc comment for why
-  // that distinction matters.
+  // animation for a user swipe.
   // Depth-counted: suppression windows overlap (e.g. a settle racing a jump), and a boolean would lift too early
   let suppressDepth = 0;
   const suppressSettle = () => suppressDepth > 0;
@@ -255,18 +253,9 @@ export default function LocationBanner() {
   };
 
   // Always reaches the model, even landing back where it started — the gesture suspended auto and only this ends it.
+  // A slide only re-points the display; connecting is the list's and the Connect button's job, so a settle on a fading card is inert.
   const commitSlideTo = (id: string) => {
-    const wasElsewhere = effectiveActive(appState.mode, Date.now()) !== id;
-    // a stale id is a peek at a vanished card, not a connect attempt
-    const stillOffered = appState.availableDestinations.some((d) =>
-      d.id === id
-    );
     appActions.slideCommitted(id);
-
-    if (!wasElsewhere || !stillOffered) return;
-    // re-pointing the display cannot retarget a live tunnel; only a real connect can
-    if (!isVpnActive(appState.vpnStatus, appState.targetDestination)) return;
-    void appActions.connect(id);
   };
 
   // Animates the strip to center `id`'s card, then commits it — shared by

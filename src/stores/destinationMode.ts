@@ -149,7 +149,7 @@ function makeActive(draft: DestinationMode, id: string): void {
   if (draft.preferredLocation === id) draft.preferredLocation = null;
 }
 
-/** Only auto lengthens the strip: everything else lands on an existing card or takes the outgoing's slot. */
+/** A list pick swaps cards in place; a connection collapses the strip instead (see sweep). */
 function takeOutgoingSlot(draft: DestinationMode, id: string): void {
   const outgoing = draft.active;
   if (outgoing === null || outgoing === id) {
@@ -174,8 +174,16 @@ function selectedMode(): SelectedMode {
 
 const AUTO_IDLE: AutoMode = { mode: "auto", pending: null };
 
-/** Every entry is either history, the current candidate, or drag-held — anything else is dropped. */
+/** Every entry is either history, the current candidate, or drag-held — anything else is dropped. Live keeps only itself. */
 function sweep(draft: DestinationMode): void {
+  if (draft.mode.mode === "live") {
+    // a live tunnel proposes nothing, and the connection state is never frozen by a finger
+    for (const id of Object.keys(draft.entries)) {
+      if (id !== draft.active) delete draft.entries[id];
+    }
+    draft.sequence = draft.sequence.filter((id) => id in draft.entries);
+    return;
+  }
   const candidateId = draft.mode.mode === "auto"
     ? draft.mode.pending?.candidateId ?? null
     : null;
@@ -356,9 +364,8 @@ export function createDestinationMode(
     const liveId = liveIdOf(status);
     if (liveId !== null) {
       const enteringLive = draft.mode.mode !== "live";
-      // a connection we did not start proposes nothing, so it replaces rather than appends
-      if (liveId in draft.entries) makeActive(draft, liveId);
-      else takeOutgoingSlot(draft, liveId);
+      // an existing card keeps its key so it stays mounted; the sweep drops everything else
+      makeActive(draft, liveId);
       draft.mode = { mode: "live" };
       // only a connection that surprises us closes the list; one opened over live stays
       if (enteringLive) draft.listOpen = false;
@@ -446,15 +453,11 @@ export function createDestinationMode(
         makeActive(draft, event.id);
         draft.mode = selectedMode();
         break;
-      case "connectIssued": {
-        // a connect over the open list is that list's pick, duplicate and all
-        const replaces = draft.listOpen || !(event.id in draft.entries);
+      case "connectIssued":
         // we are ahead of the service; the next status response is expected to confirm
-        if (replaces) takeOutgoingSlot(draft, event.id);
-        else makeActive(draft, event.id);
+        makeActive(draft, event.id);
         draft.mode = { mode: "live" };
         break;
-      }
     }
     commit(draft);
   }
