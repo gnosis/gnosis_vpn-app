@@ -118,27 +118,34 @@ re-renders it. The `isStale` guard keeps a slept-through pending — one the nex
 
 > Every entry is either ever-active history, the current pending candidate, or —
 > while a drag is in progress — the candidate the drag interrupted. Nothing else
-> may exist.
+> may exist. While `live`, only the active entry exists.
 
 Run at the end of every transition:
 
 ```
+live:            drop each id !== active
 unless dragging: drop each id where !entries[id].wasActive && id !== pending?.candidateId
 sequence = sequence.filter(id => id in entries)
 ```
+
+The live clause is not spared by dragging. A live tunnel proposes nothing and
+history is not offered next to it — the list is the way to another destination —
+and the backend's connection state is never frozen by a finger (step 2 outranks
+suspension), so the strip snaps to the live card under it and the drag settles
+on the only card left.
 
 This replaces per-path removal bookkeeping. A card minted for a candidate
 disappears when that candidate is abandoned, however it was abandoned; a card
 that was once active stays as history. No transition needs to remember which of
 the two it is dealing with.
 
-While dragging, the sweep spares everything: the strip must not change under the
-user's finger. This is safe because nothing can mint a stray entry mid-drag —
-invariant 8 forbids arming, and every other path marks what it touches
-`wasActive` — so the only orphan that can exist is the candidate the drag
-interrupted. Whatever ends the drag runs the next sweep, which collects it
-unless the user settled on it. A never-active candidate was appended when minted
-and nothing appends behind it, so this orphan is always the last card;
+While dragging, the sweep spares everything but the live clause: the strip must
+not change under the user's finger. This is safe because nothing can mint a
+stray entry mid-drag — invariant 8 forbids arming, and every other path marks
+what it touches `wasActive` — so the only orphan that can exist is the candidate
+the drag interrupted. Whatever ends the drag runs the next sweep, which collects
+it unless the user settled on it. A never-active candidate was appended when
+minted and nothing appends behind it, so this orphan is always the last card;
 collecting it never shifts the others.
 
 ## Taking the outgoing slot
@@ -155,16 +162,11 @@ A fresh key so the card mounts rather than slides — a swap is not a move. With
 no `active` yet the rule degenerates to a plain mint, which is the only place it
 appends.
 
-A drag is no exception. The rule needs the outgoing card to vacate its slot, so
-sparing it would leave the newcomer nowhere to go but the end of the strip — and
-a strip that grew mid-drag would stay grown if the user then settled on the
-spared card. Step 2 already outranks suspension, so the surgery runs under the
-finger too.
-
-Used by [`listClosed(picked)`](#listclosedpicked-id),
-[`connectIssued`](#connectissuedid) and [statusUpdate step 2](#statusupdate).
+Used by [`listClosed(picked)`](#listclosedpicked-id) only: a connection, ours or
+the backend's, does not swap cards but [collapses the strip](#the-sweep).
 `sequence` is therefore appended to only by auto's arm and retarget, by cold
-start, and by this rule when there is no outgoing card to take.
+start, by this rule when there is no outgoing card to take, and by a live id
+that had no card — which the sweep then leaves alone on the strip.
 
 ## Invariants
 
@@ -179,6 +181,7 @@ Asserted after every transition, and in every test:
 7. keys are unique and never reused; `nextKey` is strictly monotonic
 8. `pending !== null` ⇒ `!suspended`
 9. `pending !== null` ⇒ `active !== null`
+10. `mode === "live"` ⇒ `active !== null` and `sequence` equals `[active]`
 
 Invariant 9 is the one that pins cold start down. A countdown is a switch _away
 from_ something, so there is nothing to arm until an entry is active — cold
@@ -218,20 +221,21 @@ Applied in this order:
 always offers what we are connected to.
 
 **2. Live.** `liveId !== null` → `active = liveId` (`wasActive`), pending
-cleared, mode `live`, sweep. A `liveId` that already has a card simply becomes
-active, keeping the outgoing card as the history auto put there; one with no
-card — the prune removed it, or the connection was started outside the app —
-[takes the outgoing slot](#taking-the-outgoing-slot) rather than being appended.
-Either way invariant 3 survives. If `listOpen` and we were not already live,
-close the list — a connection we did not initiate should not leave the list
-covering it. A list opened over a live connection stays open, polls included:
-the user opened it deliberately, and picking from it issues a new connect (see
+cleared, mode `live`, sweep — which leaves the strip at `[liveId]`. A `liveId`
+that already has a card keeps its key, so the card stays mounted while its
+neighbours unmount; one with no card — the prune removed it, or the connection
+was started outside the app — is minted fresh. Either way invariant 3 survives
+and invariant 10 holds. If `listOpen` and we were not already live, close the
+list — a connection we did not initiate should not leave the list covering it. A
+list opened over a live connection stays open, polls included: the user opened
+it deliberately, and picking from it issues a new connect (see
 `listClosed(picked)`).
 
 **3. Leaving live.** `mode === "live" && liveId === null` → `selected` on the
 destination we were connected to, with a fresh `SELECTED_AUTO_REVERT_MS`, then
 auto. Holding the card keeps auto from sliding you off it seconds after you
-disconnected. Does not close the list.
+disconnected. The strip is `[active]` at this point; only auto's own arm
+lengthens it again. Does not close the list.
 
 Steps 2 and 3 outrank suspension: the backend's own connection state is never
 frozen by an open list or a drag.
@@ -359,11 +363,11 @@ The strip therefore shortens when the pick is already in it, and a pick with no
 
 Mode is `selected` with a fresh deadline — **except when the pick also
 connects.** While connected, the list fires `connect` → `onClose`, so
-`connectIssued` has already taken the slot and entered `live` by the time this
-event arrives. `active` is then already `id`, so the sequence edit finds nothing
-to do and the mode write is skipped; the event is inert, and which of the two
-did the surgery does not matter. Picking the destination that is already active
-is equivalent to cancelling, plus a fresh deadline.
+`connectIssued` has already collapsed the strip to `id` and entered `live` by
+the time this event arrives. `active` is then already `id`, so the sequence edit
+finds nothing to do and the mode write is skipped; the event is inert. Picking
+the destination that is already active is equivalent to cancelling, plus a fresh
+deadline.
 
 ## dragStarted
 
@@ -383,7 +387,11 @@ collect it.
 `active = id` (`wasActive`), `dragging = false`, `selected` with a fresh
 deadline. An automatic commit is the different case: it stays in `auto`.
 
-While `live`, this also issues a connect to `id` — see `connectIssued`.
+A settle never connects, live or not. Connects come from the list
+(`listClosed(picked)`) and the Connect button only. While `live` the model holds
+a single card (invariant 10); the only other cards the view can still show are
+ones fading out after the collapse, and settling on one is inert — the strip
+snaps back to the live card once the ghost unmounts.
 
 An id absent from `entries` cannot normally arrive: a prune removes the card
 from `sequence`, the view re-renders, and the scroller can only settle on a
@@ -399,14 +407,11 @@ survivor. The model guards anyway so a store-write race cannot violate invariant
 are ahead of the service, and the next status response is expected to confirm.
 Because live is inert, nothing can arm a countdown during the attempt.
 
-The strip never lengthens here.
-[Take the outgoing slot](#taking-the-outgoing-slot) when `listOpen` — a connect
-issued over the open list _is_ that list's pick, so it drops the duplicate copy
-too — or when `id` has no card at all, which is how a connect that disagrees
-with the promotion — connect-on-startup landing on the first ready destination
-rather than the unready one we promoted — stays a single card. Otherwise `id`
-already has a card and merely becomes active, leaving the outgoing card as the
-history auto put there.
+The sweep leaves the strip at `[id]`. An `id` that already has a card keeps its
+key — the card the user pressed Connect on stays mounted — and one with no card
+is minted, which is how a connect that disagrees with the promotion —
+connect-on-startup landing on the first ready destination rather than the
+unready one we promoted — still ends as a single card.
 
 A failed connect needs no special handling: the next status response reports no
 connection, and _leaving live_ parks us in `selected` on the destination we
@@ -422,12 +427,14 @@ tried.
   candidate card on each poll. The commit stays bounded because a retarget keeps
   the original deadline. If this becomes the visible defect, the fix is a
   debounce on arming — not a change to the sort.
-- **Live is inert.** It never proposes a better destination; a live tunnel is
-  never torn down automatically.
+- **Live is inert, and shows nothing but itself.** It never proposes a better
+  destination; a live tunnel is never torn down automatically, and no other card
+  sits next to it — the list is the only way to another destination.
 - **Only auto lengthens the strip.** A card next to the active one means auto
   proposed or committed a switch, so nothing else may append one — see
-  [taking the outgoing slot](#taking-the-outgoing-slot). A user's pick, an
-  optimistic connect and a connection started outside the app all replace.
+  [taking the outgoing slot](#taking-the-outgoing-slot). A user's pick replaces;
+  a connection, whether we issued it or the backend reports it, collapses the
+  strip to itself.
 - **The model owns no animation.** It publishes state and deadlines; the view
   decides how to move. In particular the view may not assume a pending candidate
   is the last card.
