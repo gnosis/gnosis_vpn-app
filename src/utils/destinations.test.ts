@@ -5,6 +5,7 @@ import type {
   Slots,
 } from "@src/services/vpnService.ts";
 import {
+  destinationDescription,
   destinationLabel,
   destinationTitle,
   isConfigPinned,
@@ -418,6 +419,24 @@ describe("sanitizeMetaText", () => {
   });
 });
 
+describe("destinationDescription", () => {
+  it("is null when the operator published none", () => {
+    expect(destinationDescription(makeDestination())).toBeNull();
+  });
+
+  it("sanitizes the published text like every other label", () => {
+    const dest = makeDestination({
+      meta: { description: "\u202e10Gbit uplink\u200b" },
+    });
+    expect(destinationDescription(dest)).toBe("10Gbit uplink");
+  });
+
+  it("elides past 64 characters", () => {
+    const dest = makeDestination({ meta: { description: "a".repeat(70) } });
+    expect(destinationDescription(dest)).toBe("a".repeat(64) + "\u2026");
+  });
+});
+
 // The ctl's rule: (c) marks configuration's own values, and only where config and discovery mix.
 describe("isConfigPinned", () => {
   const pinnedLocation = { configured_meta: { location: "Germany" } };
@@ -430,6 +449,15 @@ describe("isConfigPinned", () => {
     });
     expect(isConfigPinned(dest, "location")).toBe(true);
     expect(isConfigPinned(dest, "name")).toBe(false);
+  });
+
+  it("marks a pinned description, as gvpn-ctl does", () => {
+    const dest = makeDestination({
+      source: "ConfiguredAndDiscovered",
+      meta: { description: "10Gbit uplink" },
+      overrides: { configured_meta: { description: "10Gbit uplink" } },
+    });
+    expect(isConfigPinned(dest, "description")).toBe(true);
   });
 
   it("marks nothing on a config-only destination, where every value is config's by definition", () => {

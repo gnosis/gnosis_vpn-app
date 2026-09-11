@@ -175,13 +175,19 @@ export function destinationLocation(d: Destination): string | null {
   return d.meta.location === null ? null : sanitizeMetaText(d.meta.location);
 }
 
+export function destinationDescription(d: Destination): string | null {
+  return d.meta.description === null
+    ? null
+    : sanitizeMetaText(d.meta.description);
+}
+
 export function destinationLabel(d: Destination): string {
   const title = destinationTitle(d);
   const loc = destinationLocation(d);
   return loc ? `${title} - ${loc}` : title;
 }
 
-export type PinnableMeta = "name" | "location" | "flag";
+export type PinnableMeta = "name" | "location" | "flag" | "description";
 
 /** Configuration set this value; only meaningful where config and discovery mix, as on a config-only entry every value is config's. */
 export function isConfigPinned(d: Destination, key: PinnableMeta): boolean {

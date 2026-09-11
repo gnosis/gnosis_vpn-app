@@ -5,7 +5,10 @@ import type {
 } from "@src/services/vpnService.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
-import { isConfigPinned } from "@src/utils/destinations.ts";
+import {
+  destinationDescription,
+  isConfigPinned,
+} from "@src/utils/destinations.ts";
 import {
   formatLatency,
   formatLoadAvg,
@@ -23,6 +26,7 @@ import SlotLoadStat from "./SlotLoadStat.tsx";
 import Stat from "./Stat.tsx";
 import Tag from "../common/Tag.tsx";
 import Flag from "../Flag.tsx";
+import ConfigPinMark from "./ConfigPinMark.tsx";
 
 export default function ExitNodeCard(props: {
   destinationState: () => DestinationState;
@@ -38,6 +42,10 @@ export default function ExitNodeCard(props: {
     props.destinationState().route_health ?? null
   );
   const routing = (): number => props.destinationState().destination.routing;
+  const description = () =>
+    destinationDescription(props.destinationState().destination);
+  const descriptionPinned = () =>
+    isConfigPinned(props.destinationState().destination, "description");
 
   const connectionLabel = createMemo(() =>
     getConnectionState(
@@ -142,6 +150,18 @@ export default function ExitNodeCard(props: {
             </Tag>
           </Show>
         </div>
+
+        <Show when={description()}>
+          {(text) => (
+            <p class="mb-1 text-text-secondary">
+              <span classList={{ italic: descriptionPinned() }}>{text()}</span>
+              <Show when={descriptionPinned()}>
+                {" "}
+                <ConfigPinMark />
+              </Show>
+            </p>
+          )}
+        </Show>
 
         <Show when={hasHealthContent(routeHealth())}>
           <div class="grid grid-cols-[3fr_2fr] gap-x-4 gap-y-1 text-text-secondary">

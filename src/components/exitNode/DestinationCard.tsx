@@ -1,7 +1,11 @@
 import { createEffect, createSignal, on, onCleanup, Show } from "solid-js";
 import type { DestinationState } from "@src/services/vpnService.ts";
-import { isConfigPinned } from "@src/utils/destinations.ts";
+import {
+  destinationDescription,
+  isConfigPinned,
+} from "@src/utils/destinations.ts";
 import Flag from "../Flag.tsx";
+import InfoTooltip from "../common/InfoTooltip.tsx";
 import DestinationLabel from "./DestinationLabel.tsx";
 import SwitchSpinner from "./SwitchSpinner.tsx";
 import ExitNodeListButton from "./ExitNodeListButton.tsx";
@@ -28,6 +32,7 @@ export default function DestinationCard(props: {
   onOpenList: (originY: number) => void;
 }) {
   const destination = () => props.destinationState.destination;
+  const descriptionPinned = () => isConfigPinned(destination(), "description");
 
   const [displayTitle, setDisplayTitle] = createSignal(props.title);
   const [faded, setFaded] = createSignal(false);
@@ -96,6 +101,24 @@ export default function DestinationCard(props: {
             class="truncate"
             markClass="text-slate-300"
           />
+          {/* A tooltip, not a line: the card's height is what the carousel peeks between. */}
+          <Show when={destinationDescription(destination())}>
+            {(description) => (
+              <InfoTooltip
+                class="text-slate-300"
+                content={
+                  <div class="space-y-1">
+                    <p classList={{ italic: descriptionPinned() }}>
+                      {description()}
+                    </p>
+                    <Show when={descriptionPinned()}>
+                      <p class="text-text-muted">Set in your configuration</p>
+                    </Show>
+                  </div>
+                }
+              />
+            )}
+          </Show>
         </span>
       </div>
       <Show when={props.switchEndsAt} keyed>

@@ -44,6 +44,10 @@ fn pinned_destination() -> Destination {
     let mut meta = pinned.clone();
     meta.insert("name".to_string(), "Frankfurt-1".to_string());
     meta.insert("flag".to_string(), "DE".to_string());
+    meta.insert(
+        "description".to_string(),
+        "10Gbit uplink, no logs kept".to_string(),
+    );
     Destination::new(
         "pinned-exit".to_string(),
         address(),

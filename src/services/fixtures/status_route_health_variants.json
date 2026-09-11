@@ -258,7 +258,7 @@
           "name": "Frankfurt-1",
           "location": "Germany",
           "flag": "DE",
-          "description": null,
+          "description": "10Gbit uplink, no logs kept",
           "other": {}
         },
         "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
