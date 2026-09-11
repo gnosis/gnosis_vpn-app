@@ -34,9 +34,9 @@ import Tag from "../common/Tag.tsx";
 import ChevronIcon from "../common/ChevronIcon.tsx";
 
 const statusColorClass: Record<HealthColor, string> = {
-  green: "text-vpn-light-green",
-  yellow: "text-vpn-yellow",
-  red: "text-vpn-red",
+  green: "text-text-green",
+  yellow: "text-text-yellow",
+  red: "text-text-red",
   gray: "text-text-muted",
   default: "text-text-primary",
 };
@@ -147,7 +147,7 @@ export default function ExitHealthDetail(
   const connectionStatus = () => formatConnectionStatus(connectionLabel());
   const connectionStatusClass = () =>
     connectionStatus() === "Connected"
-      ? "font-semibold text-vpn-light-green"
+      ? "font-semibold text-text-green"
       : "font-semibold text-text-primary";
 
   // Use separately measured max-heights because WebKitGTK misrenders 0fr/1fr collapse and nested reads race.

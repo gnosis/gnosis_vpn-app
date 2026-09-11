@@ -61,6 +61,12 @@ select {
   --color-text-secondary: #6b7280;
   --color-text-muted: #9ca3af;
 
+  /* Health text: the vpn palette is tuned for dark, these pass AA at 12px on the #ececec tray */
+  --color-text-green: #166534;
+  --color-text-orange: #9a3412;
+  --color-text-red: #b91c1c;
+  --color-text-yellow: #b45309; /* only used on bg-primary; 4.25 on the tray */
+
   /* Border colors */
   --color-border: #e5e7eb;
 
@@ -99,6 +105,12 @@ select {
   --color-text-primary: #f9fafb;
   --color-text-secondary: #d1d5db;
   --color-text-muted: #9ca3af;
+
+  /* Health text */
+  --color-text-green: var(--color-vpn-light-green);
+  --color-text-orange: var(--color-vpn-orange);
+  --color-text-red: var(--color-vpn-red);
+  --color-text-yellow: var(--color-vpn-yellow);
 
   /* Border colors */
   --color-border: #374151;
@@ -165,6 +177,10 @@ select {
   --color-text-primary: var(--color-text-primary);
   --color-text-secondary: var(--color-text-secondary);
   --color-text-muted: var(--color-text-muted);
+  --color-text-green: var(--color-text-green);
+  --color-text-orange: var(--color-text-orange);
+  --color-text-red: var(--color-text-red);
+  --color-text-yellow: var(--color-text-yellow);
 
   --color-border: var(--color-border);
 
