@@ -106,9 +106,6 @@ export default function DestinationCard(props: {
             {(description) => (
               <InfoTooltip
                 class="text-slate-300"
-                label={descriptionPinned()
-                  ? `${description()}. Set in your configuration`
-                  : description()}
                 content={
                   <div class="space-y-1">
                     <p classList={{ italic: descriptionPinned() }}>
