@@ -7,7 +7,9 @@ use gnosis_vpn_lib::balance::{
 };
 use gnosis_vpn_lib::check_update;
 use gnosis_vpn_lib::command::RouteHealthView;
-use gnosis_vpn_lib::connection::destination::{Destination, HopRouting};
+use gnosis_vpn_lib::connection::destination::{
+    Destination, DestinationSource, HopRouting, Meta, Overrides,
+};
 use gnosis_vpn_lib::prelude::Address;
 use gnosis_vpn_lib::route_health::{
     ExitHealth, Health, LoadAvg, RouteHealthState, Slots, UnrecoverableReason, Versions,
@@ -28,8 +30,34 @@ fn destination() -> Destination {
         "test-exit".to_string(),
         address(),
         HopRouting::try_from(1).unwrap(),
-        meta,
+        Meta::from_map(meta),
+        "172.30.0.1:8000".parse().unwrap(),
+        "172.30.0.1:51820".parse().unwrap(),
+        DestinationSource::Configured,
     )
+}
+
+/// A c+d exit with one pinned label; a second pin would make the HashMap's key order flaky.
+fn pinned_destination() -> Destination {
+    let mut pinned = HashMap::new();
+    pinned.insert("location".to_string(), "Germany".to_string());
+    let mut meta = pinned.clone();
+    meta.insert("name".to_string(), "Frankfurt-1".to_string());
+    meta.insert("flag".to_string(), "DE".to_string());
+    meta.insert(
+        "description".to_string(),
+        "10Gbit uplink, no logs kept".to_string(),
+    );
+    Destination::new(
+        "pinned-exit".to_string(),
+        address(),
+        HopRouting::try_from(1).unwrap(),
+        Meta::from_map(meta),
+        "172.30.0.1:8000".parse().unwrap(),
+        "172.30.0.1:51820".parse().unwrap(),
+        DestinationSource::ConfiguredAndDiscovered,
+    )
+    .with_overrides(Overrides::from_config(pinned, None, None))
 }
 
 fn exit_health() -> ExitHealth {
@@ -277,6 +305,10 @@ fn generate_fixtures() {
             destination: destination(),
             route_health: None,
         },
+        command::DestinationState {
+            destination: pinned_destination(),
+            route_health: None,
+        },
     ];
     write(
         &fixtures_dir,
@@ -326,7 +358,7 @@ fn generate_fixtures() {
     write(
         &fixtures_dir,
         "disconnect_disconnecting.json",
-        &command::DisconnectResponse::Disconnecting(destination()),
+        &command::DisconnectResponse::new(destination()),
     );
 
     // balance_response — all nulls, zero balances

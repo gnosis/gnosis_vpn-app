@@ -18,6 +18,7 @@ vi.mock("@tauri-apps/api/window", () => ({
 }));
 
 import { AppScreen, createScreenSelector } from "./screenSelector.ts";
+import { makeDestination } from "@src/testing/destinations.ts";
 
 const RUNNING: RunMode = {
   Running: { funding_status: null, hopr_status: null },
@@ -56,12 +57,7 @@ const DEGRADED: RouteHealthState = {
 
 function destination(state: RouteHealthState): DestinationState {
   return {
-    destination: {
-      id: "dest-1",
-      meta: { location: "Brazil" },
-      address: "0xexit",
-      routing: 1,
-    },
+    destination: makeDestination({ meta: { location: "Brazil" } }),
     route_health: {
       state,
       last_error: null,

@@ -149,9 +149,57 @@ export function isVpnActive(
     (vpnStatus === "Disconnecting" && targetDestination !== null);
 }
 
+// Longest label value rendered before it is elided; mirrors the client's META_FIELD_MAX_CHARS.
+const META_FIELD_MAX_CHARS = 64;
+
+// Controls plus the zero-width and bidi-override formatting characters that could spoof surrounding text.
+const DISPLAY_UNSAFE =
+  /[\p{Cc}\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/gu;
+
+/** Metadata is operator-published and unverified, so never render it verbatim. */
+export function sanitizeMetaText(text: string): string {
+  const cleaned = Array.from(text.replace(DISPLAY_UNSAFE, ""));
+  if (cleaned.length <= META_FIELD_MAX_CHARS) return cleaned.join("");
+  return cleaned.slice(0, META_FIELD_MAX_CHARS).join("") + "\u2026";
+}
+
+/** The `name` when published, bracketing the key when both differ; a discovered key only repeats the address. */
+export function destinationTitle(d: Destination): string {
+  if (d.meta.name === null) return d.id;
+  const name = sanitizeMetaText(d.meta.name);
+  const keyAddsNothing = d.source === "Discovered" || name === d.id;
+  return keyAddsNothing ? name : `${name}(${d.id})`;
+}
+
+export function destinationLocation(d: Destination): string | null {
+  return d.meta.location === null ? null : sanitizeMetaText(d.meta.location);
+}
+
+export function destinationDescription(d: Destination): string | null {
+  return d.meta.description === null
+    ? null
+    : sanitizeMetaText(d.meta.description);
+}
+
 export function destinationLabel(d: Destination): string {
-  const loc = d.meta?.location;
-  return loc ? `${d.id} - ${loc}` : d.id;
+  const title = destinationTitle(d);
+  const loc = destinationLocation(d);
+  return loc ? `${title} - ${loc}` : title;
+}
+
+/** Label plus description, so the list's search reaches operator blurbs too. */
+export function destinationSearchText(d: Destination): string {
+  const label = destinationLabel(d);
+  const description = destinationDescription(d);
+  return description ? `${label} ${description}` : label;
+}
+
+export type PinnableMeta = "name" | "location" | "flag" | "description";
+
+/** Configuration set this value; only meaningful where config and discovery mix, as on a config-only entry every value is config's. */
+export function isConfigPinned(d: Destination, key: PinnableMeta): boolean {
+  const mixedOrigins = d.source === "ConfiguredAndDiscovered";
+  return mixedOrigins && key in d.overrides.configured_meta;
 }
 
 export function destinationLabelById(
