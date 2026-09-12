@@ -64,8 +64,7 @@ export interface SlotLoad {
 export function getSlotLoad(rhv: RouteHealthView): SlotLoad | null {
   const exit = getExitData(rhv.state);
   if (!exit) return null;
-  const { available, connected } = exit.health.slots;
-  const total = available + connected;
+  const { total, connected } = exit.health.slots;
   if (total <= 0) return null;
   return {
     used: connected,

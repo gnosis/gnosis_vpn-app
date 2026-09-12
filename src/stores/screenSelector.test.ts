@@ -44,7 +44,7 @@ const READY: RouteHealthState = {
     versions: { versions: ["v1"], latest: "v1" },
     ping_rtt: 42,
     health: {
-      slots: { available: 10, connected: 0 },
+      slots: { total: 10, available: 10, connected: 0 },
       load_avg: { one: 0.1, five: 0.2, fifteen: 0.3, nproc: 4 },
     },
   },
