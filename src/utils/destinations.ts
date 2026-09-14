@@ -163,11 +163,13 @@ export function sanitizeMetaText(text: string): string {
   return cleaned.slice(0, META_FIELD_MAX_CHARS).join("") + "\u2026";
 }
 
-/** The published `name`, unless it is spelled exactly like the connect id and so says nothing new. */
+/** The published `name`; a name that respells the connect id says nothing new, unless config pinned it and the override should show. */
 export function destinationName(d: Destination): string | null {
   if (d.meta.name === null) return null;
   const name = sanitizeMetaText(d.meta.name);
-  return name === d.id ? null : name;
+  if (name === "") return null;
+  const respellsId = name === d.id && !isConfigPinned(d, "name");
+  return respellsId ? null : name;
 }
 
 /** A discovered id is the name slugged, so the name alone suffices; a configured id is the user's own handle and leads. */

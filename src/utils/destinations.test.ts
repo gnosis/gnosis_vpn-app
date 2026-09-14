@@ -405,6 +405,25 @@ describe("destinationTitle", () => {
     expect(destinationTitle(dest)).toBe("frankfurt-1");
   });
 
+  it("still shows a pinned name spelled like the id, so the override stays visible", () => {
+    const dest = makeDestination({
+      id: "frankfurt-1",
+      source: "ConfiguredAndDiscovered",
+      meta: { name: "frankfurt-1" },
+      overrides: { configured_meta: { name: "frankfurt-1" } },
+    });
+    expect(destinationTitle(dest)).toBe("frankfurt-1 (frankfurt-1)");
+  });
+
+  it("treats a name that sanitizes to nothing as absent", () => {
+    const dest = makeDestination({
+      id: "0xabc-1234",
+      source: "Discovered",
+      meta: { name: "\u200b\u202e" },
+    });
+    expect(destinationTitle(dest)).toBe("0xabc-1234");
+  });
+
   it("is the published name alone for a discovered destination, whose id is that name slugged", () => {
     const dest = makeDestination({
       id: "frankfurt-1-a1b2",
