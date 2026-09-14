@@ -4534,7 +4534,7 @@ dependencies = [
 [[package]]
 name = "gnosis_vpn-lib"
 version = "0.100.0"
-source = "git+https://github.com/gnosis/gnosis_vpn-client.git?rev=8e90bde5509568150dc754aa95b65f0b27e29477#8e90bde5509568150dc754aa95b65f0b27e29477"
+source = "git+https://github.com/gnosis/gnosis_vpn-client.git?branch=main#91cd9a2daa84a02e6a528bcab6d0c79ce553a120"
 dependencies = [
  "anyhow",
  "async-trait",
