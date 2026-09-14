@@ -23,7 +23,7 @@ const BASE_DESTINATION: Destination = {
 function makeReadyToConnect(
   id: string,
   pingNanos = 50_000_000,
-  slots: Slots = { available: 5, connected: 2 },
+  slots: Slots = { total: 7, available: 5, connected: 2 },
 ): DestinationState {
   return {
     destination: { ...BASE_DESTINATION, id },
@@ -61,6 +61,7 @@ describe("isReady — connectable right now", () => {
 
   it("rejects a full destination, which no connect could succeed against", () => {
     const full = makeReadyToConnect("a", 50_000_000, {
+      total: 5,
       available: 0,
       connected: 5,
     });
@@ -70,6 +71,7 @@ describe("isReady — connectable right now", () => {
 
   it("does not count our own session against the destination we are on", () => {
     const full = makeReadyToConnect("a", 50_000_000, {
+      total: 5,
       available: 0,
       connected: 5,
     });
@@ -169,10 +171,12 @@ describe("sortByCapacityAwareLatency", () => {
     expect(
       sortByCapacityAwareLatency({
         idle: makeReadyToConnect("idle", 60_000_000, {
+          total: 8,
           available: 8,
           connected: 0,
         }),
         busy: makeReadyToConnect("busy", 20_000_000, {
+          total: 8,
           available: 4,
           connected: 4,
         }),
@@ -184,10 +188,12 @@ describe("sortByCapacityAwareLatency", () => {
     expect(
       sortByCapacityAwareLatency({
         small: makeReadyToConnect("small", 20_000_000, {
+          total: 5,
           available: 1,
           connected: 4,
         }),
         large: makeReadyToConnect("large", 60_000_000, {
+          total: 10,
           available: 9,
           connected: 1,
         }),
@@ -199,10 +205,12 @@ describe("sortByCapacityAwareLatency", () => {
     expect(
       sortByCapacityAwareLatency({
         full: makeReadyToConnect("full", 10_000_000, {
+          total: 7,
           available: 0,
           connected: 7,
         }),
         slow: makeReadyToConnect("slow", 200_000_000, {
+          total: 7,
           available: 3,
           connected: 4,
         }),
@@ -214,10 +222,12 @@ describe("sortByCapacityAwareLatency", () => {
     const destinations = {
       // same total capacity, so only the malus can separate them
       here: makeReadyToConnect("here", 80_000_000, {
+        total: 8,
         available: 3,
         connected: 5,
       }),
       there: makeReadyToConnect("there", 40_000_000, {
+        total: 8,
         available: 6,
         connected: 2,
       }),
@@ -231,10 +241,12 @@ describe("sortByCapacityAwareLatency", () => {
   it("stops calling the destination we are on full when we hold its last slot", () => {
     const destinations = {
       here: makeReadyToConnect("here", 90_000_000, {
+        total: 4,
         available: 0,
         connected: 4,
       }),
       there: makeReadyToConnect("there", 10_000_000, {
+        total: 4,
         available: 0,
         connected: 4,
       }),
@@ -253,10 +265,12 @@ describe("sortByCapacityAwareLatency", () => {
     expect(
       sortByCapacityAwareLatency({
         live: makeReadyToConnect("live", 50_000_000, {
+          total: 6,
           available: 4,
           connected: 2,
         }),
         other: makeReadyToConnect("other", 50_000_000, {
+          total: 4,
           available: 4,
           connected: 0,
         }),
@@ -270,6 +284,7 @@ describe("sortByCapacityAwareLatency", () => {
       sortByCapacityAwareLatency({
         "aaa-dead": makeUnavailable("aaa-dead"),
         "bbb-full": makeReadyToConnect("bbb-full", 10_000_000, {
+          total: 5,
           available: 0,
           connected: 5,
         }),
@@ -332,6 +347,7 @@ describe("pickStartupTarget — connect-on-startup pick", () => {
   it("ignores a preferred location that is full", () => {
     const destinations = {
       pref: makeReadyToConnect("pref", 10_000_000, {
+        total: 5,
         available: 0,
         connected: 5,
       }),
@@ -344,6 +360,7 @@ describe("pickStartupTarget — connect-on-startup pick", () => {
   it("never picks a destination that cannot take a connection", () => {
     const destinations = {
       full: makeReadyToConnect("full", 10_000_000, {
+        total: 5,
         available: 0,
         connected: 5,
       }),

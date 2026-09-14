@@ -45,7 +45,8 @@ export type ConnectingInfo = z.infer<typeof ConnectingInfoSchema>;
 export const ReconnectingInfoSchema = z.object({
   destination_id: z.string(),
   since: z.number(),
-  phase: UpPhaseSchema,
+  // null while the daemon waits on route health before the next attempt.
+  phase: UpPhaseSchema.nullable(),
 });
 export type ReconnectingInfo = z.infer<typeof ReconnectingInfoSchema>;
 
@@ -81,6 +82,7 @@ export const DestinationSchema = z.object({
 export type Destination = z.infer<typeof DestinationSchema>;
 
 export const SlotsSchema = z.object({
+  total: z.number(),
   available: z.number(),
   connected: z.number(),
 });

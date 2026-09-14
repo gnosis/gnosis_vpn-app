@@ -98,6 +98,7 @@
             "ping_rtt": 42.0,
             "health": {
               "slots": {
+                "total": 16,
                 "available": 10,
                 "connected": 1
               },
@@ -138,6 +139,7 @@
             "ping_rtt": 42.0,
             "health": {
               "slots": {
+                "total": 16,
                 "available": 10,
                 "connected": 1
               },
