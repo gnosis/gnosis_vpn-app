@@ -1,15 +1,26 @@
 {
-  "WaitingToConnect": [
-    {
-      "id": "test-exit",
-      "meta": {
-        "location": "EU"
-      },
-      "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
-      "routing": 1
+  "type": "WaitingToConnect",
+  "destination": {
+    "id": "test-exit",
+    "meta": {
+      "name": null,
+      "location": "EU",
+      "flag": null,
+      "description": null,
+      "other": {}
     },
-    {
-      "state": "Routable"
+    "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
+    "routing": 1,
+    "gnosis_vpn_server": "172.30.0.1:8000",
+    "wireguard_server": "172.30.0.1:51820",
+    "source": "Configured",
+    "overrides": {
+      "configured_meta": {},
+      "configured_gnosis_vpn_server": null,
+      "configured_wireguard_server": null
     }
-  ]
+  },
+  "route_health": {
+    "state": "Routable"
+  }
 }

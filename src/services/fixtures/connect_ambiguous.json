@@ -1,0 +1,7 @@
+{
+  "type": "DestinationAmbiguous",
+  "connect_ids": [
+    "frankfurt-1",
+    "frankfurt-1-a4c2"
+  ]
+}

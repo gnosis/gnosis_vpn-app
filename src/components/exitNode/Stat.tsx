@@ -1,5 +1,5 @@
 import { type JSX, Show } from "solid-js";
-import Tooltip from "../common/Tooltip.tsx";
+import InfoTooltip from "../common/InfoTooltip.tsx";
 
 export default function Stat(props: {
   label: string;
@@ -13,15 +13,7 @@ export default function Stat(props: {
         <span class="text-text-muted inline-flex items-center gap-1">
           {props.label}
           <Show when={props.tooltip}>
-            <Tooltip content={props.tooltip!}>
-              <span
-                class="text-text-muted hover:text-text-primary cursor-help transition-colors"
-                data-info-icon
-                onClick={(e) => e.stopPropagation()}
-              >
-                &#9432;
-              </span>
-            </Tooltip>
+            <InfoTooltip content={props.tooltip!} />
           </Show>
         </span>
         <span class={props.valueClass ?? "text-text-primary"}>

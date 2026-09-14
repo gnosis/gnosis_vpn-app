@@ -11,13 +11,19 @@ export function resolveFlagCode(code: string): string | undefined {
   return KNOWN_FLAG_CODES.has(parentCode) ? parentCode : undefined;
 }
 
-export default function Flag(props: { code: string }) {
+// A dashed orange outline is the flag's config pill; ring-* is a box-shadow and cannot be dashed.
+const PINNED_OUTLINE =
+  " outline outline-1 outline-dashed outline-offset-1 outline-vpn-orange";
+const PINNED_LABEL = "Flag overridden by your configuration";
+
+export default function Flag(props: { code: string; pinned?: boolean }) {
   const [settings] = useSettingsStore();
 
   const resolvedCode = () => resolveFlagCode(props.code);
   const visible = () =>
     resolvedCode() !== undefined && settings.flagDisplay !== "none";
   const grayscale = () => settings.flagDisplay === "mono";
+  const pinned = () => visible() && props.pinned === true;
 
   return (
     <span
@@ -25,8 +31,12 @@ export default function Flag(props: { code: string }) {
         visible()
           ? `ring-1 ring-inset ring-black/15 dark:ring-slate-950 fi fi-${resolvedCode()}`
           : ""
-      }${grayscale() ? " grayscale" : ""}`}
-      aria-hidden="true"
+      }${grayscale() ? " grayscale" : ""}${pinned() ? PINNED_OUTLINE : ""}`}
+      title={pinned() ? PINNED_LABEL : undefined}
+      // Decorative unless configuration pinned it: that state is otherwise only visual.
+      role={pinned() ? "img" : undefined}
+      aria-label={pinned() ? PINNED_LABEL : undefined}
+      aria-hidden={pinned() ? undefined : "true"}
     />
   );
 }

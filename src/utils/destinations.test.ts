@@ -5,20 +5,27 @@ import type {
   Slots,
 } from "@src/services/vpnService.ts";
 import {
+  destinationDescription,
+  destinationLabel,
+  destinationSearchText,
+  destinationTitle,
+  isConfigOnly,
+  isConfigPinned,
   isReady,
   isReadyForDisplay,
   isVpnActive,
   pickStartupTarget,
+  sanitizeMetaText,
   sortAlphaDestinations,
   sortByCapacityAwareLatency,
 } from "./destinations.ts";
+import { makeDestination } from "@src/testing/destinations.ts";
 
-const BASE_DESTINATION: Destination = {
+const BASE_DESTINATION: Destination = makeDestination({
   id: "a",
-  meta: { location: "EU" },
   address: "0x1234",
-  routing: 1,
-};
+  meta: { location: "EU" },
+});
 
 function makeReadyToConnect(
   id: string,
@@ -369,5 +376,178 @@ describe("pickStartupTarget — connect-on-startup pick", () => {
 
     expect(pickStartupTarget(destinations, null)).toBeNull();
     expect(pickStartupTarget({}, null)).toBeNull();
+  });
+});
+
+// Mirrors the client's naming rule so the app and gvpn-ctl name an exit the same way.
+describe("destinationTitle", () => {
+  it("is the connect id without a name", () => {
+    expect(destinationTitle(makeDestination({ id: "my-exit" }))).toBe(
+      "my-exit",
+    );
+  });
+
+  it("leads with a configured id, the user's own handle, and brackets the published name", () => {
+    const dest = makeDestination({
+      id: "my-exit",
+      source: "ConfiguredAndDiscovered",
+      meta: { name: "Frankfurt-1" },
+    });
+    expect(destinationTitle(dest)).toBe("my-exit (Frankfurt-1)");
+  });
+
+  it("does not repeat a name spelled exactly like the configured id", () => {
+    const dest = makeDestination({
+      id: "frankfurt-1",
+      source: "ConfiguredAndDiscovered",
+      meta: { name: "frankfurt-1" },
+    });
+    expect(destinationTitle(dest)).toBe("frankfurt-1");
+  });
+
+  it("still shows a pinned name spelled like the id, so the override stays visible", () => {
+    const dest = makeDestination({
+      id: "frankfurt-1",
+      source: "ConfiguredAndDiscovered",
+      meta: { name: "frankfurt-1" },
+      overrides: { configured_meta: { name: "frankfurt-1" } },
+    });
+    expect(destinationTitle(dest)).toBe("frankfurt-1 (frankfurt-1)");
+  });
+
+  it("treats a name that sanitizes to nothing as absent", () => {
+    const dest = makeDestination({
+      id: "0xabc-1234",
+      source: "Discovered",
+      meta: { name: "\u200b\u202e" },
+    });
+    expect(destinationTitle(dest)).toBe("0xabc-1234");
+  });
+
+  it("is the published name alone for a discovered destination, whose id is that name slugged", () => {
+    const dest = makeDestination({
+      id: "frankfurt-1-a1b2",
+      source: "Discovered",
+      meta: { name: "Frankfurt-1" },
+    });
+    expect(destinationTitle(dest)).toBe("Frankfurt-1");
+  });
+
+  it("puts the location after the title in the label", () => {
+    const dest = makeDestination({
+      id: "frankfurt-1-a1b2",
+      source: "Discovered",
+      meta: { name: "Frankfurt-1", location: "Germany" },
+    });
+    expect(destinationLabel(dest)).toBe("Frankfurt-1 - Germany");
+  });
+});
+
+describe("sanitizeMetaText", () => {
+  it("strips control and bidi-override characters", () => {
+    expect(sanitizeMetaText("\u001b[2K\u202eGermany\u200b")).toBe("[2KGermany");
+  });
+
+  it("elides after 64 code points, counting characters rather than UTF-16 units", () => {
+    const long = "\u{1F1E9}".repeat(70);
+    const shown = sanitizeMetaText(long);
+    expect(Array.from(shown)).toHaveLength(65);
+    expect(shown.endsWith("\u2026")).toBe(true);
+  });
+
+  it("leaves a short plain value alone", () => {
+    expect(sanitizeMetaText("Germany")).toBe("Germany");
+  });
+});
+
+describe("destinationDescription", () => {
+  it("is null when the operator published none", () => {
+    expect(destinationDescription(makeDestination())).toBeNull();
+  });
+
+  it("sanitizes the published text like every other label", () => {
+    const dest = makeDestination({
+      meta: { description: "\u202e10Gbit uplink\u200b" },
+    });
+    expect(destinationDescription(dest)).toBe("10Gbit uplink");
+  });
+
+  it("elides past 64 characters", () => {
+    const dest = makeDestination({ meta: { description: "a".repeat(70) } });
+    expect(destinationDescription(dest)).toBe("a".repeat(64) + "\u2026");
+  });
+});
+
+describe("destinationSearchText", () => {
+  it("appends the description so a search can reach it", () => {
+    const dest = makeDestination({
+      id: "my-exit",
+      meta: { location: "Germany", description: "no logs kept" },
+    });
+    expect(destinationSearchText(dest)).toBe("my-exit - Germany no logs kept");
+  });
+
+  it("is just the label when no description was published", () => {
+    const dest = makeDestination({ id: "my-exit" });
+    expect(destinationSearchText(dest)).toBe("my-exit");
+  });
+
+  it("keeps a configured id searchable beside the published name", () => {
+    const dest = makeDestination({
+      id: "pinned-exit",
+      source: "ConfiguredAndDiscovered",
+      meta: { name: "Frankfurt-1" },
+    });
+    expect(destinationSearchText(dest)).toContain("pinned-exit");
+  });
+});
+
+describe("isConfigOnly", () => {
+  it("is true only for a destination discovery never saw", () => {
+    expect(isConfigOnly(makeDestination({ source: "Configured" }))).toBe(true);
+    expect(isConfigOnly(makeDestination({ source: "Discovered" }))).toBe(false);
+    expect(isConfigOnly(makeDestination({ source: "ConfiguredAndDiscovered" })))
+      .toBe(false);
+  });
+});
+
+// The ctl's rule: configuration's own values are marked only where config and discovery mix.
+describe("isConfigPinned", () => {
+  const pinnedLocation = { configured_meta: { location: "Germany" } };
+
+  it("marks a value configuration set on a configured-and-discovered destination", () => {
+    const dest = makeDestination({
+      source: "ConfiguredAndDiscovered",
+      meta: { location: "Germany" },
+      overrides: pinnedLocation,
+    });
+    expect(isConfigPinned(dest, "location")).toBe(true);
+    expect(isConfigPinned(dest, "name")).toBe(false);
+  });
+
+  it("marks a pinned description", () => {
+    const dest = makeDestination({
+      source: "ConfiguredAndDiscovered",
+      meta: { description: "10Gbit uplink" },
+      overrides: { configured_meta: { description: "10Gbit uplink" } },
+    });
+    expect(isConfigPinned(dest, "description")).toBe(true);
+  });
+
+  it("marks nothing on a config-only destination, where every value is config's by definition", () => {
+    const dest = makeDestination({
+      source: "Configured",
+      meta: { location: "Germany" },
+      overrides: pinnedLocation,
+    });
+    expect(isConfigPinned(dest, "location")).toBe(false);
+  });
+
+  it("marks nothing on a discovered-only destination", () => {
+    const dest = makeDestination({
+      source: "Discovered",
+      meta: { location: "Germany" },
+    });
+    expect(isConfigPinned(dest, "location")).toBe(false);
   });
 });

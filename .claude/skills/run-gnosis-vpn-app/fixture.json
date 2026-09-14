@@ -19,12 +19,22 @@
           {
             "destination": {
               "id": "dest-berlin",
-              "meta": { "location": "Germany, Berlin" },
+              "meta": {
+                "name": null,
+                "location": "Germany, Berlin",
+                "description": null,
+                "other": {}
+              },
               "address": "0x1111111111111111111111111111111111111111",
-              "routing": 1
+              "routing": 1,
+              "gnosis_vpn_server": "172.30.0.1:8000",
+              "wireguard_server": "172.30.0.1:51820",
+              "source": "Configured"
             },
             "route_health": {
-              "state": { "state": "Routable" },
+              "state": {
+                "state": "Routable"
+              },
               "last_error": null,
               "checking_since": null,
               "consecutive_failures": 0
@@ -33,12 +43,22 @@
           {
             "destination": {
               "id": "dest-zurich",
-              "meta": { "location": "Switzerland, Zurich" },
+              "meta": {
+                "name": null,
+                "location": "Switzerland, Zurich",
+                "description": null,
+                "other": {}
+              },
               "address": "0x2222222222222222222222222222222222222222",
-              "routing": 1
+              "routing": 1,
+              "gnosis_vpn_server": "172.30.0.1:8000",
+              "wireguard_server": "172.30.0.1:51820",
+              "source": "Configured"
             },
             "route_health": {
-              "state": { "state": "Routable" },
+              "state": {
+                "state": "Routable"
+              },
               "last_error": null,
               "checking_since": null,
               "consecutive_failures": 0

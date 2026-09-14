@@ -4,6 +4,7 @@ import type {
   RunMode,
   StatusResponse,
 } from "@src/services/vpnService.ts";
+import { makeDestination } from "@src/testing/destinations.ts";
 
 const { invokeMock } = vi.hoisted(() => ({
   invokeMock: vi.fn((_cmd: string, _args: { message: string }) =>
@@ -21,12 +22,7 @@ const RUNNING: RunMode = {
 };
 
 const DESTINATION: DestinationState = {
-  destination: {
-    id: "dest-1",
-    meta: { location: "Brazil" },
-    address: "0xexit",
-    routing: 1,
-  },
+  destination: makeDestination({ meta: { location: "Brazil" } }),
   route_health: null,
 };
 

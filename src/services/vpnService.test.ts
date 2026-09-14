@@ -27,6 +27,7 @@ import connectConnecting from "./fixtures/connect_connecting.json";
 import connectAlreadyConnected from "./fixtures/connect_already_connected.json";
 import connectWaiting from "./fixtures/connect_waiting.json";
 import connectUnable from "./fixtures/connect_unable.json";
+import connectAmbiguous from "./fixtures/connect_ambiguous.json";
 import disconnectNotConnected from "./fixtures/disconnect_not_connected.json";
 import disconnectDisconnecting from "./fixtures/disconnect_disconnecting.json";
 import balanceResponse from "./fixtures/balance_response.json";
@@ -134,6 +135,12 @@ describe("ConnectResponseSchema", () => {
   it("parses UnableToConnect", () => {
     expect(ConnectResponseSchema.safeParse(connectUnable).success).toBe(true);
   });
+
+  it("parses DestinationAmbiguous", () => {
+    expect(ConnectResponseSchema.safeParse(connectAmbiguous).success).toBe(
+      true,
+    );
+  });
 });
 
 describe("DisconnectResponseSchema", () => {
@@ -196,11 +203,35 @@ describe("ServiceInfoSchema", () => {
 });
 
 describe("DestinationSchema flag parsing", () => {
-  const destination = (flag: string) => ({
+  // Wire-shaped input, as the daemon sends it, so the parse is exercised end to end.
+  const destination = (flag: string | null) => ({
     id: "dest-1",
-    meta: { location: "Somewhere", flag },
+    meta: {
+      name: null,
+      location: "Somewhere",
+      flag,
+      description: null,
+      other: {},
+    },
     address: "0x1111111111111111111111111111111111111111",
     routing: 1,
+    gnosis_vpn_server: "172.30.0.1:8000",
+    wireguard_server: "172.30.0.1:51820",
+    source: "Configured",
+  });
+
+  it("turns an unset flag into undefined", () => {
+    const result = DestinationSchema.safeParse(destination(null));
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.meta.flag).toBeUndefined();
+  });
+
+  it("defaults the overrides an older daemon does not send", () => {
+    const result = DestinationSchema.safeParse(destination("DE"));
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.overrides.configured_meta).toEqual({});
   });
 
   it("keeps a plain alpha-2 code", () => {

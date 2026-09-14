@@ -19,17 +19,17 @@ import {
   SWITCH_CROSSOVER_MS,
   type UserInputEvent,
 } from "./destinationMode.ts";
+import { makeDestination } from "@src/testing/destinations.ts";
 
 // Derived from docs/destinationMode.md — where spec and implementation disagree, the spec wins and the case is expected to fail.
 
 const SETTLE_MS = SWITCH_COUNTDOWN_MS + SWITCH_CROSSOVER_MS;
 
-const BASE_DESTINATION: Destination = {
+const BASE_DESTINATION: Destination = makeDestination({
   id: "a",
-  meta: { location: "EU" },
   address: "0x1234",
-  routing: 1,
-};
+  meta: { location: "EU" },
+});
 
 function makeReadyToConnect(
   id: string,
