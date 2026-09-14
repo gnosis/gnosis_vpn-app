@@ -1,5 +1,6 @@
 {
-  "Connecting": {
+  "type": "Connecting",
+  "destination": {
     "id": "test-exit",
     "meta": {
       "name": null,

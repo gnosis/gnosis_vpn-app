@@ -163,12 +163,10 @@ export function sanitizeMetaText(text: string): string {
   return cleaned.slice(0, META_FIELD_MAX_CHARS).join("") + "\u2026";
 }
 
-/** The `name` when published, bracketing the key when both differ; a discovered key only repeats the address. */
+/** The published `name`; the connect id is that name slugged, so bracketing it would only repeat it. */
 export function destinationTitle(d: Destination): string {
   if (d.meta.name === null) return d.id;
-  const name = sanitizeMetaText(d.meta.name);
-  const keyAddsNothing = d.source === "Discovered" || name === d.id;
-  return keyAddsNothing ? name : `${name}(${d.id})`;
+  return sanitizeMetaText(d.meta.name);
 }
 
 export function destinationLocation(d: Destination): string | null {

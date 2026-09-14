@@ -102,7 +102,7 @@ export const DestinationSchema = z.object({
   gnosis_vpn_server: z.string(),
   wireguard_server: z.string(),
   source: DestinationSourceSchema,
-  // Absent from an older daemon's payload, where nothing was overridable.
+  // The daemon always sends this; defaulted so a missing one degrades to "nothing pinned".
   overrides: OverridesSchema.default({
     configured_meta: {},
     configured_gnosis_vpn_server: null,
@@ -112,6 +112,7 @@ export const DestinationSchema = z.object({
 export type Destination = z.infer<typeof DestinationSchema>;
 
 export const SlotsSchema = z.object({
+  total: z.number(),
   available: z.number(),
   connected: z.number(),
 });
@@ -179,22 +180,37 @@ export const DestinationStateSchema = z.object({
 });
 export type DestinationState = z.infer<typeof DestinationStateSchema>;
 
-export const ConnectResponseSchema = z.union([
-  z.object({ AlreadyConnected: DestinationSchema }),
-  z.object({ Connecting: DestinationSchema }),
+export const ConnectResponseSchema = z.discriminatedUnion("type", [
   z.object({
-    WaitingToConnect: z.tuple([DestinationSchema, RouteHealthStateSchema]),
+    type: z.literal("AlreadyConnected"),
+    destination: DestinationSchema,
+  }),
+  z.object({ type: z.literal("Connecting"), destination: DestinationSchema }),
+  z.object({
+    type: z.literal("WaitingToConnect"),
+    destination: DestinationSchema,
+    route_health: RouteHealthStateSchema,
   }),
   z.object({
-    UnableToConnect: z.tuple([DestinationSchema, RouteHealthStateSchema]),
+    type: z.literal("UnableToConnect"),
+    destination: DestinationSchema,
+    route_health: RouteHealthStateSchema,
   }),
-  z.literal("DestinationNotFound"),
+  z.object({ type: z.literal("DestinationNotFound") }),
+  // One exit reachable by several paths; the user has to pick a connect id.
+  z.object({
+    type: z.literal("DestinationAmbiguous"),
+    connect_ids: z.array(z.string()),
+  }),
 ]);
 export type ConnectResponse = z.infer<typeof ConnectResponseSchema>;
 
-export const DisconnectResponseSchema = z.union([
-  z.object({ Disconnecting: DestinationSchema }),
-  z.literal("NotConnected"),
+export const DisconnectResponseSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("Disconnecting"),
+    destination: DestinationSchema,
+  }),
+  z.object({ type: z.literal("NotConnected") }),
 ]);
 export type DisconnectResponse = z.infer<typeof DisconnectResponseSchema>;
 

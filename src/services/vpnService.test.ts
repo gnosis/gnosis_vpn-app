@@ -27,6 +27,7 @@ import connectConnecting from "./fixtures/connect_connecting.json";
 import connectAlreadyConnected from "./fixtures/connect_already_connected.json";
 import connectWaiting from "./fixtures/connect_waiting.json";
 import connectUnable from "./fixtures/connect_unable.json";
+import connectAmbiguous from "./fixtures/connect_ambiguous.json";
 import disconnectNotConnected from "./fixtures/disconnect_not_connected.json";
 import disconnectDisconnecting from "./fixtures/disconnect_disconnecting.json";
 import balanceResponse from "./fixtures/balance_response.json";
@@ -133,6 +134,12 @@ describe("ConnectResponseSchema", () => {
 
   it("parses UnableToConnect", () => {
     expect(ConnectResponseSchema.safeParse(connectUnable).success).toBe(true);
+  });
+
+  it("parses DestinationAmbiguous", () => {
+    expect(ConnectResponseSchema.safeParse(connectAmbiguous).success).toBe(
+      true,
+    );
   });
 });
 

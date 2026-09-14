@@ -141,9 +141,9 @@ dependencies = [
 
 [[package]]
 name = "alloy-chains"
-version = "0.2.37"
+version = "0.2.38"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e5fdcfed8f106be3df944054aaa42bc13ae103a3ac8a9f4b08d4f053e3a743f8"
+checksum = "21e8b1ebba2b80691b880da6d6add754b740252352959948e50c9d6a93c64f01"
 dependencies = [
  "alloy-primitives",
  "num_enum",
@@ -4536,7 +4536,7 @@ dependencies = [
 [[package]]
 name = "gnosis_vpn-lib"
 version = "0.100.0"
-source = "git+https://github.com/gnosis/gnosis_vpn-client.git?rev=8c314adfc0e447f3c28454ce7ff15883a247633e#8c314adfc0e447f3c28454ce7ff15883a247633e"
+source = "git+https://github.com/gnosis/gnosis_vpn-client.git?branch=este%2Fconfig-v7#17ba3fbfb8edc073dd6ee0cfe2289437b393939a"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7418,7 +7418,7 @@ dependencies = [
 [[package]]
 name = "neptun"
 version = "2.2.3"
-source = "git+https://github.com/NordSecurity/neptun.git?tag=v3.0.1#a45a31d28780695cb816d5e245a70bd520bd1293"
+source = "git+https://github.com/NordSecurity/neptun.git?tag=v3.0.2#3a400950a68b4490cb7aeb6f1a5ec91e5e02ba55"
 dependencies = [
  "aead 0.5.2",
  "base64 0.22.1",

@@ -8,7 +8,11 @@ import {
 } from "./exitHealth.ts";
 import type { RouteHealthView } from "@src/services/vpnService.ts";
 
-function readyWithSlots(available: number, connected: number): RouteHealthView {
+function readyWithSlots(
+  available: number,
+  connected: number,
+  total: number = available + connected,
+): RouteHealthView {
   return {
     state: {
       state: "ReadyToConnect",
@@ -17,7 +21,7 @@ function readyWithSlots(available: number, connected: number): RouteHealthView {
         versions: { versions: ["1"], latest: "1" },
         ping_rtt: 100,
         health: {
-          slots: { available, connected },
+          slots: { total, available, connected },
           load_avg: { one: 0, five: 0, fifteen: 0, nproc: 1 },
         },
       },
@@ -41,7 +45,7 @@ function connecting(
         versions: { versions: ["1"], latest: "1" },
         ping_rtt: exitPingRtt,
         health: {
-          slots: { available: 1, connected: 1 },
+          slots: { total: 2, available: 1, connected: 1 },
           load_avg: { one: 0, five: 0, fifteen: 0, nproc: 1 },
         },
       },
@@ -75,6 +79,14 @@ describe("getSlotLoad", () => {
   it("rounds to the nearest whole percent", () => {
     expect(getSlotLoad(readyWithSlots(2, 1))?.percent).toBe(33);
     expect(getSlotLoad(readyWithSlots(1, 2))?.percent).toBe(67);
+  });
+
+  it("takes the total from the server, so pending registrations do not shrink it", () => {
+    expect(getSlotLoad(readyWithSlots(11, 0, 16))).toEqual({
+      used: 0,
+      total: 16,
+      percent: 0,
+    });
   });
 
   it("is null when the exit reports no slots at all", () => {

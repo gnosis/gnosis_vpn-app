@@ -8,7 +8,7 @@ use gnosis_vpn_lib::balance::{
 use gnosis_vpn_lib::check_update;
 use gnosis_vpn_lib::command::RouteHealthView;
 use gnosis_vpn_lib::connection::destination::{
-    Destination, DestinationSource, HopRouting, Meta, Overrides,
+    Destination, DestinationSource, Destinations, HopRouting, Meta, Overrides,
 };
 use gnosis_vpn_lib::prelude::Address;
 use gnosis_vpn_lib::route_health::{
@@ -70,6 +70,7 @@ fn exit_health() -> ExitHealth {
         ping_rtt: Duration::from_millis(42),
         health: Health {
             slots: Slots {
+                total: 16,
                 available: 10,
                 connected: 1,
             },
@@ -331,23 +332,40 @@ fn generate_fixtures() {
     );
     write(
         &fixtures_dir,
+        "connect_ambiguous.json",
+        &command::ConnectResponse::DestinationAmbiguous {
+            connect_ids: vec!["frankfurt-1".to_string(), "frankfurt-1-a4c2".to_string()],
+        },
+    );
+    write(
+        &fixtures_dir,
         "connect_connecting.json",
-        &command::ConnectResponse::Connecting(destination()),
+        &command::ConnectResponse::Connecting {
+            destination: destination(),
+        },
     );
     write(
         &fixtures_dir,
         "connect_already_connected.json",
-        &command::ConnectResponse::AlreadyConnected(destination()),
+        &command::ConnectResponse::AlreadyConnected {
+            destination: destination(),
+        },
     );
     write(
         &fixtures_dir,
         "connect_waiting.json",
-        &command::ConnectResponse::WaitingToConnect(destination(), RouteHealthState::Routable),
+        &command::ConnectResponse::WaitingToConnect {
+            destination: destination(),
+            route_health: RouteHealthState::Routable,
+        },
     );
     write(
         &fixtures_dir,
         "connect_unable.json",
-        &command::ConnectResponse::UnableToConnect(destination(), RouteHealthState::NeedsChannel),
+        &command::ConnectResponse::UnableToConnect {
+            destination: destination(),
+            route_health: RouteHealthState::NeedsChannel,
+        },
     );
 
     write(
@@ -365,7 +383,7 @@ fn generate_fixtures() {
     let balance_zero = types::BalanceResponse::from(command::BalanceResponse::build(
         &balance_info(),
         &zero_balances(),
-        &HashMap::new(),
+        &Destinations::default(),
         None,
         None,
         None,
@@ -396,7 +414,7 @@ fn generate_fixtures() {
     let balance_with_issues = types::BalanceResponse::from(command::BalanceResponse::build(
         &balance_info(),
         &balances_with_funds,
-        &HashMap::new(),
+        &Destinations::default(),
         None,
         Some(ideal),
         Some(funding_status),
@@ -435,7 +453,7 @@ fn generate_fixtures() {
     let balance_with_capacity = types::BalanceResponse::from(command::BalanceResponse::build(
         &balance_info(),
         &balances_with_funds,
-        &HashMap::new(),
+        &Destinations::default(),
         Some(&capacity_allocations),
         None,
         None,
