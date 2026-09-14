@@ -7,6 +7,7 @@ import { useAppStore } from "@src/stores/appStore.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import {
   destinationDescription,
+  isConfigOnly,
   isConfigPinned,
 } from "@src/utils/destinations.ts";
 import {
@@ -29,7 +30,10 @@ import SlotLoadStat from "./SlotLoadStat.tsx";
 import Stat from "./Stat.tsx";
 import Tag from "../common/Tag.tsx";
 import Flag from "../Flag.tsx";
-import ConfigPinMark from "./ConfigPinMark.tsx";
+import ConfigPill, {
+  CONFIG_ONLY_DESTINATION,
+  OVERRIDDEN_VALUE,
+} from "./ConfigPill.tsx";
 
 export default function ExitNodeCard(props: {
   destinationState: () => DestinationState;
@@ -49,6 +53,12 @@ export default function ExitNodeCard(props: {
     destinationDescription(props.destinationState().destination);
   const descriptionPinned = () =>
     isConfigPinned(props.destinationState().destination, "description");
+  const configOnly = () => isConfigOnly(props.destinationState().destination);
+  // Orange tint: every value of this destination is configuration's.
+  const surfaceClass = () =>
+    configOnly()
+      ? "bg-vpn-orange/15 hover:bg-vpn-orange/25"
+      : "bg-bg-surface-alt hover:bg-bg-surface";
 
   const connectionLabel = createMemo(() =>
     getConnectionState(
@@ -106,10 +116,8 @@ export default function ExitNodeCard(props: {
 
   return (
     <div
-      class={`relative flex w-full bg-bg-surface-alt text-xs transition-opacity ${
-        !isClickable()
-          ? "opacity-40 pointer-events-none"
-          : "cursor-pointer hover:bg-bg-surface"
+      class={`relative flex w-full text-xs transition-opacity ${surfaceClass()} ${
+        !isClickable() ? "opacity-40 pointer-events-none" : "cursor-pointer"
       }`}
       onClick={() => {
         if (!isClickable()) return;
@@ -151,6 +159,9 @@ export default function ExitNodeCard(props: {
               destination={props.destinationState().destination}
               class="break-all"
             />
+            <Show when={configOnly()}>
+              <ConfigPill tooltip={CONFIG_ONLY_DESTINATION} class="size-2.5" />
+            </Show>
           </span>
           <Show when={route() && hopCount() !== 1}>
             <Tag>
@@ -163,10 +174,8 @@ export default function ExitNodeCard(props: {
         <Show when={description()}>
           {(text) => (
             <p class="mb-1 text-text-secondary">
-              <span classList={{ italic: descriptionPinned() }}>{text()}</span>
-              <Show when={descriptionPinned()}>
-                {" "}
-                <ConfigPinMark />
+              <Show when={descriptionPinned()} fallback={text()}>
+                <ConfigPill tooltip={OVERRIDDEN_VALUE}>{text()}</ConfigPill>
               </Show>
             </p>
           )}

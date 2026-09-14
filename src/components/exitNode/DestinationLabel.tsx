@@ -5,34 +5,32 @@ import {
   destinationTitle,
   isConfigPinned,
 } from "@src/utils/destinations.ts";
-import ConfigPinMark from "./ConfigPinMark.tsx";
+import ConfigPill, { OVERRIDDEN_VALUE } from "./ConfigPill.tsx";
 
-/** `title - location`, each value italic and marked `(c)` where configuration pinned it, as gvpn-ctl does. */
+/** `title - location`, each value an orange pill where configuration overrode discovery. */
 export default function DestinationLabel(props: {
   destination: Destination;
   class?: string;
-  markClass?: string;
 }) {
   const namePinned = () => isConfigPinned(props.destination, "name");
   const locationPinned = () => isConfigPinned(props.destination, "location");
 
   return (
     <span class={props.class}>
-      <span classList={{ italic: namePinned() }}>
-        {destinationTitle(props.destination)}
-      </span>
-      <Show when={namePinned()}>
-        {" "}
-        <ConfigPinMark class={props.markClass} />
+      <Show
+        when={namePinned()}
+        fallback={<span>{destinationTitle(props.destination)}</span>}
+      >
+        <ConfigPill tooltip={OVERRIDDEN_VALUE}>
+          {destinationTitle(props.destination)}
+        </ConfigPill>
       </Show>
       <Show when={destinationLocation(props.destination)}>
         {(location) => (
           <>
             {" - "}
-            <span classList={{ italic: locationPinned() }}>{location()}</span>
-            <Show when={locationPinned()}>
-              {" "}
-              <ConfigPinMark class={props.markClass} />
+            <Show when={locationPinned()} fallback={<span>{location()}</span>}>
+              <ConfigPill tooltip={OVERRIDDEN_VALUE}>{location()}</ConfigPill>
             </Show>
           </>
         )}

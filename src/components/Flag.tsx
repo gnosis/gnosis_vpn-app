@@ -11,8 +11,9 @@ export function resolveFlagCode(code: string): string | undefined {
   return KNOWN_FLAG_CODES.has(parentCode) ? parentCode : undefined;
 }
 
-// A dashed outline is the flag's `(c)` mark; ring-* is a box-shadow and cannot be dashed.
-const PINNED_OUTLINE = " outline outline-1 outline-dashed outline-offset-1";
+// A dashed orange outline is the flag's config pill; ring-* is a box-shadow and cannot be dashed.
+const PINNED_OUTLINE =
+  " outline outline-1 outline-dashed outline-offset-1 outline-vpn-orange";
 
 export default function Flag(props: { code: string; pinned?: boolean }) {
   const [settings] = useSettingsStore();
@@ -30,7 +31,7 @@ export default function Flag(props: { code: string; pinned?: boolean }) {
           ? `ring-1 ring-inset ring-black/15 dark:ring-slate-950 fi fi-${resolvedCode()}`
           : ""
       }${grayscale() ? " grayscale" : ""}${pinned() ? PINNED_OUTLINE : ""}`}
-      title={pinned() ? "Flag set in your configuration" : undefined}
+      title={pinned() ? "Flag overridden by your configuration" : undefined}
       aria-hidden="true"
     />
   );

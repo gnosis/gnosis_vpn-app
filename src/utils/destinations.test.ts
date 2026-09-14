@@ -9,6 +9,7 @@ import {
   destinationLabel,
   destinationSearchText,
   destinationTitle,
+  isConfigOnly,
   isConfigPinned,
   isReady,
   isReadyForDisplay,
@@ -462,7 +463,16 @@ describe("destinationSearchText", () => {
   });
 });
 
-// The ctl's rule: (c) marks configuration's own values, and only where config and discovery mix.
+describe("isConfigOnly", () => {
+  it("is true only for a destination discovery never saw", () => {
+    expect(isConfigOnly(makeDestination({ source: "Configured" }))).toBe(true);
+    expect(isConfigOnly(makeDestination({ source: "Discovered" }))).toBe(false);
+    expect(isConfigOnly(makeDestination({ source: "ConfiguredAndDiscovered" })))
+      .toBe(false);
+  });
+});
+
+// The ctl's rule: configuration's own values are marked only where config and discovery mix.
 describe("isConfigPinned", () => {
   const pinnedLocation = { configured_meta: { location: "Germany" } };
 
@@ -476,7 +486,7 @@ describe("isConfigPinned", () => {
     expect(isConfigPinned(dest, "name")).toBe(false);
   });
 
-  it("marks a pinned description, as gvpn-ctl does", () => {
+  it("marks a pinned description", () => {
     const dest = makeDestination({
       source: "ConfiguredAndDiscovered",
       meta: { description: "10Gbit uplink" },

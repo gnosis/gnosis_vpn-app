@@ -200,6 +200,11 @@ export function isConfigPinned(d: Destination, key: PinnableMeta): boolean {
   return mixedOrigins && key in d.overrides.configured_meta;
 }
 
+/** Every value is config's: nothing was discovered for this destination. */
+export function isConfigOnly(d: Destination): boolean {
+  return d.source === "Configured";
+}
+
 export function destinationLabelById(
   id: string,
   available: Destination[],

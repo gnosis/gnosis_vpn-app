@@ -2,10 +2,15 @@ import { createEffect, createSignal, on, onCleanup, Show } from "solid-js";
 import type { DestinationState } from "@src/services/vpnService.ts";
 import {
   destinationDescription,
+  isConfigOnly,
   isConfigPinned,
 } from "@src/utils/destinations.ts";
 import Flag from "../Flag.tsx";
 import InfoTooltip from "../common/InfoTooltip.tsx";
+import ConfigPill, {
+  CONFIG_ONLY_DESTINATION,
+  OVERRIDDEN_VALUE,
+} from "./ConfigPill.tsx";
 import DestinationLabel from "./DestinationLabel.tsx";
 import SwitchSpinner from "./SwitchSpinner.tsx";
 import ExitNodeListButton from "./ExitNodeListButton.tsx";
@@ -33,6 +38,7 @@ export default function DestinationCard(props: {
 }) {
   const destination = () => props.destinationState.destination;
   const descriptionPinned = () => isConfigPinned(destination(), "description");
+  const configOnly = () => isConfigOnly(destination());
 
   const [displayTitle, setDisplayTitle] = createSignal(props.title);
   const [faded, setFaded] = createSignal(false);
@@ -81,7 +87,13 @@ export default function DestinationCard(props: {
   );
 
   return (
-    <div class="flex w-full shrink-0 items-center justify-between gap-2 rounded-2xl bg-bg-card px-3 py-3.5">
+    <div
+      class="flex w-full shrink-0 items-center justify-between gap-2 rounded-2xl px-3 py-3.5"
+      classList={{
+        "bg-vpn-orange/20": configOnly(),
+        "bg-bg-card": !configOnly(),
+      }}
+    >
       <div class="flex flex-1 flex-col gap-4 min-w-0">
         <span
           class="text-xs text-text-secondary transition-opacity ease-out"
@@ -95,12 +107,10 @@ export default function DestinationCard(props: {
             code={destination().meta.flag ?? ""}
             pinned={isConfigPinned(destination(), "flag")}
           />
-          {/* The card's bg-slate-700 is fixed, so the marker colour is too. */}
-          <DestinationLabel
-            destination={destination()}
-            class="truncate"
-            markClass="text-slate-300"
-          />
+          <DestinationLabel destination={destination()} class="truncate" />
+          <Show when={configOnly()}>
+            <ConfigPill tooltip={CONFIG_ONLY_DESTINATION} class="size-2.5" />
+          </Show>
           {/* A tooltip, not a line: the card's height is what the carousel peeks between. */}
           <Show when={destinationDescription(destination())}>
             {(description) => (
@@ -108,11 +118,17 @@ export default function DestinationCard(props: {
                 class="text-slate-300"
                 content={
                   <div class="space-y-1">
-                    <p classList={{ italic: descriptionPinned() }}>
+                    {/* The pill look inline: a tooltip cannot nest another tooltip. */}
+                    <p
+                      classList={{
+                        "rounded bg-vpn-orange px-1 text-slate-900":
+                          descriptionPinned(),
+                      }}
+                    >
                       {description()}
                     </p>
                     <Show when={descriptionPinned()}>
-                      <p class="text-text-muted">Set in your configuration</p>
+                      <p class="text-text-muted">{OVERRIDDEN_VALUE}</p>
                     </Show>
                   </div>
                 }
