@@ -33,7 +33,7 @@ jobs:
     steps:
       - name: Harden Runner
         if: startsWith(inputs.runner, 'depot-ubuntu')
-        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
         with:
           disable-sudo: false
           egress-policy: audit
@@ -96,7 +96,7 @@ jobs:
       - name: Setup Deno
         uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
-          deno-version: 2.9.5
+          deno-version: 2.9.6
       - name: install ubuntu dependencies
         if: ${{ endsWith(inputs.architecture, '-linux') }}
         run: |
