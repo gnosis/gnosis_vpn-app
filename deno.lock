@@ -7,7 +7,7 @@
     "npm:@tauri-apps/plugin-dialog@2.7.2": "2.7.2",
     "npm:@tauri-apps/plugin-opener@^2.5.4": "2.5.4",
     "npm:@types/qrcode@^1.5.6": "1.5.6",
-    "npm:dompurify@^3.4.13": "3.4.13",
+    "npm:dompurify@^3.4.14": "3.4.15",
     "npm:eslint@^10.8.1": "10.8.1",
     "npm:flag-icons@^7.5.0": "7.5.0",
     "npm:marked@^18.0.9": "18.0.9",
@@ -770,8 +770,8 @@
     "dijkstrajs@1.0.3": {
       "integrity": "sha512-qiSlmBq9+BCdCA/L46dw8Uy93mloxsPSbwnm5yrKn2vMPiy8KyAskTF6zuV/j5BMsmOGZDPs7KjU+mjb670kfA=="
     },
-    "dompurify@3.4.13": {
-      "integrity": "sha512-2vmYIoqjze2d+kakP8S/nS5shfsl587kzwEjcGlTdiksUVgFHnFCsLYDVj/JNqJVOQZGSYBTmuycv0PodwmnMQ==",
+    "dompurify@3.4.15": {
+      "integrity": "sha512-EUBjM+B+lkDE41iE82DDSCfkoPGfXx8IxFxPMjNzm/Uk4xDet77rTN9wqlxlVg71kK7XGuUMv6wUxJUwwv+Xyw==",
       "optionalDependencies": [
         "@types/trusted-types"
       ]
@@ -1600,7 +1600,7 @@
         "npm:@tauri-apps/plugin-dialog@2.7.2",
         "npm:@tauri-apps/plugin-opener@^2.5.4",
         "npm:@types/qrcode@^1.5.6",
-        "npm:dompurify@^3.4.13",
+        "npm:dompurify@^3.4.14",
         "npm:eslint@^10.8.1",
         "npm:flag-icons@^7.5.0",
         "npm:marked@^18.0.9",
