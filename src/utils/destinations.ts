@@ -163,10 +163,18 @@ export function sanitizeMetaText(text: string): string {
   return cleaned.slice(0, META_FIELD_MAX_CHARS).join("") + "\u2026";
 }
 
-/** The published `name`; the connect id is that name slugged, so bracketing it would only repeat it. */
+/** The published `name`, unless it is spelled exactly like the connect id and so says nothing new. */
+export function destinationName(d: Destination): string | null {
+  if (d.meta.name === null) return null;
+  const name = sanitizeMetaText(d.meta.name);
+  return name === d.id ? null : name;
+}
+
+/** A discovered id is the name slugged, so the name alone suffices; a configured id is the user's own handle and leads. */
 export function destinationTitle(d: Destination): string {
-  if (d.meta.name === null) return d.id;
-  return sanitizeMetaText(d.meta.name);
+  const name = destinationName(d);
+  if (d.source === "Discovered") return name ?? d.id;
+  return name === null ? d.id : `${d.id} (${name})`;
 }
 
 export function destinationLocation(d: Destination): string | null {

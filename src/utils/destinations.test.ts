@@ -387,17 +387,27 @@ describe("destinationTitle", () => {
     );
   });
 
-  it("is the published name alone, the connect id being that name slugged", () => {
+  it("leads with a configured id, the user's own handle, and brackets the published name", () => {
     const dest = makeDestination({
-      id: "frankfurt-1",
+      id: "my-exit",
+      source: "ConfiguredAndDiscovered",
       meta: { name: "Frankfurt-1" },
     });
-    expect(destinationTitle(dest)).toBe("Frankfurt-1");
+    expect(destinationTitle(dest)).toBe("my-exit (Frankfurt-1)");
   });
 
-  it("is the published name for a discovered destination too", () => {
+  it("does not repeat a name spelled exactly like the configured id", () => {
     const dest = makeDestination({
-      id: "0xabc",
+      id: "frankfurt-1",
+      source: "ConfiguredAndDiscovered",
+      meta: { name: "frankfurt-1" },
+    });
+    expect(destinationTitle(dest)).toBe("frankfurt-1");
+  });
+
+  it("is the published name alone for a discovered destination, whose id is that name slugged", () => {
+    const dest = makeDestination({
+      id: "frankfurt-1-a1b2",
       source: "Discovered",
       meta: { name: "Frankfurt-1" },
     });
@@ -406,7 +416,8 @@ describe("destinationTitle", () => {
 
   it("puts the location after the title in the label", () => {
     const dest = makeDestination({
-      id: "frankfurt-1",
+      id: "frankfurt-1-a1b2",
+      source: "Discovered",
       meta: { name: "Frankfurt-1", location: "Germany" },
     });
     expect(destinationLabel(dest)).toBe("Frankfurt-1 - Germany");
@@ -460,6 +471,15 @@ describe("destinationSearchText", () => {
   it("is just the label when no description was published", () => {
     const dest = makeDestination({ id: "my-exit" });
     expect(destinationSearchText(dest)).toBe("my-exit");
+  });
+
+  it("keeps a configured id searchable beside the published name", () => {
+    const dest = makeDestination({
+      id: "pinned-exit",
+      source: "ConfiguredAndDiscovered",
+      meta: { name: "Frankfurt-1" },
+    });
+    expect(destinationSearchText(dest)).toContain("pinned-exit");
   });
 });
 
