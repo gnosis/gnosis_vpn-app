@@ -34,7 +34,7 @@ const BASE_DESTINATION: Destination = {
 function makeReadyToConnect(
   id: string,
   pingMs = 50,
-  slots = { available: 5, connected: 0 },
+  slots = { total: 5, available: 5, connected: 0 },
 ): DestinationState {
   return {
     destination: { ...BASE_DESTINATION, id },
@@ -60,7 +60,11 @@ function makeReadyToConnect(
 
 /** ReadyToConnect but with no free slot — not ready, per the spec's capacity rule. */
 function makeFull(id: string, pingMs = 50): DestinationState {
-  return makeReadyToConnect(id, pingMs, { available: 0, connected: 5 });
+  return makeReadyToConnect(id, pingMs, {
+    total: 5,
+    available: 0,
+    connected: 5,
+  });
 }
 
 function makeUnavailable(id: string): DestinationState {

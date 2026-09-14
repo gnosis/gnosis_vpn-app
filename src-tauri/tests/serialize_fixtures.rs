@@ -42,6 +42,7 @@ fn exit_health() -> ExitHealth {
         ping_rtt: Duration::from_millis(42),
         health: Health {
             slots: Slots {
+                total: 16,
                 available: 10,
                 connected: 1,
             },
