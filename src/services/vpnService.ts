@@ -82,6 +82,7 @@ export const DestinationSchema = z.object({
 export type Destination = z.infer<typeof DestinationSchema>;
 
 export const SlotsSchema = z.object({
+  total: z.number(),
   available: z.number(),
   connected: z.number(),
 });
