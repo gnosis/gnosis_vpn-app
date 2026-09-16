@@ -65,6 +65,8 @@
 
             settings.global.excludes = [
               "LICENSE"
+              # Generated; formatting it would diff against every regeneration.
+              "src/assets/flags/*"
             ];
 
             programs.nixfmt = {
@@ -144,11 +146,13 @@
               pkgs.gobject-introspection
               pkgs.gtk3
               pkgs.harfbuzz
+              pkgs.imagemagick
               pkgs.libayatana-appindicator
               pkgs.libmnl
               pkgs.libnftnl
               pkgs.librsvg
               pkgs.libsoup_3
+              pkgs.libwebp
               pkgs.pango
               pkgs.patchelf
               pkgs.webkitgtk_4_1
