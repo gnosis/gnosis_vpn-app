@@ -1,10 +1,9 @@
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
-import flagCountries from "flag-icons/country.json";
+import { FLAG_CODES } from "@assets/flags/codes.ts";
 
-const KNOWN_FLAG_CODES = new Set(flagCountries.map((country) => country.code));
+const KNOWN_FLAG_CODES = new Set(FLAG_CODES);
 
-// gb-sct etc. have art; other ISO 3166-2 subdivisions don't, so fall back to
-// the parent country code (the part before the hyphen) when the exact code is missing.
+// Subdivisions without a flag of their own fall back to the parent country.
 export function resolveFlagCode(code: string): string | undefined {
   if (KNOWN_FLAG_CODES.has(code)) return code;
   const parentCode = code.split("-")[0];

@@ -6,12 +6,14 @@ describe("resolveFlagCode", () => {
     expect(resolveFlagCode("de")).toBe("de");
   });
 
-  it("keeps a subdivision code flag-icons has art for", () => {
+  it("keeps an ISO 3166-2 subdivision code we have art for", () => {
     expect(resolveFlagCode("gb-sct")).toBe("gb-sct");
+    expect(resolveFlagCode("us-ia")).toBe("us-ia");
+    expect(resolveFlagCode("de-by")).toBe("de-by");
   });
 
-  it("falls back to the parent country for an unsupported subdivision", () => {
-    expect(resolveFlagCode("fr-75")).toBe("fr");
+  it("falls back to the parent country for a subdivision with no flag", () => {
+    expect(resolveFlagCode("in-mh")).toBe("in");
   });
 
   it("falls back to the parent country for a malformed subdivision suffix", () => {
