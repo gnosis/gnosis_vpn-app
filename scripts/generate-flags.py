@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Generates src/assets/flags/: countries from flag-icons, ISO 3166-2
 # subdivisions from Wikimedia Commons via Wikidata. Commit what it writes.
-# Requires cwebp, rsvg-convert and magick -- all on the devShell PATH.
+# Requires cwebp, rsvg-convert and magick (on the devShell PATH on Linux).
 import argparse
 import concurrent.futures
 import json
