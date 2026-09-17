@@ -26,6 +26,7 @@ import {
   wxhoprDecimal,
 } from "../../utils/hopli.ts";
 import WarningIcon from "../../components/icons/WarningIcon.tsx";
+import Banner from "../../components/common/Banner.tsx";
 import Button from "../../components/common/Button.tsx";
 import { useAppStore } from "../../stores/appStore.ts";
 import AddFundsModal from "@src/components/AddFundsModal.tsx";
@@ -86,24 +87,24 @@ export default function Usage() {
     <div class="p-4 w-full flex flex-col gap-2 items-center">
       <Switch>
         <Match when={appState.vpnStatus === "WorkerRestarting"}>
-          <div class="px-4 py-2 rounded-lg text-sm font-medium bg-amber-100 text-amber-800">
+          <Banner variant="warning" icon={<WarningIcon filled />}>
             Service restarting
-          </div>
+          </Banner>
         </Match>
         <Match when={appState.vpnStatus === "ServiceUnavailable"}>
-          <div class="px-4 py-2 rounded-lg text-sm font-medium bg-red-100 text-red-800">
+          <Banner variant="critical" icon={<WarningIcon filled />}>
             Service unavailable
-          </div>
+          </Banner>
         </Match>
         <Match when={appState.vpnStatus === "DeployingSafe"}>
-          <div class="px-4 py-2 rounded-lg text-sm font-medium bg-amber-100 text-amber-800">
+          <Banner variant="warning" icon={<WarningIcon filled />}>
             Preparing service
-          </div>
+          </Banner>
         </Match>
         <Match when={isWarmupRunMode(appState.runMode)}>
-          <div class="px-4 py-2 rounded-lg text-sm font-medium bg-amber-100 text-amber-800">
+          <Banner variant="warning" icon={<WarningIcon filled />}>
             Syncing in progress
-          </div>
+          </Banner>
         </Match>
         <Match when={isRunningRunMode(appState.runMode) || preparingSafe()}>
           {
@@ -119,24 +120,20 @@ export default function Usage() {
               describeCriticalIssue(appState.balance, runModeStatus())}
           >
             {(description) => (
-              <div
-                class={`px-4 py-2 rounded-lg text-sm font-medium ${
-                  overallStatus() === "Empty" && !isBalanceLoading()
-                    ? "bg-red-100 text-red-800"
-                    : "bg-amber-100 text-amber-800"
-                }`}
+              <Banner
+                variant={overallStatus() === "Empty" && !isBalanceLoading()
+                  ? "critical"
+                  : "warning"}
+                icon={<WarningIcon filled />}
               >
-                <div class="flex items-center gap-2">
-                  <WarningIcon />
-                  <span>{description()}</span>
-                </div>
-              </div>
+                {description()}
+              </Banner>
             )}
           </Show>
           <Show when={preparingSafe()}>
-            <div class="px-4 py-2 rounded-lg text-sm font-medium bg-amber-100 text-amber-800">
+            <Banner variant="warning" icon={<WarningIcon filled />}>
               Waiting for incoming funds
-            </div>
+            </Banner>
           </Show>
 
           <div class="flex flex-col py-4 my-4 w-full max-w-md gap-1">
