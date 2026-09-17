@@ -309,7 +309,9 @@ export default function ExitHealthDetail(
                         value={loadAvg()}
                         valueClass="text-text-primary whitespace-nowrap"
                         tooltip={
-                          <span>Load average of the server, the lower the better.</span>
+                          <span>
+                            Load average of the server, the lower the better.
+                          </span>
                         }
                       />
                     </div>
