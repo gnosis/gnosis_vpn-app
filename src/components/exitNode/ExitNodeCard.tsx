@@ -174,7 +174,9 @@ export default function ExitNodeCard(props: {
               <Stat
                 label="CPU Utilization"
                 value={loadAvg()}
-                tooltip={<span>Server load average. Lower is better.</span>}
+                tooltip={
+                  <span>Load average of the server, the lower the better.</span>
+                }
               />
             </Show>
           </div>
