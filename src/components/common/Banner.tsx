@@ -1,7 +1,7 @@
 import { type JSX, Show } from "solid-js";
 
 export interface BannerProps {
-  variant?: "warning" | "neutral" | "update";
+  variant?: "warning" | "critical" | "neutral" | "update";
   icon?: JSX.Element;
   onClick?: () => void;
   onDismiss?: () => void;
@@ -14,6 +14,7 @@ export interface BannerProps {
 // stacked banners always line up.
 const containerClasses: Record<NonNullable<BannerProps["variant"]>, string> = {
   warning: "bg-orange-500/15 border border-orange-500/30 text-orange-400",
+  critical: "bg-red-500/15 border border-red-500/30 text-red-400",
   neutral: "bg-bg-surface text-text-primary",
   update:
     "bg-blue-500/10 border border-blue-500/40 text-blue-700 dark:bg-[#1F2936]/50 dark:border-[#1F2936] dark:text-text-secondary",
