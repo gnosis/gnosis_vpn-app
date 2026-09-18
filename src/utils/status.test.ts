@@ -76,6 +76,7 @@ const BASE_APP_STATE: AppState = {
   availableVersion: null,
   targetDestination: null,
   balance: null,
+  homeLocation: null,
   mode: {
     entries: {},
     sequence: [],

@@ -23,7 +23,7 @@ pub mod update_install;
 
 use commands::{
     check_update, connect, disconnect, export_logs, get_cached_state, get_platform,
-    log_from_frontend, run_initialization_loop, set_app_icon, stop_client,
+    get_public_location, log_from_frontend, run_initialization_loop, set_app_icon, stop_client,
 };
 use gnosis_vpn_lib::command::InfoResponse;
 use gnosis_vpn_lib::{command, socket::root as root_socket};
@@ -478,7 +478,8 @@ pub fn run() {
             get_platform,
             install_update,
             get_install_status,
-            get_toolkit_version
+            get_toolkit_version,
+            get_public_location
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

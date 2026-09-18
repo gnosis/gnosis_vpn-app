@@ -71,12 +71,34 @@ const FlagCodeSchema = z
   .optional()
   .catch(undefined);
 
+// Decimal degrees (WGS84). Optional because a daemon older than the coordinate change omits
+// the field entirely, and .catch(undefined) keeps an out-of-range value from moving a map
+// marker rather than failing the whole status parse.
+const coordinateSchema = (limit: number) =>
+  z
+    .number()
+    .min(-limit)
+    .max(limit)
+    .nullable()
+    .optional()
+    .catch(undefined);
+
+// Where the user's own traffic appears to come from, from Cloudflare's trace endpoint.
+export const PublicLocationSchema = z.object({
+  ip: z.string(),
+  // ISO 3166-1 alpha-2; Flag.tsx and resolveRegion() both lowercase it themselves.
+  country: z.string(),
+});
+export type PublicLocation = z.infer<typeof PublicLocationSchema>;
+
 // Operator-published labels: the keys the client recognizes, plus everything else it kept.
 const MetaSchema = z.object({
   name: z.string().nullable(),
   location: z.string().nullable(),
   flag: FlagCodeSchema,
   description: z.string().nullable(),
+  latitude: coordinateSchema(90),
+  longitude: coordinateSchema(180),
   other: z.record(z.string(), z.string()),
 });
 
@@ -441,6 +463,15 @@ export class VPNService {
       .map((i) => `${i.path.join(".") || "root"}: ${i.message}`)
       .join("; ");
     VPNService.logToFile("error", `${context} schema mismatch: ${issues}`);
+  }
+
+  /// The user's own public IP and country.
+  ///
+  /// Only meaningful while disconnected - once the tunnel is up this reports the exit, not
+  /// the user, which is why appStore never calls it then.
+  static async getPublicLocation(): Promise<PublicLocation> {
+    const rawRes = await invoke("get_public_location");
+    return PublicLocationSchema.parse(rawRes);
   }
 
   static async connect(id: string): Promise<ConnectResponse> {

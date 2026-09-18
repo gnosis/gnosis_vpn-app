@@ -23,11 +23,14 @@
                 "name": null,
                 "location": "Germany, Berlin",
                 "description": null,
-                "other": {}
+                "other": {},
+                "flag": "DE",
+                "latitude": 52.5238,
+                "longitude": 13.3996
               },
               "address": "0x1111111111111111111111111111111111111111",
               "routing": 1,
-              "gnosis_vpn_server": "172.30.0.1:8000",
+              "gnosis_vpn_server": "185.9.1.57:8000",
               "wireguard_server": "172.30.0.1:51820",
               "source": "Configured"
             },
@@ -47,12 +50,42 @@
                 "name": null,
                 "location": "Switzerland, Zurich",
                 "description": null,
-                "other": {}
+                "other": {},
+                "flag": "CH",
+                "latitude": 47.3819,
+                "longitude": 8.5481
               },
               "address": "0x2222222222222222222222222222222222222222",
               "routing": 1,
-              "gnosis_vpn_server": "172.30.0.1:8000",
+              "gnosis_vpn_server": "185.9.1.105:8000",
               "wireguard_server": "172.30.0.1:51820",
+              "source": "Configured"
+            },
+            "route_health": {
+              "state": {
+                "state": "Routable"
+              },
+              "last_error": null,
+              "checking_since": null,
+              "consecutive_failures": 0
+            }
+          },
+          {
+            "destination": {
+              "id": "dest-vienna",
+              "meta": {
+                "name": null,
+                "location": "Vienna",
+                "flag": "AT",
+                "description": null,
+                "latitude": null,
+                "longitude": null,
+                "other": {}
+              },
+              "address": "0x1111111111111111111111111111111111111111",
+              "routing": 1,
+              "gnosis_vpn_server": "185.9.1.121:8000",
+              "wireguard_server": "185.9.1.121:51820",
               "source": "Configured"
             },
             "route_health": {
@@ -97,5 +130,9 @@
       "package_version": null,
       "log_file": null
     }
+  },
+  "publicLocation": {
+    "ip": "79.184.4.55",
+    "country": "PL"
   }
 }

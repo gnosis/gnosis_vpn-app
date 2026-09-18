@@ -26,6 +26,8 @@ fn address() -> Address {
 fn destination() -> Destination {
     let mut meta = HashMap::new();
     meta.insert("location".to_string(), "EU".to_string());
+    meta.insert("latitude".to_string(), "50.1100".to_string());
+    meta.insert("longitude".to_string(), "8.6821".to_string());
     Destination::new(
         "test-exit".to_string(),
         address(),
@@ -48,6 +50,8 @@ fn pinned_destination() -> Destination {
         "description".to_string(),
         "10Gbit uplink, no logs kept".to_string(),
     );
+    meta.insert("latitude".to_string(), "50.1100".to_string());
+    meta.insert("longitude".to_string(), "8.6821".to_string());
     Destination::new(
         "pinned-exit".to_string(),
         address(),

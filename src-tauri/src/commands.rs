@@ -52,6 +52,66 @@ pub fn get_platform() -> &'static str {
     std::env::consts::OS
 }
 
+/// Where the user's own traffic appears to come from, as Cloudflare sees it.
+#[derive(Debug, Serialize)]
+pub struct PublicLocation {
+    pub ip: String,
+    /// ISO 3166-1 alpha-2, as Cloudflare's `loc` reports it.
+    pub country: String,
+}
+
+const TRACE_URL: &str = "https://www.cloudflare.com/cdn-cgi/trace";
+const TRACE_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// Looks up the user's own public IP and country for the main-screen map.
+///
+/// Unlike `check_update`, this deliberately does **not** go through
+/// `ensure_vpn_connected`: the whole point is to learn where the user is when the tunnel is
+/// *down*, so gating it on a connection would make it useless. The frontend only ever calls
+/// it while disconnected, which also keeps this request out of the tunnel entirely.
+///
+/// It is a Rust command rather than a `fetch` in the webview so the headless UI harness can
+/// stub it - the test shim intercepts `invoke`, but not `fetch`.
+#[tauri::command]
+pub async fn get_public_location() -> Result<PublicLocation, String> {
+    let client = reqwest::Client::builder()
+        .timeout(TRACE_TIMEOUT)
+        .build()
+        .map_err(|e| format!("could not build http client: {e}"))?;
+
+    let body = client
+        .get(TRACE_URL)
+        .send()
+        .await
+        .map_err(|e| format!("location lookup failed: {e}"))?
+        .error_for_status()
+        .map_err(|e| format!("location lookup rejected: {e}"))?
+        .text()
+        .await
+        .map_err(|e| format!("location lookup unreadable: {e}"))?;
+
+    parse_trace(&body).ok_or_else(|| "location lookup missing ip or loc".to_string())
+}
+
+/// Cloudflare's trace endpoint answers with one `key=value` per line.
+fn parse_trace(body: &str) -> Option<PublicLocation> {
+    let mut ip = None;
+    let mut country = None;
+    for line in body.lines() {
+        match line.split_once('=') {
+            Some(("ip", value)) => ip = Some(value.trim().to_string()),
+            Some(("loc", value)) => country = Some(value.trim().to_string()),
+            _ => {}
+        }
+    }
+    // `loc` is absent for a handful of networks Cloudflare cannot place; without a country
+    // there is nothing to show, so treat that the same as a failed lookup.
+    Some(PublicLocation {
+        ip: ip?,
+        country: country.filter(|c| !c.is_empty())?,
+    })
+}
+
 #[tauri::command]
 pub async fn check_update(
     skip_vpn: bool,
@@ -748,6 +808,36 @@ async fn query_status() -> (bool, Duration, Result<Option<StatusResponse>, Strin
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A real response, captured from the endpoint.
+    const TRACE: &str = "fl=1056f48\nh=www.cloudflare.com\nip=79.184.4.55\nts=1789663017.000\n\
+        visit_scheme=https\nuag=curl/8.18.0\ncolo=WAW\nsliver=050-tier1\nhttp=http/2\n\
+        loc=PL\ntls=TLSv1.3\nsni=plaintext\nwarp=off\ngateway=off\nrbi=off\nkex=X25519MLKEM768\n";
+
+    #[test]
+    fn parse_trace_reads_ip_and_country() {
+        let parsed = parse_trace(TRACE).expect("a full response parses");
+        assert_eq!("79.184.4.55", parsed.ip);
+        assert_eq!("PL", parsed.country);
+    }
+
+    // Cloudflare cannot place every network, and a marker needs a country to sit in.
+    #[test]
+    fn parse_trace_rejects_a_response_it_cannot_place() {
+        assert!(parse_trace("ip=79.184.4.55\nloc=\n").is_none());
+        assert!(parse_trace("ip=79.184.4.55\n").is_none());
+        assert!(parse_trace("loc=PL\n").is_none());
+        assert!(parse_trace("").is_none());
+    }
+
+    // `ts=1789663017.000` and `kex=...` both contain no '=' trouble, but a value legitimately
+    // can - splitting on the first '=' only keeps the rest of the value intact.
+    #[test]
+    fn parse_trace_keeps_a_value_containing_an_equals_sign() {
+        let parsed = parse_trace("ip=1.2.3.4\nloc=PL\nsomething=a=b\n").expect("parses");
+        assert_eq!("1.2.3.4", parsed.ip);
+        assert_eq!("PL", parsed.country);
+    }
 
     // The list is rewritten by the bump-version workflow; a malformed entry
     // would otherwise only surface as a silent runtime mismatch.
