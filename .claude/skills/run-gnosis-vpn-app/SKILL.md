@@ -28,16 +28,37 @@ deno run -A .claude/skills/run-gnosis-vpn-app/driver.ts \
 The driver starts the Vite dev server itself if port 1420 is free (and stops it
 again), waits for the Solid app to mount, then executes the steps in order:
 
-| Step              | Effect                                                  |
-| ----------------- | ------------------------------------------------------- |
-| `shot <file.png>` | screenshot to that path                                 |
-| `click <css>`     | click first match (works with Solid's delegated events) |
-| `text <css>`      | print innerText of first match                          |
-| `eval <js>`       | evaluate JS, print JSON result                          |
-| `wait <ms>`       | sleep                                                   |
+| Step              | Effect                                                   |
+| ----------------- | -------------------------------------------------------- |
+| `shot <file.png>` | screenshot to that path                                  |
+| `click <css>`     | click first match (works with Solid's delegated events)  |
+| `text <css>`      | print innerText of first match                           |
+| `eval <js>`       | evaluate JS, print JSON result                           |
+| `wait <ms>`       | sleep                                                    |
+| `handoff`         | diff the splash logo against the mounted one (see below) |
 
 Flags: `--fixture <path>` (default: the skill's `fixture.json`), `--size WxH`
 (default `360x640` — the main window; settings window is `640x480`).
+
+### Checking the splash→Solid handoff
+
+```bash
+deno run -A .claude/skills/run-gnosis-vpn-app/driver.ts handoff
+```
+
+Prints the logo's rect on both sides and exits non-zero if they differ by more
+than 0.5px. `index.html` and `src/components/common/GnosisVpnLogo.tsx` are
+intentional duplicates (both files say so), so nothing stops their _geometry_
+from drifting — and it has: the splash once rendered 9px wider, because an
+absolutely positioned `<svg>` carrying `width`/`height` attributes is a replaced
+element whose `width: auto` resolves to the intrinsic width, ignoring `right`.
+Screenshots alone won't catch that; compare the rects. Run it after touching the
+splash markup/CSS, `GnosisVpnLogo.tsx`, or `Initialization.tsx`'s layout.
+
+The step navigates to `initialization` itself (the screen that succeeds the
+splash), so it needs no fixture setup. The splash rect is captured by a probe
+the driver injects at parse time — by the load event the entry module has
+already wiped it.
 
 Browser console warnings/errors are relayed to stderr — watch for
 `[tauri-shim] unhandled invoke: <command>`, which means the shim needs a new
