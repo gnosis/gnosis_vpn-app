@@ -1,12 +1,10 @@
 {
-  "preferredLocation": "exit-1",
-  "lastConnectedDestination": "exit-1",
-  "connectOnStartup": true,
-  "startMinimized": true,
-  "updateCheck": true,
-  "exitNodeSortOrder": "alpha",
-  "lastCheckedAt": 1720000000000,
-  "updateManifest": {
+  "channel": "stable",
+  "outcome": {
+    "kind": "UpToDate",
+    "current": "0.29.0"
+  },
+  "manifest": {
     "schema_version": 1,
     "generated_at": "2026-07-06T00:00:00Z",
     "channels": {
@@ -23,10 +21,5 @@
       },
       "snapshot": null
     }
-  },
-  "channel": "snapshot",
-  "dismissedUpdateVersion": "0.28.0",
-  "installedVersion": "0.28.5",
-  "showDetailedMetrics": true,
-  "flagDisplay": "mono"
+  }
 }

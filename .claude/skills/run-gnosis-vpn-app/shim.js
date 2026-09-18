@@ -59,7 +59,23 @@
     get_initial_theme: () => fixture.theme ?? "dark",
     get_platform: () => fixture.platform ?? "linux",
     get_install_status: () => fixture.installStatus ?? null,
-    get_toolkit_version: () => fixture.toolkitVersion ?? null,
+    // The toolkit binary answers for the installed package version and update
+    // checks (src-tauri/src/toolkit.rs). `toolkitVersion: null` stands in for a
+    // machine without the binary; `toolkitStatus: "tooOld"` for one that
+    // predates the contract. Both reject the way the Rust side does.
+    get_toolkit_version: () => {
+      if (fixture.toolkitVersion === null) {
+        return Promise.reject("ToolkitMissing");
+      }
+      if (fixture.toolkitStatus === "tooOld") {
+        return Promise.reject("ToolkitTooOld");
+      }
+      return {
+        version: fixture.toolkitVersion ?? "0.4.0",
+        package_version: fixture.packageVersion ??
+          fixture.cached_state?.service_info?.package_version ?? null,
+      };
+    },
     install_update: () => {
       for (const step of fixture.installScript ?? defaultInstallScript) {
         setTimeout(
@@ -69,15 +85,28 @@
       }
       return null;
     },
-    // Resolves with fixture.checkUpdateManifest (falling back to the seeded
-    // settings.updateManifest) after checkUpdateDelayMs, so the "Checking…"
-    // UI state is observable.
+    // Resolves after checkUpdateDelayMs (so the "Checking…" state is
+    // observable) with fixture.checkUpdateResult — a full {channel, outcome,
+    // manifest} as the Rust side returns it — or, failing that, an UpToDate
+    // result wrapping fixture.checkUpdateManifest / the seeded manifest.
+    // fixture.checkUpdateError (e.g. "VpnNotConnected") rejects instead.
     check_update: () =>
-      new Promise((resolve) =>
-        setTimeout(
-          () => resolve(fixture.checkUpdateManifest ?? settings.updateManifest),
-          fixture.checkUpdateDelayMs ?? 2000,
-        )
+      new Promise((resolve, reject) =>
+        setTimeout(() => {
+          if (fixture.checkUpdateError) return reject(fixture.checkUpdateError);
+          if (fixture.checkUpdateResult) {
+            return resolve(fixture.checkUpdateResult);
+          }
+          const manifest = fixture.checkUpdateManifest ??
+            settings.updateManifest ?? null;
+          const current = fixture.packageVersion ??
+            fixture.cached_state?.service_info?.package_version ?? "0.0.0";
+          resolve({
+            channel: settings.channel ?? "stable",
+            outcome: { kind: "UpToDate", current },
+            manifest,
+          });
+        }, fixture.checkUpdateDelayMs ?? 2000)
       ),
     log_from_frontend: () => null,
     export_logs: (args) => args?.destPath ?? "/tmp/gnosis_vpn-export.log.zst",

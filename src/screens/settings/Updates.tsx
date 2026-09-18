@@ -7,7 +7,6 @@ import {
   onMount,
   Show,
 } from "solid-js";
-import { invoke } from "@tauri-apps/api/core";
 import { getVersion } from "@tauri-apps/api/app";
 import { emit, listen } from "@tauri-apps/api/event";
 import brokenDeviceIcon from "@assets/icons/broken-device.svg";
@@ -17,17 +16,17 @@ import UpdateStatusCard, {
 } from "@src/components/common/UpdateStatusCard.tsx";
 import SegmentedControl from "@src/components/common/SegmentedControl.tsx";
 import CheckUpdateModal from "@src/components/CheckUpdateModal.tsx";
+import HowToUpdateModal from "@src/components/common/HowToUpdateModal.tsx";
 import InstallUpdateModal from "@src/components/InstallUpdateModal.tsx";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { effectiveActive } from "@src/stores/destinationMode.ts";
 import {
   type UpdateChannel,
-  type UpdateManifest,
   useSettingsStore,
 } from "@src/stores/settingsStore.ts";
+import { checkUpdate } from "@src/services/toolkit.ts";
 import { detectChannel } from "@src/utils/version.ts";
 import { evaluateUpdate } from "@src/utils/updateAvailability.ts";
-import { getPlatform } from "@src/utils/platform.ts";
 import { logInfo, logWarn } from "@src/utils/appLog.ts";
 import {
   getInstallStatus,
@@ -56,17 +55,10 @@ export default function Updates() {
     null,
   );
   const [installError, setInstallError] = createSignal<string | null>(null);
+  const [showHowTo, setShowHowTo] = createSignal(false);
   const [pendingConnectInstall, setPendingConnectInstall] = createSignal(false);
   const [appVersion] = createResource(() => getVersion());
   const [showVersionDetails, setShowVersionDetails] = createSignal(false);
-  // The updater toolkit only exists on macOS, so the row is hidden elsewhere.
-  const [platform] = createResource(getPlatform);
-  // Probing the version spawns the updater binary; hold off until the row is
-  // actually on screen (the details are behind a 7-click reveal).
-  const [toolkitVersion] = createResource(
-    () => showVersionDetails() && platform() === "macos",
-    () => invoke<string | null>("get_toolkit_version").catch(() => null),
-  );
   let versionClickCount = 0;
   let lastVersionClickAt = 0;
 
@@ -85,10 +77,12 @@ export default function Updates() {
   const runCheck = async (skipVpn: boolean) => {
     setChecking(true);
     try {
-      const manifest = await invoke<UpdateManifest>("check_update", {
-        skipVpn,
-      });
-      await settingsActions.setUpdateCheckResult(manifest, Date.now());
+      const result = await checkUpdate(skipVpn);
+      // Outcomes that never fetched one arrive as a rejection, but the type
+      // permits it; keep the last known manifest rather than clearing it.
+      if (result.manifest) {
+        await settingsActions.setUpdateCheckResult(result.manifest, Date.now());
+      }
     } catch (e) {
       // failures are logged by the backend's check_update command
       if (e === "VpnNotConnected") {
@@ -101,9 +95,7 @@ export default function Updates() {
     }
   };
 
-  const packageVersion = createMemo(() =>
-    appState.serviceInfo?.package_version ?? null
-  );
+  const packageVersion = createMemo(() => appState.packageVersion);
 
   const installedChannel = createMemo<UpdateChannel | null>(() => {
     const ver = packageVersion();
@@ -290,107 +282,135 @@ export default function Updates() {
     }
   });
 
-  if (!appState.serviceInfo?.package_version) {
-    return (
-      <div class="flex flex-col items-center justify-center gap-4 w-full h-full p-6 bg-bg-primary">
-        <div class="relative shrink-0 w-[120px] h-[120px]">
-          <img
-            src={brokenDeviceIcon}
-            alt=""
-            class="w-[120px] h-[120px]"
-          />
-        </div>
-        <span class="text-base font-medium text-red-500 text-center">
-          Package version not found — please reinstall
-        </span>
-      </div>
-    );
-  }
+  // Why update checks cannot run, if they cannot. The updater binary is what
+  // reads the installed version and fetches manifests, so without a usable one
+  // there is nothing to show and the reason is worth stating.
+  const blocker = createMemo<string | null>(() => {
+    if (appState.toolkit.status === "missing") {
+      return "Update tool not installed — please reinstall Gnosis VPN";
+    }
+    if (appState.toolkit.status === "tooOld") {
+      return "Update tool is out of date — please reinstall Gnosis VPN";
+    }
+    // The tool is there (or has not answered yet) but neither it nor the
+    // daemon can name the installed package.
+    if (appState.toolkit.status === "ok" && !packageVersion()) {
+      return "Package version not found — please reinstall";
+    }
+    return null;
+  });
 
   return (
-    <div class="space-y-4 w-full p-6 max-w-lg bg-bg-primary flex flex-col h-full">
-      <UpdateStatusCard
-        onCheck={handleCheck}
-        loading={checking()}
-        isUpToDate={isUpToDate()}
-        latestVersion={latestVersion()}
-        releaseNotes={settings.updateManifest?.channels[effectiveChannel()]
-          ?.release_notes}
-        lastChecked={settings.lastCheckedAt != null
-          ? formatCheckedAt(settings.lastCheckedAt)
-          : undefined}
-        onInstall={handleInstall}
-        installPhase={installPhase()}
-        installError={installError()}
-      />
-      <CheckUpdateModal
-        open={showCheckModal()}
-        onClose={() => setShowCheckModal(false)}
-        onCheckAnyway={handleCheckAnyway}
-        onConnectAndCheck={handleConnectAndCheck}
-      />
-      <InstallUpdateModal
-        open={showInstallModal()}
-        onClose={() => setShowInstallModal(false)}
-        onInstallAnyway={() => {
-          setShowInstallModal(false);
-          startInstall(true);
-        }}
-        onConnectAndInstall={() => {
-          setShowInstallModal(false);
-          const id = effectiveActive(appState.mode, Date.now());
-          if (!id) return;
-          setPendingConnectInstall(true);
-          void appActions.connect(id);
-        }}
-      />
-      <Toggle
-        label="Automatic update check"
-        checked={settings.updateCheck}
-        onChange={(e) =>
-          void settingsActions.setUpdateCheck(e.currentTarget.checked)}
-        description="Done only when connected through the Gnosis VPN"
-      />
-      <SegmentedControl
-        label="Update channel"
-        //  description="Stable is the default, Snapshot is for testing new features"
-        options={CHANNEL_OPTIONS}
-        value={effectiveChannel()}
-        onChange={(ch) => void settingsActions.setChannel(ch)}
-        disabled //installedChannel() === "stable"}
-        // tooltipSwitcher="When on Stable, you can't switch to Snapshot"
-      />
-      <div class="grow" />
-      <div class="space-y-1 text-sm text-text-secondary text-center">
-        <div onClick={handleVersionClick} class="cursor-default">
-          Version:{" "}
-          <span class="text-text-primary">
-            {appState.serviceInfo?.package_version ?? "Something went wrong"}
+    <Show
+      when={!blocker()}
+      fallback={
+        <div class="flex flex-col items-center justify-center gap-4 w-full h-full p-6 bg-bg-primary">
+          <div class="relative shrink-0 w-[120px] h-[120px]">
+            <img
+              src={brokenDeviceIcon}
+              alt=""
+              class="w-[120px] h-[120px]"
+            />
+          </div>
+          <span class="text-base font-medium text-red-500 text-center">
+            {blocker()}
           </span>
+          <button
+            type="button"
+            class="text-sm text-text-secondary underline cursor-default"
+            onClick={() => setShowHowTo(true)}
+          >
+            How to update
+          </button>
+          <HowToUpdateModal
+            open={showHowTo()}
+            onClose={() => setShowHowTo(false)}
+          />
         </div>
-        <Show when={showVersionDetails()}>
-          <div class="text-xs">
-            Service version:{" "}
+      }
+    >
+      <div class="space-y-4 w-full p-6 max-w-lg bg-bg-primary flex flex-col h-full">
+        <UpdateStatusCard
+          onCheck={handleCheck}
+          loading={checking()}
+          isUpToDate={isUpToDate()}
+          latestVersion={latestVersion()}
+          releaseNotes={settings.updateManifest?.channels[effectiveChannel()]
+            ?.release_notes}
+          lastChecked={settings.lastCheckedAt != null
+            ? formatCheckedAt(settings.lastCheckedAt)
+            : undefined}
+          onInstall={handleInstall}
+          installPhase={installPhase()}
+          installError={installError()}
+        />
+        <CheckUpdateModal
+          open={showCheckModal()}
+          onClose={() => setShowCheckModal(false)}
+          onCheckAnyway={handleCheckAnyway}
+          onConnectAndCheck={handleConnectAndCheck}
+        />
+        <InstallUpdateModal
+          open={showInstallModal()}
+          onClose={() => setShowInstallModal(false)}
+          onInstallAnyway={() => {
+            setShowInstallModal(false);
+            startInstall(true);
+          }}
+          onConnectAndInstall={() => {
+            setShowInstallModal(false);
+            const id = effectiveActive(appState.mode, Date.now());
+            if (!id) return;
+            setPendingConnectInstall(true);
+            void appActions.connect(id);
+          }}
+        />
+        <Toggle
+          label="Automatic update check"
+          checked={settings.updateCheck}
+          onChange={(e) =>
+            void settingsActions.setUpdateCheck(e.currentTarget.checked)}
+          description="Done only when connected through the Gnosis VPN"
+        />
+        <SegmentedControl
+          label="Update channel"
+          //  description="Stable is the default, Snapshot is for testing new features"
+          options={CHANNEL_OPTIONS}
+          value={effectiveChannel()}
+          onChange={(ch) => void settingsActions.setChannel(ch)}
+          disabled //installedChannel() === "stable"}
+          // tooltipSwitcher="When on Stable, you can't switch to Snapshot"
+        />
+        <div class="grow" />
+        <div class="space-y-1 text-sm text-text-secondary text-center">
+          <div onClick={handleVersionClick} class="cursor-default">
+            Version:{" "}
             <span class="text-text-primary">
-              {appState.serviceInfo?.version ?? "—"}
+              {packageVersion() ?? "Something went wrong"}
             </span>
           </div>
-          <div class="text-xs">
-            App version:{" "}
-            <span class="text-text-primary">
-              {appVersion() ?? "—"}
-            </span>
-          </div>
-          <Show when={platform() === "macos"}>
+          <Show when={showVersionDetails()}>
+            <div class="text-xs">
+              Service version:{" "}
+              <span class="text-text-primary">
+                {appState.serviceInfo?.version ?? "—"}
+              </span>
+            </div>
+            <div class="text-xs">
+              App version:{" "}
+              <span class="text-text-primary">
+                {appVersion() ?? "—"}
+              </span>
+            </div>
             <div class="text-xs">
               Toolkit version:{" "}
               <span class="text-text-primary">
-                {toolkitVersion() ?? "—"}
+                {appState.toolkit.version ?? "—"}
               </span>
             </div>
           </Show>
-        </Show>
+        </div>
       </div>
-    </div>
+    </Show>
   );
 }
