@@ -12,9 +12,9 @@ export default function Start(
 
   return (
     <div class="h-full w-full flex flex-col items-center p-6 pb-0">
-      <GnosisVpnLogo class="w-full mt-6 text-text-primary" />
-      <div class="text-4xl font-bold mt-40">El Dorado</div>
-      <div class="grow" />
+      <div class="grow flex w-full items-center">
+        <GnosisVpnLogo class="w-full text-text-primary" />
+      </div>
       <div class="w-full flex flex-col gap-2">
         <Button
           size="lg"

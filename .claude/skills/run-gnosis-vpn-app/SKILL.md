@@ -114,10 +114,11 @@ nix fmt
 
 ## Gotchas
 
-- **The static splash trap.** A screenshot showing the big "Gnosis VPN" logo + a
-  title like "El Dorado" is NOT the app loading — it is the static fallback
-  markup baked into `index.html`. It means the Solid app never mounted, almost
-  always because `getCurrentWindow()` threw (no/broken `__TAURI_INTERNALS__`).
+- **The static splash trap.** A screenshot showing only the centered "Gnosis
+  VPN" wordmark — no spinner, no version line — is NOT the Initialization
+  screen; it is the static fallback markup baked into `index.html`. It means the
+  Solid app never mounted, almost always because `getCurrentWindow()` threw
+  (no/broken `__TAURI_INTERNALS__`).
 - **Screen changes are throttled.** `App.tsx` enforces `MIN_SCREEN_DISPLAY_TIME`
   (1333 ms) between screen switches. The driver waits this out after mount, but
   add `wait 1500` after any action that triggers a screen transition.
