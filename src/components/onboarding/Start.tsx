@@ -11,11 +11,12 @@ export default function Start(
     appState.vpnStatus === "ServiceUnavailable";
 
   return (
-    <div class="h-full w-full flex flex-col items-center p-6 pb-0">
-      <div class="grow flex w-full items-center">
+    <div class="relative h-full w-full flex flex-col items-center p-6">
+      {/* Logo geometry mirrors the splash in index.html and the initialization screen. */}
+      <div class="absolute inset-x-0 top-[var(--golden-logo-y)] -translate-y-1/2 px-6">
         <GnosisVpnLogo class="w-full text-text-primary" />
       </div>
-      <div class="w-full flex flex-col gap-2">
+      <div class="mt-auto w-full flex flex-col gap-2">
         <Button
           size="lg"
           onClick={() => setStep("manually")}

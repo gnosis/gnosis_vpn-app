@@ -27,16 +27,19 @@
       color: var(--color-text-primary);
     }
     #root .loading-screen {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
+      position: relative;
+      height: 100vh;
       padding: 0 1.5rem;
       box-sizing: border-box;
     }
+    /* Mirrors --golden-logo-y in index.css; this copy renders before that stylesheet exists. */
     #root .loading-screen .logo-svg {
-      width: 100%;
+      position: absolute;
+      left: 1.5rem;
+      right: 1.5rem;
+      top: 38.2%;
+      transform: translateY(-50%);
+      width: auto;
       color: var(--color-text-primary);
     }
     </style>
