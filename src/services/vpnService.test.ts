@@ -258,3 +258,60 @@ describe("DestinationSchema flag parsing", () => {
     expect(result.data.meta.flag).toBe("gb-foobar");
   });
 });
+
+describe("DestinationSchema coordinate parsing", () => {
+  const withCoords = (meta: Record<string, unknown>) => ({
+    id: "dest-1",
+    meta: {
+      name: null,
+      location: "Vienna",
+      flag: "AT",
+      description: null,
+      other: {},
+      ...meta,
+    },
+    address: "0x1111111111111111111111111111111111111111",
+    routing: 1,
+    gnosis_vpn_server: "172.30.0.1:8000",
+    wireguard_server: "172.30.0.1:51820",
+    source: "Configured",
+  });
+
+  it("keeps a valid coordinate pair", () => {
+    const result = DestinationSchema.safeParse(
+      withCoords({ latitude: 48.202, longitude: 16.3647 }),
+    );
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.meta.latitude).toBe(48.202);
+    expect(result.data.meta.longitude).toBe(16.3647);
+  });
+
+  // A daemon older than the coordinate change omits the fields entirely; a required
+  // field here would fail the whole status parse and strand the app on Initialization.
+  it("parses a payload from a daemon that sends no coordinates", () => {
+    const result = DestinationSchema.safeParse(withCoords({}));
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.meta.latitude).toBeUndefined();
+    expect(result.data.meta.longitude).toBeUndefined();
+  });
+
+  it("keeps an explicit null", () => {
+    const result = DestinationSchema.safeParse(
+      withCoords({ latitude: null, longitude: null }),
+    );
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.meta.latitude).toBeNull();
+  });
+
+  it.each([
+    ["an out-of-range latitude", { latitude: 91, longitude: 10 }],
+    ["an out-of-range longitude", { latitude: 10, longitude: 181 }],
+    ["a non-numeric latitude", { latitude: "48.202", longitude: 16.3647 }],
+  ])("drops %s without failing the parse", (_label, meta) => {
+    const result = DestinationSchema.safeParse(withCoords(meta));
+    expect(result.success).toBe(true);
+  });
+});

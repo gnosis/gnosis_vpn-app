@@ -19,7 +19,7 @@ function OwlSvg(props: { blink?: Eye | null; class?: string }): JSX.Element {
   return (
     <svg
       viewBox="0 0 75 75"
-      class={`h-24 w-24 ${props.class ?? ""}`}
+      class={`h-20 w-20 ${props.class ?? ""}`}
       aria-hidden="true"
     >
       <path
@@ -135,9 +135,9 @@ export function StatusHero() {
   };
 
   return (
-    <div class="w-full h-1/3 flex flex-col items-center justify-center gap-3 shrink-0">
+    <div class="w-full pt-10 pb-2 flex flex-col items-center justify-center gap-3 shrink-0">
       <div
-        class="relative h-24 w-full flex items-center justify-center"
+        class="relative h-20 w-full flex items-center justify-center -translate-y-[25px]"
         role="img"
         aria-label={ariaLabel()}
       >
@@ -168,7 +168,7 @@ export function StatusHero() {
         <Show when={mode() === "connected"}>
           <svg
             viewBox="0 0 137 96"
-            class="h-24 absolute"
+            class="h-20 absolute"
             classList={{ "check-pop-entry": morphing() }}
             aria-hidden="true"
           >

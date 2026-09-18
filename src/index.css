@@ -301,11 +301,29 @@ select {
   animation: check-pop 400ms ease-out 750ms both;
 }
 
+/* Sweeps along the route from source to exit, and keeps repeating until the tunnel is up.
+ * It strokes a mask rather than the line itself, so the line underneath keeps its own dashes.
+ * Duration is inlined per route (one second per leg); base dashoffset stays 0 so reduced
+ * motion still reveals the whole route, the same trick .check-draw uses. */
+.route-draw {
+  stroke-dasharray: 100;
+  animation: route-draw var(--route-draw-duration, 1s) ease-out infinite;
+}
+@keyframes route-draw {
+  from {
+    stroke-dashoffset: 100;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .owl-blink,
   .check-draw,
   .check-pop-entry,
-  .list-expand-in {
+  .list-expand-in,
+  .route-draw {
     animation: none;
   }
   .owl-fill-layer {

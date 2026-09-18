@@ -6,6 +6,7 @@ import Navigation from "../../components/Navigation.tsx";
 import LocationBanner from "../../components/exitNode/LocationBanner.tsx";
 import ConnectButton from "../../components/ConnectButton.tsx";
 import StatusHero from "../../components/status/StatusHero.tsx";
+import MapPanel from "../../components/map/MapPanel.tsx";
 import ConnectionStatus from "../../components/status/ConnectionStatus.tsx";
 import { openSettingsWindow } from "../../utils/settingsWindow.ts";
 import { isRunningRunMode } from "../../services/vpnService.ts";
@@ -88,8 +89,16 @@ export function MainScreen() {
             (LocationBanner.tsx) can bleed all the way to the true window
             border instead of stopping at the page margin. */
         }
-        <div class="-mx-4 self-stretch flex justify-center z-10">
+        <div class="-mx-4 -mt-5 self-stretch flex justify-center z-10">
           <LocationBanner />
+        </div>
+        {
+          /* flex-1 rather than a fixed height: the map is the one thing here that can give
+            ground, so it shrinks when ExitHealthDetail expands instead of pushing the
+            connect button off a window that cannot be resized. */
+        }
+        <div class="mt-3 w-full min-h-24 flex-1 flex">
+          <MapPanel />
         </div>
       </main>
       <div class="mt-4 w-full z-10">

@@ -60,6 +60,9 @@
     get_platform: () => fixture.platform ?? "linux",
     get_install_status: () => fixture.installStatus ?? null,
     get_toolkit_version: () => fixture.toolkitVersion ?? null,
+    // Rejecting stands in for an offline machine: the map falls back to a world view.
+    get_public_location: () =>
+      fixture.publicLocation ?? Promise.reject("no publicLocation in fixture"),
     install_update: () => {
       for (const step of fixture.installScript ?? defaultInstallScript) {
         setTimeout(

@@ -18,6 +18,7 @@ import {
 } from "@src/stores/destinationMode.ts";
 import { reconcileStrip } from "@src/utils/cardStrip.ts";
 import { cardTitle } from "@src/utils/destinations.ts";
+import { easeOutCubic } from "@src/utils/easing.ts";
 import DetailCard from "./DetailCard.tsx";
 import ExitNodeList from "./ExitNodeList.tsx";
 
@@ -36,10 +37,6 @@ const SETTLE_GRACE_MS = 50;
 // settled, on browsers without a `scrollend` event to tell us directly.
 const SCROLL_SETTLE_DEBOUNCE_MS = 140;
 const DRAG_THRESHOLD_PX = 6;
-
-function easeOutCubic(t: number): number {
-  return 1 - (1 - t) ** 3;
-}
 
 function animateScrollLeft(
   el: HTMLElement,

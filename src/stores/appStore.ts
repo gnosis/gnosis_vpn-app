@@ -16,6 +16,7 @@ import {
   type DestinationState,
   type DisconnectingInfo,
   isWarmupRunMode,
+  type PublicLocation,
   type ReconnectingInfo,
   type RunMode,
   type ServiceInfo,
@@ -75,6 +76,9 @@ export interface AppState {
   availableVersion: string | null;
   targetDestination: string | null;
   balance: BalanceResponse | null;
+  // Where the user themselves is, for the map. Only ever read while disconnected, and kept
+  // across a connection so the map can still say where "you" are while the tunnel is up.
+  homeLocation: PublicLocation | null;
   // The carousel's cards and active pointer — see docs/destinationMode.md
   mode: DestinationMode;
 }
@@ -125,6 +129,7 @@ function initialState(): AppState {
     availableVersion: null,
     targetDestination: null,
     balance: null,
+    homeLocation: null,
     mode: {
       entries: {},
       sequence: [],
@@ -625,6 +630,35 @@ export function createAppStore(): AppStoreTuple {
     });
     if (pkg === settings.installedVersion && !channel) return;
     void settingsActions.syncInstalledVersion(pkg, channel);
+  });
+
+  // Looks up where the user is, for the map.
+  //
+  // Only ever called while disconnected: once the tunnel is up this request would travel
+  // through it and report the exit instead of the user. Failing is not an error worth showing
+  // - the map simply falls back to a world view - so this never reaches criticalError().
+  let homeLookupInFlight = false;
+  const refreshHomeLocation = async () => {
+    if (homeLookupInFlight) return;
+    homeLookupInFlight = true;
+    try {
+      setState("homeLocation", await VPNService.getPublicLocation());
+    } catch (error) {
+      console.warn("Could not determine your location:", error);
+    } finally {
+      homeLookupInFlight = false;
+    }
+  };
+
+  // Re-read on every return to Disconnected, so moving network is picked up.
+  //
+  // This is the only trigger, deliberately. Looking it up at startup instead would run before
+  // any status had arrived, and an app launched while the tunnel was already up would record
+  // the exit as the user's own location. Waiting costs nothing: the cached status hydrates
+  // within a frame of mount.
+  createEffect(() => {
+    if (state.vpnStatus !== "Disconnected") return;
+    void refreshHomeLocation();
   });
 
   createEffect(() => {

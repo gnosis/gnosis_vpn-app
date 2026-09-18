@@ -9,6 +9,8 @@
           "location": "EU",
           "flag": null,
           "description": null,
+          "latitude": 50.11,
+          "longitude": 8.6821,
           "other": {}
         },
         "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
@@ -39,6 +41,8 @@
           "location": "EU",
           "flag": null,
           "description": null,
+          "latitude": 50.11,
+          "longitude": 8.6821,
           "other": {}
         },
         "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
@@ -69,6 +73,8 @@
           "location": "EU",
           "flag": null,
           "description": null,
+          "latitude": 50.11,
+          "longitude": 8.6821,
           "other": {}
         },
         "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
@@ -100,6 +106,8 @@
           "location": "EU",
           "flag": null,
           "description": null,
+          "latitude": 50.11,
+          "longitude": 8.6821,
           "other": {}
         },
         "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
@@ -131,6 +139,8 @@
           "location": "EU",
           "flag": null,
           "description": null,
+          "latitude": 50.11,
+          "longitude": 8.6821,
           "other": {}
         },
         "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
@@ -184,6 +194,8 @@
           "location": "EU",
           "flag": null,
           "description": null,
+          "latitude": 50.11,
+          "longitude": 8.6821,
           "other": {}
         },
         "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
@@ -238,6 +250,8 @@
           "location": "EU",
           "flag": null,
           "description": null,
+          "latitude": 50.11,
+          "longitude": 8.6821,
           "other": {}
         },
         "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
@@ -261,6 +275,8 @@
           "location": "Germany",
           "flag": "DE",
           "description": "10Gbit uplink, no logs kept",
+          "latitude": 50.11,
+          "longitude": 8.6821,
           "other": {}
         },
         "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
