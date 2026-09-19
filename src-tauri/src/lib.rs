@@ -350,10 +350,7 @@ pub fn run() {
                     .and_then(|p| p.to_str().map(String::from));
                 tauri::async_runtime::spawn(async move {
                     let fallback = "Version: Something is wrong".to_string();
-                    // The toolkit reads the installed version straight from the version file,
-                    // so it answers even while the daemon is down or incompatible. The daemon
-                    // reads the same file and stays as the fallback for installs that predate
-                    // the toolkit.
+                    // The toolkit reads the installed version straight from the version file
                     let from_toolkit = match toolkit::version().await {
                         Ok(info) => info.package_version,
                         Err(e) => {

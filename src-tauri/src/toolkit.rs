@@ -1,13 +1,5 @@
-//! Spawns the toolkit's `gnosis_vpn-update` binary and parses what it prints.
-//!
-//! The binary is the app's source of truth for the installed package version and for update
-//! manifests; see the toolkit README's "Output contract". `version` and `check-update` need no
-//! privileges on either OS. Only `update` does, and that lives in `update_install`, which also
-//! borrows `locate()` from here so both agree on where the binary is.
-//!
-//! stdout is one JSON value per line; stderr is human logs and is never parsed. The exit code
-//! only summarises what the payload already says — `check-update` exits non-zero for
-//! `VpnNotConnected` while still printing a perfectly good result — so nothing here gates on it.
+//! Spawns the toolkit's `gnosis_vpn-update` binary: the source of truth for the installed
+//! package version and update manifests. stdout is NDJSON; the exit code is not gated on.
 
 use serde::{Deserialize, Serialize};
 
@@ -17,9 +9,8 @@ use std::time::Duration;
 
 use crate::settings::UpdateChannel;
 
-/// Where the installers put the binary: the macOS pkg at the first (the exact path its sudoers
-/// entries name), the Linux .deb at the second. A fixed list rather than `$PATH`, so nothing in
-/// the environment can point the app at a different executable.
+/// Where the installers put it: the macOS pkg at the first (the path its sudoers entries name),
+/// the Linux .deb at the second. A fixed list, not `$PATH`, so the environment cannot redirect us.
 const CANDIDATE_PATHS: &[&str] = &[
     "/usr/local/bin/gnosis_vpn-update",
     "/usr/bin/gnosis_vpn-update",
@@ -71,11 +62,8 @@ pub struct ToolkitInfo {
     pub package_version: Option<String>,
 }
 
-/// An update manifest, exactly as the binary re-emits it.
-///
-/// Field types are the wire strings rather than `Url`/`DateTime`/`ByteSize`: the app only ever
-/// displays and forwards these, and staying on strings keeps the settings file and the frontend
-/// schema independent of any crate's serde choices.
+/// An update manifest, exactly as the binary re-emits it. Fields stay wire strings rather than
+/// `Url`/`DateTime`/`ByteSize` — the app only ever displays and forwards them.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Manifest {
     pub schema_version: u32,
@@ -94,9 +82,8 @@ pub struct ChannelRelease {
     pub version: String,
     pub published_at: String,
     pub download_url: String,
-    /// The published manifest carries a number; the binary re-emits `ByteSize`'s display form
-    /// (`"117.7 MiB"`), and that string is what the frontend schema expects. Accept either and
-    /// always hand on a string, so a manifest that reached us by any route parses.
+    /// The published manifest carries a number, the binary re-emits `ByteSize`'s string
+    /// (`"117.7 MiB"`). Accept either; always hand on the string the frontend schema expects.
     #[serde(deserialize_with = "string_or_number")]
     pub size_bytes: String,
     pub sha256: String,
@@ -150,15 +137,13 @@ pub struct CheckResult {
     /// the installed version.
     pub channel: UpdateChannel,
     pub outcome: CheckOutcome,
-    /// Both channel entries, exactly as fetched. Absent on the three outcomes that never got a
-    /// manifest (`VpnNotConnected`, `IntegrityError`, `Error`); the frontend keeps its last
-    /// known one then rather than clobbering it.
+    /// Both channel entries, exactly as fetched. Absent on the three outcomes that never got one
+    /// (`VpnNotConnected`, `IntegrityError`, `Error`) — the frontend then keeps its last known.
     pub manifest: Option<Manifest>,
 }
 
-/// The same decision as the binary prints it: serde's default externally-tagged encoding, e.g.
-/// `{"Available":{"current":…,"release":…}}`, `{"NoReleaseForChannel":"snapshot"}` or the bare
-/// string `"VpnNotConnected"`.
+/// The same decision as the binary prints it: serde's externally-tagged encoding, e.g.
+/// `{"Available":{…}}`, `{"NoReleaseForChannel":"snapshot"}` or the bare `"VpnNotConnected"`.
 #[derive(Debug, Deserialize)]
 enum WireOutcome {
     UpToDate {
@@ -307,8 +292,7 @@ fn channel_arg(channel: UpdateChannel) -> &'static str {
 }
 
 /// The updater's version and the installed package version, or why neither is available:
-/// `"ToolkitMissing"` when the binary is not on disk, `"ToolkitTooOld"` when it predates the
-/// contract this app needs.
+/// `"ToolkitMissing"` (not on disk) or `"ToolkitTooOld"` (predates the contract this app needs).
 #[tauri::command]
 pub async fn get_toolkit_version() -> Result<ToolkitInfo, String> {
     match version().await {
