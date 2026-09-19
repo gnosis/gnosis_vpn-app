@@ -42,7 +42,6 @@ jobs:
       architecture: ${{ matrix.architecture }}
       runner: ${{ matrix.runner }}
       version_type: "commit"
-      # "publish-binaries" already makes set-build-version publish commit builds to the registry; it now also builds every architecture, so one label does both. The per-arch labels still work on their own.
       enabled: ${{ matrix.required_label == '' || contains(github.event.pull_request.labels.*.name, 'publish-binaries') || contains(github.event.pull_request.labels.*.name, matrix.required_label) }}
     secrets: inherit
   checks:
