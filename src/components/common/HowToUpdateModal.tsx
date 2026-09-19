@@ -22,6 +22,48 @@ sudo apt-get install -y gnosisvpn`;
 // it is also the way back from a missing or too-old toolkit binary.
 const DOWNLOADS_URL = "https://downloads.vpn.gnosis.eth.limo/";
 
+function AptBlock(props: { copied: boolean; onCopy: () => void }) {
+  return (
+    <div class="relative rounded-lg border border-border bg-[#12161c] overflow-hidden">
+      <button
+        type="button"
+        onClick={props.onCopy}
+        aria-label={props.copied ? "Copied" : "Copy commands"}
+        class="absolute top-2 right-2 inline-flex items-center gap-1.5 rounded-md bg-white/10 px-2 py-1 text-xs text-gray-200 hover:bg-white/20 hover:cursor-pointer transition-colors"
+      >
+        <img
+          src={props.copied ? checkmarkIcon : copyIcon}
+          width={14}
+          height={14}
+          alt=""
+          class="invert"
+        />
+        {props.copied ? "Copied" : "Copy"}
+      </button>
+      <pre class="overflow-x-auto px-3 py-3 pr-20 text-xs leading-relaxed font-mono text-gray-100">
+        <code>{UPDATE_COMMAND}</code>
+      </pre>
+    </div>
+  );
+}
+
+function DownloadsButton(props: { label: string; onOpen: () => void }) {
+  return (
+    <>
+      <button
+        type="button"
+        onClick={props.onOpen}
+        class="h-10 px-4 text-sm rounded-lg font-bold border border-border bg-transparent text-text-primary hover:bg-darken hover:cursor-pointer transition-colors"
+      >
+        {props.label}
+      </button>
+      <div class="text-xs text-text-secondary break-all font-mono">
+        {DOWNLOADS_URL}
+      </div>
+    </>
+  );
+}
+
 export default function HowToUpdateModal(props: {
   open: boolean;
   onClose: () => void;
@@ -29,7 +71,7 @@ export default function HowToUpdateModal(props: {
   const [copied, setCopied] = createSignal(false);
   // The apt commands cannot update a macOS install, so the platform decides
   // what this modal says; getPlatform() caches, so this resolves once.
-  const [platform] = createResource(getPlatform);
+  const [platform, { refetch: refetchPlatform }] = createResource(getPlatform);
   let copyTimeout: ReturnType<typeof setTimeout> | undefined;
 
   onCleanup(() => clearTimeout(copyTimeout));
@@ -65,32 +107,38 @@ export default function HowToUpdateModal(props: {
         <div class="text-base font-semibold text-text-primary">
           How to update
         </div>
+        {
+          /* getPlatform() reports "unknown" when the probe fails, and guessing
+            wrong hands the user commands for the wrong OS: only an explicit
+            "linux" gets the apt block, and the fallback labels both routes. */
+        }
         <Switch
           fallback={
             <>
               <div class="text-sm text-text-secondary">
-                Run the following in a terminal to update Gnosis VPN on Linux.
+                We couldn't tell which platform this is, so both routes are
+                below.
               </div>
-              <div class="relative rounded-lg border border-border bg-[#12161c] overflow-hidden">
-                <button
-                  type="button"
-                  onClick={copy}
-                  aria-label={copied() ? "Copied" : "Copy commands"}
-                  class="absolute top-2 right-2 inline-flex items-center gap-1.5 rounded-md bg-white/10 px-2 py-1 text-xs text-gray-200 hover:bg-white/20 hover:cursor-pointer transition-colors"
-                >
-                  <img
-                    src={copied() ? checkmarkIcon : copyIcon}
-                    width={14}
-                    height={14}
-                    alt=""
-                    class="invert"
-                  />
-                  {copied() ? "Copied" : "Copy"}
-                </button>
-                <pre class="overflow-x-auto px-3 py-3 pr-20 text-xs leading-relaxed font-mono text-gray-100">
-            <code>{UPDATE_COMMAND}</code>
-                </pre>
+              <div class="text-sm text-text-secondary">
+                On macOS, download the latest{" "}
+                <span class="font-mono">GnosisVPN-Installer.pkg</span>{" "}
+                and double-click it.
               </div>
+              <DownloadsButton
+                label="Open the downloads page"
+                onOpen={openDownloads}
+              />
+              <div class="text-sm text-text-secondary">
+                On Linux, run the following in a terminal.
+              </div>
+              <AptBlock copied={copied()} onCopy={copy} />
+              <button
+                type="button"
+                onClick={() => void refetchPlatform()}
+                class="h-10 px-4 text-sm rounded-lg border border-border bg-transparent text-text-secondary hover:bg-darken hover:cursor-pointer transition-colors"
+              >
+                Detect my platform again
+              </button>
             </>
           }
         >
@@ -105,16 +153,16 @@ export default function HowToUpdateModal(props: {
               <span class="font-mono">GnosisVPN-Installer.pkg</span>{" "}
               and double-click it to update Gnosis VPN on macOS.
             </div>
-            <button
-              type="button"
-              onClick={openDownloads}
-              class="h-10 px-4 text-sm rounded-lg font-bold border border-border bg-transparent text-text-primary hover:bg-darken hover:cursor-pointer transition-colors"
-            >
-              Open the downloads page
-            </button>
-            <div class="text-xs text-text-secondary break-all font-mono">
-              {DOWNLOADS_URL}
+            <DownloadsButton
+              label="Open the downloads page"
+              onOpen={openDownloads}
+            />
+          </Match>
+          <Match when={platform() === "linux"}>
+            <div class="text-sm text-text-secondary">
+              Run the following in a terminal to update Gnosis VPN on Linux.
             </div>
+            <AptBlock copied={copied()} onCopy={copy} />
           </Match>
         </Switch>
         <button
