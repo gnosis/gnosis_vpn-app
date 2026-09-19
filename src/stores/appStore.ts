@@ -6,6 +6,11 @@ import {
   evaluateUpdate,
   resolveChannelResync,
 } from "@src/utils/updateAvailability.ts";
+import {
+  getToolkitInfo,
+  TOOLKIT_MISSING,
+  TOOLKIT_TOO_OLD,
+} from "@src/services/toolkit.ts";
 
 import {
   type BalanceResponse,
@@ -55,6 +60,19 @@ import {
 
 export { AppScreen };
 
+/// Whether the toolkit binary could be used. `unknown` covers "not probed yet"
+/// and "probe failed for a reason other than absence", both of which the UI
+/// treats as "say nothing yet" rather than as an error.
+export type ToolkitStatus = "unknown" | "ok" | "missing" | "tooOld";
+
+export interface ToolkitState {
+  status: ToolkitStatus;
+  /// The updater's own version, when it answered.
+  version: string | null;
+  /// The installed package as the updater read it from the version file.
+  packageVersion: string | null;
+}
+
 export interface AppState {
   currentScreen: AppScreen;
   serviceInfo: ServiceInfo | null;
@@ -75,6 +93,11 @@ export interface AppState {
   availableVersion: string | null;
   targetDestination: string | null;
   balance: BalanceResponse | null;
+  // The installed package version everything update-facing keys off: the
+  // toolkit's reading of the version file, falling back to the daemon's
+  // reading of the same file for installs that predate the toolkit.
+  packageVersion: string | null;
+  toolkit: ToolkitState;
   // The carousel's cards and active pointer — see docs/destinationMode.md
   mode: DestinationMode;
 }
@@ -125,6 +148,8 @@ function initialState(): AppState {
     availableVersion: null,
     targetDestination: null,
     balance: null,
+    packageVersion: null,
+    toolkit: { status: "unknown", version: null, packageVersion: null },
     mode: {
       entries: {},
       sequence: [],
@@ -257,8 +282,14 @@ export function createAppStore(): AppStoreTuple {
     if (state.error !== message) logError(message);
     stopSyncProgress();
     const savedServiceInfo = state.serviceInfo;
+    // The toolkit probe does not go through the daemon (it reads the version
+    // file itself), so a daemon error says nothing about its result: keep it.
+    const savedToolkit = { ...state.toolkit };
+    const savedPackageVersion = state.packageVersion;
     setState(reconcile(initialState()));
     setState("serviceInfo", savedServiceInfo);
+    setState("toolkit", savedToolkit);
+    setState("packageVersion", savedPackageVersion);
     setState("error", message);
     destinationMode?.reset({
       preferredLocation: settings.preferredLocation,
@@ -423,6 +454,9 @@ export function createAppStore(): AppStoreTuple {
     initializeApp: async () => {
       stopSyncProgress();
       setState("syncProgress", 0);
+      // Independent of the daemon: the toolkit reads the version file itself,
+      // so the package version is known even when the daemon is down.
+      void refreshToolkit();
       if (unlistenServiceInfo) {
         unlistenServiceInfo();
         unlistenServiceInfo = undefined;
@@ -613,11 +647,57 @@ export function createAppStore(): AppStoreTuple {
       destinationMode?.applyUserInput({ type: "listClosed", picked }),
   } as const;
 
+  // Asks the toolkit binary for its version and the installed package's.
+  // Failing is a state the Updates tab explains (tool missing, tool too old),
+  // never an error screen. One probe at a time: a spawn is not free.
+  let toolkitProbe: Promise<void> | undefined;
+  const refreshToolkit = (): Promise<void> => {
+    if (toolkitProbe) return toolkitProbe;
+    toolkitProbe = (async () => {
+      try {
+        const info = await getToolkitInfo();
+        setState("toolkit", {
+          status: "ok",
+          version: info.version,
+          packageVersion: info.package_version,
+        });
+      } catch (e) {
+        const status: ToolkitStatus = e === TOOLKIT_MISSING
+          ? "missing"
+          : e === TOOLKIT_TOO_OLD
+          ? "tooOld"
+          : "unknown";
+        if (status === "unknown") logWarn(`Toolkit probe failed: ${e}`);
+        setState("toolkit", { status, version: null, packageVersion: null });
+      } finally {
+        toolkitProbe = undefined;
+      }
+    })();
+    return toolkitProbe;
+  };
+
+  // Re-probe whenever the daemon reports its package: a completed install
+  // restarts the daemon, and that is the moment the version file has moved.
+  createEffect(() => {
+    if (!state.serviceInfo?.package_version) return;
+    void refreshToolkit();
+  });
+
+  // The toolkit's reading of the version file wins; the daemon read the same
+  // file and covers installs without the toolkit.
+  createEffect(() => {
+    setState(
+      "packageVersion",
+      state.toolkit.packageVersion ?? state.serviceInfo?.package_version ??
+        null,
+    );
+  });
+
   // Keep the persisted channel preference and install marker in step with the
-  // package the daemon reports.
+  // installed package.
   createEffect(() => {
     if (!settingsActions.hydrated()) return; // avoid clobbering stored prefs with defaults
-    const pkg = state.serviceInfo?.package_version;
+    const pkg = state.packageVersion;
     if (!pkg) return;
     const channel = resolveChannelResync({
       packageVersion: pkg,
@@ -629,7 +709,7 @@ export function createAppStore(): AppStoreTuple {
 
   createEffect(() => {
     const d = evaluateUpdate({
-      packageVersion: state.serviceInfo?.package_version ?? null,
+      packageVersion: state.packageVersion,
       manifest: settings.updateManifest ?? null,
       channel: settings.channel,
       dismissedVersion: settings.dismissedUpdateVersion,

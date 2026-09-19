@@ -1,4 +1,4 @@
-use gnosis_vpn_lib::check_update::Manifest;
+use crate::toolkit::Manifest;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

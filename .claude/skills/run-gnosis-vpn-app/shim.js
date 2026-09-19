@@ -1,7 +1,5 @@
-// Browser-only Tauri shim. Injected before /src/index.tsx by driver.ts
-// (via the generated index.browser.html). Answers the app's invoke() calls
-// from a fixture (globalThis.__GVPN_FIXTURE__) so the UI drives itself to a
-// real screen without the Rust backend.
+// Browser-only Tauri shim, injected before /src/index.tsx by driver.ts. Answers the app's
+// invoke() calls from globalThis.__GVPN_FIXTURE__ so the UI runs without the Rust backend.
 (() => {
   const fixture = globalThis.__GVPN_FIXTURE__ ?? {};
   const label = fixture.windowLabel ?? "main";
@@ -9,10 +7,8 @@
   const callbacks = new Map(); // transformCallback id -> fn
   const eventListeners = new Map(); // event name -> Set<handler id>
 
-  // Settings are rust-owned in the real app (get_settings/update_settings +
-  // settings-changed event). Seeded from fixture.settings over the app
-  // defaults; update_settings merges the patch and broadcasts the full
-  // snapshot to listeners, mirroring src-tauri/src/settings.rs.
+  // Settings are rust-owned in the real app. Seeded from fixture.settings over the defaults;
+  // update_settings merges the patch and broadcasts, mirroring src-tauri/src/settings.rs.
   const settings = {
     preferredLocation: null,
     lastConnectedDestination: null,
@@ -36,9 +32,6 @@
     }
   };
 
-  // update-install flow (macOS): install_update replays fixture.installScript
-  // (or this default) as update-install-status events, mirroring the Rust
-  // command streaming the gnosis_vpn-update binary's NDJSON phases.
   // On-demand event firing for driver `eval` steps (mount time varies, timers can't be trusted)
   globalThis.__GVPN_FIRE_EVENT__ = fireEvent;
 
@@ -47,6 +40,8 @@
     setTimeout(() => fireEvent("status", step.status), step.delay);
   }
 
+  // update-install flow (macOS): install_update replays fixture.installScript or this default
+  // as update-install-status events, as the Rust command streams the binary's NDJSON phases.
   const defaultInstallScript = [
     { delay: 100, status: { kind: "Checking" } },
     { delay: 400, status: { kind: "Downloading" } },
@@ -59,7 +54,19 @@
     get_initial_theme: () => fixture.theme ?? "dark",
     get_platform: () => fixture.platform ?? "linux",
     get_install_status: () => fixture.installStatus ?? null,
-    get_toolkit_version: () => fixture.toolkitVersion ?? null,
+    get_toolkit_version: () => {
+      if (fixture.toolkitVersion === null) {
+        return Promise.reject("ToolkitMissing");
+      }
+      if (fixture.toolkitStatus === "tooOld") {
+        return Promise.reject("ToolkitTooOld");
+      }
+      return {
+        version: fixture.toolkitVersion ?? "0.4.0",
+        package_version: fixture.packageVersion ??
+          fixture.cached_state?.service_info?.package_version ?? null,
+      };
+    },
     install_update: () => {
       for (const step of fixture.installScript ?? defaultInstallScript) {
         setTimeout(
@@ -69,15 +76,25 @@
       }
       return null;
     },
-    // Resolves with fixture.checkUpdateManifest (falling back to the seeded
-    // settings.updateManifest) after checkUpdateDelayMs, so the "Checking…"
-    // UI state is observable.
+    // Resolves after checkUpdateDelayMs with fixture.checkUpdateResult ({channel, outcome,
+    // manifest}), else an UpToDate wrapper; checkUpdateError (e.g. "VpnNotConnected") rejects.
     check_update: () =>
-      new Promise((resolve) =>
-        setTimeout(
-          () => resolve(fixture.checkUpdateManifest ?? settings.updateManifest),
-          fixture.checkUpdateDelayMs ?? 2000,
-        )
+      new Promise((resolve, reject) =>
+        setTimeout(() => {
+          if (fixture.checkUpdateError) return reject(fixture.checkUpdateError);
+          if (fixture.checkUpdateResult) {
+            return resolve(fixture.checkUpdateResult);
+          }
+          const manifest = fixture.checkUpdateManifest ??
+            settings.updateManifest ?? null;
+          const current = fixture.packageVersion ??
+            fixture.cached_state?.service_info?.package_version ?? "0.0.0";
+          resolve({
+            channel: settings.channel ?? "stable",
+            outcome: { kind: "UpToDate", current },
+            manifest,
+          });
+        }, fixture.checkUpdateDelayMs ?? 2000)
       ),
     log_from_frontend: () => null,
     export_logs: (args) => args?.destPath ?? "/tmp/gnosis_vpn-export.log.zst",
@@ -124,9 +141,8 @@
     },
   };
 
-  // index.tsx trusts matchMedia over the backend theme, so force it too —
-  // in both directions: the browser's own prefers-color-scheme follows the
-  // host OS, not the fixture.
+  // index.tsx trusts matchMedia over the backend theme, so force it in both directions —
+  // the browser's own prefers-color-scheme follows the host OS, not the fixture.
   const wantDark = (fixture.theme ?? "dark") === "dark";
   const origMatchMedia = globalThis.matchMedia.bind(globalThis);
   globalThis.matchMedia = (query) => {

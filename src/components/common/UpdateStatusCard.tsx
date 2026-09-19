@@ -91,7 +91,7 @@ export default function UpdateStatusCard(props: UpdateStatusCardProps) {
             props.loading || installing() ? " animate-spin" : ""
           }`}
         />
-        <Show when={appState.serviceInfo?.package_version && showCheckmark()}>
+        <Show when={appState.packageVersion && showCheckmark()}>
           <div class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-bg-surface flex items-center justify-center">
             <img src={checkmarkIcon} alt="" class="w-4 h-4" />
           </div>
