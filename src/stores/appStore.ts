@@ -282,8 +282,14 @@ export function createAppStore(): AppStoreTuple {
     if (state.error !== message) logError(message);
     stopSyncProgress();
     const savedServiceInfo = state.serviceInfo;
+    // The toolkit probe does not go through the daemon (it reads the version
+    // file itself), so a daemon error says nothing about its result: keep it.
+    const savedToolkit = { ...state.toolkit };
+    const savedPackageVersion = state.packageVersion;
     setState(reconcile(initialState()));
     setState("serviceInfo", savedServiceInfo);
+    setState("toolkit", savedToolkit);
+    setState("packageVersion", savedPackageVersion);
     setState("error", message);
     destinationMode?.reset({
       preferredLocation: settings.preferredLocation,
