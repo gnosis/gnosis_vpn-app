@@ -45,7 +45,11 @@ export const UpdateManifestSchema = z.object({
 });
 export type UpdateManifest = z.infer<typeof UpdateManifestSchema>;
 
-export const UpdateChannelSchema = z.enum(["stable", "snapshot", "experimental"]);
+export const UpdateChannelSchema = z.enum([
+  "stable",
+  "snapshot",
+  "experimental",
+]);
 export type UpdateChannel = z.infer<typeof UpdateChannelSchema>;
 
 export const FlagDisplaySchema = z.enum(["none", "mono", "color"]);

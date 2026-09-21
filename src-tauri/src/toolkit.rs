@@ -276,7 +276,8 @@ pub async fn check_update(
     channel: Option<UpdateChannel>,
     force: bool,
 ) -> Result<CheckResult, ToolkitError> {
-    let mut args = vec!["check-update"];
+    // Explicit `--output json`: bare `check-update` is the human-readable form.
+    let mut args = vec!["check-update", "--output", "json"];
     let name;
     if let Some(channel) = channel {
         name = channel_arg(channel);
