@@ -86,7 +86,7 @@ pub struct ChannelRelease {
     pub published_at: String,
     pub download_url: String,
     /// The published manifest carries a number, the binary re-emits `ByteSize`'s string
-    /// (`"117.7 MiB"`). Accept either; always hand on the string the frontend schema expects.
+    /// (`"117.7 MiB"`). Accept either; always hand off the string the frontend schema expects.
     #[serde(deserialize_with = "string_or_number")]
     pub size_bytes: String,
     pub sha256: String,

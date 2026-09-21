@@ -35,6 +35,10 @@
   // On-demand event firing for driver `eval` steps (mount time varies, timers can't be trusted)
   globalThis.__GVPN_FIRE_EVENT__ = fireEvent;
 
+  // Every URL the app asked the system to open, newest last.
+  const openedUrls = [];
+  globalThis.__GVPN_OPENED_URLS__ = openedUrls;
+
   // Replays fixture.statusScript steps as "status" events ({Ok: StatusResponse} payloads); delays must exceed mount time so listeners exist
   for (const step of fixture.statusScript ?? []) {
     setTimeout(() => fireEvent("status", step.status), step.delay);
@@ -63,8 +67,11 @@
       }
       return {
         version: fixture.toolkitVersion ?? "0.4.0",
-        package_version: fixture.packageVersion ??
-          fixture.cached_state?.service_info?.package_version ?? null,
+        // `in`, not `??`: an explicit null is the toolkit finding no version
+        // file, which only the daemon fallback should fill when the key is absent.
+        package_version: "packageVersion" in fixture
+          ? fixture.packageVersion
+          : fixture.cached_state?.service_info?.package_version ?? null,
       };
     },
     install_update: () => {
@@ -116,6 +123,11 @@
     },
     "plugin:event|emit": () => null,
     "plugin:app|version": () => fixture.appVersion ?? "0.0.0-fixture",
+    // Recorded rather than opened, so an `eval` step can assert the target.
+    "plugin:opener|open_url": (args) => {
+      openedUrls.push(args?.url);
+      return null;
+    },
   };
 
   // unlisten() consults this before invoking plugin:event|unlisten
