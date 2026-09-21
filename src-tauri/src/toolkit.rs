@@ -75,6 +75,9 @@ pub struct Manifest {
 pub struct ManifestChannels {
     pub stable: Option<ChannelRelease>,
     pub snapshot: Option<ChannelRelease>,
+    /// Absent until the channel has published once, so it stays optional.
+    #[serde(default)]
+    pub experimental: Option<ChannelRelease>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -289,6 +292,7 @@ fn channel_arg(channel: UpdateChannel) -> &'static str {
     match channel {
         UpdateChannel::Stable => "stable",
         UpdateChannel::Snapshot => "snapshot",
+        UpdateChannel::Experimental => "experimental",
     }
 }
 

@@ -30,7 +30,8 @@
         "min_os_version": "10.15",
         "min_app_version": "0.28.0"
       },
-      "snapshot": null
+      "snapshot": null,
+      "experimental": null
     }
   }
 }

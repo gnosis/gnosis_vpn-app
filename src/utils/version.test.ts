@@ -1,6 +1,35 @@
 import { describe, expect, it } from "vitest";
 import { compareVersions, detectChannel } from "./version.ts";
 
+describe("experimental channel", () => {
+  const EXP = "2026.09.20+build.144124.experimental";
+
+  it("detects the experimental segment, not just the separator", () => {
+    expect(detectChannel(EXP)).toBe("experimental");
+    // The pipeline slugs `+` to `-` for registries that reject it.
+    expect(detectChannel("2026.09.20-build.144124.experimental")).toBe(
+      "experimental",
+    );
+    // A plain snapshot must not be swept up.
+    expect(detectChannel("2026.09.20+build.144124")).toBe("snapshot");
+  });
+
+  it("orders two same-day experimental builds by build number", () => {
+    // Regression: the build tag parsed as NaN, so this compared as 0 and an
+    // experimental build never saw a newer one published the same day.
+    expect(compareVersions("2026.09.20+build.010000.experimental", EXP))
+      .toBeLessThan(0);
+    expect(compareVersions(EXP, "2026.09.20+build.010000.experimental"))
+      .toBeGreaterThan(0);
+    expect(compareVersions(EXP, EXP)).toBe(0);
+  });
+
+  it("still orders across days", () => {
+    expect(compareVersions("2026.09.16+build.102501.experimental", EXP))
+      .toBeLessThan(0);
+  });
+});
+
 describe("detectChannel", () => {
   it("returns stable for plain semver", () => {
     expect(detectChannel("1.0.0")).toBe("stable");

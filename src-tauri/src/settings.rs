@@ -72,6 +72,7 @@ pub enum FlagDisplay {
 pub enum UpdateChannel {
     Stable,
     Snapshot,
+    Experimental,
 }
 
 /// Partial settings update. Nullable fields are double-wrapped so a JSON

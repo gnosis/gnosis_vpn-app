@@ -39,11 +39,13 @@ export const UpdateManifestSchema = z.object({
   channels: z.object({
     stable: ChannelReleaseSchema.nullable(),
     snapshot: ChannelReleaseSchema.nullable(),
+    // Absent until the channel has published once, so optional as well as nullable.
+    experimental: ChannelReleaseSchema.nullable().optional(),
   }),
 });
 export type UpdateManifest = z.infer<typeof UpdateManifestSchema>;
 
-export const UpdateChannelSchema = z.enum(["stable", "snapshot"]);
+export const UpdateChannelSchema = z.enum(["stable", "snapshot", "experimental"]);
 export type UpdateChannel = z.infer<typeof UpdateChannelSchema>;
 
 export const FlagDisplaySchema = z.enum(["none", "mono", "color"]);

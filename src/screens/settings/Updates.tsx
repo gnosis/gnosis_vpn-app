@@ -42,6 +42,7 @@ const REVEAL_WINDOW_MS = 2000;
 const CHANNEL_OPTIONS: { value: UpdateChannel; label: string }[] = [
   { value: "stable", label: "Stable" },
   { value: "snapshot", label: "Snapshot" },
+  { value: "experimental", label: "Experimental" },
 ];
 
 export default function Updates() {

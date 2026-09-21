@@ -1,6 +1,9 @@
 import type { UpdateChannel } from "@src/stores/settingsStore.ts";
 
+// Mirrors `channel_of_version` in the toolkit: match the `experimental`
+// segment, not the separator, since the pipeline slugs `+` to `-`.
 export function detectChannel(version: string): UpdateChannel {
+  if (version.split(/[.\-+]/).includes("experimental")) return "experimental";
   return version.includes("-") || version.includes("+") ? "snapshot" : "stable";
 }
 
@@ -9,7 +12,10 @@ export function compareVersions(a: string, b: string): number {
     const withoutPre = v.split("-")[0];
     const [core, buildTag] = withoutPre.split("+");
     const nums = core.split(".").map(Number);
-    const build = buildTag ? Number(buildTag.replace("build.", "")) : -1;
+    // `build.144124.experimental` must yield 144124, not NaN — an experimental
+    // build otherwise never compares as newer than another same-day one.
+    const buildDigits = buildTag?.match(/\d+/)?.[0];
+    const build = buildDigits ? Number(buildDigits) : -1;
     return { nums, build };
   };
   const pa = parse(a);
