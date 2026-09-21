@@ -16,6 +16,7 @@
 //   text <css>         print innerText of first match
 //   eval <js>          evaluate JS expression, print JSON result
 //   wait <ms>          sleep
+//   handoff            diff the splash logo against the mounted one; exit 1 if they differ
 //
 // Linux/macOS only by design: relies on a `chromium` binary and `pkill` on
 // PATH and treats URL.pathname as a filesystem path. --allow-all is also
@@ -45,6 +46,8 @@ while (args.length) {
     const [w, h] = args.shift()!.split("x").map(Number);
     width = w;
     height = h;
+  } else if (a === "handoff") {
+    steps.push([a, ""]);
   } else if (["shot", "click", "text", "eval", "wait"].includes(a)) {
     steps.push([a, args.shift()!]);
   } else {
@@ -70,14 +73,27 @@ if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
 const fixtureTheme = (parsed as { theme?: unknown }).theme === "light"
   ? "light"
   : "dark";
+type Rect = { x: number; y: number; w: number; h: number };
+const rectOf = (sel: string) =>
+  `(() => {
+    const el = document.querySelector(${JSON.stringify(sel)});
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    return { x: r.x, y: r.y, w: r.width, h: r.height };
+  })()`;
+
 const entryTag = '<script src="/src/index.tsx" type="module"></script>';
 if (!indexHtml.includes(entryTag)) {
   throw new Error("index.html entry <script> tag not found — update driver.ts");
 }
+// Runs where the entry <script> sits — after the splash markup, before Solid wipes it.
+const splashProbe = `<script>globalThis.__GVPN_SPLASH_RECT__ = ${
+  rectOf(".logo-svg")
+};</script>`;
 const injected = indexHtml.replace(
   entryTag,
   `<script>globalThis.__GVPN_FIXTURE__ = ${fixtureJson};</script>\n` +
-    `<script>${shimSource}</script>\n${entryTag}`,
+    `${splashProbe}\n<script>${shimSource}</script>\n${entryTag}`,
 );
 await Deno.writeTextFile(repoPath("index.browser.html"), injected);
 
@@ -348,6 +364,38 @@ try {
       case "eval":
         console.log(JSON.stringify(await evaluate(arg)));
         break;
+      case "handoff": {
+        // Initialization is the screen that directly succeeds the splash.
+        await evaluate("__GVPN_FIRE_EVENT__('navigate','initialization')");
+        await sleep(1600);
+        const splashRect = await evaluate(
+          "globalThis.__GVPN_SPLASH_RECT__ ?? null",
+        ) as Rect | null;
+        const mounted = await evaluate(
+          rectOf('svg[aria-label="Gnosis VPN"]'),
+        ) as Rect | null;
+        console.log(JSON.stringify({ splash: splashRect, mounted }));
+        if (!splashRect || !mounted) {
+          console.error("handoff: logo missing on one side — cannot compare");
+          Deno.exitCode = 1;
+          break;
+        }
+        const off = (["x", "y", "w", "h"] as const)
+          .map((k) => [k, mounted[k] - splashRect[k]] as const)
+          .filter(([, d]) => Math.abs(d) > 0.5);
+        if (off.length === 0) {
+          console.error("handoff: splash and mounted logo match");
+        } else {
+          console.error(
+            `handoff: logo jumps on mount — ${
+              off.map(([k, d]) => `${k}${d > 0 ? "+" : ""}${d.toFixed(2)}`)
+                .join(" ")
+            }`,
+          );
+          Deno.exitCode = 1;
+        }
+        break;
+      }
       case "wait":
         await sleep(Number(arg));
         break;

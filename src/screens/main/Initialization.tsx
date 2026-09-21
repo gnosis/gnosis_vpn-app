@@ -31,11 +31,11 @@ export default function Initialization(props: InitializationProps) {
   return (
     <div class="relative h-full w-full text-center">
       {/* Logo geometry mirrors the splash in index.html so the mount handoff is seamless. */}
-      <div class="absolute inset-0 flex items-center justify-center px-6">
+      <div class="absolute inset-x-0 top-[var(--golden-logo-y)] -translate-y-1/2 px-6">
         <GnosisVpnLogo class="w-full text-text-primary" />
       </div>
 
-      <div class="absolute inset-x-0 top-[calc(50%+3rem)] flex flex-col items-center px-8 transition-opacity duration-300 ease-out starting:opacity-0">
+      <div class="absolute inset-x-0 top-[var(--golden-content-y)] flex flex-col items-center px-8 transition-opacity duration-300 ease-out starting:opacity-0">
         {props.error
           ? (
             <div class="text-status-error">

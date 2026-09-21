@@ -46,6 +46,10 @@ select {
   -moz-osx-font-smoothing: grayscale;
   -webkit-text-size-adjust: 100%;
 
+  /* Logo centers on the golden section of the viewport (1/φ² ≈ 0.382); content starts φ × the 3rem logo height below that line. */
+  --golden-logo-y: 38.2%;
+  --golden-content-y: calc(38.2% + 4.854rem);
+
   /* Background colors */
   --color-bg-primary: #f6f6f6;
   --color-bg-surface: #ffffff;
