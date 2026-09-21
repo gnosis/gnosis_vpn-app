@@ -11,9 +11,8 @@ import noRelease from "./fixtures/check_result_no_release.json" with {
 };
 import toolkitInfo from "./fixtures/toolkit_info.json" with { type: "json" };
 
-// Fixtures are generated from the Rust types by
-// `cargo test --test serialize_fixtures`, so a drift in what the toolkit
-// binary hands the frontend fails here rather than at runtime.
+// Fixtures come from the Rust types via `cargo test --test serialize_fixtures`,
+// so drift fails here rather than at runtime.
 
 describe("ToolkitInfoSchema", () => {
   it("parses the generated fixture", () => {

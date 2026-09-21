@@ -560,11 +560,8 @@ fn generate_fixtures() {
     );
 }
 
-/// The manifest shared by the settings and check-result fixtures.
-///
-/// Built via deserialization, with `size_bytes` as the number the published manifest carries,
-/// so the fixture doubles as a check that the app's type accepts the upstream shape and
-/// re-emits the string the frontend schema expects. `from_value` fails loudly if either drifts.
+/// The manifest shared by the settings and check-result fixtures. Built by
+/// deserializing, so it also checks the app accepts the published shape.
 fn fixture_manifest() -> Manifest {
     serde_json::from_value(serde_json::json!({
         "schema_version": 1,

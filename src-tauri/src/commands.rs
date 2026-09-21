@@ -53,11 +53,8 @@ pub fn get_platform() -> &'static str {
     std::env::consts::OS
 }
 
-/// Asks the toolkit binary for an update decision and the current manifest.
-///
-/// `Ok` carries a manifest; the three outcomes that never fetched one come back as `Err` with
-/// the same strings the frontend has always branched on — `"VpnNotConnected"` opens the
-/// "connect and check" modal and defers the background check — so that flow is unchanged.
+/// Asks the toolkit for a decision and the current manifest. The three outcomes
+/// that never fetched one come back as `Err`, with the strings the frontend uses.
 #[tauri::command]
 pub async fn check_update(skip_vpn: bool) -> Result<toolkit::CheckResult, String> {
     tracing::info!(target: "update", skip_vpn, "checking for update");

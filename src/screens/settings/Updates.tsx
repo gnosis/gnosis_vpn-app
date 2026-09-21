@@ -283,9 +283,8 @@ export default function Updates() {
     }
   });
 
-  // Why update checks cannot run, if they cannot. The updater binary is what
-  // reads the installed version and fetches manifests, so without a usable one
-  // there is nothing to show and the reason is worth stating.
+  // Why update checks cannot run, if they cannot: without a usable updater there
+  // is no version and no manifest, so the reason is worth stating.
   const blocker = createMemo<string | null>(() => {
     if (appState.toolkit.status === "missing") {
       return "Update tool not installed — please reinstall Gnosis VPN";

@@ -332,8 +332,7 @@ pub fn update_settings(
 
 #[cfg(test)]
 mod tests {
-    /// Every channel must survive the round trip the install button takes:
-    /// the frontend's wire string -> `UpdateChannel` -> the updater's
+    /// Every channel must survive the install button's path: wire string -> enum ->
     /// `--channel` argument. `experimental` failed this when it was added.
     #[test]
     fn every_channel_round_trips_from_wire_to_cli_arg() {

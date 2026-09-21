@@ -72,9 +72,8 @@ fn publish(app: &AppHandle, status: InstallStatus) {
     let _ = app.emit(INSTALL_STATUS_EVENT, &status);
 }
 
-/// Start the updater and return immediately; progress and the outcome flow
-/// exclusively through `update-install-status` events. `Err` means the run
-/// was not started (bad channel, missing binary, already running, spawn failure).
+/// Start the updater and return immediately; progress arrives as
+/// `update-install-status` events. `Err` means the run never started.
 #[tauri::command]
 pub fn install_update(app: AppHandle, channel: String, force: bool) -> Result<(), String> {
     use std::collections::VecDeque;
@@ -92,9 +91,8 @@ pub fn install_update(app: AppHandle, channel: String, force: bool) -> Result<()
     // Forward the enum's own spelling, never the caller's string.
     let channel = toolkit::channel_arg(parsed);
 
-    // The same lookup the version and update checks use, so all three agree on which binary
-    // is "the" updater. On macOS that is /usr/local/bin — the exact path the installer's
-    // sudoers entries name, which is why `sudo -n` below works without a prompt.
+    // The same lookup the version and update checks use. On macOS /usr/local/bin —
+    // the path the sudoers entries name, which is why `sudo -n` works.
     let Some(updater) = toolkit::locate() else {
         tracing::warn!(target: "update_install", "updater binary not installed");
         return Err("ToolkitMissing".to_string());

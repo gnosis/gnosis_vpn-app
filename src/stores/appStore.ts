@@ -60,9 +60,8 @@ import {
 
 export { AppScreen };
 
-/// Whether the toolkit binary could be used. `unknown` covers "not probed yet"
-/// and "probe failed for a reason other than absence", both of which the UI
-/// treats as "say nothing yet" rather than as an error.
+/// Whether the toolkit could be used. `unknown` covers "not probed yet" and
+/// "failed for a reason other than absence" — both mean "say nothing yet".
 export type ToolkitStatus = "unknown" | "ok" | "missing" | "tooOld";
 
 export interface ToolkitState {
@@ -93,9 +92,8 @@ export interface AppState {
   availableVersion: string | null;
   targetDestination: string | null;
   balance: BalanceResponse | null;
-  // The installed package version everything update-facing keys off: the
-  // toolkit's reading of the version file, falling back to the daemon's
-  // reading of the same file for installs that predate the toolkit.
+  // The installed package version everything update-facing keys off: the toolkit's
+  // read of the version file, falling back to the daemon's for older installs.
   packageVersion: string | null;
   toolkit: ToolkitState;
   // The carousel's cards and active pointer — see docs/destinationMode.md
@@ -647,9 +645,8 @@ export function createAppStore(): AppStoreTuple {
       destinationMode?.applyUserInput({ type: "listClosed", picked }),
   } as const;
 
-  // Asks the toolkit binary for its version and the installed package's.
-  // Failing is a state the Updates tab explains (tool missing, tool too old),
-  // never an error screen. One probe at a time: a spawn is not free.
+  // Asks the toolkit for its version and the package's. Failing is a state the
+  // Updates tab explains, never an error screen. One probe at a time.
   let toolkitProbe: Promise<void> | undefined;
   const refreshToolkit = (): Promise<void> => {
     if (toolkitProbe) return toolkitProbe;
