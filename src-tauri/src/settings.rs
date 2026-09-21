@@ -75,6 +75,14 @@ pub enum UpdateChannel {
     Experimental,
 }
 
+impl UpdateChannel {
+    /// Parse the wire spelling the frontend sends. Goes through serde so the
+    /// accepted set follows the enum and cannot drift into a second list.
+    pub fn from_wire(s: &str) -> Option<Self> {
+        serde_json::from_value(Value::String(s.to_owned())).ok()
+    }
+}
+
 /// Partial settings update. Nullable fields are double-wrapped so a JSON
 /// `null` (clear the value) is distinct from an absent field (leave untouched).
 #[derive(Debug, Default, Deserialize)]
@@ -324,6 +332,27 @@ pub fn update_settings(
 
 #[cfg(test)]
 mod tests {
+    /// Every channel must survive the round trip the install button takes:
+    /// the frontend's wire string -> `UpdateChannel` -> the updater's
+    /// `--channel` argument. `experimental` failed this when it was added.
+    #[test]
+    fn every_channel_round_trips_from_wire_to_cli_arg() {
+        for (wire, channel) in [
+            ("stable", UpdateChannel::Stable),
+            ("snapshot", UpdateChannel::Snapshot),
+            ("experimental", UpdateChannel::Experimental),
+        ] {
+            assert_eq!(
+                UpdateChannel::from_wire(wire),
+                Some(channel),
+                "{wire} must parse"
+            );
+            assert_eq!(crate::toolkit::channel_arg(channel), wire);
+        }
+        assert_eq!(UpdateChannel::from_wire("nonsense"), None);
+        assert_eq!(UpdateChannel::from_wire("Stable"), None, "case is significant");
+    }
+
     use super::*;
     use serde_json::json;
     use std::sync::atomic::{AtomicU32, Ordering};

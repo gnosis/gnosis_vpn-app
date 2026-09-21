@@ -83,10 +83,14 @@ pub fn install_update(app: AppHandle, channel: String, force: bool) -> Result<()
 
     const STDERR_TAIL_LINES: usize = 10;
 
-    if channel != "stable" && channel != "snapshot" {
+    // Parsed through the enum rather than compared against a hand-written list
+    // of spellings, which silently rejected `experimental` when it was added.
+    let Some(parsed) = crate::settings::UpdateChannel::from_wire(&channel) else {
         tracing::warn!(target: "update_install", %channel, "rejected invalid update channel");
         return Err("InvalidChannel".to_string());
-    }
+    };
+    // Forward the enum's own spelling, never the caller's string.
+    let channel = toolkit::channel_arg(parsed);
 
     // The same lookup the version and update checks use, so all three agree on which binary
     // is "the" updater. On macOS that is /usr/local/bin — the exact path the installer's
@@ -114,7 +118,7 @@ pub fn install_update(app: AppHandle, channel: String, force: bool) -> Result<()
     // The installer's sudoers rule lets gnosisvpn-group members run this
     // without a password; -n fails fast instead of prompting if it's missing.
     let mut cmd = Command::new("sudo");
-    cmd.args(["-n", &updater, "update", "--channel", &channel]);
+    cmd.args(["-n", &updater, "update", "--channel", channel]);
     if force {
         cmd.arg("--force");
     }

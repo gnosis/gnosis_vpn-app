@@ -289,7 +289,7 @@ pub async fn check_update(
     parse_check(&run(&args).await?)
 }
 
-fn channel_arg(channel: UpdateChannel) -> &'static str {
+pub fn channel_arg(channel: UpdateChannel) -> &'static str {
     match channel {
         UpdateChannel::Stable => "stable",
         UpdateChannel::Snapshot => "snapshot",
