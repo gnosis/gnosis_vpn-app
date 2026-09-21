@@ -118,7 +118,9 @@ pub fn install_update(app: AppHandle, channel: String, force: bool) -> Result<()
     // The installer's sudoers rule lets gnosisvpn-group members run this
     // without a password; -n fails fast instead of prompting if it's missing.
     let mut cmd = Command::new("sudo");
-    cmd.args(["-n", &updater, "update", "--channel", channel]);
+    // Explicit `--output json`: the updater renders plain text by default, and
+    // the reader below parses one status object per stdout line.
+    cmd.args(["-n", &updater, "update", "--output", "json", "--channel", channel]);
     if force {
         cmd.arg("--force");
     }
