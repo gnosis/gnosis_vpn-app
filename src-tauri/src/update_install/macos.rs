@@ -118,7 +118,15 @@ pub fn install_update(app: AppHandle, channel: String, force: bool) -> Result<()
     let mut cmd = Command::new("sudo");
     // Explicit `--output json`: the updater renders plain text by default, and
     // the reader below parses one status object per stdout line.
-    cmd.args(["-n", &updater, "update", "--output", "json", "--channel", channel]);
+    cmd.args([
+        "-n",
+        &updater,
+        "update",
+        "--output",
+        "json",
+        "--channel",
+        channel,
+    ]);
     if force {
         cmd.arg("--force");
     }

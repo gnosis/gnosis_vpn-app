@@ -332,6 +332,10 @@ pub fn update_settings(
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use serde_json::json;
+    use std::sync::atomic::{AtomicU32, Ordering};
+
     /// Every channel must survive the install button's path: wire string -> enum ->
     /// `--channel` argument. `experimental` failed this when it was added.
     #[test]
@@ -349,12 +353,12 @@ mod tests {
             assert_eq!(crate::toolkit::channel_arg(channel), wire);
         }
         assert_eq!(UpdateChannel::from_wire("nonsense"), None);
-        assert_eq!(UpdateChannel::from_wire("Stable"), None, "case is significant");
+        assert_eq!(
+            UpdateChannel::from_wire("Stable"),
+            None,
+            "case is significant"
+        );
     }
-
-    use super::*;
-    use serde_json::json;
-    use std::sync::atomic::{AtomicU32, Ordering};
 
     static TEST_DIR_COUNTER: AtomicU32 = AtomicU32::new(0);
 
