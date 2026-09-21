@@ -24,6 +24,20 @@ describe("experimental channel", () => {
     expect(compareVersions(EXP, EXP)).toBe(0);
   });
 
+  it("orders same-day builds in the hyphenated form too", () => {
+    // The pipeline slugs `+` to `-` for registries that reject it; splitting on
+    // `-` first used to discard the build number, making these compare equal.
+    const older = "2026.09.20-build.010000.experimental";
+    const newer = "2026.09.20-build.144124.experimental";
+    expect(compareVersions(older, newer)).toBeLessThan(0);
+    expect(compareVersions(newer, older)).toBeGreaterThan(0);
+    expect(compareVersions(newer, newer)).toBe(0);
+    // Both spellings must rank identically.
+    expect(compareVersions(newer, "2026.09.20+build.144124.experimental")).toBe(
+      0,
+    );
+  });
+
   it("still orders across days", () => {
     expect(compareVersions("2026.09.16+build.102501.experimental", EXP))
       .toBeLessThan(0);

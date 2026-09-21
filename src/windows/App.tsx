@@ -61,6 +61,7 @@ function mapStoreToScreenProps(screen: ValidScreen, state: AppState) {
     case "initialization":
       return {
         info: state.serviceInfo,
+        packageVersion: state.packageVersion,
         error: state.error,
       };
     case "synchronization":

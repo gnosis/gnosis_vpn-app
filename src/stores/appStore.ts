@@ -60,15 +60,15 @@ import {
 
 export { AppScreen };
 
-/// Whether the toolkit could be used. `unknown` covers "not probed yet" and
-/// "failed for a reason other than absence" — both mean "say nothing yet".
+/** Whether the toolkit could be used. `unknown` covers "not probed yet" and
+ * "failed for a reason other than absence" — both mean "say nothing yet". */
 export type ToolkitStatus = "unknown" | "ok" | "missing" | "tooOld";
 
 export interface ToolkitState {
   status: ToolkitStatus;
-  /// The updater's own version, when it answered.
+  /** The updater's own version, when it answered. */
   version: string | null;
-  /// The installed package as the updater read it from the version file.
+  /** The installed package as the updater read it from the version file. */
   packageVersion: string | null;
 }
 

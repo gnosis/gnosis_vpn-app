@@ -9,13 +9,10 @@ export function detectChannel(version: string): UpdateChannel {
 
 export function compareVersions(a: string, b: string): number {
   const parse = (v: string) => {
-    const withoutPre = v.split("-")[0];
-    const [core, buildTag] = withoutPre.split("+");
-    const nums = core.split(".").map(Number);
-    // `build.144124.experimental` must yield 144124, not NaN — an experimental
-    // build otherwise never compares as newer than another same-day one.
-    const buildDigits = buildTag?.match(/\d+/)?.[0];
-    const build = buildDigits ? Number(buildDigits) : -1;
+    // `build.N` follows `+`, or `-` where the pipeline slugs it; other suffixes
+    // (`-rc.1`, `+commit.abc1234`) carry no ordinal, so they stay unranked.
+    const build = Number(v.match(/[-+]build\.(\d+)/)?.[1] ?? -1);
+    const nums = v.split(/[-+]/)[0].split(".").map(Number);
     return { nums, build };
   };
   const pa = parse(a);
