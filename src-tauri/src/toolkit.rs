@@ -263,7 +263,8 @@ fn parse_check(stdout: &str) -> Result<CheckResult, ToolkitError> {
 
 /// `gnosis_vpn-update version`: the updater's version and the installed package's.
 pub async fn version() -> Result<ToolkitInfo, ToolkitError> {
-    parse_version(&run(&["version"]).await?)
+    // Explicit `--output json`: `version` alone is the human-readable form.
+    parse_version(&run(&["version", "--output", "json"]).await?)
 }
 
 /// `gnosis_vpn-update check-update`. `channel: None` lets the binary infer it from the installed
