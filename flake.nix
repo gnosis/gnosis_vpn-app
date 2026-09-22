@@ -9,7 +9,14 @@
       url = "github:numtide/treefmt-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
+    nix-lib = {
+      url = "github:hoprnet/nix-lib/v1.4.0";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.nixpkgs-unstable.follows = "nixpkgs";
+      inputs.crane.follows = "crane";
+      inputs.flake-parts.follows = "flake-parts";
+      inputs.treefmt-nix.follows = "treefmt-nix";
+    };
   };
 
   outputs =
@@ -19,6 +26,7 @@
       crane,
       flake-parts,
       treefmt-nix,
+      nix-lib,
       ...
     }:
     flake-parts.lib.mkFlake { inherit inputs; } {
@@ -48,6 +56,7 @@
           );
 
           craneLib = crane.mkLib pkgs;
+          nixLib = nix-lib.lib.${system};
 
           generate-lockfile = {
             type = "app";
@@ -174,6 +183,8 @@
 
           apps = {
             inherit generate-lockfile;
+            # Run from src-tauri/ (`cd src-tauri && nix run ..#audit`); cargo-audit reads Cargo.lock from the cwd.
+            audit = nixLib.mkAuditApp { };
           };
 
           treefmt = treefmt;
