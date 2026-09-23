@@ -60,9 +60,9 @@ import {
 
 export { AppScreen };
 
-/** Whether the toolkit could be used. `unknown` covers "not probed yet" and
- * "failed for a reason other than absence" — both mean "say nothing yet". */
-export type ToolkitStatus = "unknown" | "ok" | "missing" | "tooOld";
+/** Whether the toolkit could be used. `unknown` is "not probed yet" and nothing
+ * else: a probe that ran and failed is `failed`, which the Updates tab explains. */
+export type ToolkitStatus = "unknown" | "ok" | "missing" | "tooOld" | "failed";
 
 export interface ToolkitState {
   status: ToolkitStatus;
@@ -109,6 +109,7 @@ type AppActions = {
   dragStarted: () => void;
   destinationListOpened: () => void;
   destinationListClosed: (picked: string | null) => void;
+  refreshToolkit: () => Promise<void>;
 };
 
 type AppStoreTuple = readonly [Store<AppState>, AppActions];
@@ -448,6 +449,34 @@ export function createAppStore(): AppStoreTuple {
     if (prefMsg) log(prefMsg);
   };
 
+  // Asks the toolkit for its version and the package's. Failing is a state the
+  // Updates tab explains, never an error screen. One probe at a time.
+  let toolkitProbe: Promise<void> | undefined;
+  const refreshToolkit = (): Promise<void> => {
+    if (toolkitProbe) return toolkitProbe;
+    toolkitProbe = (async () => {
+      try {
+        const info = await getToolkitInfo();
+        setState("toolkit", {
+          status: "ok",
+          version: info.version,
+          packageVersion: info.package_version,
+        });
+      } catch (e) {
+        const status: ToolkitStatus = e === TOOLKIT_MISSING
+          ? "missing"
+          : e === TOOLKIT_TOO_OLD
+          ? "tooOld"
+          : "failed";
+        if (status === "failed") logWarn(`Toolkit probe failed: ${e}`);
+        setState("toolkit", { status, version: null, packageVersion: null });
+      } finally {
+        toolkitProbe = undefined;
+      }
+    })();
+    return toolkitProbe;
+  };
+
   const actions = {
     initializeApp: async () => {
       stopSyncProgress();
@@ -643,35 +672,8 @@ export function createAppStore(): AppStoreTuple {
       destinationMode?.applyUserInput({ type: "listOpened" }),
     destinationListClosed: (picked: string | null) =>
       destinationMode?.applyUserInput({ type: "listClosed", picked }),
+    refreshToolkit,
   } as const;
-
-  // Asks the toolkit for its version and the package's. Failing is a state the
-  // Updates tab explains, never an error screen. One probe at a time.
-  let toolkitProbe: Promise<void> | undefined;
-  const refreshToolkit = (): Promise<void> => {
-    if (toolkitProbe) return toolkitProbe;
-    toolkitProbe = (async () => {
-      try {
-        const info = await getToolkitInfo();
-        setState("toolkit", {
-          status: "ok",
-          version: info.version,
-          packageVersion: info.package_version,
-        });
-      } catch (e) {
-        const status: ToolkitStatus = e === TOOLKIT_MISSING
-          ? "missing"
-          : e === TOOLKIT_TOO_OLD
-          ? "tooOld"
-          : "unknown";
-        if (status === "unknown") logWarn(`Toolkit probe failed: ${e}`);
-        setState("toolkit", { status, version: null, packageVersion: null });
-      } finally {
-        toolkitProbe = undefined;
-      }
-    })();
-    return toolkitProbe;
-  };
 
   // Re-probe whenever the daemon reports its package: a completed install
   // restarts the daemon, and that is the moment the version file has moved.

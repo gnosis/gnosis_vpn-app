@@ -113,7 +113,10 @@ source:
   the "package version not found" card. Set `"toolkitVersion": null` to simulate
   a machine without the binary, or `"toolkitStatus": "tooOld"` for one that
   predates the current contract — both replace the tab with the "please
-  reinstall" card.
+  reinstall" card. `"toolkitStatus": "failed"` rejects with `toolkitError`
+  (default `"ToolkitTimedOut"`) for a probe that ran and failed, which drives
+  the "couldn't reach the update tool" card and its Try again button; flip the
+  key off and click it to watch the tab recover.
 - `checkUpdateResult` — the full `{channel, outcome, manifest}` that
   `check_update` resolves with, e.g.
   `{"channel":"stable","outcome":{"kind":"Available","current":"0.77.0","release":{...}},"manifest":{...}}`.

@@ -3,7 +3,11 @@ import type {
   ChannelRelease,
   UpdateManifest,
 } from "@src/stores/settingsStore.ts";
-import { evaluateUpdate, resolveChannelResync } from "./updateAvailability.ts";
+import {
+  evaluateUpdate,
+  resolveChannelResync,
+  resolveUpdateBlocker,
+} from "./updateAvailability.ts";
 
 const release = (version: string): ChannelRelease => ({
   version,
@@ -353,5 +357,61 @@ describe("resolveChannelResync", () => {
       packageVersion: "0.8.0",
       channel: "snapshot",
     })).toBe("stable");
+  });
+});
+
+describe("resolveUpdateBlocker", () => {
+  it("says nothing while the probe is still in flight", () => {
+    // Regression: "unknown" used to also mean "probed and failed", so a timed-out
+    // probe rendered the ordinary tab with no version and no explanation.
+    expect(
+      resolveUpdateBlocker({ toolkitStatus: "unknown", packageVersion: null }),
+    ).toBeNull();
+    expect(
+      resolveUpdateBlocker({
+        toolkitStatus: "unknown",
+        packageVersion: "1.0.0",
+      }),
+    ).toBeNull();
+  });
+
+  it("offers a retry only for a probe that ran and failed", () => {
+    const failed = resolveUpdateBlocker({
+      toolkitStatus: "failed",
+      packageVersion: null,
+    });
+    expect(failed?.kind).toBe("failed");
+    expect(failed?.retryable).toBe(true);
+    // A reinstall is the only way out of these two, so no button.
+    expect(
+      resolveUpdateBlocker({ toolkitStatus: "missing", packageVersion: null })
+        ?.retryable,
+    ).toBe(false);
+    expect(
+      resolveUpdateBlocker({ toolkitStatus: "tooOld", packageVersion: null })
+        ?.retryable,
+    ).toBe(false);
+  });
+
+  it("blocks a working toolkit only when no source can name the package", () => {
+    expect(
+      resolveUpdateBlocker({ toolkitStatus: "ok", packageVersion: "0.78.0" }),
+    ).toBeNull();
+    expect(
+      resolveUpdateBlocker({ toolkitStatus: "ok", packageVersion: null })?.kind,
+    ).toBe("noPackageVersion");
+  });
+
+  it("reports a broken toolkit even when the daemon supplied a version", () => {
+    // The fallback fills the version row, but checks still cannot run.
+    for (const status of ["missing", "tooOld", "failed"] as const) {
+      expect(
+        resolveUpdateBlocker({
+          toolkitStatus: status,
+          packageVersion: "0.78.0",
+        })
+          ?.kind,
+      ).toBe(status);
+    }
   });
 });

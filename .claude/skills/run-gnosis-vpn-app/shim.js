@@ -65,6 +65,9 @@
       if (fixture.toolkitStatus === "tooOld") {
         return Promise.reject("ToolkitTooOld");
       }
+      if (fixture.toolkitStatus === "failed") {
+        return Promise.reject(fixture.toolkitError ?? "ToolkitTimedOut");
+      }
       return {
         version: fixture.toolkitVersion ?? "0.4.0",
         // `in`, not `??`: an explicit null is the toolkit finding no version

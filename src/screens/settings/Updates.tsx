@@ -15,6 +15,7 @@ import UpdateStatusCard, {
   type InstallPhase,
 } from "@src/components/common/UpdateStatusCard.tsx";
 import SegmentedControl from "@src/components/common/SegmentedControl.tsx";
+import Button from "@src/components/common/Button.tsx";
 import CheckUpdateModal from "@src/components/CheckUpdateModal.tsx";
 import HowToUpdateModal from "@src/components/common/HowToUpdateModal.tsx";
 import InstallUpdateModal from "@src/components/InstallUpdateModal.tsx";
@@ -26,7 +27,11 @@ import {
 } from "@src/stores/settingsStore.ts";
 import { checkUpdate } from "@src/services/toolkit.ts";
 import { detectChannel } from "@src/utils/version.ts";
-import { evaluateUpdate } from "@src/utils/updateAvailability.ts";
+import {
+  evaluateUpdate,
+  resolveUpdateBlocker,
+  type UpdateBlocker,
+} from "@src/utils/updateAvailability.ts";
 import { logInfo, logWarn } from "@src/utils/appLog.ts";
 import {
   getInstallStatus,
@@ -283,22 +288,30 @@ export default function Updates() {
     }
   });
 
-  // Why update checks cannot run, if they cannot: without a usable updater there
-  // is no version and no manifest, so the reason is worth stating.
-  const blocker = createMemo<string | null>(() => {
-    if (appState.toolkit.status === "missing") {
-      return "Update tool not installed — please reinstall Gnosis VPN";
-    }
-    if (appState.toolkit.status === "tooOld") {
-      return "Update tool is out of date — please reinstall Gnosis VPN";
-    }
-    // The tool is there (or has not answered yet) but neither it nor the
-    // daemon can name the installed package.
-    if (appState.toolkit.status === "ok" && !packageVersion()) {
-      return "Package version not found — please reinstall";
-    }
-    return null;
+  const blocker = createMemo<UpdateBlocker | null>(() =>
+    resolveUpdateBlocker({
+      toolkitStatus: appState.toolkit.status,
+      packageVersion: packageVersion(),
+    })
+  );
+
+  // The screen a user describes in a bug report should be readable in their log.
+  createEffect((previous: string | undefined) => {
+    const kind = blocker()?.kind;
+    if (kind && kind !== previous) logInfo(`Updates blocked: ${kind}`);
+    return kind;
   });
+
+  const [retrying, setRetrying] = createSignal(false);
+  const retryToolkit = async () => {
+    setRetrying(true);
+    logInfo("Retrying the update tool probe");
+    try {
+      await appActions.refreshToolkit();
+    } finally {
+      setRetrying(false);
+    }
+  };
 
   return (
     <Show
@@ -313,8 +326,19 @@ export default function Updates() {
             />
           </div>
           <span class="text-base font-medium text-red-500 text-center">
-            {blocker()}
+            {blocker()?.message}
           </span>
+          <Show when={blocker()?.retryable}>
+            <Button
+              size="sm"
+              variant="outline"
+              fullWidth={false}
+              loading={retrying()}
+              onClick={() => void retryToolkit()}
+            >
+              Try again
+            </Button>
+          </Show>
           <button
             type="button"
             class="text-sm text-text-secondary underline cursor-default"
