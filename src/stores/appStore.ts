@@ -577,10 +577,11 @@ export function createAppStore(): AppStoreTuple {
         const message = error instanceof Error ? error.message : String(error);
         logError(message);
         setState("error", message);
-        setState("isLoading", false);
         return;
+      } finally {
+        // isLoading disables the Connect button, so no path may leave it set
+        setState("isLoading", false);
       }
-      setState("isLoading", false);
 
       // best-effort — losing this only affects which destination auto-reconnect tries next
       try {

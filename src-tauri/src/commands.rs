@@ -103,17 +103,27 @@ async fn start_client_worker(keep_alive: Duration) -> Result<(), String> {
     }
 }
 
+/// Unbounded socket reads would leave the Connect button disabled until an app restart.
+const COMMAND_TIMEOUT: Duration = Duration::from_secs(30);
+
+async fn send_root_command(cmd: &command::Command) -> Result<command::Response, String> {
+    let p = PathBuf::from(root_socket::DEFAULT_PATH);
+    match time::timeout(COMMAND_TIMEOUT, root_socket::process_cmd(&p, cmd)).await {
+        Ok(res) => res.map_err(|e| e.to_string()),
+        Err(_) => Err(format!("timed out after {}s", COMMAND_TIMEOUT.as_secs())),
+    }
+}
+
 #[tauri::command]
 pub async fn connect(
     id: String,
     polling_state: State<'_, Mutex<StatusPollingHandle>>,
 ) -> Result<command::ConnectResponse, String> {
     tracing::info!(target: "status", destination = %id, "connect requested");
-    let p = PathBuf::from(root_socket::DEFAULT_PATH);
     let cmd = command::Command::Connect(id);
-    let resp = root_socket::process_cmd(&p, &cmd).await.map_err(|e| {
+    let resp = send_root_command(&cmd).await.map_err(|e| {
         tracing::warn!(target: "status", error = %e, "connect failed");
-        e.to_string()
+        e
     })?;
     match resp {
         command::Response::Connect(resp) => {
@@ -137,12 +147,12 @@ pub async fn disconnect(
     polling_state: State<'_, Mutex<StatusPollingHandle>>,
 ) -> Result<command::DisconnectResponse, String> {
     tracing::info!(target: "status", "disconnect requested");
-    let p = PathBuf::from(root_socket::DEFAULT_PATH);
-    let cmd = command::Command::Disconnect;
-    let resp = root_socket::process_cmd(&p, &cmd).await.map_err(|e| {
-        tracing::warn!(target: "status", error = %e, "disconnect failed");
-        e.to_string()
-    })?;
+    let resp = send_root_command(&command::Command::Disconnect)
+        .await
+        .map_err(|e| {
+            tracing::warn!(target: "status", error = %e, "disconnect failed");
+            e
+        })?;
     match resp {
         command::Response::Disconnect(resp) => {
             match polling_state.lock() {
