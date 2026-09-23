@@ -303,14 +303,17 @@ pub fn channel_arg(channel: UpdateChannel) -> &'static str {
 pub async fn get_toolkit_version() -> Result<ToolkitInfo, String> {
     match version().await {
         Ok(info) => {
-            tracing::debug!(target: "toolkit", version = %info.version, package_version = ?info.package_version, "toolkit version");
+            // info: the version a user reports a problem with must be in their log
+            tracing::info!(target: "toolkit", version = %info.version, package_version = ?info.package_version, "toolkit version");
             Ok(info)
         }
         Err(e) => {
             // A machine without the toolkit is an expected state, not an error worth alarming on.
             match e {
                 ToolkitError::NotInstalled => {
-                    tracing::debug!(target: "toolkit", "toolkit not installed")
+                    // info, not warn: expected on an install without the toolkit, but
+                    // the reinstall prompt it drives is otherwise invisible in the log
+                    tracing::info!(target: "toolkit", "toolkit not installed")
                 }
                 ref other => {
                     tracing::warn!(target: "toolkit", error = %other, "toolkit version failed")

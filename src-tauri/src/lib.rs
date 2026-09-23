@@ -354,7 +354,7 @@ pub fn run() {
                     let from_toolkit = match toolkit::version().await {
                         Ok(info) => info.package_version,
                         Err(e) => {
-                            tracing::debug!(target: "about_panel", error = %e, "toolkit unavailable, asking daemon");
+                            tracing::info!(target: "about_panel", error = %e, "toolkit unavailable, asking daemon");
                             None
                         }
                     };

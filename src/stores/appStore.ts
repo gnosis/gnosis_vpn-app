@@ -684,12 +684,19 @@ export function createAppStore(): AppStoreTuple {
 
   // The toolkit's reading of the version file wins; the daemon read the same
   // file and covers installs without the toolkit.
-  createEffect(() => {
-    setState(
-      "packageVersion",
-      state.toolkit.packageVersion ?? state.serviceInfo?.package_version ??
-        null,
-    );
+  createEffect((previous: string | undefined) => {
+    const fromToolkit = state.toolkit.packageVersion;
+    const resolved = fromToolkit ?? state.serviceInfo?.package_version ?? null;
+    setState("packageVersion", resolved);
+    // Everything update-facing keys off this, so a shared log must name it and
+    // say which source won.
+    const line = resolved
+      ? `Package version ${resolved} (from ${
+        fromToolkit ? "toolkit" : "daemon"
+      })`
+      : "Package version unknown: neither toolkit nor daemon reported one";
+    if (line !== previous) logInfo(line);
+    return line;
   });
 
   // Keep the persisted channel preference and install marker in step with the
