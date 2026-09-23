@@ -1,0 +1,14 @@
+# Cargo audit configuration for gnosis_vpn-app; exemptions are a subset of gnosis_vpn-client's.
+
+[advisories]
+ignore = [
+  "RUSTSEC-2024-0388", # derivative: unmaintained - transitive from alloy ecosystem
+  "RUSTSEC-2024-0436", # paste: unmaintained - transitive from alloy-sol-macro
+  "RUSTSEC-2026-0118", # hickory-proto: NSEC3 unbounded loop - no fixed version; transitive via libp2p 0.56 → libp2p-mdns
+  "RUSTSEC-2026-0119", # hickory-proto: name compression CPU exhaustion - fixed in >=0.26.1, blocked on libp2p
+]
+
+[output]
+deny = []
+quiet = false
+show_tree = true
