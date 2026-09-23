@@ -44,11 +44,16 @@ import {
 const REVEAL_CLICKS = 7;
 const REVEAL_WINDOW_MS = 2000;
 
+// The switcher is read-only, so Experimental would be a segment nobody can pick.
+// It appears only for the machines already running it, to show where they are.
 const CHANNEL_OPTIONS: { value: UpdateChannel; label: string }[] = [
   { value: "stable", label: "Stable" },
   { value: "snapshot", label: "Snapshot" },
-  { value: "experimental", label: "Experimental" },
 ];
+const EXPERIMENTAL_OPTION = {
+  value: "experimental",
+  label: "Experimental",
+} as const;
 
 export default function Updates() {
   const [appState, appActions] = useAppStore();
@@ -111,6 +116,12 @@ export default function Updates() {
   // Installed package is authoritative; preference fills in until daemon reports a version.
   const effectiveChannel = createMemo<UpdateChannel>(() =>
     installedChannel() ?? settings.channel ?? "stable"
+  );
+
+  const channelOptions = createMemo(() =>
+    effectiveChannel() === "experimental"
+      ? [...CHANNEL_OPTIONS, EXPERIMENTAL_OPTION]
+      : CHANNEL_OPTIONS
   );
 
   const latestVersion = createMemo(() =>
@@ -399,7 +410,7 @@ export default function Updates() {
         <SegmentedControl
           label="Update channel"
           //  description="Stable is the default, Snapshot is for testing new features"
-          options={CHANNEL_OPTIONS}
+          options={channelOptions()}
           value={effectiveChannel()}
           onChange={(ch) => void settingsActions.setChannel(ch)}
           disabled //installedChannel() === "stable"}
