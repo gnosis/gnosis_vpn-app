@@ -167,9 +167,9 @@ function initialState(): AppState {
 // floor/ceiling are % values; durationMs is the expected phase duration.
 // Adjust durationMs when real-world timing data is available.
 const SYNC_PHASES = [
-  { floor: 0, ceiling: 30, durationMs: 30_000 }, // DeployingSafe
-  { floor: 30, ceiling: 50, durationMs: 20_000 }, // Warmup
-  { floor: 50, ceiling: 100, durationMs: 50_000 }, // Channels/peers delay
+  { floor: 0, ceiling: 25, durationMs: 30_000 }, // DeployingSafe
+  { floor: 25, ceiling: 40, durationMs: 30_000 }, // Warmup
+  { floor: 40, ceiling: 100, durationMs: 180_000 }, // Channels/peers delay
 ] as const;
 
 export function createAppStore(): AppStoreTuple {

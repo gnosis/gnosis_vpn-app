@@ -21,7 +21,7 @@ export type SyncPhaseIndex = 0 | 1 | 2;
 /** Screen to show, its status line, and when a stuck startup sync gives up. */
 export type ScreenChoice = [AppScreen, string, number | null];
 
-const MAXIMUM_DELAY_TIME = 120 * 1000; // 2 minutes
+const MAXIMUM_DELAY_TIME = 5 * 60 * 1000; // 5 minutes
 
 function findDelayReason(destinations: DestinationState[]): string | null {
   let missingPeers = 0;
@@ -116,7 +116,7 @@ export function createScreenSelector(): (
     // delay proposed and already in delay - continue until the maximum time is reached
     if ("delayingSince" in initialDelay) {
       if (Date.now() - initialDelay.delayingSince > MAXIMUM_DELAY_TIME) {
-        logWarn(`Initial sync still "${delay}" after 2 minutes, moving on`);
+        logWarn(`Initial sync still "${delay}" after 5 minutes, moving on`);
         return moveOn();
       }
       return [
