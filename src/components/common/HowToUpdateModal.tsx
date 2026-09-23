@@ -107,11 +107,7 @@ export default function HowToUpdateModal(props: {
         <div class="text-base font-semibold text-text-primary">
           How to update
         </div>
-        {
-          /* getPlatform() reports "unknown" when the probe fails, and guessing
-            wrong hands the user commands for the wrong OS: only an explicit
-            "linux" gets the apt block, and the fallback labels both routes. */
-        }
+        {/* Only an explicit "linux" gets apt: guessing hands the user the wrong OS. */}
         <Switch
           fallback={
             <>
