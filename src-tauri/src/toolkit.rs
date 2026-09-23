@@ -244,6 +244,13 @@ fn last_json_line(stdout: &str) -> Result<serde_json::Value, ToolkitError> {
 
 fn parse_version(stdout: &str) -> Result<ToolkitInfo, ToolkitError> {
     let value = last_json_line(stdout)?;
+    // `get` answers None for scalars too, so without this a bare string would be
+    // diagnosed as an outdated toolkit and send the user off to reinstall.
+    if !value.is_object() {
+        return Err(ToolkitError::Failed(format!(
+            "expected an object, got {value}"
+        )));
+    }
     // 0.4 added `package_version`, as a key that is present even when null. An older toolkit
     // prints only `version`, and cannot tell us what is installed.
     if value.get("package_version").is_none() {
@@ -254,6 +261,13 @@ fn parse_version(stdout: &str) -> Result<ToolkitInfo, ToolkitError> {
 
 fn parse_check(stdout: &str) -> Result<CheckResult, ToolkitError> {
     let value = last_json_line(stdout)?;
+    // `get` answers None for scalars too, so without this a bare string would be
+    // diagnosed as an outdated toolkit and send the user off to reinstall.
+    if !value.is_object() {
+        return Err(ToolkitError::Failed(format!(
+            "expected an object, got {value}"
+        )));
+    }
     // Before 0.4 `check-update` printed the bare outcome; the `{channel, outcome, manifest}`
     // envelope is what makes it usable as a manifest source.
     if value.get("channel").is_none() || value.get("outcome").is_none() {
@@ -410,6 +424,16 @@ mod tests {
                 channel: UpdateChannel::Snapshot
             }
         ));
+    }
+
+    // "Too old" sends the user off to reinstall, so it must not absorb a garbled line.
+    #[test]
+    fn a_non_object_reply_is_a_failure_not_too_old() {
+        assert!(matches!(
+            parse_version(r#""just a string""#),
+            Err(ToolkitError::Failed(_))
+        ));
+        assert!(matches!(parse_check("42"), Err(ToolkitError::Failed(_))));
     }
 
     #[test]
