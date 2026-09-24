@@ -74,8 +74,10 @@
     },
     "service_info": {
       "version": "0.0.0-fixture",
-      "package_version": null,
+      "package_version": "0.78.0",
       "log_file": null
     }
-  }
+  },
+  "toolkitVersion": "0.4.0",
+  "packageVersion": "0.78.0"
 }
