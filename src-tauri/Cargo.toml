@@ -1,6 +1,6 @@
 [package]
 name = "gnosis_vpn-app"
-version = "0.100.0"
+version = "0.101.0"
 description = "Gnosis VPN UI Application"
 authors = ["HOPR"]
 edition = "2021"
