@@ -33,18 +33,31 @@ export const ChannelReleaseSchema = z.object({
 });
 export type ChannelRelease = z.infer<typeof ChannelReleaseSchema>;
 
-export const UpdateManifestSchema = z.object({
-  schema_version: z.number(),
-  generated_at: z.string(),
-  channels: z.object({
-    stable: ChannelReleaseSchema.nullable(),
-    snapshot: ChannelReleaseSchema.nullable(),
-  }),
-});
-export type UpdateManifest = z.infer<typeof UpdateManifestSchema>;
-
-export const UpdateChannelSchema = z.enum(["stable", "snapshot"]);
+export const UpdateChannelSchema = z.enum([
+  "stable",
+  "snapshot",
+  "experimental",
+]);
 export type UpdateChannel = z.infer<typeof UpdateChannelSchema>;
+
+// The toolkit's `check-update` decision, `kind`-tagged by the Rust bridge. The
+// last three never reach the frontend — `check_update` turns them into rejections.
+export const CheckOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("UpToDate"), current: z.string() }),
+  z.object({
+    kind: z.literal("Available"),
+    current: z.string(),
+    release: ChannelReleaseSchema,
+  }),
+  z.object({
+    kind: z.literal("NoReleaseForChannel"),
+    channel: UpdateChannelSchema,
+  }),
+  z.object({ kind: z.literal("VpnNotConnected") }),
+  z.object({ kind: z.literal("IntegrityError"), error: z.string() }),
+  z.object({ kind: z.literal("Error"), error: z.string() }),
+]);
+export type CheckOutcome = z.infer<typeof CheckOutcomeSchema>;
 
 export const FlagDisplaySchema = z.enum(["none", "mono", "color"]);
 export type FlagDisplay = z.infer<typeof FlagDisplaySchema>;
@@ -57,7 +70,7 @@ export const SettingsSchema = z.object({
   updateCheck: z.boolean(),
   exitNodeSortOrder: z.enum(["latency", "alpha"]),
   lastCheckedAt: z.number().nullable(),
-  updateManifest: UpdateManifestSchema.nullable(),
+  lastCheckOutcome: CheckOutcomeSchema.nullable(),
   channel: UpdateChannelSchema.nullable(),
   dismissedUpdateVersion: z.string().nullable(),
   installedVersion: z.string().nullable(),
@@ -77,7 +90,7 @@ const DEFAULT_SETTINGS: SettingsState = {
   updateCheck: true,
   exitNodeSortOrder: "latency",
   lastCheckedAt: null,
-  updateManifest: null,
+  lastCheckOutcome: null,
   channel: null,
   dismissedUpdateVersion: null,
   installedVersion: null,
@@ -96,7 +109,7 @@ type SettingsActions = {
   setUpdateCheck: (enabled: boolean) => Promise<void>;
   setExitNodeSortOrder: (order: "latency" | "alpha") => Promise<void>;
   setUpdateCheckResult: (
-    manifest: UpdateManifest,
+    outcome: CheckOutcome,
     checkedAt: number,
   ) => Promise<void>;
   setChannel: (channel: UpdateChannel) => Promise<void>;
@@ -184,8 +197,8 @@ export function createSettingsStore(): SettingsStoreTuple {
     setStartMinimized: (enabled) => patch({ startMinimized: enabled }),
     setUpdateCheck: (enabled) => patch({ updateCheck: enabled }),
     setExitNodeSortOrder: (order) => patch({ exitNodeSortOrder: order }),
-    setUpdateCheckResult: (manifest, checkedAt) =>
-      patch({ updateManifest: manifest, lastCheckedAt: checkedAt }),
+    setUpdateCheckResult: (outcome, checkedAt) =>
+      patch({ lastCheckOutcome: outcome, lastCheckedAt: checkedAt }),
     setChannel: (channel) => patch({ channel }),
     // Marker and channel land in one patch so a crash between them cannot
     // record the new version while keeping the stale channel.

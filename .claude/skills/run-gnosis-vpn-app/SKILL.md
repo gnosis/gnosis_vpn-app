@@ -101,8 +101,32 @@ source:
   screenshots matters (mount time varies seconds between runs). Stash payloads
   in a custom fixture key (unknown keys are ignored) and fire them:
   `eval "__GVPN_FIRE_EVENT__('status', __GVPN_FIXTURE__.myStates.connected)"`.
-- `toolkitVersion` — value returned by `get_toolkit_version` (default `null`,
-  shown as "—" in the Updates tab's hidden version details).
+- Opened links: the shim records every `openUrl` target in
+  `globalThis.__GVPN_OPENED_URLS__` instead of opening it, so an `eval` step can
+  assert where a button points, e.g. `eval "__GVPN_OPENED_URLS__"`.
+- `toolkitVersion` / `packageVersion` — the `gnosis_vpn-update` binary's own
+  version and the installed package version it reports, both from
+  `get_toolkit_version`. The app reads the package version from here rather than
+  from the daemon, so `packageVersion` is what the Updates tab shows. Omitting
+  the key falls back to `cached_state.service_info.package_version`; an explicit
+  `"packageVersion": null` means the toolkit found no version file, which drives
+  the "package version not found" card. Set `"toolkitVersion": null` to simulate
+  a machine without the binary, or `"toolkitStatus": "tooOld"` for one that
+  predates the current contract — both replace the tab with the "please
+  reinstall" card. `"toolkitStatus": "failed"` rejects with `toolkitError`
+  (default `"ToolkitTimedOut"`) for a probe that ran and failed, which drives
+  the "couldn't reach the update tool" card and its Try again button; flip the
+  key off and click it to watch the tab recover.
+- `checkUpdateResult` — the full `{channel, outcome, manifest}` that
+  `check_update` resolves with, e.g.
+  `{"channel":"stable","outcome":{"kind":"Available","current":"0.77.0","release":{...}},"manifest":{...}}`.
+  Without it the shim synthesizes an `UpToDate` result around
+  `checkUpdateManifest`. The UI decides from the stored `outcome` alone, so to
+  start with the banner up seed `settings.lastCheckOutcome` (and a matching
+  `packageVersion`: an outcome whose `current` differs is ignored as stale).
+  `checkUpdateError` rejects instead — `"VpnNotConnected"` drives the
+  connect-first modal. `checkUpdateDelayMs` (default 2000) keeps the "Checking…"
+  state observable.
 - `windowLabel: "settings"` renders the settings window instead (use
   `--size 640x480`). Switch tabs by clicking the nav buttons, e.g. Usage:
 

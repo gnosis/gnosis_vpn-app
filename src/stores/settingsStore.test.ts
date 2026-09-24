@@ -73,7 +73,7 @@ describe("settingsStore", () => {
     expect(state.lastConnectedDestination).toBe("exit-1");
     expect(state.exitNodeSortOrder).toBe("alpha");
     expect(state.channel).toBe("snapshot");
-    expect(state.updateManifest?.channels.stable?.version).toBe("0.29.0");
+    expect(state.lastCheckOutcome?.kind).toBe("Available");
   });
 
   it("applies settings-changed events including nulls", async () => {

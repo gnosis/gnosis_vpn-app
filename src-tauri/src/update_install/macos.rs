@@ -10,8 +10,8 @@ use serde::Deserialize;
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use super::{InstallStatus, UpdateInstallState};
+use crate::toolkit;
 
-const UPDATER_PATH: &str = "/usr/local/bin/gnosis_vpn-update";
 const INSTALL_STATUS_EVENT: &str = "update-install-status";
 
 /// One NDJSON line from `gnosis_vpn-update update` (serde's default
@@ -72,26 +72,8 @@ fn publish(app: &AppHandle, status: InstallStatus) {
     let _ = app.emit(INSTALL_STATUS_EVENT, &status);
 }
 
-/// Version of the bundled updater toolkit; `None` where it isn't installed.
-#[tauri::command]
-pub async fn get_toolkit_version() -> Option<String> {
-    use gnosis_vpn_lib::shell_command_ext::{Logs, ShellCommandExt};
-
-    // `run_stdout` runs on tokio's process driver, so a hung updater binary
-    // can't stall the async executor. A machine without the toolkit is an
-    // expected outcome here, hence `Suppress` rather than logged errors.
-    let version = tokio::process::Command::new(UPDATER_PATH)
-        .args(["version", "-o", "plain"])
-        .run_stdout(Logs::Suppress)
-        .await
-        .ok()?;
-    tracing::debug!(target: "update_install", %version, "toolkit version");
-    (!version.is_empty()).then_some(version)
-}
-
-/// Start the updater and return immediately; progress and the outcome flow
-/// exclusively through `update-install-status` events. `Err` means the run
-/// was not started (bad channel, already running, spawn failure).
+/// Start the updater and return immediately; progress arrives as
+/// `update-install-status` events. `Err` means the run never started.
 #[tauri::command]
 pub fn install_update(app: AppHandle, channel: String, force: bool) -> Result<(), String> {
     use std::collections::VecDeque;
@@ -100,10 +82,22 @@ pub fn install_update(app: AppHandle, channel: String, force: bool) -> Result<()
 
     const STDERR_TAIL_LINES: usize = 10;
 
-    if channel != "stable" && channel != "snapshot" {
+    // Parsed through the enum rather than compared against a hand-written list
+    // of spellings, which silently rejected `experimental` when it was added.
+    let Some(parsed) = crate::settings::UpdateChannel::from_wire(&channel) else {
         tracing::warn!(target: "update_install", %channel, "rejected invalid update channel");
         return Err("InvalidChannel".to_string());
-    }
+    };
+    // Forward the enum's own spelling, never the caller's string.
+    let channel = toolkit::channel_arg(parsed);
+
+    // The same lookup the version and update checks use. On macOS /usr/local/bin —
+    // the path the sudoers entries name, which is why `sudo -n` works.
+    let Some(updater) = toolkit::locate() else {
+        tracing::warn!(target: "update_install", "updater binary not installed");
+        return Err("ToolkitMissing".to_string());
+    };
+    let updater = updater.to_string_lossy().into_owned();
 
     // Claim the in-progress guard before spawning; every exit path of the
     // reader thread below ends in a terminal status, which re-arms it.
@@ -118,11 +112,21 @@ pub fn install_update(app: AppHandle, channel: String, force: bool) -> Result<()
     }
     let _ = app.emit(INSTALL_STATUS_EVENT, &InstallStatus::Checking);
 
-    tracing::info!(target: "update_install", updater = UPDATER_PATH, %channel, force, "starting updater");
+    tracing::info!(target: "update_install", %updater, %channel, force, "starting updater");
     // The installer's sudoers rule lets gnosisvpn-group members run this
     // without a password; -n fails fast instead of prompting if it's missing.
     let mut cmd = Command::new("sudo");
-    cmd.args(["-n", UPDATER_PATH, "update", "--channel", &channel]);
+    // Explicit `--output json`: the updater renders plain text by default, and
+    // the reader below parses one status object per stdout line.
+    cmd.args([
+        "-n",
+        &updater,
+        "update",
+        "--output",
+        "json",
+        "--channel",
+        channel,
+    ]);
     if force {
         cmd.arg("--force");
     }
