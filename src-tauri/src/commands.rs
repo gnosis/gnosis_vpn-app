@@ -176,8 +176,10 @@ async fn query_balance(
             warn_on_change(last_warn, format!("daemon balance query failed: {e:?}"));
             (Duration::from_secs(5), Ok(None))
         }
-        // worker-offline recovery is the status loop's story; stay quiet here
-        Ok(command::Response::WorkerOffline) => (Duration::from_secs(5), Ok(None)),
+        // worker up/down recovery is the status loop's story; stay quiet here
+        Ok(command::Response::WorkerOffline | command::Response::WorkerRestarting) => {
+            (Duration::from_secs(5), Ok(None))
+        }
         Ok(unexpected) => {
             let msg = format!("Unexpected balance response: {unexpected:?}");
             warn_on_change(last_warn, msg.clone());
@@ -477,8 +479,11 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
                     tick_timeout.as_mut().reset(Instant::now());
                 }
                 _ = tick_timeout.as_mut() => {
-                    let (needs_reinit, status_delay, result) = query_status().await;
-                    tick_timeout.as_mut().reset(Instant::now() + status_delay);
+                    let StatusPoll { delay, needs_reinit, answer } = query_status().await;
+                    tick_timeout.as_mut().reset(Instant::now() + delay);
+                    let Some(result) = answer else {
+                        continue;
+                    };
                     if let Err(ref e) = result {
                         warn_on_change(&mut last_status_warn, format!("status query failed: {e}"));
                     }
@@ -697,11 +702,32 @@ pub async fn run_initialization_loop(app: AppHandle) {
     }
 }
 
-async fn query_status() -> (bool, Duration, Result<Option<StatusResponse>, String>) {
+/// The outcome of one status poll.
+struct StatusPoll {
+    /// How long to wait before polling again.
+    delay: Duration,
+    /// Whether the worker is gone and initialization has to run again.
+    needs_reinit: bool,
+    /// What to hand the frontend - `None` while the worker is bouncing and has nothing to report.
+    answer: Option<Result<Option<StatusResponse>, String>>,
+}
+
+async fn query_status() -> StatusPoll {
     let p = PathBuf::from(root_socket::DEFAULT_PATH);
-    let resp = root_socket::process_cmd(&p, &command::Command::Status).await;
+    match root_socket::process_cmd(&p, &command::Command::Status).await {
+        Ok(resp) => classify_status_response(resp),
+        Err(e) => StatusPoll {
+            delay: Duration::from_secs_f64(2.3),
+            needs_reinit: false,
+            answer: Some(Err(e.to_string())),
+        },
+    }
+}
+
+/// Decides whether initialization must restart, when to poll next, and what the frontend is told.
+fn classify_status_response(resp: command::Response) -> StatusPoll {
     match resp {
-        Ok(command::Response::Status(status_resp)) => {
+        command::Response::Status(status_resp) => {
             let resp = StatusResponse {
                 run_mode: status_resp.run_mode.into(),
                 destinations: status_resp.destinations,
@@ -713,7 +739,11 @@ async fn query_status() -> (bool, Duration, Result<Option<StatusResponse>, Strin
             };
 
             if matches!(resp.run_mode, crate::types::RunMode::NotRunning) {
-                return (true, Duration::from_secs(5), Ok(Some(resp)));
+                return StatusPoll {
+                    delay: Duration::from_secs(5),
+                    needs_reinit: true,
+                    answer: Some(Ok(Some(resp))),
+                };
             }
 
             // A reconnect with no phase can last indefinitely; only poll fast for real progress.
@@ -722,32 +752,77 @@ async fn query_status() -> (bool, Duration, Result<Option<StatusResponse>, Strin
                     .reconnecting
                     .as_ref()
                     .is_some_and(|r| r.phase.is_some());
-            if is_in_transition {
-                (false, Duration::from_millis(222), Ok(Some(resp)))
+            let delay = if is_in_transition {
+                Duration::from_millis(222)
             } else {
-                (false, Duration::from_secs_f64(2.3), Ok(Some(resp)))
+                Duration::from_secs_f64(2.3)
+            };
+            StatusPoll {
+                delay,
+                needs_reinit: false,
+                answer: Some(Ok(Some(resp))),
             }
         }
-        Ok(command::Response::WorkerOffline) => {
-            // socket-level response: worker process not running
-            (true, Duration::from_secs(5), Ok(None))
-        }
+        // Restart already under way - reporting it would flash the critical error screen.
+        command::Response::WorkerRestarting => StatusPoll {
+            delay: Duration::from_millis(222),
+            needs_reinit: false,
+            answer: None,
+        },
+        // socket-level response: worker process not running
+        command::Response::WorkerOffline => StatusPoll {
+            delay: Duration::from_secs(5),
+            needs_reinit: true,
+            answer: Some(Ok(None)),
+        },
         // Internal response sent by the root process to itself; never forwarded to the app.
-        Ok(command::Response::ForceReconnectAcknowledged) => {
-            (false, Duration::from_secs(2), Ok(None))
-        }
-        Ok(unexpected) => (
-            false,
-            Duration::from_secs_f64(2.3),
-            Err(format!("Unexpected response type: {:?}", unexpected).to_string()),
-        ),
-        Err(e) => (false, Duration::from_secs_f64(2.3), Err(e.to_string())),
+        command::Response::ForceReconnectAcknowledged => StatusPoll {
+            delay: Duration::from_secs(2),
+            needs_reinit: false,
+            answer: Some(Ok(None)),
+        },
+        unexpected => StatusPoll {
+            delay: Duration::from_secs_f64(2.3),
+            needs_reinit: false,
+            answer: Some(Err(format!("Unexpected response type: {unexpected:?}"))),
+        },
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // A routine worker bounce must not drop the app onto the critical error screen.
+    #[test]
+    fn worker_restarting_is_not_reported_as_an_error() {
+        let poll = classify_status_response(command::Response::WorkerRestarting);
+
+        assert!(
+            poll.answer.is_none(),
+            "nothing to report while the worker bounces"
+        );
+        assert!(!poll.needs_reinit, "the worker comes back on its own");
+        assert!(
+            poll.delay < Duration::from_secs(1),
+            "retry before the UI can go stale"
+        );
+    }
+
+    #[test]
+    fn worker_offline_restarts_initialization() {
+        let poll = classify_status_response(command::Response::WorkerOffline);
+
+        assert!(poll.needs_reinit);
+        assert!(matches!(poll.answer, Some(Ok(None))));
+    }
+
+    #[test]
+    fn genuinely_unexpected_responses_still_surface_as_errors() {
+        let poll = classify_status_response(command::Response::Pong);
+
+        assert!(matches!(poll.answer, Some(Err(_))));
+    }
 
     // The list is rewritten by the bump-version workflow; a malformed entry
     // would otherwise only surface as a silent runtime mismatch.
