@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type {
   ChannelRelease,
-  UpdateManifest,
+  CheckOutcome,
 } from "@src/stores/settingsStore.ts";
-import { evaluateUpdate, resolveChannelResync } from "./updateAvailability.ts";
+import {
+  isStaleOutcome,
+  resolveChannelResync,
+  resolveUpdateBlocker,
+  resolveUpdateDecision,
+} from "./updateAvailability.ts";
 
 const release = (version: string): ChannelRelease => ({
   version,
@@ -12,310 +17,98 @@ const release = (version: string): ChannelRelease => ({
   size_bytes: "0 B",
   sha256: "x",
   artifact_signature: "x",
-  release_notes: "",
+  release_notes: "notes",
   min_os_version: "0",
   min_app_version: "0",
 });
 
-const stableManifest = (v: string): UpdateManifest => ({
-  schema_version: 1,
-  generated_at: "2026-01-01T00:00:00Z",
-  channels: { stable: release(v), snapshot: null },
+const available = (current: string, latest: string): CheckOutcome => ({
+  kind: "Available",
+  current,
+  release: release(latest),
 });
 
-const snapshotManifest = (v: string): UpdateManifest => ({
-  schema_version: 1,
-  generated_at: "2026-01-01T00:00:00Z",
-  channels: { stable: null, snapshot: release(v) },
-});
+const decide = (
+  outcome: CheckOutcome | null,
+  packageVersion: string | null,
+  dismissedVersion: string | null = null,
+) => resolveUpdateDecision({ outcome, packageVersion, dismissedVersion });
 
-const fullManifest = (stable: string, snapshot: string): UpdateManifest => ({
-  schema_version: 1,
-  generated_at: "2026-01-01T00:00:00Z",
-  channels: { stable: release(stable), snapshot: release(snapshot) },
-});
+const UNDECIDED = {
+  isUpToDate: undefined,
+  isUpdateAvailable: false,
+  release: null,
+};
 
-describe("missing inputs", () => {
-  it("returns isUpToDate=undefined when packageVersion is null", () => {
-    expect(evaluateUpdate({
-      packageVersion: null,
-      manifest: stableManifest("0.8.0"),
-      channel: null,
-      dismissedVersion: null,
-    })).toEqual({
-      isUpToDate: undefined,
-      isUpdateAvailable: false,
-      availableVersion: null,
-    });
+describe("resolveUpdateDecision", () => {
+  it("decides nothing before the toolkit has been asked", () => {
+    expect(decide(null, "0.28.5")).toEqual(UNDECIDED);
   });
 
-  it("returns isUpToDate=undefined when packageVersion is empty string", () => {
-    expect(evaluateUpdate({
-      packageVersion: "",
-      manifest: stableManifest("0.8.0"),
-      channel: null,
-      dismissedVersion: null,
-    })).toEqual({
-      isUpToDate: undefined,
-      isUpdateAvailable: false,
-      availableVersion: null,
-    });
+  it("takes the toolkit's UpToDate as is", () => {
+    expect(decide({ kind: "UpToDate", current: "0.29.0" }, "0.29.0"))
+      .toEqual({ isUpToDate: true, isUpdateAvailable: false, release: null });
   });
 
-  it("returns isUpToDate=undefined when manifest is null", () => {
-    expect(evaluateUpdate({
-      packageVersion: "0.8.0",
-      manifest: null,
-      channel: "stable",
-      dismissedVersion: null,
-    })).toEqual({
-      isUpToDate: undefined,
-      isUpdateAvailable: false,
-      availableVersion: null,
-    });
-  });
-
-  it("returns isUpToDate=undefined when manifest.channels[effectiveChannel] is null", () => {
-    // Real-world case (commit 469025b): manifest exists but the derived
-    // channel has no release. effectiveChannel="stable" from pkg="0.8.0".
-    expect(evaluateUpdate({
-      packageVersion: "0.8.0",
-      manifest: snapshotManifest("0.8.0+build.1"),
-      channel: null,
-      dismissedVersion: null,
-    })).toEqual({
-      isUpToDate: undefined,
-      isUpdateAvailable: false,
-      availableVersion: null,
-    });
-  });
-
-  it("returns isUpToDate=undefined when manifest version string is empty", () => {
-    const emptyManifest: UpdateManifest = {
-      schema_version: 1,
-      generated_at: "2026-01-01T00:00:00Z",
-      channels: { stable: release(""), snapshot: null },
-    };
-    expect(evaluateUpdate({
-      packageVersion: "0.8.0",
-      manifest: emptyManifest,
-      channel: "stable",
-      dismissedVersion: null,
-    })).toEqual({
-      isUpToDate: undefined,
-      isUpdateAvailable: false,
-      availableVersion: null,
-    });
-  });
-});
-
-describe("version-shape edge cases (current contract)", () => {
-  it("treats missing version components as zero (semver-style)", () => {
-    expect(evaluateUpdate({
-      packageVersion: "1.2",
-      manifest: stableManifest("1.2.0"),
-      channel: "stable",
-      dismissedVersion: null,
-    })).toEqual({
-      isUpToDate: true,
-      isUpdateAvailable: false,
-      availableVersion: null,
-    });
-  });
-});
-
-describe("stable channel", () => {
-  it("reports update available when installed is lower than latest stable", () => {
-    expect(evaluateUpdate({
-      packageVersion: "0.7.5",
-      manifest: stableManifest("0.8.0"),
-      channel: "stable",
-      dismissedVersion: null,
-    })).toEqual({
+  it("takes the toolkit's Available with its release", () => {
+    expect(decide(available("0.28.5", "0.29.0"), "0.28.5")).toEqual({
       isUpToDate: false,
       isUpdateAvailable: true,
-      availableVersion: "0.8.0",
+      release: release("0.29.0"),
     });
   });
 
-  it("reports up-to-date when installed equals latest stable", () => {
-    expect(evaluateUpdate({
-      packageVersion: "0.8.0",
-      manifest: stableManifest("0.8.0"),
-      channel: "stable",
-      dismissedVersion: null,
-    })).toEqual({
-      isUpToDate: true,
+  it("does not second-guess the toolkit's ordering", () => {
+    // A local compare would call this a downgrade; the toolkit said otherwise.
+    const d = decide(available("0.30.0", "0.29.0"), "0.30.0");
+    expect(d.isUpToDate).toBe(false);
+    expect(d.release?.version).toBe("0.29.0");
+  });
+
+  it("decides nothing on NoReleaseForChannel", () => {
+    expect(
+      decide({ kind: "NoReleaseForChannel", channel: "snapshot" }, "0.28.5"),
+    ).toEqual(UNDECIDED);
+  });
+
+  it("drops a verdict reached for a package that is no longer installed", () => {
+    // After an install: the stored Available names the old version.
+    expect(decide(available("0.28.5", "0.29.0"), "0.29.0")).toEqual(UNDECIDED);
+    expect(decide({ kind: "UpToDate", current: "0.28.5" }, "0.29.0"))
+      .toEqual(UNDECIDED);
+  });
+
+  it("decides nothing while the package version is unknown", () => {
+    expect(decide(available("0.28.5", "0.29.0"), null)).toEqual(UNDECIDED);
+  });
+
+  it("hides the banner for the dismissed release but still reports it", () => {
+    expect(decide(available("0.28.5", "0.29.0"), "0.28.5", "0.29.0")).toEqual({
+      isUpToDate: false,
       isUpdateAvailable: false,
-      availableVersion: null,
+      release: release("0.29.0"),
     });
   });
 
-  it("reports up-to-date when installed is newer than latest stable", () => {
-    // Downgrade scenario: never offer a downgrade.
-    expect(evaluateUpdate({
-      packageVersion: "0.9.0",
-      manifest: stableManifest("0.8.0"),
-      channel: "stable",
-      dismissedVersion: null,
-    })).toEqual({
-      isUpToDate: true,
-      isUpdateAvailable: false,
-      availableVersion: null,
-    });
-  });
-
-  it("derives stable channel from packageVersion when channel is null", () => {
-    // detectChannel("0.8.0") -> "stable"
-    expect(evaluateUpdate({
-      packageVersion: "0.8.0",
-      manifest: stableManifest("0.8.0"),
-      channel: null,
-      dismissedVersion: null,
-    })).toEqual({
-      isUpToDate: true,
-      isUpdateAvailable: false,
-      availableVersion: null,
-    });
+  it("shows the banner again once a newer release than the dismissed one lands", () => {
+    expect(
+      decide(available("0.28.5", "0.30.0"), "0.28.5", "0.29.0")
+        .isUpdateAvailable,
+    ).toBe(true);
   });
 });
 
-describe("snapshot channel — build metadata (+build.N)", () => {
-  it("reports update available when installed snapshot is older", () => {
-    expect(evaluateUpdate({
-      packageVersion: "0.7.5+build.7",
-      manifest: snapshotManifest("0.7.5+build.10"),
-      channel: "snapshot",
-      dismissedVersion: null,
-    })).toEqual({
-      isUpToDate: false,
-      isUpdateAvailable: true,
-      availableVersion: "0.7.5+build.10",
-    });
+describe("isStaleOutcome", () => {
+  it("compares the version the toolkit checked against the installed one", () => {
+    expect(isStaleOutcome(available("0.28.5", "0.29.0"), "0.28.5")).toBe(false);
+    expect(isStaleOutcome(available("0.28.5", "0.29.0"), "0.29.0")).toBe(true);
   });
 
-  it("reports up-to-date when installed snapshot equals latest", () => {
-    expect(evaluateUpdate({
-      packageVersion: "0.7.5+build.10",
-      manifest: snapshotManifest("0.7.5+build.10"),
-      channel: "snapshot",
-      dismissedVersion: null,
-    })).toEqual({
-      isUpToDate: true,
-      isUpdateAvailable: false,
-      availableVersion: null,
-    });
-  });
-
-  it("reports up-to-date when installed snapshot is newer than latest", () => {
-    const result = evaluateUpdate({
-      packageVersion: "0.7.5+build.20",
-      manifest: snapshotManifest("0.7.5+build.10"),
-      channel: "snapshot",
-      dismissedVersion: null,
-    });
-    expect(result.isUpToDate).toBe(true);
-  });
-});
-
-describe("snapshot channel — pre-release suffix (-rc.N)", () => {
-  it("reports update available when pre-release pkg core is older than manifest core", () => {
-    // compareVersions strips '-rc.1', so "1.0.0-rc.1" core == "1.0.0".
-    const result = evaluateUpdate({
-      packageVersion: "1.0.0-rc.1",
-      manifest: snapshotManifest("1.1.0"),
-      channel: "snapshot",
-      dismissedVersion: null,
-    });
-    expect(result.isUpdateAvailable).toBe(true);
-    expect(result.availableVersion).toBe("1.1.0");
-  });
-
-  it("reports up-to-date when pre-release pkg core equals manifest core", () => {
-    const result = evaluateUpdate({
-      packageVersion: "1.0.0-rc.1",
-      manifest: snapshotManifest("1.0.0"),
-      channel: "snapshot",
-      dismissedVersion: null,
-    });
-    expect(result.isUpToDate).toBe(true);
-  });
-
-  it("derives snapshot channel from packageVersion when channel is null", () => {
-    // detectChannel("0.7.5+build.7") -> "snapshot"
-    const result = evaluateUpdate({
-      packageVersion: "0.7.5+build.7",
-      manifest: snapshotManifest("0.7.5+build.10"),
-      channel: null,
-      dismissedVersion: null,
-    });
-    expect(result.isUpdateAvailable).toBe(true);
-  });
-});
-
-describe("channel mismatch", () => {
-  it("flags update available when installed is stable but selected channel is snapshot", () => {
-    // channelMismatch alone forces hasUpdate=true.
-    expect(evaluateUpdate({
-      packageVersion: "0.8.0",
-      manifest: fullManifest("0.8.0", "0.8.0+build.5"),
-      channel: "snapshot",
-      dismissedVersion: null,
-    })).toEqual({
-      isUpToDate: false,
-      isUpdateAvailable: true,
-      availableVersion: "0.8.0+build.5",
-    });
-  });
-
-  it("flags update available when installed is snapshot but selected channel is stable", () => {
-    expect(evaluateUpdate({
-      packageVersion: "0.8.0+build.3",
-      manifest: fullManifest("0.8.0", "0.8.0+build.5"),
-      channel: "stable",
-      dismissedVersion: null,
-    })).toEqual({
-      isUpToDate: false,
-      isUpdateAvailable: true,
-      availableVersion: "0.8.0",
-    });
-  });
-});
-
-describe("dismissed version", () => {
-  it("reports isUpdateAvailable=false when latest equals dismissedVersion", () => {
-    // Helper contract: dismissal does NOT null availableVersion.
-    expect(evaluateUpdate({
-      packageVersion: "0.7.5",
-      manifest: stableManifest("0.8.0"),
-      channel: "stable",
-      dismissedVersion: "0.8.0",
-    })).toEqual({
-      isUpToDate: false,
-      isUpdateAvailable: false,
-      availableVersion: "0.8.0",
-    });
-  });
-
-  it("still reports isUpdateAvailable=true when dismissedVersion is an older release", () => {
-    const result = evaluateUpdate({
-      packageVersion: "0.7.5",
-      manifest: stableManifest("0.8.0"),
-      channel: "stable",
-      dismissedVersion: "0.7.9",
-    });
-    expect(result.isUpdateAvailable).toBe(true);
-    expect(result.availableVersion).toBe("0.8.0");
-  });
-
-  it("ignores dismissedVersion=null", () => {
-    const result = evaluateUpdate({
-      packageVersion: "0.7.5",
-      manifest: stableManifest("0.8.0"),
-      channel: "stable",
-      dismissedVersion: null,
-    });
-    expect(result.isUpdateAvailable).toBe(true);
+  it("never calls a missing or version-less outcome stale", () => {
+    expect(isStaleOutcome(null, "0.28.5")).toBe(false);
+    expect(
+      isStaleOutcome({ kind: "NoReleaseForChannel", channel: "stable" }, "1"),
+    ).toBe(false);
   });
 });
 
@@ -353,5 +146,61 @@ describe("resolveChannelResync", () => {
       packageVersion: "0.8.0",
       channel: "snapshot",
     })).toBe("stable");
+  });
+});
+
+describe("resolveUpdateBlocker", () => {
+  it("says nothing while the probe is still in flight", () => {
+    // Regression: "unknown" used to also mean "probed and failed", so a timed-out
+    // probe rendered the ordinary tab with no version and no explanation.
+    expect(
+      resolveUpdateBlocker({ toolkitStatus: "unknown", packageVersion: null }),
+    ).toBeNull();
+    expect(
+      resolveUpdateBlocker({
+        toolkitStatus: "unknown",
+        packageVersion: "1.0.0",
+      }),
+    ).toBeNull();
+  });
+
+  it("offers a retry only for a probe that ran and failed", () => {
+    const failed = resolveUpdateBlocker({
+      toolkitStatus: "failed",
+      packageVersion: null,
+    });
+    expect(failed?.kind).toBe("failed");
+    expect(failed?.retryable).toBe(true);
+    // A reinstall is the only way out of these two, so no button.
+    expect(
+      resolveUpdateBlocker({ toolkitStatus: "missing", packageVersion: null })
+        ?.retryable,
+    ).toBe(false);
+    expect(
+      resolveUpdateBlocker({ toolkitStatus: "tooOld", packageVersion: null })
+        ?.retryable,
+    ).toBe(false);
+  });
+
+  it("blocks a working toolkit only when no source can name the package", () => {
+    expect(
+      resolveUpdateBlocker({ toolkitStatus: "ok", packageVersion: "0.78.0" }),
+    ).toBeNull();
+    expect(
+      resolveUpdateBlocker({ toolkitStatus: "ok", packageVersion: null })?.kind,
+    ).toBe("noPackageVersion");
+  });
+
+  it("reports a broken toolkit even when the daemon supplied a version", () => {
+    // The fallback fills the version row, but checks still cannot run.
+    for (const status of ["missing", "tooOld", "failed"] as const) {
+      expect(
+        resolveUpdateBlocker({
+          toolkitStatus: status,
+          packageVersion: "0.78.0",
+        })
+          ?.kind,
+      ).toBe(status);
+    }
   });
 });

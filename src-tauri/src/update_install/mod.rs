@@ -40,12 +40,12 @@ pub fn get_install_status(state: State<'_, UpdateInstallState>) -> Option<Instal
 #[cfg(target_os = "macos")]
 mod macos;
 #[cfg(target_os = "macos")]
-pub use macos::{get_toolkit_version, install_update};
+pub use macos::install_update;
 
 #[cfg(target_os = "linux")]
 mod linux;
 #[cfg(target_os = "linux")]
-pub use linux::{get_toolkit_version, install_update};
+pub use linux::install_update;
 
 #[cfg(test)]
 mod tests {

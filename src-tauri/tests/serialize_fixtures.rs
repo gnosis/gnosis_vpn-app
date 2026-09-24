@@ -1,11 +1,11 @@
 use gnosis_vpn_app_lib::settings::{FlagDisplay, Settings, SortOrder, UpdateChannel};
+use gnosis_vpn_app_lib::toolkit::{CheckOutcome, CheckResult, Manifest, ToolkitInfo};
 use gnosis_vpn_app_lib::types;
 use gnosis_vpn_app_lib::update_install::InstallStatus;
 use gnosis_vpn_lib::balance::{
     Balance, BalanceRecommendation, Balances, Capacity, CapacityAllocations, FundingLevel,
     FundingStatus, WxHOPR, XDai,
 };
-use gnosis_vpn_lib::check_update;
 use gnosis_vpn_lib::command::RouteHealthView;
 use gnosis_vpn_lib::connection::destination::{
     Destination, DestinationSource, Destinations, HopRouting, Meta, Overrides,
@@ -508,13 +508,62 @@ fn generate_fixtures() {
             error: "connection reset".to_string(),
         },
     );
+
+    // toolkit outputs as the app forwards them (see settingsStore.test.ts)
+    write(
+        &fixtures_dir,
+        "toolkit_info.json",
+        &ToolkitInfo {
+            version: "0.4.0".to_string(),
+            package_version: Some("0.78.0".to_string()),
+        },
+    );
+    let manifest = fixture_manifest();
+    let stable = manifest
+        .channels
+        .stable
+        .clone()
+        .expect("fixture manifest has a stable release");
+    write(
+        &fixtures_dir,
+        "check_result_available.json",
+        &CheckResult {
+            channel: UpdateChannel::Stable,
+            outcome: CheckOutcome::Available {
+                current: "0.28.5".to_string(),
+                release: Box::new(stable),
+            },
+            manifest: Some(manifest.clone()),
+        },
+    );
+    write(
+        &fixtures_dir,
+        "check_result_up_to_date.json",
+        &CheckResult {
+            channel: UpdateChannel::Stable,
+            outcome: CheckOutcome::UpToDate {
+                current: "0.29.0".to_string(),
+            },
+            manifest: Some(manifest.clone()),
+        },
+    );
+    write(
+        &fixtures_dir,
+        "check_result_no_release.json",
+        &CheckResult {
+            channel: UpdateChannel::Snapshot,
+            outcome: CheckOutcome::NoReleaseForChannel {
+                channel: UpdateChannel::Snapshot,
+            },
+            manifest: Some(manifest),
+        },
+    );
 }
 
-fn full_settings() -> Settings {
-    // Built via deserialization so the manifest field types (Timestamp, Url,
-    // ByteSize, Hash) don't require their crates as test dependencies;
-    // from_value fails loudly if the wire format drifts.
-    let manifest: check_update::Manifest = serde_json::from_value(serde_json::json!({
+/// The manifest shared by the settings and check-result fixtures. Built by
+/// deserializing, so it also checks the app accepts the published shape.
+fn fixture_manifest() -> Manifest {
+    serde_json::from_value(serde_json::json!({
         "schema_version": 1,
         "generated_at": "2026-07-06T00:00:00Z",
         "channels": {
@@ -532,7 +581,14 @@ fn full_settings() -> Settings {
             "snapshot": null
         }
     }))
-    .expect("valid manifest fixture");
+    .expect("valid manifest fixture")
+}
+
+fn full_settings() -> Settings {
+    let stable = fixture_manifest()
+        .channels
+        .stable
+        .expect("fixture manifest has a stable release");
 
     Settings {
         preferred_location: Some("exit-1".to_string()),
@@ -542,7 +598,10 @@ fn full_settings() -> Settings {
         update_check: true,
         exit_node_sort_order: SortOrder::Alpha,
         last_checked_at: Some(1_720_000_000_000),
-        update_manifest: Some(manifest),
+        last_check_outcome: Some(CheckOutcome::Available {
+            current: "0.28.5".to_string(),
+            release: Box::new(stable),
+        }),
         channel: Some(UpdateChannel::Snapshot),
         dismissed_update_version: Some("0.28.0".to_string()),
         installed_version: Some("0.28.5".to_string()),

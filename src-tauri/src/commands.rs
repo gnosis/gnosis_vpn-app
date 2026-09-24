@@ -15,6 +15,7 @@ use tokio::task::spawn_blocking;
 use tokio::time::{self, Instant};
 
 use crate::icons::{self, TrayIconState};
+use crate::toolkit;
 use crate::tray;
 use crate::types::{BalanceResponse, ConnectionState, StatusResponse};
 use crate::{AppStateCache, BalancePollingHandle, PollingExit, StatusPollingHandle};
@@ -52,33 +53,31 @@ pub fn get_platform() -> &'static str {
     std::env::consts::OS
 }
 
+/// Asks the toolkit for a decision and the current manifest. The three outcomes
+/// that never fetched one come back as `Err`, with the strings the frontend uses.
 #[tauri::command]
-pub async fn check_update(
-    skip_vpn: bool,
-) -> Result<gnosis_vpn_lib::check_update::Manifest, String> {
+pub async fn check_update(skip_vpn: bool) -> Result<toolkit::CheckResult, String> {
     tracing::info!(target: "update", skip_vpn, "checking for update");
-    let client = reqwest::Client::new();
-    let socket_path = PathBuf::from(root_socket::DEFAULT_PATH);
-    let path_ref = if skip_vpn {
-        None
-    } else {
-        Some(socket_path.as_path())
-    };
-
-    gnosis_vpn_lib::check_update::download(&client, path_ref)
-        .await
-        .inspect(|_| tracing::info!(target: "update", "update manifest downloaded"))
-        .map_err(|e| {
-            let msg = match e {
-                gnosis_vpn_lib::check_update::Error::VpnNotConnected => {
-                    "VpnNotConnected".to_string()
-                }
-                gnosis_vpn_lib::check_update::Error::Integrity(msg) => format!("Integrity: {msg}"),
-                gnosis_vpn_lib::check_update::Error::Other(msg) => msg,
-            };
-            tracing::warn!(target: "update", error = %msg, "update check failed");
-            msg
-        })
+    let result = toolkit::check_update(None, skip_vpn).await.map_err(|e| {
+        let msg = e.to_string();
+        tracing::warn!(target: "update", error = %msg, "update check failed");
+        msg
+    })?;
+    match &result.outcome {
+        toolkit::CheckOutcome::VpnNotConnected => Err("VpnNotConnected".to_string()),
+        toolkit::CheckOutcome::IntegrityError { error } => {
+            tracing::warn!(target: "update", %error, "manifest integrity error");
+            Err(format!("Integrity: {error}"))
+        }
+        toolkit::CheckOutcome::Error { error } => {
+            tracing::warn!(target: "update", %error, "update check error");
+            Err(error.clone())
+        }
+        _ => {
+            tracing::info!(target: "update", channel = ?result.channel, "update manifest received");
+            Ok(result)
+        }
+    }
 }
 
 async fn query_info() -> Result<command::InfoResponse, String> {

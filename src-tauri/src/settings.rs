@@ -1,4 +1,4 @@
-use gnosis_vpn_lib::check_update::Manifest;
+use crate::toolkit::CheckOutcome;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -20,7 +20,7 @@ pub struct Settings {
     pub update_check: bool,
     pub exit_node_sort_order: SortOrder,
     pub last_checked_at: Option<i64>,
-    pub update_manifest: Option<Manifest>,
+    pub last_check_outcome: Option<CheckOutcome>,
     pub channel: Option<UpdateChannel>,
     pub dismissed_update_version: Option<String>,
     pub installed_version: Option<String>,
@@ -38,7 +38,7 @@ impl Default for Settings {
             update_check: true,
             exit_node_sort_order: SortOrder::default(),
             last_checked_at: None,
-            update_manifest: None,
+            last_check_outcome: None,
             channel: None,
             dismissed_update_version: None,
             installed_version: None,
@@ -72,6 +72,15 @@ pub enum FlagDisplay {
 pub enum UpdateChannel {
     Stable,
     Snapshot,
+    Experimental,
+}
+
+impl UpdateChannel {
+    /// Parse the wire spelling the frontend sends. Goes through serde so the
+    /// accepted set follows the enum and cannot drift into a second list.
+    pub fn from_wire(s: &str) -> Option<Self> {
+        serde_json::from_value(Value::String(s.to_owned())).ok()
+    }
 }
 
 /// Partial settings update. Nullable fields are double-wrapped so a JSON
@@ -94,7 +103,7 @@ pub struct SettingsPatch {
     #[serde(default, deserialize_with = "double_option")]
     pub last_checked_at: Option<Option<i64>>,
     #[serde(default, deserialize_with = "double_option")]
-    pub update_manifest: Option<Option<Manifest>>,
+    pub last_check_outcome: Option<Option<CheckOutcome>>,
     #[serde(default, deserialize_with = "double_option")]
     pub channel: Option<Option<UpdateChannel>>,
     #[serde(default, deserialize_with = "double_option")]
@@ -132,8 +141,8 @@ impl SettingsPatch {
         if self.last_checked_at.is_some() {
             keys.push("last_checked_at");
         }
-        if self.update_manifest.is_some() {
-            keys.push("update_manifest");
+        if self.last_check_outcome.is_some() {
+            keys.push("last_check_outcome");
         }
         if self.channel.is_some() {
             keys.push("channel");
@@ -185,8 +194,8 @@ impl Settings {
         if let Some(v) = patch.last_checked_at {
             self.last_checked_at = v;
         }
-        if let Some(v) = patch.update_manifest {
-            self.update_manifest = v;
+        if let Some(v) = patch.last_check_outcome {
+            self.last_check_outcome = v;
         }
         if let Some(v) = patch.channel {
             self.channel = v;
@@ -327,6 +336,30 @@ mod tests {
     use serde_json::json;
     use std::sync::atomic::{AtomicU32, Ordering};
 
+    /// Every channel must survive the install button's path: wire string -> enum ->
+    /// `--channel` argument. `experimental` failed this when it was added.
+    #[test]
+    fn every_channel_round_trips_from_wire_to_cli_arg() {
+        for (wire, channel) in [
+            ("stable", UpdateChannel::Stable),
+            ("snapshot", UpdateChannel::Snapshot),
+            ("experimental", UpdateChannel::Experimental),
+        ] {
+            assert_eq!(
+                UpdateChannel::from_wire(wire),
+                Some(channel),
+                "{wire} must parse"
+            );
+            assert_eq!(crate::toolkit::channel_arg(channel), wire);
+        }
+        assert_eq!(UpdateChannel::from_wire("nonsense"), None);
+        assert_eq!(
+            UpdateChannel::from_wire("Stable"),
+            None,
+            "case is significant"
+        );
+    }
+
     static TEST_DIR_COUNTER: AtomicU32 = AtomicU32::new(0);
 
     fn temp_settings_path() -> PathBuf {
@@ -360,6 +393,7 @@ mod tests {
             &path,
             json!({
                 "theme": "dark",
+                "updateManifest": { "schema_version": 1 },
                 "exitNodeSortOrder": "bogus",
                 "preferredLocation": "exit-1",
                 "showDetailedMetrics": true
@@ -436,6 +470,22 @@ mod tests {
         assert!(!reloaded.update_check);
         assert_eq!(reloaded.exit_node_sort_order, SortOrder::Alpha);
         assert_eq!(reloaded.last_checked_at, Some(1720000000000));
+    }
+
+    #[test]
+    fn last_check_outcome_persists_and_reloads() {
+        let path = temp_settings_path();
+        SettingsStore::load(path.clone())
+            .update(patch(json!({
+                "lastCheckOutcome": { "kind": "UpToDate", "current": "0.29.0" }
+            })))
+            .expect("update should succeed");
+
+        let reloaded = SettingsStore::load(path).current();
+        assert!(matches!(
+            reloaded.last_check_outcome,
+            Some(CheckOutcome::UpToDate { ref current }) if current == "0.29.0"
+        ));
     }
 
     #[test]
