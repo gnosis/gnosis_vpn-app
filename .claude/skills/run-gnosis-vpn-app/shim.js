@@ -17,7 +17,7 @@
     updateCheck: true,
     exitNodeSortOrder: "latency",
     lastCheckedAt: null,
-    updateManifest: null,
+    lastCheckOutcome: null,
     channel: null,
     dismissedUpdateVersion: null,
     installedVersion: null,
@@ -95,8 +95,7 @@
           if (fixture.checkUpdateResult) {
             return resolve(fixture.checkUpdateResult);
           }
-          const manifest = fixture.checkUpdateManifest ??
-            settings.updateManifest ?? null;
+          const manifest = fixture.checkUpdateManifest ?? null;
           const current = fixture.packageVersion ??
             fixture.cached_state?.service_info?.package_version ?? "0.0.0";
           resolve({

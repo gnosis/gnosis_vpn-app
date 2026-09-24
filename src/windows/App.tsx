@@ -14,6 +14,7 @@ import {
   runBackgroundCheck,
   setPendingCheckAfterConnect,
 } from "@src/utils/updateChecker.ts";
+import { isStaleOutcome } from "@src/utils/updateAvailability.ts";
 import { logError, logWarn } from "@src/utils/appLog.ts";
 
 const validScreens = [
@@ -109,14 +110,24 @@ function App() {
     }
   }, { defer: true }));
 
+  // Once per installed version, so a verdict that never matches cannot loop.
+  let recheckedVersion: string | null = null;
   createEffect(() => {
-    if (!settings.updateCheck) return;
-    // A null lastCheckedAt (fresh install) counts as due immediately.
-    const delay = settings.lastCheckedAt == null ? 0 : Math.max(
-      0,
-      settings.lastCheckedAt + AUTO_CHECK_INTERVAL_MS - Date.now(),
-    );
+    // The pre-hydration defaults would make every launch look due.
+    if (!settingsActions.hydrated() || !settings.updateCheck) return;
+    const pkg = appState.packageVersion;
+    const stale = pkg != null && pkg !== recheckedVersion &&
+      isStaleOutcome(settings.lastCheckOutcome, pkg);
+    // No verdict yet (fresh install, or settings from before they were kept) is due now.
+    const delay =
+      settings.lastCheckedAt == null || !settings.lastCheckOutcome || stale
+        ? 0
+        : Math.max(
+          0,
+          settings.lastCheckedAt + AUTO_CHECK_INTERVAL_MS - Date.now(),
+        );
     const id = setTimeout(() => {
+      if (stale) recheckedVersion = pkg;
       if (appState.vpnStatus === "Connected") {
         void runBackgroundCheck();
       } else {

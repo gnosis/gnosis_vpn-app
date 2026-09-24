@@ -121,7 +121,9 @@ source:
   `check_update` resolves with, e.g.
   `{"channel":"stable","outcome":{"kind":"Available","current":"0.77.0","release":{...}},"manifest":{...}}`.
   Without it the shim synthesizes an `UpToDate` result around
-  `checkUpdateManifest` (or the seeded `settings.updateManifest`).
+  `checkUpdateManifest`. The UI decides from the stored `outcome` alone, so to
+  start with the banner up seed `settings.lastCheckOutcome` (and a matching
+  `packageVersion`: an outcome whose `current` differs is ignored as stale).
   `checkUpdateError` rejects instead — `"VpnNotConnected"` drives the
   connect-first modal. `checkUpdateDelayMs` (default 2000) keeps the "Checking…"
   state observable.

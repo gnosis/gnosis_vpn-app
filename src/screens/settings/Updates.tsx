@@ -28,8 +28,8 @@ import {
 import { checkUpdate } from "@src/services/toolkit.ts";
 import { detectChannel } from "@src/utils/version.ts";
 import {
-  evaluateUpdate,
   resolveUpdateBlocker,
+  resolveUpdateDecision,
   type UpdateBlocker,
 } from "@src/utils/updateAvailability.ts";
 import { logInfo, logWarn } from "@src/utils/appLog.ts";
@@ -89,11 +89,7 @@ export default function Updates() {
     setChecking(true);
     try {
       const result = await checkUpdate(skipVpn);
-      // Outcomes that never fetched one arrive as a rejection, but the type
-      // permits it; keep the last known manifest rather than clearing it.
-      if (result.manifest) {
-        await settingsActions.setUpdateCheckResult(result.manifest, Date.now());
-      }
+      await settingsActions.setUpdateCheckResult(result.outcome, Date.now());
     } catch (e) {
       // failures are logged by the backend's check_update command
       if (e === "VpnNotConnected") {
@@ -124,18 +120,14 @@ export default function Updates() {
       : CHANNEL_OPTIONS
   );
 
-  const latestVersion = createMemo(() =>
-    settings.updateManifest?.channels[effectiveChannel()]?.version
-  );
-
-  const isUpToDate = createMemo<boolean | undefined>(() =>
-    evaluateUpdate({
+  const decision = createMemo(() =>
+    resolveUpdateDecision({
+      outcome: settings.lastCheckOutcome,
       packageVersion: packageVersion(),
-      manifest: settings.updateManifest ?? null,
-      channel: effectiveChannel(),
       dismissedVersion: settings.dismissedUpdateVersion,
-    }).isUpToDate
+    })
   );
+  const isUpToDate = () => decision().isUpToDate;
 
   const formatCheckedAt = (epoch: number) => {
     const d = new Date(epoch);
@@ -167,7 +159,7 @@ export default function Updates() {
       case "Completed":
         // The installer restarts the app, so keep "Installing…" to the end.
         // Safety nets in case the restart never happens: the effect below
-        // clears the phase once the restarted daemon flips isUpToDate, and
+        // clears the phase once the new version leaves no pending update, and
         // this fallback re-enables the button for a retry.
         setInstallPhase("installing");
         clearTimeout(completedFallback);
@@ -181,7 +173,8 @@ export default function Updates() {
   };
 
   createEffect(() => {
-    if (installPhase() === "installing" && isUpToDate() === true) {
+    // The new version makes the stored verdict stale, so `undefined` counts.
+    if (installPhase() === "installing" && isUpToDate() !== false) {
       clearTimeout(completedFallback);
       setInstallPhase(null);
     }
@@ -369,9 +362,8 @@ export default function Updates() {
           onCheck={handleCheck}
           loading={checking()}
           isUpToDate={isUpToDate()}
-          latestVersion={latestVersion()}
-          releaseNotes={settings.updateManifest?.channels[effectiveChannel()]
-            ?.release_notes}
+          latestVersion={decision().release?.version}
+          releaseNotes={decision().release?.release_notes}
           lastChecked={settings.lastCheckedAt != null
             ? formatCheckedAt(settings.lastCheckedAt)
             : undefined}

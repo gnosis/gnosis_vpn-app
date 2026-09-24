@@ -16,11 +16,7 @@ const [, settingsActions] = useSettingsStore();
 export async function runBackgroundCheck(): Promise<void> {
   try {
     const result = await checkUpdate(false);
-    // A result without a manifest never reaches here (the Rust side rejects
-    // those), but the type allows it and the stored one must survive if it did.
-    if (result.manifest) {
-      await settingsActions.setUpdateCheckResult(result.manifest, Date.now());
-    }
+    await settingsActions.setUpdateCheckResult(result.outcome, Date.now());
   } catch (e) {
     // other failures are logged by the backend's check_update command
     if (e === "VpnNotConnected") {

@@ -1,4 +1,4 @@
-use crate::toolkit::Manifest;
+use crate::toolkit::CheckOutcome;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -20,7 +20,7 @@ pub struct Settings {
     pub update_check: bool,
     pub exit_node_sort_order: SortOrder,
     pub last_checked_at: Option<i64>,
-    pub update_manifest: Option<Manifest>,
+    pub last_check_outcome: Option<CheckOutcome>,
     pub channel: Option<UpdateChannel>,
     pub dismissed_update_version: Option<String>,
     pub installed_version: Option<String>,
@@ -38,7 +38,7 @@ impl Default for Settings {
             update_check: true,
             exit_node_sort_order: SortOrder::default(),
             last_checked_at: None,
-            update_manifest: None,
+            last_check_outcome: None,
             channel: None,
             dismissed_update_version: None,
             installed_version: None,
@@ -103,7 +103,7 @@ pub struct SettingsPatch {
     #[serde(default, deserialize_with = "double_option")]
     pub last_checked_at: Option<Option<i64>>,
     #[serde(default, deserialize_with = "double_option")]
-    pub update_manifest: Option<Option<Manifest>>,
+    pub last_check_outcome: Option<Option<CheckOutcome>>,
     #[serde(default, deserialize_with = "double_option")]
     pub channel: Option<Option<UpdateChannel>>,
     #[serde(default, deserialize_with = "double_option")]
@@ -141,8 +141,8 @@ impl SettingsPatch {
         if self.last_checked_at.is_some() {
             keys.push("last_checked_at");
         }
-        if self.update_manifest.is_some() {
-            keys.push("update_manifest");
+        if self.last_check_outcome.is_some() {
+            keys.push("last_check_outcome");
         }
         if self.channel.is_some() {
             keys.push("channel");
@@ -194,8 +194,8 @@ impl Settings {
         if let Some(v) = patch.last_checked_at {
             self.last_checked_at = v;
         }
-        if let Some(v) = patch.update_manifest {
-            self.update_manifest = v;
+        if let Some(v) = patch.last_check_outcome {
+            self.last_check_outcome = v;
         }
         if let Some(v) = patch.channel {
             self.channel = v;
@@ -393,6 +393,7 @@ mod tests {
             &path,
             json!({
                 "theme": "dark",
+                "updateManifest": { "schema_version": 1 },
                 "exitNodeSortOrder": "bogus",
                 "preferredLocation": "exit-1",
                 "showDetailedMetrics": true
@@ -469,6 +470,22 @@ mod tests {
         assert!(!reloaded.update_check);
         assert_eq!(reloaded.exit_node_sort_order, SortOrder::Alpha);
         assert_eq!(reloaded.last_checked_at, Some(1720000000000));
+    }
+
+    #[test]
+    fn last_check_outcome_persists_and_reloads() {
+        let path = temp_settings_path();
+        SettingsStore::load(path.clone())
+            .update(patch(json!({
+                "lastCheckOutcome": { "kind": "UpToDate", "current": "0.29.0" }
+            })))
+            .expect("update should succeed");
+
+        let reloaded = SettingsStore::load(path).current();
+        assert!(matches!(
+            reloaded.last_check_outcome,
+            Some(CheckOutcome::UpToDate { ref current }) if current == "0.29.0"
+        ));
     }
 
     #[test]

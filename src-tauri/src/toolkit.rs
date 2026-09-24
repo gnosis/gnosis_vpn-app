@@ -109,9 +109,9 @@ fn string_or_number<'de, D: serde::Deserializer<'de>>(d: D) -> Result<String, D:
     })
 }
 
-/// The decision `check-update` reached, as the frontend receives it: `kind`-tagged, the same
-/// shape `InstallStatus` uses, so the frontend has one enum style to deal with.
-#[derive(Clone, Debug, Serialize)]
+/// The decision `check-update` reached, as the frontend receives it and settings persist it:
+/// `kind`-tagged, the same shape `InstallStatus` uses, so the frontend has one enum style.
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "kind")]
 pub enum CheckOutcome {
     UpToDate {

@@ -2,8 +2,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { z } from "zod";
 import {
   ChannelReleaseSchema,
+  CheckOutcomeSchema,
   UpdateChannelSchema,
-  UpdateManifestSchema,
 } from "@src/stores/settingsStore.ts";
 
 // Wire types for the toolkit binary (`gnosis_vpn-update`), the source of truth
@@ -23,32 +23,23 @@ export const ToolkitInfoSchema = z.object({
 });
 export type ToolkitInfo = z.infer<typeof ToolkitInfoSchema>;
 
-// The `check-update` decision, `kind`-tagged by the Rust bridge. Three variants
-// never reach `checkUpdate` — the command turns them into rejections.
-export const CheckOutcomeSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("UpToDate"), current: z.string() }),
-  z.object({
-    kind: z.literal("Available"),
-    current: z.string(),
-    release: ChannelReleaseSchema,
+const UpdateManifestSchema = z.object({
+  schema_version: z.number(),
+  generated_at: z.string(),
+  channels: z.object({
+    stable: ChannelReleaseSchema.nullable(),
+    snapshot: ChannelReleaseSchema.nullable(),
+    // Absent until the channel has published once, so optional as well as nullable.
+    experimental: ChannelReleaseSchema.nullable().optional(),
   }),
-  z.object({
-    kind: z.literal("NoReleaseForChannel"),
-    channel: UpdateChannelSchema,
-  }),
-  z.object({ kind: z.literal("VpnNotConnected") }),
-  z.object({ kind: z.literal("IntegrityError"), error: z.string() }),
-  z.object({ kind: z.literal("Error"), error: z.string() }),
-]);
-export type CheckOutcome = z.infer<typeof CheckOutcomeSchema>;
+});
 
 export const CheckResultSchema = z.object({
   // The channel that was checked: the one asked for, or the one the binary
   // inferred from the installed version.
   channel: UpdateChannelSchema,
   outcome: CheckOutcomeSchema,
-  // Both channel entries exactly as fetched. Null only on outcomes that never
-  // got a manifest, in which case the stored one is left alone.
+  // Both channel entries exactly as fetched; null on outcomes that never got one.
   manifest: UpdateManifestSchema.nullable(),
 });
 export type CheckResult = z.infer<typeof CheckResultSchema>;

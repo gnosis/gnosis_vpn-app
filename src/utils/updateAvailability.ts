@@ -1,8 +1,9 @@
-import {
-  type UpdateChannel,
-  type UpdateManifest,
+import type {
+  ChannelRelease,
+  CheckOutcome,
+  UpdateChannel,
 } from "@src/stores/settingsStore.ts";
-import { compareVersions, detectChannel } from "@src/utils/version.ts";
+import { detectChannel } from "@src/utils/version.ts";
 import type { ToolkitStatus } from "@src/stores/appStore.ts";
 
 /** A blocker is shown instead of the tab; only `failed` is worth a retry button. */
@@ -15,39 +16,44 @@ export type UpdateBlocker = {
 export type UpdateDecision = {
   isUpToDate: boolean | undefined;
   isUpdateAvailable: boolean;
-  availableVersion: string | null;
+  release: ChannelRelease | null;
 };
 
-export function evaluateUpdate(input: {
+const UNDECIDED: UpdateDecision = {
+  isUpToDate: undefined,
+  isUpdateAvailable: false,
+  release: null,
+};
+
+/** True when the toolkit reached `outcome` for a package other than the installed one. */
+export function isStaleOutcome(
+  outcome: CheckOutcome | null,
+  packageVersion: string | null,
+): boolean {
+  return outcome != null && "current" in outcome &&
+    outcome.current !== packageVersion;
+}
+
+/** The toolkit's verdict as the UI shows it; a stale one decides nothing. */
+export function resolveUpdateDecision(input: {
+  outcome: CheckOutcome | null;
   packageVersion: string | null;
-  manifest: UpdateManifest | null;
-  channel: UpdateChannel | null;
   dismissedVersion: string | null;
 }): UpdateDecision {
-  const { packageVersion: pkg, manifest, channel, dismissedVersion } = input;
-  if (!pkg || !manifest) {
-    return {
-      isUpToDate: undefined,
-      isUpdateAvailable: false,
-      availableVersion: null,
-    };
+  const { outcome, packageVersion, dismissedVersion } = input;
+  if (!outcome || isStaleOutcome(outcome, packageVersion)) return UNDECIDED;
+  switch (outcome.kind) {
+    case "UpToDate":
+      return { isUpToDate: true, isUpdateAvailable: false, release: null };
+    case "Available":
+      return {
+        isUpToDate: false,
+        isUpdateAvailable: outcome.release.version !== dismissedVersion,
+        release: outcome.release,
+      };
+    default:
+      return UNDECIDED;
   }
-  const effectiveChannel = channel ?? detectChannel(pkg);
-  const latest = manifest.channels[effectiveChannel]?.version ?? null;
-  if (!latest) {
-    return {
-      isUpToDate: undefined,
-      isUpdateAvailable: false,
-      availableVersion: null,
-    };
-  }
-  const channelMismatch = detectChannel(pkg) !== effectiveChannel;
-  const hasUpdate = channelMismatch || compareVersions(pkg, latest) < 0;
-  return {
-    isUpToDate: !hasUpdate,
-    isUpdateAvailable: hasUpdate && dismissedVersion !== latest,
-    availableVersion: hasUpdate ? latest : null,
-  };
 }
 
 /** Returns the channel to store, or `undefined` when the preference already matches the installed package. */

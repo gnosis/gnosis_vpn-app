@@ -585,7 +585,10 @@ fn fixture_manifest() -> Manifest {
 }
 
 fn full_settings() -> Settings {
-    let manifest = fixture_manifest();
+    let stable = fixture_manifest()
+        .channels
+        .stable
+        .expect("fixture manifest has a stable release");
 
     Settings {
         preferred_location: Some("exit-1".to_string()),
@@ -595,7 +598,10 @@ fn full_settings() -> Settings {
         update_check: true,
         exit_node_sort_order: SortOrder::Alpha,
         last_checked_at: Some(1_720_000_000_000),
-        update_manifest: Some(manifest),
+        last_check_outcome: Some(CheckOutcome::Available {
+            current: "0.28.5".to_string(),
+            release: Box::new(stable),
+        }),
         channel: Some(UpdateChannel::Snapshot),
         dismissed_update_version: Some("0.28.0".to_string()),
         installed_version: Some("0.28.5".to_string()),

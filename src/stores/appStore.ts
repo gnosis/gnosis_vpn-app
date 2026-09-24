@@ -3,8 +3,8 @@ import { createStore, reconcile, type Store } from "solid-js/store";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import {
-  evaluateUpdate,
   resolveChannelResync,
+  resolveUpdateDecision,
 } from "@src/utils/updateAvailability.ts";
 import {
   getToolkitInfo,
@@ -714,13 +714,12 @@ export function createAppStore(): AppStoreTuple {
   });
 
   createEffect(() => {
-    const d = evaluateUpdate({
+    const d = resolveUpdateDecision({
+      outcome: settings.lastCheckOutcome,
       packageVersion: state.packageVersion,
-      manifest: settings.updateManifest ?? null,
-      channel: settings.channel,
       dismissedVersion: settings.dismissedUpdateVersion,
     });
-    setState("availableVersion", d.availableVersion);
+    setState("availableVersion", d.release?.version ?? null);
     setState("isUpdateAvailable", d.isUpdateAvailable);
   });
 
