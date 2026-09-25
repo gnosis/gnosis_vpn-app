@@ -1,54 +1,96 @@
-import type {
-  Destination,
-  DestinationState,
-  ExitHealthData,
-  RouteHealthState,
-  RouteHealthView,
-} from "@src/services/vpnService.ts";
+import type { Destination, RouteHealthView } from "@src/services/vpnService.ts";
+import type { ExitData } from "@src/utils/destinations.ts";
 
 /** Visual health color for a destination; "default" renders as plain text. */
 export type HealthColor = "green" | "yellow" | "red" | "gray" | "default";
 
-/** Derive a simple color from route health state. */
-export function getExitHealthColor(rhv: RouteHealthView): HealthColor {
-  const { state } = rhv;
-  if (state.state === "Routable") return "default";
-  if (state.state === "NeedsChannel") return "yellow";
-  if (state.state === "Unrecoverable") return "red";
-  if (state.state === "NeedsPeering") return "yellow";
-  if (state.state === "ReadyToConnect") {
-    return state.exit.health.slots.available <= 0 ? "red" : "green";
+/** The walk's verdict on this destination, with exit data tightening a full-value route. */
+type RouteVerdict =
+  | "checking"
+  | "ready"
+  | "full"
+  | "weak"
+  | "no-route"
+  | "unrecoverable";
+
+function routeVerdict(
+  rhv: RouteHealthView,
+  exit: ExitData | null,
+): RouteVerdict {
+  const { state, walk } = rhv;
+  if (state.state === "Unrecoverable") return "unrecoverable";
+  if (walk === null) return "checking";
+  if (state.state === "NotRoutable" || walk.found !== "Paths") {
+    return "no-route";
   }
-  if (state.state === "Connecting") {
-    return state.exit.health.slots.available <= 0 ? "red" : "green";
-  }
-  return "gray";
+  if (walk.best_value < 1) return "weak";
+  if (exit !== null && exit.slots.available <= 0) return "full";
+  return "ready";
 }
 
-/** Extract exit health data from a route health state, if available. */
-function getExitData(state: RouteHealthState): ExitHealthData | null {
-  if (state.state === "ReadyToConnect") return state.exit;
-  if (state.state === "Connecting") return state.exit;
-  return null;
+/** Green is connectable, red is a dead end, yellow needs a look; the rest is routine. */
+export function getExitHealthColor(
+  rhv: RouteHealthView,
+  exit: ExitData | null,
+): HealthColor {
+  switch (routeVerdict(rhv, exit)) {
+    case "ready":
+      return "green";
+    case "full":
+    case "unrecoverable":
+      return "red";
+    case "weak":
+      return "yellow";
+    case "checking":
+    case "no-route":
+      return "default";
+  }
 }
 
-/** One-way latency in whole ms, as displayed. Returns null when unavailable.
- * Prefers tunnel_ping_rtt once the tunnel is up; falls back to exit ping_rtt.
- * Both are round-trip times, so we halve to get one-way latency. */
-export function getLatencyMs(rhv: RouteHealthView): number | null {
-  const { state } = rhv;
-  if (state.state === "Connecting") {
-    const rtt = state.tunnel_ping_rtt ?? state.exit.ping_rtt;
-    return Math.round(rtt / 2);
+/** Single status label for the route health state. */
+export function formatExitHealthStatus(
+  rhv: RouteHealthView,
+  exit: ExitData | null,
+): string {
+  switch (routeVerdict(rhv, exit)) {
+    case "ready":
+      return "Ready to connect";
+    case "full":
+      return "Full";
+    case "weak":
+      return "Weak route";
+    case "no-route":
+      return "No route";
+    case "checking":
+      return "Checking…";
+    case "unrecoverable":
+      return formatUnrecoverable(rhv);
   }
-  const exit = getExitData(state);
-  if (!exit) return null;
-  return Math.round(exit.ping_rtt / 2);
+}
+
+function formatUnrecoverable(rhv: RouteHealthView): string {
+  if (rhv.state.state !== "Unrecoverable") return "Unreachable";
+  const { reason } = rhv.state;
+  if (reason === "NotAllowed") return "Connection not allowed";
+  if ("IncompatibleApiVersion" in reason) return "Incompatible server version";
+  return "Unreachable";
+}
+
+/** One-way latency in whole ms, as displayed; the tunnel's own sample wins once it exists. */
+export function getLatencyMs(
+  exit: ExitData | null,
+  tunnelPingRtt: number | null,
+): number | null {
+  const rtt = tunnelPingRtt ?? exit?.rtt ?? null;
+  return rtt === null ? null : Math.round(rtt / 2);
 }
 
 /** Format one-way latency as e.g. "42 ms". Returns null when unavailable. */
-export function formatLatency(rhv: RouteHealthView): string | null {
-  const ms = getLatencyMs(rhv);
+export function formatLatency(
+  exit: ExitData | null,
+  tunnelPingRtt: number | null,
+): string | null {
+  const ms = getLatencyMs(exit, tunnelPingRtt);
   return ms === null ? null : `${ms} ms`;
 }
 
@@ -61,10 +103,9 @@ export interface SlotLoad {
 }
 
 /** Slot usage as a percentage. Null when unavailable or the exit has no slots. */
-export function getSlotLoad(rhv: RouteHealthView): SlotLoad | null {
-  const exit = getExitData(rhv.state);
+export function getSlotLoad(exit: ExitData | null): SlotLoad | null {
   if (!exit) return null;
-  const { total, connected } = exit.health.slots;
+  const { total, connected } = exit.slots;
   if (total <= 0) return null;
   return {
     used: connected,
@@ -91,10 +132,9 @@ export function getLatencyLevel(ms: number): LoadLevel {
 }
 
 /** Determine load level from 1-minute load average relative to nproc. */
-export function getLoadLevel(rhv: RouteHealthView): LoadLevel | null {
-  const exit = getExitData(rhv.state);
+export function getLoadLevel(exit: ExitData | null): LoadLevel | null {
   if (!exit) return null;
-  const { one, nproc } = exit.health.load_avg;
+  const { one, nproc } = exit.loadAvg;
   if (nproc <= 0) return null;
   const ratio = one / nproc;
   if (ratio < 0.5) return "low";
@@ -103,22 +143,35 @@ export function getLoadLevel(rhv: RouteHealthView): LoadLevel | null {
 }
 
 /** Format load averages as e.g. "0.5 / 1.2 / 0.8 (4 cores)". */
-export function formatLoadAvg(rhv: RouteHealthView): string | null {
-  const exit = getExitData(rhv.state);
+export function formatLoadAvg(exit: ExitData | null): string | null {
   if (!exit) return null;
-  const { one, five, fifteen, nproc } = exit.health.load_avg;
+  const { one, five, fifteen, nproc } = exit.loadAvg;
   const fmt = (n: number) => n.toFixed(2);
   return `${fmt(one)} / ${fmt(five)} / ${fmt(fifteen)} (${nproc} cores)`;
 }
 
-/** Extract the checked-at epoch seconds, if available. */
-export function getLastCheckedEpoch(rhv: RouteHealthView): number | null {
-  const exit = getExitData(rhv.state);
-  if (exit) return Math.floor(exit.checked_at / 1000);
+/** When the exit was last measured, in epoch seconds; else when the route was last walked. */
+export function getLastCheckedEpoch(
+  rhv: RouteHealthView,
+  exit: ExitData | null,
+): number | null {
+  if (exit) return Math.floor(exit.checkedAt / 1000);
+  const walkedAt = rhv.walk?.walked_at;
+  return walkedAt === undefined ? null : Math.floor(walkedAt / 1000);
+}
 
-  return rhv.checking_since !== null
-    ? Math.floor(rhv.checking_since / 1000)
-    : null;
+/** The best path's value as a percentage, e.g. "100%"; null before the first walk. */
+export function formatPathValue(rhv: RouteHealthView): string | null {
+  const walk = rhv.walk;
+  if (walk?.found !== "Paths") return null;
+  return `${Math.round(walk.best_value * 100)}%`;
+}
+
+/** Distinct first relays over the paths found, e.g. "3 of 5"; null before the first walk. */
+export function formatRelays(rhv: RouteHealthView): string | null {
+  const walk = rhv.walk;
+  if (walk?.found !== "Paths") return null;
+  return `${walk.distinct_first_relays} of ${walk.count}`;
 }
 
 /** Format a seconds-ago diff as a human-readable relative time, e.g. "17 s ago". */
@@ -131,45 +184,9 @@ export function formatSecondsAgo(diffSec: number): string {
   return `${hours} h ago`;
 }
 
-/** Single status label for the route health state. */
-export function formatExitHealthStatus(rhv: RouteHealthView): string {
-  const { state } = rhv;
-  if (state.state === "Routable") return "Checking…";
-  if (state.state === "NeedsChannel") return "Needs channel";
-  if (state.state === "NeedsPeering") return "Looking for peer";
-  if (state.state === "Unrecoverable") {
-    const { reason } = state;
-    if (reason === "NotAllowed") return "Connection not allowed";
-    if (reason === "InvalidPath") {
-      return "Connection impossible";
-    }
-    if (typeof reason === "object" && "IncompatibleApiVersion" in reason) {
-      return "Incompatible server version";
-    }
-    return "Unreachable";
-  }
-  if (state.state === "ReadyToConnect") {
-    return state.exit.health.slots.available <= 0 ? "Full" : "Ready to connect";
-  }
-  if (state.state === "Connecting") {
-    return state.exit.health.slots.available <= 0 ? "Full" : "Connecting";
-  }
-  return "Checking…";
-}
-
-/** Whether route health has displayable stats (latency, load, etc). */
+/** Whether the card has route stats to show: anything the walk found. */
 export function hasHealthContent(rhv: RouteHealthView | null): boolean {
-  if (!rhv) return false;
-  const s = rhv.state.state;
-  return s !== "NeedsChannel" && s !== "Routable" && s !== "NeedsPeering" &&
-    s !== "Unrecoverable";
-}
-
-/** Whether the route is ready to connect (exit health confirmed). */
-export function isReadyToConnect(rhv: RouteHealthView | undefined): boolean {
-  if (!rhv) return false;
-  const s = rhv.state.state;
-  return s === "ReadyToConnect" || s === "Connecting";
+  return rhv?.walk?.found === "Paths";
 }
 
 /** Get the raw hop count from routing. */
@@ -187,20 +204,6 @@ export function formatRouting(routing: number): string {
 export function getMaxHopCount(destinations: Destination[]): number {
   if (destinations.length === 0) return 1;
   return Math.max(1, ...destinations.map((d) => getHopCount(d.routing)));
-}
-
-/** Latency ms for a ReadyToConnect/Connecting destination; null otherwise. */
-export function getSortLatencyMs(ds: DestinationState): number | null {
-  const rh = ds.route_health;
-  if (!rh) return null;
-  const { state } = rh;
-  if (state.state === "Connecting") {
-    return state.tunnel_ping_rtt ?? state.exit.ping_rtt;
-  }
-  if (state.state === "ReadyToConnect") {
-    return state.exit.ping_rtt;
-  }
-  return null;
 }
 
 export type ConnectionState =

@@ -8,7 +8,7 @@ import {
   type UpPhase,
 } from "@src/services/vpnService.ts";
 import type { AppState } from "@src/stores/appStore.ts";
-import { destinationLabel } from "@src/utils/destinations.ts";
+import { destinationLabel, getExitData } from "@src/utils/destinations.ts";
 import { formatExitHealthStatus } from "@src/utils/exitHealth.ts";
 
 export function isConnected(response: StatusResponse): boolean {
@@ -156,8 +156,9 @@ export function waitingForRouteMessage(
     ? destinationLabel(destState.destination)
     : destinationId;
   const health = destState?.route_health;
-  if (health && health.state.state === "Unrecoverable") {
-    return `Route to ${label}: ${formatExitHealthStatus(health)}`;
+  if (destState && health && health.state.state === "Unrecoverable") {
+    const exit = getExitData(destState, state.probe);
+    return `Route to ${label}: ${formatExitHealthStatus(health, exit)}`;
   }
   return `Waiting for route to ${label}`;
 }

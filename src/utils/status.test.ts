@@ -67,6 +67,7 @@ const BASE_APP_STATE: AppState = {
   connecting: null,
   reconnecting: null,
   disconnecting: [],
+  probe: null,
   isLoading: false,
   runMode: null,
   vpnStatus: "ServiceUnavailable",

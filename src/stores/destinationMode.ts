@@ -6,11 +6,13 @@ import type {
   ConnectingInfo,
   Destination,
   DestinationState,
+  ProbeView,
   ReconnectingInfo,
 } from "@src/services/vpnService.ts";
 import {
   type CardPhase,
   isReady,
+  rankContext,
   sortByRouteQuality,
 } from "@src/utils/destinations.ts";
 
@@ -86,6 +88,7 @@ export interface ModeAppState {
   connected: ConnectedInfo | null;
   connecting: ConnectingInfo | null;
   reconnecting: ReconnectingInfo | null;
+  probe: ProbeView | null;
 }
 
 export interface DestinationModeSettings {
@@ -279,10 +282,13 @@ export function createDestinationMode(
   /** Preferred outranks the sort head while unspent and ready — it is an input, not a transition. */
   function effectiveCandidate(status: ModeAppState, draft: DestinationMode) {
     const preferred = draft.preferredLocation;
-    if (preferred !== null && isReady(status.destinations[preferred])) {
+    const context = rankContext(status);
+    if (
+      preferred !== null && isReady(status.destinations[preferred], context)
+    ) {
       return preferred;
     }
-    return sortByRouteQuality(status.destinations)[0] ?? null;
+    return sortByRouteQuality(status.destinations, context)[0] ?? null;
   }
 
   /** No countdown: there is nothing to switch away from until something is active. */
@@ -320,7 +326,7 @@ export function createDestinationMode(
     }
     const worthSwitchingTo = candidate !== null &&
       candidate !== draft.active &&
-      isReady(status.destinations[candidate]);
+      isReady(status.destinations[candidate], rankContext(status));
     if (!worthSwitchingTo) {
       draft.mode = AUTO_IDLE;
       return;

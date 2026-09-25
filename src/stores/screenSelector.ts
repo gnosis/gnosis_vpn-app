@@ -1,5 +1,4 @@
 import {
-  type DestinationState,
   formatWarmupStatus,
   isDeployingSafeRunMode,
   isPreparingSafeRunMode,
@@ -8,7 +7,7 @@ import {
   type StatusResponse,
 } from "@src/services/vpnService.ts";
 import { logWarn } from "@src/utils/appLog.ts";
-import { isReady } from "@src/utils/destinations.ts";
+import { isReady, rankContext } from "@src/utils/destinations.ts";
 
 export enum AppScreen {
   Initialization = "initialization",
@@ -25,10 +24,11 @@ export type ScreenChoice = [AppScreen, string, number | null];
 const MAXIMUM_DELAY_TIME = 5 * 60 * 1000; // 5 minutes
 
 /** Nothing to interact with until one destination has a full-value path. */
-function findDelayReason(destinations: DestinationState[]): string | null {
-  const known = destinations.filter((ds) => ds.route_health !== null);
+function findDelayReason(status: StatusResponse): string | null {
+  const known = status.destinations.filter((ds) => ds.route_health !== null);
   if (known.length === 0) return null;
-  if (known.some((ds) => isReady(ds))) return null;
+  const context = rankContext(status);
+  if (known.some((ds) => isReady(ds, context))) return null;
   const unrecoverable =
     known.filter((ds) => ds.route_health?.state.state === "Unrecoverable")
       .length;
@@ -42,10 +42,10 @@ function findDelayReason(destinations: DestinationState[]): string | null {
 export function detectSyncPhase(
   response: StatusResponse,
 ): SyncPhaseIndex | null {
-  const { run_mode, destinations } = response;
+  const { run_mode } = response;
   if (isDeployingSafeRunMode(run_mode)) return 0;
   if (isWarmupRunMode(run_mode)) return 1;
-  if (findDelayReason(Object.values(destinations))) return 2;
+  if (findDelayReason(response)) return 2;
   return null;
 }
 
@@ -90,7 +90,7 @@ export function createScreenSelector(): (
     };
 
     // delay initial screen as long as no interaction makes sense
-    const delay = findDelayReason(status.destinations);
+    const delay = findDelayReason(status);
     if (!delay) return moveOn();
     // delay proposed and never ran - start the delay
     if ("neverRan" in initialDelay) {

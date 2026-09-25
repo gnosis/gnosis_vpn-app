@@ -21,6 +21,7 @@ import {
   type DestinationState,
   type DisconnectingInfo,
   isWarmupRunMode,
+  type ProbeView,
   type ReconnectingInfo,
   type RunMode,
   type ServiceInfo,
@@ -33,8 +34,14 @@ import {
   createDestinationMode,
   type DestinationMode,
   type DestinationModeHandle,
+  effectiveActive,
   type ModeAppState,
 } from "@src/stores/destinationMode.ts";
+import {
+  IDLE_SCHEDULE,
+  nextQuickProbe,
+  quickProbeAnswered,
+} from "@src/stores/quickProbeScheduler.ts";
 import {
   logError,
   logInfo,
@@ -46,6 +53,7 @@ import {
   destinationLabel,
   getPreferredAvailabilityChangeMessage,
   pickStartupTarget,
+  rankContext,
 } from "@src/utils/destinations.ts";
 
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
@@ -81,6 +89,8 @@ export interface AppState {
   connecting: ConnectingInfo | null;
   reconnecting: ReconnectingInfo | null;
   disconnecting: DisconnectingInfo[];
+  // The daemon's one probe session, which follows the active destination.
+  probe: ProbeView | null;
   isLoading: boolean;
   error?: string;
   runMode: RunMode | null;
@@ -135,6 +145,7 @@ function initialState(): AppState {
     currentScreen: AppScreen.Initialization,
     destinations: {},
     disconnecting: [],
+    probe: null,
     error: undefined,
     isLoading: false,
     runMode: null,
@@ -339,6 +350,7 @@ export function createAppStore(): AppStoreTuple {
     setState("connecting", reconcile(response.connecting));
     setState("reconnecting", reconcile(response.reconnecting));
     setState("disconnecting", reconcile(response.disconnecting));
+    setState("probe", reconcile(response.probe));
     setState("vpnStatus", deriveVPNStatus(response));
     setState("availableDestinations", availableDestinations);
 
@@ -348,9 +360,70 @@ export function createAppStore(): AppStoreTuple {
       connected: response.connected,
       connecting: response.connecting,
       reconnecting: response.reconnecting,
+      probe: response.probe,
     };
     destinationMode?.applyStatusUpdate(pendingModeAppState);
     maybeConnectOnStartup(pendingModeAppState);
+    reconcileProbe(pendingModeAppState);
+    runQuickProbes(pendingModeAppState);
+  };
+
+  // Retry cadence when the daemon could not open the probe yet, e.g. its edge client is still starting.
+  const PROBE_RETRY_MS = 5_000;
+  let lastProbe: { id: string; at: number } | null = null;
+
+  /** The probe follows the active destination; while live the connection already holds it. */
+  const ensureProbe = (id: string, now: number) => {
+    const sameRecently = lastProbe?.id === id &&
+      now - lastProbe.at < PROBE_RETRY_MS;
+    if (sameRecently) return;
+    lastProbe = { id, at: now };
+    VPNService.probe(id)
+      .then((response) => logInfo(`Probe ${id}: ${response.type}`))
+      .catch((error) => logWarn(`Probe ${id} failed: ${error}`));
+  };
+
+  const probeTarget = (): string | null => {
+    const mode = destinationMode?.model;
+    if (!mode || mode.mode.mode === "live") return null;
+    return effectiveActive(mode, Date.now());
+  };
+
+  createEffect(() => {
+    // Tracks the mirrored mode so a slide, a pick or an auto commit re-points the probe.
+    effectiveActive(state.mode, Date.now());
+    const id = probeTarget();
+    if (id !== null) ensureProbe(id, Date.now());
+  });
+
+  /** A status whose probe is elsewhere means the daemon lost or refused ours: ask again. */
+  const reconcileProbe = (status: ModeAppState) => {
+    const id = probeTarget();
+    if (id === null || status.probe?.destination_id === id) return;
+    ensureProbe(id, Date.now());
+  };
+
+  let quickProbes = IDLE_SCHEDULE;
+
+  /** One quick probe at a time while the list is open; see docs/destinationMode.md, Probing. */
+  const runQuickProbes = (status: ModeAppState) => {
+    if (!destinationMode?.model.listOpen) return;
+    const now = Date.now();
+    const activeId = effectiveActive(destinationMode.model, now);
+    const next = nextQuickProbe(quickProbes, status, activeId, now);
+    quickProbes = next.schedule;
+    if (next.issue === null) return;
+    const id = next.issue;
+    VPNService.quickProbe(id)
+      .then((response) => {
+        const accepted = response.type === "Checking";
+        quickProbes = quickProbeAnswered(quickProbes, id, accepted);
+        if (!accepted) logInfo(`Quick probe ${id}: ${response.type}`);
+      })
+      .catch((error) => {
+        quickProbes = quickProbeAnswered(quickProbes, id, false);
+        logWarn(`Quick probe ${id} failed: ${error}`);
+      });
   };
 
   // One shot per launch, like preferredLocation: spent once a session is live or something is ready to connect.
@@ -371,6 +444,7 @@ export function createAppStore(): AppStoreTuple {
       status.destinations,
       settings.preferredLocation,
       settings.lastConnectedDestination,
+      rankContext(status),
     );
     if (target === null) return;
     startupConnectDone = true;
@@ -668,10 +742,16 @@ export function createAppStore(): AppStoreTuple {
     slideCommitted: (id: string) =>
       destinationMode?.applyUserInput({ type: "slideCommitted", id }),
     dragStarted: () => destinationMode?.applyUserInput({ type: "dragStarted" }),
-    destinationListOpened: () =>
-      destinationMode?.applyUserInput({ type: "listOpened" }),
-    destinationListClosed: (picked: string | null) =>
-      destinationMode?.applyUserInput({ type: "listClosed", picked }),
+    destinationListOpened: () => {
+      destinationMode?.applyUserInput({ type: "listOpened" });
+      VPNService.setStatusPollFast(true).catch((error) => logWarn(`${error}`));
+      if (pendingModeAppState) runQuickProbes(pendingModeAppState);
+    },
+    destinationListClosed: (picked: string | null) => {
+      destinationMode?.applyUserInput({ type: "listClosed", picked });
+      VPNService.setStatusPollFast(false).catch((error) => logWarn(`${error}`));
+      quickProbes = IDLE_SCHEDULE;
+    },
     refreshToolkit,
   } as const;
 

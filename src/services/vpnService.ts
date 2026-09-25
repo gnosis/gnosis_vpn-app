@@ -580,6 +580,45 @@ export class VPNService {
     }
   }
 
+  /** Points the daemon's one probe session at `id`; the result streams in through status. */
+  static async probe(id: string): Promise<ProbeResponse> {
+    let rawRes;
+    try {
+      rawRes = await invoke("probe", { id });
+      return ProbeResponseSchema.parse(rawRes);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        console.error("Issues with ProbeResponseSchema", rawRes);
+        VPNService.logZodIssues("probe response", error);
+      }
+      throw new Error(`Probe error: ${error}`);
+    }
+  }
+
+  /** One-shot check of `id`; the daemon answers at once and reports the result under the destination. */
+  static async quickProbe(id: string): Promise<QuickProbeResponse> {
+    let rawRes;
+    try {
+      rawRes = await invoke("quick_probe", { id });
+      return QuickProbeResponseSchema.parse(rawRes);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        console.error("Issues with QuickProbeResponseSchema", rawRes);
+        VPNService.logZodIssues("quick probe response", error);
+      }
+      throw new Error(`Quick probe error: ${error}`);
+    }
+  }
+
+  /** Caps the status poll interval while the list is open; quick-probe results should not wait 2 s. */
+  static async setStatusPollFast(fast: boolean): Promise<void> {
+    try {
+      await invoke("set_status_poll_fast", { fast });
+    } catch (error) {
+      throw new Error(`Set status poll error: ${error}`);
+    }
+  }
+
   // failures are logged by the backend's export_logs command
   static async exportLogs(destPath: string): Promise<string> {
     try {

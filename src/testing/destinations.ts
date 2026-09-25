@@ -1,4 +1,10 @@
-import type { Destination, RouteHealthView } from "@src/services/vpnService.ts";
+import type {
+  Destination,
+  ProbeView,
+  QuickProbeState,
+  RouteHealthView,
+  Slots,
+} from "@src/services/vpnService.ts";
 
 type DestinationOverrides = Partial<Omit<Destination, "meta" | "overrides">> & {
   meta?: Partial<Destination["meta"]>;

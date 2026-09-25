@@ -1,6 +1,10 @@
 import type {
   Destination,
   DestinationState,
+  LoadAvg,
+  ProbeView,
+  Slots,
+  Versions,
 } from "@src/services/vpnService.ts";
 
 export function getPreferredAvailabilityChangeMessage(
@@ -22,14 +26,115 @@ export function getPreferredAvailabilityChangeMessage(
 export function sortAlphaDestinations(
   available: Destination[],
   destinations: Record<string, DestinationState>,
-  liveId: string | null = null,
+  context: RankContext,
 ): Destination[] {
   return [...available].sort((a, b) => {
-    const aReady = isReadyForDisplay(destinations[a.id], liveId);
-    const bReady = isReadyForDisplay(destinations[b.id], liveId);
+    const aReady = isReadyForDisplay(destinations[a.id], context);
+    const bReady = isReadyForDisplay(destinations[b.id], context);
     if (aReady !== bReady) return aReady ? -1 : 1;
     return destinationLabel(a).localeCompare(destinationLabel(b));
   });
+}
+
+/** What readiness and ranking need beyond the destination itself. */
+export interface RankContext {
+  probe: ProbeView | null;
+  liveId: string | null;
+}
+
+export const NO_CONTEXT: RankContext = { probe: null, liveId: null };
+
+export function rankContext(status: {
+  probe: ProbeView | null;
+  connected: { destination_id: string } | null;
+  connecting: { destination_id: string } | null;
+  reconnecting: { destination_id: string } | null;
+}): RankContext {
+  return {
+    probe: status.probe,
+    liveId: status.connected?.destination_id ??
+      status.connecting?.destination_id ??
+      status.reconnecting?.destination_id ?? null,
+  };
+}
+
+/** What was measured on the exit itself, by the live probe or a quick probe. */
+export interface ExitData {
+  slots: Slots;
+  loadAvg: LoadAvg;
+  rtt: number;
+  checkedAt: number;
+  versions: Versions;
+  apiVersion: string | null;
+}
+
+/** The probe refreshes continuously, so it wins over a quick probe's snapshot where it applies. */
+export function getExitData(
+  state: DestinationState,
+  probe: ProbeView | null,
+): ExitData | null {
+  const probesThisExit = probe?.destination_id === state.destination.id;
+  if (
+    probesThisExit && probe.load && probe.ping_rtt !== null &&
+    probe.checked_at !== null && probe.versions
+  ) {
+    return {
+      slots: probe.load.slots,
+      loadAvg: probe.load.load_avg,
+      rtt: probe.ping_rtt,
+      checkedAt: probe.checked_at,
+      versions: probe.versions,
+      apiVersion: probe.api_version,
+    };
+  }
+  const quick = state.route_health?.quick_probe;
+  if (quick?.state !== "Checked") return null;
+  return {
+    slots: quick.load.slots,
+    loadAvg: quick.load.load_avg,
+    rtt: quick.rtt,
+    checkedAt: quick.checked_at,
+    versions: quick.versions,
+    apiVersion: quick.api_version,
+  };
+}
+
+/** Slots free for us — our own session must not count against the destination we are on. */
+export function freeSlots(
+  state: DestinationState,
+  context: RankContext,
+): number | null {
+  const exit = getExitData(state, context.probe);
+  if (exit === null) return null;
+  const occupiedByUs = state.destination.id === context.liveId ? 1 : 0;
+  return exit.slots.available + occupiedByUs;
+}
+
+/** The walk's verdict alone: a full-value path exists and nothing latched the route. */
+function isRoutable(state: DestinationState): boolean {
+  if (!state.route_health) return false;
+  const { state: routeState, walk } = state.route_health;
+  if (routeState.state !== "Routable") return false;
+  return walk?.found === "Paths" && walk.best_value >= 1;
+}
+
+/** Connectable right now: routable, and not full once the exit has been measured. */
+export function isReady(
+  state: DestinationState | undefined,
+  context: RankContext,
+): boolean {
+  if (!state || !isRoutable(state)) return false;
+  const free = freeSlots(state, context);
+  return free === null || free > 0;
+}
+
+/** What the list may present as usable — the destination we are on always qualifies. */
+export function isReadyForDisplay(
+  state: DestinationState | undefined,
+  context: RankContext,
+): boolean {
+  if (!state) return false;
+  return state.destination.id === context.liveId || isReady(state, context);
 }
 
 /** Relative order of ineligible destinations; an ineligible Paths walk keeps its own best_value. */
@@ -47,36 +152,68 @@ function routeValue(state: DestinationState): number {
   return walk.found === "Paths" ? walk.best_value : NO_PATH_VALUE;
 }
 
-/** Connectable right now: the walk found a full-value path and nothing latched the route. */
-export function isReady(state: DestinationState | undefined): boolean {
-  if (!state?.route_health) return false;
-  const { state: routeState, walk } = state.route_health;
-  if (routeState.state !== "Routable") return false;
-  return walk?.found === "Paths" && walk.best_value >= 1;
+/** Resilience of the best path: more distinct first relays means fewer single points of failure. */
+function pathStats(state: DestinationState): { relays: number; count: number } {
+  const walk = state.route_health?.walk;
+  if (walk?.found !== "Paths") return { relays: 0, count: 0 };
+  return { relays: walk.distinct_first_relays, count: walk.count };
 }
 
-/** What the list may present as usable — the destination we are on always qualifies. */
-export function isReadyForDisplay(
-  state: DestinationState | undefined,
-  liveId: string | null,
-): boolean {
-  if (!state) return false;
-  return state.destination.id === liveId || isReady(state);
+const LATENCY_WEIGHT = 0.5;
+const CAPACITY_WEIGHT = 0.3;
+const DIVERSITY_WEIGHT = 0.2;
+/** One-way latency at or beyond this scores zero. */
+const LATENCY_CEILING_MS = 1_000;
+/** Distinct first relays at or beyond this score full. */
+const DIVERSITY_CEILING = 4;
+
+/** Higher is better; only meaningful for a measured, eligible destination. */
+function score(
+  state: DestinationState,
+  exit: ExitData,
+  context: RankContext,
+): number {
+  const oneWayMs = exit.rtt / 2;
+  const latency = 1 -
+    Math.min(oneWayMs, LATENCY_CEILING_MS) / LATENCY_CEILING_MS;
+  const free = Math.min(freeSlots(state, context) ?? 0, exit.slots.total);
+  const capacity = exit.slots.total > 0 ? free / exit.slots.total : 0;
+  const diversity = Math.min(pathStats(state).relays, DIVERSITY_CEILING) /
+    DIVERSITY_CEILING;
+  return LATENCY_WEIGHT * latency + CAPACITY_WEIGHT * capacity +
+    DIVERSITY_WEIGHT * diversity;
 }
 
-/** Sort ids: eligible first by distinct first relays, then the rest by how close they are to eligible. */
+/** Measured eligible first (by score), then unmeasured eligible (by resilience), then the rest (by closeness). */
 export function sortByRouteQuality(
   destinations: Record<string, DestinationState>,
+  context: RankContext,
 ): string[] {
+  const tierOf = (state: DestinationState): number => {
+    if (!isReady(state, context)) return 2;
+    return getExitData(state, context.probe) === null ? 1 : 0;
+  };
   return Object.keys(destinations).sort((idA, idB) => {
     const stateA = destinations[idA];
     const stateB = destinations[idB];
 
-    const readyA = isReady(stateA);
-    const readyB = isReady(stateB);
-    if (readyA !== readyB) return readyA ? -1 : 1;
+    const tierA = tierOf(stateA);
+    const tierB = tierOf(stateB);
+    if (tierA !== tierB) return tierA - tierB;
 
-    if (readyA && readyB) {
+    if (tierA === 0) {
+      const scoreA = score(
+        stateA,
+        getExitData(stateA, context.probe)!,
+        context,
+      );
+      const scoreB = score(
+        stateB,
+        getExitData(stateB, context.probe)!,
+        context,
+      );
+      if (scoreA !== scoreB) return scoreB - scoreA;
+    } else if (tierA === 1) {
       const pathsA = pathStats(stateA);
       const pathsB = pathStats(stateB);
       if (pathsA.relays !== pathsB.relays) return pathsB.relays - pathsA.relays;
@@ -92,27 +229,21 @@ export function sortByRouteQuality(
   });
 }
 
-/** Resilience of the best path: more distinct first relays means fewer single points of failure. */
-function pathStats(state: DestinationState): { relays: number; count: number } {
-  const walk = state.route_health?.walk;
-  if (walk?.found !== "Paths") return { relays: 0, count: 0 };
-  return { relays: walk.distinct_first_relays, count: walk.count };
-}
-
 /** Connect-on-startup pick: where the last session left off, else the preferred location, else the best — each only while ready. */
 export function pickStartupTarget(
   destinations: Record<string, DestinationState>,
   preferred: string | null,
-  lastConnected: string | null = null,
+  lastConnected: string | null,
+  context: RankContext,
 ): string | null {
-  if (lastConnected !== null && isReady(destinations[lastConnected])) {
+  if (lastConnected !== null && isReady(destinations[lastConnected], context)) {
     return lastConnected;
   }
-  if (preferred !== null && isReady(destinations[preferred])) {
+  if (preferred !== null && isReady(destinations[preferred], context)) {
     return preferred;
   }
-  const readyIds = sortByRouteQuality(destinations)
-    .filter((id) => isReady(destinations[id]));
+  const readyIds = sortByRouteQuality(destinations, context)
+    .filter((id) => isReady(destinations[id], context));
   return readyIds[0] ?? null;
 }
 
