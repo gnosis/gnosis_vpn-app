@@ -11,12 +11,14 @@ import type {
 } from "@src/services/vpnService.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
-import { isReady } from "@src/utils/destinations.ts";
+import { getExitData, isReady, rankContext } from "@src/utils/destinations.ts";
 import {
   formatConnectionStatus,
   formatExitHealthStatus,
   formatLatency,
   formatLoadAvg,
+  formatPathValue,
+  formatRelays,
   formatRouting,
   formatSecondsAgo,
   getConnectionState,
@@ -55,6 +57,14 @@ export default function ExitHealthDetail(
   const routing = (): number => props.destinationState.destination.routing;
 
   const destId = () => props.destinationState.destination.id;
+  const exit = createMemo(() =>
+    getExitData(props.destinationState, appState.probe)
+  );
+  // The tunnel's own sample once we are connected through this exit.
+  const tunnelRtt = () =>
+    appState.connected?.destination_id === destId()
+      ? appState.connected.tunnel_ping_rtt
+      : null;
 
   // Top-level app state owns the live connection label.
   const connectionLabel = () =>
@@ -71,36 +81,38 @@ export default function ExitHealthDetail(
     if (isConnected()) return "green";
     const rh = routeHealth();
     if (!rh) return "gray";
-    return getExitHealthColor(rh);
+    return getExitHealthColor(rh, exit());
   };
   const status = () => {
     if (isConnected()) return "Connected";
     const rh = routeHealth();
     if (!rh) return "Unavailable";
-    return formatExitHealthStatus(rh);
+    return formatExitHealthStatus(rh, exit());
   };
-  const latency = () => {
-    const rh = routeHealth();
-    return rh ? formatLatency(rh) : null;
-  };
+  const latency = () => formatLatency(exit(), tunnelRtt());
   // Graded on the same ramp as Load, so the two stats read alike.
   const latencyClass = () => {
-    const rh = routeHealth();
-    const ms = rh ? getLatencyMs(rh) : null;
+    const ms = getLatencyMs(exit(), tunnelRtt());
     return ms === null
       ? "font-semibold text-text-primary"
       : levelValueClass(getLatencyLevel(ms));
   };
-  const loadAvg = () => {
+  const loadAvg = () => formatLoadAvg(exit());
+  const pathValue = () => {
     const rh = routeHealth();
-    return rh ? formatLoadAvg(rh) : null;
+    return rh ? formatPathValue(rh) : null;
+  };
+  const relays = () => {
+    const rh = routeHealth();
+    return rh ? formatRelays(rh) : null;
   };
   const route = () => formatRouting(routing());
   // Only usable routes keep the full stats panel, including mid-connect transitions.
   const isActionInFlight = () =>
     connectionLabel() === "Connecting" || connectionLabel() === "Reconnecting";
   const isGoodState = () =>
-    isConnected() || isActionInFlight() || isReady(props.destinationState);
+    isConnected() || isActionInFlight() ||
+    isReady(props.destinationState, rankContext(appState));
 
   // Own clock: this panel mounts separately from ExitNodeList.
   const [nowSec, setNowSec] = createSignal(Date.now() / 1000);
@@ -110,7 +122,7 @@ export default function ExitHealthDetail(
   const lastChecked = (): string | null => {
     const rh = routeHealth();
     if (!rh) return null;
-    const epoch = getLastCheckedEpoch(rh);
+    const epoch = getLastCheckedEpoch(rh, exit());
     if (epoch === null) return null;
     const diff = Math.max(0, Math.round(nowSec() - epoch));
     return formatSecondsAgo(diff);
@@ -290,7 +302,55 @@ export default function ExitHealthDetail(
                           : "0ms",
                       }}
                     >
-                      <SlotLoadStat routeHealth={routeHealth()} />
+                      <SlotLoadStat exit={exit()} />
+                    </div>
+                    <div
+                      class="transition-all duration-300 ease-out"
+                      style={{
+                        opacity: settings.showDetailedMetrics ? 1 : 0,
+                        transform: settings.showDetailedMetrics
+                          ? "translateY(0)"
+                          : "translateY(-4px)",
+                        "transition-delay": settings.showDetailedMetrics
+                          ? "120ms"
+                          : "0ms",
+                      }}
+                    >
+                      <Stat
+                        label="Path"
+                        value={pathValue()}
+                        valueClass="text-text-primary"
+                        tooltip={
+                          <span>
+                            Value of the best path found; 100% means nothing on
+                            it is degraded.
+                          </span>
+                        }
+                      />
+                    </div>
+                    <div
+                      class="transition-all duration-300 ease-out"
+                      style={{
+                        opacity: settings.showDetailedMetrics ? 1 : 0,
+                        transform: settings.showDetailedMetrics
+                          ? "translateY(0)"
+                          : "translateY(-4px)",
+                        "transition-delay": settings.showDetailedMetrics
+                          ? "120ms"
+                          : "0ms",
+                      }}
+                    >
+                      <Stat
+                        label="Relays"
+                        value={relays()}
+                        valueClass="text-text-primary"
+                        tooltip={
+                          <span>
+                            Distinct first relays over the paths found; more
+                            means fewer single points of failure.
+                          </span>
+                        }
+                      />
                     </div>
                     <div
                       class="col-span-2 transition-all duration-300 ease-out"

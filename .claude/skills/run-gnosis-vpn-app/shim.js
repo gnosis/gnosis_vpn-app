@@ -53,6 +53,15 @@
     { delay: 2500, status: { kind: "Completed", new_version: "9.9.9" } },
   ];
 
+  // Every probe/quick_probe issued, in order, for `eval` steps to assert on.
+  const probes = [];
+  globalThis.__GVPN_PROBES__ = probes;
+
+  const findDestination = (id) =>
+    fixture.cached_state?.status?.Ok?.destinations?.find((ds) =>
+      ds.destination.id === id
+    )?.destination ?? null;
+
   const handlers = {
     get_cached_state: () => fixture.cached_state,
     get_initial_theme: () => fixture.theme ?? "dark",
@@ -105,6 +114,22 @@
           });
         }, fixture.checkUpdateDelayMs ?? 2000)
       ),
+    // Probing has no backend here: answer as the daemon would, record the call, and let statusScript carry results.
+    probe: ({ id }) => {
+      probes.push({ command: "probe", id });
+      const destination = findDestination(id);
+      return destination
+        ? { type: "Probing", destination }
+        : { type: "DestinationNotFound" };
+    },
+    quick_probe: ({ id }) => {
+      probes.push({ command: "quick_probe", id });
+      const destination = findDestination(id);
+      return destination
+        ? { type: "Checking", destination }
+        : { type: "DestinationNotFound" };
+    },
+    set_status_poll_fast: () => null,
     log_from_frontend: () => null,
     export_logs: (args) => args?.destPath ?? "/tmp/gnosis_vpn-export.log.zst",
     get_settings: () => ({ ...settings }),

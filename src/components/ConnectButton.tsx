@@ -2,7 +2,7 @@ import { createMemo } from "solid-js";
 import Button from "./common/Button.tsx";
 import { useAppStore } from "../stores/appStore.ts";
 import { effectiveActive } from "../stores/destinationMode.ts";
-import { isReady } from "../utils/destinations.ts";
+import { isReady, rankContext } from "../utils/destinations.ts";
 import { logError } from "../utils/appLog.ts";
 
 export default function ConnectButton() {
@@ -24,7 +24,9 @@ export default function ConnectButton() {
     return id ? appState.destinations[id] : undefined;
   });
 
-  const isTargetReady = createMemo(() => isReady(targetDestinationState()));
+  const isTargetReady = createMemo(() =>
+    isReady(targetDestinationState(), rankContext(appState))
+  );
 
   const handleClick = async () => {
     try {

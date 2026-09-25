@@ -17,6 +17,7 @@ import { logInfo, logWarn } from "@src/utils/appLog.ts";
 import {
   destinationSearchText,
   isVpnActive,
+  rankContext,
   sortAlphaDestinations,
   sortByRouteQuality,
 } from "@src/utils/destinations.ts";
@@ -55,22 +56,17 @@ export default function ExitNodeList(props: {
   });
   onCleanup(() => document.removeEventListener("keydown", handleKeyDown));
 
-  const liveId = () =>
-    appState.connected?.destination_id ??
-      appState.connecting?.destination_id ??
-      appState.reconnecting?.destination_id ??
-      null;
-
   const sortedDestinations = createMemo(() => {
+    const context = rankContext(appState);
     if (settings.exitNodeSortOrder === "alpha") {
       return sortAlphaDestinations(
         appState.availableDestinations,
         appState.destinations,
-        liveId(),
+        context,
       );
     }
     // the same ranking auto picks from, so the list's head is the destination it would choose
-    return sortByRouteQuality(appState.destinations)
+    return sortByRouteQuality(appState.destinations, context)
       .map((id) => appState.destinations[id].destination);
   });
 
