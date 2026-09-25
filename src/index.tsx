@@ -16,6 +16,8 @@ globalThis.addEventListener("error", (e) => {
 globalThis.addEventListener("unhandledrejection", (e) => {
   logError(`Unhandled rejection: ${e.reason}`);
 });
+globalThis.addEventListener("contextmenu", (e) => e.preventDefault());
+globalThis.addEventListener("dragstart", (e) => e.preventDefault());
 
 function screenFromLabel(label: string) {
   if (label === "settings") {

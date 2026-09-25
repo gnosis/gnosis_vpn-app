@@ -17,7 +17,8 @@
         "height": 640,
         "resizable": false,
         "visible": false,
-        "backgroundColor": "#111827"
+        "backgroundColor": "#111827",
+        "allowLinkPreview": false
       },
       {
         "label": "settings",
@@ -26,7 +27,8 @@
         "width": 640,
         "height": 480,
         "visible": false,
-        "backgroundColor": "#111827"
+        "backgroundColor": "#111827",
+        "allowLinkPreview": false
       }
     ],
     "security": {

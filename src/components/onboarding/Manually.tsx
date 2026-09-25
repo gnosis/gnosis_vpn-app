@@ -78,7 +78,10 @@ export default function Manually() {
             >
               {(rec) => (
                 <div class="text-sm text-text-secondary">
-                  Send at least {humanWxhopr(rec().wxhopr, "ceil")}{" "}
+                  Send at least{" "}
+                  <span class="select-text cursor-text">
+                    {humanWxhopr(rec().wxhopr, "ceil")}
+                  </span>{" "}
                   (<span class="select-text cursor-text">
                     {wxhoprDecimal(rec().wxhopr)}
                   </span>{" "}

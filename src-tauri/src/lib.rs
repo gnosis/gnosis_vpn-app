@@ -14,6 +14,7 @@ use std::sync::{Arc, Mutex};
 mod commands;
 mod icons;
 mod logging;
+mod navigation;
 mod platform;
 pub mod settings;
 mod theme;
@@ -197,6 +198,7 @@ pub fn run() {
             }
         }))
         .plugin(tauri_plugin_opener::init())
+        .plugin(navigation::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             // Logging first so everything below is captured; failure must not block startup.
