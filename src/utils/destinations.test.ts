@@ -3,26 +3,33 @@ import type {
   Destination,
   DestinationState,
   RouteHealthView,
+  Slots,
 } from "@src/services/vpnService.ts";
 import {
   destinationDescription,
   destinationLabel,
   destinationSearchText,
   destinationTitle,
+  freeSlots,
+  getExitData,
   isConfigOnly,
   isConfigPinned,
   isReady,
   isReadyForDisplay,
   isVpnActive,
+  NO_CONTEXT,
   pickStartupTarget,
+  type RankContext,
   sanitizeMetaText,
   sortAlphaDestinations,
   sortByRouteQuality,
 } from "./destinations.ts";
 import {
+  checkedQuickProbe,
   eligibleRouteHealth,
   makeDestination,
   noPathRouteHealth,
+  probeViewFor,
   unrecoverableRouteHealth,
   weakRouteHealth,
 } from "@src/testing/destinations.ts";
@@ -53,22 +60,42 @@ function makeWeak(id: string, bestValue = 0.5): DestinationState {
   return withRouteHealth(id, weakRouteHealth(bestValue));
 }
 
+const OPEN_SLOTS: Slots = { total: 8, available: 6, connected: 2 };
+const FULL_SLOTS: Slots = { total: 4, available: 0, connected: 4 };
+
+/** Eligible by the walk and measured by a quick probe. */
+function makeMeasured(
+  id: string,
+  slots: Slots = OPEN_SLOTS,
+  rtt = 100,
+  relays = 2,
+): DestinationState {
+  return withRouteHealth(id, {
+    ...eligibleRouteHealth(relays),
+    quick_probe: checkedQuickProbe(slots, rtt),
+  });
+}
+
+function liveOn(liveId: string | null): RankContext {
+  return { probe: null, liveId };
+}
+
 function makeUnavailable(id: string): DestinationState {
   return withRouteHealth(id, null);
 }
 
 describe("isReady — connectable right now", () => {
   it("accepts a routable destination whose best path has full value", () => {
-    expect(isReady(makeEligible("a"))).toBe(true);
+    expect(isReady(makeEligible("a"), NO_CONTEXT)).toBe(true);
   });
 
   it("rejects a routable destination whose best path is degraded", () => {
-    expect(isReady(makeWeak("a"))).toBe(false);
-    expect(isReady(makeWeak("a", 0.999))).toBe(false);
+    expect(isReady(makeWeak("a"), NO_CONTEXT)).toBe(false);
+    expect(isReady(makeWeak("a", 0.999), NO_CONTEXT)).toBe(false);
   });
 
   it("rejects a destination the walk found no path to", () => {
-    expect(isReady(withRouteHealth("a", noPathRouteHealth()))).toBe(
+    expect(isReady(withRouteHealth("a", noPathRouteHealth()), NO_CONTEXT)).toBe(
       false,
     );
   });
@@ -78,12 +105,12 @@ describe("isReady — connectable right now", () => {
       ...unrecoverableRouteHealth(),
       walk: eligibleRouteHealth().walk,
     };
-    expect(isReady(withRouteHealth("a", latched))).toBe(false);
+    expect(isReady(withRouteHealth("a", latched), NO_CONTEXT)).toBe(false);
   });
 
   it("rejects a destination with no health at all", () => {
-    expect(isReady(makeUnavailable("a"))).toBe(false);
-    expect(isReady(undefined)).toBe(false);
+    expect(isReady(makeUnavailable("a"), NO_CONTEXT)).toBe(false);
+    expect(isReady(undefined, NO_CONTEXT)).toBe(false);
   });
 });
 
@@ -91,16 +118,185 @@ describe("isReadyForDisplay — what the list may present as usable", () => {
   it("passes the live destination through whatever its health says", () => {
     const dead = makeUnavailable("a");
 
-    expect(isReadyForDisplay(dead, "a"), "we are connected to it").toBe(true);
-    expect(isReadyForDisplay(dead, null)).toBe(false);
+    expect(isReadyForDisplay(dead, liveOn("a")), "we are connected to it").toBe(
+      true,
+    );
+    expect(isReadyForDisplay(dead, NO_CONTEXT)).toBe(false);
   });
 
   it("otherwise agrees with isReady", () => {
     const ready = makeEligible("a");
     const weak = makeWeak("b");
 
-    expect(isReadyForDisplay(ready, "c")).toBe(isReady(ready));
-    expect(isReadyForDisplay(weak, "c")).toBe(isReady(weak));
+    expect(isReadyForDisplay(ready, liveOn("c"))).toBe(
+      isReady(ready, liveOn("c")),
+    );
+    expect(isReadyForDisplay(weak, liveOn("c"))).toBe(
+      isReady(weak, liveOn("c")),
+    );
+  });
+});
+
+describe("getExitData — slots and latency measured on the exit", () => {
+  it("is null while nothing measured the exit", () => {
+    expect(getExitData(makeEligible("a"), null)).toBe(null);
+  });
+
+  it("reads a checked quick probe", () => {
+    const data = getExitData(makeMeasured("a", OPEN_SLOTS, 80), null);
+
+    expect(data?.slots).toEqual(OPEN_SLOTS);
+    expect(data?.rtt).toBe(80);
+  });
+
+  it("prefers the live probe on this destination over its quick probe", () => {
+    const probe = probeViewFor("a", FULL_SLOTS, 40);
+
+    expect(getExitData(makeMeasured("a", OPEN_SLOTS, 80), probe)?.rtt).toBe(40);
+    expect(getExitData(makeMeasured("b", OPEN_SLOTS, 80), probe)?.rtt).toBe(80);
+  });
+
+  it("ignores a probe that has not measured anything yet", () => {
+    const probe = { ...probeViewFor("a", FULL_SLOTS), load: null };
+
+    expect(getExitData(makeMeasured("a", OPEN_SLOTS, 80), probe)?.rtt).toBe(80);
+    expect(getExitData(makeEligible("a"), probe)).toBe(null);
+  });
+});
+
+describe("freeSlots — our own session must not count against us", () => {
+  it("is null without exit data", () => {
+    expect(freeSlots(makeEligible("a"), NO_CONTEXT)).toBe(null);
+  });
+
+  it("gives the slot we occupy back to the destination we are on", () => {
+    const full = makeMeasured("a", FULL_SLOTS);
+
+    expect(freeSlots(full, NO_CONTEXT)).toBe(0);
+    expect(freeSlots(full, liveOn("a"))).toBe(1);
+    expect(freeSlots(full, liveOn("b"))).toBe(0);
+  });
+});
+
+describe("isReady — exit data tightens the walk's verdict", () => {
+  it("rejects a full exit, which no connect could succeed against", () => {
+    expect(isReady(makeMeasured("a", FULL_SLOTS), NO_CONTEXT)).toBe(false);
+  });
+
+  it("keeps the destination we are on ready when we hold its last slot", () => {
+    expect(isReady(makeMeasured("a", FULL_SLOTS), liveOn("a"))).toBe(true);
+  });
+
+  it("stays ready on the walk alone while nothing measured the exit", () => {
+    expect(isReady(makeEligible("a"), NO_CONTEXT)).toBe(true);
+  });
+
+  it("never lets exit data promote a weak path", () => {
+    const measuredWeak = withRouteHealth("a", {
+      ...weakRouteHealth(),
+      quick_probe: checkedQuickProbe(OPEN_SLOTS, 10),
+    });
+
+    expect(isReady(measuredWeak, NO_CONTEXT)).toBe(false);
+  });
+});
+
+describe("sortByRouteQuality — measured exits", () => {
+  it("ranks every measured exit above every unmeasured one", () => {
+    expect(
+      sortByRouteQuality({
+        "a-promise": makeEligible("a-promise", 4),
+        "b-slow": makeMeasured("b-slow", OPEN_SLOTS, 1_800, 1),
+      }, NO_CONTEXT),
+    ).toEqual(["b-slow", "a-promise"]);
+  });
+
+  it("prefers lower latency at equal capacity and diversity", () => {
+    expect(
+      sortByRouteQuality({
+        far: makeMeasured("far", OPEN_SLOTS, 400),
+        near: makeMeasured("near", OPEN_SLOTS, 100),
+      }, NO_CONTEXT),
+    ).toEqual(["near", "far"]);
+  });
+
+  it("lets free capacity outweigh a small latency edge", () => {
+    // 100 ms one-way is 0.05 of the latency term; 5 of 8 free slots is 0.19 of the capacity term
+    expect(
+      sortByRouteQuality({
+        crowded: makeMeasured("crowded", {
+          total: 8,
+          available: 1,
+          connected: 7,
+        }, 100),
+        roomy: makeMeasured(
+          "roomy",
+          { total: 8, available: 6, connected: 2 },
+          300,
+        ),
+      }, NO_CONTEXT),
+    ).toEqual(["roomy", "crowded"]);
+  });
+
+  it("lets relay diversity break a tie between otherwise equal exits", () => {
+    expect(
+      sortByRouteQuality({
+        single: makeMeasured("single", OPEN_SLOTS, 100, 1),
+        diverse: makeMeasured("diverse", OPEN_SLOTS, 100, 3),
+      }, NO_CONTEXT),
+    ).toEqual(["diverse", "single"]);
+  });
+
+  it("saturates latency at one second one-way and diversity at four relays", () => {
+    expect(
+      sortByRouteQuality({
+        "a-glacial": makeMeasured("a-glacial", OPEN_SLOTS, 6_000, 4),
+        "b-slow": makeMeasured("b-slow", OPEN_SLOTS, 2_000, 9),
+      }, NO_CONTEXT),
+    ).toEqual(["a-glacial", "b-slow"]);
+  });
+
+  it("drops a full exit into the ineligible tail, above weak paths", () => {
+    expect(
+      sortByRouteQuality({
+        "a-weak": makeWeak("a-weak", 0.9),
+        "b-full": makeMeasured("b-full", FULL_SLOTS, 10),
+        "c-open": makeMeasured("c-open", OPEN_SLOTS, 500),
+      }, NO_CONTEXT),
+    ).toEqual(["c-open", "b-full", "a-weak"]);
+  });
+
+  it("scores the destination we are on with the slot we occupy given back", () => {
+    const destinations = {
+      here: makeMeasured("here", { total: 2, available: 0, connected: 2 }, 100),
+      there: makeMeasured(
+        "there",
+        { total: 2, available: 1, connected: 1 },
+        100,
+      ),
+    };
+
+    expect(sortByRouteQuality(destinations, NO_CONTEXT)).toEqual([
+      "there",
+      "here",
+    ]);
+    expect(sortByRouteQuality(destinations, liveOn("here"))).toEqual([
+      "here",
+      "there",
+    ]);
+  });
+
+  it("reads the live probe for the destination it is on", () => {
+    const probe = probeViewFor("a", OPEN_SLOTS, 50);
+    const destinations = {
+      a: makeEligible("a"),
+      b: makeMeasured("b", OPEN_SLOTS, 100),
+    };
+
+    expect(sortByRouteQuality(destinations, { probe, liveId: null })).toEqual([
+      "a",
+      "b",
+    ]);
   });
 });
 
@@ -132,6 +328,7 @@ describe("sortAlphaDestinations", () => {
         ready: makeEligible("ready"),
         aaaaa: makeUnavailable("aaaaa"),
       },
+      NO_CONTEXT,
     );
     expect(sorted[0].id).toBe("ready");
     expect(sorted[1].id).toBe("aaaaa");
@@ -146,6 +343,7 @@ describe("sortAlphaDestinations", () => {
         "aaa-weak": makeWeak("aaa-weak"),
         "zzz-ready": makeEligible("zzz-ready"),
       },
+      NO_CONTEXT,
     );
     expect(sorted.map((d) => d.id)).toEqual(["zzz-ready", "aaa-weak"]);
   });
@@ -159,6 +357,7 @@ describe("sortAlphaDestinations", () => {
         bravo: makeEligible("bravo", 1),
         alpha: makeEligible("alpha", 5),
       },
+      NO_CONTEXT,
     );
     expect(sorted[0].id).toBe("alpha");
     expect(sorted[1].id).toBe("bravo");
@@ -173,6 +372,7 @@ describe("sortAlphaDestinations", () => {
         zeta: makeUnavailable("zeta"),
         mu: makeUnavailable("mu"),
       },
+      NO_CONTEXT,
     );
     expect(sorted[0].id).toBe("mu");
     expect(sorted[1].id).toBe("zeta");
@@ -186,7 +386,7 @@ describe("sortByRouteQuality", () => {
         one: makeEligible("one", 1),
         three: makeEligible("three", 3),
         two: makeEligible("two", 2),
-      }),
+      }, NO_CONTEXT),
     ).toEqual(["three", "two", "one"]);
   });
 
@@ -196,7 +396,7 @@ describe("sortByRouteQuality", () => {
         "b-few": makeEligible("b-few", 2, 2),
         "a-few": makeEligible("a-few", 2, 2),
         "c-many": makeEligible("c-many", 2, 6),
-      }),
+      }, NO_CONTEXT),
     ).toEqual(["c-many", "a-few", "b-few"]);
   });
 
@@ -205,7 +405,7 @@ describe("sortByRouteQuality", () => {
       sortByRouteQuality({
         "aaa-weak": makeWeak("aaa-weak"),
         "bbb-lone": makeEligible("bbb-lone", 1),
-      }),
+      }, NO_CONTEXT),
     ).toEqual(["bbb-lone", "aaa-weak"]);
   });
 
@@ -215,7 +415,7 @@ describe("sortByRouteQuality", () => {
         "a-far": makeWeak("a-far", 0.2),
         "b-near": makeWeak("b-near", 0.9),
         "c-mid": makeWeak("c-mid", 0.5),
-      }),
+      }, NO_CONTEXT),
     ).toEqual(["b-near", "c-mid", "a-far"]);
   });
 
@@ -226,7 +426,7 @@ describe("sortByRouteQuality", () => {
         "b-dead": makeUnavailable("b-dead"),
         "c-nopath": withRouteHealth("c-nopath", noPathRouteHealth()),
         "d-weak": makeWeak("d-weak", 0.1),
-      }),
+      }, NO_CONTEXT),
     ).toEqual(["d-weak", "c-nopath", "b-dead", "a-latched"]);
   });
 
@@ -235,7 +435,7 @@ describe("sortByRouteQuality", () => {
       sortByRouteQuality({
         zeta: makeUnavailable("zeta"),
         alpha: makeUnavailable("alpha"),
-      }),
+      }, NO_CONTEXT),
     ).toEqual(["alpha", "zeta"]);
   });
 });
@@ -247,7 +447,9 @@ describe("pickStartupTarget — connect-on-startup pick", () => {
       pref: makeEligible("pref", 1),
     };
 
-    expect(pickStartupTarget(destinations, "pref")).toBe("pref");
+    expect(pickStartupTarget(destinations, "pref", null, NO_CONTEXT)).toBe(
+      "pref",
+    );
   });
 
   it("starts where the last session left off, outranking preferred", () => {
@@ -256,7 +458,9 @@ describe("pickStartupTarget — connect-on-startup pick", () => {
       pref: makeEligible("pref", 5),
     };
 
-    expect(pickStartupTarget(destinations, "pref", "last")).toBe("last");
+    expect(pickStartupTarget(destinations, "pref", "last", NO_CONTEXT)).toBe(
+      "last",
+    );
   });
 
   it("falls back through preferred when the last session's destination is not ready", () => {
@@ -266,8 +470,12 @@ describe("pickStartupTarget — connect-on-startup pick", () => {
       best: makeEligible("best", 5),
     };
 
-    expect(pickStartupTarget(destinations, "pref", "last")).toBe("pref");
-    expect(pickStartupTarget(destinations, null, "last")).toBe("best");
+    expect(pickStartupTarget(destinations, "pref", "last", NO_CONTEXT)).toBe(
+      "pref",
+    );
+    expect(pickStartupTarget(destinations, null, "last", NO_CONTEXT)).toBe(
+      "best",
+    );
   });
 
   it("falls back to the best ready destination when preferred is not ready", () => {
@@ -277,8 +485,12 @@ describe("pickStartupTarget — connect-on-startup pick", () => {
       best: makeEligible("best", 5),
     };
 
-    expect(pickStartupTarget(destinations, "pref")).toBe("best");
-    expect(pickStartupTarget(destinations, null)).toBe("best");
+    expect(pickStartupTarget(destinations, "pref", null, NO_CONTEXT)).toBe(
+      "best",
+    );
+    expect(pickStartupTarget(destinations, null, null, NO_CONTEXT)).toBe(
+      "best",
+    );
   });
 
   it("ignores a preferred location whose path is weak", () => {
@@ -287,7 +499,9 @@ describe("pickStartupTarget — connect-on-startup pick", () => {
       open: makeEligible("open", 1),
     };
 
-    expect(pickStartupTarget(destinations, "pref")).toBe("open");
+    expect(pickStartupTarget(destinations, "pref", null, NO_CONTEXT)).toBe(
+      "open",
+    );
   });
 
   it("never picks a destination that cannot take a connection", () => {
@@ -296,8 +510,8 @@ describe("pickStartupTarget — connect-on-startup pick", () => {
       dead: makeUnavailable("dead"),
     };
 
-    expect(pickStartupTarget(destinations, null)).toBeNull();
-    expect(pickStartupTarget({}, null)).toBeNull();
+    expect(pickStartupTarget(destinations, null, null, NO_CONTEXT)).toBeNull();
+    expect(pickStartupTarget({}, null, null, NO_CONTEXT)).toBeNull();
   });
 });
 

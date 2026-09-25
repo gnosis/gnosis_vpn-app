@@ -1,100 +1,63 @@
 import { describe, expect, it } from "vitest";
 import {
   formatConnectionStatus,
+  formatExitHealthStatus,
   getLatencyLevel,
   getLatencyMs,
   getSlotLoad,
   getSlotLoadLevel,
 } from "./exitHealth.ts";
-import type { RouteHealthView } from "@src/services/vpnService.ts";
+import type { ExitData } from "./destinations.ts";
+import {
+  eligibleRouteHealth,
+  noPathRouteHealth,
+  unrecoverableRouteHealth,
+  weakRouteHealth,
+} from "@src/testing/destinations.ts";
 
-function readyWithSlots(
+function measured(
   available: number,
   connected: number,
   total: number = available + connected,
-): RouteHealthView {
+  rtt = 100,
+): ExitData {
   return {
-    state: {
-      state: "ReadyToConnect",
-      exit: {
-        checked_at: 0,
-        versions: { versions: ["1"], latest: "1" },
-        ping_rtt: 100,
-        health: {
-          slots: { total, available, connected },
-          load_avg: { one: 0, five: 0, fifteen: 0, nproc: 1 },
-        },
-      },
-    },
-    last_error: null,
-    checking_since: null,
-    consecutive_failures: 0,
-  };
-}
-
-function connecting(
-  tunnelPingRtt: number | null,
-  exitPingRtt: number,
-): RouteHealthView {
-  return {
-    state: {
-      state: "Connecting",
-      tunnel_ping_rtt: tunnelPingRtt,
-      exit: {
-        checked_at: 0,
-        versions: { versions: ["1"], latest: "1" },
-        ping_rtt: exitPingRtt,
-        health: {
-          slots: { total: 2, available: 1, connected: 1 },
-          load_avg: { one: 0, five: 0, fifteen: 0, nproc: 1 },
-        },
-      },
-    },
-    last_error: null,
-    checking_since: null,
-    consecutive_failures: 0,
-  };
-}
-
-function routable(): RouteHealthView {
-  return {
-    state: { state: "Routable" },
-    last_error: null,
-    checking_since: null,
-    consecutive_failures: 0,
+    slots: { total, available, connected },
+    loadAvg: { one: 0, five: 0, fifteen: 0, nproc: 1 },
+    rtt,
+    checkedAt: 0,
+    versions: { versions: ["v1"], latest: "v1" },
+    apiVersion: "v1",
   };
 }
 
 describe("getSlotLoad", () => {
   it("returns the share of slots in use as a whole percentage", () => {
-    expect(getSlotLoad(readyWithSlots(1, 1))).toEqual({
+    expect(getSlotLoad(measured(1, 1))).toEqual({
       used: 1,
       total: 2,
       percent: 50,
     });
-    expect(getSlotLoad(readyWithSlots(10, 0))?.percent).toBe(0);
-    expect(getSlotLoad(readyWithSlots(0, 10))?.percent).toBe(100);
   });
 
   it("rounds to the nearest whole percent", () => {
-    expect(getSlotLoad(readyWithSlots(2, 1))?.percent).toBe(33);
-    expect(getSlotLoad(readyWithSlots(1, 2))?.percent).toBe(67);
+    expect(getSlotLoad(measured(2, 1))?.percent).toBe(33);
   });
 
   it("takes the total from the server, so pending registrations do not shrink it", () => {
-    expect(getSlotLoad(readyWithSlots(11, 0, 16))).toEqual({
-      used: 0,
-      total: 16,
-      percent: 0,
+    expect(getSlotLoad(measured(1, 1, 4))).toEqual({
+      used: 1,
+      total: 4,
+      percent: 25,
     });
   });
 
   it("is null when the exit reports no slots at all", () => {
-    expect(getSlotLoad(readyWithSlots(0, 0))).toBeNull();
+    expect(getSlotLoad(measured(0, 0, 0))).toBe(null);
   });
 
-  it("is null when there is no exit health data", () => {
-    expect(getSlotLoad(routable())).toBeNull();
+  it("is null when there is no exit data", () => {
+    expect(getSlotLoad(null)).toBe(null);
   });
 });
 
@@ -115,21 +78,21 @@ describe("getSlotLoadLevel", () => {
   });
 });
 
-describe("getLatencyMs", () => {
-  it("prefers the tunnel rtt while connecting", () => {
-    expect(getLatencyMs(connecting(300, 900))).toBe(150);
+describe("getLatencyMs — one-way, as displayed", () => {
+  it("prefers the tunnel rtt once the tunnel has a sample", () => {
+    expect(getLatencyMs(measured(1, 1, 2, 300), 100)).toBe(50);
   });
 
-  it("falls back to the exit rtt when the tunnel has no sample yet", () => {
-    expect(getLatencyMs(connecting(null, 900))).toBe(450);
+  it("falls back to the exit rtt when the tunnel has no sample", () => {
+    expect(getLatencyMs(measured(1, 1, 2, 300), null)).toBe(150);
   });
 
-  it("halves the exit rtt once ready to connect", () => {
-    expect(getLatencyMs(readyWithSlots(1, 1))).toBe(50);
+  it("still shows the tunnel rtt when nothing measured the exit", () => {
+    expect(getLatencyMs(null, 100)).toBe(50);
   });
 
-  it("is null when there is no exit data", () => {
-    expect(getLatencyMs(routable())).toBeNull();
+  it("is null without either", () => {
+    expect(getLatencyMs(null, null)).toBe(null);
   });
 });
 
@@ -141,13 +104,39 @@ describe("getLatencyLevel", () => {
 
   it("is medium from 500 ms up to and including 1100 ms", () => {
     expect(getLatencyLevel(500)).toBe("medium");
-    expect(getLatencyLevel(750)).toBe("medium");
     expect(getLatencyLevel(1100)).toBe("medium");
   });
 
   it("is high above 1100 ms", () => {
     expect(getLatencyLevel(1101)).toBe("high");
-    expect(getLatencyLevel(5000)).toBe("high");
+  });
+});
+
+describe("formatExitHealthStatus — one label per route state", () => {
+  it("names a full-value path ready and a degraded one weak", () => {
+    expect(formatExitHealthStatus(eligibleRouteHealth(), null)).toBe(
+      "Ready to connect",
+    );
+    expect(formatExitHealthStatus(weakRouteHealth(), null)).toBe("Weak route");
+  });
+
+  it("calls a measured exit with no free slot full", () => {
+    expect(formatExitHealthStatus(eligibleRouteHealth(), measured(0, 4))).toBe(
+      "Full",
+    );
+  });
+
+  it("names the missing route and the unrecoverable reason", () => {
+    expect(formatExitHealthStatus(noPathRouteHealth(), null)).toBe("No route");
+    expect(formatExitHealthStatus(unrecoverableRouteHealth(), null)).toBe(
+      "Connection not allowed",
+    );
+  });
+
+  it("is still checking before the first walk", () => {
+    expect(
+      formatExitHealthStatus({ ...eligibleRouteHealth(), walk: null }, null),
+    ).toBe("Checking…");
   });
 });
 

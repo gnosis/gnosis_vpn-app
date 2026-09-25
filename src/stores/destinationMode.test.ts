@@ -66,6 +66,7 @@ function statusFor(
     connected: null,
     connecting: null,
     reconnecting: null,
+    probe: null,
   };
 }
 

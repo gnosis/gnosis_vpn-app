@@ -87,3 +87,40 @@ export function unrecoverableRouteHealth(): RouteHealthView {
     quick_probe: null,
   };
 }
+
+/** A quick probe that measured the exit: slots plus a round trip in ms. */
+export function checkedQuickProbe(
+  slots: Slots,
+  rtt = 100,
+  checkedAt = 0,
+): QuickProbeState {
+  return {
+    state: "Checked",
+    checked_at: checkedAt,
+    versions: { versions: ["v1"], latest: "v1" },
+    api_version: "v1",
+    load: { slots, load_avg: { one: 0.5, five: 0.5, fifteen: 0.5, nproc: 4 } },
+    rtt,
+  };
+}
+
+/** The daemon's probe session on `id`, already reporting slots and a round trip. */
+export function probeViewFor(
+  id: string,
+  slots: Slots,
+  rtt = 100,
+  checkedAt = 0,
+): ProbeView {
+  return {
+    destination_id: id,
+    state: { state: "Ready" },
+    session_since: 0,
+    versions: { versions: ["v1"], latest: "v1" },
+    api_version: "v1",
+    ping_rtt: rtt,
+    load: { slots, load_avg: { one: 0.5, five: 0.5, fifteen: 0.5, nproc: 4 } },
+    checked_at: checkedAt,
+    consecutive_failures: 0,
+    last_error: null,
+  };
+}
