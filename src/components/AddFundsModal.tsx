@@ -52,7 +52,7 @@ export default function AddFundsModal(props: {
               <span class="font-medium">Recommended to send:</span>
               <Show when={props.wxhoprDeficit}>
                 {(deficit) => (
-                  <div class="font-mono">
+                  <div class="font-mono select-text cursor-text">
                     +{formatWxhopr(deficit(), 3, "ceil")} wxHOPR
                     <Show when={wxhoprExact(deficit())}>
                       {(exact) => (
@@ -67,7 +67,7 @@ export default function AddFundsModal(props: {
               </Show>
               <Show when={props.xdaiDeficit}>
                 {(deficit) => (
-                  <div class="font-mono">
+                  <div class="font-mono select-text cursor-text">
                     +{formatXdai(deficit(), 3, "ceil")} xDAI
                     <Show when={xdaiExact(deficit())}>
                       {(exact) => (
