@@ -134,7 +134,7 @@ export default function ExitNodeList(props: {
   };
 
   const sortOptions = [
-    { order: "latency" as const, label: "Best" },
+    { order: "best" as const, label: "Best" },
     { order: "alpha" as const, label: "A–Z" },
   ];
 
