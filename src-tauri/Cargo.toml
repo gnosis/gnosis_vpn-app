@@ -44,6 +44,8 @@ zstd = "0.13.3"
 [target.'cfg(target_os = "linux")'.dependencies]
 ashpd = { version = "0.10", default-features = false }
 futures-core = { version = "0.3.34", default-features = false }
+# Must match the gtk version Tauri links against.
+gtk = "0.18"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 cocoa = "0.26.1"
