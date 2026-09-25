@@ -23,6 +23,7 @@ export default function FundingAddress(
     full?: boolean;
     title?: string;
     qrVisible?: boolean;
+    selectable?: boolean;
   },
 ) {
   const address = createMemo(() => (props.address ?? "").trim());
@@ -105,9 +106,9 @@ export default function FundingAddress(
         <div class="text-sm min-w-0">
           <div class="font-bold">Gnosis VPN address</div>
           <div
-            class={`font-mono select-text ${
-              props.full ? "text-[10px] break-all" : "text-lg break-all"
-            }`}
+            class={`font-mono ${
+              props.selectable ? "select-text cursor-text" : ""
+            } ${props.full ? "text-[10px] break-all" : "text-lg break-all"}`}
           >
             {props.full ? address() : shortAddress(address())}
           </div>

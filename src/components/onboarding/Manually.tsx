@@ -79,10 +79,7 @@ export default function Manually() {
               {(rec) => (
                 <div class="text-sm text-text-secondary">
                   Send at least {humanWxhopr(rec().wxhopr, "ceil")}{" "}
-                  (<span class="select-text cursor-text">
-                    {wxhoprDecimal(rec().wxhopr)}
-                  </span>{" "}
-                  wxHOPR)
+                  ({wxhoprDecimal(rec().wxhopr)} wxHOPR)
                 </div>
               )}
             </Show>
@@ -109,11 +106,7 @@ export default function Manually() {
             >
               {(rec) => (
                 <div class="text-sm text-text-secondary">
-                  Send at least{" "}
-                  <span class="select-text cursor-text">
-                    {formatXdai(rec().xdai, 3, "ceil")}
-                  </span>{" "}
-                  xDAI
+                  Send at least {formatXdai(rec().xdai, 3, "ceil")} xDAI
                 </div>
               )}
             </Show>

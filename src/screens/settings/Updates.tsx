@@ -409,7 +409,10 @@ export default function Updates() {
           // tooltipSwitcher="When on Stable, you can't switch to Snapshot"
         />
         <div class="grow" />
-        <div class="space-y-1 text-sm text-text-secondary text-center">
+        <div
+          class="space-y-1 text-sm text-text-secondary text-center"
+          classList={{ "select-text": showVersionDetails() }}
+        >
           <div onClick={handleVersionClick} class="cursor-default">
             Version:{" "}
             <span class="text-text-primary">

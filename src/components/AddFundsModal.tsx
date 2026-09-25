@@ -40,6 +40,7 @@ export default function AddFundsModal(props: {
             address={props.nodeAddress}
             full
             qrVisible
+            selectable
           />
           <div class="text-sm">
             You can transfer <span class="font-bold">xDAI</span> or{" "}
@@ -57,10 +58,7 @@ export default function AddFundsModal(props: {
                       {(exact) => (
                         <>
                           {" "}
-                          (<span class="select-text cursor-text">
-                            {exact()}
-                          </span>{" "}
-                          wxHOPR)
+                          ({exact()} wxHOPR)
                         </>
                       )}
                     </Show>
@@ -75,10 +73,7 @@ export default function AddFundsModal(props: {
                       {(exact) => (
                         <>
                           {" "}
-                          (<span class="select-text cursor-text">
-                            {exact()}
-                          </span>{" "}
-                          xDAI)
+                          ({exact()} xDAI)
                         </>
                       )}
                     </Show>
