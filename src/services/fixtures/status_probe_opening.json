@@ -1,0 +1,28 @@
+{
+  "run_mode": {
+    "Running": {
+      "funding_status": null,
+      "hopr_status": null
+    }
+  },
+  "destinations": [],
+  "target_destination": null,
+  "connected": null,
+  "connecting": null,
+  "reconnecting": null,
+  "disconnecting": [],
+  "probe": {
+    "destination_id": "test-exit",
+    "state": {
+      "state": "Opening"
+    },
+    "session_since": null,
+    "versions": null,
+    "api_version": null,
+    "ping_rtt": null,
+    "load": null,
+    "checked_at": null,
+    "consecutive_failures": 2,
+    "last_error": "timeout"
+  }
+}

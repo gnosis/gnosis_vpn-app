@@ -19,7 +19,11 @@ import {
   SWITCH_CROSSOVER_MS,
   type UserInputEvent,
 } from "./destinationMode.ts";
-import { makeDestination } from "@src/testing/destinations.ts";
+import {
+  eligibleRouteHealth,
+  makeDestination,
+  weakRouteHealth,
+} from "@src/testing/destinations.ts";
 
 // Derived from docs/destinationMode.md — where spec and implementation disagree, the spec wins and the case is expected to fail.
 
@@ -31,40 +35,20 @@ const BASE_DESTINATION: Destination = makeDestination({
   meta: { location: "EU" },
 });
 
-function makeReadyToConnect(
-  id: string,
-  pingMs = 50,
-  slots = { total: 5, available: 5, connected: 0 },
-): DestinationState {
+/** Eligible; `relays` is distinct first relays, so a higher number ranks higher. */
+function makeEligible(id: string, relays = 2): DestinationState {
   return {
     destination: { ...BASE_DESTINATION, id },
-    route_health: {
-      state: {
-        state: "ReadyToConnect",
-        exit: {
-          checked_at: 0,
-          versions: { versions: [], latest: "" },
-          ping_rtt: pingMs,
-          health: {
-            slots,
-            load_avg: { one: 0.5, five: 0.5, fifteen: 0.5, nproc: 4 },
-          },
-        },
-      },
-      last_error: null,
-      checking_since: null,
-      consecutive_failures: 0,
-    },
+    route_health: eligibleRouteHealth(relays),
   };
 }
 
-/** ReadyToConnect but with no free slot — not ready, per the spec's capacity rule. */
-function makeFull(id: string, pingMs = 50): DestinationState {
-  return makeReadyToConnect(id, pingMs, {
-    total: 5,
-    available: 0,
-    connected: 5,
-  });
+/** Routable with a degraded best path — not ready, per the spec's eligibility rule. */
+function makeWeak(id: string): DestinationState {
+  return {
+    destination: { ...BASE_DESTINATION, id },
+    route_health: weakRouteHealth(),
+  };
 }
 
 function makeUnavailable(id: string): DestinationState {
@@ -82,6 +66,7 @@ function statusFor(
     connected: null,
     connecting: null,
     reconnecting: null,
+    probe: null,
   };
 }
 
@@ -91,7 +76,7 @@ function connectedTo(
 ): ModeAppState {
   return {
     ...statusFor(destinations),
-    connected: { destination_id: id, since: 0 },
+    connected: { destination_id: id, since: 0, tunnel_ping_rtt: null },
   };
 }
 
@@ -173,13 +158,13 @@ function input(
 }
 
 const UK_USA = {
-  uk: makeReadyToConnect("uk", 50),
-  usa: makeReadyToConnect("usa", 10),
+  uk: makeEligible("uk", 50),
+  usa: makeEligible("usa", 90),
 };
 
 /** Strip [uk, usa] with usa active — the only route to a card that is history rather than a candidate. */
 function stripWithHistory(handle: DestinationModeHandle): void {
-  step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+  step(handle, statusFor({ uk: makeEligible("uk", 50) }));
   step(handle, statusFor(UK_USA));
   vi.advanceTimersByTime(SETTLE_MS);
   expectInvariants(handle.model);
@@ -196,12 +181,12 @@ afterEach(() => {
 describe("effectiveActive — the one reader of what we are on", () => {
   it("stays on the active card until the candidate's settleAt", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
     step(
       handle,
       statusFor({
-        uk: makeReadyToConnect("uk", 50),
-        usa: makeReadyToConnect("usa", 10),
+        uk: makeEligible("uk", 50),
+        usa: makeEligible("usa", 90),
       }),
     );
 
@@ -213,12 +198,12 @@ describe("effectiveActive — the one reader of what we are on", () => {
 
   it("reports the candidate from settleAt, before the commit timer has run", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
     step(
       handle,
       statusFor({
-        uk: makeReadyToConnect("uk", 50),
-        usa: makeReadyToConnect("usa", 10),
+        uk: makeEligible("uk", 50),
+        usa: makeEligible("usa", 90),
       }),
     );
 
@@ -229,12 +214,12 @@ describe("effectiveActive — the one reader of what we are on", () => {
 
   it("falls back to active for a pending gone stale by more than one poll", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
     step(
       handle,
       statusFor({
-        uk: makeReadyToConnect("uk", 50),
-        usa: makeReadyToConnect("usa", 10),
+        uk: makeEligible("uk", 50),
+        usa: makeEligible("usa", 90),
       }),
     );
 
@@ -249,14 +234,14 @@ describe("statusUpdate — baseline", () => {
     step(
       handle,
       statusFor({
-        uk: makeReadyToConnect("uk", 50),
-        usa: makeReadyToConnect("usa", 10),
+        uk: makeEligible("uk", 50),
+        usa: makeEligible("usa", 90),
       }),
     );
     vi.advanceTimersByTime(SETTLE_MS);
     expect(handle.model.active).toBe("usa");
 
-    step(handle, statusFor({ fr: makeReadyToConnect("fr", 30) }));
+    step(handle, statusFor({ fr: makeEligible("fr", 70) }));
 
     expect(handle.model.entries["usa"]).toBeUndefined();
     expect(handle.model.entries["uk"]).toBeUndefined();
@@ -268,10 +253,10 @@ describe("statusUpdate — live", () => {
   it("takes priority over an armed countdown and sweeps the candidate away", async () => {
     const handle = setup();
     const destinations = {
-      uk: makeReadyToConnect("uk", 50),
-      usa: makeReadyToConnect("usa", 10),
+      uk: makeEligible("uk", 50),
+      usa: makeEligible("usa", 90),
     };
-    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
     step(handle, statusFor(destinations));
     expect(handle.model.mode).toMatchObject({
       pending: { candidateId: "usa" },
@@ -291,7 +276,7 @@ describe("statusUpdate — live", () => {
   it("mints the live entry when the prune removed it", () => {
     const handle = setup();
 
-    step(handle, connectedTo("gone", { uk: makeReadyToConnect("uk", 50) }));
+    step(handle, connectedTo("gone", { uk: makeEligible("uk", 50) }));
 
     expect(handle.model.active).toBe("gone");
     expect(handle.model.entries["gone"]).toMatchObject({ wasActive: true });
@@ -299,7 +284,7 @@ describe("statusUpdate — live", () => {
 
   it("closes an open list, since we did not start this connection from it", () => {
     const handle = setup();
-    const destinations = { uk: makeReadyToConnect("uk", 50) };
+    const destinations = { uk: makeEligible("uk", 50) };
     step(handle, statusFor(destinations));
 
     input(handle, { type: "listOpened" });
@@ -312,7 +297,7 @@ describe("statusUpdate — live", () => {
 
   it("keeps a list opened while connecting open across polls", () => {
     const handle = setup();
-    const destinations = { uk: makeReadyToConnect("uk", 50) };
+    const destinations = { uk: makeEligible("uk", 50) };
     step(handle, connectingTo("uk", destinations));
 
     input(handle, { type: "listOpened" });
@@ -327,7 +312,7 @@ describe("statusUpdate — live", () => {
 
   it("keeps a list opened while connected open across polls", () => {
     const handle = setup();
-    const destinations = { uk: makeReadyToConnect("uk", 50) };
+    const destinations = { uk: makeEligible("uk", 50) };
     step(handle, connectedTo("uk", destinations));
 
     input(handle, { type: "listOpened" });
@@ -351,7 +336,7 @@ describe("statusUpdate — live", () => {
 
   it("outranks a drag in progress", () => {
     const handle = setup();
-    const destinations = { uk: makeReadyToConnect("uk", 50) };
+    const destinations = { uk: makeEligible("uk", 50) };
     step(handle, statusFor(destinations));
     input(handle, { type: "dragStarted" });
 
@@ -365,8 +350,8 @@ describe("statusUpdate — live", () => {
   it("retargets active when the backend switches destination under us", () => {
     const handle = setup();
     const destinations = {
-      uk: makeReadyToConnect("uk", 50),
-      usa: makeReadyToConnect("usa", 10),
+      uk: makeEligible("uk", 50),
+      usa: makeEligible("usa", 90),
     };
     step(handle, connectedTo("uk", destinations));
     step(handle, connectedTo("usa", destinations));
@@ -397,7 +382,7 @@ describe("statusUpdate — live", () => {
   it("collapses even under a finger", () => {
     const handle = setup();
     stripWithHistory(handle);
-    const withDe = { ...UK_USA, de: makeReadyToConnect("de", 30) };
+    const withDe = { ...UK_USA, de: makeEligible("de", 70) };
 
     input(handle, { type: "dragStarted" });
     step(handle, connectedTo("de", withDe));
@@ -427,8 +412,8 @@ describe("statusUpdate — leaving live", () => {
   it("parks on the destination we were connected to, then reverts to auto", async () => {
     const handle = setup();
     const destinations = {
-      uk: makeReadyToConnect("uk", 50),
-      usa: makeReadyToConnect("usa", 10),
+      uk: makeEligible("uk", 50),
+      usa: makeEligible("usa", 90),
     };
     step(handle, connectedTo("uk", destinations));
 
@@ -465,7 +450,7 @@ describe("statusUpdate — leaving live", () => {
 
   it("does not close the list", () => {
     const handle = setup();
-    const destinations = { uk: makeReadyToConnect("uk", 50) };
+    const destinations = { uk: makeEligible("uk", 50) };
     step(handle, connectedTo("uk", destinations));
     input(handle, { type: "listOpened" });
 
@@ -478,14 +463,14 @@ describe("statusUpdate — leaving live", () => {
 describe("statusUpdate — suspension", () => {
   it("freezes the mode while the list is open", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
     input(handle, { type: "listOpened" });
 
     step(
       handle,
       statusFor({
-        uk: makeReadyToConnect("uk", 50),
-        usa: makeReadyToConnect("usa", 10),
+        uk: makeEligible("uk", 50),
+        usa: makeEligible("usa", 90),
       }),
     );
 
@@ -497,14 +482,14 @@ describe("statusUpdate — suspension", () => {
 
   it("freezes the mode while dragging", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
     input(handle, { type: "dragStarted" });
 
     step(
       handle,
       statusFor({
-        uk: makeReadyToConnect("uk", 50),
-        usa: makeReadyToConnect("usa", 10),
+        uk: makeEligible("uk", 50),
+        usa: makeEligible("usa", 90),
       }),
     );
 
@@ -517,24 +502,24 @@ describe("statusUpdate — suspension", () => {
     step(
       handle,
       statusFor({
-        uk: makeReadyToConnect("uk", 50),
-        usa: makeReadyToConnect("usa", 10),
+        uk: makeEligible("uk", 50),
+        usa: makeEligible("usa", 90),
       }),
     );
     vi.advanceTimersByTime(SETTLE_MS);
     input(handle, { type: "listOpened" });
 
-    step(handle, statusFor({ usa: makeReadyToConnect("usa", 10) }));
+    step(handle, statusFor({ usa: makeEligible("usa", 90) }));
 
     expect(handle.model.entries["uk"]).toBeUndefined();
   });
 
   it("ends the suspension and cold starts when the active is pruned away", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
     input(handle, { type: "listOpened" });
 
-    step(handle, statusFor({ fr: makeReadyToConnect("fr", 30) }));
+    step(handle, statusFor({ fr: makeEligible("fr", 70) }));
 
     expect(handle.model.listOpen, "a list over a vanished card must close")
       .toBe(false);
@@ -543,10 +528,10 @@ describe("statusUpdate — suspension", () => {
 
   it("ends a drag the same way when the active is pruned away", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
     input(handle, { type: "dragStarted" });
 
-    step(handle, statusFor({ fr: makeReadyToConnect("fr", 30) }));
+    step(handle, statusFor({ fr: makeEligible("fr", 70) }));
 
     expect(handle.model.dragging).toBe(false);
     expect(handle.model.active).toBe("fr");
@@ -563,7 +548,7 @@ describe("statusUpdate — selected", () => {
       handle,
       statusFor({
         uk: makeUnavailable("uk"),
-        usa: makeReadyToConnect("usa", 10),
+        usa: makeEligible("usa", 90),
       }),
     );
 
@@ -594,13 +579,13 @@ describe("statusUpdate — selected", () => {
 describe("auto — arming", () => {
   it("arms a countdown toward a better destination and appends its card", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
 
     step(
       handle,
       statusFor({
-        uk: makeReadyToConnect("uk", 50),
-        usa: makeReadyToConnect("usa", 10),
+        uk: makeEligible("uk", 50),
+        usa: makeEligible("usa", 90),
       }),
     );
 
@@ -622,8 +607,8 @@ describe("auto — arming", () => {
     step(
       handle,
       statusFor({
-        uk: makeReadyToConnect("uk", 10),
-        usa: makeReadyToConnect("usa", 50),
+        uk: makeEligible("uk", 90),
+        usa: makeEligible("usa", 50),
       }),
     );
 
@@ -631,29 +616,29 @@ describe("auto — arming", () => {
     expect(handle.model.mode).toMatchObject({ pending: { candidateId: "uk" } });
   });
 
-  // The sort already sinks full destinations, so isolating the capacity rule needs every destination full.
-  it("never arms toward a destination with no free slot", () => {
+  // The sort already sinks weak paths, so isolating the eligibility rule needs every destination weak.
+  it("never arms toward a destination with a weak path", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
 
     step(
       handle,
-      statusFor({ uk: makeFull("uk", 50), usa: makeFull("usa", 10) }),
+      statusFor({ uk: makeWeak("uk"), usa: makeWeak("usa") }),
     );
 
-    expect(handle.model.active, "we stay put rather than chase a full node")
+    expect(handle.model.active, "we stay put rather than chase a weak path")
       .toBe("uk");
     expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
   });
 
   it("commits at settleAt, staying in auto", async () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
     step(
       handle,
       statusFor({
-        uk: makeReadyToConnect("uk", 50),
-        usa: makeReadyToConnect("usa", 10),
+        uk: makeEligible("uk", 50),
+        usa: makeEligible("usa", 90),
       }),
     );
 
@@ -669,10 +654,10 @@ describe("auto — arming", () => {
   it("commits from the clock when the timer was never allowed to fire", () => {
     const handle = setup();
     const destinations = {
-      uk: makeReadyToConnect("uk", 50),
-      usa: makeReadyToConnect("usa", 10),
+      uk: makeEligible("uk", 50),
+      usa: makeEligible("usa", 90),
     };
-    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
     step(handle, statusFor(destinations));
     expect(handle.model.mode).toMatchObject({
       pending: { candidateId: "usa" },
@@ -687,10 +672,10 @@ describe("auto — arming", () => {
   it("discards a pending slept past by more than one poll instead of committing it", () => {
     const handle = setup();
     const destinations = {
-      uk: makeReadyToConnect("uk", 50),
-      usa: makeReadyToConnect("usa", 10),
+      uk: makeEligible("uk", 50),
+      usa: makeEligible("usa", 90),
     };
-    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
     step(handle, statusFor(destinations));
 
     vi.setSystemTime(Date.now() + SETTLE_MS + STATUS_POLL_MS + 1);
@@ -705,7 +690,7 @@ describe("auto — arming", () => {
 
   it("discards a pending its own timer slept through", async () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
     step(handle, statusFor(UK_USA));
 
     // the clock jumps with the pending timer, so it fires this late
@@ -721,12 +706,12 @@ describe("auto — arming", () => {
 describe("auto — retargeting and the freeze", () => {
   it("retargets a pending without restarting its countdown", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
     step(
       handle,
       statusFor({
-        uk: makeReadyToConnect("uk", 50),
-        usa: makeReadyToConnect("usa", 10),
+        uk: makeEligible("uk", 50),
+        usa: makeEligible("usa", 90),
       }),
     );
     const armed = handle.model.mode;
@@ -738,9 +723,9 @@ describe("auto — retargeting and the freeze", () => {
     step(
       handle,
       statusFor({
-        uk: makeReadyToConnect("uk", 50),
-        usa: makeReadyToConnect("usa", 40),
-        fr: makeReadyToConnect("fr", 5),
+        uk: makeEligible("uk", 50),
+        usa: makeEligible("usa", 60),
+        fr: makeEligible("fr", 95),
       }),
     );
 
@@ -755,20 +740,20 @@ describe("auto — retargeting and the freeze", () => {
 
   it("sweeps the displaced candidate's card away on a retarget", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
     step(
       handle,
       statusFor({
-        uk: makeReadyToConnect("uk", 50),
-        usa: makeReadyToConnect("usa", 10),
+        uk: makeEligible("uk", 50),
+        usa: makeEligible("usa", 90),
       }),
     );
     step(
       handle,
       statusFor({
-        uk: makeReadyToConnect("uk", 50),
-        usa: makeReadyToConnect("usa", 40),
-        fr: makeReadyToConnect("fr", 5),
+        uk: makeEligible("uk", 50),
+        usa: makeEligible("usa", 60),
+        fr: makeEligible("fr", 95),
       }),
     );
 
@@ -778,12 +763,12 @@ describe("auto — retargeting and the freeze", () => {
 
   it("freezes the target once the countdown has elapsed", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
     step(
       handle,
       statusFor({
-        uk: makeReadyToConnect("uk", 50),
-        usa: makeReadyToConnect("usa", 10),
+        uk: makeEligible("uk", 50),
+        usa: makeEligible("usa", 90),
       }),
     );
 
@@ -791,9 +776,9 @@ describe("auto — retargeting and the freeze", () => {
     step(
       handle,
       statusFor({
-        uk: makeReadyToConnect("uk", 50),
-        usa: makeReadyToConnect("usa", 40),
-        fr: makeReadyToConnect("fr", 5),
+        uk: makeEligible("uk", 50),
+        usa: makeEligible("usa", 60),
+        fr: makeEligible("fr", 95),
       }),
     );
 
@@ -806,9 +791,9 @@ describe("auto — retargeting and the freeze", () => {
     step(
       handle,
       statusFor({
-        uk: makeReadyToConnect("uk", 50),
-        usa: makeReadyToConnect("usa", 40),
-        fr: makeReadyToConnect("fr", 5),
+        uk: makeEligible("uk", 50),
+        usa: makeEligible("usa", 60),
+        fr: makeEligible("fr", 95),
       }),
     );
 
@@ -820,12 +805,12 @@ describe("auto — retargeting and the freeze", () => {
 describe("auto — disarming and the sweep", () => {
   it("drops the candidate's card when the active becomes best again", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
     step(
       handle,
       statusFor({
-        uk: makeReadyToConnect("uk", 50),
-        usa: makeReadyToConnect("usa", 10),
+        uk: makeEligible("uk", 50),
+        usa: makeEligible("usa", 90),
       }),
     );
     expect(handle.model.sequence).toEqual(["uk", "usa"]);
@@ -833,8 +818,8 @@ describe("auto — disarming and the sweep", () => {
     step(
       handle,
       statusFor({
-        uk: makeReadyToConnect("uk", 10),
-        usa: makeReadyToConnect("usa", 50),
+        uk: makeEligible("uk", 90),
+        usa: makeEligible("usa", 50),
       }),
     );
 
@@ -851,15 +836,15 @@ describe("auto — disarming and the sweep", () => {
     step(
       handle,
       statusFor({
-        uk: makeReadyToConnect("uk", 10),
-        usa: makeReadyToConnect("usa", 50),
+        uk: makeEligible("uk", 90),
+        usa: makeEligible("usa", 50),
       }),
     );
     step(
       handle,
       statusFor({
-        uk: makeReadyToConnect("uk", 50),
-        usa: makeReadyToConnect("usa", 10),
+        uk: makeEligible("uk", 50),
+        usa: makeEligible("usa", 90),
       }),
     );
 
@@ -869,12 +854,12 @@ describe("auto — disarming and the sweep", () => {
 
   it("disarms when health data disappears entirely", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
     step(
       handle,
       statusFor({
-        uk: makeReadyToConnect("uk", 50),
-        usa: makeReadyToConnect("usa", 10),
+        uk: makeEligible("uk", 50),
+        usa: makeEligible("usa", 90),
       }),
     );
 
@@ -896,7 +881,7 @@ describe("cold start", () => {
       handle,
       statusFor({
         uk: makeUnavailable("uk"),
-        usa: makeReadyToConnect("usa", 10),
+        usa: makeEligible("usa", 90),
       }),
     );
 
@@ -922,7 +907,7 @@ describe("cold start", () => {
   it("stays in auto when the promotion is merely the best destination", () => {
     const handle = setup();
 
-    step(handle, statusFor({ usa: makeReadyToConnect("usa", 10) }));
+    step(handle, statusFor({ usa: makeEligible("usa", 90) }));
 
     expect(handle.model.active).toBe("usa");
     expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
@@ -931,7 +916,7 @@ describe("cold start", () => {
   it("stays in auto when the promotion is a ready preferred location", () => {
     const handle = setup({ preferredLocation: "fr" });
 
-    step(handle, statusFor({ fr: makeReadyToConnect("fr", 30) }));
+    step(handle, statusFor({ fr: makeEligible("fr", 70) }));
 
     expect(handle.model.active).toBe("fr");
     // preferred is an input to the candidate, not a selection of its own
@@ -960,7 +945,7 @@ describe("cold start", () => {
       handle,
       statusFor({
         uk: makeUnavailable("uk"),
-        usa: makeReadyToConnect("usa", 10),
+        usa: makeEligible("usa", 90),
       }),
     );
     expect(
@@ -984,8 +969,8 @@ describe("cold start", () => {
     step(
       handle,
       statusFor({
-        uk: makeReadyToConnect("uk", 50),
-        fr: makeReadyToConnect("fr", 30),
+        uk: makeEligible("uk", 50),
+        fr: makeEligible("fr", 70),
       }),
     );
 
@@ -1000,7 +985,7 @@ describe("cold start", () => {
   it("falls through to the best candidate when lastConnected is not offered", () => {
     const handle = setup({ lastConnectedDestination: "gone" });
 
-    step(handle, statusFor({ usa: makeReadyToConnect("usa", 10) }));
+    step(handle, statusFor({ usa: makeEligible("usa", 90) }));
 
     expect(handle.model.active).toBe("usa");
     expect(handle.model.lastConnectedDestination).toBeNull();
@@ -1011,22 +996,22 @@ describe("cold start", () => {
     step(
       handle,
       statusFor({
-        uk: makeReadyToConnect("uk", 50),
-        usa: makeReadyToConnect("usa", 10),
+        uk: makeEligible("uk", 50),
+        usa: makeEligible("usa", 90),
       }),
     );
     expect(handle.model.active).toBe("uk");
 
     // uk vanishes, forcing a mid-session cold start
-    step(handle, statusFor({ usa: makeReadyToConnect("usa", 10) }));
+    step(handle, statusFor({ usa: makeEligible("usa", 90) }));
     expect(handle.model.active).toBe("usa");
 
     // and coming back does not reinstate it
     step(
       handle,
       statusFor({
-        uk: makeReadyToConnect("uk", 5),
-        usa: makeReadyToConnect("usa", 10),
+        uk: makeEligible("uk", 95),
+        usa: makeEligible("usa", 90),
       }),
     );
     expect(handle.model.active).toBe("usa");
@@ -1038,8 +1023,8 @@ describe("cold start", () => {
     step(
       handle,
       statusFor({
-        fr: makeReadyToConnect("fr", 90),
-        usa: makeReadyToConnect("usa", 10),
+        fr: makeEligible("fr", 10),
+        usa: makeEligible("usa", 90),
       }),
     );
 
@@ -1051,14 +1036,14 @@ describe("cold start", () => {
 
   it("discards an armed pending and promotes directly when the active is pruned", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
     step(handle, statusFor(UK_USA));
     expect(handle.model.mode).toMatchObject({
       pending: { candidateId: "usa" },
     });
 
     // uk vanishes mid-countdown; a countdown with nothing to switch away from cannot survive
-    step(handle, statusFor({ usa: makeReadyToConnect("usa", 10) }));
+    step(handle, statusFor({ usa: makeEligible("usa", 90) }));
 
     expect(handle.model.active).toBe("usa");
     expect(handle.model.mode, "promotion, not a countdown")
@@ -1071,8 +1056,8 @@ describe("cold start", () => {
     step(
       handle,
       statusFor({
-        uk: makeReadyToConnect("uk", 50),
-        usa: makeReadyToConnect("usa", 10),
+        uk: makeEligible("uk", 50),
+        usa: makeEligible("usa", 90),
       }),
     );
 
@@ -1087,7 +1072,7 @@ describe("preferred location", () => {
     step(
       handle,
       statusFor({
-        uk: makeReadyToConnect("uk", 10),
+        uk: makeEligible("uk", 90),
         fr: makeUnavailable("fr"),
       }),
     );
@@ -1096,8 +1081,8 @@ describe("preferred location", () => {
     step(
       handle,
       statusFor({
-        uk: makeReadyToConnect("uk", 10),
-        fr: makeReadyToConnect("fr", 90),
+        uk: makeEligible("uk", 90),
+        fr: makeEligible("fr", 10),
       }),
     );
 
@@ -1106,12 +1091,12 @@ describe("preferred location", () => {
 
   it("does not restart a countdown it takes over", () => {
     const handle = setup({ preferredLocation: "fr" });
-    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
     step(
       handle,
       statusFor({
-        uk: makeReadyToConnect("uk", 50),
-        usa: makeReadyToConnect("usa", 10),
+        uk: makeEligible("uk", 50),
+        usa: makeEligible("usa", 90),
         fr: makeUnavailable("fr"),
       }),
     );
@@ -1122,9 +1107,9 @@ describe("preferred location", () => {
     step(
       handle,
       statusFor({
-        uk: makeReadyToConnect("uk", 50),
-        usa: makeReadyToConnect("usa", 10),
-        fr: makeReadyToConnect("fr", 90),
+        uk: makeEligible("uk", 50),
+        usa: makeEligible("usa", 90),
+        fr: makeEligible("fr", 10),
       }),
     );
 
@@ -1135,12 +1120,12 @@ describe("preferred location", () => {
 
   it("is spent only once it becomes active", async () => {
     const handle = setup({ preferredLocation: "fr" });
-    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
     step(
       handle,
       statusFor({
-        uk: makeReadyToConnect("uk", 50),
-        fr: makeReadyToConnect("fr", 90),
+        uk: makeEligible("uk", 50),
+        fr: makeEligible("fr", 10),
       }),
     );
     expect(handle.model.preferredLocation).toBe("fr");
@@ -1153,19 +1138,19 @@ describe("preferred location", () => {
 
   it("keeps its shot when it stops being ready before committing", () => {
     const handle = setup({ preferredLocation: "fr" });
-    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
     step(
       handle,
       statusFor({
-        uk: makeReadyToConnect("uk", 50),
-        fr: makeReadyToConnect("fr", 90),
+        uk: makeEligible("uk", 50),
+        fr: makeEligible("fr", 10),
       }),
     );
 
     step(
       handle,
       statusFor({
-        uk: makeReadyToConnect("uk", 50),
+        uk: makeEligible("uk", 50),
         fr: makeUnavailable("fr"),
       }),
     );
@@ -1178,8 +1163,8 @@ describe("preferred location", () => {
     step(
       handle,
       statusFor({
-        uk: makeReadyToConnect("uk", 50),
-        usa: makeReadyToConnect("usa", 10),
+        uk: makeEligible("uk", 50),
+        usa: makeEligible("usa", 90),
         fr: makeUnavailable("fr"),
       }),
     );
@@ -1195,13 +1180,13 @@ describe("preferred location", () => {
     expect(handle.model.preferredLocation).toBe("fr");
   });
 
-  it("needs free slots, not just a ready state", () => {
+  it("needs a full-value path, not just a routable state", () => {
     const handle = setup({ preferredLocation: "fr" });
-    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
 
     step(
       handle,
-      statusFor({ uk: makeReadyToConnect("uk", 50), fr: makeFull("fr", 90) }),
+      statusFor({ uk: makeEligible("uk", 50), fr: makeWeak("fr") }),
     );
 
     expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
@@ -1212,12 +1197,12 @@ describe("preferred location", () => {
 describe("listOpened", () => {
   it("clears an armed pending and sweeps its card", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
     step(
       handle,
       statusFor({
-        uk: makeReadyToConnect("uk", 50),
-        usa: makeReadyToConnect("usa", 10),
+        uk: makeEligible("uk", 50),
+        usa: makeEligible("usa", 90),
       }),
     );
 
@@ -1244,8 +1229,8 @@ describe("listOpened", () => {
     step(
       handle,
       statusFor({
-        uk: makeReadyToConnect("uk", 10),
-        usa: makeReadyToConnect("usa", 50),
+        uk: makeEligible("uk", 90),
+        usa: makeEligible("usa", 50),
       }),
     );
 
@@ -1260,10 +1245,10 @@ describe("listClosed — cancelled", () => {
   it("resumes auto from a clean slate", () => {
     const handle = setup();
     const destinations = {
-      uk: makeReadyToConnect("uk", 50),
-      usa: makeReadyToConnect("usa", 10),
+      uk: makeEligible("uk", 50),
+      usa: makeEligible("usa", 90),
     };
-    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
     step(handle, statusFor(destinations));
     input(handle, { type: "listOpened" });
 
@@ -1295,7 +1280,7 @@ describe("listClosed — cancelled", () => {
 
   it("leaves live alone", () => {
     const handle = setup();
-    const destinations = { uk: makeReadyToConnect("uk", 50) };
+    const destinations = { uk: makeEligible("uk", 50) };
     step(handle, connectedTo("uk", destinations));
     input(handle, { type: "listOpened" });
 
@@ -1308,12 +1293,12 @@ describe("listClosed — cancelled", () => {
 describe("listClosed — picked", () => {
   it("takes the outgoing card's slot and keeps the sequence unique", async () => {
     const handle = setup();
-    step(handle, statusFor({ a: makeReadyToConnect("a", 50) }));
+    step(handle, statusFor({ a: makeEligible("a", 50) }));
     step(
       handle,
       statusFor({
-        a: makeReadyToConnect("a", 50),
-        b: makeReadyToConnect("b", 10),
+        a: makeEligible("a", 50),
+        b: makeEligible("b", 90),
       }),
     );
     await vi.advanceTimersByTimeAsync(SETTLE_MS);
@@ -1356,8 +1341,8 @@ describe("listClosed — picked", () => {
     step(
       handle,
       statusFor({
-        uk: makeReadyToConnect("uk", 50),
-        usa: makeReadyToConnect("usa", 10),
+        uk: makeEligible("uk", 50),
+        usa: makeEligible("usa", 90),
       }),
     );
     input(handle, { type: "listOpened" });
@@ -1371,8 +1356,8 @@ describe("listClosed — picked", () => {
     step(
       handle,
       statusFor({
-        uk: makeReadyToConnect("uk", 50),
-        usa: makeReadyToConnect("usa", 10),
+        uk: makeEligible("uk", 50),
+        usa: makeEligible("usa", 90),
       }),
     );
     // cold start lands on the faster usa, so uk is the pick that actually moves
@@ -1406,7 +1391,7 @@ describe("listClosed — picked", () => {
 
   it("treats picking the already-active card as a cancel with a fresh deadline", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
     const seqBefore = [...handle.model.sequence];
 
     input(handle, { type: "listOpened" });
@@ -1433,12 +1418,12 @@ describe("listClosed — picked", () => {
 describe("dragStarted and slideCommitted", () => {
   it("selects from the first movement and stops the clock", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
     step(
       handle,
       statusFor({
-        uk: makeReadyToConnect("uk", 50),
-        usa: makeReadyToConnect("usa", 10),
+        uk: makeEligible("uk", 50),
+        usa: makeEligible("usa", 90),
       }),
     );
 
@@ -1454,7 +1439,7 @@ describe("dragStarted and slideCommitted", () => {
 
   it("lets the user settle on the interrupted candidate", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
     step(handle, statusFor(UK_USA));
 
     input(handle, { type: "dragStarted" });
@@ -1467,7 +1452,7 @@ describe("dragStarted and slideCommitted", () => {
 
   it("collects the interrupted candidate when the user settles elsewhere", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
     step(handle, statusFor(UK_USA));
 
     input(handle, { type: "dragStarted" });
@@ -1480,7 +1465,7 @@ describe("dragStarted and slideCommitted", () => {
 
   it("holds the interrupted candidate through a mid-drag status update", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
     step(handle, statusFor(UK_USA));
 
     input(handle, { type: "dragStarted" });
@@ -1492,11 +1477,11 @@ describe("dragStarted and slideCommitted", () => {
 
   it("lets the baseline prune drop the interrupted candidate mid-drag", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
     step(handle, statusFor(UK_USA));
 
     input(handle, { type: "dragStarted" });
-    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
     input(handle, { type: "slideCommitted", id: "usa" });
 
     expect(handle.model.active, "the vanished card cannot be settled on")
@@ -1506,7 +1491,7 @@ describe("dragStarted and slideCommitted", () => {
 
   it("drops the interrupted candidate when a connection lands mid-drag", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
     step(handle, statusFor(UK_USA));
 
     input(handle, { type: "dragStarted" });
@@ -1541,7 +1526,7 @@ describe("dragStarted and slideCommitted", () => {
 
   it("ends the drag without moving active when the card is gone", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
     input(handle, { type: "dragStarted" });
 
     input(handle, { type: "slideCommitted", id: "vanished" });
@@ -1552,12 +1537,12 @@ describe("dragStarted and slideCommitted", () => {
 
   it("marks a slid-to card as history so the sweep spares it", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
     step(
       handle,
       statusFor({
-        uk: makeReadyToConnect("uk", 50),
-        usa: makeReadyToConnect("usa", 10),
+        uk: makeEligible("uk", 50),
+        usa: makeEligible("usa", 90),
       }),
     );
 
@@ -1572,7 +1557,7 @@ describe("dragStarted and slideCommitted", () => {
 describe("a due pending is committed, not discarded", () => {
   /** Strip [uk] with a pending on usa, clock already past settleAt but the timer never fired. */
   function duePending(handle: DestinationModeHandle, pastSettle = 0): void {
-    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
     step(handle, statusFor(UK_USA));
     vi.setSystemTime(Date.now() + SETTLE_MS + pastSettle);
   }
@@ -1635,8 +1620,8 @@ describe("connectIssued", () => {
     step(
       handle,
       statusFor({
-        uk: makeReadyToConnect("uk", 50),
-        usa: makeReadyToConnect("usa", 10),
+        uk: makeEligible("uk", 50),
+        usa: makeEligible("usa", 90),
       }),
     );
 
@@ -1648,7 +1633,7 @@ describe("connectIssued", () => {
 
   it("clears an armed pending, so nothing counts down during the attempt", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
     step(handle, statusFor(UK_USA));
     expect(handle.model.mode).toMatchObject({
       pending: { candidateId: "usa" },
@@ -1666,7 +1651,7 @@ describe("connectIssued", () => {
     const handle = setup({ lastConnectedDestination: "uk" });
     step(
       handle,
-      statusFor({ uk: makeFull("uk", 50), usa: makeReadyToConnect("usa", 10) }),
+      statusFor({ uk: makeWeak("uk"), usa: makeEligible("usa", 90) }),
     );
     expect(handle.model.sequence).toEqual(["uk"]);
 
@@ -1710,8 +1695,8 @@ describe("connectIssued", () => {
   it("leaves a failed attempt parked on the destination we tried", () => {
     const handle = setup();
     const destinations = {
-      uk: makeReadyToConnect("uk", 50),
-      usa: makeReadyToConnect("usa", 10),
+      uk: makeEligible("uk", 50),
+      usa: makeEligible("usa", 90),
     };
     step(handle, statusFor(destinations));
     input(handle, { type: "connectIssued", id: "uk" });
@@ -1727,14 +1712,14 @@ describe("connectIssued", () => {
 describe("cardPhaseFor — which label a card wears", () => {
   it("gives the active card auto's label only while nothing is pending", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
 
     expect(cardPhaseFor(handle.model, "uk")).toBe("auto");
   });
 
   it("demotes the active card once a candidate is armed", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
     step(handle, statusFor(UK_USA));
 
     expect(cardPhaseFor(handle.model, "uk"), "no longer provably best")
@@ -1745,7 +1730,7 @@ describe("cardPhaseFor — which label a card wears", () => {
 
   it("reads as connecting while live, whichever card is asked about", () => {
     const handle = setup();
-    step(handle, connectedTo("uk", { uk: makeReadyToConnect("uk", 50) }));
+    step(handle, connectedTo("uk", { uk: makeEligible("uk", 50) }));
 
     expect(cardPhaseFor(handle.model, "uk")).toBe("connecting");
   });
@@ -1769,7 +1754,7 @@ describe("cardPhaseFor — which label a card wears", () => {
 describe("reset", () => {
   it("clears suspension along with everything else", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeReadyToConnect("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
     input(handle, { type: "dragStarted" });
     input(handle, { type: "listOpened" });
     expect(handle.model.listOpen, "otherwise the reset proves nothing").toBe(
@@ -1814,8 +1799,8 @@ describe("invariants hold under randomized traffic", () => {
           destinations[id] = roll < 0.15
             ? makeUnavailable(id)
             : roll < 0.3
-            ? makeFull(id, Math.floor(random() * 100))
-            : makeReadyToConnect(id, Math.floor(random() * 100));
+            ? makeWeak(id)
+            : makeEligible(id, 1 + Math.floor(random() * 100));
         }
 
         const liveRoll = random();

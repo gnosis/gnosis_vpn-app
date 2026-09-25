@@ -9,6 +9,7 @@ use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
 
 use std::path::PathBuf;
+use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
 mod commands;
@@ -24,7 +25,8 @@ pub mod update_install;
 
 use commands::{
     check_update, connect, disconnect, export_logs, get_cached_state, get_platform,
-    log_from_frontend, run_initialization_loop, set_app_icon, stop_client,
+    log_from_frontend, probe, quick_probe, run_initialization_loop, set_app_icon,
+    set_status_poll_fast, stop_client,
 };
 use gnosis_vpn_lib::command::InfoResponse;
 use gnosis_vpn_lib::{command, socket::root as root_socket};
@@ -55,6 +57,8 @@ pub struct StatusPollingHandle {
     pub cancel: CancellationToken,
     pub handle: Option<tauri::async_runtime::JoinHandle<PollingExit>>,
     pub trigger: Arc<Notify>,
+    /// Caps the poll interval while the destination list is open and quick-probe results are awaited.
+    pub fast: Arc<AtomicBool>,
 }
 
 pub struct BalancePollingHandle {
@@ -276,6 +280,18 @@ pub fn run() {
                             {
                                 tracing::warn!(target: "tray", error = %e, "disconnect on quit failed");
                             }
+                            // The probe we hold keeps the worker awake; nobody reads it once we are gone.
+                            match root_socket::process_cmd(&socket, &command::Command::Unprobe).await {
+                                Ok(command::Response::Unprobe(resp)) => {
+                                    tracing::info!(target: "tray", response = ?resp, "unprobe on quit")
+                                }
+                                Ok(other) => {
+                                    tracing::warn!(target: "tray", response = ?other, "unexpected unprobe response")
+                                }
+                                Err(e) => {
+                                    tracing::warn!(target: "tray", error = %e, "unprobe on quit failed")
+                                }
+                            }
                             app_clone.exit(0);
                         });
                     }
@@ -447,6 +463,7 @@ pub fn run() {
                 cancel: CancellationToken::new(),
                 handle: None,
                 trigger: Arc::new(Notify::new()),
+                fast: Arc::new(AtomicBool::new(false)),
             }));
 
             // balance polling handle — started alongside status polling
@@ -477,6 +494,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             connect,
             disconnect,
+            probe,
+            quick_probe,
+            set_status_poll_fast,
             export_logs,
             log_from_frontend,
             set_app_icon,

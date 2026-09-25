@@ -11,13 +11,14 @@ a test, then the code.
 
 ## Vocabulary
 
-| term          | meaning                                                                  |
-| ------------- | ------------------------------------------------------------------------ |
-| **entry**     | a card in the carousel, keyed by destination id                          |
-| **sequence**  | the entries' left-to-right order; oldest first, unique                   |
-| **active**    | the entry the UI centres and the one Connect targets                     |
-| **candidate** | a destination auto intends to switch to, mid-countdown                   |
-| **live**      | the backend reports a connection: connected, connecting, or reconnecting |
+| term          | meaning                                                                      |
+| ------------- | ---------------------------------------------------------------------------- |
+| **entry**     | a card in the carousel, keyed by destination id                              |
+| **sequence**  | the entries' left-to-right order; oldest first, unique                       |
+| **active**    | the entry the UI centres and the one Connect targets                         |
+| **candidate** | a destination auto intends to switch to, mid-countdown                       |
+| **live**      | the backend reports a connection: connected, connecting, or reconnecting     |
+| **exit data** | slots, load and latency measured on the exit itself, by probe or quick probe |
 
 ## State
 
@@ -68,6 +69,9 @@ see [the sweep](#the-sweep).
 | `SWITCH_ANIMATE_MS`       | 1000  | view — total slide duration               |
 | `SELECTED_AUTO_REVERT_MS` | 10000 | model — a selection's lifetime            |
 | `STATUS_POLL_MS`          | ~2300 | service (`src-tauri/src/commands.rs`)     |
+| `STATUS_POLL_FAST_MS`     | 500   | service — cap while the list is open      |
+| `QUICK_PROBE_FRESH_MS`    | 10000 | probing — a result younger is not redone  |
+| `QUICK_PROBE_TIMEOUT_MS`  | 35000 | probing — daemon budget is 30 s           |
 
 **Deadlines are truth; timers are an optimisation.** Every deadline is an
 absolute timestamp re-checked on each `statusUpdate`. A timer that is throttled,
@@ -78,14 +82,27 @@ behaviour may depend on a timer having fired.
 ## Derived predicates
 
 ```
-occupiedByUs(d)      = d.id === liveId ? 1 : 0
-freeSlots(d)         = slots === null ? null : slots.available + occupiedByUs(d)
-connectedClients(d)  = slots === null ? null : slots.connected - occupiedByUs(d)
+walk(d)              = d.route_health?.walk ?? null
+exitData(d)          = probe?.destination_id === d.id && probe.load && probe.ping_rtt
+                         ? { slots: probe.load.slots, rtt: probe.ping_rtt, checkedAt: probe.checked_at }
+                       : d.route_health?.quick_probe?.state === "Checked"
+                         ? { slots: quick_probe.load.slots, rtt: quick_probe.rtt, checkedAt: quick_probe.checked_at }
+                         : null
 
-isReady(d)           = d.state === "ReadyToConnect" && freeSlots(d) > 0
+occupiedByUs(d)      = d.id === liveId ? 1 : 0
+freeSlots(d)         = exitData(d) === null ? null : slots.available + occupiedByUs(d)
+
+routable(d)          = d.state === "Routable"
+                       && walk(d)?.found === "Paths" && walk(d).best_value >= 1
+isReady(d)           = routable(d) && (freeSlots(d) === null || freeSlots(d) > 0)
 isReadyForDisplay(d) = d.id === liveId || isReady(d)
 
-sortHead             = sortByCapacityAwareLatency(destinations)[0]   // may be unready
+oneWayMs(d)          = rtt / 2
+score(d)             = 0.5 * (1 - min(oneWayMs(d), 1000) / 1000)
+                     + 0.3 * min(freeSlots(d), slots.total) / slots.total
+                     + 0.2 * min(walk(d).distinct_first_relays, 4) / 4
+
+sortHead             = sortByRouteQuality(destinations)[0]   // may be unready
 effectiveCandidate   = isUnspentAndReady(preferred) ? preferred : sortHead
 
 effectiveActive(now) = pending && now >= pending.settleAt && !isStale(pending, now)
@@ -97,16 +114,37 @@ suspended            = listOpen || dragging
 liveId               = connected ?? connecting ?? reconnecting  ->  destination_id
 ```
 
-**`isReady` requires capacity.** A destination with no free slot cannot be
-connected to, so treating it as ready only produces failing connects.
-`Connecting` is deliberately not ready either: a connecting destination is the
-live one, and the live one is handled by `isReadyForDisplay`.
+**`isReady` is the walk's verdict, tightened by exit data when there is any.**
+The daemon walks the HOPR graph for every destination and reports what it found
+under `route_health.walk`. A destination is routable only when the state is
+`Routable` and the best path it found has full value (`best_value` is in (0, 1];
+1 means nothing on the path is degraded). A `Routable` destination whose best
+path is weaker exists but is not offered: connecting over it is the user's
+explicit choice, never auto's. Once the exit itself has been measured, a full
+exit is not ready either: a connect against it can only fail.
 
-**`freeSlots` discounts our own session.** While connected we occupy a slot, so
-raw `available` under-reports the live destination's capacity — a 1-slot
-destination we are connected to would read as full. `connectedClients` applies
-the same discount to the sort's capacity malus. Only the numbers
-`sortByCapacityAwareLatency` reads change; its ordering rules are untouched.
+**`exitData` prefers the probe.** The one long-lived probe session follows the
+active destination (see [Probing](#probing)) and refreshes continuously; a quick
+probe is a one-shot snapshot. Both carry the same slots, load and round trip, so
+the newer, live source wins where it applies. Slots come from the daemon's count
+of clients on the exit, so our own session is discounted the same way as before;
+`min(freeSlots, total)` keeps the share in [0, 1] when we hold the last slot.
+
+**`sortByRouteQuality` ranks measured exits by score, then the unmeasured by
+resilience, then the rest by closeness to eligible.**
+
+```
+eligible with exit data, ordered by  score desc, label
+eligible without exit data,          distinct_first_relays desc, count desc, label
+the rest,                            best_value desc (no Paths walk = 0, unknown = -1,
+                                     Unrecoverable = -2), label
+```
+
+A measured exit always outranks an unmeasured one: a good score is knowledge,
+the walk alone is a promise. Opening the list measures the unmeasured ones, so
+the promise is short-lived. The score weights latency half, free capacity a
+third, and relay diversity a fifth; a 1 s one-way latency or worse scores zero
+on latency, and four or more distinct first relays score full on diversity.
 
 **`effectiveActive` is the only reader.** Display and connect target are the
 same function, so the visible card and what Connect targets cannot disagree. The
@@ -207,12 +245,13 @@ connection.
 
 ## statusUpdate
 
-**Precondition.** `keys(status.destinations)` and the ids of
-`status.availableDestinations` are the same set; `appStore.ts` builds both from
-one `response.destinations` array. The model ranks over the former and prunes
-against the latter, so a divergence would let it arm a candidate it then
-immediately prunes. It also means an empty health map implies an empty
-destination list — there is nothing to promote either way.
+**Precondition.** `status.probe` is the daemon's probe view, or null.
+`keys(status.destinations)` and the ids of `status.availableDestinations` are
+the same set; `appStore.ts` builds both from one `response.destinations` array.
+The model ranks over the former and prunes against the latter, so a divergence
+would let it arm a candidate it then immediately prunes. It also means an empty
+health map implies an empty destination list — there is nothing to promote
+either way.
 
 Applied in this order:
 
@@ -256,8 +295,8 @@ destination ends a selection.
   (`wasActive`), pending null.
 - `effectiveCandidate === null` → disarm.
 - `active === null` → [cold start](#cold-start).
-- `!isReady(effectiveCandidate)` → disarm. Steady-state arming requires ready
-  plus capacity.
+- `!isReady(effectiveCandidate)` → disarm. Steady-state arming requires an
+  eligible candidate.
 - `effectiveCandidate === active` → disarm: clear the pending and let the sweep
   drop its card unless it is history.
 - `pending === null` → arm: mint the entry if new, append to `sequence`, set
@@ -417,6 +456,52 @@ A failed connect needs no special handling: the next status response reports no
 connection, and _leaving live_ parks us in `selected` on the destination we
 tried.
 
+## Probing
+
+Outside the model. `appStore.ts` owns these side effects; the model only
+supplies `effectiveActive` and `listOpen`, and receives what the daemon reports
+back through `statusUpdate`.
+
+**The probe follows the active destination.** Whenever `effectiveActive` changes
+to a non-null id and the mode is not `live`, issue `probe(id)`. The daemon keeps
+exactly one probe session, so this replaces whatever was probed before. While
+`live` nothing is issued: the connection registered over the probe the daemon
+opened for it, and swapping that session would break the tunnel. The probe is
+closed only when the app quits: the tray's quit handler disconnects, then issues
+`unprobe`, so the worker may idle once nobody reads the results. While the app
+runs the probe keeps the worker awake, which is accepted for now.
+
+**The list opening starts quick probes, one at a time.** On `listOpened`, cap
+the status poll at `STATUS_POLL_FAST_MS` and start the loop; on `listClosed`,
+lift the cap and stop issuing. A quick probe in flight when the list closes
+finishes on its own and its result is kept.
+
+The loop is a pure scheduler over `statusUpdate`:
+
+```
+candidates(now) = sortByRouteQuality(destinations)
+                    .filter(id => id !== activeId)
+                    .filter(id => route_health.state is Routable)
+                    .filter(id => quick_probe is not Checking)
+                    .filter(id => quick_probe is null
+                               || now - quick_probe.checked_at >= QUICK_PROBE_FRESH_MS)
+
+inFlight done   = its quick_probe is Checked or Failed with checked_at >= issuedAt
+                  || now - issuedAt >= QUICK_PROBE_TIMEOUT_MS
+                  || the daemon answered anything but Checking
+
+on each statusUpdate while listOpen:
+  if inFlight and not done  -> wait
+  else                      -> inFlight = candidates(now)[0] ?? null; issue it
+```
+
+The freshness guard is what makes the loop cycle rather than spin: once every
+candidate has a result younger than `QUICK_PROBE_FRESH_MS`, `candidates` is
+empty until the oldest result ages out, and the next poll picks it up. The
+active destination is skipped because the probe already reports on it, and the
+daemon would refuse anyway. Deadlines are truth here too: a lost result is
+abandoned by the clock, never by a timer.
+
 ## Deliberate non-rules
 
 - **Auto never switches away from an unready `active`.** It reacts to the
@@ -427,6 +512,9 @@ tried.
   candidate card on each poll. The commit stays bounded because a retarget keeps
   the original deadline. If this becomes the visible defect, the fix is a
   debounce on arming — not a change to the sort.
+- **Auto never proposes an ineligible destination.** A weak path is offered in
+  the list, grayed out, for the user to pick deliberately; it is never a
+  candidate.
 - **Live is inert, and shows nothing but itself.** It never proposes a better
   destination; a live tunnel is never torn down automatically, and no other card
   sits next to it — the list is the only way to another destination.

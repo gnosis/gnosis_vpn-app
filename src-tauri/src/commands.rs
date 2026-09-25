@@ -9,6 +9,7 @@ use zstd::stream::Encoder;
 use std::fs::File;
 use std::io::{self, BufReader, Write};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::task::spawn_blocking;
@@ -22,6 +23,8 @@ use crate::{AppStateCache, BalancePollingHandle, PollingExit, StatusPollingHandl
 
 /// Semver requirements for compatible client versions, e.g. "0.93" (any 0.93.x) — never ">=" or ">", which would match all future versions and disable this check.
 const COMPATIBLE_VERSIONS: &[&str] = &["0.101"];
+/// Poll cap while the destination list is open; mirrors STATUS_POLL_FAST_MS in docs/destinationMode.md.
+const STATUS_POLL_FAST: Duration = Duration::from_millis(500);
 
 fn version_matches(version: &str, requirements: &[&str]) -> bool {
     let Ok(version) = semver::Version::parse(version.trim()) else {
@@ -129,6 +132,58 @@ pub async fn connect(
             Err("Unexpected response type".to_string())
         }
     }
+}
+
+/// Points the daemon's one probe session at `id`; results arrive through the status poll.
+#[tauri::command]
+pub async fn probe(id: String) -> Result<command::ProbeResponse, String> {
+    tracing::info!(target: "status", destination = %id, "probe requested");
+    let p = PathBuf::from(root_socket::DEFAULT_PATH);
+    let resp = root_socket::process_cmd(&p, &command::Command::Probe(id))
+        .await
+        .map_err(|e| {
+            tracing::warn!(target: "status", error = %e, "probe failed");
+            e.to_string()
+        })?;
+    match resp {
+        command::Response::Probe(resp) => Ok(resp),
+        other => {
+            tracing::warn!(target: "status", response = ?other, "unexpected probe response");
+            Err("Unexpected response type".to_string())
+        }
+    }
+}
+
+/// One-shot check of `id`; the daemon answers at once and reports the result under the destination.
+#[tauri::command]
+pub async fn quick_probe(id: String) -> Result<command::QuickProbeResponse, String> {
+    tracing::info!(target: "status", destination = %id, "quick probe requested");
+    let p = PathBuf::from(root_socket::DEFAULT_PATH);
+    let resp = root_socket::process_cmd(&p, &command::Command::QuickProbe(id))
+        .await
+        .map_err(|e| {
+            tracing::warn!(target: "status", error = %e, "quick probe failed");
+            e.to_string()
+        })?;
+    match resp {
+        command::Response::QuickProbe(resp) => Ok(resp),
+        other => {
+            tracing::warn!(target: "status", response = ?other, "unexpected quick probe response");
+            Err("Unexpected response type".to_string())
+        }
+    }
+}
+
+/// Caps the status poll at STATUS_POLL_FAST while the frontend waits on quick-probe results.
+#[tauri::command]
+pub fn set_status_poll_fast(
+    fast: bool,
+    polling_state: State<'_, Mutex<StatusPollingHandle>>,
+) -> Result<(), String> {
+    let guard = polling_state.lock().map_err(|e| e.to_string())?;
+    guard.fast.store(fast, Ordering::Relaxed);
+    guard.trigger.notify_one();
+    Ok(())
 }
 
 #[tauri::command]
@@ -455,9 +510,13 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
         let _ = handle.await;
     }
 
-    let (cancel, trigger) = {
+    let (cancel, trigger, fast) = {
         let guard = polling_state.lock().map_err(|e| e.to_string())?;
-        (guard.cancel.clone(), guard.trigger.clone())
+        (
+            guard.cancel.clone(),
+            guard.trigger.clone(),
+            guard.fast.clone(),
+        )
     };
     let bal_trigger = trigger.clone();
 
@@ -479,6 +538,11 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
                 }
                 _ = tick_timeout.as_mut() => {
                     let StatusPoll { delay, needs_reinit, answer } = query_status().await;
+                    let delay = if fast.load(Ordering::Relaxed) {
+                        delay.min(STATUS_POLL_FAST)
+                    } else {
+                        delay
+                    };
                     tick_timeout.as_mut().reset(Instant::now() + delay);
                     let Some(result) = answer else {
                         continue;
@@ -735,6 +799,7 @@ fn classify_status_response(resp: command::Response) -> StatusPoll {
                 connecting: status_resp.connecting,
                 reconnecting: status_resp.reconnecting,
                 disconnecting: status_resp.disconnecting,
+                probe: status_resp.probe,
             };
 
             if matches!(resp.run_mode, crate::types::RunMode::NotRunning) {

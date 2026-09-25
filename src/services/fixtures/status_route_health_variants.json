@@ -27,8 +27,41 @@
           "state": "Routable"
         },
         "last_error": null,
-        "checking_since": null,
-        "consecutive_failures": 0
+        "walk": {
+          "found": "Paths",
+          "walked_at": 0,
+          "count": 3,
+          "distinct_first_relays": 2,
+          "best_relays": [
+            "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa"
+          ],
+          "best_value": 0.75
+        },
+        "quick_probe": {
+          "state": "Checked",
+          "checked_at": 0,
+          "versions": {
+            "versions": [
+              "v1"
+            ],
+            "latest": "v1"
+          },
+          "api_version": "v1",
+          "load": {
+            "slots": {
+              "total": 16,
+              "available": 10,
+              "connected": 1
+            },
+            "load_avg": {
+              "one": 0.1,
+              "five": 0.2,
+              "fifteen": 0.3,
+              "nproc": 4
+            }
+          },
+          "rtt": 42.0
+        }
       }
     },
     {
@@ -54,11 +87,21 @@
       },
       "route_health": {
         "state": {
-          "state": "NeedsChannel"
+          "state": "Routable"
         },
         "last_error": null,
-        "checking_since": null,
-        "consecutive_failures": 0
+        "walk": {
+          "found": "Paths",
+          "walked_at": 0,
+          "count": 1,
+          "distinct_first_relays": 0,
+          "best_relays": [],
+          "best_value": 1.0
+        },
+        "quick_probe": {
+          "state": "Checking",
+          "since": 0
+        }
       }
     },
     {
@@ -84,12 +127,47 @@
       },
       "route_health": {
         "state": {
-          "state": "NeedsPeering",
-          "has_channel": false
+          "state": "NotRoutable"
+        },
+        "last_error": "walk timed out",
+        "walk": {
+          "found": "NoPath",
+          "walked_at": 0
+        },
+        "quick_probe": null
+      }
+    },
+    {
+      "destination": {
+        "id": "test-exit",
+        "meta": {
+          "name": null,
+          "location": "EU",
+          "flag": null,
+          "description": null,
+          "other": {}
+        },
+        "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
+        "routing": 1,
+        "gnosis_vpn_server": "172.30.0.1:8000",
+        "wireguard_server": "172.30.0.1:51820",
+        "source": "Configured",
+        "overrides": {
+          "configured_meta": {},
+          "configured_gnosis_vpn_server": null,
+          "configured_wireguard_server": null
+        }
+      },
+      "route_health": {
+        "state": {
+          "state": "NotRoutable"
         },
         "last_error": null,
-        "checking_since": null,
-        "consecutive_failures": 0
+        "walk": {
+          "found": "NotAnnounced",
+          "walked_at": 0
+        },
+        "quick_probe": null
       }
     },
     {
@@ -119,8 +197,8 @@
           "reason": "NotAllowed"
         },
         "last_error": null,
-        "checking_since": null,
-        "consecutive_failures": 0
+        "walk": null,
+        "quick_probe": null
       }
     },
     {
@@ -146,88 +224,31 @@
       },
       "route_health": {
         "state": {
-          "state": "ReadyToConnect",
-          "exit": {
-            "checked_at": 0,
-            "versions": {
-              "versions": [
-                "v1"
-              ],
-              "latest": "v1"
-            },
-            "ping_rtt": 42.0,
-            "health": {
-              "slots": {
-                "total": 16,
-                "available": 10,
-                "connected": 1
-              },
-              "load_avg": {
-                "one": 0.1,
-                "five": 0.2,
-                "fifteen": 0.3,
-                "nproc": 4
-              }
+          "state": "Unrecoverable",
+          "reason": {
+            "IncompatibleApiVersion": {
+              "server_versions": [
+                "v2"
+              ]
             }
           }
         },
         "last_error": null,
-        "checking_since": null,
-        "consecutive_failures": 0
-      }
-    },
-    {
-      "destination": {
-        "id": "test-exit",
-        "meta": {
-          "name": null,
-          "location": "EU",
-          "flag": null,
-          "description": null,
-          "other": {}
+        "walk": {
+          "found": "Paths",
+          "walked_at": 0,
+          "count": 3,
+          "distinct_first_relays": 2,
+          "best_relays": [
+            "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa"
+          ],
+          "best_value": 0.75
         },
-        "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
-        "routing": 1,
-        "gnosis_vpn_server": "172.30.0.1:8000",
-        "wireguard_server": "172.30.0.1:51820",
-        "source": "Configured",
-        "overrides": {
-          "configured_meta": {},
-          "configured_gnosis_vpn_server": null,
-          "configured_wireguard_server": null
+        "quick_probe": {
+          "state": "Failed",
+          "checked_at": 0,
+          "error": "unsupported api"
         }
-      },
-      "route_health": {
-        "state": {
-          "state": "Connecting",
-          "exit": {
-            "checked_at": 0,
-            "versions": {
-              "versions": [
-                "v1"
-              ],
-              "latest": "v1"
-            },
-            "ping_rtt": 42.0,
-            "health": {
-              "slots": {
-                "total": 16,
-                "available": 10,
-                "connected": 1
-              },
-              "load_avg": {
-                "one": 0.1,
-                "five": 0.2,
-                "fifteen": 0.3,
-                "nproc": 4
-              }
-            }
-          },
-          "tunnel_ping_rtt": 12.0
-        },
-        "last_error": null,
-        "checking_since": null,
-        "consecutive_failures": 0
       }
     },
     {
@@ -283,5 +304,6 @@
   "connected": null,
   "connecting": null,
   "reconnecting": null,
-  "disconnecting": []
+  "disconnecting": [],
+  "probe": null
 }
