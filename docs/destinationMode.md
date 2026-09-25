@@ -78,14 +78,14 @@ behaviour may depend on a timer having fired.
 ## Derived predicates
 
 ```
-occupiedByUs(d)      = d.id === liveId ? 1 : 0
-freeSlots(d)         = slots === null ? null : slots.available + occupiedByUs(d)
-connectedClients(d)  = slots === null ? null : slots.connected - occupiedByUs(d)
+walk(d)              = d.route_health?.walk ?? null
+eligible(d)          = d.state === "Routable"
+                       && walk(d)?.found === "Paths" && walk(d).best_value >= 1
 
-isReady(d)           = d.state === "ReadyToConnect" && freeSlots(d) > 0
+isReady(d)           = eligible(d)
 isReadyForDisplay(d) = d.id === liveId || isReady(d)
 
-sortHead             = sortByCapacityAwareLatency(destinations)[0]   // may be unready
+sortHead             = sortByRouteQuality(destinations)[0]   // may be unready
 effectiveCandidate   = isUnspentAndReady(preferred) ? preferred : sortHead
 
 effectiveActive(now) = pending && now >= pending.settleAt && !isStale(pending, now)
@@ -97,16 +97,29 @@ suspended            = listOpen || dragging
 liveId               = connected ?? connecting ?? reconnecting  ->  destination_id
 ```
 
-**`isReady` requires capacity.** A destination with no free slot cannot be
-connected to, so treating it as ready only produces failing connects.
-`Connecting` is deliberately not ready either: a connecting destination is the
-live one, and the live one is handled by `isReadyForDisplay`.
+**`isReady` is the walk's verdict.** The daemon walks the HOPR graph for every
+destination and reports what it found under `route_health.walk`. A destination
+is eligible only when the state is `Routable` and the best path it found has
+full value (`best_value` is in (0, 1]; 1 means nothing on the path is degraded).
+A `Routable` destination whose best path is weaker exists but is not offered:
+connecting over it is the user's explicit choice, never auto's. Exit-side facts
+— slots, load, latency — are not part of readiness; they arrive by probing,
+which is a separate concern.
 
-**`freeSlots` discounts our own session.** While connected we occupy a slot, so
-raw `available` under-reports the live destination's capacity — a 1-slot
-destination we are connected to would read as full. `connectedClients` applies
-the same discount to the sort's capacity malus. Only the numbers
-`sortByCapacityAwareLatency` reads change; its ordering rules are untouched.
+**`sortByRouteQuality` ranks by resilience, then by closeness to eligible.**
+
+```
+eligible first, ordered by
+  distinct_first_relays desc, count desc, label
+then the rest, ordered by
+  best_value desc (no Paths walk = -1, Unrecoverable = -2), label
+```
+
+Among eligible destinations more distinct first relays means fewer single points
+of failure, so the sort head is the most resilient full-value route. The
+ineligible tail is ordered so the list shows which destinations are closest to
+becoming eligible. `liveId` plays no part: our own session neither improves nor
+worsens a path.
 
 **`effectiveActive` is the only reader.** Display and connect target are the
 same function, so the visible card and what Connect targets cannot disagree. The
@@ -256,8 +269,8 @@ destination ends a selection.
   (`wasActive`), pending null.
 - `effectiveCandidate === null` → disarm.
 - `active === null` → [cold start](#cold-start).
-- `!isReady(effectiveCandidate)` → disarm. Steady-state arming requires ready
-  plus capacity.
+- `!isReady(effectiveCandidate)` → disarm. Steady-state arming requires an
+  eligible candidate.
 - `effectiveCandidate === active` → disarm: clear the pending and let the sweep
   drop its card unless it is history.
 - `pending === null` → arm: mint the entry if new, append to `sequence`, set
@@ -427,6 +440,9 @@ tried.
   candidate card on each poll. The commit stays bounded because a retarget keeps
   the original deadline. If this becomes the visible defect, the fix is a
   debounce on arming — not a change to the sort.
+- **Auto never proposes an ineligible destination.** A weak path is offered in
+  the list, grayed out, for the user to pick deliberately; it is never a
+  candidate.
 - **Live is inert, and shows nothing but itself.** It never proposes a better
   destination; a live tunnel is never torn down automatically, and no other card
   sits next to it — the list is the only way to another destination.
