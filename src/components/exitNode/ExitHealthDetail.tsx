@@ -11,6 +11,7 @@ import type {
 } from "@src/services/vpnService.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
+import { isReady } from "@src/utils/destinations.ts";
 import {
   formatConnectionStatus,
   formatExitHealthStatus,
@@ -99,8 +100,7 @@ export default function ExitHealthDetail(
   const isActionInFlight = () =>
     connectionLabel() === "Connecting" || connectionLabel() === "Reconnecting";
   const isGoodState = () =>
-    isConnected() || isActionInFlight() ||
-    routeHealth()?.state.state === "ReadyToConnect";
+    isConnected() || isActionInFlight() || isReady(props.destinationState);
 
   // Own clock: this panel mounts separately from ExitNodeList.
   const [nowSec, setNowSec] = createSignal(Date.now() / 1000);
