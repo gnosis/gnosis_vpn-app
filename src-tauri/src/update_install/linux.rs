@@ -1,12 +1,7 @@
-//! No bundled Linux updater exists yet; these are permanent stand-ins so the
-//! commands stay registered cross-platform.
+//! No install engine off macOS: `update` refuses and prints the apt commands, so
+//! the frontend routes the button to its modal. Checks live in `crate::toolkit`.
 
 use tauri::AppHandle;
-
-#[tauri::command]
-pub async fn get_toolkit_version() -> Option<String> {
-    None
-}
 
 #[tauri::command]
 pub fn install_update(_app: AppHandle, _channel: String, _force: bool) -> Result<(), String> {

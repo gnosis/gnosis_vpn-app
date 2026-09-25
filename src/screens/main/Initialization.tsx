@@ -6,6 +6,8 @@ import GnosisVpnLogo from "@src/components/common/GnosisVpnLogo.tsx";
 
 interface InitializationProps {
   info: ServiceInfo | null;
+  /** The store's canonical package version; `info` stays for service details. */
+  packageVersion: string | null;
   error?: string;
 }
 
@@ -57,7 +59,7 @@ export default function Initialization(props: InitializationProps) {
           >
             Version:{" "}
             <span class="text-text-primary">
-              {props.info?.package_version ?? "—"}
+              {props.packageVersion ?? "—"}
             </span>
           </div>
           <Show when={showDetails()}>

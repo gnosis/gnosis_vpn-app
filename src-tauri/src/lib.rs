@@ -17,6 +17,7 @@ mod logging;
 mod platform;
 pub mod settings;
 mod theme;
+pub mod toolkit;
 pub mod tray;
 pub mod types;
 pub mod update_install;
@@ -34,13 +35,14 @@ use settings::{SettingsStore, get_settings, update_settings};
 use theme::spawn_linux_theme_monitor;
 #[cfg_attr(target_os = "macos", allow(unused_imports))]
 use theme::{InitialTheme, get_initial_theme, system_theme};
+use toolkit::get_toolkit_version;
 use tray::{
     create_tray_menu, handle_tray_event, show_settings, show_settings_and_check,
     toggle_main_window_visibility,
 };
 use types::ConnectionState;
 use types::{BalanceResponse, StatusResponse};
-use update_install::{UpdateInstallState, get_install_status, get_toolkit_version, install_update};
+use update_install::{UpdateInstallState, get_install_status, install_update};
 
 struct HeartbeatHandle(Mutex<Option<tauri::async_runtime::JoinHandle<()>>>);
 
@@ -347,34 +349,42 @@ pub fn run() {
                     })
                     .and_then(|p| p.to_str().map(String::from));
                 tauri::async_runtime::spawn(async move {
-                    let socket = PathBuf::from(root_socket::DEFAULT_PATH);
                     let fallback = "Version: Something is wrong".to_string();
-                    let pkg: String = match root_socket::process_cmd(
-                        &socket,
-                        &command::Command::Info,
-                    )
-                    .await
-                    {
-                        Ok(command::Response::Info(info)) => {
-                            // debug: the init loop's "initialized" line already records versions
-                            tracing::debug!(
-                                target: "about_panel",
-                                package_version = ?info.package_version,
-                                "daemon info"
-                            );
-                            info.package_version.unwrap_or_else(|| fallback.clone())
-                        }
-                        Ok(other) => {
-                            tracing::warn!(
-                                target: "about_panel",
-                                response = ?other,
-                                "unexpected daemon response"
-                            );
-                            fallback.clone()
-                        }
+                    // The toolkit reads the installed version straight from the version file
+                    let from_toolkit = match toolkit::version().await {
+                        Ok(info) => info.package_version,
                         Err(e) => {
-                            tracing::warn!(target: "about_panel", error = %e, "daemon call failed");
-                            fallback.clone()
+                            tracing::info!(target: "about_panel", error = %e, "toolkit unavailable, asking daemon");
+                            None
+                        }
+                    };
+                    let pkg: String = match from_toolkit {
+                        Some(pkg) => pkg,
+                        None => {
+                            let socket = PathBuf::from(root_socket::DEFAULT_PATH);
+                            match root_socket::process_cmd(&socket, &command::Command::Info).await {
+                                Ok(command::Response::Info(info)) => {
+                                    // debug: the init loop's "initialized" line already records versions
+                                    tracing::debug!(
+                                        target: "about_panel",
+                                        package_version = ?info.package_version,
+                                        "daemon info"
+                                    );
+                                    info.package_version.unwrap_or_else(|| fallback.clone())
+                                }
+                                Ok(other) => {
+                                    tracing::warn!(
+                                        target: "about_panel",
+                                        response = ?other,
+                                        "unexpected daemon response"
+                                    );
+                                    fallback.clone()
+                                }
+                                Err(e) => {
+                                    tracing::warn!(target: "about_panel", error = %e, "daemon call failed");
+                                    fallback.clone()
+                                }
+                            }
                         }
                     };
                     install_macos_about_panel_override(&app_handle, pkg, icon_path);

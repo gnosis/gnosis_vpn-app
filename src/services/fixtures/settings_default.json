@@ -6,7 +6,7 @@
   "updateCheck": true,
   "exitNodeSortOrder": "latency",
   "lastCheckedAt": null,
-  "updateManifest": null,
+  "lastCheckOutcome": null,
   "channel": null,
   "dismissedUpdateVersion": null,
   "installedVersion": null,

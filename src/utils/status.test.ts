@@ -78,6 +78,8 @@ const BASE_APP_STATE: AppState = {
   availableVersion: null,
   targetDestination: null,
   balance: null,
+  packageVersion: null,
+  toolkit: { status: "unknown", version: null, packageVersion: null },
   mode: {
     entries: {},
     sequence: [],
