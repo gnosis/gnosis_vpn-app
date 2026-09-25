@@ -467,8 +467,9 @@ to a non-null id and the mode is not `live`, issue `probe(id)`. The daemon keeps
 exactly one probe session, so this replaces whatever was probed before. While
 `live` nothing is issued: the connection registered over the probe the daemon
 opened for it, and swapping that session would break the tunnel. The probe is
-never closed by the app; it keeps the worker awake for as long as the app runs,
-which is accepted for now.
+closed only when the app quits: the tray's quit handler disconnects, then issues
+`unprobe`, so the worker may idle once nobody reads the results. While the app
+runs the probe keeps the worker awake, which is accepted for now.
 
 **The list opening starts quick probes, one at a time.** On `listOpened`, cap
 the status poll at `STATUS_POLL_FAST_MS` and start the loop; on `listClosed`,

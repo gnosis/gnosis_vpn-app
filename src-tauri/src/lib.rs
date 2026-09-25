@@ -280,6 +280,18 @@ pub fn run() {
                             {
                                 tracing::warn!(target: "tray", error = %e, "disconnect on quit failed");
                             }
+                            // The probe we hold keeps the worker awake; nobody reads it once we are gone.
+                            match root_socket::process_cmd(&socket, &command::Command::Unprobe).await {
+                                Ok(command::Response::Unprobe(resp)) => {
+                                    tracing::info!(target: "tray", response = ?resp, "unprobe on quit")
+                                }
+                                Ok(other) => {
+                                    tracing::warn!(target: "tray", response = ?other, "unexpected unprobe response")
+                                }
+                                Err(e) => {
+                                    tracing::warn!(target: "tray", error = %e, "unprobe on quit failed")
+                                }
+                            }
                             app_clone.exit(0);
                         });
                     }
