@@ -11,7 +11,7 @@ import type {
 import {
   type CardPhase,
   isReady,
-  sortByCapacityAwareLatency,
+  sortByRouteQuality,
 } from "@src/utils/destinations.ts";
 
 // Countdown timeout before starting switch animation
@@ -279,10 +279,10 @@ export function createDestinationMode(
   /** Preferred outranks the sort head while unspent and ready — it is an input, not a transition. */
   function effectiveCandidate(status: ModeAppState, draft: DestinationMode) {
     const preferred = draft.preferredLocation;
-    if (preferred !== null && isReady(status.destinations[preferred], null)) {
+    if (preferred !== null && isReady(status.destinations[preferred])) {
       return preferred;
     }
-    return sortByCapacityAwareLatency(status.destinations)[0] ?? null;
+    return sortByRouteQuality(status.destinations)[0] ?? null;
   }
 
   /** No countdown: there is nothing to switch away from until something is active. */
@@ -320,7 +320,7 @@ export function createDestinationMode(
     }
     const worthSwitchingTo = candidate !== null &&
       candidate !== draft.active &&
-      isReady(status.destinations[candidate], null);
+      isReady(status.destinations[candidate]);
     if (!worthSwitchingTo) {
       draft.mode = AUTO_IDLE;
       return;

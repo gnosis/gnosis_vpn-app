@@ -8,6 +8,7 @@ import {
   type StatusResponse,
 } from "@src/services/vpnService.ts";
 import { logWarn } from "@src/utils/appLog.ts";
+import { isReady } from "@src/utils/destinations.ts";
 
 export enum AppScreen {
   Initialization = "initialization",
@@ -23,31 +24,19 @@ export type ScreenChoice = [AppScreen, string, number | null];
 
 const MAXIMUM_DELAY_TIME = 5 * 60 * 1000; // 5 minutes
 
+/** Nothing to interact with until one destination has a full-value path. */
 function findDelayReason(destinations: DestinationState[]): string | null {
-  let missingPeers = 0;
-  let missingChannels = 0;
-  for (const ds of destinations) {
-    if (!ds.route_health) continue;
-    const s = ds.route_health.state;
-
-    if (s.state === "ReadyToConnect" || s.state === "Connecting") return null;
-    if (s.state === "NeedsChannel") missingChannels++;
-    else if (s.state === "NeedsPeering") {
-      missingPeers++;
-      if (!s.has_channel) missingChannels++;
-    }
-  }
-  if (missingPeers > 0 && missingPeers >= missingChannels) {
-    return `Looking for ${missingPeers} more peer${
-      missingPeers > 1 ? "s" : ""
-    }`;
-  }
-  if (missingChannels > 0) {
-    return `Setting up ${missingChannels} more channel${
-      missingChannels > 1 ? "s" : ""
-    }`;
-  }
-  return null;
+  const known = destinations.filter((ds) => ds.route_health !== null);
+  if (known.length === 0) return null;
+  if (known.some((ds) => isReady(ds))) return null;
+  const unrecoverable =
+    known.filter((ds) => ds.route_health?.state.state === "Unrecoverable")
+      .length;
+  if (unrecoverable === known.length) return null;
+  const waiting = known.length - unrecoverable;
+  return `Looking for a route to ${waiting} destination${
+    waiting > 1 ? "s" : ""
+  }`;
 }
 
 export function detectSyncPhase(

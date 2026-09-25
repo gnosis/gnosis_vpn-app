@@ -59,16 +59,16 @@ function makeUnavailable(id: string): DestinationState {
 
 describe("isReady — connectable right now", () => {
   it("accepts a routable destination whose best path has full value", () => {
-    expect(isReady(makeEligible("a"), null)).toBe(true);
+    expect(isReady(makeEligible("a"))).toBe(true);
   });
 
   it("rejects a routable destination whose best path is degraded", () => {
-    expect(isReady(makeWeak("a"), null)).toBe(false);
-    expect(isReady(makeWeak("a", 0.999), null)).toBe(false);
+    expect(isReady(makeWeak("a"))).toBe(false);
+    expect(isReady(makeWeak("a", 0.999))).toBe(false);
   });
 
   it("rejects a destination the walk found no path to", () => {
-    expect(isReady(withRouteHealth("a", noPathRouteHealth()), null)).toBe(
+    expect(isReady(withRouteHealth("a", noPathRouteHealth()))).toBe(
       false,
     );
   });
@@ -78,17 +78,12 @@ describe("isReady — connectable right now", () => {
       ...unrecoverableRouteHealth(),
       walk: eligibleRouteHealth().walk,
     };
-    expect(isReady(withRouteHealth("a", latched), null)).toBe(false);
-  });
-
-  it("does not change its mind for the destination we are on", () => {
-    expect(isReady(makeWeak("a"), "a")).toBe(false);
-    expect(isReady(makeEligible("a"), "a")).toBe(true);
+    expect(isReady(withRouteHealth("a", latched))).toBe(false);
   });
 
   it("rejects a destination with no health at all", () => {
-    expect(isReady(makeUnavailable("a"), null)).toBe(false);
-    expect(isReady(undefined, null)).toBe(false);
+    expect(isReady(makeUnavailable("a"))).toBe(false);
+    expect(isReady(undefined)).toBe(false);
   });
 });
 
@@ -104,8 +99,8 @@ describe("isReadyForDisplay — what the list may present as usable", () => {
     const ready = makeEligible("a");
     const weak = makeWeak("b");
 
-    expect(isReadyForDisplay(ready, "c")).toBe(isReady(ready, "c"));
-    expect(isReadyForDisplay(weak, "c")).toBe(isReady(weak, "c"));
+    expect(isReadyForDisplay(ready, "c")).toBe(isReady(ready));
+    expect(isReadyForDisplay(weak, "c")).toBe(isReady(weak));
   });
 });
 
@@ -233,17 +228,6 @@ describe("sortByRouteQuality", () => {
         "d-weak": makeWeak("d-weak", 0.1),
       }),
     ).toEqual(["d-weak", "c-nopath", "b-dead", "a-latched"]);
-  });
-
-  it("ignores which destination we are on", () => {
-    const destinations = {
-      here: makeEligible("here", 1),
-      there: makeEligible("there", 3),
-    };
-
-    expect(sortByRouteQuality(destinations, "here")).toEqual(
-      sortByRouteQuality(destinations, null),
-    );
   });
 
   it("falls back to the label when nothing else separates them", () => {

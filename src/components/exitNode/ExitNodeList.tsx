@@ -18,7 +18,7 @@ import {
   destinationSearchText,
   isVpnActive,
   sortAlphaDestinations,
-  sortByCapacityAwareLatency,
+  sortByRouteQuality,
 } from "@src/utils/destinations.ts";
 import ExitNodeCard from "./ExitNodeCard.tsx";
 import UnreachableDialog from "./UnreachableDialog.tsx";
@@ -70,7 +70,7 @@ export default function ExitNodeList(props: {
       );
     }
     // the same ranking auto picks from, so the list's head is the destination it would choose
-    return sortByCapacityAwareLatency(appState.destinations, liveId())
+    return sortByRouteQuality(appState.destinations)
       .map((id) => appState.destinations[id].destination);
   });
 

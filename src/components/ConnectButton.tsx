@@ -24,9 +24,7 @@ export default function ConnectButton() {
     return id ? appState.destinations[id] : undefined;
   });
 
-  const isTargetReady = createMemo(() =>
-    isReady(targetDestinationState(), null)
-  );
+  const isTargetReady = createMemo(() => isReady(targetDestinationState()));
 
   const handleClick = async () => {
     try {

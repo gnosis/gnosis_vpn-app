@@ -111,7 +111,7 @@ export default function ExitNodeCard(props: {
 
   // A live or transitioning node stays clickable: its tunnel exists and the slot it fills is ours.
   const isClickable = () =>
-    isReady(props.destinationState(), null) || isConnected() ||
+    isReady(props.destinationState()) || isConnected() ||
     isConnecting() || isReconnecting() || isDisconnecting();
 
   return (
