@@ -27,9 +27,12 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
 }
 
 fn is_app_url(url: &Url, dev_url: Option<&Url>) -> bool {
-    url.scheme() == "tauri"
-        || url.host_str() == Some("tauri.localhost")
-        || dev_url.is_some_and(|dev| dev.origin() == url.origin())
+    // Matched by parts: `tauri:` is a non-special scheme, so its `origin()` is opaque and never equal.
+    let is_prod_origin = matches!(
+        (url.scheme(), url.host_str(), url.port()),
+        ("tauri", Some("localhost"), None) | ("http", Some("tauri.localhost"), None)
+    );
+    is_prod_origin || dev_url.is_some_and(|dev| dev.origin() == url.origin())
 }
 
 #[cfg(test)]
@@ -45,6 +48,7 @@ mod tests {
         assert!(is_app_url(&url("tauri://localhost/"), None));
         assert!(is_app_url(&url("tauri://localhost/index.html"), None));
         assert!(is_app_url(&url("http://tauri.localhost/"), None));
+        assert!(is_app_url(&url("http://tauri.localhost:80/"), None));
     }
 
     #[test]
@@ -65,6 +69,11 @@ mod tests {
             "https://github.com/gnosis/gnosis_vpn-app/pull/123",
             "http://gnosisvpn.io/",
             "https://tauri.localhost.evil.com/",
+            "https://tauri.localhost/",
+            "http://tauri.localhost:8080/",
+            "ws://tauri.localhost/",
+            "tauri://evil.com/",
+            "tauri://localhost:1420/",
             "file:///etc/passwd",
             "data:text/html,hi",
         ] {
