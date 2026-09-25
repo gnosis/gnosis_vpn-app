@@ -32,6 +32,8 @@ export type DownPhase = z.infer<typeof DownPhaseSchema>;
 export const ConnectedInfoSchema = z.object({
   destination_id: z.string(),
   since: z.number(),
+  // Latest ICMP round trip through the tunnel, in ms.
+  tunnel_ping_rtt: z.number().nullable(),
 });
 export type ConnectedInfo = z.infer<typeof ConnectedInfoSchema>;
 
@@ -126,53 +128,99 @@ export const LoadAvgSchema = z.object({
 });
 export type LoadAvg = z.infer<typeof LoadAvgSchema>;
 
-export const ExitHealthSchema = z.object({
+export const HealthSchema = z.object({
   slots: SlotsSchema,
   load_avg: LoadAvgSchema,
 });
-export type ExitHealth = z.infer<typeof ExitHealthSchema>;
+export type Health = z.infer<typeof HealthSchema>;
 
-export const ExitHealthDataSchema = z.object({
-  checked_at: z.number(),
-  versions: z.object({ versions: z.array(z.string()), latest: z.string() }),
-  ping_rtt: z.number(),
-  health: ExitHealthSchema,
+export const VersionsSchema = z.object({
+  versions: z.array(z.string()),
+  latest: z.string(),
 });
-export type ExitHealthData = z.infer<typeof ExitHealthDataSchema>;
+export type Versions = z.infer<typeof VersionsSchema>;
 
 export const UnrecoverableReasonSchema = z.union([
   z.literal("NotAllowed"),
-  z.literal("InvalidPath"),
   z.object({
     IncompatibleApiVersion: z.object({ server_versions: z.array(z.string()) }),
   }),
 ]);
 export type UnrecoverableReason = z.infer<typeof UnrecoverableReasonSchema>;
 
+// The daemon's verdict on whether a path to the exit exists; details live in the walk.
 export const RouteHealthStateSchema = z.discriminatedUnion("state", [
   z.object({
     state: z.literal("Unrecoverable"),
     reason: UnrecoverableReasonSchema,
   }),
-  z.object({ state: z.literal("NeedsPeering"), has_channel: z.boolean() }),
-  z.object({ state: z.literal("NeedsChannel") }),
+  z.object({ state: z.literal("NotRoutable") }),
   z.object({ state: z.literal("Routable") }),
-  z.object({ state: z.literal("ReadyToConnect"), exit: ExitHealthDataSchema }),
-  z.object({
-    state: z.literal("Connecting"),
-    exit: ExitHealthDataSchema,
-    tunnel_ping_rtt: z.number().nullable(),
-  }),
 ]);
 export type RouteHealthState = z.infer<typeof RouteHealthStateSchema>;
+
+// What the last graph walk found for this exit.
+export const RouteWalkSchema = z.discriminatedUnion("found", [
+  z.object({ found: z.literal("NotAnnounced"), walked_at: z.number() }),
+  z.object({ found: z.literal("NoPath"), walked_at: z.number() }),
+  z.object({
+    found: z.literal("Paths"),
+    walked_at: z.number(),
+    count: z.number(),
+    distinct_first_relays: z.number(),
+    best_relays: z.array(z.string()),
+    // In (0, 1]; higher is better.
+    best_value: z.number(),
+  }),
+]);
+export type RouteWalk = z.infer<typeof RouteWalkSchema>;
+
+// The last one-shot exit check; api_version null means no version we support.
+export const QuickProbeStateSchema = z.discriminatedUnion("state", [
+  z.object({ state: z.literal("Checking"), since: z.number() }),
+  z.object({
+    state: z.literal("Checked"),
+    checked_at: z.number(),
+    versions: VersionsSchema,
+    api_version: z.string().nullable(),
+    load: HealthSchema,
+    rtt: z.number(),
+  }),
+  z.object({
+    state: z.literal("Failed"),
+    checked_at: z.number(),
+    error: z.string(),
+  }),
+]);
+export type QuickProbeState = z.infer<typeof QuickProbeStateSchema>;
 
 export const RouteHealthViewSchema = z.object({
   state: RouteHealthStateSchema,
   last_error: z.string().nullable(),
-  checking_since: z.number().nullable(),
-  consecutive_failures: z.number(),
+  walk: RouteWalkSchema.nullable(),
+  quick_probe: QuickProbeStateSchema.nullable(),
 });
 export type RouteHealthView = z.infer<typeof RouteHealthViewSchema>;
+
+export const ProbeStateSchema = z.object({
+  state: z.enum(["Opening", "Checking", "Ready", "Reopening"]),
+});
+export type ProbeState = z.infer<typeof ProbeStateSchema>;
+
+// The one long-lived probe session and the latest result of each of its checks.
+export const ProbeViewSchema = z.object({
+  destination_id: z.string(),
+  state: ProbeStateSchema,
+  session_since: z.number().nullable(),
+  versions: VersionsSchema.nullable(),
+  api_version: z.string().nullable(),
+  ping_rtt: z.number().nullable(),
+  load: HealthSchema.nullable(),
+  checked_at: z.number().nullable(),
+  consecutive_failures: z.number(),
+  last_error: z.string().nullable(),
+});
+export type ProbeView = z.infer<typeof ProbeViewSchema>;
 
 export const DestinationStateSchema = z.object({
   destination: DestinationSchema,
@@ -213,6 +261,65 @@ export const DisconnectResponseSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("NotConnected") }),
 ]);
 export type DisconnectResponse = z.infer<typeof DisconnectResponseSchema>;
+
+export const ProbeResponseSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("Probing"), destination: DestinationSchema }),
+  // Only one probe exists; this one took the place of `previous`.
+  z.object({
+    type: z.literal("Replaced"),
+    destination: DestinationSchema,
+    previous: DestinationSchema,
+  }),
+  z.object({
+    type: z.literal("AlreadyProbing"),
+    destination: DestinationSchema,
+  }),
+  z.object({
+    type: z.literal("UnableToProbe"),
+    destination: DestinationSchema,
+    route_health: RouteHealthStateSchema,
+  }),
+  z.object({ type: z.literal("NotReady") }),
+  z.object({ type: z.literal("DestinationNotFound") }),
+  z.object({
+    type: z.literal("DestinationAmbiguous"),
+    connect_ids: z.array(z.string()),
+  }),
+]);
+export type ProbeResponse = z.infer<typeof ProbeResponseSchema>;
+
+export const UnprobeResponseSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("Closing"), destination: DestinationSchema }),
+  // A connection attempt is registering over the session right now.
+  z.object({ type: z.literal("InUse"), destination: DestinationSchema }),
+  z.object({ type: z.literal("NotProbing") }),
+]);
+export type UnprobeResponse = z.infer<typeof UnprobeResponseSchema>;
+
+// Accepted checks run in the background; their result shows up under the destination's route health.
+export const QuickProbeResponseSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("Checking"), destination: DestinationSchema }),
+  z.object({
+    type: z.literal("UnableToProbe"),
+    destination: DestinationSchema,
+    route_health: RouteHealthStateSchema,
+  }),
+  z.object({
+    type: z.literal("AlreadyProbing"),
+    destination: DestinationSchema,
+  }),
+  z.object({
+    type: z.literal("AlreadyChecking"),
+    destination: DestinationSchema,
+  }),
+  z.object({ type: z.literal("NotReady") }),
+  z.object({ type: z.literal("DestinationNotFound") }),
+  z.object({
+    type: z.literal("DestinationAmbiguous"),
+    connect_ids: z.array(z.string()),
+  }),
+]);
+export type QuickProbeResponse = z.infer<typeof QuickProbeResponseSchema>;
 
 // Hopli amounts arrive as raw wei integer strings (e.g. "1000000000000000000").
 // Transforming to bigint at the boundary catches malformed values early and
@@ -336,6 +443,7 @@ export const StatusResponseSchema = z.object({
   connecting: ConnectingInfoSchema.nullable(),
   reconnecting: ReconnectingInfoSchema.nullable(),
   disconnecting: z.array(DisconnectingInfoSchema),
+  probe: ProbeViewSchema.nullable(),
 });
 export type StatusResponse = z.infer<typeof StatusResponseSchema>;
 

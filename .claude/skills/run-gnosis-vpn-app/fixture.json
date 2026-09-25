@@ -36,8 +36,17 @@
                 "state": "Routable"
               },
               "last_error": null,
-              "checking_since": null,
-              "consecutive_failures": 0
+              "walk": {
+                "found": "Paths",
+                "walked_at": 0,
+                "count": 3,
+                "distinct_first_relays": 2,
+                "best_relays": [
+                  "0x1111111111111111111111111111111111111111"
+                ],
+                "best_value": 0.87
+              },
+              "quick_probe": null
             }
           },
           {
@@ -60,8 +69,17 @@
                 "state": "Routable"
               },
               "last_error": null,
-              "checking_since": null,
-              "consecutive_failures": 0
+              "walk": {
+                "found": "Paths",
+                "walked_at": 0,
+                "count": 3,
+                "distinct_first_relays": 2,
+                "best_relays": [
+                  "0x1111111111111111111111111111111111111111"
+                ],
+                "best_value": 0.42
+              },
+              "quick_probe": null
             }
           }
         ],
@@ -69,7 +87,8 @@
         "connected": null,
         "connecting": null,
         "reconnecting": null,
-        "disconnecting": []
+        "disconnecting": [],
+        "probe": null
       }
     },
     "balance": {

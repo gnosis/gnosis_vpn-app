@@ -4,7 +4,8 @@
   "target_destination": "test-exit",
   "connected": {
     "destination_id": "test-exit",
-    "since": 0
+    "since": 0,
+    "tunnel_ping_rtt": 12.0
   },
   "connecting": {
     "destination_id": "test-exit",
@@ -22,5 +23,36 @@
       "since": 0,
       "phase": "Disconnecting"
     }
-  ]
+  ],
+  "probe": {
+    "destination_id": "test-exit",
+    "state": {
+      "state": "Ready"
+    },
+    "session_since": 0,
+    "versions": {
+      "versions": [
+        "v1"
+      ],
+      "latest": "v1"
+    },
+    "api_version": "v1",
+    "ping_rtt": 42.0,
+    "load": {
+      "slots": {
+        "total": 16,
+        "available": 10,
+        "connected": 1
+      },
+      "load_avg": {
+        "one": 0.1,
+        "five": 0.2,
+        "fifteen": 0.3,
+        "nproc": 4
+      }
+    },
+    "checked_at": 0,
+    "consecutive_failures": 0,
+    "last_error": null
+  }
 }

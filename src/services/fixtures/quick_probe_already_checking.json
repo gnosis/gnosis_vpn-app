@@ -1,5 +1,5 @@
 {
-  "type": "UnableToConnect",
+  "type": "AlreadyChecking",
   "destination": {
     "id": "test-exit",
     "meta": {
@@ -19,8 +19,5 @@
       "configured_gnosis_vpn_server": null,
       "configured_wireguard_server": null
     }
-  },
-  "route_health": {
-    "state": "NotRoutable"
   }
 }
