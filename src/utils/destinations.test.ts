@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type {
   Destination,
   DestinationState,
-  Slots,
+  RouteHealthView,
 } from "@src/services/vpnService.ts";
 import {
   destinationDescription,
@@ -17,9 +17,15 @@ import {
   pickStartupTarget,
   sanitizeMetaText,
   sortAlphaDestinations,
-  sortByCapacityAwareLatency,
+  sortByRouteQuality,
 } from "./destinations.ts";
-import { makeDestination } from "@src/testing/destinations.ts";
+import {
+  eligibleRouteHealth,
+  makeDestination,
+  noPathRouteHealth,
+  unrecoverableRouteHealth,
+  weakRouteHealth,
+} from "@src/testing/destinations.ts";
 
 const BASE_DESTINATION: Destination = makeDestination({
   id: "a",
@@ -27,66 +33,57 @@ const BASE_DESTINATION: Destination = makeDestination({
   meta: { location: "EU" },
 });
 
-function makeReadyToConnect(
+function withRouteHealth(
   id: string,
-  pingNanos = 50_000_000,
-  slots: Slots = { total: 7, available: 5, connected: 2 },
+  route_health: RouteHealthView | null,
 ): DestinationState {
-  return {
-    destination: { ...BASE_DESTINATION, id },
-    route_health: {
-      state: {
-        state: "ReadyToConnect",
-        exit: {
-          checked_at: 0,
-          versions: { versions: [], latest: "" },
-          ping_rtt: pingNanos / 1_000_000,
-          health: {
-            slots,
-            load_avg: { one: 0.5, five: 0.5, fifteen: 0.5, nproc: 4 },
-          },
-        },
-      },
-      last_error: null,
-      checking_since: null,
-      consecutive_failures: 0,
-    },
-  };
+  return { destination: { ...BASE_DESTINATION, id }, route_health };
+}
+
+/** Eligible; `relays` is distinct first relays, so a higher number ranks higher. */
+function makeEligible(
+  id: string,
+  relays = 2,
+  count = relays,
+): DestinationState {
+  return withRouteHealth(id, eligibleRouteHealth(relays, count));
+}
+
+function makeWeak(id: string, bestValue = 0.5): DestinationState {
+  return withRouteHealth(id, weakRouteHealth(bestValue));
 }
 
 function makeUnavailable(id: string): DestinationState {
-  return {
-    destination: { ...BASE_DESTINATION, id },
-    route_health: null,
-  };
+  return withRouteHealth(id, null);
 }
 
 describe("isReady — connectable right now", () => {
-  it("accepts a ready destination with a free slot", () => {
-    expect(isReady(makeReadyToConnect("a"), null)).toBe(true);
+  it("accepts a routable destination whose best path has full value", () => {
+    expect(isReady(makeEligible("a"), null)).toBe(true);
   });
 
-  it("rejects a full destination, which no connect could succeed against", () => {
-    const full = makeReadyToConnect("a", 50_000_000, {
-      total: 5,
-      available: 0,
-      connected: 5,
-    });
-
-    expect(isReady(full, null)).toBe(false);
+  it("rejects a routable destination whose best path is degraded", () => {
+    expect(isReady(makeWeak("a"), null)).toBe(false);
+    expect(isReady(makeWeak("a", 0.999), null)).toBe(false);
   });
 
-  it("does not count our own session against the destination we are on", () => {
-    const full = makeReadyToConnect("a", 50_000_000, {
-      total: 5,
-      available: 0,
-      connected: 5,
-    });
-
-    expect(isReady(full, "a"), "the slot we free by leaving is ours").toBe(
-      true,
+  it("rejects a destination the walk found no path to", () => {
+    expect(isReady(withRouteHealth("a", noPathRouteHealth()), null)).toBe(
+      false,
     );
-    expect(isReady(full, "b")).toBe(false);
+  });
+
+  it("rejects an unrecoverable destination even if it carries a walk", () => {
+    const latched = {
+      ...unrecoverableRouteHealth(),
+      walk: eligibleRouteHealth().walk,
+    };
+    expect(isReady(withRouteHealth("a", latched), null)).toBe(false);
+  });
+
+  it("does not change its mind for the destination we are on", () => {
+    expect(isReady(makeWeak("a"), "a")).toBe(false);
+    expect(isReady(makeEligible("a"), "a")).toBe(true);
   });
 
   it("rejects a destination with no health at all", () => {
@@ -104,9 +101,11 @@ describe("isReadyForDisplay — what the list may present as usable", () => {
   });
 
   it("otherwise agrees with isReady", () => {
-    const ready = makeReadyToConnect("a");
+    const ready = makeEligible("a");
+    const weak = makeWeak("b");
 
-    expect(isReadyForDisplay(ready, "b")).toBe(isReady(ready, "b"));
+    expect(isReadyForDisplay(ready, "c")).toBe(isReady(ready, "c"));
+    expect(isReadyForDisplay(weak, "c")).toBe(isReady(weak, "c"));
   });
 });
 
@@ -129,13 +128,13 @@ describe("isVpnActive", () => {
 });
 
 describe("sortAlphaDestinations", () => {
-  it("places ReadyToConnect destinations before those with no route health", () => {
+  it("places eligible destinations before those with no route health", () => {
     const ready: Destination = { ...BASE_DESTINATION, id: "ready" };
     const notReady: Destination = { ...BASE_DESTINATION, id: "aaaaa" };
     const sorted = sortAlphaDestinations(
       [notReady, ready],
       {
-        ready: makeReadyToConnect("ready"),
+        ready: makeEligible("ready"),
         aaaaa: makeUnavailable("aaaaa"),
       },
     );
@@ -143,14 +142,27 @@ describe("sortAlphaDestinations", () => {
     expect(sorted[1].id).toBe("aaaaa");
   });
 
-  it("sorts ReadyToConnect destinations alphabetically within the tier", () => {
+  it("places a weak path in the tail with the unreachable ones", () => {
+    const weak: Destination = { ...BASE_DESTINATION, id: "aaa-weak" };
+    const ready: Destination = { ...BASE_DESTINATION, id: "zzz-ready" };
+    const sorted = sortAlphaDestinations(
+      [weak, ready],
+      {
+        "aaa-weak": makeWeak("aaa-weak"),
+        "zzz-ready": makeEligible("zzz-ready"),
+      },
+    );
+    expect(sorted.map((d) => d.id)).toEqual(["zzz-ready", "aaa-weak"]);
+  });
+
+  it("sorts eligible destinations alphabetically within the tier", () => {
     const bravo: Destination = { ...BASE_DESTINATION, id: "bravo" };
     const alpha: Destination = { ...BASE_DESTINATION, id: "alpha" };
     const sorted = sortAlphaDestinations(
       [bravo, alpha],
       {
-        bravo: makeReadyToConnect("bravo"),
-        alpha: makeReadyToConnect("alpha"),
+        bravo: makeEligible("bravo", 1),
+        alpha: makeEligible("alpha", 5),
       },
     );
     expect(sorted[0].id).toBe("alpha");
@@ -172,137 +184,71 @@ describe("sortAlphaDestinations", () => {
   });
 });
 
-describe("sortByCapacityAwareLatency", () => {
-  it("applies the malus even when total slots are equal", () => {
-    // busy is 40ms faster, but its 4 connected clients cost 400ms
+describe("sortByRouteQuality", () => {
+  it("ranks eligible destinations by distinct first relays, most first", () => {
     expect(
-      sortByCapacityAwareLatency({
-        idle: makeReadyToConnect("idle", 60_000_000, {
-          total: 8,
-          available: 8,
-          connected: 0,
-        }),
-        busy: makeReadyToConnect("busy", 20_000_000, {
-          total: 8,
-          available: 4,
-          connected: 4,
-        }),
+      sortByRouteQuality({
+        one: makeEligible("one", 1),
+        three: makeEligible("three", 3),
+        two: makeEligible("two", 2),
       }),
-    ).toEqual(["idle", "busy"]);
+    ).toEqual(["three", "two", "one"]);
   });
 
-  it("applies the connected-client malus when total slots differ", () => {
+  it("breaks a relay tie by path count, then by label", () => {
     expect(
-      sortByCapacityAwareLatency({
-        small: makeReadyToConnect("small", 20_000_000, {
-          total: 5,
-          available: 1,
-          connected: 4,
-        }),
-        large: makeReadyToConnect("large", 60_000_000, {
-          total: 10,
-          available: 9,
-          connected: 1,
-        }),
+      sortByRouteQuality({
+        "b-few": makeEligible("b-few", 2, 2),
+        "a-few": makeEligible("a-few", 2, 2),
+        "c-many": makeEligible("c-many", 2, 6),
       }),
-    ).toEqual(["large", "small"]);
+    ).toEqual(["c-many", "a-few", "b-few"]);
   });
 
-  it("sorts full destinations last regardless of latency", () => {
+  it("puts every eligible destination before every weak one, whatever the relays", () => {
     expect(
-      sortByCapacityAwareLatency({
-        full: makeReadyToConnect("full", 10_000_000, {
-          total: 7,
-          available: 0,
-          connected: 7,
-        }),
-        slow: makeReadyToConnect("slow", 200_000_000, {
-          total: 7,
-          available: 3,
-          connected: 4,
-        }),
+      sortByRouteQuality({
+        "aaa-weak": makeWeak("aaa-weak"),
+        "bbb-lone": makeEligible("bbb-lone", 1),
       }),
-    ).toEqual(["slow", "full"]);
+    ).toEqual(["bbb-lone", "aaa-weak"]);
   });
 
-  it("drops our own session from the malus for the destination we are on", () => {
+  it("orders the ineligible tail by best value, closest to eligible first", () => {
+    expect(
+      sortByRouteQuality({
+        "a-far": makeWeak("a-far", 0.2),
+        "b-near": makeWeak("b-near", 0.9),
+        "c-mid": makeWeak("c-mid", 0.5),
+      }),
+    ).toEqual(["b-near", "c-mid", "a-far"]);
+  });
+
+  it("sinks no-path, then unknown, then unrecoverable below any weak path", () => {
+    expect(
+      sortByRouteQuality({
+        "a-latched": withRouteHealth("a-latched", unrecoverableRouteHealth()),
+        "b-dead": makeUnavailable("b-dead"),
+        "c-nopath": withRouteHealth("c-nopath", noPathRouteHealth()),
+        "d-weak": makeWeak("d-weak", 0.1),
+      }),
+    ).toEqual(["d-weak", "c-nopath", "b-dead", "a-latched"]);
+  });
+
+  it("ignores which destination we are on", () => {
     const destinations = {
-      // same total capacity, so only the malus can separate them
-      here: makeReadyToConnect("here", 80_000_000, {
-        total: 8,
-        available: 3,
-        connected: 5,
-      }),
-      there: makeReadyToConnect("there", 40_000_000, {
-        total: 8,
-        available: 6,
-        connected: 2,
-      }),
+      here: makeEligible("here", 1),
+      there: makeEligible("there", 3),
     };
 
-    expect(sortByCapacityAwareLatency(destinations, null)[0]).toBe("there");
-    // 80 + 4*100 still loses to 40 + 2*100, so the discount alone must not flip it
-    expect(sortByCapacityAwareLatency(destinations, "here")[0]).toBe("there");
+    expect(sortByRouteQuality(destinations, "here")).toEqual(
+      sortByRouteQuality(destinations, null),
+    );
   });
 
-  it("stops calling the destination we are on full when we hold its last slot", () => {
-    const destinations = {
-      here: makeReadyToConnect("here", 90_000_000, {
-        total: 4,
-        available: 0,
-        connected: 4,
-      }),
-      there: makeReadyToConnect("there", 10_000_000, {
-        total: 4,
-        available: 0,
-        connected: 4,
-      }),
-    };
-
-    // both read as full to a stranger, so neither is demoted and latency decides
-    expect(sortByCapacityAwareLatency(destinations, null)).toEqual([
-      "there",
-      "here",
-    ]);
-    // ours is not full for us, so it outranks the one that is
-    expect(sortByCapacityAwareLatency(destinations, "here")[0]).toBe("here");
-  });
-
-  it("exempts only one client for the destination we are on, not more", () => {
+  it("falls back to the label when nothing else separates them", () => {
     expect(
-      sortByCapacityAwareLatency({
-        live: makeReadyToConnect("live", 50_000_000, {
-          total: 6,
-          available: 4,
-          connected: 2,
-        }),
-        other: makeReadyToConnect("other", 50_000_000, {
-          total: 4,
-          available: 4,
-          connected: 0,
-        }),
-      }, "live")[0],
-    ).toBe("other");
-  });
-
-  it("places full destinations after non-full but before not-ready ones", () => {
-    // ids chosen so an alphabetical sort would invert the expected order
-    expect(
-      sortByCapacityAwareLatency({
-        "aaa-dead": makeUnavailable("aaa-dead"),
-        "bbb-full": makeReadyToConnect("bbb-full", 10_000_000, {
-          total: 5,
-          available: 0,
-          connected: 5,
-        }),
-        "ccc-open": makeReadyToConnect("ccc-open", 200_000_000),
-      }),
-    ).toEqual(["ccc-open", "bbb-full", "aaa-dead"]);
-  });
-
-  it("falls back to the label when neither has latency data", () => {
-    expect(
-      sortByCapacityAwareLatency({
+      sortByRouteQuality({
         zeta: makeUnavailable("zeta"),
         alpha: makeUnavailable("alpha"),
       }),
@@ -313,8 +259,8 @@ describe("sortByCapacityAwareLatency", () => {
 describe("pickStartupTarget — connect-on-startup pick", () => {
   it("returns the preferred location when it is ready", () => {
     const destinations = {
-      fast: makeReadyToConnect("fast", 10_000_000),
-      pref: makeReadyToConnect("pref", 200_000_000),
+      best: makeEligible("best", 5),
+      pref: makeEligible("pref", 1),
     };
 
     expect(pickStartupTarget(destinations, "pref")).toBe("pref");
@@ -322,8 +268,8 @@ describe("pickStartupTarget — connect-on-startup pick", () => {
 
   it("starts where the last session left off, outranking preferred", () => {
     const destinations = {
-      last: makeReadyToConnect("last", 200_000_000),
-      pref: makeReadyToConnect("pref", 10_000_000),
+      last: makeEligible("last", 1),
+      pref: makeEligible("pref", 5),
     };
 
     expect(pickStartupTarget(destinations, "pref", "last")).toBe("last");
@@ -332,33 +278,29 @@ describe("pickStartupTarget — connect-on-startup pick", () => {
   it("falls back through preferred when the last session's destination is not ready", () => {
     const destinations = {
       last: makeUnavailable("last"),
-      pref: makeReadyToConnect("pref", 200_000_000),
-      fast: makeReadyToConnect("fast", 10_000_000),
+      pref: makeEligible("pref", 1),
+      best: makeEligible("best", 5),
     };
 
     expect(pickStartupTarget(destinations, "pref", "last")).toBe("pref");
-    expect(pickStartupTarget(destinations, null, "last")).toBe("fast");
+    expect(pickStartupTarget(destinations, null, "last")).toBe("best");
   });
 
   it("falls back to the best ready destination when preferred is not ready", () => {
     const destinations = {
       pref: makeUnavailable("pref"),
-      slow: makeReadyToConnect("slow", 200_000_000),
-      fast: makeReadyToConnect("fast", 10_000_000),
+      lone: makeEligible("lone", 1),
+      best: makeEligible("best", 5),
     };
 
-    expect(pickStartupTarget(destinations, "pref")).toBe("fast");
-    expect(pickStartupTarget(destinations, null)).toBe("fast");
+    expect(pickStartupTarget(destinations, "pref")).toBe("best");
+    expect(pickStartupTarget(destinations, null)).toBe("best");
   });
 
-  it("ignores a preferred location that is full", () => {
+  it("ignores a preferred location whose path is weak", () => {
     const destinations = {
-      pref: makeReadyToConnect("pref", 10_000_000, {
-        total: 5,
-        available: 0,
-        connected: 5,
-      }),
-      open: makeReadyToConnect("open", 200_000_000),
+      pref: makeWeak("pref", 0.9),
+      open: makeEligible("open", 1),
     };
 
     expect(pickStartupTarget(destinations, "pref")).toBe("open");
@@ -366,11 +308,7 @@ describe("pickStartupTarget — connect-on-startup pick", () => {
 
   it("never picks a destination that cannot take a connection", () => {
     const destinations = {
-      full: makeReadyToConnect("full", 10_000_000, {
-        total: 5,
-        available: 0,
-        connected: 5,
-      }),
+      weak: makeWeak("weak"),
       dead: makeUnavailable("dead"),
     };
 
