@@ -735,6 +735,7 @@ fn classify_status_response(resp: command::Response) -> StatusPoll {
                 connecting: status_resp.connecting,
                 reconnecting: status_resp.reconnecting,
                 disconnecting: status_resp.disconnecting,
+                probe: status_resp.probe,
             };
 
             if matches!(resp.run_mode, crate::types::RunMode::NotRunning) {
