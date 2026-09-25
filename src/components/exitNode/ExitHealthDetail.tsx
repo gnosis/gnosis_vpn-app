@@ -32,6 +32,7 @@ import SlotLoadStat from "./SlotLoadStat.tsx";
 import Stat from "./Stat.tsx";
 import Tag from "../common/Tag.tsx";
 import ChevronIcon from "../common/ChevronIcon.tsx";
+import Tooltip from "../common/Tooltip.tsx";
 
 const statusColorClass: Record<HealthColor, string> = {
   green: "text-text-green",
@@ -322,13 +323,21 @@ export default function ExitHealthDetail(
                 /* Decorative: the outer row handles toggling. */
               }
               {/* Align with the list button icon above. */}
-              <span class="shrink-0 mr-[38px] text-text-secondary">
-                <ChevronIcon
-                  class={`w-4 h-3 transition-transform duration-200 ${
-                    settings.showDetailedMetrics ? "rotate-180" : ""
-                  }`}
-                />
-              </span>
+              <Tooltip
+                content={settings.showDetailedMetrics
+                  ? "Less details"
+                  : "Exit details"}
+                position="bottom"
+                triggerClass="w-fit shrink-0 mr-[38px]"
+              >
+                <span class="text-text-secondary">
+                  <ChevronIcon
+                    class={`w-4 h-3 transition-transform duration-200 ${
+                      settings.showDetailedMetrics ? "rotate-180" : ""
+                    }`}
+                  />
+                </span>
+              </Tooltip>
             </div>
             <div
               ref={fallbackRowRef}

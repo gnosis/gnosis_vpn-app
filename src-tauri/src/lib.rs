@@ -391,6 +391,11 @@ pub fn run() {
                 });
             }
 
+            #[cfg(target_os = "linux")]
+            for window in app.webview_windows().values() {
+                platform::linux::clear_hover_on_pointer_leave(window);
+            }
+
             // Intercept window close to hide to tray instead of exiting
             if let Some(window) = app.get_webview_window("main") {
                 #[cfg(target_os = "macos")]
