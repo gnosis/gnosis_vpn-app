@@ -73,9 +73,11 @@ export function getExitData(
   state: DestinationState,
   probe: ProbeView | null,
 ): ExitData | null {
-  const probesThisExit = probe?.destination_id === state.destination.id;
+  // A reopening probe still carries the closed session's samples - they are no longer current.
+  const probeIsLive = probe?.destination_id === state.destination.id &&
+    probe.state.state === "Ready";
   if (
-    probesThisExit && probe.load && probe.ping_rtt !== null &&
+    probeIsLive && probe.load && probe.ping_rtt !== null &&
     probe.checked_at !== null && probe.versions
   ) {
     return {

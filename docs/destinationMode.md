@@ -131,9 +131,12 @@ a connect against it can only fail.
 **`exitData` prefers the probe.** The one long-lived probe session follows the
 active destination (see [Probing](#probing)) and refreshes continuously; a quick
 probe is a one-shot snapshot. Both carry the same slots, load and round trip, so
-the newer, live source wins where it applies. Slots come from the daemon's count
-of clients on the exit, so our own session is discounted the same way as before;
-`min(freeSlots, total)` keeps the share in [0, 1] when we hold the last slot.
+the newer, live source wins where it applies — which is only while the probe is
+`Ready`: a reopening one still reports the closed session's samples, so the
+quick probe takes over until the replacement session has been checked. Slots
+come from the daemon's count of clients on the exit, so our own session is
+discounted the same way as before; `min(freeSlots, total)` keeps the share in
+[0, 1] when we hold the last slot.
 
 **`sortByRouteQuality` ranks measured exits by score, then the unmeasured by
 resilience, then the rest by closeness to eligible.**

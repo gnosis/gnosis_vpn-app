@@ -263,6 +263,16 @@ describe("getExitData — slots and latency measured on the exit", () => {
     expect(getExitData(makeMeasured("a", OPEN_SLOTS, 80), probe)?.rtt).toBe(80);
     expect(getExitData(makeEligible("a"), probe)).toBe(null);
   });
+
+  it("ignores a reopening probe, whose samples outlived their session", () => {
+    const probe = {
+      ...probeViewFor("a", FULL_SLOTS, 40),
+      state: { state: "Reopening" as const },
+    };
+
+    expect(getExitData(makeMeasured("a", OPEN_SLOTS, 80), probe)?.rtt).toBe(80);
+    expect(getExitData(makeEligible("a"), probe)).toBe(null);
+  });
 });
 
 describe("freeSlots — our own session must not count against us", () => {
