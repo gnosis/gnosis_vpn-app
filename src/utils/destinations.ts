@@ -118,14 +118,36 @@ function isRoutable(state: DestinationState): boolean {
   return walk?.found === "Paths" && walk.best_value >= 1;
 }
 
+/** Not full once the exit has been measured; unmeasured passes on the walk alone. */
+function hasFreeSlot(state: DestinationState, context: RankContext): boolean {
+  const free = freeSlots(state, context);
+  return free === null || free > 0;
+}
+
 /** Connectable right now: routable, and not full once the exit has been measured. */
 export function isReady(
   state: DestinationState | undefined,
   context: RankContext,
 ): boolean {
   if (!state || !isRoutable(state)) return false;
-  const free = freeSlots(state, context);
-  return free === null || free > 0;
+  return hasFreeSlot(state, context);
+}
+
+/** What the user may pick: the daemon connects to any Routable destination, but a full exit can only fail. */
+export function isSelectable(
+  state: DestinationState | undefined,
+  context: RankContext,
+): boolean {
+  if (state?.route_health?.state.state !== "Routable") return false;
+  return hasFreeSlot(state, context);
+}
+
+/** Pickable but degraded: no full-value path, so auto never proposes it and the list says so. */
+export function isWeakRoute(
+  state: DestinationState | undefined,
+  context: RankContext,
+): boolean {
+  return isSelectable(state, context) && !isReady(state, context);
 }
 
 /** What the list may present as usable — the destination we are on always qualifies. */

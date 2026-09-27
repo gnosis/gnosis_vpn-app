@@ -16,7 +16,9 @@ import {
   isConfigPinned,
   isReady,
   isReadyForDisplay,
+  isSelectable,
   isVpnActive,
+  isWeakRoute,
   NO_CONTEXT,
   pickStartupTarget,
   type RankContext,
@@ -134,6 +136,54 @@ describe("isReadyForDisplay — what the list may present as usable", () => {
     expect(isReadyForDisplay(weak, liveOn("c"))).toBe(
       isReady(weak, liveOn("c")),
     );
+  });
+});
+
+describe("isSelectable — what the user may pick", () => {
+  it("accepts a degraded path: the daemon connects over any Routable route", () => {
+    expect(isSelectable(makeWeak("a"), NO_CONTEXT)).toBe(true);
+    expect(isSelectable(makeWeak("a", 0.999), NO_CONTEXT)).toBe(true);
+  });
+
+  it("accepts everything ready", () => {
+    expect(isSelectable(makeEligible("a"), NO_CONTEXT)).toBe(true);
+    expect(isSelectable(makeMeasured("a"), NO_CONTEXT)).toBe(true);
+  });
+
+  it("rejects a full exit unless we hold its last slot", () => {
+    expect(isSelectable(makeMeasured("a", FULL_SLOTS), NO_CONTEXT)).toBe(false);
+    expect(isSelectable(makeMeasured("a", FULL_SLOTS), liveOn("a"))).toBe(true);
+  });
+
+  it("rejects what the daemon would not connect to", () => {
+    expect(isSelectable(withRouteHealth("a", noPathRouteHealth()), NO_CONTEXT))
+      .toBe(false);
+    expect(
+      isSelectable(
+        withRouteHealth("a", unrecoverableRouteHealth()),
+        NO_CONTEXT,
+      ),
+    ).toBe(false);
+    expect(isSelectable(makeUnavailable("a"), NO_CONTEXT)).toBe(false);
+    expect(isSelectable(undefined, NO_CONTEXT)).toBe(false);
+  });
+});
+
+describe("isWeakRoute — selectable but not ready", () => {
+  it("marks only the degraded-but-routable case", () => {
+    expect(isWeakRoute(makeWeak("a"), NO_CONTEXT)).toBe(true);
+    expect(isWeakRoute(makeEligible("a"), NO_CONTEXT)).toBe(false);
+    expect(isWeakRoute(withRouteHealth("a", noPathRouteHealth()), NO_CONTEXT))
+      .toBe(false);
+    expect(isWeakRoute(undefined, NO_CONTEXT)).toBe(false);
+  });
+
+  it("is not weak when full: nothing to pick there", () => {
+    const fullWeak = withRouteHealth("a", {
+      ...weakRouteHealth(),
+      quick_probe: checkedQuickProbe(FULL_SLOTS, 10),
+    });
+    expect(isWeakRoute(fullWeak, NO_CONTEXT)).toBe(false);
   });
 });
 

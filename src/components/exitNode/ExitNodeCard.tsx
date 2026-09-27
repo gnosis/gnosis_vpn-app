@@ -10,7 +10,8 @@ import {
   getExitData,
   isConfigOnly,
   isConfigPinned,
-  isReady,
+  isSelectable,
+  isWeakRoute,
   rankContext,
 } from "@src/utils/destinations.ts";
 import {
@@ -33,6 +34,7 @@ import { levelValueClass } from "./levelColor.ts";
 import SlotLoadStat from "./SlotLoadStat.tsx";
 import Stat from "./Stat.tsx";
 import Tag from "../common/Tag.tsx";
+import WeakPathTag from "./WeakPathTag.tsx";
 import Flag from "../Flag.tsx";
 import ConfigPill, {
   CONFIG_ONLY_DESTINATION,
@@ -123,16 +125,23 @@ export default function ExitNodeCard(props: {
   };
 
   // A live or transitioning node stays clickable: its tunnel exists and the slot it fills is ours.
+  const isLiveHere = () =>
+    isConnected() || isConnecting() || isReconnecting() || isDisconnecting();
   const isClickable = () =>
-    isReady(props.destinationState(), rankContext(appState)) ||
-    isConnected() ||
-    isConnecting() || isReconnecting() || isDisconnecting();
+    isLiveHere() ||
+    isSelectable(props.destinationState(), rankContext(appState));
+  const isWeak = () =>
+    isWeakRoute(props.destinationState(), rankContext(appState));
+  // Grayed in two steps: a weak route is still the user's to pick, an unusable one is not.
+  const usabilityClass = () => {
+    if (!isClickable()) return "opacity-40 pointer-events-none";
+    if (isWeak() && !isLiveHere()) return "opacity-70 cursor-pointer";
+    return "cursor-pointer";
+  };
 
   return (
     <div
-      class={`relative flex w-full text-xs transition-opacity ${surfaceClass()} ${
-        !isClickable() ? "opacity-40 pointer-events-none" : "cursor-pointer"
-      }`}
+      class={`relative flex w-full text-xs transition-opacity ${surfaceClass()} ${usabilityClass()}`}
       onClick={() => {
         if (!isClickable()) return;
         props.onClick();
@@ -177,12 +186,17 @@ export default function ExitNodeCard(props: {
               <ConfigPill tooltip={CONFIG_ONLY_DESTINATION} class="size-2.5" />
             </Show>
           </span>
-          <Show when={route() && hopCount() !== 1}>
-            <Tag>
-              <HopsIcon count={hopCount()} hideCount />
-              <span class="ml-1">{route()}</span>
-            </Tag>
-          </Show>
+          <span class="flex items-center gap-1.5">
+            <Show when={isWeak()}>
+              <WeakPathTag />
+            </Show>
+            <Show when={route() && hopCount() !== 1}>
+              <Tag>
+                <HopsIcon count={hopCount()} hideCount />
+                <span class="ml-1">{route()}</span>
+              </Tag>
+            </Show>
+          </span>
         </div>
 
         <Show when={description()}>

@@ -2,7 +2,7 @@ import { createMemo } from "solid-js";
 import Button from "./common/Button.tsx";
 import { useAppStore } from "../stores/appStore.ts";
 import { effectiveActive } from "../stores/destinationMode.ts";
-import { isReady, rankContext } from "../utils/destinations.ts";
+import { isSelectable, rankContext } from "../utils/destinations.ts";
 import { logError } from "../utils/appLog.ts";
 
 export default function ConnectButton() {
@@ -24,8 +24,9 @@ export default function ConnectButton() {
     return id ? appState.destinations[id] : undefined;
   });
 
-  const isTargetReady = createMemo(() =>
-    isReady(targetDestinationState(), rankContext(appState))
+  // Selectable, not ready: a weak route the user picked deliberately must still connect.
+  const isTargetSelectable = createMemo(() =>
+    isSelectable(targetDestinationState(), rankContext(appState))
   );
 
   const handleClick = async () => {
@@ -49,7 +50,7 @@ export default function ConnectButton() {
       <Button
         size="lg"
         onClick={() => void handleClick()}
-        disabled={appState.isLoading || !(isActive() || isTargetReady())}
+        disabled={appState.isLoading || !(isActive() || isTargetSelectable())}
       >
         {label()}
       </Button>
