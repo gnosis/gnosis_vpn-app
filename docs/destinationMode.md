@@ -151,6 +151,13 @@ the promise is short-lived. The score weights latency half, free capacity a
 third, and relay diversity a fifth; a 1 s one-way latency or worse scores zero
 on latency, and four or more distinct first relays score full on diversity.
 
+**`routeGrade` is the score as shown, never as used.** Every card carries four
+signal bars. A measured ready exit fills them by band: `score >= 0.75` → 4,
+`>= 0.5` → 3, `>= 0.25` → 2, else 1, colored green, green, orange, red. An
+unmeasured ready exit shows four hollow bars until its quick probe answers. A
+weak route shows a single red bar beside its "Weak path" tag. Anything else
+shows no bars. The grade feeds neither the sort nor auto.
+
 **`effectiveActive` is the only reader.** Display and connect target are the
 same function, so the visible card and what Connect targets cannot disagree. The
 commit is defined by the clock crossing `settleAt`; the store write merely

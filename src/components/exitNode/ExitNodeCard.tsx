@@ -13,6 +13,7 @@ import {
   isSelectable,
   isWeakRoute,
   rankContext,
+  routeGrade,
 } from "@src/utils/destinations.ts";
 import {
   formatLatency,
@@ -34,6 +35,7 @@ import { levelValueClass } from "./levelColor.ts";
 import SlotLoadStat from "./SlotLoadStat.tsx";
 import Stat from "./Stat.tsx";
 import Tag from "../common/Tag.tsx";
+import SignalBars from "./SignalBars.tsx";
 import WeakPathTag from "./WeakPathTag.tsx";
 import Flag from "../Flag.tsx";
 import ConfigPill, {
@@ -132,6 +134,8 @@ export default function ExitNodeCard(props: {
     isSelectable(props.destinationState(), rankContext(appState));
   const isWeak = () =>
     isWeakRoute(props.destinationState(), rankContext(appState));
+  const grade = () =>
+    routeGrade(props.destinationState(), rankContext(appState));
   // Grayed in two steps: a weak route is still the user's to pick, an unusable one is not.
   const usabilityClass = () => {
     if (!isClickable()) return "opacity-40 pointer-events-none";
@@ -187,6 +191,7 @@ export default function ExitNodeCard(props: {
             </Show>
           </span>
           <span class="flex items-center gap-1.5">
+            <SignalBars grade={grade()} />
             <Show when={isWeak()}>
               <WeakPathTag />
             </Show>

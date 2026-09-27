@@ -22,6 +22,7 @@ import {
   NO_CONTEXT,
   pickStartupTarget,
   type RankContext,
+  routeGrade,
   sanitizeMetaText,
   sortAlphaDestinations,
   sortByRouteQuality,
@@ -184,6 +185,56 @@ describe("isWeakRoute — selectable but not ready", () => {
       quick_probe: checkedQuickProbe(FULL_SLOTS, 10),
     });
     expect(isWeakRoute(fullWeak, NO_CONTEXT)).toBe(false);
+  });
+});
+
+describe("routeGrade — the score as shown, never as used", () => {
+  it("grades nothing that is not selectable", () => {
+    expect(routeGrade(undefined, NO_CONTEXT)).toEqual({ kind: "none" });
+    expect(routeGrade(makeUnavailable("a"), NO_CONTEXT)).toEqual({
+      kind: "none",
+    });
+    expect(routeGrade(withRouteHealth("a", noPathRouteHealth()), NO_CONTEXT))
+      .toEqual({ kind: "none" });
+    expect(routeGrade(makeMeasured("a", FULL_SLOTS), NO_CONTEXT)).toEqual({
+      kind: "none",
+    });
+  });
+
+  it("marks a degraded path weak regardless of what the exit measured", () => {
+    expect(routeGrade(makeWeak("a"), NO_CONTEXT)).toEqual({ kind: "weak" });
+    const measuredWeak = withRouteHealth("a", {
+      ...weakRouteHealth(),
+      quick_probe: checkedQuickProbe(OPEN_SLOTS, 10),
+    });
+    expect(routeGrade(measuredWeak, NO_CONTEXT)).toEqual({ kind: "weak" });
+  });
+
+  it("holds an unmeasured ready exit at unmeasured until a probe answers", () => {
+    expect(routeGrade(makeEligible("a"), NO_CONTEXT)).toEqual({
+      kind: "unmeasured",
+    });
+  });
+
+  it("fills bars by score band: latency half, capacity a third, relays a fifth", () => {
+    // OPEN_SLOTS free 6/8 = 0.225, two relays = 0.1; latency decides the band
+    const bars = (rtt: number) =>
+      routeGrade(makeMeasured("a", OPEN_SLOTS, rtt), NO_CONTEXT);
+    expect(bars(0), "0.825").toEqual({ kind: "measured", bars: 4 });
+    expect(bars(1_000), "0.575").toEqual({ kind: "measured", bars: 3 });
+    expect(bars(2_000), "0.325").toEqual({ kind: "measured", bars: 2 });
+
+    const nearlyFull: Slots = { total: 8, available: 1, connected: 7 };
+    expect(
+      routeGrade(makeMeasured("a", nearlyFull, 2_000, 1), NO_CONTEXT),
+      "0.0875",
+    ).toEqual({ kind: "measured", bars: 1 });
+  });
+
+  it("discounts our own slot when grading the exit we are on", () => {
+    const lastSlot: Slots = { total: 8, available: 0, connected: 8 };
+    const onIt = routeGrade(makeMeasured("a", lastSlot, 0, 4), liveOn("a"));
+    expect(onIt.kind).toBe("measured");
   });
 });
 

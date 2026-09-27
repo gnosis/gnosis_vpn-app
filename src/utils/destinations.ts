@@ -206,6 +206,31 @@ function score(
     DIVERSITY_WEIGHT * diversity;
 }
 
+export type RouteGrade =
+  | { kind: "measured"; bars: 1 | 2 | 3 | 4 }
+  | { kind: "unmeasured" }
+  | { kind: "weak" }
+  | { kind: "none" };
+
+/** A score at or above a threshold earns that many bars; below the last one it is a single bar. */
+const BAR_THRESHOLDS: [number, 4 | 3 | 2][] = [[0.75, 4], [0.5, 3], [0.25, 2]];
+
+/** The score as shown on a card. Display only: it feeds neither the sort nor auto. */
+export function routeGrade(
+  state: DestinationState | undefined,
+  context: RankContext,
+): RouteGrade {
+  if (!state) return { kind: "none" };
+  if (!isReady(state, context)) {
+    return isSelectable(state, context) ? { kind: "weak" } : { kind: "none" };
+  }
+  const exit = getExitData(state, context.probe);
+  if (exit === null) return { kind: "unmeasured" };
+  const value = score(state, exit, context);
+  const reached = BAR_THRESHOLDS.find(([min]) => value >= min);
+  return { kind: "measured", bars: reached ? reached[1] : 1 };
+}
+
 /** Measured eligible first (by score), then unmeasured eligible (by resilience), then the rest (by closeness). */
 export function sortByRouteQuality(
   destinations: Record<string, DestinationState>,
