@@ -100,7 +100,8 @@
         },
         "quick_probe": {
           "state": "Checking",
-          "since": 0
+          "since": 0,
+          "last": null
         }
       }
     },
@@ -298,6 +299,72 @@
         }
       },
       "route_health": null
+    },
+    {
+      "destination": {
+        "id": "test-exit",
+        "meta": {
+          "name": null,
+          "location": "EU",
+          "flag": null,
+          "description": null,
+          "other": {}
+        },
+        "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
+        "routing": 1,
+        "gnosis_vpn_server": "172.30.0.1:8000",
+        "wireguard_server": "172.30.0.1:51820",
+        "source": "Configured",
+        "overrides": {
+          "configured_meta": {},
+          "configured_gnosis_vpn_server": null,
+          "configured_wireguard_server": null
+        }
+      },
+      "route_health": {
+        "state": {
+          "state": "Routable"
+        },
+        "last_error": null,
+        "walk": {
+          "found": "Paths",
+          "walked_at": 0,
+          "count": 3,
+          "distinct_first_relays": 2,
+          "best_relays": [
+            "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa"
+          ],
+          "best_value": 0.75
+        },
+        "quick_probe": {
+          "state": "Checking",
+          "since": 0,
+          "last": {
+            "checked_at": 0,
+            "versions": {
+              "versions": [
+                "v1"
+              ],
+              "latest": "v1"
+            },
+            "api_version": "v1",
+            "load": {
+              "slots": {
+                "total": 16,
+                "available": 10,
+                "connected": 1
+              },
+              "load_avg": {
+                "one": 0.1,
+                "five": 0.2,
+                "fifteen": 0.3,
+                "nproc": 4
+              }
+            },
+            "rtt": 42.0
+          }
+        }
+      }
     }
   ],
   "target_destination": null,

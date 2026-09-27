@@ -3,6 +3,8 @@ import type {
   DestinationState,
   LoadAvg,
   ProbeView,
+  QuickProbeCheck,
+  QuickProbeState,
   Slots,
   Versions,
 } from "@src/services/vpnService.ts";
@@ -68,6 +70,13 @@ export interface ExitData {
   apiVersion: string | null;
 }
 
+/** A running check keeps what it refreshes, so a re-check never blanks an exit; `checked_at` still ages. */
+function lastQuickCheck(quick: QuickProbeState | null): QuickProbeCheck | null {
+  if (quick === null) return null;
+  if (quick.state === "Checked") return quick;
+  return quick.state === "Checking" ? quick.last : null;
+}
+
 /** The probe refreshes continuously, so it wins over a quick probe's snapshot where it applies. */
 export function getExitData(
   state: DestinationState,
@@ -89,15 +98,15 @@ export function getExitData(
       apiVersion: probe.api_version,
     };
   }
-  const quick = state.route_health?.quick_probe;
-  if (quick?.state !== "Checked") return null;
+  const check = lastQuickCheck(state.route_health?.quick_probe ?? null);
+  if (check === null) return null;
   return {
-    slots: quick.load.slots,
-    loadAvg: quick.load.load_avg,
-    rtt: quick.rtt,
-    checkedAt: quick.checked_at,
-    versions: quick.versions,
-    apiVersion: quick.api_version,
+    slots: check.load.slots,
+    loadAvg: check.load.load_avg,
+    rtt: check.rtt,
+    checkedAt: check.checked_at,
+    versions: check.versions,
+    apiVersion: check.api_version,
   };
 }
 

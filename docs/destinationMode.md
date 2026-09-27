@@ -83,10 +83,13 @@ behaviour may depend on a timer having fired.
 
 ```
 walk(d)              = d.route_health?.walk ?? null
+lastCheck(d)         = quick_probe.state === "Checked"  ? quick_probe
+                       : quick_probe.state === "Checking" ? quick_probe.last
+                                                          : null
 exitData(d)          = probe?.destination_id === d.id && probe.load && probe.ping_rtt
                          ? { slots: probe.load.slots, rtt: probe.ping_rtt, checkedAt: probe.checked_at }
-                       : d.route_health?.quick_probe?.state === "Checked"
-                         ? { slots: quick_probe.load.slots, rtt: quick_probe.rtt, checkedAt: quick_probe.checked_at }
+                       : lastCheck(d) !== null
+                         ? { slots: lastCheck.load.slots, rtt: lastCheck.rtt, checkedAt: lastCheck.checked_at }
                          : null
 
 occupiedByUs(d)      = d.id === liveId ? 1 : 0
@@ -156,10 +159,11 @@ on latency, and four or more distinct first relays score full on diversity.
 
 **`routeGrade` is the score as shown, never as used.** Every card carries four
 signal bars. A measured ready exit fills them by band: `score >= 0.75` → 4,
-`>= 0.5` → 3, `>= 0.25` → 2, else 1, colored green, green, orange, red. An
-unmeasured ready exit shows four hollow bars until its quick probe answers. A
-weak route shows a single red bar beside its "Weak path" tag. Anything else
-shows no bars. The grade feeds neither the sort nor auto.
+`>= 0.5` → 3, `>= 0.25` → 2, else 1, colored green, green, orange, red. An exit
+no check has ever measured shows four hollow bars until its quick probe answers;
+one being re-checked keeps the bars its last result earned. A weak route shows a
+single red bar beside its "Weak path" tag. Anything else shows no bars. The
+grade feeds neither the sort nor auto.
 
 **`effectiveActive` is the only reader.** Display and connect target are the
 same function, so the visible card and what Connect targets cannot disagree. The
@@ -485,6 +489,11 @@ opened for it, and swapping that session would break the tunnel. The probe is
 closed only when the app quits: the tray's quit handler disconnects, then issues
 `unprobe`, so the worker may idle once nobody reads the results. While the app
 runs the probe keeps the worker awake, which is accepted for now.
+
+**A re-check keeps what it refreshes.** The daemon carries the previous result
+in `quick_probe.Checking.last`, so re-measuring an exit never blanks its card;
+the unchanged `checked_at` is what says how stale the value is. Only an exit
+nothing has measured yet has no exit data.
 
 **The list opening starts quick probes, one at a time.** On `listOpened`, cap
 the status poll at `STATUS_POLL_FAST_MS` and start the loop; on `listClosed`,

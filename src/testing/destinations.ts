@@ -1,6 +1,7 @@
 import type {
   Destination,
   ProbeView,
+  QuickProbeCheck,
   QuickProbeState,
   RouteHealthView,
   Slots,
@@ -94,20 +95,36 @@ export function unrecoverableRouteHealth(): RouteHealthView {
   };
 }
 
-/** A quick probe that measured the exit: slots plus a round trip in ms. */
-export function checkedQuickProbe(
+/** What one quick probe measured: slots plus a round trip in ms. */
+export function quickProbeCheck(
   slots: Slots,
   rtt = 100,
   checkedAt = 0,
-): QuickProbeState {
+): QuickProbeCheck {
   return {
-    state: "Checked",
     checked_at: checkedAt,
     versions: { versions: ["v1"], latest: "v1" },
     api_version: "v1",
     load: { slots, load_avg: { one: 0.5, five: 0.5, fifteen: 0.5, nproc: 4 } },
     rtt,
   };
+}
+
+/** A quick probe that measured the exit: slots plus a round trip in ms. */
+export function checkedQuickProbe(
+  slots: Slots,
+  rtt = 100,
+  checkedAt = 0,
+): QuickProbeState {
+  return { state: "Checked", ...quickProbeCheck(slots, rtt, checkedAt) };
+}
+
+/** A quick probe in flight, carrying whatever the previous one measured. */
+export function checkingQuickProbe(
+  last: QuickProbeCheck | null = null,
+  since = 0,
+): QuickProbeState {
+  return { state: "Checking", since, last };
 }
 
 /** The daemon's probe session on `id`, already reporting slots and a round trip. */

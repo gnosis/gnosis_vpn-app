@@ -137,6 +137,9 @@ describe("StatusResponseSchema", () => {
     expect(health[2]?.last_error).toBe("walk timed out");
     expect(health[5]?.quick_probe?.state).toBe("Failed");
     expect(health[6]).toBe(null);
+    const rechecking = health[8]?.quick_probe;
+    expect(rechecking?.state).toBe("Checking");
+    expect(rechecking?.state === "Checking" && rechecking.last?.rtt).toBe(42);
   });
 
   it("parses a reconnect reported without a phase", () => {

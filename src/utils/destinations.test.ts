@@ -29,10 +29,12 @@ import {
 } from "./destinations.ts";
 import {
   checkedQuickProbe,
+  checkingQuickProbe,
   eligibleRouteHealth,
   makeDestination,
   noPathRouteHealth,
   probeViewFor,
+  quickProbeCheck,
   unrecoverableRouteHealth,
   weakRouteHealth,
 } from "@src/testing/destinations.ts";
@@ -76,6 +78,20 @@ function makeMeasured(
   return withRouteHealth(id, {
     ...eligibleRouteHealth(relays),
     quick_probe: checkedQuickProbe(slots, rtt),
+  });
+}
+
+/** Eligible, being re-checked right now; `last` is what the previous check left behind. */
+function makeRechecking(
+  id: string,
+  slots: Slots = OPEN_SLOTS,
+  rtt = 100,
+  carried = true,
+): DestinationState {
+  const last = carried ? quickProbeCheck(slots, rtt) : null;
+  return withRouteHealth(id, {
+    ...eligibleRouteHealth(),
+    quick_probe: checkingQuickProbe(last),
   });
 }
 
@@ -231,6 +247,11 @@ describe("routeGrade — the score as shown, never as used", () => {
     ).toEqual({ kind: "measured", bars: 1 });
   });
 
+  it("keeps its bars through a re-check", () => {
+    expect(routeGrade(makeRechecking("a"), NO_CONTEXT))
+      .toEqual(routeGrade(makeMeasured("a"), NO_CONTEXT));
+  });
+
   it("discounts our own slot when grading the exit we are on", () => {
     const lastSlot: Slots = { total: 8, available: 0, connected: 8 };
     const onIt = routeGrade(makeMeasured("a", lastSlot, 0, 4), liveOn("a"));
@@ -272,6 +293,19 @@ describe("getExitData — slots and latency measured on the exit", () => {
 
     expect(getExitData(makeMeasured("a", OPEN_SLOTS, 80), probe)?.rtt).toBe(80);
     expect(getExitData(makeEligible("a"), probe)).toBe(null);
+  });
+
+  it("keeps what a running check is refreshing, timestamp and all", () => {
+    const data = getExitData(makeRechecking("a", FULL_SLOTS, 80), null);
+
+    expect(data?.slots).toEqual(FULL_SLOTS);
+    expect(data?.rtt).toBe(80);
+    expect(data?.checkedAt).toBe(0);
+  });
+
+  it("is null while a first check runs, with nothing to carry forward", () => {
+    expect(getExitData(makeRechecking("a", OPEN_SLOTS, 80, false), null))
+      .toBe(null);
   });
 });
 

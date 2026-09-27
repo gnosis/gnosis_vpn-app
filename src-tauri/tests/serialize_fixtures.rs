@@ -15,7 +15,7 @@ use gnosis_vpn_lib::connection::destination::{
 use gnosis_vpn_lib::prelude::Address;
 use gnosis_vpn_lib::probe::{Health, LoadAvg, ProbeState, Slots, Versions};
 use gnosis_vpn_lib::route_health::{
-    QuickProbeState, RouteHealthState, RouteWalk, UnrecoverableReason,
+    QuickProbeCheck, QuickProbeState, RouteHealthState, RouteWalk, UnrecoverableReason,
 };
 use gnosis_vpn_lib::{command, connection};
 use std::collections::HashMap;
@@ -96,14 +96,18 @@ fn paths_walk() -> RouteWalk {
     }
 }
 
-fn checked_probe() -> QuickProbeState {
-    QuickProbeState::Checked {
+fn quick_check() -> QuickProbeCheck {
+    QuickProbeCheck {
         checked_at: SystemTime::UNIX_EPOCH,
         versions: versions(),
         api_version: Some("v1".to_string()),
         load: health(),
         rtt: Duration::from_millis(42),
     }
+}
+
+fn checked_probe() -> QuickProbeState {
+    QuickProbeState::Checked(quick_check())
 }
 
 fn balance_info() -> command::Info {
@@ -360,6 +364,7 @@ fn generate_fixtures() {
             }),
             Some(QuickProbeState::Checking {
                 since: SystemTime::UNIX_EPOCH,
+                last: None,
             }),
         ))),
         dest_state(Some(walk_timed_out)),
@@ -394,6 +399,15 @@ fn generate_fixtures() {
             destination: pinned_destination(),
             route_health: None,
         },
+        // A re-check keeps what the previous one measured.
+        dest_state(Some(route_health_view(
+            RouteHealthState::Routable,
+            Some(paths_walk()),
+            Some(QuickProbeState::Checking {
+                since: SystemTime::UNIX_EPOCH,
+                last: Some(quick_check()),
+            }),
+        ))),
     ];
     let mut route_health_status = status_base(types::RunMode::NotRunning);
     route_health_status.destinations = route_health_variants;

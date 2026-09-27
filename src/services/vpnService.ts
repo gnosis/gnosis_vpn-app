@@ -175,17 +175,24 @@ export const RouteWalkSchema = z.discriminatedUnion("found", [
 ]);
 export type RouteWalk = z.infer<typeof RouteWalkSchema>;
 
-// The last one-shot exit check; api_version null means no version we support.
+// What one quick probe measured; api_version null means no version we support.
+export const QuickProbeCheckSchema = z.object({
+  checked_at: z.number(),
+  versions: VersionsSchema,
+  api_version: z.string().nullable(),
+  load: HealthSchema,
+  rtt: z.number(),
+});
+export type QuickProbeCheck = z.infer<typeof QuickProbeCheckSchema>;
+
+// The last one-shot exit check; a running one carries the result it refreshes.
 export const QuickProbeStateSchema = z.discriminatedUnion("state", [
-  z.object({ state: z.literal("Checking"), since: z.number() }),
   z.object({
-    state: z.literal("Checked"),
-    checked_at: z.number(),
-    versions: VersionsSchema,
-    api_version: z.string().nullable(),
-    load: HealthSchema,
-    rtt: z.number(),
+    state: z.literal("Checking"),
+    since: z.number(),
+    last: QuickProbeCheckSchema.nullable(),
   }),
+  QuickProbeCheckSchema.extend({ state: z.literal("Checked") }),
   z.object({
     state: z.literal("Failed"),
     checked_at: z.number(),

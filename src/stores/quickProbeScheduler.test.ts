@@ -13,6 +13,7 @@ import {
 } from "./quickProbeScheduler.ts";
 import {
   checkedQuickProbe,
+  checkingQuickProbe,
   eligibleRouteHealth,
   makeDestination,
   noPathRouteHealth,
@@ -74,7 +75,7 @@ describe("nextQuickProbe — which exit to check next", () => {
 
   it("skips destinations the daemon would refuse: no route, or a check already running", () => {
     const status = statusFor({
-      best: dest("best", 4, { state: "Checking", since: 0 }),
+      best: dest("best", 4, checkingQuickProbe(null, 0)),
       nowhere: noRoute("nowhere"),
       ok: dest("ok", 1),
     });
@@ -102,7 +103,7 @@ describe("nextQuickProbe — which exit to check next", () => {
   it("waits while the check in flight has no result yet", () => {
     const inFlight = { inFlight: { id: "a", issuedAt: 100 } };
     const status = statusFor({
-      a: dest("a", 2, { state: "Checking", since: 100 }),
+      a: dest("a", 2, checkingQuickProbe(null, 100)),
       b: dest("b", 1),
     });
 
@@ -140,7 +141,7 @@ describe("nextQuickProbe — which exit to check next", () => {
   it("abandons a check by the clock when its result never arrives", () => {
     const inFlight = { inFlight: { id: "a", issuedAt: 100 } };
     const status = statusFor({
-      a: dest("a", 2, { state: "Checking", since: 100 }),
+      a: dest("a", 2, checkingQuickProbe(null, 100)),
       b: dest("b", 1),
     });
 
