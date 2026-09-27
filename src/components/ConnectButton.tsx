@@ -2,16 +2,18 @@ import { createMemo } from "solid-js";
 import Button from "./common/Button.tsx";
 import { useAppStore } from "../stores/appStore.ts";
 import { effectiveActive } from "../stores/destinationMode.ts";
-import { isSelectable, rankContext } from "../utils/destinations.ts";
+import {
+  isSelectable,
+  isVpnActive,
+  rankContext,
+} from "../utils/destinations.ts";
 import { logError } from "../utils/appLog.ts";
 
 export default function ConnectButton() {
   const [appState, appActions] = useAppStore();
 
   const isActive = createMemo(() =>
-    appState.vpnStatus === "Connected" ||
-    appState.vpnStatus === "Connecting" ||
-    appState.vpnStatus === "Reconnecting"
+    isVpnActive(appState.vpnStatus, appState.targetDestination)
   );
   const label = createMemo(() => (isActive() ? "Disconnect" : "Connect"));
 
