@@ -15,7 +15,7 @@
     connectOnStartup: false,
     startMinimized: false,
     updateCheck: true,
-    exitNodeSortOrder: "latency",
+    exitNodeSortOrder: "best",
     lastCheckedAt: null,
     lastCheckOutcome: null,
     channel: null,
