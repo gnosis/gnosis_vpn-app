@@ -16,9 +16,16 @@ import {
   isXDAITransferred,
 } from "@src/utils/status.ts";
 import { isPreparingSafeRunMode } from "../../services/vpnService.ts";
-import { formatXdai, humanWxhopr, wxhoprDecimal } from "../../utils/hopli.ts";
+import {
+  formatXdai,
+  humanWxhoprParts,
+  wxhoprDecimal,
+} from "../../utils/hopli.ts";
+import SelectableValue from "../common/SelectableValue.tsx";
 import FundingAddress from "../address/FundingAddress.tsx";
 import StatusIndicator from "../status/StatusIndicator.tsx";
+
+const SHOW_EXACT_WXHOPR_BELOW = 10n ** 15n; // 0.001 wxHOPR
 
 export default function Manually() {
   const [appState] = useAppStore();
@@ -52,7 +59,7 @@ export default function Manually() {
       <h1 class="w-full text-3xl font-bold text-center mt-6 mb-3 flex flex-row">
         Fund your VPN
       </h1>
-      <FundingAddress full address={nodeAddress()} qrVisible />
+      <FundingAddress full address={nodeAddress()} qrVisible selectable />
       <div
         class={`flex flex-col gap-4 grow ${
           !isServiceAvailable() ? "opacity-50 pointer-events-none" : ""
@@ -78,14 +85,21 @@ export default function Manually() {
             >
               {(rec) => (
                 <div class="text-sm text-text-secondary">
-                  Send at least{" "}
-                  <span class="select-text cursor-text">
-                    {humanWxhopr(rec().wxhopr, "ceil")}
-                  </span>{" "}
-                  (<span class="select-text cursor-text">
-                    {wxhoprDecimal(rec().wxhopr)}
-                  </span>{" "}
-                  wxHOPR)
+                  <div>
+                    Send at least{" "}
+                    <SelectableValue>
+                      {humanWxhoprParts(rec().wxhopr, "ceil").amount}
+                    </SelectableValue>{" "}
+                    wxHOPR
+                  </div>
+                  <div class="min-h-5">
+                    <Show when={rec().wxhopr < SHOW_EXACT_WXHOPR_BELOW}>
+                      (<SelectableValue>
+                        {wxhoprDecimal(rec().wxhopr)}
+                      </SelectableValue>{" "}
+                      wxHOPR)
+                    </Show>
+                  </div>
                 </div>
               )}
             </Show>
@@ -113,9 +127,9 @@ export default function Manually() {
               {(rec) => (
                 <div class="text-sm text-text-secondary">
                   Send at least{" "}
-                  <span class="select-text cursor-text">
+                  <SelectableValue>
                     {formatXdai(rec().xdai, 3, "ceil")}
-                  </span>{" "}
+                  </SelectableValue>{" "}
                   xDAI
                 </div>
               )}

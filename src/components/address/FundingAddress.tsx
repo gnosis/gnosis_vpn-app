@@ -16,6 +16,7 @@ import qrIcon from "@assets/icons/qr.png";
 import checkIcon from "@assets/icons/checked-box.svg";
 import * as opener from "@tauri-apps/plugin-opener";
 import Tooltip from "../common/Tooltip.tsx";
+import SelectableValue from "../common/SelectableValue.tsx";
 
 export default function FundingAddress(
   props: {
@@ -27,6 +28,8 @@ export default function FundingAddress(
   },
 ) {
   const address = createMemo(() => (props.address ?? "").trim());
+  const displayedAddress = () =>
+    props.full ? address() : shortAddress(address());
   const isMissing = createMemo(() => {
     const a = address();
     return a.length === 0 || a.toLowerCase() === "unknown";
@@ -107,10 +110,12 @@ export default function FundingAddress(
           <div class="font-bold">Gnosis VPN address</div>
           <div
             class={`font-mono ${
-              props.selectable ? "select-text cursor-text" : ""
-            } ${props.full ? "text-[10px] break-all" : "text-lg break-all"}`}
+              props.full ? "text-[10px] break-all" : "text-lg break-all"
+            }`}
           >
-            {props.full ? address() : shortAddress(address())}
+            <Show when={props.selectable} fallback={displayedAddress()}>
+              <SelectableValue>{displayedAddress()}</SelectableValue>
+            </Show>
           </div>
         </div>
 
