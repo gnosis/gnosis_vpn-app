@@ -37,6 +37,12 @@ export default function ExportLogs() {
     }
   }
 
+  function openUpload() {
+    setError(null);
+    setSavedPath(null);
+    setShowUpload(true);
+  }
+
   return (
     <div class="w-full flex flex-col mb-2 items-center justify-between">
       <div class="w-full flex gap-2 my-2">
@@ -48,7 +54,7 @@ export default function ExportLogs() {
         >
           Export logs
         </Button>
-        <Button size="sm" variant="outline" onClick={() => setShowUpload(true)}>
+        <Button size="sm" variant="outline" onClick={openUpload}>
           Upload logs
         </Button>
       </div>
