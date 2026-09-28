@@ -16,7 +16,6 @@ import qrIcon from "@assets/icons/qr.png";
 import checkIcon from "@assets/icons/checked-box.svg";
 import * as opener from "@tauri-apps/plugin-opener";
 import Tooltip from "../common/Tooltip.tsx";
-import SelectableValue from "../common/SelectableValue.tsx";
 
 export default function FundingAddress(
   props: {
@@ -114,7 +113,7 @@ export default function FundingAddress(
             }`}
           >
             <Show when={props.selectable} fallback={displayedAddress()}>
-              <SelectableValue>{displayedAddress()}</SelectableValue>
+              <span class="select-text cursor-text">{displayedAddress()}</span>
             </Show>
           </div>
         </div>

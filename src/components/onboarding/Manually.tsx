@@ -21,7 +21,6 @@ import {
   humanWxhoprParts,
   wxhoprDecimal,
 } from "../../utils/hopli.ts";
-import SelectableValue from "../common/SelectableValue.tsx";
 import FundingAddress from "../address/FundingAddress.tsx";
 import StatusIndicator from "../status/StatusIndicator.tsx";
 
@@ -87,16 +86,16 @@ export default function Manually() {
                 <div class="text-sm text-text-secondary">
                   <div>
                     Send at least{" "}
-                    <SelectableValue>
+                    <span class="select-text cursor-text">
                       {humanWxhoprParts(rec().wxhopr, "ceil").amount}
-                    </SelectableValue>{" "}
+                    </span>{" "}
                     wxHOPR
                   </div>
                   <div class="min-h-5">
                     <Show when={rec().wxhopr < SHOW_EXACT_WXHOPR_BELOW}>
-                      (<SelectableValue>
+                      (<span class="select-text cursor-text">
                         {wxhoprDecimal(rec().wxhopr)}
-                      </SelectableValue>{" "}
+                      </span>{" "}
                       wxHOPR)
                     </Show>
                   </div>
@@ -127,9 +126,9 @@ export default function Manually() {
               {(rec) => (
                 <div class="text-sm text-text-secondary">
                   Send at least{" "}
-                  <SelectableValue>
+                  <span class="select-text cursor-text">
                     {formatXdai(rec().xdai, 3, "ceil")}
-                  </SelectableValue>{" "}
+                  </span>{" "}
                   xDAI
                 </div>
               )}
