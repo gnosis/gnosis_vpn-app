@@ -1,4 +1,4 @@
-import { createEffect, createSignal, Show } from "solid-js";
+import { createEffect, createSignal, createUniqueId, Show } from "solid-js";
 import { VPNService } from "../services/vpnService.ts";
 import { logBundleFileName } from "@src/utils/logBundle.ts";
 import { Modal } from "./common/Modal.tsx";
@@ -20,6 +20,7 @@ export default function UploadLogsModal(props: {
   const [uploading, setUploading] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
   const [referenceId, setReferenceId] = createSignal<string | null>(null);
+  const titleId = createUniqueId();
 
   createEffect(() => {
     if (!props.open) return;
@@ -52,12 +53,12 @@ export default function UploadLogsModal(props: {
   }
 
   return (
-    <Modal open={props.open} onClose={close}>
+    <Modal open={props.open} onClose={close} ariaLabelledBy={titleId}>
       <Show
         when={referenceId()}
         fallback={
           <div class="flex flex-col gap-3">
-            <div class="text-base font-semibold text-text-primary">
+            <div id={titleId} class="text-base font-semibold text-text-primary">
               Upload logs
             </div>
             <div class="text-sm text-text-secondary">
@@ -123,7 +124,7 @@ export default function UploadLogsModal(props: {
       >
         {(id) => (
           <div class="flex flex-col gap-4">
-            <div class="text-base font-semibold text-text-primary">
+            <div id={titleId} class="text-base font-semibold text-text-primary">
               Logs uploaded
             </div>
             <div class="text-sm text-text-secondary">
