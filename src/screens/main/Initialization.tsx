@@ -52,7 +52,10 @@ export default function Initialization(props: InitializationProps) {
             </div>
           )}
 
-        <div class="mt-4 space-y-1 text-sm text-text-secondary text-center">
+        <div
+          class="mt-4 space-y-1 text-sm text-text-secondary text-center"
+          classList={{ "select-text": showDetails() }}
+        >
           <div
             onClick={handleVersionClick}
             class="cursor-default"
