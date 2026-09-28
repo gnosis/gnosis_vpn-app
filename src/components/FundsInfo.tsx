@@ -96,7 +96,9 @@ export default function FundsInfo(props: Props) {
     <>
       <span class="text-2xl font-bold">{props.label}</span>
       <span
-        class={cellClass("text-xl font-normal font-mono text-right")}
+        class={cellClass(
+          "text-xl font-normal font-mono text-right select-text",
+        )}
         onMouseEnter={props.tooltip ? show : undefined}
         onMouseLeave={props.tooltip ? hide : undefined}
       >
@@ -124,7 +126,7 @@ export default function FundsInfo(props: Props) {
         <Portal mount={document.body}>
           <div
             ref={bubbleRef}
-            class="fixed z-200 max-w-52 rounded-lg bg-neutral-800 px-3 py-2 shadow-lg text-xs leading-relaxed text-gray-100 -translate-x-1/2 transition-[opacity,scale] duration-150 ease-out starting:opacity-0 starting:scale-95"
+            class="fixed z-200 max-w-52 select-text cursor-text rounded-lg bg-neutral-800 px-3 py-2 shadow-lg text-xs leading-relaxed text-gray-100 -translate-x-1/2 transition-[opacity,scale] duration-150 ease-out starting:opacity-0 starting:scale-95"
             style={{
               bottom: `${anchorBottom()}px`,
               left: `${left()}px`,
