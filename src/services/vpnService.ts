@@ -145,6 +145,7 @@ export const UnrecoverableReasonSchema = z.union([
   z.object({
     IncompatibleApiVersion: z.object({ server_versions: z.array(z.string()) }),
   }),
+  z.object({ CannotOpenSession: z.object({ error: z.string() }) }),
 ]);
 export type UnrecoverableReason = z.infer<typeof UnrecoverableReasonSchema>;
 
@@ -181,7 +182,7 @@ export const QuickProbeCheckSchema = z.object({
   versions: VersionsSchema,
   api_version: z.string().nullable(),
   load: HealthSchema,
-  rtt: z.number(),
+  status_rtt: z.number(),
 });
 export type QuickProbeCheck = z.infer<typeof QuickProbeCheckSchema>;
 
@@ -281,6 +282,8 @@ export const ProbeResponseSchema = z.discriminatedUnion("type", [
     type: z.literal("AlreadyProbing"),
     destination: DestinationSchema,
   }),
+  // A connection still needs this probe's session, so it cannot be replaced yet.
+  z.object({ type: z.literal("InUse"), destination: DestinationSchema }),
   z.object({
     type: z.literal("UnableToProbe"),
     destination: DestinationSchema,

@@ -89,7 +89,7 @@ lastCheck(d)         = quick_probe.state === "Checked"  ? quick_probe
 exitData(d)          = probe?.destination_id === d.id && probe.load && probe.ping_rtt
                          ? { slots: probe.load.slots, rtt: probe.ping_rtt, checkedAt: probe.checked_at }
                        : lastCheck(d) !== null
-                         ? { slots: lastCheck.load.slots, rtt: lastCheck.rtt, checkedAt: lastCheck.checked_at }
+                         ? { slots: lastCheck.load.slots, rtt: lastCheck.status_rtt, checkedAt: lastCheck.checked_at }
                          : null
 
 occupiedByUs(d)      = d.id === liveId ? 1 : 0

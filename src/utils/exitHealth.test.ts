@@ -131,6 +131,16 @@ describe("formatExitHealthStatus — one label per route state", () => {
     expect(formatExitHealthStatus(unrecoverableRouteHealth(), null)).toBe(
       "Connection not allowed",
     );
+    const cannotOpen = {
+      ...unrecoverableRouteHealth(),
+      state: {
+        state: "Unrecoverable" as const,
+        reason: { CannotOpenSession: { error: "surb buffer too small" } },
+      },
+    };
+    expect(formatExitHealthStatus(cannotOpen, null)).toBe(
+      "Cannot open session",
+    );
   });
 
   it("is still checking before the first walk", () => {

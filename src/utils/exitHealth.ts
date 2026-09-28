@@ -73,6 +73,7 @@ function formatUnrecoverable(rhv: RouteHealthView): string {
   const { reason } = rhv.state;
   if (reason === "NotAllowed") return "Connection not allowed";
   if ("IncompatibleApiVersion" in reason) return "Incompatible server version";
+  if ("CannotOpenSession" in reason) return "Cannot open session";
   return "Unreachable";
 }
 

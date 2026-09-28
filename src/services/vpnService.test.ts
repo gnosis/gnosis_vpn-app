@@ -37,6 +37,7 @@ import disconnectDisconnecting from "./fixtures/disconnect_disconnecting.json";
 import probeProbing from "./fixtures/probe_probing.json";
 import probeReplaced from "./fixtures/probe_replaced.json";
 import probeAlreadyProbing from "./fixtures/probe_already_probing.json";
+import probeInUse from "./fixtures/probe_in_use.json";
 import probeUnable from "./fixtures/probe_unable.json";
 import probeNotReady from "./fixtures/probe_not_ready.json";
 import probeNotFound from "./fixtures/probe_destination_not_found.json";
@@ -136,10 +137,16 @@ describe("StatusResponseSchema", () => {
     expect(health[2]?.state.state).toBe("NotRoutable");
     expect(health[2]?.last_error).toBe("walk timed out");
     expect(health[5]?.quick_probe?.state).toBe("Failed");
-    expect(health[6]).toBe(null);
-    const rechecking = health[8]?.quick_probe;
+    const latched = health[6]?.state;
+    const reason = latched?.state === "Unrecoverable" ? latched.reason : null;
+    expect(reason).toEqual({
+      CannotOpenSession: { error: "surb buffer too small" },
+    });
+    expect(health[7]).toBe(null);
+    const rechecking = health[9]?.quick_probe;
     expect(rechecking?.state).toBe("Checking");
-    expect(rechecking?.state === "Checking" && rechecking.last?.rtt).toBe(42);
+    const carried = rechecking?.state === "Checking" ? rechecking.last : null;
+    expect(carried?.status_rtt).toBe(42);
   });
 
   it("parses a reconnect reported without a phase", () => {
@@ -201,6 +208,7 @@ describe("ProbeResponseSchema", () => {
     ["Probing", probeProbing],
     ["Replaced", probeReplaced],
     ["AlreadyProbing", probeAlreadyProbing],
+    ["InUse", probeInUse],
     ["UnableToProbe", probeUnable],
     ["NotReady", probeNotReady],
     ["DestinationNotFound", probeNotFound],

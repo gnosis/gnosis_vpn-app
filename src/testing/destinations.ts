@@ -106,7 +106,7 @@ export function quickProbeCheck(
     versions: { versions: ["v1"], latest: "v1" },
     api_version: "v1",
     load: { slots, load_avg: { one: 0.5, five: 0.5, fifteen: 0.5, nproc: 4 } },
-    rtt,
+    status_rtt: rtt,
   };
 }
 

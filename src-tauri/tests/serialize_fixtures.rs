@@ -102,7 +102,7 @@ fn quick_check() -> QuickProbeCheck {
         versions: versions(),
         api_version: Some("v1".to_string()),
         load: health(),
-        rtt: Duration::from_millis(42),
+        status_rtt: Duration::from_millis(42),
     }
 }
 
@@ -394,6 +394,15 @@ fn generate_fixtures() {
                 error: "unsupported api".to_string(),
             }),
         ))),
+        dest_state(Some(route_health_view(
+            RouteHealthState::Unrecoverable {
+                reason: UnrecoverableReason::CannotOpenSession {
+                    error: "surb buffer too small".to_string(),
+                },
+            },
+            Some(paths_walk()),
+            None,
+        ))),
         dest_state(None),
         command::DestinationState {
             destination: pinned_destination(),
@@ -491,6 +500,13 @@ fn generate_fixtures() {
         "probe_already_probing.json",
         &ProbeResponse::AlreadyProbing {
             destination: destination(),
+        },
+    );
+    write(
+        &fixtures_dir,
+        "probe_in_use.json",
+        &ProbeResponse::InUse {
+            destination: Box::new(destination()),
         },
     );
     write(

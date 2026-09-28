@@ -103,7 +103,7 @@ export function getExitData(
   return {
     slots: check.load.slots,
     loadAvg: check.load.load_avg,
-    rtt: check.rtt,
+    rtt: check.status_rtt,
     checkedAt: check.checked_at,
     versions: check.versions,
     apiVersion: check.api_version,
