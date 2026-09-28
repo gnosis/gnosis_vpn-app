@@ -40,6 +40,7 @@ export default function AddFundsModal(props: {
             address={props.nodeAddress}
             full
             qrVisible
+            selectable
           />
           <div class="text-sm">
             You can transfer <span class="font-bold">xDAI</span> or{" "}
@@ -51,16 +52,13 @@ export default function AddFundsModal(props: {
               <span class="font-medium">Recommended to send:</span>
               <Show when={props.wxhoprDeficit}>
                 {(deficit) => (
-                  <div class="font-mono">
+                  <div class="font-mono select-text cursor-text">
                     +{formatWxhopr(deficit(), 3, "ceil")} wxHOPR
                     <Show when={wxhoprExact(deficit())}>
                       {(exact) => (
                         <>
                           {" "}
-                          (<span class="select-text cursor-text">
-                            {exact()}
-                          </span>{" "}
-                          wxHOPR)
+                          ({exact()} wxHOPR)
                         </>
                       )}
                     </Show>
@@ -69,16 +67,13 @@ export default function AddFundsModal(props: {
               </Show>
               <Show when={props.xdaiDeficit}>
                 {(deficit) => (
-                  <div class="font-mono">
+                  <div class="font-mono select-text cursor-text">
                     +{formatXdai(deficit(), 3, "ceil")} xDAI
                     <Show when={xdaiExact(deficit())}>
                       {(exact) => (
                         <>
                           {" "}
-                          (<span class="select-text cursor-text">
-                            {exact()}
-                          </span>{" "}
-                          xDAI)
+                          ({exact()} xDAI)
                         </>
                       )}
                     </Show>
