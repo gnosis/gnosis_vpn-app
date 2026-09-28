@@ -11,7 +11,12 @@ import type {
 } from "@src/services/vpnService.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
-import { getExitData, isReady, rankContext } from "@src/utils/destinations.ts";
+import {
+  getExitData,
+  isSelectable,
+  isWeakRoute,
+  rankContext,
+} from "@src/utils/destinations.ts";
 import {
   formatConnectionStatus,
   formatExitHealthStatus,
@@ -112,7 +117,9 @@ export default function ExitHealthDetail(
     connectionLabel() === "Connecting" || connectionLabel() === "Reconnecting";
   const isGoodState = () =>
     isConnected() || isActionInFlight() ||
-    isReady(props.destinationState, rankContext(appState));
+    isSelectable(props.destinationState, rankContext(appState));
+  const isWeak = () =>
+    isWeakRoute(props.destinationState, rankContext(appState));
 
   // Own clock: this panel mounts separately from ExitNodeList.
   const [nowSec, setNowSec] = createSignal(Date.now() / 1000);
@@ -253,7 +260,18 @@ export default function ExitHealthDetail(
                     />
                     {hopsTag()}
                   </div>
-                  <Show when={connectionStatus() !== "Disconnected"}>
+                  {/* Disconnected, a weak route shows its verdict where the status sits. */}
+                  <Show
+                    when={connectionStatus() !== "Disconnected"}
+                    fallback={
+                      <Tag
+                        value={isWeak() ? status() : null}
+                        class={`self-center ${
+                          statusColorClass[color()]
+                        } bg-bg-primary`}
+                      />
+                    }
+                  >
                     <span class={`self-center ${connectionStatusClass()}`}>
                       {/* visible "Status" label was dropped by design; keep it for screen readers */}
                       <span class="sr-only">Connection status:</span>
