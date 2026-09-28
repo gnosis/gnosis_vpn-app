@@ -7,7 +7,7 @@ import {
   type StatusResponse,
 } from "@src/services/vpnService.ts";
 import { logWarn } from "@src/utils/appLog.ts";
-import { isReady, rankContext } from "@src/utils/destinations.ts";
+import { isSelectable, rankContext } from "@src/utils/destinations.ts";
 
 export enum AppScreen {
   Initialization = "initialization",
@@ -23,12 +23,12 @@ export type ScreenChoice = [AppScreen, string, number | null];
 
 const MAXIMUM_DELAY_TIME = 5 * 60 * 1000; // 5 minutes
 
-/** Nothing to interact with until one destination has a full-value path. */
+/** Nothing to interact with until one destination is connectable. */
 function findDelayReason(status: StatusResponse): string | null {
   const known = status.destinations.filter((ds) => ds.route_health !== null);
   if (known.length === 0) return null;
   const context = rankContext(status);
-  if (known.some((ds) => isReady(ds, context))) return null;
+  if (known.some((ds) => isSelectable(ds, context))) return null;
   const unrecoverable =
     known.filter((ds) => ds.route_health?.state.state === "Unrecoverable")
       .length;

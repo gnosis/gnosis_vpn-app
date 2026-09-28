@@ -19,6 +19,7 @@ vi.mock("@tauri-apps/api/window", () => ({
 
 import { AppScreen, createScreenSelector } from "./screenSelector.ts";
 import {
+  checkedQuickProbe,
   eligibleRouteHealth,
   makeDestination,
   noPathRouteHealth,
@@ -88,8 +89,18 @@ describe("createScreenSelector", () => {
     );
   });
 
-  it("keeps waiting while the only route is a weak one", () => {
+  it("reaches main once a weak route is connectable", () => {
     expect(screenOf(status(RUNNING, [destination(weakRouteHealth())]))).toBe(
+      AppScreen.Main,
+    );
+  });
+
+  it("keeps waiting while the only route leads to a full exit", () => {
+    const full = {
+      ...eligibleRouteHealth(),
+      quick_probe: checkedQuickProbe({ total: 4, available: 0, connected: 4 }),
+    };
+    expect(screenOf(status(RUNNING, [destination(full)]))).toBe(
       AppScreen.Synchronization,
     );
   });
