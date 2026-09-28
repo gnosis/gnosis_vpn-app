@@ -127,6 +127,11 @@ source:
   `checkUpdateError` rejects instead — `"VpnNotConnected"` drives the
   connect-first modal. `checkUpdateDelayMs` (default 2000) keeps the "Checking…"
   state observable.
+- `uploadLogsUuid` — reference ID that `upload_logs` resolves with after ~800ms
+  (defaults to a fixed UUID), shown once the Settings tab's Upload logs modal is
+  acknowledged and submitted. `uploadLogsError` rejects instead and shows the
+  error inside the modal. The last `upload_logs` args are kept in
+  `globalThis.__GVPN_UPLOAD_ARGS__` for `eval` assertions.
 - `windowLabel: "settings"` renders the settings window instead (use
   `--size 640x480`). Switch tabs by clicking the nav buttons, e.g. Usage:
 

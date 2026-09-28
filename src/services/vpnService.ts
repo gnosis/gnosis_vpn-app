@@ -481,6 +481,22 @@ export class VPNService {
     }
   }
 
+  // failures are logged by the backend's upload_logs command
+  static async uploadLogs(
+    fileName: string,
+    description: string,
+  ): Promise<string> {
+    try {
+      const referenceId = await invoke<unknown>("upload_logs", {
+        fileName,
+        description,
+      });
+      return z.string().min(1).parse(referenceId);
+    } catch (error) {
+      throw new Error(`Upload Logs Error: ${error}`);
+    }
+  }
+
   // Fire-and-forget: log persistence must never break the caller.
   static logToFile(level: "info" | "warn" | "error", message: string): void {
     invoke("log_from_frontend", { level, message }).catch(() => {});

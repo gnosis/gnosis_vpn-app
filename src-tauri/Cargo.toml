@@ -32,7 +32,7 @@ tauri-plugin-single-instance = "2.4.3"
 tauri-plugin-opener = "2.5.4"
 tauri-plugin-dialog = "2.7.2"
 dark-light = "2.0"
-reqwest = { version = "0.13.4", features = ["json"] }
+reqwest = { version = "0.13.4", features = ["json", "multipart"] }
 semver = "1.0.28"
 tokio = { version = "1.53.1", features = ["time", "rt", "sync", "process"] }
 tokio-util = { version = "0.7.19", features = ["rt"] }

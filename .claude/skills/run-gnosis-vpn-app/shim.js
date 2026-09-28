@@ -107,6 +107,17 @@
       ),
     log_from_frontend: () => null,
     export_logs: (args) => args?.destPath ?? "/tmp/gnosis_vpn-export.log.zst",
+    // Resolves with fixture.uploadLogsUuid after ~800ms; uploadLogsError rejects instead.
+    upload_logs: (args) =>
+      new Promise((resolve, reject) =>
+        setTimeout(() => {
+          globalThis.__GVPN_UPLOAD_ARGS__ = args;
+          if (fixture.uploadLogsError) return reject(fixture.uploadLogsError);
+          resolve(
+            fixture.uploadLogsUuid ?? "3f2b8c1e-9a4d-4e7b-8c21-5d6f7a8b9c0d",
+          );
+        }, 800)
+      ),
     get_settings: () => ({ ...settings }),
     update_settings: ({ patch }) => {
       Object.assign(settings, patch);
