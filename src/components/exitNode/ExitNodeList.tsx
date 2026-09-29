@@ -17,8 +17,9 @@ import { logInfo, logWarn } from "@src/utils/appLog.ts";
 import {
   destinationSearchText,
   isVpnActive,
+  rankContext,
   sortAlphaDestinations,
-  sortByCapacityAwareLatency,
+  sortByRouteQuality,
 } from "@src/utils/destinations.ts";
 import ExitNodeCard from "./ExitNodeCard.tsx";
 import UnreachableDialog from "./UnreachableDialog.tsx";
@@ -55,22 +56,17 @@ export default function ExitNodeList(props: {
   });
   onCleanup(() => document.removeEventListener("keydown", handleKeyDown));
 
-  const liveId = () =>
-    appState.connected?.destination_id ??
-      appState.connecting?.destination_id ??
-      appState.reconnecting?.destination_id ??
-      null;
-
   const sortedDestinations = createMemo(() => {
+    const context = rankContext(appState);
     if (settings.exitNodeSortOrder === "alpha") {
       return sortAlphaDestinations(
         appState.availableDestinations,
         appState.destinations,
-        liveId(),
+        context,
       );
     }
     // the same ranking auto picks from, so the list's head is the destination it would choose
-    return sortByCapacityAwareLatency(appState.destinations, liveId())
+    return sortByRouteQuality(appState.destinations, context)
       .map((id) => appState.destinations[id].destination);
   });
 
@@ -138,7 +134,7 @@ export default function ExitNodeList(props: {
   };
 
   const sortOptions = [
-    { order: "latency" as const, label: "Latency" },
+    { order: "best" as const, label: "Best" },
     { order: "alpha" as const, label: "A–Z" },
   ];
 

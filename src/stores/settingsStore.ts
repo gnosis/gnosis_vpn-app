@@ -68,7 +68,7 @@ export const SettingsSchema = z.object({
   connectOnStartup: z.boolean(),
   startMinimized: z.boolean(),
   updateCheck: z.boolean(),
-  exitNodeSortOrder: z.enum(["latency", "alpha"]),
+  exitNodeSortOrder: z.enum(["best", "alpha"]),
   lastCheckedAt: z.number().nullable(),
   lastCheckOutcome: CheckOutcomeSchema.nullable(),
   channel: UpdateChannelSchema.nullable(),
@@ -88,7 +88,7 @@ const DEFAULT_SETTINGS: SettingsState = {
   connectOnStartup: false,
   startMinimized: false,
   updateCheck: true,
-  exitNodeSortOrder: "latency",
+  exitNodeSortOrder: "best",
   lastCheckedAt: null,
   lastCheckOutcome: null,
   channel: null,
@@ -107,7 +107,7 @@ type SettingsActions = {
   setConnectOnStartup: (enabled: boolean) => Promise<void>;
   setStartMinimized: (enabled: boolean) => Promise<void>;
   setUpdateCheck: (enabled: boolean) => Promise<void>;
-  setExitNodeSortOrder: (order: "latency" | "alpha") => Promise<void>;
+  setExitNodeSortOrder: (order: "best" | "alpha") => Promise<void>;
   setUpdateCheckResult: (
     outcome: CheckOutcome,
     checkedAt: number,
