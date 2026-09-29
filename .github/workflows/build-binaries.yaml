@@ -48,6 +48,19 @@ jobs:
         run: |
           echo "ERROR: No Harden Runner policy defined for runner '${{ inputs.runner }}'"
           exit 1
+      # Runs before the toolchain steps so they can repopulate the tool cache.
+      - name: Free disk space
+        if: startsWith(inputs.runner, 'depot-ubuntu')
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          # Swap lives on a separate mount, so dropping it frees nothing here and costs RAM headroom.
+          swap-storage: false
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
