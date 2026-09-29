@@ -2,10 +2,10 @@
   "version": "5",
   "specifiers": {
     "npm:@tailwindcss/vite@^4.3.3": "4.3.3_vite@8.2.2",
-    "npm:@tauri-apps/api@^2.11.1": "2.11.1",
+    "npm:@tauri-apps/api@^2.11.1": "2.12.0",
     "npm:@tauri-apps/cli@^2.11.4": "2.11.4",
     "npm:@tauri-apps/plugin-dialog@2.7.3": "2.7.3",
-    "npm:@tauri-apps/plugin-opener@^2.5.4": "2.5.4",
+    "npm:@tauri-apps/plugin-opener@^2.5.5": "2.6.0",
     "npm:@types/qrcode@^1.5.6": "1.5.6",
     "npm:dompurify@^3.4.14": "3.4.15",
     "npm:eslint@^10.8.1": "10.8.1",
@@ -429,8 +429,8 @@
         "vite"
       ]
     },
-    "@tauri-apps/api@2.11.1": {
-      "integrity": "sha512-M2FPuYND2m+wh5hfW9ZpSdxMPdEJovPBWwoHJmwUpysTYNHaOkVFN419m/K0LIgjb/7KU2vBgsUepJWugQCvAA=="
+    "@tauri-apps/api@2.12.0": {
+      "integrity": "sha512-fUSxFX8VABYe9W9K5ROdEaKVkNUFRcMSRofjruvaxztXA+I0XnQHcYHF8m/a6iExRUxsUf0HsFWhPBuH9IgzJw=="
     },
     "@tauri-apps/cli-darwin-arm64@2.11.4": {
       "integrity": "sha512-1ryOF3ZhpZ/nemHV5zVwBQBz9jDGKmKPvWPADOhc83ig0P4bMc2iER4NbC6r9sjeIZ6RVQ4g3RZIYvezhcl4TQ==",
@@ -510,8 +510,8 @@
         "@tauri-apps/api"
       ]
     },
-    "@tauri-apps/plugin-opener@2.5.4": {
-      "integrity": "sha512-1HnPkb+AmgO29HBazm4uPLKB+r7zzcTBW1d0fyYp1uP+jwtpoiNDGKMMzz58SFp49nOIrxdE3aUJtT57lfO9CQ==",
+    "@tauri-apps/plugin-opener@2.6.0": {
+      "integrity": "sha512-KIl9qkBGyAUrbzfCtdk+NRPTXUOwpMyUKsKN57H6/qA0q8auVywXpfUyWClqX6I/iH8PHmqAUa/KK9YZPWVQew==",
       "dependencies": [
         "@tauri-apps/api"
       ]
@@ -1598,7 +1598,7 @@
         "npm:@tauri-apps/api@^2.11.1",
         "npm:@tauri-apps/cli@^2.11.4",
         "npm:@tauri-apps/plugin-dialog@2.7.3",
-        "npm:@tauri-apps/plugin-opener@^2.5.4",
+        "npm:@tauri-apps/plugin-opener@^2.5.5",
         "npm:@types/qrcode@^1.5.6",
         "npm:dompurify@^3.4.14",
         "npm:eslint@^10.8.1",
