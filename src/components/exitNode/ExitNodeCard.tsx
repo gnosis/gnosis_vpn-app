@@ -173,7 +173,7 @@ export default function ExitNodeCard(props: {
         )}
       </Show>
       <div class="min-w-0 flex-1 px-4 py-3">
-        <div class="flex flex-wrap items-start justify-between gap-1.5 mb-1">
+        <div class="flex items-start justify-between gap-1.5 mb-1">
           <span class="flex items-center gap-1.5 font-semibold text-sm text-text-primary min-w-0">
             <Flag
               code={props.destinationState().destination.meta.flag ?? ""}
@@ -190,7 +190,7 @@ export default function ExitNodeCard(props: {
               <ConfigPill tooltip={CONFIG_ONLY_DESTINATION} class="size-2.5" />
             </Show>
           </span>
-          <span class="flex items-center gap-1.5">
+          <span class="flex shrink-0 items-center gap-1.5">
             <Show when={isWeak()}>
               <WeakPathTag />
             </Show>
