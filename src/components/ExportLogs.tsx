@@ -5,6 +5,7 @@ import { VPNService } from "../services/vpnService.ts";
 import { logInfo } from "@src/utils/appLog.ts";
 import { logBundleFileName } from "@src/utils/logBundle.ts";
 import Button from "./common/Button.tsx";
+import ExportLogsModal from "./ExportLogsModal.tsx";
 import UploadLogsModal from "./UploadLogsModal.tsx";
 
 export default function ExportLogs() {
@@ -39,7 +40,6 @@ export default function ExportLogs() {
 
   function openUpload() {
     setError(null);
-    setSavedPath(null);
     setShowUpload(true);
   }
 
@@ -60,11 +60,6 @@ export default function ExportLogs() {
       </div>
       <div class="w-full h-4 flex items-center justify-center">
         <Switch>
-          <Match when={savedPath()}>
-            <span class="text-xs text-text-secondary overflow-x-auto">
-              Saved to: <span class="font-mono">{savedPath()}</span>
-            </span>
-          </Match>
           <Match when={error()}>
             <span class="text-xs text-red-600">{error()}</span>
           </Match>
@@ -73,6 +68,7 @@ export default function ExportLogs() {
           </Match>
         </Switch>
       </div>
+      <ExportLogsModal path={savedPath()} onClose={() => setSavedPath(null)} />
       <UploadLogsModal
         open={showUpload()}
         onClose={() => setShowUpload(false)}

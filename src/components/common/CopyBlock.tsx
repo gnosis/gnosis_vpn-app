@@ -43,7 +43,7 @@ export default function CopyBlock(props: { text: string; label?: string }) {
         />
         {copied() ? "Copied" : "Copy"}
       </button>
-      <pre class="overflow-x-auto px-3 py-3 pr-20 text-xs leading-relaxed font-mono text-gray-100">
+      <pre class="whitespace-pre-wrap wrap-anywhere px-3 py-3 pr-20 text-xs leading-relaxed font-mono text-gray-100">
         <code>{props.text}</code>
       </pre>
     </div>
