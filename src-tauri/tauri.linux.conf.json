@@ -1,6 +1,10 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "bundle": {
-    "targets": ["deb", "rpm"]
+    "targets": ["deb", "rpm"],
+    "linux": {
+      "deb": { "desktopTemplate": "main.desktop" },
+      "rpm": { "desktopTemplate": "main.desktop" }
+    }
   }
 }
