@@ -29,7 +29,9 @@ Vite
   - `windows/` - Tauri window definitions
 - `src-tauri/` - Rust backend (Tauri commands, system integration)
 - `public/` - Static assets
-- Config: `vite.config.ts`, `tauri.conf.json`, `flake.nix` (Nix dev environment)
+- Config: `vite.config.ts`, `tauri.conf.json`, `flake.nix` (Nix dev
+  environment), `app.config.json` (build-time app config baked in by
+  `src-tauri/build.rs`, e.g. `logUploadApiUrl`)
 
 **Key Dependencies**: `@tauri-apps/api`, `solid-js`, `tailwindcss`, `flag-icons`
 (SVG country flags), Deno (task runner)

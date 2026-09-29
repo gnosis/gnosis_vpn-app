@@ -421,7 +421,8 @@ async fn export_logs_inner(app: AppHandle, dest_path: String) -> Result<String, 
     Ok(written)
 }
 
-const LOG_UPLOAD_URL: &str = "https://log-uploader.gnosisvpn.com/api/upload";
+/// Set by `build.rs` from `app.config.json`.
+const LOG_UPLOAD_API_URL: &str = env!("LOG_UPLOAD_API_URL");
 const LOG_UPLOAD_TIMEOUT: Duration = Duration::from_secs(120);
 
 /// Uploads the bundle `export_logs` would write and returns the uploader's reference ID.
@@ -431,7 +432,7 @@ pub async fn upload_logs(
     file_name: String,
     description: String,
 ) -> Result<String, String> {
-    tracing::info!(target: "upload", file_name = %file_name, "uploading logs");
+    tracing::info!(target: "upload", file_name = %file_name, url = LOG_UPLOAD_API_URL, "uploading logs");
     let result = upload_logs_inner(app, file_name, description).await;
     match &result {
         Ok(id) => tracing::info!(target: "upload", reference_id = %id, "log upload finished"),
@@ -470,7 +471,7 @@ async fn upload_logs_inner(
         .build()
         .map_err(|e| format!("Failed to create HTTP client: {e}"))?;
     let response = client
-        .post(LOG_UPLOAD_URL)
+        .post(LOG_UPLOAD_API_URL)
         .multipart(reqwest::multipart::Form::new().part("file", part))
         .send()
         .await
