@@ -244,8 +244,8 @@ export default function ExitNodeCard(props: {
               value={pathValue()}
               tooltip={
                 <span>
-                  Value of the best path found; 100% means nothing on it is
-                  degraded.
+                  Value of the best path found; below 90% counts as a weak
+                  route.
                 </span>
               }
             />
