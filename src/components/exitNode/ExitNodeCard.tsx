@@ -234,32 +234,32 @@ export default function ExitNodeCard(props: {
                 </div>
               }
             />
-            <Stat
-              label="Checked"
-              value={lastChecked()}
-              tooltip={<span>Time since last health check</span>}
-            />
-            <Stat
-              label="Path"
-              value={pathValue()}
-              tooltip={
-                <span>
-                  Value of the best path found; below 90% counts as a weak
-                  route.
-                </span>
-              }
-            />
-            <Stat
-              label="Relays"
-              value={relays()}
-              tooltip={
-                <span>
-                  Distinct first relays over the paths found; more means fewer
-                  single points of failure.
-                </span>
-              }
-            />
             <Show when={settings.showDetailedMetrics}>
+              <Stat
+                label="Checked"
+                value={lastChecked()}
+                tooltip={<span>Time since last health check</span>}
+              />
+              <Stat
+                label="Path"
+                value={pathValue()}
+                tooltip={
+                  <span>
+                    Value of the best path found; below 90% counts as a weak
+                    route.
+                  </span>
+                }
+              />
+              <Stat
+                label="Relays"
+                value={relays()}
+                tooltip={
+                  <span>
+                    Distinct first relays over the paths found; more means fewer
+                    single points of failure.
+                  </span>
+                }
+              />
               <SlotLoadStat exit={exit()} />
               <Stat
                 label="CPU Utilization"
