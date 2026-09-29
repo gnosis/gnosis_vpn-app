@@ -1,10 +1,10 @@
 import type { Destination, RouteHealthView } from "@src/services/vpnService.ts";
-import type { ExitData } from "@src/utils/destinations.ts";
+import { type ExitData, MIN_PATH_VALUE } from "@src/utils/destinations.ts";
 
 /** Visual health color for a destination; "default" renders as plain text. */
 export type HealthColor = "green" | "yellow" | "red" | "gray" | "default";
 
-/** The walk's verdict on this destination, with exit data tightening a full-value route. */
+/** The walk's verdict on this destination, with exit data tightening a route within the band. */
 type RouteVerdict =
   | "checking"
   | "ready"
@@ -23,7 +23,7 @@ function routeVerdict(
   if (state.state === "NotRoutable" || walk.found !== "Paths") {
     return "no-route";
   }
-  if (walk.best_value < 1) return "weak";
+  if (walk.best_value < MIN_PATH_VALUE) return "weak";
   if (exit !== null && exit.slots.available <= 0) return "full";
   return "ready";
 }

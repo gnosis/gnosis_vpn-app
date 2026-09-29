@@ -104,13 +104,15 @@ function makeUnavailable(id: string): DestinationState {
 }
 
 describe("isReady — connectable right now", () => {
-  it("accepts a routable destination whose best path has full value", () => {
+  it("accepts a routable destination whose best path is within the band", () => {
     expect(isReady(makeEligible("a"), NO_CONTEXT)).toBe(true);
+    expect(isReady(makeWeak("a", 0.999), NO_CONTEXT)).toBe(true);
+    expect(isReady(makeWeak("a", 0.9), NO_CONTEXT)).toBe(true);
   });
 
-  it("rejects a routable destination whose best path is degraded", () => {
+  it("rejects a routable destination whose best path is below the band", () => {
     expect(isReady(makeWeak("a"), NO_CONTEXT)).toBe(false);
-    expect(isReady(makeWeak("a", 0.999), NO_CONTEXT)).toBe(false);
+    expect(isReady(makeWeak("a", 0.89), NO_CONTEXT)).toBe(false);
   });
 
   it("rejects a destination the walk found no path to", () => {
@@ -159,7 +161,8 @@ describe("isReadyForDisplay — what the list may present as usable", () => {
 describe("isSelectable — what the user may pick", () => {
   it("accepts a degraded path: the daemon connects over any Routable route", () => {
     expect(isSelectable(makeWeak("a"), NO_CONTEXT)).toBe(true);
-    expect(isSelectable(makeWeak("a", 0.999), NO_CONTEXT)).toBe(true);
+    expect(isSelectable(makeWeak("a", 0.89), NO_CONTEXT)).toBe(true);
+    expect(isSelectable(makeWeak("a", 0.9), NO_CONTEXT)).toBe(true);
   });
 
   it("accepts everything ready", () => {
@@ -189,6 +192,8 @@ describe("isSelectable — what the user may pick", () => {
 describe("isWeakRoute — selectable but not ready", () => {
   it("marks only the degraded-but-routable case", () => {
     expect(isWeakRoute(makeWeak("a"), NO_CONTEXT)).toBe(true);
+    expect(isWeakRoute(makeWeak("a", 0.89), NO_CONTEXT)).toBe(true);
+    expect(isWeakRoute(makeWeak("a", 0.9), NO_CONTEXT)).toBe(false);
     expect(isWeakRoute(makeEligible("a"), NO_CONTEXT)).toBe(false);
     expect(isWeakRoute(withRouteHealth("a", noPathRouteHealth()), NO_CONTEXT))
       .toBe(false);
@@ -219,6 +224,12 @@ describe("routeGrade — the score as shown, never as used", () => {
 
   it("marks a degraded path weak regardless of what the exit measured", () => {
     expect(routeGrade(makeWeak("a"), NO_CONTEXT)).toEqual({ kind: "weak" });
+    expect(routeGrade(makeWeak("a", 0.89), NO_CONTEXT)).toEqual({
+      kind: "weak",
+    });
+    expect(routeGrade(makeWeak("a", 0.9), NO_CONTEXT)).toEqual({
+      kind: "unmeasured",
+    });
     const measuredWeak = withRouteHealth("a", {
       ...weakRouteHealth(),
       quick_probe: checkedQuickProbe(OPEN_SLOTS, 10),
@@ -404,7 +415,7 @@ describe("sortByRouteQuality — measured exits", () => {
   it("drops a full exit into the ineligible tail, above weak paths", () => {
     expect(
       sortByRouteQuality({
-        "a-weak": makeWeak("a-weak", 0.9),
+        "a-weak": makeWeak("a-weak", 0.5),
         "b-full": makeMeasured("b-full", FULL_SLOTS, 10),
         "c-open": makeMeasured("c-open", OPEN_SLOTS, 500),
       }, NO_CONTEXT),
@@ -558,7 +569,7 @@ describe("sortByRouteQuality", () => {
     expect(
       sortByRouteQuality({
         "a-far": makeWeak("a-far", 0.2),
-        "b-near": makeWeak("b-near", 0.9),
+        "b-near": makeWeak("b-near", 0.8),
         "c-mid": makeWeak("c-mid", 0.5),
       }, NO_CONTEXT),
     ).toEqual(["b-near", "c-mid", "a-far"]);
@@ -640,7 +651,7 @@ describe("pickStartupTarget — connect-on-startup pick", () => {
 
   it("ignores a preferred location whose path is weak", () => {
     const destinations = {
-      pref: makeWeak("pref", 0.9),
+      pref: makeWeak("pref", 0.5),
       open: makeEligible("open", 1),
     };
 

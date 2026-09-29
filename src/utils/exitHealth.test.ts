@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   formatConnectionStatus,
   formatExitHealthStatus,
+  getExitHealthColor,
   getLatencyLevel,
   getLatencyMs,
   getSlotLoad,
@@ -113,11 +114,25 @@ describe("getLatencyLevel", () => {
 });
 
 describe("formatExitHealthStatus — one label per route state", () => {
-  it("names a full-value path ready and a degraded one weak", () => {
+  it("names a path within the band ready and one below it weak", () => {
     expect(formatExitHealthStatus(eligibleRouteHealth(), null)).toBe(
       "Ready to connect",
     );
+    expect(formatExitHealthStatus(weakRouteHealth(0.999), null)).toBe(
+      "Ready to connect",
+    );
+    expect(formatExitHealthStatus(weakRouteHealth(0.9), null)).toBe(
+      "Ready to connect",
+    );
+    expect(formatExitHealthStatus(weakRouteHealth(0.89), null)).toBe(
+      "Weak route",
+    );
     expect(formatExitHealthStatus(weakRouteHealth(), null)).toBe("Weak route");
+  });
+
+  it("colors the band edge the same way as the label", () => {
+    expect(getExitHealthColor(weakRouteHealth(0.9), null)).toBe("green");
+    expect(getExitHealthColor(weakRouteHealth(0.89), null)).toBe("yellow");
   });
 
   it("calls a measured exit with no free slot full", () => {

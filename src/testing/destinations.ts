@@ -41,7 +41,7 @@ export function makeDestination(
   };
 }
 
-/** Routable with a full-value path: eligible. More distinct relays ranks higher. */
+/** Routable with a path within the band: eligible. More distinct relays ranks higher. */
 export function eligibleRouteHealth(
   relays = 2,
   count = relays,

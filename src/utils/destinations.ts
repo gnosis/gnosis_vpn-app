@@ -121,12 +121,15 @@ export function freeSlots(
   return exit.slots.available + occupiedByUs;
 }
 
-/** The walk's verdict alone: a full-value path exists and nothing latched the route. */
+/** A path's value is a product over its edges, so it is rarely exactly 1; the band is the degradation we still call ready. */
+export const MIN_PATH_VALUE = 0.9;
+
+/** The walk's verdict alone: a path within the band exists and nothing latched the route. */
 function isRoutable(state: DestinationState): boolean {
   if (!state.route_health) return false;
   const { state: routeState, walk } = state.route_health;
   if (routeState.state !== "Routable") return false;
-  return walk?.found === "Paths" && walk.best_value >= 1;
+  return walk?.found === "Paths" && walk.best_value >= MIN_PATH_VALUE;
 }
 
 /** Not full once the exit has been measured; unmeasured passes on the walk alone. */
@@ -153,7 +156,7 @@ export function isSelectable(
   return hasFreeSlot(state, context);
 }
 
-/** Pickable but degraded: no full-value path, so auto never proposes it and the list says so. */
+/** Pickable but degraded: no path within the band, so auto never proposes it and the list says so. */
 export function isWeakRoute(
   state: DestinationState | undefined,
   context: RankContext,
