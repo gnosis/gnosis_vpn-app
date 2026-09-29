@@ -46,6 +46,21 @@
       "matchManagers": ["npm"],
       "matchUpdateTypes": ["minor"],
       "groupName": "npm packages (minor)"
+    },
+    {
+      "description": "This is an app, not a library: exact versions keep in-range drift from bypassing minimumReleaseAge",
+      "matchManagers": ["npm"],
+      "rangeStrategy": "pin"
+    },
+    {
+      "description": "Tauri npm packages and Rust crates must stay on the same minor, so bump them together",
+      "matchPackageNames": [
+        "@tauri-apps/**",
+        "tauri",
+        "tauri-build",
+        "tauri-plugin-**"
+      ],
+      "groupName": "tauri"
     }
   ]
 }
