@@ -191,10 +191,10 @@ export default function ExitNodeCard(props: {
             </Show>
           </span>
           <span class="flex items-center gap-1.5">
-            <SignalBars grade={grade()} />
             <Show when={isWeak()}>
               <WeakPathTag />
             </Show>
+            <SignalBars grade={grade()} />
             <Show when={route() && hopCount() !== 1}>
               <Tag>
                 <HopsIcon count={hopCount()} hideCount />
