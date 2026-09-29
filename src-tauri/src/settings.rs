@@ -54,7 +54,7 @@ impl Default for Settings {
 #[serde(rename_all = "lowercase")]
 pub enum SortOrder {
     #[default]
-    Latency,
+    Best,
     Alpha,
 }
 
@@ -381,8 +381,19 @@ mod tests {
         let settings = store.current();
         assert_eq!(settings.preferred_location, None);
         assert!(!settings.connect_on_startup);
-        assert_eq!(settings.exit_node_sort_order, SortOrder::Latency);
+        assert_eq!(settings.exit_node_sort_order, SortOrder::Best);
         assert_eq!(settings.channel, None);
+    }
+
+    // "latency" was the sort order's name before ranking became the walk-and-probe score.
+    #[test]
+    fn load_drops_the_retired_latency_sort_order() {
+        let path = temp_settings_path();
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, json!({ "exitNodeSortOrder": "latency" }).to_string()).unwrap();
+
+        let settings = SettingsStore::load(path).current();
+        assert_eq!(settings.exit_node_sort_order, SortOrder::Best);
     }
 
     #[test]
@@ -404,7 +415,7 @@ mod tests {
 
         let settings = SettingsStore::load(path).current();
         // legacy key dropped, invalid value falls back, valid values survive
-        assert_eq!(settings.exit_node_sort_order, SortOrder::Latency);
+        assert_eq!(settings.exit_node_sort_order, SortOrder::Best);
         assert_eq!(settings.preferred_location, Some("exit-1".to_string()));
         assert!(settings.show_detailed_metrics);
     }

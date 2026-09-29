@@ -39,6 +39,7 @@ function status(target_destination: string | null): StatusResponse {
     connecting: null,
     reconnecting: null,
     disconnecting: [],
+    probe: null,
   };
 }
 

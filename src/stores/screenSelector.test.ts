@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   DestinationState,
-  RouteHealthState,
+  RouteHealthView,
   RunMode,
   StatusResponse,
 } from "@src/services/vpnService.ts";
@@ -18,6 +18,16 @@ vi.mock("@tauri-apps/api/window", () => ({
 }));
 
 import { AppScreen, createScreenSelector } from "./screenSelector.ts";
+<<<<<<< HEAD
+=======
+import {
+  checkedQuickProbe,
+  eligibleRouteHealth,
+  makeDestination,
+  noPathRouteHealth,
+  weakRouteHealth,
+} from "@src/testing/destinations.ts";
+>>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
 
 const RUNNING: RunMode = {
   Running: { funding_status: null, hopr_status: null },
@@ -37,25 +47,9 @@ const PREPARING_SAFE: RunMode = {
   },
 };
 
-const READY: RouteHealthState = {
-  state: "ReadyToConnect",
-  exit: {
-    checked_at: 0,
-    versions: { versions: ["v1"], latest: "v1" },
-    ping_rtt: 42,
-    health: {
-      slots: { total: 10, available: 10, connected: 0 },
-      load_avg: { one: 0.1, five: 0.2, fifteen: 0.3, nproc: 4 },
-    },
-  },
-};
-const DEGRADED: RouteHealthState = {
-  state: "NeedsPeering",
-  has_channel: false,
-};
-
-function destination(state: RouteHealthState): DestinationState {
+function destination(route_health: RouteHealthView): DestinationState {
   return {
+<<<<<<< HEAD
     destination: {
       id: "dest-1",
       meta: { location: "Brazil" },
@@ -68,6 +62,10 @@ function destination(state: RouteHealthState): DestinationState {
       checking_since: null,
       consecutive_failures: 0,
     },
+=======
+    destination: makeDestination({ meta: { location: "Brazil" } }),
+    route_health,
+>>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
   };
 }
 
@@ -83,6 +81,7 @@ function status(
     connecting: null,
     reconnecting: null,
     disconnecting: [],
+    probe: null,
   };
 }
 
@@ -102,38 +101,58 @@ describe("createScreenSelector", () => {
     expect(screenOf(status(DEPLOYING_SAFE))).toBe(AppScreen.Synchronization);
   });
 
-  it("delays main while the only destination is still peering", () => {
-    expect(screenOf(status(RUNNING, [destination(DEGRADED)]))).toBe(
+  it("delays main while the only destination has no route yet", () => {
+    expect(screenOf(status(RUNNING, [destination(noPathRouteHealth())]))).toBe(
+      AppScreen.Synchronization,
+    );
+  });
+
+  it("reaches main once a weak route is connectable", () => {
+    expect(screenOf(status(RUNNING, [destination(weakRouteHealth())]))).toBe(
+      AppScreen.Main,
+    );
+  });
+
+  it("keeps waiting while the only route leads to a full exit", () => {
+    const full = {
+      ...eligibleRouteHealth(),
+      quick_probe: checkedQuickProbe({ total: 4, available: 0, connected: 4 }),
+    };
+    expect(screenOf(status(RUNNING, [destination(full)]))).toBe(
       AppScreen.Synchronization,
     );
   });
 
   it("reaches main once a destination is ready", () => {
-    expect(screenOf(status(RUNNING, [destination(READY)]))).toBe(
-      AppScreen.Main,
-    );
+    expect(screenOf(status(RUNNING, [destination(eligibleRouteHealth())])))
+      .toBe(
+        AppScreen.Main,
+      );
   });
 
   it("stays on main when the daemon warms up again", () => {
-    expect(screenOf(status(RUNNING, [destination(READY)]))).toBe(
-      AppScreen.Main,
-    );
+    expect(screenOf(status(RUNNING, [destination(eligibleRouteHealth())])))
+      .toBe(
+        AppScreen.Main,
+      );
     expect(screenOf(status(WARMUP))).toBe(AppScreen.Main);
   });
 
-  it("stays on main when every destination degrades", () => {
-    expect(screenOf(status(RUNNING, [destination(READY)]))).toBe(
-      AppScreen.Main,
-    );
-    expect(screenOf(status(RUNNING, [destination(DEGRADED)]))).toBe(
+  it("stays on main when every destination loses its route", () => {
+    expect(screenOf(status(RUNNING, [destination(eligibleRouteHealth())])))
+      .toBe(
+        AppScreen.Main,
+      );
+    expect(screenOf(status(RUNNING, [destination(noPathRouteHealth())]))).toBe(
       AppScreen.Main,
     );
   });
 
   it("stays on main when the safe redeploys", () => {
-    expect(screenOf(status(RUNNING, [destination(READY)]))).toBe(
-      AppScreen.Main,
-    );
+    expect(screenOf(status(RUNNING, [destination(eligibleRouteHealth())])))
+      .toBe(
+        AppScreen.Main,
+      );
     expect(screenOf(status(DEPLOYING_SAFE))).toBe(AppScreen.Main);
   });
 
@@ -143,16 +162,18 @@ describe("createScreenSelector", () => {
   });
 
   it("keeps onboarding reachable after main", () => {
-    expect(screenOf(status(RUNNING, [destination(READY)]))).toBe(
-      AppScreen.Main,
-    );
+    expect(screenOf(status(RUNNING, [destination(eligibleRouteHealth())])))
+      .toBe(
+        AppScreen.Main,
+      );
     expect(screenOf(status(PREPARING_SAFE))).toBe(AppScreen.Onboarding);
   });
 
   it("gives each app run its own gate", () => {
-    expect(screenOf(status(RUNNING, [destination(READY)]))).toBe(
-      AppScreen.Main,
-    );
+    expect(screenOf(status(RUNNING, [destination(eligibleRouteHealth())])))
+      .toBe(
+        AppScreen.Main,
+      );
     expect(screenOf(status(WARMUP))).toBe(AppScreen.Main);
     const nextRun = createScreenSelector();
     expect(nextRun(status(WARMUP))[0]).toBe(AppScreen.Synchronization);

@@ -6,11 +6,21 @@ use gnosis_vpn_lib::balance::{
     Balance, BalanceRecommendation, Balances, Capacity, CapacityAllocations, FundingLevel,
     FundingStatus, WxHOPR, XDai,
 };
+<<<<<<< HEAD
 use gnosis_vpn_lib::command::RouteHealthView;
 use gnosis_vpn_lib::connection::destination::{Destination, HopRouting};
+=======
+use gnosis_vpn_lib::command::{
+    ProbeResponse, ProbeView, QuickProbeResponse, RouteHealthView, UnprobeResponse,
+};
+use gnosis_vpn_lib::connection::destination::{
+    Destination, DestinationSource, Destinations, HopRouting, Meta, Overrides,
+};
+>>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
 use gnosis_vpn_lib::prelude::Address;
+use gnosis_vpn_lib::probe::{Health, LoadAvg, ProbeState, Slots, Versions};
 use gnosis_vpn_lib::route_health::{
-    ExitHealth, Health, LoadAvg, RouteHealthState, Slots, UnrecoverableReason, Versions,
+    QuickProbeCheck, QuickProbeState, RouteHealthState, RouteWalk, UnrecoverableReason,
 };
 use gnosis_vpn_lib::{command, connection};
 use std::collections::HashMap;
@@ -32,28 +42,83 @@ fn destination() -> Destination {
     )
 }
 
+<<<<<<< HEAD
 fn exit_health() -> ExitHealth {
     ExitHealth {
         checked_at: SystemTime::UNIX_EPOCH,
         versions: Versions {
             versions: vec!["v1".to_string()],
             latest: "v1".to_string(),
+=======
+/// A c+d exit with one pinned label; a second pin would make the HashMap's key order flaky.
+fn pinned_destination() -> Destination {
+    let mut pinned = HashMap::new();
+    pinned.insert("location".to_string(), "Germany".to_string());
+    let mut meta = pinned.clone();
+    meta.insert("name".to_string(), "Frankfurt-1".to_string());
+    meta.insert("flag".to_string(), "DE".to_string());
+    meta.insert(
+        "description".to_string(),
+        "10Gbit uplink, no logs kept".to_string(),
+    );
+    Destination::new(
+        "pinned-exit".to_string(),
+        address(),
+        HopRouting::try_from(1).unwrap(),
+        Meta::from_map(meta),
+        "172.30.0.1:8000".parse().unwrap(),
+        "172.30.0.1:51820".parse().unwrap(),
+        DestinationSource::ConfiguredAndDiscovered,
+    )
+    .with_overrides(Overrides::from_config(pinned, None, None))
+}
+
+fn health() -> Health {
+    Health {
+        slots: Slots {
+            total: 16,
+            available: 10,
+            connected: 1,
+>>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
         },
-        ping_rtt: Duration::from_millis(42),
-        health: Health {
-            slots: Slots {
-                total: 16,
-                available: 10,
-                connected: 1,
-            },
-            load_avg: LoadAvg {
-                one: 0.1,
-                five: 0.2,
-                fifteen: 0.3,
-                nproc: 4,
-            },
+        load_avg: LoadAvg {
+            one: 0.1,
+            five: 0.2,
+            fifteen: 0.3,
+            nproc: 4,
         },
     }
+}
+
+fn versions() -> Versions {
+    Versions {
+        versions: vec!["v1".to_string()],
+        latest: "v1".to_string(),
+    }
+}
+
+fn paths_walk() -> RouteWalk {
+    RouteWalk::Paths {
+        walked_at: SystemTime::UNIX_EPOCH,
+        count: 3,
+        distinct_first_relays: 2,
+        best_relays: vec![address()],
+        best_value: 0.75,
+    }
+}
+
+fn quick_check() -> QuickProbeCheck {
+    QuickProbeCheck {
+        checked_at: SystemTime::UNIX_EPOCH,
+        versions: versions(),
+        api_version: Some("v1".to_string()),
+        load: health(),
+        status_rtt: Duration::from_millis(42),
+    }
+}
+
+fn checked_probe() -> QuickProbeState {
+    QuickProbeState::Checked(quick_check())
 }
 
 fn balance_info() -> command::Info {
@@ -81,15 +146,27 @@ fn status_base(run_mode: types::RunMode) -> types::StatusResponse {
         connecting: None,
         reconnecting: None,
         disconnecting: vec![],
+        probe: None,
     }
 }
 
-fn route_health_view(state: RouteHealthState) -> RouteHealthView {
+fn route_health_view(
+    state: RouteHealthState,
+    walk: Option<RouteWalk>,
+    quick_probe: Option<QuickProbeState>,
+) -> RouteHealthView {
     RouteHealthView {
         state,
         last_error: None,
-        checking_since: None,
-        consecutive_failures: 0,
+        walk,
+        quick_probe,
+    }
+}
+
+fn dest_state(route_health: Option<RouteHealthView>) -> command::DestinationState {
+    command::DestinationState {
+        destination: destination(),
+        route_health,
     }
 }
 
@@ -155,6 +232,7 @@ fn generate_fixtures() {
                 phase: None,
             }),
             disconnecting: vec![],
+            probe: None,
         },
     );
 
@@ -219,6 +297,7 @@ fn generate_fixtures() {
             connected: Some(command::ConnectedInfo {
                 destination_id: "test-exit".to_string(),
                 since: SystemTime::UNIX_EPOCH,
+                tunnel_ping_rtt: Some(Duration::from_millis(12)),
             }),
             connecting: Some(command::ConnectingInfo {
                 destination_id: "test-exit".to_string(),
@@ -235,30 +314,82 @@ fn generate_fixtures() {
                 since: SystemTime::UNIX_EPOCH,
                 phase: connection::DownPhase::Disconnecting,
             }],
+            probe: Some(ProbeView {
+                destination_id: "test-exit".to_string(),
+                state: ProbeState::Ready,
+                session_since: Some(SystemTime::UNIX_EPOCH),
+                versions: Some(versions()),
+                api_version: Some("v1".to_string()),
+                ping_rtt: Some(Duration::from_millis(42)),
+                load: Some(health()),
+                checked_at: Some(SystemTime::UNIX_EPOCH),
+                consecutive_failures: 0,
+                last_error: None,
+            }),
         },
     );
 
-    // One DestinationState per RouteHealthState variant (all in one StatusResponse)
-    // so the TypeScript test can parse a single fixture covering every state.
+    // A probe session that has not produced a result yet: every optional is null.
+    let mut probe_opening = status_base(types::RunMode::Running {
+        funding_status: None,
+        hopr_status: None,
+    });
+    probe_opening.probe = Some(ProbeView {
+        destination_id: "test-exit".to_string(),
+        state: ProbeState::Opening,
+        session_since: None,
+        versions: None,
+        api_version: None,
+        ping_rtt: None,
+        load: None,
+        checked_at: None,
+        consecutive_failures: 2,
+        last_error: Some("timeout".to_string()),
+    });
+    write(&fixtures_dir, "status_probe_opening.json", &probe_opening);
+
+    // One DestinationState per RouteHealthState/RouteWalk/QuickProbeState variant, in one fixture.
+    let mut walk_timed_out = route_health_view(
+        RouteHealthState::NotRoutable,
+        Some(RouteWalk::NoPath {
+            walked_at: SystemTime::UNIX_EPOCH,
+        }),
+        None,
+    );
+    walk_timed_out.last_error = Some("walk timed out".to_string());
     let route_health_variants = vec![
-        command::DestinationState {
-            destination: destination(),
-            route_health: Some(route_health_view(RouteHealthState::Routable)),
-        },
-        command::DestinationState {
-            destination: destination(),
-            route_health: Some(route_health_view(RouteHealthState::NeedsChannel)),
-        },
-        command::DestinationState {
-            destination: destination(),
-            route_health: Some(route_health_view(RouteHealthState::NeedsPeering {
-                has_channel: false,
-            })),
-        },
-        command::DestinationState {
-            destination: destination(),
-            route_health: Some(route_health_view(RouteHealthState::Unrecoverable {
+        dest_state(Some(route_health_view(
+            RouteHealthState::Routable,
+            Some(paths_walk()),
+            Some(checked_probe()),
+        ))),
+        // A 0-hop route has a single relay-less path.
+        dest_state(Some(route_health_view(
+            RouteHealthState::Routable,
+            Some(RouteWalk::Paths {
+                walked_at: SystemTime::UNIX_EPOCH,
+                count: 1,
+                distinct_first_relays: 0,
+                best_relays: vec![],
+                best_value: 1.0,
+            }),
+            Some(QuickProbeState::Checking {
+                since: SystemTime::UNIX_EPOCH,
+                last: None,
+            }),
+        ))),
+        dest_state(Some(walk_timed_out)),
+        dest_state(Some(route_health_view(
+            RouteHealthState::NotRoutable,
+            Some(RouteWalk::NotAnnounced {
+                walked_at: SystemTime::UNIX_EPOCH,
+            }),
+            None,
+        ))),
+        dest_state(Some(route_health_view(
+            RouteHealthState::Unrecoverable {
                 reason: UnrecoverableReason::NotAllowed,
+<<<<<<< HEAD
             })),
         },
         command::DestinationState {
@@ -278,19 +409,54 @@ fn generate_fixtures() {
             destination: destination(),
             route_health: None,
         },
+=======
+            },
+            None,
+            None,
+        ))),
+        dest_state(Some(route_health_view(
+            RouteHealthState::Unrecoverable {
+                reason: UnrecoverableReason::IncompatibleApiVersion {
+                    server_versions: vec!["v2".to_string()],
+                },
+            },
+            Some(paths_walk()),
+            Some(QuickProbeState::Failed {
+                checked_at: SystemTime::UNIX_EPOCH,
+                error: "unsupported api".to_string(),
+            }),
+        ))),
+        dest_state(Some(route_health_view(
+            RouteHealthState::Unrecoverable {
+                reason: UnrecoverableReason::CannotOpenSession {
+                    error: "surb buffer too small".to_string(),
+                },
+            },
+            Some(paths_walk()),
+            None,
+        ))),
+        dest_state(None),
+        command::DestinationState {
+            destination: pinned_destination(),
+            route_health: None,
+        },
+        // A re-check keeps what the previous one measured.
+        dest_state(Some(route_health_view(
+            RouteHealthState::Routable,
+            Some(paths_walk()),
+            Some(QuickProbeState::Checking {
+                since: SystemTime::UNIX_EPOCH,
+                last: Some(quick_check()),
+            }),
+        ))),
+>>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
     ];
+    let mut route_health_status = status_base(types::RunMode::NotRunning);
+    route_health_status.destinations = route_health_variants;
     write(
         &fixtures_dir,
         "status_route_health_variants.json",
-        &types::StatusResponse {
-            run_mode: types::RunMode::NotRunning,
-            destinations: route_health_variants,
-            target_destination: None,
-            connected: None,
-            connecting: None,
-            reconnecting: None,
-            disconnecting: vec![],
-        },
+        &route_health_status,
     );
 
     write(
@@ -316,7 +482,14 @@ fn generate_fixtures() {
     write(
         &fixtures_dir,
         "connect_unable.json",
+<<<<<<< HEAD
         &command::ConnectResponse::UnableToConnect(destination(), RouteHealthState::NeedsChannel),
+=======
+        &command::ConnectResponse::UnableToConnect {
+            destination: destination(),
+            route_health: RouteHealthState::NotRoutable,
+        },
+>>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
     );
 
     write(
@@ -328,6 +501,120 @@ fn generate_fixtures() {
         &fixtures_dir,
         "disconnect_disconnecting.json",
         &command::DisconnectResponse::Disconnecting(destination()),
+    );
+
+    write(
+        &fixtures_dir,
+        "probe_probing.json",
+        &ProbeResponse::Probing {
+            destination: destination(),
+        },
+    );
+    write(
+        &fixtures_dir,
+        "probe_replaced.json",
+        &ProbeResponse::Replaced {
+            destination: destination(),
+            previous: Box::new(pinned_destination()),
+        },
+    );
+    write(
+        &fixtures_dir,
+        "probe_already_probing.json",
+        &ProbeResponse::AlreadyProbing {
+            destination: destination(),
+        },
+    );
+    write(
+        &fixtures_dir,
+        "probe_in_use.json",
+        &ProbeResponse::InUse {
+            destination: Box::new(destination()),
+        },
+    );
+    write(
+        &fixtures_dir,
+        "probe_unable.json",
+        &ProbeResponse::UnableToProbe {
+            destination: destination(),
+            route_health: RouteHealthState::NotRoutable,
+        },
+    );
+    write(
+        &fixtures_dir,
+        "probe_not_ready.json",
+        &ProbeResponse::NotReady,
+    );
+    write(
+        &fixtures_dir,
+        "probe_destination_not_found.json",
+        &ProbeResponse::DestinationNotFound,
+    );
+    write(
+        &fixtures_dir,
+        "probe_ambiguous.json",
+        &ProbeResponse::DestinationAmbiguous {
+            connect_ids: vec!["frankfurt-1".to_string(), "frankfurt-1-a4c2".to_string()],
+        },
+    );
+
+    write(
+        &fixtures_dir,
+        "unprobe_closing.json",
+        &UnprobeResponse::closing(destination()),
+    );
+    write(
+        &fixtures_dir,
+        "unprobe_in_use.json",
+        &UnprobeResponse::in_use(destination()),
+    );
+    write(
+        &fixtures_dir,
+        "unprobe_not_probing.json",
+        &UnprobeResponse::NotProbing,
+    );
+
+    write(
+        &fixtures_dir,
+        "quick_probe_checking.json",
+        &QuickProbeResponse::checking(destination()),
+    );
+    write(
+        &fixtures_dir,
+        "quick_probe_unable.json",
+        &QuickProbeResponse::unable(
+            destination(),
+            RouteHealthState::Unrecoverable {
+                reason: UnrecoverableReason::NotAllowed,
+            },
+        ),
+    );
+    write(
+        &fixtures_dir,
+        "quick_probe_already_probing.json",
+        &QuickProbeResponse::already_probing(destination()),
+    );
+    write(
+        &fixtures_dir,
+        "quick_probe_already_checking.json",
+        &QuickProbeResponse::already_checking(destination()),
+    );
+    write(
+        &fixtures_dir,
+        "quick_probe_not_ready.json",
+        &QuickProbeResponse::NotReady,
+    );
+    write(
+        &fixtures_dir,
+        "quick_probe_destination_not_found.json",
+        &QuickProbeResponse::DestinationNotFound,
+    );
+    write(
+        &fixtures_dir,
+        "quick_probe_ambiguous.json",
+        &QuickProbeResponse::DestinationAmbiguous {
+            connect_ids: vec!["frankfurt-1".to_string(), "frankfurt-1-a4c2".to_string()],
+        },
     );
 
     // balance_response — all nulls, zero balances

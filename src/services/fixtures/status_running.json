@@ -10,5 +10,6 @@
   "connected": null,
   "connecting": null,
   "reconnecting": null,
-  "disconnecting": []
+  "disconnecting": [],
+  "probe": null
 }
