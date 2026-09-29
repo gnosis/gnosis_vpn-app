@@ -347,7 +347,7 @@ describe("isReady — exit data tightens the walk's verdict", () => {
     expect(isReady(makeEligible("a"), NO_CONTEXT)).toBe(true);
   });
 
-  it("never lets exit data promote a weak path", () => {
+  it("never lets exit data promote a weak route", () => {
     const measuredWeak = withRouteHealth("a", {
       ...weakRouteHealth(),
       quick_probe: checkedQuickProbe(OPEN_SLOTS, 10),
@@ -412,7 +412,7 @@ describe("sortByRouteQuality — measured exits", () => {
     ).toEqual(["a-glacial", "b-slow"]);
   });
 
-  it("drops a full exit into the ineligible tail, above weak paths", () => {
+  it("drops a full exit into the ineligible tail, above weak routes", () => {
     expect(
       sortByRouteQuality({
         "a-weak": makeWeak("a-weak", 0.5),
@@ -490,7 +490,7 @@ describe("sortAlphaDestinations", () => {
     expect(sorted[1].id).toBe("aaaaa");
   });
 
-  it("places a weak path in the tail with the unreachable ones", () => {
+  it("places a weak route in the tail with the unreachable ones", () => {
     const weak: Destination = { ...BASE_DESTINATION, id: "aaa-weak" };
     const ready: Destination = { ...BASE_DESTINATION, id: "zzz-ready" };
     const sorted = sortAlphaDestinations(
@@ -575,7 +575,7 @@ describe("sortByRouteQuality", () => {
     ).toEqual(["b-near", "c-mid", "a-far"]);
   });
 
-  it("sinks no-path, then unknown, then unrecoverable below any weak path", () => {
+  it("sinks no-path, then unknown, then unrecoverable below any weak route", () => {
     expect(
       sortByRouteQuality({
         "a-latched": withRouteHealth("a-latched", unrecoverableRouteHealth()),

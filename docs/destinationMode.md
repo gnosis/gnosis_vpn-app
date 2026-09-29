@@ -126,7 +126,7 @@ The daemon walks the HOPR graph for every destination and reports what it found
 under `route_health.walk`. A destination is routable only when the state is
 `Routable` and the best path it found is worth at least `MIN_PATH_VALUE`. A
 `Routable` destination whose best path is weaker is `isSelectable` but not
-ready: the list offers it to the user grayed and tagged "Weak path", since the
+ready: the list offers it to the user grayed and tagged "Weak route", since the
 daemon will connect over any `Routable` route, but connecting over it is the
 user's explicit choice, never auto's. Once the exit itself has been measured, a
 full exit is neither ready nor selectable: a connect against it can only fail.
@@ -178,7 +178,7 @@ signal bars. A measured ready exit fills them by band: `score >= 0.75` → 4,
 `>= 0.5` → 3, `>= 0.25` → 2, else 1, colored green, green, orange, red. An exit
 no check has ever measured shows four hollow bars until its quick probe answers;
 one being re-checked keeps the bars its last result earned. A weak route shows a
-single red bar beside its "Weak path" tag. Anything else shows no bars. The
+single red bar beside its "Weak route" tag. Anything else shows no bars. The
 grade feeds neither the sort nor auto.
 
 **`effectiveActive` is the only reader.** Display and connect target are the
@@ -552,7 +552,7 @@ abandoned by the clock, never by a timer.
   candidate card on each poll. The commit stays bounded because a retarget keeps
   the original deadline. If this becomes the visible defect, the fix is a
   debounce on arming — not a change to the sort.
-- **Auto never proposes an ineligible destination.** A weak path is offered in
+- **Auto never proposes an ineligible destination.** A weak route is offered in
   the list, grayed out, tagged and clickable, for the user to pick deliberately;
   it is never a candidate.
 - **Live is inert, and shows nothing but itself.** It never proposes a better

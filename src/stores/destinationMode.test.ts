@@ -616,8 +616,8 @@ describe("auto — arming", () => {
     expect(handle.model.mode).toMatchObject({ pending: { candidateId: "uk" } });
   });
 
-  // The sort already sinks weak paths, so isolating the eligibility rule needs every destination weak.
-  it("never arms toward a destination with a weak path", () => {
+  // The sort already sinks weak routes, so isolating the eligibility rule needs every destination weak.
+  it("never arms toward a destination with a weak route", () => {
     const handle = setup();
     step(handle, statusFor({ uk: makeEligible("uk", 50) }));
 
@@ -626,7 +626,7 @@ describe("auto — arming", () => {
       statusFor({ uk: makeWeak("uk"), usa: makeWeak("usa") }),
     );
 
-    expect(handle.model.active, "we stay put rather than chase a weak path")
+    expect(handle.model.active, "we stay put rather than chase a weak route")
       .toBe("uk");
     expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
   });
