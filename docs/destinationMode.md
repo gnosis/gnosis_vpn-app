@@ -95,8 +95,9 @@ exitData(d)          = probe?.destination_id === d.id && probe.load && probe.pin
 occupiedByUs(d)      = d.id === liveId ? 1 : 0
 freeSlots(d)         = exitData(d) === null ? null : slots.available + occupiedByUs(d)
 
+MIN_PATH_VALUE       = 0.9
 routable(d)          = d.state === "Routable"
-                       && walk(d)?.found === "Paths" && walk(d).best_value >= 1
+                       && walk(d)?.found === "Paths" && walk(d).best_value >= MIN_PATH_VALUE
 hasFreeSlot(d)       = freeSlots(d) === null || freeSlots(d) > 0
 isReady(d)           = routable(d) && hasFreeSlot(d)
 isReadyForDisplay(d) = d.id === liveId || isReady(d)
@@ -123,13 +124,28 @@ liveId               = connected ?? connecting ?? reconnecting  ->  destination_
 **`isReady` is the walk's verdict, tightened by exit data when there is any.**
 The daemon walks the HOPR graph for every destination and reports what it found
 under `route_health.walk`. A destination is routable only when the state is
-`Routable` and the best path it found has full value (`best_value` is in (0, 1];
-1 means nothing on the path is degraded). A `Routable` destination whose best
-path is weaker is `isSelectable` but not ready: the list offers it to the user
-grayed and tagged "Weak path", since the daemon will connect over any `Routable`
-route, but connecting over it is the user's explicit choice, never auto's. Once
-the exit itself has been measured, a full exit is neither ready nor selectable:
-a connect against it can only fail.
+`Routable` and the best path it found is worth at least `MIN_PATH_VALUE`. A
+`Routable` destination whose best path is weaker is `isSelectable` but not
+ready: the list offers it to the user grayed and tagged "Weak path", since the
+daemon will connect over any `Routable` route, but connecting over it is the
+user's explicit choice, never auto's. Once the exit itself has been measured, a
+full exit is neither ready nor selectable: a connect against it can only fail.
+
+**`best_value` is a product, so the gate is a band, not an equality.** The walk
+starts a path at 1 and multiplies in each edge's score: the edge's probe
+delivery rate times a stepped latency factor (1 up to 75 ms, then 0.7, 0.3 and
+0.15 in bands), the ack rate on the first hop, and a flat `edge_penalty` (0.5 by
+default) for an edge nothing has probed. Delivery rates are moving averages, so
+a real multi-hop path is rarely worth exactly 1 even when every link on it is
+healthy, and the first slow link drops it to 0.85 or below.
+`MIN_PATH_VALUE = 0.9` therefore admits exactly the paths whose every probed hop
+sits in the top latency tier with near-perfect delivery; it is the app's own
+product line, since the daemon's `Routable` only says a path of non-zero value
+exists.
+
+`Routable` implies `walk.found === "Paths"`: the daemon writes both from the
+same walk result, so `weak(d)` reduces to "routable, with a free slot, below the
+band". The `found === "Paths"` re-test in `routable` is defensive.
 
 **`exitData` prefers the probe.** The one long-lived probe session follows the
 active destination (see [Probing](#probing)) and refreshes continuously; a quick
