@@ -132,6 +132,9 @@ source:
   acknowledged and submitted. `uploadLogsError` rejects instead and shows the
   error inside the modal. The last `upload_logs` args are kept in
   `globalThis.__GVPN_UPLOAD_ARGS__` for `eval` assertions.
+- `exportLogsDest` — path the Export logs save dialog resolves with; omitted, it
+  accepts the suggested `/home/user/Downloads/gnosis_vpn-*.log.zst`, and `null`
+  cancels. `export_logs` echoes it back, which opens the Logs saved modal.
 - `windowLabel: "settings"` renders the settings window instead (use
   `--size 640x480`). Switch tabs by clicking the nav buttons, e.g. Usage:
 

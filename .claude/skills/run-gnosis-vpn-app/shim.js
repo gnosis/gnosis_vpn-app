@@ -136,6 +136,13 @@
     },
     "plugin:event|emit": () => null,
     "plugin:app|version": () => fixture.appVersion ?? "0.0.0-fixture",
+    "plugin:path|resolve_directory": () => "/home/user/Downloads",
+    "plugin:path|join": ({ paths }) => paths.join("/"),
+    // Resolves with fixture.exportLogsDest (null = canceled), else the suggested path.
+    "plugin:dialog|save": ({ options }) =>
+      fixture.exportLogsDest === undefined
+        ? options?.defaultPath ?? null
+        : fixture.exportLogsDest,
     // Recorded rather than opened, so an `eval` step can assert the target.
     "plugin:opener|open_url": (args) => {
       openedUrls.push(args?.url);
