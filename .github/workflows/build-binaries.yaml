@@ -88,12 +88,12 @@ jobs:
         uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:
           targets: ${{ steps.vars.outputs.rust_toolchain_target }}
-      # GNO-878: the restore aborts the runner on ENOSPC and takes its logs with it, so this is the last reading that survives.
+      # GNO-878: the restore aborts the runner, losing the whole job log, so this reading ships as an annotation instead.
       - name: Disk report (before cache restore)
         run: |
-          df -h /
-          free -h || true
-          du -shx /nix/store ~/.cargo src-tauri/target/* 2>/dev/null | sort -h
+          report=$(df -h /; free -h || true; du -shx /nix/store ~/.cargo src-tauri/target/* 2>/dev/null | sort -h)
+          echo "$report"
+          echo "::notice title=Disk before cache restore::${report//$'\n'/%0A}"
       - name: Rust cache
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
