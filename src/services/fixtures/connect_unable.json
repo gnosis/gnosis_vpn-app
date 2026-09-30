@@ -9,7 +9,7 @@
       "routing": 1
     },
     {
-      "state": "NeedsChannel"
+      "state": "NotRoutable"
     }
   ]
 }

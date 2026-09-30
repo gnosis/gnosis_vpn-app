@@ -14,5 +14,6 @@
     "since": 0,
     "phase": null
   },
-  "disconnecting": []
+  "disconnecting": [],
+  "probe": null
 }

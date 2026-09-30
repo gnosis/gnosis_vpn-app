@@ -5,10 +5,19 @@ import type {
 } from "@src/services/vpnService.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
-import { destinationLabel } from "@src/utils/destinations.ts";
+import {
+  destinationLabel,
+  getExitData,
+  isSelectable,
+  isWeakRoute,
+  rankContext,
+  routeGrade,
+} from "@src/utils/destinations.ts";
 import {
   formatLatency,
   formatLoadAvg,
+  formatPathValue,
+  formatRelays,
   formatRouting,
   formatSecondsAgo,
   getConnectionState,
@@ -18,12 +27,13 @@ import {
   getLatencyMs,
   hasHealthContent,
 } from "@src/utils/exitHealth.ts";
-import { isReady } from "@src/utils/destinations.ts";
 import HopsIcon from "./HopsIcon.tsx";
 import { levelValueClass } from "./levelColor.ts";
 import SlotLoadStat from "./SlotLoadStat.tsx";
 import Stat from "./Stat.tsx";
 import Tag from "../common/Tag.tsx";
+import SignalBars from "./SignalBars.tsx";
+import WeakRouteTag from "./WeakRouteTag.tsx";
 import Flag from "../Flag.tsx";
 
 export default function ExitNodeCard(props: {
@@ -39,6 +49,14 @@ export default function ExitNodeCard(props: {
   const routeHealth = createMemo((): RouteHealthView | null =>
     props.destinationState().route_health ?? null
   );
+  const exit = createMemo(() =>
+    getExitData(props.destinationState(), appState.probe)
+  );
+  // The tunnel's own sample once we are connected through this exit.
+  const tunnelRtt = () =>
+    appState.connected?.destination_id === destId()
+      ? appState.connected.tunnel_ping_rtt
+      : null;
   const routing = (): number => props.destinationState().destination.routing;
 
   const connectionLabel = createMemo(() =>
@@ -62,20 +80,21 @@ export default function ExitNodeCard(props: {
     return null;
   };
 
-  const latency = () => {
-    const rh = routeHealth();
-    return rh ? formatLatency(rh) : null;
-  };
+  const latency = () => formatLatency(exit(), tunnelRtt());
   // Graded on the same ramp as Load, so the two stats read alike.
   const latencyClass = () => {
-    const rh = routeHealth();
-    const ms = rh ? getLatencyMs(rh) : null;
+    const ms = getLatencyMs(exit(), tunnelRtt());
     return ms === null ? undefined : levelValueClass(getLatencyLevel(ms));
   };
 
-  const loadAvg = () => {
+  const loadAvg = () => formatLoadAvg(exit());
+  const pathValue = () => {
     const rh = routeHealth();
-    return rh ? formatLoadAvg(rh) : null;
+    return rh ? formatPathValue(rh) : null;
+  };
+  const relays = () => {
+    const rh = routeHealth();
+    return rh ? formatRelays(rh) : null;
   };
 
   const route = () => formatRouting(routing());
@@ -84,24 +103,32 @@ export default function ExitNodeCard(props: {
   const lastChecked = (): string | null => {
     const rh = routeHealth();
     if (!rh) return null;
-    const epoch = getLastCheckedEpoch(rh);
+    const epoch = getLastCheckedEpoch(rh, exit());
     if (epoch === null) return null;
     const diff = Math.max(0, Math.round(props.nowSec() - epoch));
     return formatSecondsAgo(diff);
   };
 
   // A live or transitioning node stays clickable: its tunnel exists and the slot it fills is ours.
+  const isLiveHere = () =>
+    isConnected() || isConnecting() || isReconnecting() || isDisconnecting();
   const isClickable = () =>
-    isReady(props.destinationState(), null) || isConnected() ||
-    isConnecting() || isReconnecting() || isDisconnecting();
+    isLiveHere() ||
+    isSelectable(props.destinationState(), rankContext(appState));
+  const isWeak = () =>
+    isWeakRoute(props.destinationState(), rankContext(appState));
+  const grade = () =>
+    routeGrade(props.destinationState(), rankContext(appState));
+  // Grayed in two steps: a weak route is still the user's to pick, an unusable one is not.
+  const usabilityClass = () => {
+    if (!isClickable()) return "opacity-40 pointer-events-none";
+    if (isWeak() && !isLiveHere()) return "opacity-70 cursor-pointer";
+    return "cursor-pointer";
+  };
 
   return (
     <div
-      class={`relative flex w-full bg-bg-surface-alt text-xs transition-opacity ${
-        !isClickable()
-          ? "opacity-40 pointer-events-none"
-          : "cursor-pointer hover:bg-bg-surface"
-      }`}
+      class={`relative flex w-full bg-bg-surface-alt text-xs transition-opacity hover:bg-bg-surface ${usabilityClass()}`}
       onClick={() => {
         if (!isClickable()) return;
         props.onClick();
@@ -129,19 +156,25 @@ export default function ExitNodeCard(props: {
         )}
       </Show>
       <div class="min-w-0 flex-1 px-4 py-3">
-        <div class="flex flex-wrap items-start justify-between gap-1.5 mb-1">
+        <div class="flex items-start justify-between gap-1.5 mb-1">
           <span class="flex items-center gap-1.5 font-semibold text-sm text-text-primary min-w-0">
             <Flag code={props.destinationState().destination.meta.flag ?? ""} />
             <span class="break-all">
               {destinationLabel(props.destinationState().destination)}
             </span>
           </span>
-          <Show when={route() && hopCount() !== 1}>
-            <Tag>
-              <HopsIcon count={hopCount()} hideCount />
-              <span class="ml-1">{route()}</span>
-            </Tag>
-          </Show>
+          <span class="flex shrink-0 items-center gap-1.5">
+            <Show when={isWeak()}>
+              <WeakRouteTag />
+            </Show>
+            <SignalBars grade={grade()} />
+            <Show when={route() && hopCount() !== 1}>
+              <Tag>
+                <HopsIcon count={hopCount()} hideCount />
+                <span class="ml-1">{route()}</span>
+              </Tag>
+            </Show>
+          </span>
         </div>
 
         <Show when={hasHealthContent(routeHealth())}>
@@ -164,13 +197,33 @@ export default function ExitNodeCard(props: {
                 </div>
               }
             />
-            <Stat
-              label="Checked"
-              value={lastChecked()}
-              tooltip={<span>Time since last health check</span>}
-            />
             <Show when={settings.showDetailedMetrics}>
-              <SlotLoadStat routeHealth={routeHealth()} />
+              <Stat
+                label="Checked"
+                value={lastChecked()}
+                tooltip={<span>Time since last health check</span>}
+              />
+              <Stat
+                label="Path"
+                value={pathValue()}
+                tooltip={
+                  <span>
+                    Value of the best path found; below 90% counts as a weak
+                    route.
+                  </span>
+                }
+              />
+              <Stat
+                label="Relays"
+                value={relays()}
+                tooltip={
+                  <span>
+                    Distinct first relays over the paths found; more means fewer
+                    single points of failure.
+                  </span>
+                }
+              />
+              <SlotLoadStat exit={exit()} />
               <Stat
                 label="CPU Utilization"
                 value={loadAvg()}
