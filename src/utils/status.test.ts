@@ -27,6 +27,7 @@ const BASE: StatusResponse = {
   connecting: null,
   reconnecting: null,
   disconnecting: [],
+  probe: null,
 };
 
 const CONNECTING_INFO = {
@@ -68,6 +69,7 @@ const BASE_APP_STATE: AppState = {
   connecting: null,
   reconnecting: null,
   disconnecting: [],
+  probe: null,
   isLoading: false,
   runMode: null,
   vpnStatus: "ServiceUnavailable",
@@ -124,7 +126,11 @@ describe("isConnected", () => {
     expect(
       isConnected({
         ...BASE,
-        connected: { destination_id: "dest-1", since: 0 },
+        connected: {
+          destination_id: "dest-1",
+          since: 0,
+          tunnel_ping_rtt: null,
+        },
       }),
     ).toBe(true);
   });
@@ -165,7 +171,11 @@ describe("isDisconnected", () => {
     expect(
       isDisconnected({
         ...BASE,
-        connected: { destination_id: "dest-1", since: 0 },
+        connected: {
+          destination_id: "dest-1",
+          since: 0,
+          tunnel_ping_rtt: null,
+        },
       }),
     ).toBe(false);
   });
@@ -288,8 +298,8 @@ function routeHealth(state: RouteHealthView["state"]): RouteHealthView {
   return {
     state,
     last_error: null,
-    checking_since: null,
-    consecutive_failures: 0,
+    walk: null,
+    quick_probe: null,
   };
 }
 
@@ -349,7 +359,11 @@ describe("deriveVPNStatus", () => {
         ...BASE,
         run_mode: RUNNING,
         target_destination: "dest-1",
-        connected: { destination_id: "dest-1", since: 0 },
+        connected: {
+          destination_id: "dest-1",
+          since: 0,
+          tunnel_ping_rtt: null,
+        },
       }),
     ).toBe("Connected");
   });
@@ -358,7 +372,7 @@ describe("deriveVPNStatus", () => {
 describe("waitingForRouteMessage", () => {
   it("says it is waiting while route health is still recoverable", () => {
     const state = appStateWithRouteHealth(
-      routeHealth({ state: "NeedsPeering", has_channel: false }),
+      routeHealth({ state: "NotRoutable" }),
     );
     expect(waitingForRouteMessage(state, "dest-1")).toBe(
       "Waiting for route to dest-1 - Brazil",
@@ -367,10 +381,13 @@ describe("waitingForRouteMessage", () => {
 
   it("names the reason once the route is unrecoverable", () => {
     const state = appStateWithRouteHealth(
-      routeHealth({ state: "Unrecoverable", reason: "InvalidPath" }),
+      routeHealth({
+        state: "Unrecoverable",
+        reason: { IncompatibleApiVersion: { server_versions: ["v9"] } },
+      }),
     );
     expect(waitingForRouteMessage(state, "dest-1")).toBe(
-      "Route to dest-1 - Brazil: Connection impossible",
+      "Route to dest-1 - Brazil: Incompatible server version",
     );
   });
 

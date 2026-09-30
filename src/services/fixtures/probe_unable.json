@@ -1,0 +1,14 @@
+{
+  "type": "UnableToProbe",
+  "destination": {
+    "id": "test-exit",
+    "meta": {
+      "location": "EU"
+    },
+    "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
+    "routing": 1
+  },
+  "route_health": {
+    "state": "NotRoutable"
+  }
+}
