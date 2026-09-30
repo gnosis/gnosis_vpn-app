@@ -23,12 +23,8 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2.6.3", features = [] }
 
 [dependencies]
-<<<<<<< HEAD
-gnosis_vpn-lib = { git = "https://github.com/gnosis/gnosis_vpn-client.git", branch = "backport-843-to-release/hoprdv4" }
-=======
-gnosis_vpn-lib = { git = "https://github.com/gnosis/gnosis_vpn-client.git", branch = "main" }
+gnosis_vpn-lib = { git = "https://github.com/gnosis/gnosis_vpn-client.git", branch = "release/hoprdv4" }
 clap = { version = "4", features = ["derive", "env"] }
->>>>>>> 40a27a2 (feat(settings): upload logs to the log uploader from the settings tab (#517))
 liblzma = { version = "0.4.8", default-features = false, features = ["static"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
