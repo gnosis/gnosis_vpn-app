@@ -42,7 +42,7 @@ export default function Checkbox(allProps: CheckboxProps) {
       <img
         src={props.checked ? checkedIconUrl : uncheckedIconUrl}
         alt={props.checked ? "Checked" : "Unchecked"}
-        class="h-5 w-5"
+        class="h-5 w-5 dark:invert"
       />
     </button>
   );

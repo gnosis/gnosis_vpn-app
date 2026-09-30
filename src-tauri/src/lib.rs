@@ -12,6 +12,7 @@ use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
+mod cli;
 mod commands;
 mod icons;
 mod logging;
@@ -24,10 +25,11 @@ pub mod tray;
 pub mod types;
 pub mod update_install;
 
+use cli::{Cli, get_log_uploader_website_url};
 use commands::{
     check_update, connect, disconnect, export_logs, get_cached_state, get_platform,
     log_from_frontend, probe, quick_probe, run_initialization_loop, set_app_icon,
-    set_status_poll_fast, stop_client,
+    set_status_poll_fast, stop_client, upload_logs,
 };
 use gnosis_vpn_lib::command::InfoResponse;
 use gnosis_vpn_lib::{command, socket::root as root_socket};
@@ -182,6 +184,8 @@ fn install_macos_about_panel_override(
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let cli = Cli::from_env();
+
     // Fix for the random Ubuntu black screen issuse
     #[cfg(target_os = "linux")]
     if std::env::var_os("WEBKIT_DISABLE_COMPOSITING_MODE").is_none() {
@@ -189,6 +193,7 @@ pub fn run() {
     }
 
     tauri::Builder::default()
+        .manage(cli)
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
             // A second instance was launched — bring the existing window to focus
             tracing::info!("second instance launched, focusing existing window");
@@ -210,12 +215,15 @@ pub fn run() {
                 Ok(dir) => match logging::init(&dir) {
                     Ok(filter) => {
                         let pkg = app.package_info();
+                        let cli = app.state::<Cli>();
                         tracing::info!(
                             name = %pkg.name,
                             version = %pkg.version,
                             os = std::env::consts::OS,
                             arch = std::env::consts::ARCH,
                             args = ?std::env::args().collect::<Vec<_>>(),
+                            log_upload_api_url = %cli.log_upload_api_url,
+                            log_uploader_website_url = %cli.log_uploader_website_url,
                             log_filter = %filter,
                             log_dir = %dir.display(),
                             "starting",
@@ -500,9 +508,11 @@ pub fn run() {
             quick_probe,
             set_status_poll_fast,
             export_logs,
+            upload_logs,
             log_from_frontend,
             set_app_icon,
             get_initial_theme,
+            get_log_uploader_website_url,
             check_update,
             get_cached_state,
             get_settings,
