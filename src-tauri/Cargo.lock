@@ -4560,6 +4560,7 @@ dependencies = [
  "dispatch",
  "futures-core",
  "gnosis_vpn-lib",
+ "gtk",
  "liblzma",
  "objc",
  "reqwest",

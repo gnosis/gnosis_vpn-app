@@ -7,7 +7,7 @@ import {
   untrack,
 } from "solid-js";
 import { Portal } from "solid-js/web";
-import { isWindowFocused } from "@src/utils/windowFocus.ts";
+import { hoverIsPlausible } from "@src/utils/hoverPresence.ts";
 
 const MARGIN = 8; // min gap from viewport edge
 const ARROW_INSET = 8; // min px from bubble edge to arrow center
@@ -93,9 +93,9 @@ export default function Tooltip(props: {
   const show = () => setWantVisible(true);
   const hide = () => setWantVisible(false);
 
-  // Window blur dismisses like a leave: WebKitGTK may keep a stale hover, so refocus must not re-show it.
+  // A hover that cannot be real dismisses like a leave; refocus/re-entry must not re-show it.
   createEffect(() => {
-    if (!isWindowFocused()) hide();
+    if (!hoverIsPlausible()) hide();
   });
 
   createEffect(() => {
