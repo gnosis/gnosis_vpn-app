@@ -19,25 +19,21 @@ import {
   SWITCH_CROSSOVER_MS,
   type UserInputEvent,
 } from "./destinationMode.ts";
-<<<<<<< HEAD
-=======
 import {
   eligibleRouteHealth,
   makeDestination,
   weakRouteHealth,
 } from "@src/testing/destinations.ts";
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
 
 // Derived from docs/destinationMode.md — where spec and implementation disagree, the spec wins and the case is expected to fail.
 
 const SETTLE_MS = SWITCH_COUNTDOWN_MS + SWITCH_CROSSOVER_MS;
 
-const BASE_DESTINATION: Destination = {
+const BASE_DESTINATION: Destination = makeDestination({
   id: "a",
-  meta: { location: "EU" },
   address: "0x1234",
-  routing: 1,
-};
+  meta: { location: "EU" },
+});
 
 /** Eligible; `relays` is distinct first relays, so a higher number ranks higher. */
 function makeEligible(id: string, relays = 2): DestinationState {

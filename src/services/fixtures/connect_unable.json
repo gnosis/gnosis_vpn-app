@@ -9,14 +9,7 @@
       "routing": 1
     },
     {
-      "state": "NeedsChannel"
+      "state": "NotRoutable"
     }
-<<<<<<< HEAD
   ]
-=======
-  },
-  "route_health": {
-    "state": "NotRoutable"
-  }
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
 }

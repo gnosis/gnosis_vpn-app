@@ -788,9 +788,9 @@ dependencies = [
 
 [[package]]
 name = "alloy-trie"
-version = "0.9.7"
+version = "0.9.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7895d0d2c946c0ae9253c227db77b9fc707383831058e6a5232fdfc774b28259"
+checksum = "b94e3e0a88f8db47250ac8a95fb825d020719f833eb1dc661bd3609c3bbece7d"
 dependencies = [
  "alloy-primitives",
  "alloy-rlp",
@@ -870,7 +870,7 @@ version = "1.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "40c48f72fd53cd289104fc64099abca73db4166ad86ea0b4341abe65af83dadc"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -881,7 +881,7 @@ checksum = "291e6a250ff86cd4a820112fb8898808a366d8f9f58ce16d1f538353ad55747d"
 dependencies = [
  "anstyle",
  "once_cell_polyfill",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -1394,9 +1394,9 @@ dependencies = [
 
 [[package]]
 name = "async-compression"
-version = "0.4.48"
+version = "0.4.49"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb61aea1a7def73ee7c350a184f0e70b32c182344e2e75bf70c9b621b83417fd"
+checksum = "a3789ca2cd1c4e8ce71fe9bd6312566014e20ff3016fc87bc71c59ff93b5fa61"
 dependencies = [
  "compression-codecs",
  "compression-core",
@@ -1822,9 +1822,9 @@ checksum = "3a8241f3ebb85c056b509d4327ad0358fbbba6ffb340bf388f26350aeda225b1"
 
 [[package]]
 name = "bigdecimal"
-version = "0.4.10"
+version = "0.4.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4d6867f1565b3aad85681f1015055b087fcfd840d6aeee6eee7f2da317603695"
+checksum = "8fa3f3d8cbf4dffcfe4991de61d012bef509a409ecbe9dd41049bfe32b4d4653"
 dependencies = [
  "autocfg",
  "libm",
@@ -1997,15 +1997,9 @@ dependencies = [
 
 [[package]]
 name = "blokli-client"
-<<<<<<< HEAD
 version = "0.31.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1645e71eacbae4cf304636a390a08b5c03cf068a814923dbd1631d5558f7ddeb"
-=======
-version = "0.33.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a9ebcb344ef0f25e9d0da565b4469182e0184077589e2f92583a6d2486e1ccc6"
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2478,9 +2472,9 @@ dependencies = [
 
 [[package]]
 name = "compression-codecs"
-version = "0.4.43"
+version = "0.4.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bef16c47ba2797aa6a909cc37d39911f3a6743811fe7408ac0b0cc0276b656e9"
+checksum = "5f018b36ac50598f7bfb0aa6094281e253e6b3cbc507a69652d2fb963a326d8d"
 dependencies = [
  "brotli",
  "compression-core",
@@ -3334,7 +3328,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -3541,13 +3535,8 @@ dependencies = [
 
 [[package]]
 name = "edgli"
-<<<<<<< HEAD
 version = "4.1.1"
-source = "git+https://github.com/hoprnet/edge-client.git?branch=release%2F4.1#e19adcf1f6d4df248780509dc4523449ced0b202"
-=======
-version = "5.0.0"
-source = "git+https://github.com/hoprnet/edge-client.git?rev=532efe78ec71a6a0cdf84a3507f758df41ee2b37#532efe78ec71a6a0cdf84a3507f758df41ee2b37"
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
+source = "git+https://github.com/hoprnet/edge-client.git?branch=release%2F4.1#e10b42cdad34fc5ec7007abcee9169d6cd69f356"
 dependencies = [
  "anyhow",
  "async-signal",
@@ -3563,6 +3552,7 @@ dependencies = [
  "hopr-strategy",
  "hopr-ticket-manager",
  "hopr-transport-p2p",
+ "lazy_static",
  "mimalloc",
  "multiaddr",
  "opentelemetry",
@@ -3780,7 +3770,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -4430,9 +4420,9 @@ checksum = "f70749695b063ecbf6b62949ccccde2e733ec3ecbbd71d467dca4e5c6c97cca0"
 
 [[package]]
 name = "glam"
-version = "0.33.10"
+version = "0.33.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "928452f9c953e142b2f0973e4bd5f34445fcaa8069556ea97a3c9d34d15a4cf8"
+checksum = "35b4e837a1d133645d1dcf283e146a4b9901e390a1c13545f959cfed3a72f24f"
 
 [[package]]
 name = "glib"
@@ -4542,13 +4532,8 @@ dependencies = [
 
 [[package]]
 name = "gnosis_vpn-lib"
-<<<<<<< HEAD
-version = "0.96.3"
-source = "git+https://github.com/gnosis/gnosis_vpn-client.git?branch=release%2Fhoprdv4#bea6187206904d040236c8ed8d60484b7eaf5114"
-=======
-version = "0.101.0"
-source = "git+https://github.com/gnosis/gnosis_vpn-client.git?branch=main#14212f28594ab9b7b5694809be629e70a87549a8"
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
+version = "0.96.4"
+source = "git+https://github.com/gnosis/gnosis_vpn-client.git?branch=backport-843-to-release%2Fhoprdv4#beb35ad32c13e053b7648ebbfe222dde06547a8c"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5032,15 +5017,9 @@ dependencies = [
 
 [[package]]
 name = "hopr-chain-connector"
-<<<<<<< HEAD
-version = "0.22.2"
+version = "0.22.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a053b62b7fb08927b8bc1f271018c122151d8bafbdcd3e0081a09322b13fcdae"
-=======
-version = "0.26.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "363fe8f89e2a9475ebe0844d6e07c1847b5b83071f218d77e5eb8e9c5dcc9dac"
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
+checksum = "0c805b5755f0ce79e8047da0325e28b94a18fc3d56e55736e40e5012d43a33c0"
 dependencies = [
  "ahash",
  "anyhow",
@@ -5053,11 +5032,7 @@ dependencies = [
  "futures-concurrency",
  "futures-time",
  "hopr-api",
-<<<<<<< HEAD
  "hopr-utilities",
-=======
- "hopr-utilities 0.15.0",
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
  "moka",
  "parking_lot",
  "petgraph",
@@ -5073,23 +5048,14 @@ dependencies = [
 
 [[package]]
 name = "hopr-crypto-packet"
-<<<<<<< HEAD
 version = "1.4.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#80a6324e17ab010faa49c32087becc29f68f1300"
-=======
-version = "2.0.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#97429eedf294bd62cf4c7ee1537c5523c27cf191"
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
+source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#4d26341d5066979397fa1cadd0dbd0f4f565ab71"
 dependencies = [
  "bimap",
  "const-hex",
  "flagset",
  "hopr-types",
-<<<<<<< HEAD
  "hopr-utilities",
-=======
- "hopr-utilities 0.16.0",
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
  "serde",
  "serde_bytes",
  "strum",
@@ -5118,13 +5084,8 @@ dependencies = [
 
 [[package]]
 name = "hopr-lib"
-<<<<<<< HEAD
-version = "4.0.4"
-source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#80a6324e17ab010faa49c32087becc29f68f1300"
-=======
-version = "5.0.0-rc.4"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#97429eedf294bd62cf4c7ee1537c5523c27cf191"
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
+version = "4.0.5"
+source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#4d26341d5066979397fa1cadd0dbd0f4f565ab71"
 dependencies = [
  "anyhow",
  "async-broadcast",
@@ -5138,11 +5099,7 @@ dependencies = [
  "hopr-api",
  "hopr-network-graph",
  "hopr-transport",
-<<<<<<< HEAD
  "hopr-utilities",
-=======
- "hopr-utilities 0.16.0",
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
  "humantime-serde",
  "lazy_static",
  "parking_lot",
@@ -5180,11 +5137,7 @@ dependencies = [
 [[package]]
 name = "hopr-protocol-app"
 version = "1.1.0"
-<<<<<<< HEAD
-source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#80a6324e17ab010faa49c32087becc29f68f1300"
-=======
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#97429eedf294bd62cf4c7ee1537c5523c27cf191"
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
+source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#4d26341d5066979397fa1cadd0dbd0f4f565ab71"
 dependencies = [
  "hopr-crypto-packet",
  "hopr-types",
@@ -5196,13 +5149,8 @@ dependencies = [
 
 [[package]]
 name = "hopr-protocol-hopr"
-<<<<<<< HEAD
 version = "6.2.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#80a6324e17ab010faa49c32087becc29f68f1300"
-=======
-version = "6.3.1"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#97429eedf294bd62cf4c7ee1537c5523c27cf191"
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
+source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#4d26341d5066979397fa1cadd0dbd0f4f565ab71"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5210,14 +5158,11 @@ dependencies = [
  "bloomfilter",
  "bytes",
  "cfg_eval",
+ "const-hex",
  "hopr-api",
  "hopr-crypto-packet",
  "hopr-ticket-manager",
-<<<<<<< HEAD
  "hopr-utilities",
-=======
- "hopr-utilities 0.16.0",
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
  "humantime-serde",
  "lazy_static",
  "moka",
@@ -5232,38 +5177,9 @@ dependencies = [
 ]
 
 [[package]]
-<<<<<<< HEAD
 name = "hopr-protocol-session"
 version = "1.5.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#80a6324e17ab010faa49c32087becc29f68f1300"
-=======
-name = "hopr-protocol-pix"
-version = "0.2.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#97429eedf294bd62cf4c7ee1537c5523c27cf191"
-dependencies = [
- "ahash",
- "auto_impl",
- "const-hex",
- "elliptic-curve-tools",
- "hopr-types",
- "hopr-utilities 0.16.0",
- "moka",
- "parking_lot",
- "serde",
- "serde_bytes",
- "smart-default",
- "strum",
- "thiserror 2.0.21",
- "tracing",
- "validator",
- "vsss-rs",
-]
-
-[[package]]
-name = "hopr-protocol-session"
-version = "1.5.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#97429eedf294bd62cf4c7ee1537c5523c27cf191"
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
+source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#4d26341d5066979397fa1cadd0dbd0f4f565ab71"
 dependencies = [
  "aquamarine",
  "asynchronous-codec",
@@ -5277,11 +5193,7 @@ dependencies = [
  "hashbrown 0.17.1",
  "hopr-crypto-packet",
  "hopr-types",
-<<<<<<< HEAD
  "hopr-utilities",
-=======
- "hopr-utilities 0.16.0",
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
  "lazy_static",
  "parking_lot",
  "pin-project",
@@ -5297,13 +5209,8 @@ dependencies = [
 
 [[package]]
 name = "hopr-protocol-start"
-<<<<<<< HEAD
 version = "1.1.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#80a6324e17ab010faa49c32087becc29f68f1300"
-=======
-version = "2.0.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#97429eedf294bd62cf4c7ee1537c5523c27cf191"
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
+source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#4d26341d5066979397fa1cadd0dbd0f4f565ab71"
 dependencies = [
  "aquamarine",
  "flagset",
@@ -5317,52 +5224,31 @@ dependencies = [
 
 [[package]]
 name = "hopr-strategy"
-<<<<<<< HEAD
 version = "0.28.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "88b80cfdf4632f8ffc73ad4d5c9bfadaa14783c7f4bf44c7ac7e9940fcd03137"
-dependencies = [
- "anyhow",
- "async-trait",
-=======
-version = "5.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2d5dd54fec09bedcb66a251397fb6c62feea9ec39f880b772fd3b242de4ab852"
+source = "git+https://github.com/hoprnet/hopr-strategy?branch=compat%2Fv4#ef95cdda211c2d4edee232af8735535cc5fb9b27"
 dependencies = [
  "anyhow",
  "async-trait",
  "atomic_enum",
- "backon",
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
  "bytesize",
  "dashmap",
  "futures",
  "futures-concurrency",
  "futures-time",
  "hopr-api",
-<<<<<<< HEAD
  "hopr-utilities",
-=======
- "hopr-chain-connector",
- "hopr-utilities 0.14.0",
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
  "humantime-serde",
  "lazy_static",
  "moka",
+ "multiaddr",
  "num_enum",
  "parking_lot",
  "serde",
  "serde_with",
  "smart-default",
  "statrs",
-<<<<<<< HEAD
- "thiserror 2.0.20",
-=======
  "strum",
- "subtle",
  "thiserror 2.0.21",
- "tokio",
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
  "tracing",
  "validator",
 ]
@@ -5392,13 +5278,8 @@ dependencies = [
 
 [[package]]
 name = "hopr-transport"
-<<<<<<< HEAD
-version = "0.48.4"
-source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#80a6324e17ab010faa49c32087becc29f68f1300"
-=======
-version = "0.50.2"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#97429eedf294bd62cf4c7ee1537c5523c27cf191"
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
+version = "0.48.5"
+source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#4d26341d5066979397fa1cadd0dbd0f4f565ab71"
 dependencies = [
  "ahash",
  "anyhow",
@@ -5420,11 +5301,7 @@ dependencies = [
  "hopr-transport-probe",
  "hopr-transport-session",
  "hopr-transport-tag-allocator",
-<<<<<<< HEAD
  "hopr-utilities",
-=======
- "hopr-utilities 0.16.0",
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
  "humantime-serde",
  "lazy_static",
  "libp2p",
@@ -5445,11 +5322,7 @@ dependencies = [
 [[package]]
 name = "hopr-transport-mixer"
 version = "0.4.1"
-<<<<<<< HEAD
-source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#80a6324e17ab010faa49c32087becc29f68f1300"
-=======
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#97429eedf294bd62cf4c7ee1537c5523c27cf191"
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
+source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#4d26341d5066979397fa1cadd0dbd0f4f565ab71"
 dependencies = [
  "futures",
  "futures-timer",
@@ -5465,9 +5338,9 @@ dependencies = [
 
 [[package]]
 name = "hopr-transport-p2p"
-version = "0.9.5"
+version = "0.9.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1e9a987efe3013cf7f3809d5f87aec29d5588a695a6af718dd406f5d0f5806b"
+checksum = "6590fcfb0bace729dd67a0276dcb896a4eaf0efb2d9aa85059c9471e14595e08"
 dependencies = [
  "async-broadcast",
  "async-trait",
@@ -5488,11 +5361,7 @@ dependencies = [
 [[package]]
 name = "hopr-transport-probe"
 version = "0.8.0"
-<<<<<<< HEAD
-source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#80a6324e17ab010faa49c32087becc29f68f1300"
-=======
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#97429eedf294bd62cf4c7ee1537c5523c27cf191"
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
+source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#4d26341d5066979397fa1cadd0dbd0f4f565ab71"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5503,11 +5372,7 @@ dependencies = [
  "hopr-api",
  "hopr-protocol-app",
  "hopr-transport-tag-allocator",
-<<<<<<< HEAD
  "hopr-utilities",
-=======
- "hopr-utilities 0.16.0",
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
  "humantime-serde",
  "moka",
  "rand 0.10.3",
@@ -5521,13 +5386,8 @@ dependencies = [
 
 [[package]]
 name = "hopr-transport-session"
-<<<<<<< HEAD
-version = "0.30.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#80a6324e17ab010faa49c32087becc29f68f1300"
-=======
-version = "0.31.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#97429eedf294bd62cf4c7ee1537c5523c27cf191"
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
+version = "0.30.3"
+source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#4d26341d5066979397fa1cadd0dbd0f4f565ab71"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5540,11 +5400,7 @@ dependencies = [
  "hopr-protocol-app",
  "hopr-protocol-session",
  "hopr-protocol-start",
-<<<<<<< HEAD
  "hopr-utilities",
-=======
- "hopr-utilities 0.16.0",
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
  "humantime-serde",
  "lazy_static",
  "moka",
@@ -5563,11 +5419,7 @@ dependencies = [
 [[package]]
 name = "hopr-transport-tag-allocator"
 version = "0.1.1"
-<<<<<<< HEAD
-source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#80a6324e17ab010faa49c32087becc29f68f1300"
-=======
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#97429eedf294bd62cf4c7ee1537c5523c27cf191"
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
+source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#4d26341d5066979397fa1cadd0dbd0f4f565ab71"
 dependencies = [
  "hopr-protocol-app",
  "serde",
@@ -5642,71 +5494,9 @@ dependencies = [
 
 [[package]]
 name = "hopr-utilities"
-version = "0.9.1"
+version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-<<<<<<< HEAD
-checksum = "d4be85522dd5a1a42e3114d17ee354002cd5fe51aac691af95c035e3b953bfee"
-=======
-checksum = "c14c15d3f0945752daaf2a0b5c5b0a9e11821d012eff7c48195e89dc1454695d"
-dependencies = [
- "arrayvec",
- "auto_impl",
- "const-hex",
- "crossfire",
- "flume",
- "futures",
- "futures-time",
- "hickory-resolver 0.26.3",
- "hopr-types",
- "indexmap 2.14.2",
- "lazy_static",
- "libp2p-identity",
- "multiaddr",
- "pin-project",
- "rand 0.10.3",
- "serde_json",
- "socket2 0.6.5",
- "strum",
- "thiserror 2.0.21",
- "tracing",
-]
-
-[[package]]
-name = "hopr-utilities"
-version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1a72f17ef546d06fdcc2804faada62bf16843552819909aeb0a23cc74fa265b"
-dependencies = [
- "auto_impl",
- "const-hex",
- "futures",
- "indexmap 2.14.2",
- "serde_json",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "hopr-utilities"
-version = "0.15.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a287a83a776cc8e3901c4441f6cf7631f61b8bc632a0001b22b3da722a566d4d"
-dependencies = [
- "auto_impl",
- "const-hex",
- "futures",
- "indexmap 2.14.2",
- "serde_json",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "hopr-utilities"
-version = "0.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "23cb82d1634ccd7f22c006938a433059cc463f3d4226ff8e64bacdb61fd8fc0d"
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
+checksum = "7883d6a0c8865972b9e700972ed5fc6c76f96a02721bf37176890939682d64f1"
 dependencies = [
  "arrayvec",
  "auto_impl",
@@ -5740,15 +5530,11 @@ dependencies = [
 [[package]]
 name = "hopr-utils-session"
 version = "1.2.1"
-<<<<<<< HEAD
-source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#80a6324e17ab010faa49c32087becc29f68f1300"
-=======
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#97429eedf294bd62cf4c7ee1537c5523c27cf191"
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
+source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#4d26341d5066979397fa1cadd0dbd0f4f565ab71"
 dependencies = [
  "anyhow",
  "async-trait",
- "base64 0.22.1",
+ "base64 0.23.1",
  "bytesize",
  "dashmap",
  "futures",
@@ -5756,11 +5542,7 @@ dependencies = [
  "hopr-api",
  "hopr-lib",
  "hopr-transport",
-<<<<<<< HEAD
  "hopr-utilities",
-=======
- "hopr-utilities 0.16.0",
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
  "human-bandwidth",
  "lazy_static",
  "parking_lot",
@@ -5946,7 +5728,7 @@ dependencies = [
  "js-sys",
  "log",
  "wasm-bindgen",
- "windows-core 0.62.2",
+ "windows-core 0.61.2",
 ]
 
 [[package]]
@@ -6604,10 +6386,11 @@ dependencies = [
 
 [[package]]
 name = "keccak-asm"
-version = "0.1.8"
+version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd5dc2c0d691cbf7595cde551ced329cca99c2387c2cbc97754c5d0cd045d3ee"
+checksum = "f32890f646914a263e39064295005972f0e95b928254061b2aca98445f304ee9"
 dependencies = [
+ "cfg-if",
  "digest 0.10.7",
  "sha3-asm",
 ]
@@ -7412,12 +7195,8 @@ dependencies = [
  "once_cell",
  "png 0.18.1",
  "serde",
-<<<<<<< HEAD
- "thiserror 2.0.20",
-=======
  "thiserror 2.0.21",
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -7476,30 +7255,6 @@ dependencies = [
 ]
 
 [[package]]
-<<<<<<< HEAD
-name = "multiversion"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b4ca4bea16ffc3f443cf7d866912118196bfef4c6a1556ca00f9f9b00bb43f7c"
-dependencies = [
- "multiversion-macros",
-]
-
-[[package]]
-name = "multiversion-macros"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0d416831a7317ef4b08bee00b69cbbb9c8763da7959a7026244d6266869f9c83"
-dependencies = [
- "proc-macro2",
- "quote",
- "rustversion",
- "syn 3.0.6",
-]
-
-[[package]]
-=======
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
 name = "multiversion_no_op"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7515,7 +7270,7 @@ dependencies = [
  "glam 0.30.10",
  "glam 0.31.1",
  "glam 0.32.1",
- "glam 0.33.10",
+ "glam 0.33.11",
  "matrixmultiply",
  "num-complex",
  "num-rational",
@@ -7709,7 +7464,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -7793,7 +7548,7 @@ version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "680998035259dcfcafe653688bf2aa6d3e2dc05e98be6ab46afb089dc84f1df8"
 dependencies = [
- "proc-macro-crate 2.0.2",
+ "proc-macro-crate 1.3.1",
  "proc-macro2",
  "quote",
  "syn 2.0.119",
@@ -9055,7 +8810,7 @@ dependencies = [
  "once_cell",
  "socket2 0.6.5",
  "tracing",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -9067,7 +8822,7 @@ dependencies = [
  "cfg_aliases",
  "libc",
  "socket2 0.6.5",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -9578,7 +9333,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -9637,7 +9392,7 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -9946,11 +9701,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3afb591f9cdb6223c88ba39269aff895620c7f0716dc42b705b5733d5c7c0823"
 dependencies = [
  "annotate-snippets",
-<<<<<<< HEAD
- "base64 0.22.1",
-=======
- "base64 0.23.1",
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
+ "base64 0.21.7",
  "encoding_rs_io",
  "granit-parser",
  "nohash-hasher",
@@ -10207,9 +9958,9 @@ dependencies = [
 
 [[package]]
 name = "sha3-asm"
-version = "0.1.8"
+version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a6287fd675f713484342a89cbf0a386abef5f15919cfad607e5e1f19e1e15331"
+checksum = "471668161349031e3d415412f996b030c477488eec267cc3cadae3d06c0a367f"
 dependencies = [
  "cc",
  "cfg-if",
@@ -10381,7 +10132,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3d1e2c7f27f8d4cb10542a02c49005dbd6e93095799d6f3be745fae9f8fedd4"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -11096,7 +10847,7 @@ dependencies = [
  "getrandom 0.4.3",
  "once_cell",
  "rustix",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -11243,9 +10994,9 @@ dependencies = [
 
 [[package]]
 name = "tokio-rustls"
-version = "0.26.5"
+version = "0.26.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b0c85f2c3ef0b1cd58b36682f4b17aaa995f0e5db534d85692b4903abce21f67"
+checksum = "c9cc2678c2cdd569ef8215e2afd7954ada2ae20b4fdd2c5fe6139a3b02d105db"
 dependencies = [
  "rustls",
  "tokio",
@@ -11609,12 +11360,8 @@ dependencies = [
  "once_cell",
  "png 0.18.1",
  "serde",
-<<<<<<< HEAD
- "thiserror 2.0.20",
-=======
  "thiserror 2.0.21",
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -11649,7 +11396,7 @@ checksum = "f2f6fb2847f6742cd76af783a2a2c49e9375d0a111c7bef6f71cd9e738c72d6e"
 dependencies = [
  "memoffset",
  "tempfile",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -12198,7 +11945,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]

@@ -18,8 +18,6 @@ vi.mock("@tauri-apps/api/window", () => ({
 }));
 
 import { AppScreen, createScreenSelector } from "./screenSelector.ts";
-<<<<<<< HEAD
-=======
 import {
   checkedQuickProbe,
   eligibleRouteHealth,
@@ -27,7 +25,6 @@ import {
   noPathRouteHealth,
   weakRouteHealth,
 } from "@src/testing/destinations.ts";
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
 
 const RUNNING: RunMode = {
   Running: { funding_status: null, hopr_status: null },
@@ -49,23 +46,8 @@ const PREPARING_SAFE: RunMode = {
 
 function destination(route_health: RouteHealthView): DestinationState {
   return {
-<<<<<<< HEAD
-    destination: {
-      id: "dest-1",
-      meta: { location: "Brazil" },
-      address: "0xexit",
-      routing: 1,
-    },
-    route_health: {
-      state,
-      last_error: null,
-      checking_since: null,
-      consecutive_failures: 0,
-    },
-=======
     destination: makeDestination({ meta: { location: "Brazil" } }),
     route_health,
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
   };
 }
 

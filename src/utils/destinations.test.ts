@@ -6,17 +6,8 @@ import type {
   Slots,
 } from "@src/services/vpnService.ts";
 import {
-<<<<<<< HEAD
-=======
-  destinationDescription,
-  destinationLabel,
-  destinationSearchText,
-  destinationTitle,
   freeSlots,
   getExitData,
-  isConfigOnly,
-  isConfigPinned,
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
   isReady,
   isReadyForDisplay,
   isSelectable,
@@ -24,29 +15,21 @@ import {
   isWeakRoute,
   NO_CONTEXT,
   pickStartupTarget,
-<<<<<<< HEAD
-=======
   type RankContext,
   routeGrade,
-  sanitizeMetaText,
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
   sortAlphaDestinations,
   sortByRouteQuality,
 } from "./destinations.ts";
-<<<<<<< HEAD
-=======
 import {
   checkedQuickProbe,
   checkingQuickProbe,
   eligibleRouteHealth,
-  makeDestination,
   noPathRouteHealth,
   probeViewFor,
   quickProbeCheck,
   unrecoverableRouteHealth,
   weakRouteHealth,
 } from "@src/testing/destinations.ts";
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
 
 const BASE_DESTINATION: Destination = {
   id: "a",

@@ -6,17 +6,10 @@ use gnosis_vpn_lib::balance::{
     Balance, BalanceRecommendation, Balances, Capacity, CapacityAllocations, FundingLevel,
     FundingStatus, WxHOPR, XDai,
 };
-<<<<<<< HEAD
-use gnosis_vpn_lib::command::RouteHealthView;
-use gnosis_vpn_lib::connection::destination::{Destination, HopRouting};
-=======
 use gnosis_vpn_lib::command::{
     ProbeResponse, ProbeView, QuickProbeResponse, RouteHealthView, UnprobeResponse,
 };
-use gnosis_vpn_lib::connection::destination::{
-    Destination, DestinationSource, Destinations, HopRouting, Meta, Overrides,
-};
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
+use gnosis_vpn_lib::connection::destination::{Destination, HopRouting};
 use gnosis_vpn_lib::prelude::Address;
 use gnosis_vpn_lib::probe::{Health, LoadAvg, ProbeState, Slots, Versions};
 use gnosis_vpn_lib::route_health::{
@@ -42,44 +35,12 @@ fn destination() -> Destination {
     )
 }
 
-<<<<<<< HEAD
-fn exit_health() -> ExitHealth {
-    ExitHealth {
-        checked_at: SystemTime::UNIX_EPOCH,
-        versions: Versions {
-            versions: vec!["v1".to_string()],
-            latest: "v1".to_string(),
-=======
-/// A c+d exit with one pinned label; a second pin would make the HashMap's key order flaky.
-fn pinned_destination() -> Destination {
-    let mut pinned = HashMap::new();
-    pinned.insert("location".to_string(), "Germany".to_string());
-    let mut meta = pinned.clone();
-    meta.insert("name".to_string(), "Frankfurt-1".to_string());
-    meta.insert("flag".to_string(), "DE".to_string());
-    meta.insert(
-        "description".to_string(),
-        "10Gbit uplink, no logs kept".to_string(),
-    );
-    Destination::new(
-        "pinned-exit".to_string(),
-        address(),
-        HopRouting::try_from(1).unwrap(),
-        Meta::from_map(meta),
-        "172.30.0.1:8000".parse().unwrap(),
-        "172.30.0.1:51820".parse().unwrap(),
-        DestinationSource::ConfiguredAndDiscovered,
-    )
-    .with_overrides(Overrides::from_config(pinned, None, None))
-}
-
 fn health() -> Health {
     Health {
         slots: Slots {
             total: 16,
             available: 10,
             connected: 1,
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
         },
         load_avg: LoadAvg {
             one: 0.1,
@@ -389,27 +350,6 @@ fn generate_fixtures() {
         dest_state(Some(route_health_view(
             RouteHealthState::Unrecoverable {
                 reason: UnrecoverableReason::NotAllowed,
-<<<<<<< HEAD
-            })),
-        },
-        command::DestinationState {
-            destination: destination(),
-            route_health: Some(route_health_view(RouteHealthState::ReadyToConnect {
-                exit: exit_health(),
-            })),
-        },
-        command::DestinationState {
-            destination: destination(),
-            route_health: Some(route_health_view(RouteHealthState::Connecting {
-                exit: exit_health(),
-                tunnel_ping_rtt: Some(Duration::from_millis(12)),
-            })),
-        },
-        command::DestinationState {
-            destination: destination(),
-            route_health: None,
-        },
-=======
             },
             None,
             None,
@@ -436,10 +376,6 @@ fn generate_fixtures() {
             None,
         ))),
         dest_state(None),
-        command::DestinationState {
-            destination: pinned_destination(),
-            route_health: None,
-        },
         // A re-check keeps what the previous one measured.
         dest_state(Some(route_health_view(
             RouteHealthState::Routable,
@@ -449,7 +385,6 @@ fn generate_fixtures() {
                 last: Some(quick_check()),
             }),
         ))),
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
     ];
     let mut route_health_status = status_base(types::RunMode::NotRunning);
     route_health_status.destinations = route_health_variants;
@@ -482,14 +417,7 @@ fn generate_fixtures() {
     write(
         &fixtures_dir,
         "connect_unable.json",
-<<<<<<< HEAD
-        &command::ConnectResponse::UnableToConnect(destination(), RouteHealthState::NeedsChannel),
-=======
-        &command::ConnectResponse::UnableToConnect {
-            destination: destination(),
-            route_health: RouteHealthState::NotRoutable,
-        },
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
+        &command::ConnectResponse::UnableToConnect(destination(), RouteHealthState::NotRoutable),
     );
 
     write(
@@ -515,7 +443,7 @@ fn generate_fixtures() {
         "probe_replaced.json",
         &ProbeResponse::Replaced {
             destination: destination(),
-            previous: Box::new(pinned_destination()),
+            previous: Box::new(destination()),
         },
     );
     write(

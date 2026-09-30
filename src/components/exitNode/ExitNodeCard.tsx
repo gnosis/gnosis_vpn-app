@@ -5,20 +5,14 @@ import type {
 } from "@src/services/vpnService.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
-<<<<<<< HEAD
-import { destinationLabel } from "@src/utils/destinations.ts";
-=======
 import {
-  destinationDescription,
+  destinationLabel,
   getExitData,
-  isConfigOnly,
-  isConfigPinned,
   isSelectable,
   isWeakRoute,
   rankContext,
   routeGrade,
 } from "@src/utils/destinations.ts";
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
 import {
   formatLatency,
   formatLoadAvg,
@@ -33,11 +27,6 @@ import {
   getLatencyMs,
   hasHealthContent,
 } from "@src/utils/exitHealth.ts";
-<<<<<<< HEAD
-import { isReady } from "@src/utils/destinations.ts";
-=======
-import DestinationLabel from "./DestinationLabel.tsx";
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
 import HopsIcon from "./HopsIcon.tsx";
 import { levelValueClass } from "./levelColor.ts";
 import SlotLoadStat from "./SlotLoadStat.tsx";
@@ -139,15 +128,7 @@ export default function ExitNodeCard(props: {
 
   return (
     <div
-<<<<<<< HEAD
-      class={`relative flex w-full bg-bg-surface-alt text-xs transition-opacity ${
-        !isClickable()
-          ? "opacity-40 pointer-events-none"
-          : "cursor-pointer hover:bg-bg-surface"
-      }`}
-=======
-      class={`relative flex w-full text-xs transition-opacity ${surfaceClass()} ${usabilityClass()}`}
->>>>>>> 71f63a5 (feat(route_health): adjust app to new route_healthing (#511))
+      class={`relative flex w-full bg-bg-surface-alt text-xs transition-opacity hover:bg-bg-surface ${usabilityClass()}`}
       onClick={() => {
         if (!isClickable()) return;
         props.onClick();

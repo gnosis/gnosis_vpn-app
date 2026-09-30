@@ -142,7 +142,7 @@ describe("StatusResponseSchema", () => {
       CannotOpenSession: { error: "surb buffer too small" },
     });
     expect(health[7]).toBe(null);
-    const rechecking = health[9]?.quick_probe;
+    const rechecking = health[8]?.quick_probe;
     expect(rechecking?.state).toBe("Checking");
     const carried = rechecking?.state === "Checking" ? rechecking.last : null;
     expect(carried?.status_rtt).toBe(42);
