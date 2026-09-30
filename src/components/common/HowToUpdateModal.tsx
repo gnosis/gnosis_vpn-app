@@ -1,16 +1,9 @@
-import {
-  createResource,
-  createSignal,
-  Match,
-  onCleanup,
-  Switch,
-} from "solid-js";
+import { createResource, Match, Switch } from "solid-js";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { logWarn } from "@src/utils/appLog.ts";
 import { getPlatform } from "@src/utils/platform.ts";
 import { Modal } from "./Modal.tsx";
-import copyIcon from "@assets/icons/copy.svg";
-import checkmarkIcon from "@assets/icons/checkmark.svg";
+import CopyBlock from "./CopyBlock.tsx";
 
 // Linux update commands, matching the official installer repo
 // (https://github.com/gnosis/gnosis_vpn). Kept as a single copyable block
@@ -21,31 +14,6 @@ sudo apt-get install -y gnosisvpn`;
 // macOS has no package-manager path: the installer pkg is the whole update, and
 // it is also the way back from a missing or too-old toolkit binary.
 const DOWNLOADS_URL = "https://downloads.vpn.gnosis.eth.limo/";
-
-function AptBlock(props: { copied: boolean; onCopy: () => void }) {
-  return (
-    <div class="relative rounded-lg border border-border bg-[#12161c] overflow-hidden">
-      <button
-        type="button"
-        onClick={props.onCopy}
-        aria-label={props.copied ? "Copied" : "Copy commands"}
-        class="absolute top-2 right-2 inline-flex items-center gap-1.5 rounded-md bg-white/10 px-2 py-1 text-xs text-gray-200 hover:bg-white/20 hover:cursor-pointer transition-colors"
-      >
-        <img
-          src={props.copied ? checkmarkIcon : copyIcon}
-          width={14}
-          height={14}
-          alt=""
-          class="invert"
-        />
-        {props.copied ? "Copied" : "Copy"}
-      </button>
-      <pre class="overflow-x-auto px-3 py-3 pr-20 text-xs leading-relaxed font-mono text-gray-100">
-        <code>{UPDATE_COMMAND}</code>
-      </pre>
-    </div>
-  );
-}
 
 function DownloadsButton(props: { label: string; onOpen: () => void }) {
   return (
@@ -68,29 +36,9 @@ export default function HowToUpdateModal(props: {
   open: boolean;
   onClose: () => void;
 }) {
-  const [copied, setCopied] = createSignal(false);
   // The apt commands cannot update a macOS install, so the platform decides
   // what this modal says; getPlatform() caches, so this resolves once.
   const [platform, { refetch: refetchPlatform }] = createResource(getPlatform);
-  let copyTimeout: ReturnType<typeof setTimeout> | undefined;
-
-  onCleanup(() => clearTimeout(copyTimeout));
-
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(UPDATE_COMMAND);
-      setCopied(true);
-      clearTimeout(copyTimeout);
-      copyTimeout = globalThis.setTimeout(() => {
-        setCopied(false);
-        copyTimeout = undefined;
-      }, 1500);
-    } catch (e) {
-      // Clipboard can be unavailable (e.g. denied permissions); the commands
-      // are still visible for manual copy, so no UI error.
-      logWarn(`Failed to copy update command: ${e}`);
-    }
-  };
 
   const openDownloads = async () => {
     try {
@@ -127,7 +75,7 @@ export default function HowToUpdateModal(props: {
               <div class="text-sm text-text-secondary">
                 On Linux, run the following in a terminal.
               </div>
-              <AptBlock copied={copied()} onCopy={copy} />
+              <CopyBlock text={UPDATE_COMMAND} label="update commands" />
               <button
                 type="button"
                 onClick={() => void refetchPlatform()}
@@ -158,7 +106,7 @@ export default function HowToUpdateModal(props: {
             <div class="text-sm text-text-secondary">
               Run the following in a terminal to update Gnosis VPN on Linux.
             </div>
-            <AptBlock copied={copied()} onCopy={copy} />
+            <CopyBlock text={UPDATE_COMMAND} label="update commands" />
           </Match>
         </Switch>
         <button
