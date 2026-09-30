@@ -7,9 +7,11 @@ import {
   untrack,
 } from "solid-js";
 import { Portal } from "solid-js/web";
+import { isWindowFocused } from "@src/utils/windowFocus.ts";
 
 const MARGIN = 8; // min gap from viewport edge
 const ARROW_INSET = 8; // min px from bubble edge to arrow center
+const IDLE_DISMISS_MS = 6000; // how long a motionless hover stays trusted
 
 export default function Tooltip(props: {
   content: JSX.Element;
@@ -92,9 +94,23 @@ export default function Tooltip(props: {
   const show = () => setWantVisible(true);
   const hide = () => setWantVisible(false);
 
+  // Only pointer hovers get the idle timeout below; a focus-shown tooltip sees no moves.
+  const [byPointer, setByPointer] = createSignal(false);
+  const showFromPointer = () => {
+    setByPointer(true);
+    show();
+  };
+  const showFromFocus = () => {
+    setByPointer(false);
+    show();
+  };
+
+  // A blurred window cannot be hovered, whatever WebKitGTK still reports.
+  const suppressed = () => props.disabled || !isWindowFocused();
+
   createEffect(() => {
     clearTimeout(timeout);
-    if (props.disabled) {
+    if (suppressed()) {
       // Force-hide immediately; wantVisible stays intact so the tooltip
       // reappears once re-enabled without a fresh mouseenter.
       setVisible(false);
@@ -108,14 +124,26 @@ export default function Tooltip(props: {
     }
   });
 
+  // A hover WebKitGTK left stale (pointer exited onto a window above ours) sends no further moves.
+  const [pointerActivity, setPointerActivity] = createSignal(0);
+  const notePointerActivity = () => setPointerActivity((n) => n + 1);
+
+  createEffect(() => {
+    if (!visible() || !byPointer()) return;
+    pointerActivity(); // re-arm on every move over the trigger or bubble
+    const idle = setTimeout(hide, IDLE_DISMISS_MS);
+    onCleanup(() => clearTimeout(idle));
+  });
+
   return (
     <div
       ref={triggerRef}
       class={`relative inline-flex ${props.triggerClass ?? "w-fit"}`}
       tabindex={props.tabIndex}
-      onMouseEnter={show}
+      onMouseEnter={showFromPointer}
       onMouseLeave={hide}
-      onFocusIn={show}
+      onMouseMove={notePointerActivity}
+      onFocusIn={showFromFocus}
       onFocusOut={hide}
     >
       {props.children}
@@ -130,8 +158,9 @@ export default function Tooltip(props: {
                 : { top: `${anchorY().top}px` }),
               left: `${left()}px`,
             }}
-            onMouseEnter={show}
+            onMouseEnter={showFromPointer}
             onMouseLeave={hide}
+            onMouseMove={notePointerActivity}
           >
             {props.content}
             <span
