@@ -3,10 +3,14 @@ import { save } from "@tauri-apps/plugin-dialog";
 import { downloadDir, join } from "@tauri-apps/api/path";
 import { VPNService } from "../services/vpnService.ts";
 import { logInfo } from "@src/utils/appLog.ts";
+import { logBundleFileName } from "@src/utils/logBundle.ts";
 import Button from "./common/Button.tsx";
+import ExportLogsModal from "./ExportLogsModal.tsx";
+import UploadLogsModal from "./UploadLogsModal.tsx";
 
 export default function ExportLogs() {
   const [loading, setLoading] = createSignal(false);
+  const [showUpload, setShowUpload] = createSignal(false);
   const [savedPath, setSavedPath] = createSignal<string | null>(null);
   const [error, setError] = createSignal<string | null>(null);
 
@@ -15,24 +19,8 @@ export default function ExportLogs() {
     setError(null);
     setSavedPath(null);
     try {
-      const now = new Date();
-      const ts = `${now.getFullYear()}${
-        String(now.getMonth() + 1).padStart(2, "0")
-      }${
-        String(now.getDate()).padStart(
-          2,
-          "0",
-        )
-      }-${String(now.getHours()).padStart(2, "0")}${
-        String(now.getMinutes()).padStart(2, "0")
-      }${
-        String(
-          now.getSeconds(),
-        ).padStart(2, "0")
-      }`;
-      const defaultName = `gnosis_vpn-${ts}.log.zst`;
       const downloadsPath = await downloadDir();
-      const defaultPath = await join(downloadsPath, defaultName);
+      const defaultPath = await join(downloadsPath, logBundleFileName());
       const dest = await save({
         defaultPath,
         filters: [{ name: "Zstandard archive", extensions: ["zst"] }],
@@ -50,24 +38,28 @@ export default function ExportLogs() {
     }
   }
 
+  function openUpload() {
+    setError(null);
+    setShowUpload(true);
+  }
+
   return (
     <div class="w-full flex flex-col mb-2 items-center justify-between">
-      <Button
-        size="sm"
-        class="my-2"
-        variant="outline"
-        loading={loading()}
-        onClick={onExport}
-      >
-        Export logs
-      </Button>
+      <div class="w-full flex gap-2 my-2">
+        <Button
+          size="sm"
+          variant="outline"
+          loading={loading()}
+          onClick={onExport}
+        >
+          Export logs
+        </Button>
+        <Button size="sm" variant="outline" onClick={openUpload}>
+          Upload logs
+        </Button>
+      </div>
       <div class="w-full h-4 flex items-center justify-center">
         <Switch>
-          <Match when={savedPath()}>
-            <span class="text-xs text-text-secondary overflow-x-auto">
-              Saved to: <span class="font-mono">{savedPath()}</span>
-            </span>
-          </Match>
           <Match when={error()}>
             <span class="text-xs text-red-600">{error()}</span>
           </Match>
@@ -76,6 +68,11 @@ export default function ExportLogs() {
           </Match>
         </Switch>
       </div>
+      <ExportLogsModal path={savedPath()} onClose={() => setSavedPath(null)} />
+      <UploadLogsModal
+        open={showUpload()}
+        onClose={() => setShowUpload(false)}
+      />
     </div>
   );
 }

@@ -30,6 +30,13 @@ Vite
 - `src-tauri/` - Rust backend (Tauri commands, system integration)
 - `public/` - Static assets
 - Config: `vite.config.ts`, `tauri.conf.json`, `flake.nix` (Nix dev environment)
+- Runtime config: the log uploader URLs come from CLI flags / `GNOSISVPN_*` env
+  vars with compiled-in defaults (`src-tauri/src/cli.rs`; flag > env > default).
+  Overrides are for terminal/dev runs only: Finder, desktop launchers and
+  Windows release builds show no clap output and see no shell env vars. Dev run:
+  `deno task tauri dev -- -- --log-upload-api-url https://staging.example/api/upload`
+  (`tauri dev -- [runnerArgs] -- [appArgs]`; Deno forwards the whole tail
+  verbatim). Env vars need no separators.
 
 **Key Dependencies**: `@tauri-apps/api`, `solid-js`, `tailwindcss`, `flag-icons`
 (SVG country flags), Deno (task runner)
