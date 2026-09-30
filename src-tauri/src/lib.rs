@@ -417,11 +417,6 @@ pub fn run() {
                 });
             }
 
-            #[cfg(target_os = "linux")]
-            for window in app.webview_windows().values() {
-                platform::linux::forward_pointer_leave(app.handle(), window);
-            }
-
             // Intercept window close to hide to tray instead of exiting
             if let Some(window) = app.get_webview_window("main") {
                 #[cfg(target_os = "macos")]
