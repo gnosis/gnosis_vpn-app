@@ -65,6 +65,8 @@
   const handlers = {
     get_cached_state: () => fixture.cached_state,
     get_initial_theme: () => fixture.theme ?? "dark",
+    get_log_uploader_website_url: () =>
+      fixture.logUploaderWebsiteUrl ?? "https://log-uploader.gnosisvpn.com/",
     get_platform: () => fixture.platform ?? "linux",
     get_install_status: () => fixture.installStatus ?? null,
     get_toolkit_version: () => {
@@ -132,6 +134,17 @@
     set_status_poll_fast: () => null,
     log_from_frontend: () => null,
     export_logs: (args) => args?.destPath ?? "/tmp/gnosis_vpn-export.log.zst",
+    // Resolves with fixture.uploadLogsUuid after ~800ms; uploadLogsError rejects instead.
+    upload_logs: (args) =>
+      new Promise((resolve, reject) =>
+        setTimeout(() => {
+          globalThis.__GVPN_UPLOAD_ARGS__ = args;
+          if (fixture.uploadLogsError) return reject(fixture.uploadLogsError);
+          resolve(
+            fixture.uploadLogsUuid ?? "3f2b8c1e-9a4d-4e7b-8c21-5d6f7a8b9c0d",
+          );
+        }, 800)
+      ),
     get_settings: () => ({ ...settings }),
     update_settings: ({ patch }) => {
       Object.assign(settings, patch);
@@ -150,6 +163,13 @@
     },
     "plugin:event|emit": () => null,
     "plugin:app|version": () => fixture.appVersion ?? "0.0.0-fixture",
+    "plugin:path|resolve_directory": () => "/home/user/Downloads",
+    "plugin:path|join": ({ paths }) => paths.join("/"),
+    // Resolves with fixture.exportLogsDest (null = canceled), else the suggested path.
+    "plugin:dialog|save": ({ options }) =>
+      fixture.exportLogsDest === undefined
+        ? options?.defaultPath ?? null
+        : fixture.exportLogsDest,
     // Recorded rather than opened, so an `eval` step can assert the target.
     "plugin:opener|open_url": (args) => {
       openedUrls.push(args?.url);

@@ -1,9 +1,10 @@
 use gnosis_vpn_lib::command;
 use gnosis_vpn_lib::socket::root as root_socket;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager, State};
 use tokio_util::sync::CancellationToken;
+use url::Url;
 use zstd::stream::Encoder;
 
 use std::fs::File;
@@ -15,6 +16,7 @@ use std::time::Duration;
 use tokio::task::spawn_blocking;
 use tokio::time::{self, Instant};
 
+use crate::cli::Cli;
 use crate::icons::{self, TrayIconState};
 use crate::toolkit;
 use crate::tray;
@@ -347,8 +349,8 @@ pub fn log_from_frontend(webview: tauri::Webview, level: String, message: String
 }
 
 // The uploader accepts only one zstd frame of plain text — hence concatenation, not an archive.
-fn write_log_section(
-    encoder: &mut Encoder<'_, &File>,
+fn write_log_section<W: Write>(
+    encoder: &mut Encoder<'_, W>,
     title: &str,
     path: &Path,
 ) -> Result<(), String> {
@@ -371,6 +373,62 @@ fn write_log_section(
         }
     }
     writeln!(encoder).map_err(|e| format!("Failed to write section footer: {e}"))
+}
+
+// The uploader UTF-8-checks only the first 100 bytes, so a multi-byte character cut at that
+// boundary gets the bundle rejected; an ASCII preamble keeps user text and logs past it.
+const LOG_BUNDLE_PREAMBLE: &str = "===== Gnosis VPN log bundle =====\n\
+    Sections: user description (if given), gnosis_vpn-app logs, gnosisvpn daemon log.\n\n";
+const MAX_DESCRIPTION_CHARS: usize = 2000;
+
+fn write_log_bundle<W: Write>(
+    writer: W,
+    description: Option<&str>,
+    app_logs: &[PathBuf],
+    daemon_log: Option<&Path>,
+) -> Result<W, String> {
+    let mut encoder =
+        Encoder::new(writer, 5).map_err(|e| format!("Failed to create zstd encoder: {e}"))?;
+    encoder
+        .write_all(LOG_BUNDLE_PREAMBLE.as_bytes())
+        .map_err(|e| format!("Failed to write bundle preamble: {e}"))?;
+    if let Some(description) = description.map(str::trim).filter(|d| !d.is_empty()) {
+        let description: String = description.chars().take(MAX_DESCRIPTION_CHARS).collect();
+        writeln!(encoder, "===== user description =====\n{description}\n")
+            .map_err(|e| format!("Failed to write description: {e}"))?;
+    }
+    for path in app_logs {
+        write_log_section(&mut encoder, "gnosis_vpn-app log", path)?;
+    }
+    match daemon_log {
+        Some(path) => write_log_section(&mut encoder, "gnosisvpn daemon log", path)?,
+        None => writeln!(encoder, "===== gnosisvpn daemon log (unavailable) =====")
+            .map_err(|e| format!("Failed to write section header: {e}"))?,
+    }
+    encoder
+        .finish()
+        .map_err(|e| format!("Failed to finalize compression: {e}"))
+}
+
+fn collect_log_sources(app: &AppHandle) -> (Vec<PathBuf>, Option<PathBuf>) {
+    let app_logs = app
+        .path()
+        .app_log_dir()
+        .map(|dir| crate::logging::log_files(&dir))
+        .unwrap_or_default();
+    let daemon_log = app
+        .state::<AppStateCache>()
+        .service_info
+        .borrow()
+        .as_ref()
+        .and_then(|info| info.log_file.clone());
+    tracing::info!(
+        target: "export",
+        app_log_files = app_logs.len(),
+        daemon_log_available = daemon_log.is_some(),
+        "collected log sources",
+    );
+    (app_logs, daemon_log)
 }
 
 /// Exports app + daemon logs as one uploader-compatible `.zst`; sources are never caller-supplied.
@@ -406,48 +464,108 @@ async fn export_logs_inner(app: AppHandle, dest_path: String) -> Result<String, 
     };
     let written = dest_file.display().to_string();
 
-    let app_logs = app
-        .path()
-        .app_log_dir()
-        .map(|dir| crate::logging::log_files(&dir))
-        .unwrap_or_default();
-    let daemon_log = app
-        .state::<AppStateCache>()
-        .service_info
-        .borrow()
-        .as_ref()
-        .and_then(|info| info.log_file.clone());
-    tracing::info!(
-        target: "export",
-        app_log_files = app_logs.len(),
-        daemon_log_available = daemon_log.is_some(),
-        "collected log sources",
-    );
+    let (app_logs, daemon_log) = collect_log_sources(&app);
 
     spawn_blocking(move || -> Result<(), String> {
         let output_file =
             File::create(dest_file).map_err(|e| format!("Failed to create output file: {e}"))?;
-        let mut encoder = Encoder::new(&output_file, 5)
-            .map_err(|e| format!("Failed to create zstd encoder: {e}"))?;
-
-        for path in &app_logs {
-            write_log_section(&mut encoder, "gnosis_vpn-app log", path)?;
-        }
-        match daemon_log {
-            Some(path) => write_log_section(&mut encoder, "gnosisvpn daemon log", &path)?,
-            None => writeln!(encoder, "===== gnosisvpn daemon log (unavailable) =====")
-                .map_err(|e| format!("Failed to write section header: {e}"))?,
-        }
-
-        encoder
-            .finish()
-            .map_err(|e| format!("Failed to finalize compression: {e}"))?;
+        write_log_bundle(&output_file, None, &app_logs, daemon_log.as_deref())?;
         Ok(())
     })
     .await
     .map_err(|e| format!("export_logs: blocking task panicked: {e}"))??;
 
     Ok(written)
+}
+
+const LOG_UPLOAD_TIMEOUT: Duration = Duration::from_secs(120);
+
+/// Uploads the bundle `export_logs` would write and returns the uploader's reference ID.
+#[tauri::command]
+pub async fn upload_logs(
+    app: AppHandle,
+    state: State<'_, Cli>,
+    file_name: String,
+    description: String,
+) -> Result<String, String> {
+    let api_url = state.log_upload_api_url.clone();
+    tracing::info!(target: "upload", file_name = %file_name, url = %api_url, "uploading logs");
+    let result = upload_logs_inner(app, api_url, file_name, description).await;
+    match &result {
+        Ok(id) => tracing::info!(target: "upload", reference_id = %id, "log upload finished"),
+        Err(e) => tracing::warn!(target: "upload", error = %e, "log upload failed"),
+    }
+    result
+}
+
+async fn upload_logs_inner(
+    app: AppHandle,
+    api_url: Url,
+    file_name: String,
+    description: String,
+) -> Result<String, String> {
+    if description.trim().is_empty() {
+        return Err("Describe what went wrong before uploading".to_string());
+    }
+    let (app_logs, daemon_log) = collect_log_sources(&app);
+    let bundle = spawn_blocking(move || {
+        write_log_bundle(
+            Vec::new(),
+            Some(&description),
+            &app_logs,
+            daemon_log.as_deref(),
+        )
+    })
+    .await
+    .map_err(|e| format!("upload_logs: blocking task panicked: {e}"))??;
+    tracing::info!(target: "upload", bytes = bundle.len(), "log bundle compressed");
+
+    let part = reqwest::multipart::Part::bytes(bundle)
+        .file_name(file_name)
+        .mime_str("application/zstd")
+        .map_err(|e| format!("Invalid upload content type: {e}"))?;
+    let client = reqwest::Client::builder()
+        .timeout(LOG_UPLOAD_TIMEOUT)
+        .build()
+        .map_err(|e| format!("Failed to create HTTP client: {e}"))?;
+    let response = client
+        .post(api_url)
+        .multipart(reqwest::multipart::Form::new().part("file", part))
+        .send()
+        .await
+        .map_err(|e| {
+            if e.is_timeout() {
+                "Upload timed out".to_string()
+            } else {
+                format!("Could not reach the log uploader: {e}")
+            }
+        })?;
+    let status = response.status().as_u16();
+    let body = response
+        .text()
+        .await
+        .map_err(|e| format!("Failed to read upload response: {e}"))?;
+    parse_upload_response(status, &body)
+}
+
+#[derive(Deserialize)]
+struct UploadResponse {
+    uuid: Option<String>,
+    error: Option<String>,
+}
+
+fn parse_upload_response(status: u16, body: &str) -> Result<String, String> {
+    let parsed = serde_json::from_str::<UploadResponse>(body).ok();
+    if (200..300).contains(&status) {
+        return parsed
+            .and_then(|r| r.uuid)
+            .filter(|uuid| !uuid.is_empty())
+            .ok_or_else(|| format!("Upload returned no reference ID (HTTP {status})"));
+    }
+    // Proxies in front of the uploader (e.g. Cloud Run's 413) answer with HTML, not JSON.
+    Err(parsed
+        .and_then(|r| r.error)
+        .unwrap_or_else(|| format!("Upload failed (HTTP {status})")))
 }
 
 pub async fn stop_client() -> Result<(), String> {
@@ -932,6 +1050,73 @@ mod tests {
         assert!(text.contains("line one"));
 
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn write_log_bundle_is_a_single_decodable_frame() {
+        let dir = std::env::temp_dir().join("gnosis_vpn-app-write-log-bundle");
+        std::fs::create_dir_all(&dir).unwrap();
+        let source = dir.join("gnosis_vpn-app.2026-09-28.log");
+        std::fs::write(&source, "app line\n").unwrap();
+
+        let bytes = write_log_bundle(
+            Vec::new(),
+            Some("  VPN drops după o oră  "),
+            &[source],
+            None,
+        )
+        .unwrap();
+        let text = String::from_utf8(zstd::decode_all(&bytes[..]).unwrap()).unwrap();
+
+        assert_eq!(&bytes[..4], &[0x28, 0xB5, 0x2F, 0xFD]);
+        assert!(text.starts_with(LOG_BUNDLE_PREAMBLE));
+        assert!(text.contains("===== user description =====\nVPN drops după o oră\n"));
+        assert!(text.contains("app line"));
+        assert!(text.contains("===== gnosisvpn daemon log (unavailable) ====="));
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn bundle_preamble_covers_the_uploaders_text_sample() {
+        assert!(LOG_BUNDLE_PREAMBLE.is_ascii());
+        assert!(LOG_BUNDLE_PREAMBLE.len() >= 100);
+    }
+
+    #[test]
+    fn blank_description_adds_no_section() {
+        let bytes = write_log_bundle(Vec::new(), Some(" \n "), &[], None).unwrap();
+        let text = String::from_utf8(zstd::decode_all(&bytes[..]).unwrap()).unwrap();
+
+        assert!(!text.contains("user description ====="));
+    }
+
+    #[test]
+    fn upload_response_yields_the_reference_id_on_success() {
+        let body = r#"{"success":true,"uuid":"3f2b8c1e-9a4d-4e7b-8c21-5d6f7a8b9c0d","message":"File uploaded successfully"}"#;
+        assert_eq!(
+            parse_upload_response(201, body),
+            Ok("3f2b8c1e-9a4d-4e7b-8c21-5d6f7a8b9c0d".to_string())
+        );
+    }
+
+    #[test]
+    fn upload_response_surfaces_the_server_error() {
+        let body = r#"{"error":"File is empty."}"#;
+        assert_eq!(
+            parse_upload_response(413, body),
+            Err("File is empty.".to_string())
+        );
+    }
+
+    #[test]
+    fn upload_response_falls_back_to_the_status_for_non_json_bodies() {
+        let body = "<html><body>413 Request Entity Too Large</body></html>";
+        assert_eq!(
+            parse_upload_response(413, body),
+            Err("Upload failed (HTTP 413)".to_string())
+        );
+        assert!(parse_upload_response(201, "{}").is_err());
     }
 
     #[test]
