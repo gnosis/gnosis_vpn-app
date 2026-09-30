@@ -100,13 +100,10 @@ jobs:
       - name: Rust cache
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
+          # Bumped to drop the 61 GB two-profile cache; the key is otherwise stable and would restore it forever.
+          prefix-key: v1-rust
           workspaces: |
             ./src-tauri -> target
-      - name: Disk report (after cache restore)
-        run: |
-          df -h /
-          free -h || true
-          du -shx /nix/store ~/.cargo src-tauri/target/* 2>/dev/null | sort -h
       - name: Setup Deno
         uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
@@ -120,13 +117,8 @@ jobs:
         run: deno install
       - name: Verify fixture freshness
         run: |
-          cargo test --manifest-path src-tauri/Cargo.toml --test serialize_fixtures
+          cargo test --release --manifest-path src-tauri/Cargo.toml --test serialize_fixtures
           git diff --exit-code src/services/fixtures/
-      - name: Disk report (after fixture test, dev profile)
-        run: |
-          df -h /
-          free -h || true
-          du -shx /nix/store ~/.cargo src-tauri/target/* 2>/dev/null | sort -h
       - name: Import Apple Developer Certificate
         if: ${{ endsWith(inputs.architecture, '-darwin') }}
         id: certificate
@@ -171,13 +163,6 @@ jobs:
         with:
           tauriScript: "deno task tauri"
           args: ${{ steps.vars.outputs.tauri_args }}
-      # Whole-filesystem sweep is temporary: drop it once it has named what actually fills the disk.
-      - name: Disk report (peak, after tauri build)
-        run: |
-          df -h /
-          free -h || true
-          du -shx /nix/store ~/.cargo src-tauri/target/* 2>/dev/null | sort -h
-          du -xh -d 1 / 2>/dev/null | sort -h | tail -15
       - name: Post-process artifacts
         id: path
         run: |
