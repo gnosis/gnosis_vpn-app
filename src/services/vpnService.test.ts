@@ -4,8 +4,11 @@ import {
   ConnectResponseSchema,
   DestinationSchema,
   DisconnectResponseSchema,
+  ProbeResponseSchema,
+  QuickProbeResponseSchema,
   ServiceInfoSchema,
   StatusResponseSchema,
+  UnprobeResponseSchema,
   VPNService,
 } from "./vpnService.ts";
 
@@ -23,6 +26,7 @@ import statusRestarting from "./fixtures/status_restarting.json";
 import statusWithConnections from "./fixtures/status_with_connections.json";
 import statusReconnectWaiting from "./fixtures/status_reconnect_waiting.json";
 import statusRouteHealthVariants from "./fixtures/status_route_health_variants.json";
+import statusProbeOpening from "./fixtures/status_probe_opening.json";
 import connectNotFound from "./fixtures/connect_destination_not_found.json";
 import connectConnecting from "./fixtures/connect_connecting.json";
 import connectAlreadyConnected from "./fixtures/connect_already_connected.json";
@@ -31,6 +35,24 @@ import connectUnable from "./fixtures/connect_unable.json";
 import connectAmbiguous from "./fixtures/connect_ambiguous.json";
 import disconnectNotConnected from "./fixtures/disconnect_not_connected.json";
 import disconnectDisconnecting from "./fixtures/disconnect_disconnecting.json";
+import probeProbing from "./fixtures/probe_probing.json";
+import probeReplaced from "./fixtures/probe_replaced.json";
+import probeAlreadyProbing from "./fixtures/probe_already_probing.json";
+import probeInUse from "./fixtures/probe_in_use.json";
+import probeUnable from "./fixtures/probe_unable.json";
+import probeNotReady from "./fixtures/probe_not_ready.json";
+import probeNotFound from "./fixtures/probe_destination_not_found.json";
+import probeAmbiguous from "./fixtures/probe_ambiguous.json";
+import unprobeClosing from "./fixtures/unprobe_closing.json";
+import unprobeInUse from "./fixtures/unprobe_in_use.json";
+import unprobeNotProbing from "./fixtures/unprobe_not_probing.json";
+import quickProbeChecking from "./fixtures/quick_probe_checking.json";
+import quickProbeUnable from "./fixtures/quick_probe_unable.json";
+import quickProbeAlreadyProbing from "./fixtures/quick_probe_already_probing.json";
+import quickProbeAlreadyChecking from "./fixtures/quick_probe_already_checking.json";
+import quickProbeNotReady from "./fixtures/quick_probe_not_ready.json";
+import quickProbeNotFound from "./fixtures/quick_probe_destination_not_found.json";
+import quickProbeAmbiguous from "./fixtures/quick_probe_ambiguous.json";
 import balanceResponse from "./fixtures/balance_response.json";
 import balanceResponseWithIssues from "./fixtures/balance_response_with_issues.json";
 import balanceResponseWithCapacity from "./fixtures/balance_response_with_capacity.json";
@@ -95,16 +117,40 @@ describe("StatusResponseSchema", () => {
     expect(StatusResponseSchema.safeParse(statusRestarting).success).toBe(true);
   });
 
-  it("parses ConnectedInfo and connection phase fields", () => {
-    expect(StatusResponseSchema.safeParse(statusWithConnections).success).toBe(
-      true,
-    );
+  it("parses ConnectedInfo, connection phases and a ready probe", () => {
+    const parsed = StatusResponseSchema.safeParse(statusWithConnections);
+    expect(parsed.success).toBe(true);
+    expect(parsed.data?.connected?.tunnel_ping_rtt).toBe(12);
+    expect(parsed.data?.probe?.state.state).toBe("Ready");
+    expect(parsed.data?.probe?.load?.slots.available).toBe(10);
   });
 
-  it("parses all RouteHealthState variants", () => {
-    expect(
-      StatusResponseSchema.safeParse(statusRouteHealthVariants).success,
-    ).toBe(true);
+  it("parses a probe session with no results yet", () => {
+    const parsed = StatusResponseSchema.safeParse(statusProbeOpening);
+    expect(parsed.success).toBe(true);
+    expect(parsed.data?.probe?.state.state).toBe("Opening");
+    expect(parsed.data?.probe?.versions).toBe(null);
+  });
+
+  it("parses all RouteHealthState, RouteWalk and QuickProbeState variants", () => {
+    const parsed = StatusResponseSchema.safeParse(statusRouteHealthVariants);
+    expect(parsed.success).toBe(true);
+    const health = parsed.data?.destinations.map((d) => d.route_health) ?? [];
+    expect(health[0]?.walk?.found).toBe("Paths");
+    expect(health[0]?.quick_probe?.state).toBe("Checked");
+    expect(health[2]?.state.state).toBe("NotRoutable");
+    expect(health[2]?.last_error).toBe("walk timed out");
+    expect(health[5]?.quick_probe?.state).toBe("Failed");
+    const latched = health[6]?.state;
+    const reason = latched?.state === "Unrecoverable" ? latched.reason : null;
+    expect(reason).toEqual({
+      CannotOpenSession: { error: "surb buffer too small" },
+    });
+    expect(health[7]).toBe(null);
+    const rechecking = health[9]?.quick_probe;
+    expect(rechecking?.state).toBe("Checking");
+    const carried = rechecking?.state === "Checking" ? rechecking.last : null;
+    expect(carried?.status_rtt).toBe(42);
   });
 
   it("parses a reconnect reported without a phase", () => {
@@ -158,6 +204,45 @@ describe("DisconnectResponseSchema", () => {
     expect(
       DisconnectResponseSchema.safeParse(disconnectDisconnecting).success,
     ).toBe(true);
+  });
+});
+
+describe("ProbeResponseSchema", () => {
+  it.each([
+    ["Probing", probeProbing],
+    ["Replaced", probeReplaced],
+    ["AlreadyProbing", probeAlreadyProbing],
+    ["InUse", probeInUse],
+    ["UnableToProbe", probeUnable],
+    ["NotReady", probeNotReady],
+    ["DestinationNotFound", probeNotFound],
+    ["DestinationAmbiguous", probeAmbiguous],
+  ])("parses %s", (_name, fixture) => {
+    expect(ProbeResponseSchema.safeParse(fixture).success).toBe(true);
+  });
+});
+
+describe("UnprobeResponseSchema", () => {
+  it.each([
+    ["Closing", unprobeClosing],
+    ["InUse", unprobeInUse],
+    ["NotProbing", unprobeNotProbing],
+  ])("parses %s", (_name, fixture) => {
+    expect(UnprobeResponseSchema.safeParse(fixture).success).toBe(true);
+  });
+});
+
+describe("QuickProbeResponseSchema", () => {
+  it.each([
+    ["Checking", quickProbeChecking],
+    ["UnableToProbe", quickProbeUnable],
+    ["AlreadyProbing", quickProbeAlreadyProbing],
+    ["AlreadyChecking", quickProbeAlreadyChecking],
+    ["NotReady", quickProbeNotReady],
+    ["DestinationNotFound", quickProbeNotFound],
+    ["DestinationAmbiguous", quickProbeAmbiguous],
+  ])("parses %s", (_name, fixture) => {
+    expect(QuickProbeResponseSchema.safeParse(fixture).success).toBe(true);
   });
 });
 

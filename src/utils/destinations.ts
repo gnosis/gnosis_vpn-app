@@ -1,9 +1,13 @@
 import type {
   Destination,
   DestinationState,
+  LoadAvg,
+  ProbeView,
+  QuickProbeCheck,
+  QuickProbeState,
   Slots,
+  Versions,
 } from "@src/services/vpnService.ts";
-import { getSortLatencyMs } from "@src/utils/exitHealth.ts";
 
 export function getPreferredAvailabilityChangeMessage(
   previous: Destination[],
@@ -20,100 +24,266 @@ export function getPreferredAvailabilityChangeMessage(
     : `Preferred location ${preferredId} currently unavailable.`;
 }
 
-/** Sort: ReadyToConnect/Connecting first (A–Z within tier), all others after (A–Z). */
+/** Sort: eligible first (A–Z within tier), all others after (A–Z). */
 export function sortAlphaDestinations(
   available: Destination[],
   destinations: Record<string, DestinationState>,
-  liveId: string | null = null,
+  context: RankContext,
 ): Destination[] {
   return [...available].sort((a, b) => {
-    const aReady = isReadyForDisplay(destinations[a.id], liveId);
-    const bReady = isReadyForDisplay(destinations[b.id], liveId);
+    const aReady = isReadyForDisplay(destinations[a.id], context);
+    const bReady = isReadyForDisplay(destinations[b.id], context);
     if (aReady !== bReady) return aReady ? -1 : 1;
     return destinationLabel(a).localeCompare(destinationLabel(b));
   });
 }
 
-function getSlots(state: DestinationState): Slots | null {
-  const routeState = state.route_health?.state;
-  if (
-    routeState?.state !== "ReadyToConnect" && routeState?.state !== "Connecting"
-  ) {
-    return null;
-  }
-  return routeState.exit.health.slots;
+/** What readiness and ranking need beyond the destination itself. */
+export interface RankContext {
+  probe: ProbeView | null;
+  liveId: string | null;
 }
 
-const CONNECTED_CLIENT_LATENCY_MALUS_MS = 100;
+export const NO_CONTEXT: RankContext = { probe: null, liveId: null };
 
-/** Latency plus a malus per connected client; our own connection doesn't count. */
-function capacityAdjustedLatencyMs(
+export function rankContext(status: {
+  probe: ProbeView | null;
+  connected: { destination_id: string } | null;
+  connecting: { destination_id: string } | null;
+  reconnecting: { destination_id: string } | null;
+}): RankContext {
+  return {
+    probe: status.probe,
+    liveId: status.connected?.destination_id ??
+      status.connecting?.destination_id ??
+      status.reconnecting?.destination_id ?? null,
+  };
+}
+
+/** What was measured on the exit itself, by the live probe or a quick probe. */
+export interface ExitData {
+  slots: Slots;
+  loadAvg: LoadAvg;
+  rtt: number;
+  checkedAt: number;
+  versions: Versions;
+  apiVersion: string | null;
+}
+
+/** A running check keeps what it refreshes, so a re-check never blanks an exit; `checked_at` still ages. */
+function lastQuickCheck(quick: QuickProbeState | null): QuickProbeCheck | null {
+  if (quick === null) return null;
+  if (quick.state === "Checked") return quick;
+  return quick.state === "Checking" ? quick.last : null;
+}
+
+/** The probe refreshes continuously, so it wins over a quick probe's snapshot where it applies. */
+export function getExitData(
   state: DestinationState,
-  slots: Slots | null,
-  liveId: string | null,
-): number | null {
-  const latencyMs = getSortLatencyMs(state);
-  if (latencyMs === null) return null;
-  const occupiedByUs = state.destination.id === liveId ? 1 : 0;
-  return latencyMs +
-    Math.max(0, (slots?.connected ?? 0) - occupiedByUs) *
-      CONNECTED_CLIENT_LATENCY_MALUS_MS;
+  probe: ProbeView | null,
+): ExitData | null {
+  // A reopening probe still carries the closed session's samples - they are no longer current.
+  const probeIsLive = probe?.destination_id === state.destination.id &&
+    probe.state.state === "Ready";
+  if (
+    probeIsLive && probe.load && probe.ping_rtt !== null &&
+    probe.checked_at !== null && probe.versions
+  ) {
+    return {
+      slots: probe.load.slots,
+      loadAvg: probe.load.load_avg,
+      rtt: probe.ping_rtt,
+      checkedAt: probe.checked_at,
+      versions: probe.versions,
+      apiVersion: probe.api_version,
+    };
+  }
+  const check = lastQuickCheck(state.route_health?.quick_probe ?? null);
+  if (check === null) return null;
+  return {
+    slots: check.load.slots,
+    loadAvg: check.load.load_avg,
+    rtt: check.status_rtt,
+    checkedAt: check.checked_at,
+    versions: check.versions,
+    apiVersion: check.api_version,
+  };
 }
 
 /** Slots free for us — our own session must not count against the destination we are on. */
 export function freeSlots(
   state: DestinationState,
-  liveId: string | null,
+  context: RankContext,
 ): number | null {
-  const slots = getSlots(state);
-  if (slots === null) return null;
-  return slots.available + (state.destination.id === liveId ? 1 : 0);
+  const exit = getExitData(state, context.probe);
+  if (exit === null) return null;
+  const occupiedByUs = state.destination.id === context.liveId ? 1 : 0;
+  return exit.slots.available + occupiedByUs;
 }
 
-/** Connectable right now: a ready state and a slot to take. */
+/** A path's value is a product over its edges, so it is rarely exactly 1; the band is the degradation we still call ready. */
+export const MIN_PATH_VALUE = 0.9;
+
+/** The walk's verdict alone: a path within the band exists and nothing latched the route. */
+function isRoutable(state: DestinationState): boolean {
+  if (!state.route_health) return false;
+  const { state: routeState, walk } = state.route_health;
+  if (routeState.state !== "Routable") return false;
+  return walk?.found === "Paths" && walk.best_value >= MIN_PATH_VALUE;
+}
+
+/** Not full once the exit has been measured; unmeasured passes on the walk alone. */
+function hasFreeSlot(state: DestinationState, context: RankContext): boolean {
+  const free = freeSlots(state, context);
+  return free === null || free > 0;
+}
+
+/** Connectable right now: routable, and not full once the exit has been measured. */
 export function isReady(
   state: DestinationState | undefined,
-  liveId: string | null,
+  context: RankContext,
 ): boolean {
-  if (!state) return false;
-  if (state.route_health?.state.state !== "ReadyToConnect") return false;
-  return (freeSlots(state, liveId) ?? 0) > 0;
+  if (!state || !isRoutable(state)) return false;
+  return hasFreeSlot(state, context);
+}
+
+/** What the user may pick: the daemon connects to any Routable destination, but a full exit can only fail. */
+export function isSelectable(
+  state: DestinationState | undefined,
+  context: RankContext,
+): boolean {
+  if (state?.route_health?.state.state !== "Routable") return false;
+  return hasFreeSlot(state, context);
+}
+
+/** Pickable but degraded: no path within the band, so auto never proposes it and the list says so. */
+export function isWeakRoute(
+  state: DestinationState | undefined,
+  context: RankContext,
+): boolean {
+  return isSelectable(state, context) && !isReady(state, context);
 }
 
 /** What the list may present as usable — the destination we are on always qualifies. */
 export function isReadyForDisplay(
   state: DestinationState | undefined,
-  liveId: string | null,
+  context: RankContext,
 ): boolean {
   if (!state) return false;
-  return state.destination.id === liveId || isReady(state, liveId);
+  return state.destination.id === context.liveId || isReady(state, context);
 }
 
-/** Ready non-full → ready full → not ready. Full nodes still beat unreachable ones. */
-function capacityTier(state: DestinationState, liveId: string | null): number {
-  const free = freeSlots(state, liveId);
-  if (free === null) return 2;
-  return free <= 0 ? 1 : 0;
+/** Relative order of ineligible destinations; an ineligible Paths walk keeps its own best_value. */
+const NO_PATH_VALUE = 0;
+const UNKNOWN_VALUE = -1;
+const UNRECOVERABLE_VALUE = -2;
+
+/** How close a destination is to eligible: its best path's value, or a rank below any path. */
+function routeValue(state: DestinationState): number {
+  const health = state.route_health;
+  if (!health) return UNKNOWN_VALUE;
+  if (health.state.state === "Unrecoverable") return UNRECOVERABLE_VALUE;
+  const walk = health.walk;
+  if (walk === null) return UNKNOWN_VALUE;
+  return walk.found === "Paths" ? walk.best_value : NO_PATH_VALUE;
 }
 
-/** Sort ids: ready non-full first, then ready-but-full, then the rest; ready tiers by malus-adjusted latency. */
-export function sortByCapacityAwareLatency(
+/** Resilience of the best path: more distinct first relays means fewer single points of failure. */
+function pathStats(state: DestinationState): { relays: number; count: number } {
+  const walk = state.route_health?.walk;
+  if (walk?.found !== "Paths") return { relays: 0, count: 0 };
+  return { relays: walk.distinct_first_relays, count: walk.count };
+}
+
+const LATENCY_WEIGHT = 0.5;
+const CAPACITY_WEIGHT = 0.3;
+const DIVERSITY_WEIGHT = 0.2;
+/** One-way latency at or beyond this scores zero. */
+const LATENCY_CEILING_MS = 1_000;
+/** Distinct first relays at or beyond this score full. */
+const DIVERSITY_CEILING = 4;
+
+/** Higher is better; only meaningful for a measured, eligible destination. */
+function score(
+  state: DestinationState,
+  exit: ExitData,
+  context: RankContext,
+): number {
+  const oneWayMs = exit.rtt / 2;
+  const latency = 1 -
+    Math.min(oneWayMs, LATENCY_CEILING_MS) / LATENCY_CEILING_MS;
+  const free = Math.min(freeSlots(state, context) ?? 0, exit.slots.total);
+  const capacity = exit.slots.total > 0 ? free / exit.slots.total : 0;
+  const diversity = Math.min(pathStats(state).relays, DIVERSITY_CEILING) /
+    DIVERSITY_CEILING;
+  return LATENCY_WEIGHT * latency + CAPACITY_WEIGHT * capacity +
+    DIVERSITY_WEIGHT * diversity;
+}
+
+export type RouteGrade =
+  | { kind: "measured"; bars: 1 | 2 | 3 | 4 }
+  | { kind: "unmeasured" }
+  | { kind: "weak" }
+  | { kind: "none" };
+
+/** A score at or above a threshold earns that many bars; below the last one it is a single bar. */
+const BAR_THRESHOLDS: [number, 4 | 3 | 2][] = [[0.75, 4], [0.5, 3], [0.25, 2]];
+
+/** The score as shown on a card. Display only: it feeds neither the sort nor auto. */
+export function routeGrade(
+  state: DestinationState | undefined,
+  context: RankContext,
+): RouteGrade {
+  if (!state) return { kind: "none" };
+  if (!isReady(state, context)) {
+    return isSelectable(state, context) ? { kind: "weak" } : { kind: "none" };
+  }
+  const exit = getExitData(state, context.probe);
+  if (exit === null) return { kind: "unmeasured" };
+  const value = score(state, exit, context);
+  const reached = BAR_THRESHOLDS.find(([min]) => value >= min);
+  return { kind: "measured", bars: reached ? reached[1] : 1 };
+}
+
+/** Measured eligible first (by score), then unmeasured eligible (by resilience), then the rest (by closeness). */
+export function sortByRouteQuality(
   destinations: Record<string, DestinationState>,
-  liveId: string | null = null,
+  context: RankContext,
 ): string[] {
+  const tierOf = (state: DestinationState): number => {
+    if (!isReady(state, context)) return 2;
+    return getExitData(state, context.probe) === null ? 1 : 0;
+  };
   return Object.keys(destinations).sort((idA, idB) => {
     const stateA = destinations[idA];
     const stateB = destinations[idB];
 
-    const tierA = capacityTier(stateA, liveId);
-    const tierB = capacityTier(stateB, liveId);
+    const tierA = tierOf(stateA);
+    const tierB = tierOf(stateB);
     if (tierA !== tierB) return tierA - tierB;
 
-    const msA = capacityAdjustedLatencyMs(stateA, getSlots(stateA), liveId);
-    const msB = capacityAdjustedLatencyMs(stateB, getSlots(stateB), liveId);
-    if (msA !== null && msB !== null) return msA - msB;
-    if (msA !== null) return -1;
-    if (msB !== null) return 1;
+    if (tierA === 0) {
+      const scoreA = score(
+        stateA,
+        getExitData(stateA, context.probe)!,
+        context,
+      );
+      const scoreB = score(
+        stateB,
+        getExitData(stateB, context.probe)!,
+        context,
+      );
+      if (scoreA !== scoreB) return scoreB - scoreA;
+    } else if (tierA === 1) {
+      const pathsA = pathStats(stateA);
+      const pathsB = pathStats(stateB);
+      if (pathsA.relays !== pathsB.relays) return pathsB.relays - pathsA.relays;
+      if (pathsA.count !== pathsB.count) return pathsB.count - pathsA.count;
+    } else {
+      const valueA = routeValue(stateA);
+      const valueB = routeValue(stateB);
+      if (valueA !== valueB) return valueB - valueA;
+    }
     return destinationLabel(stateA.destination).localeCompare(
       destinationLabel(stateB.destination),
     );
@@ -124,16 +294,17 @@ export function sortByCapacityAwareLatency(
 export function pickStartupTarget(
   destinations: Record<string, DestinationState>,
   preferred: string | null,
-  lastConnected: string | null = null,
+  lastConnected: string | null,
+  context: RankContext,
 ): string | null {
-  if (lastConnected !== null && isReady(destinations[lastConnected], null)) {
+  if (lastConnected !== null && isReady(destinations[lastConnected], context)) {
     return lastConnected;
   }
-  if (preferred !== null && isReady(destinations[preferred], null)) {
+  if (preferred !== null && isReady(destinations[preferred], context)) {
     return preferred;
   }
-  const readyIds = sortByCapacityAwareLatency(destinations)
-    .filter((id) => isReady(destinations[id], null));
+  const readyIds = sortByRouteQuality(destinations, context)
+    .filter((id) => isReady(destinations[id], context));
   return readyIds[0] ?? null;
 }
 
