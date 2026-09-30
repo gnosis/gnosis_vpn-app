@@ -91,6 +91,8 @@ jobs:
       - name: Rust cache
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
+          # Bumped to drop the 61 GB two-profile cache; the key is otherwise stable and would restore it forever.
+          prefix-key: v1-rust
           workspaces: |
             ./src-tauri -> target
       - name: Setup Deno
@@ -106,7 +108,7 @@ jobs:
         run: deno install
       - name: Verify fixture freshness
         run: |
-          cargo test --manifest-path src-tauri/Cargo.toml --test serialize_fixtures
+          cargo test --release --manifest-path src-tauri/Cargo.toml --test serialize_fixtures
           git diff --exit-code src/services/fixtures/
       - name: Import Apple Developer Certificate
         if: ${{ endsWith(inputs.architecture, '-darwin') }}
