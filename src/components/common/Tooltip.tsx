@@ -7,14 +7,10 @@ import {
   untrack,
 } from "solid-js";
 import { Portal } from "solid-js/web";
-import {
-  isWindowFocused,
-  lastPointerPosition,
-} from "@src/utils/hoverPresence.ts";
+import { isWindowFocused } from "@src/utils/windowFocus.ts";
 
 const MARGIN = 8; // min gap from viewport edge
 const ARROW_INSET = 8; // min px from bubble edge to arrow center
-const STALE_HOVER_MS = 300; // pointer quiet this long -> verify it is still over us
 
 export default function Tooltip(props: {
   content: JSX.Element;
@@ -94,40 +90,15 @@ export default function Tooltip(props: {
   // Handlers only record intent; the effect below turns intent + `disabled`
   // into actual visibility (with the asymmetric show/hide delays), so each
   // transition runs exactly once.
-  const show = () => setWantVisible(true);
+  // WebKitGTK reports hovers on an unfocused window (stale or from a window above ours), so only a focused window shows.
+  const show = () => {
+    if (isWindowFocused()) setWantVisible(true);
+  };
   const hide = () => setWantVisible(false);
 
-  // Only pointer hovers get the stale-hover check below; a focus-shown tooltip sees no moves.
-  const [byPointer, setByPointer] = createSignal(false);
-  const showFromPointer = () => {
-    setByPointer(true);
-    show();
-  };
-  const showFromFocus = () => {
-    setByPointer(false);
-    show();
-  };
-
-  // Window blur dismisses like a leave: WebKitGTK may keep a stale hover, so refocus must not re-show it.
+  // Blur dismisses like a leave, so refocus must not re-show a hover WebKitGTK kept stale.
   createEffect(() => {
     if (!isWindowFocused()) hide();
-  });
-
-  // elementFromPoint is a layout hit-test, unaffected by WebKitGTK's stale :hover state.
-  const pointerOverUs = ({ x, y }: { x: number; y: number }) => {
-    const el = document.elementFromPoint(x, y);
-    if (el === null) return false;
-    return triggerRef.contains(el) || (bubbleRef?.contains(el) ?? false);
-  };
-
-  // WebKitGTK drops mouseleave onto an overlapping window; the last move it delivered stands in.
-  createEffect(() => {
-    if (!visible() || !byPointer()) return;
-    const last = lastPointerPosition(); // tracked: every move re-arms the timer
-    const stale = setTimeout(() => {
-      if (!pointerOverUs(last)) hide();
-    }, STALE_HOVER_MS);
-    onCleanup(() => clearTimeout(stale));
   });
 
   createEffect(() => {
@@ -151,9 +122,9 @@ export default function Tooltip(props: {
       ref={triggerRef}
       class={`relative inline-flex ${props.triggerClass ?? "w-fit"}`}
       tabindex={props.tabIndex}
-      onMouseEnter={showFromPointer}
+      onMouseEnter={show}
       onMouseLeave={hide}
-      onFocusIn={showFromFocus}
+      onFocusIn={show}
       onFocusOut={hide}
     >
       {props.children}
@@ -168,7 +139,7 @@ export default function Tooltip(props: {
                 : { top: `${anchorY().top}px` }),
               left: `${left()}px`,
             }}
-            onMouseEnter={showFromPointer}
+            onMouseEnter={show}
             onMouseLeave={hide}
           >
             {props.content}

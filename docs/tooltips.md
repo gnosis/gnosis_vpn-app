@@ -11,9 +11,8 @@ WebKitGTK hit-tests a leave event's own coordinates. When a window stacked above
 ours takes the pointer those coordinates still lie inside our view, so the
 element under that point stays hovered: a tooltip sticks, and one can even
 appear while the pointer is over the other window. The fix lives in the tooltip
-itself — dismiss on window blur, and once the pointer goes quiet, dismiss if the
-last position the DOM saw it at is no longer over the trigger or the bubble —
-and it rests on assumptions about what "normal" tooltip behaviour is. Those
+itself — hide on window blur, and never show while the window is unfocused — and
+it rests on assumptions about what "normal" tooltip behaviour is. Those
 assumptions are written down here.
 
 The three questions that matter are: does a tooltip appear on a window that is
@@ -93,23 +92,21 @@ the tooltip to AppKit via `-addToolTipRect:owner:userData:`.
 
 `src/components/common/Tooltip.tsx`, for comparison, not as a target:
 
-| Behaviour                | Ours                                                                            | Closest precedent                                                                                            |
-| ------------------------ | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| Show delay               | 120 ms                                                                          | faster than every toolkit (500–1000 ms); roughly GTK's permanent browse mode                                 |
-| Hide delay on leave      | 100 ms                                                                          | between GTK's 0 ms and Qt's 300 ms                                                                           |
-| Hidden on window blur    | yes, and a fresh hover is needed after refocus                                  | Qt kills the tip on `WindowDeactivate`; Win32 and AppKit show none on an inactive window; GTK does neither   |
-| Hidden on pointer leave  | 300 ms after the last move the DOM saw, if that point is off trigger and bubble | GTK hides at 0 ms on the leave event; WebKitGTK swallows it, so the last move stands in                      |
-| Auto-hide while hovering | none                                                                            | AppKit (none found), GTK, KDE QML, Firefox and WPF; Chromium and Qt widgets are the dissenters, both at 10 s |
+| Behaviour                 | Ours                                                         | Closest precedent                                                                                                   |
+| ------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| Show delay                | 120 ms                                                       | faster than every toolkit (500–1000 ms); roughly GTK's permanent browse mode                                        |
+| Hide delay on leave       | 100 ms                                                       | between GTK's 0 ms and Qt's 300 ms                                                                                  |
+| Shown on unfocused window | never; blur hides, and a fresh hover is needed after refocus | Qt, Win32 and AppKit show none on an inactive window, Qt also kills the tip on `WindowDeactivate`; GTK does neither |
+| Auto-hide while hovering  | none                                                         | AppKit (none found), GTK, KDE QML, Firefox and WPF; Chromium and Qt widgets are the dissenters, both at 10 s        |
 
-Pointer-only exits are covered by a guarded timer. `src/utils/hoverPresence.ts`
-records the last `mousemove` position the DOM saw; every move re-arms a 300 ms
-timer in the tooltip, and when it fires the tooltip hit-tests that position with
-`elementFromPoint` — a layout query, unaffected by WebKitGTK's stale `:hover` —
-and hides unless the trigger or bubble is under it. Two backend routes were
-tried first and dropped: rewriting the live `GdkEventCrossing` (reverted in
-e035674, needed `unsafe`) and forwarding `leave-notify-event` as an app event
-(e56a651, did not clear the hover in practice). Tauri's `cursorPosition()` is no
-guard either: tao returns (0, 0) on Wayland.
+The focus gate is the whole Linux fix: hovers WebKitGTK reports on an unfocused
+window — a stale one, or one the pointer produced while over a window stacked
+above ours — never show. Routes tried before it and dropped: rewriting the live
+`GdkEventCrossing` (reverted in e035674, needed `unsafe`), forwarding
+`leave-notify-event` as an app event (e56a651), and a 300 ms mousemove timer
+hit-testing the last pointer position with `elementFromPoint` (dbac5fd); none
+cleared the hover in practice. Tauri's `cursorPosition()` is no guard either:
+tao returns (0, 0) on Wayland.
 
 Open questions, deliberately left open:
 
@@ -117,12 +114,10 @@ Open questions, deliberately left open:
   work and was left alone on purpose.
 - **No auto-hide while the pointer stays put.** A timer that dismissed a
   motionless hover after 6 s was tried and dropped: no native toolkit we follow
-  does that. The 300 ms timer above only acts when the last move landed off the
-  trigger, so a motionless hover survives.
-- **Synthetic leave-moves inside the trigger are indistinguishable.** WebKitGTK
-  turns the swallowed leave into a move at the exit coordinates. If those lie
-  inside the trigger (the overlapping window covers it), the hit-test still
-  finds the trigger and the tooltip stays until blur or the next real move.
+  does that.
+- **A focused window with a non-focus-taking window over it.** The pointer can
+  sit on that window while ours keeps focus; a tooltip under it stays until the
+  next real move or a blur. GTK itself behaves the same.
 
 ## Sources
 
