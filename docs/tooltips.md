@@ -11,9 +11,8 @@ WebKitGTK hit-tests a leave event's own coordinates. When a window stacked above
 ours takes the pointer those coordinates still lie inside our view, so the
 element under that point stays hovered: a tooltip sticks, and one can even
 appear while the pointer is over the other window. The fix lives in the tooltip
-itself — suppress on window blur, dismiss a hover that stops producing mouse
-moves — and it rests on assumptions about what "normal" tooltip behaviour is.
-Those assumptions are written down here.
+itself — dismiss on window blur — and it rests on assumptions about what
+"normal" tooltip behaviour is. Those assumptions are written down here.
 
 The three questions that matter are: does a tooltip appear on a window that is
 not focused, how long does it stay after the pointer leaves the trigger, and
@@ -92,20 +91,28 @@ the tooltip to AppKit via `-addToolTipRect:owner:userData:`.
 
 `src/components/common/Tooltip.tsx`, for comparison, not as a target:
 
-| Behaviour                | Ours                                                 | Closest precedent                                                            |
-| ------------------------ | ---------------------------------------------------- | ---------------------------------------------------------------------------- |
-| Show delay               | 120 ms                                               | faster than every toolkit (500–1000 ms); roughly GTK's permanent browse mode |
-| Hide delay on leave      | 100 ms                                               | between GTK's 0 ms and Qt's 300 ms                                           |
-| Suppressed while blurred | yes, and restored on refocus without a re-enter      | Qt, Win32 and AppKit all do this by default; GTK does not                    |
-| Auto-hide while hovering | 6 s of _zero_ pointer movement, re-armed by any move | Chromium and Qt use 10 s, neither re-armed by movement                       |
+| Behaviour                | Ours                                           | Closest precedent                                                                                            |
+| ------------------------ | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Show delay               | 120 ms                                         | faster than every toolkit (500–1000 ms); roughly GTK's permanent browse mode                                 |
+| Hide delay on leave      | 100 ms                                         | between GTK's 0 ms and Qt's 300 ms                                                                           |
+| Hidden on window blur    | yes, and a fresh hover is needed after refocus | Qt kills the tip on `WindowDeactivate`; Win32 and AppKit show none on an inactive window; GTK does neither   |
+| Auto-hide while hovering | none                                           | AppKit (none found), GTK, KDE QML, Firefox and WPF; Chromium and Qt widgets are the dissenters, both at 10 s |
 
 Open questions, deliberately left open:
 
-- **6 s vs 10 s.** Ours is more forgiving in kind than the 10 s precedents,
-  since any mouse move re-arms it and theirs run regardless; it is stricter in
-  number.
 - **120 ms show delay.** Well below every native default. It predates the blur
-  and idle work and was left alone on purpose.
+  work and was left alone on purpose.
+- **Pointer-only exits on Linux are uncovered, on purpose.** Native GTK hides at
+  0 ms on the leave event itself, but WebKitGTK swallows that event (see "Why"),
+  and the Rust-side fix needed an `unsafe` rewrite of the live
+  `GdkEventCrossing`. So when the pointer moves onto an overlapping window that
+  does _not_ take focus — the default under click-to-focus on GNOME and KDE —
+  both original symptoms remain: a visible tooltip stays, and one can appear
+  over the other window if the pointer crossed a trigger on its way out. It
+  clears on the next mouse move inside our window. Clicking the other window,
+  alt-tab and opening our own windows all blur and are covered. A timer that
+  dismissed a motionless hover after 6 s was tried and dropped: no native
+  toolkit we follow does that.
 
 ## Sources
 
