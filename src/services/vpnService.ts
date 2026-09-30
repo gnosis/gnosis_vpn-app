@@ -497,6 +497,15 @@ export class VPNService {
     }
   }
 
+  static async getLogUploaderWebsiteUrl(): Promise<string> {
+    try {
+      const url = await invoke<unknown>("get_log_uploader_website_url");
+      return z.url().parse(url);
+    } catch (error) {
+      throw new Error(`Log Uploader URL Error: ${error}`);
+    }
+  }
+
   // Fire-and-forget: log persistence must never break the caller.
   static logToFile(level: "info" | "warn" | "error", message: string): void {
     invoke("log_from_frontend", { level, message }).catch(() => {});

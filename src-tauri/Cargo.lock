@@ -4509,6 +4509,7 @@ name = "gnosis_vpn-app"
 version = "0.100.0"
 dependencies = [
  "ashpd",
+ "clap",
  "cocoa",
  "dark-light",
  "dispatch",

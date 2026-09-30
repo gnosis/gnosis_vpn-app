@@ -4,6 +4,7 @@ use gnosis_vpn_lib::socket::root as root_socket;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager, State};
 use tokio_util::sync::CancellationToken;
+use url::Url;
 use zstd::stream::Encoder;
 
 use std::fs::File;
@@ -14,6 +15,7 @@ use std::time::Duration;
 use tokio::task::spawn_blocking;
 use tokio::time::{self, Instant};
 
+use crate::cli::Cli;
 use crate::icons::{self, TrayIconState};
 use crate::toolkit;
 use crate::tray;
@@ -421,19 +423,19 @@ async fn export_logs_inner(app: AppHandle, dest_path: String) -> Result<String, 
     Ok(written)
 }
 
-/// Set by `build.rs` from `app.config.json`.
-const LOG_UPLOAD_API_URL: &str = env!("LOG_UPLOAD_API_URL");
 const LOG_UPLOAD_TIMEOUT: Duration = Duration::from_secs(120);
 
 /// Uploads the bundle `export_logs` would write and returns the uploader's reference ID.
 #[tauri::command]
 pub async fn upload_logs(
     app: AppHandle,
+    state: State<'_, Cli>,
     file_name: String,
     description: String,
 ) -> Result<String, String> {
-    tracing::info!(target: "upload", file_name = %file_name, url = LOG_UPLOAD_API_URL, "uploading logs");
-    let result = upload_logs_inner(app, file_name, description).await;
+    let api_url = state.log_upload_api_url.clone();
+    tracing::info!(target: "upload", file_name = %file_name, url = %api_url, "uploading logs");
+    let result = upload_logs_inner(app, api_url, file_name, description).await;
     match &result {
         Ok(id) => tracing::info!(target: "upload", reference_id = %id, "log upload finished"),
         Err(e) => tracing::warn!(target: "upload", error = %e, "log upload failed"),
@@ -443,6 +445,7 @@ pub async fn upload_logs(
 
 async fn upload_logs_inner(
     app: AppHandle,
+    api_url: Url,
     file_name: String,
     description: String,
 ) -> Result<String, String> {
@@ -471,7 +474,7 @@ async fn upload_logs_inner(
         .build()
         .map_err(|e| format!("Failed to create HTTP client: {e}"))?;
     let response = client
-        .post(LOG_UPLOAD_API_URL)
+        .post(api_url)
         .multipart(reqwest::multipart::Form::new().part("file", part))
         .send()
         .await
