@@ -1,6 +1,18 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended", "schedule:earlyMondays"],
+<<<<<<< HEAD
+=======
+  "baseBranchPatterns": ["main", "/^release\\/.*/"],
+  "useBaseBranchConfig": "merge",
+  "pinDigests": true,
+  "prCreation": "immediate",
+  "semanticCommits": "enabled",
+  "rangeStrategy": "bump",
+  "vulnerabilityAlerts": { "enabled": true, "minimumReleaseAge": null },
+  "minimumReleaseAge": "14 days",
+  "nix": { "enabled": true },
+>>>>>>> 2b44207 (ci(renovate): let vulnerability fixes skip the 14-day release-age gate (#524))
   "packageRules": [
     {
       "description": "Stable line: everything off by default; vulnerabilityAlerts re-enables CVE fixes.",
