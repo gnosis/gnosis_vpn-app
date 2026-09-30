@@ -111,7 +111,7 @@ export default function BalancePopup(props: Props) {
                 }
               >
                 <div
-                  class={`text-sm font-bold font-mono text-right ${
+                  class={`text-sm font-bold font-mono text-right select-text cursor-text ${
                     trafficStatus() === "Empty" ? "text-red-500" : ""
                   }`}
                 >
@@ -140,7 +140,9 @@ export default function BalancePopup(props: Props) {
               >
                 {(b) => (
                   <div class="flex items-baseline justify-end gap-1 text-sm font-bold font-mono">
-                    <span>{humanXdai(b().node)}</span>
+                    <span class="select-text cursor-text">
+                      {humanXdai(b().node)}
+                    </span>
                     <span
                       class="text-[10px] inline-block text-left"
                       style={{ width: "34px" }}

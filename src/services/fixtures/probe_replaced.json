@@ -1,0 +1,45 @@
+{
+  "type": "Replaced",
+  "destination": {
+    "id": "test-exit",
+    "meta": {
+      "name": null,
+      "location": "EU",
+      "flag": null,
+      "description": null,
+      "other": {}
+    },
+    "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
+    "routing": 1,
+    "gnosis_vpn_server": "172.30.0.1:8000",
+    "wireguard_server": "172.30.0.1:51820",
+    "source": "Configured",
+    "overrides": {
+      "configured_meta": {},
+      "configured_gnosis_vpn_server": null,
+      "configured_wireguard_server": null
+    }
+  },
+  "previous": {
+    "id": "pinned-exit",
+    "meta": {
+      "name": "Frankfurt-1",
+      "location": "Germany",
+      "flag": "DE",
+      "description": "10Gbit uplink, no logs kept",
+      "other": {}
+    },
+    "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
+    "routing": 1,
+    "gnosis_vpn_server": "172.30.0.1:8000",
+    "wireguard_server": "172.30.0.1:51820",
+    "source": "ConfiguredAndDiscovered",
+    "overrides": {
+      "configured_meta": {
+        "location": "Germany"
+      },
+      "configured_gnosis_vpn_server": null,
+      "configured_wireguard_server": null
+    }
+  }
+}

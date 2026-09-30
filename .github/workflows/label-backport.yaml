@@ -9,9 +9,10 @@ permissions:
 jobs:
   label:
     name: Apply default backport label
-    # Open or retarget onto main only, so unrelated edits don't re-add a removed label.
+    # Open or retarget onto main only, and never a forwardport head: that would port it straight back.
     if: |
       github.event.pull_request.base.ref == 'main' &&
+      !startsWith(github.event.pull_request.head.ref, 'forwardport-') &&
       (github.event.action == 'opened' || github.event.changes.base.ref.from != '')
     runs-on: depot-ubuntu-22.04-4
     permissions:

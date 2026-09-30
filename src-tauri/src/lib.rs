@@ -9,11 +9,14 @@ use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
 
 use std::path::PathBuf;
+use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
+mod cli;
 mod commands;
 mod icons;
 mod logging;
+mod navigation;
 mod platform;
 pub mod settings;
 mod theme;
@@ -22,9 +25,11 @@ pub mod tray;
 pub mod types;
 pub mod update_install;
 
+use cli::{Cli, get_log_uploader_website_url};
 use commands::{
     check_update, connect, disconnect, export_logs, get_cached_state, get_platform,
-    log_from_frontend, run_initialization_loop, set_app_icon, stop_client,
+    log_from_frontend, probe, quick_probe, run_initialization_loop, set_app_icon,
+    set_status_poll_fast, stop_client, upload_logs,
 };
 use gnosis_vpn_lib::command::InfoResponse;
 use gnosis_vpn_lib::{command, socket::root as root_socket};
@@ -55,6 +60,8 @@ pub struct StatusPollingHandle {
     pub cancel: CancellationToken,
     pub handle: Option<tauri::async_runtime::JoinHandle<PollingExit>>,
     pub trigger: Arc<Notify>,
+    /// Caps the poll interval while the destination list is open and quick-probe results are awaited.
+    pub fast: Arc<AtomicBool>,
 }
 
 pub struct BalancePollingHandle {
@@ -177,6 +184,8 @@ fn install_macos_about_panel_override(
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let cli = Cli::from_env();
+
     // Fix for the random Ubuntu black screen issuse
     #[cfg(target_os = "linux")]
     if std::env::var_os("WEBKIT_DISABLE_COMPOSITING_MODE").is_none() {
@@ -184,6 +193,7 @@ pub fn run() {
     }
 
     tauri::Builder::default()
+        .manage(cli)
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
             // A second instance was launched — bring the existing window to focus
             tracing::info!("second instance launched, focusing existing window");
@@ -197,6 +207,7 @@ pub fn run() {
             }
         }))
         .plugin(tauri_plugin_opener::init())
+        .plugin(navigation::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             // Logging first so everything below is captured; failure must not block startup.
@@ -204,12 +215,15 @@ pub fn run() {
                 Ok(dir) => match logging::init(&dir) {
                     Ok(filter) => {
                         let pkg = app.package_info();
+                        let cli = app.state::<Cli>();
                         tracing::info!(
                             name = %pkg.name,
                             version = %pkg.version,
                             os = std::env::consts::OS,
                             arch = std::env::consts::ARCH,
                             args = ?std::env::args().collect::<Vec<_>>(),
+                            log_upload_api_url = %cli.log_upload_api_url,
+                            log_uploader_website_url = %cli.log_uploader_website_url,
                             log_filter = %filter,
                             log_dir = %dir.display(),
                             "starting",
@@ -275,6 +289,18 @@ pub fn run() {
                                     .await
                             {
                                 tracing::warn!(target: "tray", error = %e, "disconnect on quit failed");
+                            }
+                            // The probe we hold keeps the worker awake; nobody reads it once we are gone.
+                            match root_socket::process_cmd(&socket, &command::Command::Unprobe).await {
+                                Ok(command::Response::Unprobe(resp)) => {
+                                    tracing::info!(target: "tray", response = ?resp, "unprobe on quit")
+                                }
+                                Ok(other) => {
+                                    tracing::warn!(target: "tray", response = ?other, "unexpected unprobe response")
+                                }
+                                Err(e) => {
+                                    tracing::warn!(target: "tray", error = %e, "unprobe on quit failed")
+                                }
                             }
                             app_clone.exit(0);
                         });
@@ -452,6 +478,7 @@ pub fn run() {
                 cancel: CancellationToken::new(),
                 handle: None,
                 trigger: Arc::new(Notify::new()),
+                fast: Arc::new(AtomicBool::new(false)),
             }));
 
             // balance polling handle — started alongside status polling
@@ -482,10 +509,15 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             connect,
             disconnect,
+            probe,
+            quick_probe,
+            set_status_poll_fast,
             export_logs,
+            upload_logs,
             log_from_frontend,
             set_app_icon,
             get_initial_theme,
+            get_log_uploader_website_url,
             check_update,
             get_cached_state,
             get_settings,

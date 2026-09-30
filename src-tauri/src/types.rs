@@ -19,6 +19,7 @@ pub struct StatusResponse {
     pub connecting: Option<command::ConnectingInfo>,
     pub reconnecting: Option<command::ReconnectingInfo>,
     pub disconnecting: Vec<command::DisconnectingInfo>,
+    pub probe: Option<command::ProbeView>,
 }
 
 #[derive(Debug, Clone)]

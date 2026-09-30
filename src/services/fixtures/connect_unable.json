@@ -21,6 +21,6 @@
     }
   },
   "route_health": {
-    "state": "NeedsChannel"
+    "state": "NotRoutable"
   }
 }
