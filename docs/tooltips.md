@@ -101,7 +101,10 @@ the tooltip to AppKit via `-addToolTipRect:owner:userData:`.
 
 The focus gate is the whole Linux fix: hovers WebKitGTK reports on an unfocused
 window — a stale one, or one the pointer produced while over a window stacked
-above ours — never show. Routes tried before it and dropped: rewriting the live
+above ours — never show. It lives in `gateOnWindowFocus` in
+`src/utils/windowFocus.ts`, which every tooltip-like popup wraps its show/hide
+in: `Tooltip.tsx`, the balance popup in `Navigation.tsx` and the amount tooltip
+in `FundsInfo.tsx`. Routes tried before it and dropped: rewriting the live
 `GdkEventCrossing` (reverted in e035674, needed `unsafe`), forwarding
 `leave-notify-event` as an app event (e56a651), and a 300 ms mousemove timer
 hit-testing the last pointer position with `elementFromPoint` (dbac5fd); none

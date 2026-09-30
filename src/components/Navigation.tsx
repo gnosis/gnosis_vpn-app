@@ -9,6 +9,7 @@ import fundsOutIcon from "../assets/icons/funds-out.svg";
 import fundsEmptyIcon from "../assets/icons/funds-empty.svg";
 import { deriveOverallStatus } from "../utils/funding.ts";
 import { createSignal, onCleanup } from "solid-js";
+import { gateOnWindowFocus } from "../utils/windowFocus.ts";
 import { useAppStore } from "../stores/appStore.ts";
 import Tooltip from "./common/Tooltip.tsx";
 
@@ -34,7 +35,13 @@ function Navigation() {
     return fundsFullIcon;
   };
 
-  const handleMouseEnter = () => {
+  const handleMouseLeave = () => {
+    clearTimeout(hoverTimeout);
+    hoverTimeout = undefined;
+    setShowPopup(false);
+  };
+
+  const handleMouseEnter = gateOnWindowFocus(() => {
     clearTimeout(hoverTimeout);
     hoverTimeout = setTimeout(() => {
       if (buttonRef && containerRef) {
@@ -43,13 +50,7 @@ function Navigation() {
       }
       setShowPopup(true);
     }, 500);
-  };
-
-  const handleMouseLeave = () => {
-    clearTimeout(hoverTimeout);
-    hoverTimeout = undefined;
-    setShowPopup(false);
-  };
+  }, handleMouseLeave);
 
   onCleanup(() => {
     clearTimeout(hoverTimeout);

@@ -7,6 +7,7 @@ import {
 } from "solid-js";
 import { Portal } from "solid-js/web";
 import type { StatusText } from "../utils/funding.ts";
+import { gateOnWindowFocus } from "../utils/windowFocus.ts";
 
 const MARGIN = 8;
 const ARROW_INSET = 8;
@@ -78,16 +79,16 @@ export default function FundsInfo(props: Props) {
     });
   });
 
-  const show = () => {
-    clearTimeout(timeout);
-    updateAnchor();
-    timeout = setTimeout(() => setVisible(true), 120);
-  };
-
   const hide = () => {
     clearTimeout(timeout);
     timeout = setTimeout(() => setVisible(false), 100);
   };
+
+  const show = gateOnWindowFocus(() => {
+    clearTimeout(timeout);
+    updateAnchor();
+    timeout = setTimeout(() => setVisible(true), 120);
+  }, hide);
 
   const cellClass = (base: string) =>
     props.tooltip ? `${base} cursor-help` : base;

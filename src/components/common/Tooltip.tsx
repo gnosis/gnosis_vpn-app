@@ -7,7 +7,7 @@ import {
   untrack,
 } from "solid-js";
 import { Portal } from "solid-js/web";
-import { isWindowFocused } from "@src/utils/windowFocus.ts";
+import { gateOnWindowFocus } from "@src/utils/windowFocus.ts";
 
 const MARGIN = 8; // min gap from viewport edge
 const ARROW_INSET = 8; // min px from bubble edge to arrow center
@@ -90,16 +90,8 @@ export default function Tooltip(props: {
   // Handlers only record intent; the effect below turns intent + `disabled`
   // into actual visibility (with the asymmetric show/hide delays), so each
   // transition runs exactly once.
-  // WebKitGTK reports hovers on an unfocused window (stale or from a window above ours), so only a focused window shows.
-  const show = () => {
-    if (isWindowFocused()) setWantVisible(true);
-  };
   const hide = () => setWantVisible(false);
-
-  // Blur dismisses like a leave, so refocus must not re-show a hover WebKitGTK kept stale.
-  createEffect(() => {
-    if (!isWindowFocused()) hide();
-  });
+  const show = gateOnWindowFocus(() => setWantVisible(true), hide);
 
   createEffect(() => {
     clearTimeout(timeout);
