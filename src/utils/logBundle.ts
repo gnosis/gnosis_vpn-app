@@ -11,20 +11,27 @@ export function logBundleFileName(now: Date = new Date()): string {
   return `gnosis_vpn-${date}-${time}.log.zst`;
 }
 
-/** New-issue URL on gnosis/gnosis_vpn, pre-filled with the user's description and the upload reference ID. */
-export function logIssueUrl(description: string, referenceId: string): string {
-  const body = [
-    "## What went wrong",
-    "",
-    description.trim(),
-    "",
-    "## Log reference ID",
-    "",
-    `\`${referenceId}\``,
-  ].join("\n");
+/** New bug-report discussion URL on gnosis/gnosis_vpn, pre-filling the category form with the upload details. */
+export function logDiscussionUrl(report: {
+  description: string;
+  referenceId: string;
+  packageVersion: string | null;
+  system: { os: string; arch: string; distribution: string | null } | undefined;
+}): string {
+  // Keys after `title` are the field ids of the category's discussion form.
   const params = new URLSearchParams({
+    category: "issues-bug-reports",
     title: "bug(logs-from-app): Issue reported via in-app log upload",
-    body,
+    issue_description: report.description.trim(),
+    steps_to_reproduce: `Log reference ID: \`${report.referenceId}\``,
   });
-  return `https://github.com/gnosis/gnosis_vpn/issues/new?${params}`;
+  const environment = [
+    report.packageVersion &&
+    `Gnosis VPN package version: ${report.packageVersion}`,
+    report.system && `OS: ${report.system.os} (${report.system.arch})`,
+    report.system?.distribution &&
+    `Distribution: ${report.system.distribution}`,
+  ].filter(Boolean).join("\n");
+  if (environment) params.set("environment", environment);
+  return `https://github.com/gnosis/gnosis_vpn/discussions/new?${params}`;
 }

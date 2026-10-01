@@ -27,9 +27,9 @@ pub mod update_install;
 
 use cli::{Cli, get_log_uploader_website_url};
 use commands::{
-    check_update, connect, disconnect, export_logs, get_cached_state, get_platform,
-    log_from_frontend, probe, quick_probe, run_initialization_loop, set_app_icon,
-    set_status_poll_fast, stop_client, upload_logs,
+    check_update, connect, disconnect, export_logs, get_arch, get_cached_state,
+    get_os_distribution, get_platform, log_from_frontend, probe, quick_probe,
+    run_initialization_loop, set_app_icon, set_status_poll_fast, stop_client, upload_logs,
 };
 use gnosis_vpn_lib::command::InfoResponse;
 use gnosis_vpn_lib::{command, socket::root as root_socket};
@@ -518,6 +518,8 @@ pub fn run() {
             get_settings,
             update_settings,
             get_platform,
+            get_arch,
+            get_os_distribution,
             install_update,
             get_install_status,
             get_toolkit_version

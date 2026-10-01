@@ -1,8 +1,20 @@
-import { createEffect, createSignal, createUniqueId, Show } from "solid-js";
+import {
+  createEffect,
+  createResource,
+  createSignal,
+  createUniqueId,
+  Show,
+} from "solid-js";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { VPNService } from "../services/vpnService.ts";
+import { useAppStore } from "@src/stores/appStore.ts";
 import { logWarn } from "@src/utils/appLog.ts";
-import { logBundleFileName, logIssueUrl } from "@src/utils/logBundle.ts";
+import { logBundleFileName, logDiscussionUrl } from "@src/utils/logBundle.ts";
+import {
+  getArch,
+  getOsDistribution,
+  getPlatform,
+} from "@src/utils/platform.ts";
 import { Modal } from "./common/Modal.tsx";
 import Checkbox from "./common/Checkbox.tsx";
 import CopyBlock from "./common/CopyBlock.tsx";
@@ -17,6 +29,13 @@ export default function UploadLogsModal(props: {
   open: boolean;
   onClose: () => void;
 }) {
+  const [appState] = useAppStore();
+  // Never rejects: each getter has its own fallback.
+  const [system] = createResource(async () => ({
+    os: await getPlatform(),
+    arch: await getArch(),
+    distribution: await getOsDistribution(),
+  }));
   const [acknowledged, setAcknowledged] = createSignal(false);
   const [description, setDescription] = createSignal("");
   const [uploading, setUploading] = createSignal(false);
@@ -54,12 +73,12 @@ export default function UploadLogsModal(props: {
     }
   }
 
-  const openIssue = async (e: MouseEvent, url: string) => {
+  const openDiscussion = async (e: MouseEvent, url: string) => {
     e.preventDefault();
     try {
       await openUrl(url);
     } catch (err) {
-      logWarn(`Failed to open GitHub issue page: ${err}`);
+      logWarn(`Failed to open GitHub discussion page: ${err}`);
     }
   };
 
@@ -155,13 +174,17 @@ export default function UploadLogsModal(props: {
             <CopyBlock text={id()} label="reference ID" />
             <div class="text-sm text-text-secondary">
               <a
-                href={logIssueUrl(description(), id())}
-                onClick={(e) => openIssue(e, e.currentTarget.href)}
+                href={logDiscussionUrl({
+                  description: description(),
+                  referenceId: id(),
+                  packageVersion: appState.packageVersion,
+                  system: system(),
+                })}
+                onClick={(e) => openDiscussion(e, e.currentTarget.href)}
               >
-                You can also open a pre-filled issue on <strong>GitHub</strong>
-                {" "}
-                by{" "}
-                <span class="text-orange-500 hover:text-orange-600 underline hover:cursor-pointer">
+                You can also start a pre-filled discussion on{" "}
+                <strong>GitHub</strong> by{" "}
+                <span class="text-orange-500 hover:text-orange-700 underline">
                   clicking this link
                 </span>
               </a>

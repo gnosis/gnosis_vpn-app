@@ -15,3 +15,19 @@ export function getPlatform(): Promise<string> {
   });
   return cached;
 }
+
+/** CPU architecture from Rust's std::env::consts::ARCH ("x86_64", "aarch64", …). */
+export function getArch(): Promise<string> {
+  return invoke<string>("get_arch").catch((e) => {
+    logWarn(`get_arch failed, reporting "unknown": ${e}`);
+    return "unknown";
+  });
+}
+
+/** OS release name ("Ubuntu 24.04.3 LTS", "macOS 15.2"), or null when unknown. */
+export function getOsDistribution(): Promise<string | null> {
+  return invoke<string | null>("get_os_distribution").catch((e) => {
+    logWarn(`get_os_distribution failed: ${e}`);
+    return null;
+  });
+}

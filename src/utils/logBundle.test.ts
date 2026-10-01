@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { logBundleFileName, logIssueUrl } from "./logBundle.ts";
+import { logBundleFileName, logDiscussionUrl } from "./logBundle.ts";
 
 describe("logBundleFileName", () => {
   it("matches the uploader's filename pattern", () => {
@@ -9,16 +9,47 @@ describe("logBundleFileName", () => {
   });
 });
 
-describe("logIssueUrl", () => {
-  it("pre-fills the title and a body with the description and reference ID", () => {
-    const url = new URL(logIssueUrl("  VPN drops & reconnects\n", "abc-123"));
+describe("logDiscussionUrl", () => {
+  const report = {
+    description: "  VPN drops & reconnects\n",
+    referenceId: "abc-123",
+    packageVersion: "0.77.0",
+    system: { os: "linux", arch: "x86_64", distribution: "Ubuntu 24.04.3 LTS" },
+  };
+
+  it("pre-fills the bug-report form fields", () => {
+    const url = new URL(logDiscussionUrl(report));
     expect(url.origin + url.pathname).toBe(
-      "https://github.com/gnosis/gnosis_vpn/issues/new",
+      "https://github.com/gnosis/gnosis_vpn/discussions/new",
     );
+    expect(url.searchParams.get("category")).toBe("issues-bug-reports");
     expect(url.searchParams.get("title")).toMatch(/^bug\(logs-from-app\): /);
-    const body = url.searchParams.get("body")!;
-    expect(body).not.toContain("@copilot");
-    expect(body).toContain("\nVPN drops & reconnects\n");
-    expect(body).toContain("`abc-123`");
+    expect(url.searchParams.get("issue_description")).toBe(
+      "VPN drops & reconnects",
+    );
+    expect(url.searchParams.get("steps_to_reproduce")).toBe(
+      "Log reference ID: `abc-123`",
+    );
+    expect(url.searchParams.get("environment")).toBe(
+      "Gnosis VPN package version: 0.77.0\nOS: linux (x86_64)\nDistribution: Ubuntu 24.04.3 LTS",
+    );
+  });
+
+  it("drops unknown environment lines", () => {
+    const url = new URL(
+      logDiscussionUrl({
+        ...report,
+        packageVersion: null,
+        system: { ...report.system, distribution: null },
+      }),
+    );
+    expect(url.searchParams.get("environment")).toBe("OS: linux (x86_64)");
+  });
+
+  it("leaves the environment field out when nothing is known", () => {
+    const url = new URL(
+      logDiscussionUrl({ ...report, packageVersion: null, system: undefined }),
+    );
+    expect(url.searchParams.has("environment")).toBe(false);
   });
 });
