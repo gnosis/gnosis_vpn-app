@@ -19,6 +19,7 @@ mod logging;
 mod navigation;
 mod platform;
 pub mod settings;
+mod system_info;
 mod theme;
 pub mod toolkit;
 pub mod tray;
@@ -28,7 +29,7 @@ pub mod update_install;
 use cli::{Cli, get_log_uploader_website_url};
 use commands::{
     check_update, connect, disconnect, export_logs, get_cached_state, get_platform,
-    get_system_info, log_from_frontend, probe, quick_probe, run_initialization_loop, set_app_icon,
+    log_from_frontend, probe, quick_probe, run_initialization_loop, set_app_icon,
     set_status_poll_fast, stop_client, upload_logs,
 };
 use gnosis_vpn_lib::command::InfoResponse;
@@ -36,6 +37,7 @@ use gnosis_vpn_lib::{command, socket::root as root_socket};
 use icons::{IconState, TrayIconState, determine_tray_icon, start_icon_heartbeat};
 use platform::{Platform, PlatformInterface};
 use settings::{SettingsStore, get_settings, update_settings};
+use system_info::get_system_info;
 #[cfg(target_os = "linux")]
 use theme::spawn_linux_theme_monitor;
 #[cfg_attr(target_os = "macos", allow(unused_imports))]
