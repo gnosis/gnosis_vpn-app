@@ -7,6 +7,7 @@ import {
   untrack,
 } from "solid-js";
 import { Portal } from "solid-js/web";
+import { gateOnWindowFocus } from "@src/utils/windowFocus.ts";
 
 const MARGIN = 8; // min gap from viewport edge
 const ARROW_INSET = 8; // min px from bubble edge to arrow center
@@ -89,8 +90,8 @@ export default function Tooltip(props: {
   // Handlers only record intent; the effect below turns intent + `disabled`
   // into actual visibility (with the asymmetric show/hide delays), so each
   // transition runs exactly once.
-  const show = () => setWantVisible(true);
   const hide = () => setWantVisible(false);
+  const show = gateOnWindowFocus(() => setWantVisible(true), hide);
 
   createEffect(() => {
     clearTimeout(timeout);
@@ -123,7 +124,7 @@ export default function Tooltip(props: {
         <Portal mount={document.body}>
           <div
             ref={bubbleRef}
-            class="fixed z-200 max-w-52 rounded-lg bg-neutral-800 px-3 py-2 shadow-lg text-xs leading-relaxed text-gray-100 -translate-x-1/2 transition-[opacity,scale] duration-150 ease-out starting:opacity-0 starting:scale-95"
+            class="fixed z-200 w-max max-w-52 rounded-lg bg-neutral-800 px-3 py-2 shadow-lg text-xs leading-relaxed text-gray-100 -translate-x-1/2 transition-[opacity,scale] duration-150 ease-out starting:opacity-0 starting:scale-95"
             style={{
               ...(anchorY().bottom !== undefined
                 ? { bottom: `${anchorY().bottom}px` }
