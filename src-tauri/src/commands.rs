@@ -18,7 +18,7 @@ use tokio::time::{self, Instant};
 
 use crate::cli::Cli;
 use crate::icons::{self, TrayIconState};
-use crate::system_info::{SystemInfo, get_system_info};
+use crate::platform::{SystemInfo, get_system_info};
 use crate::toolkit;
 use crate::tray;
 use crate::types::{BalanceResponse, ConnectionState, StatusResponse};
@@ -50,13 +50,6 @@ pub(crate) fn warn_on_change(last: &mut Option<String>, msg: String) {
         tracing::warn!("{msg}");
         *last = Some(msg);
     }
-}
-
-/// OS name for the frontend ("macos", "linux", …) — it has no runtime
-/// platform signal of its own and needs one to branch update-install UX.
-#[tauri::command]
-pub fn get_platform() -> &'static str {
-    std::env::consts::OS
 }
 
 /// Asks the toolkit for a decision and the current manifest. The three outcomes
