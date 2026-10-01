@@ -10,11 +10,7 @@ import { VPNService } from "../services/vpnService.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { logWarn } from "@src/utils/appLog.ts";
 import { logBundleFileName, logDiscussionUrl } from "@src/utils/logBundle.ts";
-import {
-  getArch,
-  getOsDistribution,
-  getPlatform,
-} from "@src/utils/platform.ts";
+import { getSystemInfo } from "@src/utils/platform.ts";
 import { Modal } from "./common/Modal.tsx";
 import Checkbox from "./common/Checkbox.tsx";
 import CopyBlock from "./common/CopyBlock.tsx";
@@ -30,12 +26,7 @@ export default function UploadLogsModal(props: {
   onClose: () => void;
 }) {
   const [appState] = useAppStore();
-  // Never rejects: each getter has its own fallback.
-  const [system] = createResource(async () => ({
-    os: await getPlatform(),
-    arch: await getArch(),
-    distribution: await getOsDistribution(),
-  }));
+  const [system] = createResource(getSystemInfo);
   const [acknowledged, setAcknowledged] = createSignal(false);
   const [description, setDescription] = createSignal("");
   const [uploading, setUploading] = createSignal(false);

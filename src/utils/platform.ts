@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { z } from "zod";
 import { logWarn } from "@src/utils/appLog.ts";
 
 // The frontend has no runtime OS signal of its own; the `get_platform`
@@ -16,18 +17,19 @@ export function getPlatform(): Promise<string> {
   return cached;
 }
 
-/** CPU architecture from Rust's std::env::consts::ARCH ("x86_64", "aarch64", …). */
-export function getArch(): Promise<string> {
-  return invoke<string>("get_arch").catch((e) => {
-    logWarn(`get_arch failed, reporting "unknown": ${e}`);
-    return "unknown";
-  });
-}
+export const SystemInfoSchema = z.object({
+  os: z.string(),
+  arch: z.string(),
+  distribution: z.string().nullable(),
+});
+export type SystemInfo = z.infer<typeof SystemInfoSchema>;
 
-/** OS release name ("Ubuntu 24.04.3 LTS", "macOS 15.2"), or null when unknown. */
-export function getOsDistribution(): Promise<string | null> {
-  return invoke<string | null>("get_os_distribution").catch((e) => {
-    logWarn(`get_os_distribution failed: ${e}`);
-    return null;
-  });
+/** Host OS, CPU architecture and OS release name; `undefined` when unavailable. */
+export async function getSystemInfo(): Promise<SystemInfo | undefined> {
+  try {
+    return SystemInfoSchema.parse(await invoke<unknown>("get_system_info"));
+  } catch (e) {
+    logWarn(`get_system_info failed: ${e}`);
+    return undefined;
+  }
 }

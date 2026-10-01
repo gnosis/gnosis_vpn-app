@@ -1,3 +1,5 @@
+import type { SystemInfo } from "@src/utils/platform.ts";
+
 const pad = (n: number): string => String(n).padStart(2, "0");
 
 /** Local-time bundle name in the `gnosis_vpn-YYYYMMDD-HHMMSS.log.zst` form the log uploader requires. */
@@ -16,7 +18,7 @@ export function logDiscussionUrl(report: {
   description: string;
   referenceId: string;
   packageVersion: string | null;
-  system: { os: string; arch: string; distribution: string | null } | undefined;
+  system: SystemInfo | undefined;
 }): string {
   // Keys after `title` are the field ids of the category's discussion form.
   const params = new URLSearchParams({
