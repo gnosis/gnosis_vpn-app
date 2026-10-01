@@ -10,3 +10,21 @@ export function logBundleFileName(now: Date = new Date()): string {
   }`;
   return `gnosis_vpn-${date}-${time}.log.zst`;
 }
+
+/** New-issue URL on gnosis/gnosis_vpn, pre-filled with the user's description and the upload reference ID. */
+export function logIssueUrl(description: string, referenceId: string): string {
+  const body = [
+    "## What went wrong",
+    "",
+    description.trim(),
+    "",
+    "## Log reference ID",
+    "",
+    `\`${referenceId}\``,
+  ].join("\n");
+  const params = new URLSearchParams({
+    title: "bug(logs-from-app): Issue reported via in-app log upload",
+    body,
+  });
+  return `https://github.com/gnosis/gnosis_vpn/issues/new?${params}`;
+}
