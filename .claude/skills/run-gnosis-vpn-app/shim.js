@@ -68,6 +68,13 @@
     get_log_uploader_website_url: () =>
       fixture.logUploaderWebsiteUrl ?? "https://log-uploader.gnosisvpn.com/",
     get_platform: () => fixture.platform ?? "linux",
+    get_system_info: () => ({
+      os: fixture.platform ?? "linux",
+      arch: fixture.arch ?? "x86_64",
+      distribution: "osDistribution" in fixture
+        ? fixture.osDistribution
+        : "Ubuntu 24.04.3 LTS",
+    }),
     get_install_status: () => fixture.installStatus ?? null,
     get_toolkit_version: () => {
       if (fixture.toolkitVersion === null) {

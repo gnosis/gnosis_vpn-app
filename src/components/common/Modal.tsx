@@ -6,6 +6,8 @@ type ModalProps = {
   onClose: () => void;
   warn?: boolean;
   ariaLabelledBy?: string;
+  /** Tailwind max-width class; defaults to `max-w-md`. */
+  maxWidthClass?: string;
   children: JSX.Element;
 };
 
@@ -34,7 +36,9 @@ export function Modal(props: ModalProps) {
             role="dialog"
             aria-modal="true"
             aria-labelledby={props.ariaLabelledBy}
-            class={`w-full max-w-md rounded-lg shadow-xl ring-1 ring-black/10 ${
+            class={`w-full ${
+              props.maxWidthClass ?? "max-w-md"
+            } rounded-lg shadow-xl ring-1 ring-black/10 ${
               props.warn ? "bg-[#FFCDCD]" : "bg-bg-surface"
             }`}
           >

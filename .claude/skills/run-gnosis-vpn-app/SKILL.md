@@ -84,6 +84,10 @@ source:
   in-memory and fires `settings-changed`, so toggles behave realistically.
 - `platform` — value returned by `get_platform` (default `"linux"`); set
   `"macos"` to enable the driven install-update flow on the Updates tab.
+- `arch` / `osDistribution` — `get_system_info`'s `arch` (default `"x86_64"`)
+  and `distribution` (default `"Ubuntu 24.04.3 LTS"`; `null` = unknown); its
+  `os` is `platform`. Shown in the Upload logs modal's pre-filled GitHub
+  discussion link.
 - `installScript` — steps replayed as `update-install-status` events after an
   `install_update` invoke, e.g.
   `[{ "delay": 400, "status": { "kind": "Downloading" } }, ...]` (defaults to a

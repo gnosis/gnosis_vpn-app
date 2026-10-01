@@ -18,6 +18,7 @@ use tokio::time::{self, Instant};
 
 use crate::cli::Cli;
 use crate::icons::{self, TrayIconState};
+use crate::platform::{SystemInfo, get_system_info};
 use crate::toolkit;
 use crate::tray;
 use crate::types::{BalanceResponse, ConnectionState, StatusResponse};
@@ -49,13 +50,6 @@ pub(crate) fn warn_on_change(last: &mut Option<String>, msg: String) {
         tracing::warn!("{msg}");
         *last = Some(msg);
     }
-}
-
-/// OS name for the frontend ("macos", "linux", …) — it has no runtime
-/// platform signal of its own and needs one to branch update-install UX.
-#[tauri::command]
-pub fn get_platform() -> &'static str {
-    std::env::consts::OS
 }
 
 /// Asks the toolkit for a decision and the current manifest. The three outcomes
@@ -378,29 +372,48 @@ fn write_log_section<W: Write>(
 // The uploader UTF-8-checks only the first 100 bytes, so a multi-byte character cut at that
 // boundary gets the bundle rejected; an ASCII preamble keeps user text and logs past it.
 const LOG_BUNDLE_PREAMBLE: &str = "===== Gnosis VPN log bundle =====\n\
-    Sections: user description (if given), gnosis_vpn-app logs, gnosisvpn daemon log.\n\n";
+    Sections: system info, user description (if given), gnosis_vpn-app logs, gnosisvpn daemon log.\n\n";
 const MAX_DESCRIPTION_CHARS: usize = 2000;
+
+struct LogBundleSources {
+    system: SystemInfo,
+    package_version: Option<String>,
+    app_logs: Vec<PathBuf>,
+    daemon_log: Option<PathBuf>,
+}
 
 fn write_log_bundle<W: Write>(
     writer: W,
     description: Option<&str>,
-    app_logs: &[PathBuf],
-    daemon_log: Option<&Path>,
+    sources: &LogBundleSources,
 ) -> Result<W, String> {
     let mut encoder =
         Encoder::new(writer, 5).map_err(|e| format!("Failed to create zstd encoder: {e}"))?;
     encoder
         .write_all(LOG_BUNDLE_PREAMBLE.as_bytes())
         .map_err(|e| format!("Failed to write bundle preamble: {e}"))?;
+    // Same lines as the Environment field of the bug-report discussion prefill.
+    writeln!(
+        encoder,
+        "===== system info =====\n\
+         Gnosis VPN package version: {}\n\
+         OS: {} ({})\n\
+         Distribution: {}\n",
+        sources.package_version.as_deref().unwrap_or("unknown"),
+        sources.system.os,
+        sources.system.arch,
+        sources.system.distribution.as_deref().unwrap_or("unknown"),
+    )
+    .map_err(|e| format!("Failed to write system info: {e}"))?;
     if let Some(description) = description.map(str::trim).filter(|d| !d.is_empty()) {
         let description: String = description.chars().take(MAX_DESCRIPTION_CHARS).collect();
         writeln!(encoder, "===== user description =====\n{description}\n")
             .map_err(|e| format!("Failed to write description: {e}"))?;
     }
-    for path in app_logs {
+    for path in &sources.app_logs {
         write_log_section(&mut encoder, "gnosis_vpn-app log", path)?;
     }
-    match daemon_log {
+    match &sources.daemon_log {
         Some(path) => write_log_section(&mut encoder, "gnosisvpn daemon log", path)?,
         None => writeln!(encoder, "===== gnosisvpn daemon log (unavailable) =====")
             .map_err(|e| format!("Failed to write section header: {e}"))?,
@@ -410,25 +423,37 @@ fn write_log_bundle<W: Write>(
         .map_err(|e| format!("Failed to finalize compression: {e}"))
 }
 
-fn collect_log_sources(app: &AppHandle) -> (Vec<PathBuf>, Option<PathBuf>) {
+async fn collect_log_sources(app: &AppHandle) -> LogBundleSources {
     let app_logs = app
         .path()
         .app_log_dir()
         .map(|dir| crate::logging::log_files(&dir))
         .unwrap_or_default();
-    let daemon_log = app
+    let (daemon_log, daemon_package_version) = app
         .state::<AppStateCache>()
         .service_info
         .borrow()
         .as_ref()
-        .and_then(|info| info.log_file.clone());
+        .map(|info| (info.log_file.clone(), info.package_version.clone()))
+        .unwrap_or_default();
+    // Toolkit first, daemon as fallback: the order the frontend resolves the package version in.
+    let package_version = toolkit::version()
+        .await
+        .ok()
+        .and_then(|info| info.package_version)
+        .or(daemon_package_version);
     tracing::info!(
         target: "export",
         app_log_files = app_logs.len(),
         daemon_log_available = daemon_log.is_some(),
         "collected log sources",
     );
-    (app_logs, daemon_log)
+    LogBundleSources {
+        system: get_system_info().await,
+        package_version,
+        app_logs,
+        daemon_log,
+    }
 }
 
 /// Exports app + daemon logs as one uploader-compatible `.zst`; sources are never caller-supplied.
@@ -464,12 +489,12 @@ async fn export_logs_inner(app: AppHandle, dest_path: String) -> Result<String, 
     };
     let written = dest_file.display().to_string();
 
-    let (app_logs, daemon_log) = collect_log_sources(&app);
+    let sources = collect_log_sources(&app).await;
 
     spawn_blocking(move || -> Result<(), String> {
         let output_file =
             File::create(dest_file).map_err(|e| format!("Failed to create output file: {e}"))?;
-        write_log_bundle(&output_file, None, &app_logs, daemon_log.as_deref())?;
+        write_log_bundle(&output_file, None, &sources)?;
         Ok(())
     })
     .await
@@ -507,17 +532,10 @@ async fn upload_logs_inner(
     if description.trim().is_empty() {
         return Err("Describe what went wrong before uploading".to_string());
     }
-    let (app_logs, daemon_log) = collect_log_sources(&app);
-    let bundle = spawn_blocking(move || {
-        write_log_bundle(
-            Vec::new(),
-            Some(&description),
-            &app_logs,
-            daemon_log.as_deref(),
-        )
-    })
-    .await
-    .map_err(|e| format!("upload_logs: blocking task panicked: {e}"))??;
+    let sources = collect_log_sources(&app).await;
+    let bundle = spawn_blocking(move || write_log_bundle(Vec::new(), Some(&description), &sources))
+        .await
+        .map_err(|e| format!("upload_logs: blocking task panicked: {e}"))??;
     tracing::info!(target: "upload", bytes = bundle.len(), "log bundle compressed");
 
     let part = reqwest::multipart::Part::bytes(bundle)
@@ -1052,6 +1070,19 @@ mod tests {
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
+    fn test_bundle_sources() -> LogBundleSources {
+        LogBundleSources {
+            system: SystemInfo {
+                os: "linux",
+                arch: "x86_64",
+                distribution: Some("Ubuntu 24.04.3 LTS".to_string()),
+            },
+            package_version: Some("0.77.0".to_string()),
+            app_logs: Vec::new(),
+            daemon_log: None,
+        }
+    }
+
     #[test]
     fn write_log_bundle_is_a_single_decodable_frame() {
         let dir = std::env::temp_dir().join("gnosis_vpn-app-write-log-bundle");
@@ -1059,17 +1090,22 @@ mod tests {
         let source = dir.join("gnosis_vpn-app.2026-09-28.log");
         std::fs::write(&source, "app line\n").unwrap();
 
-        let bytes = write_log_bundle(
-            Vec::new(),
-            Some("  VPN drops după o oră  "),
-            &[source],
-            None,
-        )
-        .unwrap();
+        let sources = LogBundleSources {
+            app_logs: vec![source],
+            ..test_bundle_sources()
+        };
+        let bytes =
+            write_log_bundle(Vec::new(), Some("  VPN drops după o oră  "), &sources).unwrap();
         let text = String::from_utf8(zstd::decode_all(&bytes[..]).unwrap()).unwrap();
 
         assert_eq!(&bytes[..4], &[0x28, 0xB5, 0x2F, 0xFD]);
         assert!(text.starts_with(LOG_BUNDLE_PREAMBLE));
+        assert!(text.contains(
+            "===== system info =====\n\
+             Gnosis VPN package version: 0.77.0\n\
+             OS: linux (x86_64)\n\
+             Distribution: Ubuntu 24.04.3 LTS\n"
+        ));
         assert!(text.contains("===== user description =====\nVPN drops după o oră\n"));
         assert!(text.contains("app line"));
         assert!(text.contains("===== gnosisvpn daemon log (unavailable) ====="));
@@ -1085,10 +1121,27 @@ mod tests {
 
     #[test]
     fn blank_description_adds_no_section() {
-        let bytes = write_log_bundle(Vec::new(), Some(" \n "), &[], None).unwrap();
+        let bytes = write_log_bundle(Vec::new(), Some(" \n "), &test_bundle_sources()).unwrap();
         let text = String::from_utf8(zstd::decode_all(&bytes[..]).unwrap()).unwrap();
 
         assert!(!text.contains("user description ====="));
+    }
+
+    #[test]
+    fn unknown_system_details_are_spelled_out() {
+        let sources = LogBundleSources {
+            system: SystemInfo {
+                distribution: None,
+                ..test_bundle_sources().system
+            },
+            package_version: None,
+            ..test_bundle_sources()
+        };
+        let bytes = write_log_bundle(Vec::new(), None, &sources).unwrap();
+        let text = String::from_utf8(zstd::decode_all(&bytes[..]).unwrap()).unwrap();
+
+        assert!(text.contains("Gnosis VPN package version: unknown\n"));
+        assert!(text.contains("Distribution: unknown\n"));
     }
 
     #[test]

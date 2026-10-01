@@ -1,6 +1,16 @@
-import { createEffect, createSignal, createUniqueId, Show } from "solid-js";
+import {
+  createEffect,
+  createResource,
+  createSignal,
+  createUniqueId,
+  Show,
+} from "solid-js";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { VPNService } from "../services/vpnService.ts";
-import { logBundleFileName } from "@src/utils/logBundle.ts";
+import { useAppStore } from "@src/stores/appStore.ts";
+import { logWarn } from "@src/utils/appLog.ts";
+import { logBundleFileName, logDiscussionUrl } from "@src/utils/logBundle.ts";
+import { getSystemInfo } from "@src/utils/platform.ts";
 import { Modal } from "./common/Modal.tsx";
 import Checkbox from "./common/Checkbox.tsx";
 import CopyBlock from "./common/CopyBlock.tsx";
@@ -15,6 +25,8 @@ export default function UploadLogsModal(props: {
   open: boolean;
   onClose: () => void;
 }) {
+  const [appState] = useAppStore();
+  const [system] = createResource(getSystemInfo);
   const [acknowledged, setAcknowledged] = createSignal(false);
   const [description, setDescription] = createSignal("");
   const [uploading, setUploading] = createSignal(false);
@@ -52,8 +64,22 @@ export default function UploadLogsModal(props: {
     }
   }
 
+  const openDiscussion = async (e: MouseEvent, url: string) => {
+    e.preventDefault();
+    try {
+      await openUrl(url);
+    } catch (err) {
+      logWarn(`Failed to open GitHub discussion page: ${err}`);
+    }
+  };
+
   return (
-    <Modal open={props.open} onClose={close} ariaLabelledBy={titleId}>
+    <Modal
+      open={props.open}
+      onClose={close}
+      ariaLabelledBy={titleId}
+      maxWidthClass="max-w-[505px]"
+    >
       <Show
         when={referenceId()}
         fallback={
@@ -61,17 +87,23 @@ export default function UploadLogsModal(props: {
             <div id={titleId} class="text-base font-semibold text-text-primary">
               Upload logs
             </div>
-            <div class="text-sm text-text-secondary">
-              Your logs are sent to the Gnosis VPN team to help diagnose your
-              issue. They may contain personal data, such as:
+            <div class="text-[13px]/[18px] text-text-secondary">
+              Uploading your logs helps us diagnose problems. Before you
+              continue, be aware that logs can contain information that
+              identifies you or your device, including:
             </div>
-            <ul class="list-disc pl-5 text-sm text-text-secondary">
-              <li>your user name, via home directory paths</li>
-              <li>your IP address</li>
+            <ul class="list-disc pl-5 text-[13px]/[18px] text-text-secondary">
+              <li>Your username, which may appear in file paths</li>
+              <li>Your public IP address</li>
               <li>
-                technical details of your system (performance, disk space, etc.)
+                Details about your system, such as OS version, performance and
+                disk space
               </li>
             </ul>
+            <div class="text-[13px]/[18px] text-text-secondary">
+              If you'd rather review or redact the logs first, use Export logs
+              instead and share them manually. Logs are deleted after 30 days.
+            </div>
             <label class="flex flex-col gap-1 text-sm text-text-primary">
               <span>
                 What went wrong? <span class="text-red-600">(* required)</span>
@@ -87,7 +119,7 @@ export default function UploadLogsModal(props: {
                 class="w-full resize-none rounded-lg border border-border bg-bg-surface-alt px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-1 focus:ring-text-secondary"
               />
             </label>
-            <label class="flex items-start gap-2 text-sm text-text-primary hover:cursor-pointer">
+            <label class="flex items-start gap-2 text-[13px]/[18px] text-text-primary hover:cursor-pointer">
               <Checkbox
                 checked={acknowledged()}
                 onChange={setAcknowledged}
@@ -131,6 +163,23 @@ export default function UploadLogsModal(props: {
               Share this Reference ID with the support team.
             </div>
             <CopyBlock text={id()} label="reference ID" />
+            <div class="text-sm text-text-secondary">
+              <a
+                href={logDiscussionUrl({
+                  description: description(),
+                  referenceId: id(),
+                  packageVersion: appState.packageVersion,
+                  system: system(),
+                })}
+                onClick={(e) => openDiscussion(e, e.currentTarget.href)}
+              >
+                You can also start a pre-filled discussion on{" "}
+                <strong>GitHub</strong> by{" "}
+                <span class="text-orange-500 hover:text-orange-700 underline">
+                  clicking this link
+                </span>
+              </a>
+            </div>
             <button type="button" class={outlineButtonClass} onClick={close}>
               Close
             </button>
