@@ -37,6 +37,18 @@ export default function Banner(props: BannerProps): JSX.Element {
   return (
     <div
       onClick={() => props.onClick?.()}
+      // Same activation as ExitNodeCard; keys aimed at the dismiss button or actions stay theirs.
+      onKeyDown={(e) => {
+        if (!props.onClick || e.target !== e.currentTarget) return;
+        if (e.key === "Enter" && !e.repeat) props.onClick();
+        if (e.key === " ") e.preventDefault(); // prevent scroll; activate on keyup
+      }}
+      onKeyUp={(e) => {
+        if (!props.onClick || e.target !== e.currentTarget) return;
+        if (e.key === " ") props.onClick();
+      }}
+      role={props.onClick ? "button" : undefined}
+      tabIndex={props.onClick ? 0 : undefined}
       class={`rounded-lg px-3 py-1.5 text-xs flex flex-col items-start gap-2 ${
         props.onClick
           ? "hover:cursor-pointer hover:bg-darken dark:hover:bg-lighten"
