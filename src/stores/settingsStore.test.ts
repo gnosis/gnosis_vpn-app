@@ -74,6 +74,29 @@ describe("settingsStore", () => {
     expect(state.exitNodeSortOrder).toBe("alpha");
     expect(state.channel).toBe("snapshot");
     expect(state.lastCheckOutcome?.kind).toBe("Available");
+    expect(state.lastEndOfLife?.version).toBe("0.28.5");
+  });
+
+  it("stores the outcome and its end of life in one patch", async () => {
+    mockBackend(settingsDefault);
+    const [, actions] = await freshStore();
+    await actions.load();
+
+    const outcome = { kind: "UpToDate", current: "0.92.0" } as const;
+    const endOfLife = {
+      version: "0.92.0",
+      ends_at: "2026-10-15T00:00:00Z",
+      reason: "legacy endpoints",
+    };
+    await actions.setUpdateCheckResult(outcome, endOfLife, 42);
+
+    expect(invokeMock).toHaveBeenCalledWith("update_settings", {
+      patch: {
+        lastCheckOutcome: outcome,
+        lastEndOfLife: endOfLife,
+        lastCheckedAt: 42,
+      },
+    });
   });
 
   it("applies settings-changed events including nulls", async () => {

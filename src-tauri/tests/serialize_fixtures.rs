@@ -1,5 +1,5 @@
 use gnosis_vpn_app_lib::settings::{FlagDisplay, Settings, SortOrder, UpdateChannel};
-use gnosis_vpn_app_lib::toolkit::{CheckOutcome, CheckResult, Manifest, ToolkitInfo};
+use gnosis_vpn_app_lib::toolkit::{CheckOutcome, CheckResult, EndOfLife, Manifest, ToolkitInfo};
 use gnosis_vpn_app_lib::types;
 use gnosis_vpn_app_lib::update_install::InstallStatus;
 use gnosis_vpn_lib::balance::{
@@ -748,6 +748,7 @@ fn generate_fixtures() {
                 current: "0.28.5".to_string(),
                 release: Box::new(stable),
             },
+            end_of_life: Some(fixture_end_of_life()),
             manifest: Some(manifest.clone()),
         },
     );
@@ -759,6 +760,7 @@ fn generate_fixtures() {
             outcome: CheckOutcome::UpToDate {
                 current: "0.29.0".to_string(),
             },
+            end_of_life: None,
             manifest: Some(manifest.clone()),
         },
     );
@@ -770,6 +772,7 @@ fn generate_fixtures() {
             outcome: CheckOutcome::NoReleaseForChannel {
                 channel: UpdateChannel::Snapshot,
             },
+            end_of_life: None,
             manifest: Some(manifest),
         },
     );
@@ -779,7 +782,7 @@ fn generate_fixtures() {
 /// deserializing, so it also checks the app accepts the published shape.
 fn fixture_manifest() -> Manifest {
     serde_json::from_value(serde_json::json!({
-        "schema_version": 1,
+        "schema_version": 2,
         "generated_at": "2026-07-06T00:00:00Z",
         "channels": {
             "stable": {
@@ -797,6 +800,15 @@ fn fixture_manifest() -> Manifest {
         }
     }))
     .expect("valid manifest fixture")
+}
+
+/// Covers the `current` of the available fixtures, as the binary would only then send it.
+fn fixture_end_of_life() -> EndOfLife {
+    EndOfLife {
+        version: "0.28.5".to_string(),
+        ends_at: "2026-10-15T00:00:00Z".to_string(),
+        reason: "GnosisVPN versions up to 0.28.5 rely on legacy HOPR endpoints that are being shut down.".to_string(),
+    }
 }
 
 fn full_settings() -> Settings {
@@ -817,6 +829,7 @@ fn full_settings() -> Settings {
             current: "0.28.5".to_string(),
             release: Box::new(stable),
         }),
+        last_end_of_life: Some(fixture_end_of_life()),
         channel: Some(UpdateChannel::Snapshot),
         dismissed_update_version: Some("0.28.0".to_string()),
         installed_version: Some("0.28.5".to_string()),
