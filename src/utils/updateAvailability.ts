@@ -1,6 +1,7 @@
 import type {
   ChannelRelease,
   CheckOutcome,
+  EndOfLife,
   UpdateChannel,
 } from "@src/stores/settingsStore.ts";
 import { detectChannel } from "@src/utils/version.ts";
@@ -54,6 +55,31 @@ export function resolveUpdateDecision(input: {
     default:
       return UNDECIDED;
   }
+}
+
+/** The stored EOL verdict, unless it was reached for a package other than the installed one. */
+export function resolveEndOfLife(input: {
+  outcome: CheckOutcome | null;
+  endOfLife: EndOfLife | null;
+  packageVersion: string | null;
+}): EndOfLife | null {
+  const { outcome, endOfLife, packageVersion } = input;
+  if (!outcome || isStaleOutcome(outcome, packageVersion)) return null;
+  return endOfLife;
+}
+
+/** Banner copy for an EOL verdict; the tense follows `now`. */
+export function endOfLifeMessage(endOfLife: EndOfLife, now: number): string {
+  const endsAt = new Date(endOfLife.ends_at);
+  // Non-breaking spaces keep the date on one line when the banner wraps.
+  const date = endsAt.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).replace(/ /g, "\u00a0");
+  return endsAt.getTime() > now
+    ? `Update required: this version stops working on ${date}`
+    : `Update required: this version stopped working on ${date}`;
 }
 
 /** Returns the channel to store, or `undefined` when the preference already matches the installed package. */

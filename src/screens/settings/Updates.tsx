@@ -11,6 +11,8 @@ import { getVersion } from "@tauri-apps/api/app";
 import { emit, listen } from "@tauri-apps/api/event";
 import brokenDeviceIcon from "@assets/icons/broken-device.svg";
 import Toggle from "@src/components/common/Toggle.tsx";
+import Banner from "@src/components/common/Banner.tsx";
+import WarningIcon from "@src/components/icons/WarningIcon.tsx";
 import UpdateStatusCard, {
   type InstallPhase,
 } from "@src/components/common/UpdateStatusCard.tsx";
@@ -28,10 +30,12 @@ import {
 import { checkUpdate } from "@src/services/toolkit.ts";
 import { detectChannel } from "@src/utils/version.ts";
 import {
+  endOfLifeMessage,
   resolveUpdateBlocker,
   resolveUpdateDecision,
   type UpdateBlocker,
 } from "@src/utils/updateAvailability.ts";
+import { createDeadlineClock } from "@src/utils/deadlineClock.ts";
 import { logInfo, logWarn } from "@src/utils/appLog.ts";
 import {
   getInstallStatus,
@@ -89,7 +93,11 @@ export default function Updates() {
     setChecking(true);
     try {
       const result = await checkUpdate(skipVpn);
-      await settingsActions.setUpdateCheckResult(result.outcome, Date.now());
+      await settingsActions.setUpdateCheckResult(
+        result.outcome,
+        result.end_of_life ?? null,
+        Date.now(),
+      );
     } catch (e) {
       // failures are logged by the backend's check_update command
       if (e === "VpnNotConnected") {
@@ -358,6 +366,23 @@ export default function Updates() {
       }
     >
       <div class="space-y-4 w-full p-6 max-w-lg bg-bg-primary flex flex-col h-full">
+        <Show when={appState.endOfLife}>
+          {(endOfLife) => {
+            const now = createDeadlineClock(() =>
+              Date.parse(endOfLife().ends_at)
+            );
+            return (
+              <Banner variant="danger" icon={<WarningIcon />}>
+                <span class="flex flex-col">
+                  <span>{endOfLifeMessage(endOfLife(), now())}</span>
+                  <Show when={endOfLife().reason?.trim()}>
+                    {(reason) => <span>{reason()}</span>}
+                  </Show>
+                </span>
+              </Banner>
+            );
+          }}
+        </Show>
         <UpdateStatusCard
           onCheck={handleCheck}
           loading={checking()}

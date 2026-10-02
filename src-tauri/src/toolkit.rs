@@ -140,9 +140,19 @@ pub struct CheckResult {
     /// the installed version.
     pub channel: UpdateChannel,
     pub outcome: CheckOutcome,
+    /// Set only when the binary found the installed version covered; older binaries never send it.
+    pub end_of_life: Option<EndOfLife>,
     /// Both channel entries, exactly as fetched. Absent on the three outcomes that never got one
     /// (`VpnNotConnected`, `IntegrityError`, `Error`) — the frontend then keeps its last known.
     pub manifest: Option<Manifest>,
+}
+
+/// The installed version stops working at `ends_at`; `version` is the highest one covered.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EndOfLife {
+    pub version: String,
+    pub ends_at: String,
+    pub reason: String,
 }
 
 /// The same decision as the binary prints it: serde's externally-tagged encoding, e.g.
@@ -184,6 +194,8 @@ struct WireCheckResult {
     channel: UpdateChannel,
     outcome: WireOutcome,
     #[serde(default)]
+    end_of_life: Option<EndOfLife>,
+    #[serde(default)]
     manifest: Option<Manifest>,
 }
 
@@ -192,6 +204,7 @@ impl From<WireCheckResult> for CheckResult {
         CheckResult {
             channel: w.channel,
             outcome: w.outcome.into(),
+            end_of_life: w.end_of_life,
             manifest: w.manifest,
         }
     }
@@ -392,6 +405,29 @@ mod tests {
         let manifest = result.manifest.expect("manifest attached");
         assert_eq!(manifest.channels.stable.unwrap().version, "0.78.0");
         assert!(manifest.channels.snapshot.is_none());
+        assert!(
+            result.end_of_life.is_none(),
+            "an older binary never sends it"
+        );
+    }
+
+    #[test]
+    fn check_carries_the_end_of_life_covering_the_installed_version() {
+        let line = format!(
+            r#"{{"channel":"stable","outcome":{{"Available":{{"current":"0.77.0","release":{RELEASE}}}}},"end_of_life":{{"version":"0.77.0","ends_at":"2026-10-15T00:00:00Z","reason":"legacy endpoints"}},"manifest":{}}}"#,
+            manifest_json()
+        );
+        let result = parse_check(&line).unwrap();
+        assert_eq!(
+            result.end_of_life,
+            Some(EndOfLife {
+                version: "0.77.0".to_string(),
+                ends_at: "2026-10-15T00:00:00Z".to_string(),
+                reason: "legacy endpoints".to_string(),
+            })
+        );
+        let v = serde_json::to_value(&result).unwrap();
+        assert_eq!(v["end_of_life"]["ends_at"], "2026-10-15T00:00:00Z");
     }
 
     // The three outcomes that never fetched a manifest omit the key entirely.

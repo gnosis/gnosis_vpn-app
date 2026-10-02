@@ -10,6 +10,8 @@ import ConnectionStatus from "../../components/status/ConnectionStatus.tsx";
 import { openSettingsWindow } from "../../utils/settingsWindow.ts";
 import { isRunningRunMode } from "../../services/vpnService.ts";
 import { deriveOverallStatus, type StatusText } from "../../utils/funding.ts";
+import { endOfLifeMessage } from "../../utils/updateAvailability.ts";
+import { createDeadlineClock } from "../../utils/deadlineClock.ts";
 import Banner from "../../components/common/Banner.tsx";
 import UpdateIcon from "../../components/icons/UpdateIcon.tsx";
 import WarningIcon from "../../components/icons/WarningIcon.tsx";
@@ -53,7 +55,24 @@ export function MainScreen() {
 
       <div class="relative h-0 z-50">
         <div class="absolute top-2 left-0 right-0 flex flex-col gap-2">
-          <Show when={appState.isUpdateAvailable}>
+          {/* No onDismiss: an end of life cannot be waved away. */}
+          <Show when={appState.endOfLife}>
+            {(endOfLife) => {
+              const now = createDeadlineClock(() =>
+                Date.parse(endOfLife().ends_at)
+              );
+              return (
+                <Banner
+                  variant="danger"
+                  icon={<WarningIcon />}
+                  onClick={() => openSettingsWindow("updates")}
+                >
+                  {endOfLifeMessage(endOfLife(), now())}
+                </Banner>
+              );
+            }}
+          </Show>
+          <Show when={appState.isUpdateAvailable && !appState.endOfLife}>
             <Banner
               variant="update"
               icon={<UpdateIcon />}

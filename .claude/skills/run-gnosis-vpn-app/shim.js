@@ -18,6 +18,7 @@
     exitNodeSortOrder: "best",
     lastCheckedAt: null,
     lastCheckOutcome: null,
+    lastEndOfLife: null,
     channel: null,
     dismissedUpdateVersion: null,
     installedVersion: null,

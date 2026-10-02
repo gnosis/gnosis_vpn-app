@@ -40,6 +40,27 @@ describe("CheckResultSchema", () => {
     }
     expect(parsed.outcome.release.version).toBe("0.29.0");
     expect(parsed.manifest?.channels.stable?.version).toBe("0.29.0");
+    expect(parsed.end_of_life?.version).toBe("0.28.5");
+    expect(parsed.end_of_life?.ends_at).toBe("2026-10-15T00:00:00Z");
+  });
+
+  it("parses a result whose package is not covered by an end of life", () => {
+    expect(CheckResultSchema.parse(upToDate).end_of_life).toBeNull();
+  });
+
+  it("drops an end of life whose date does not parse", () => {
+    const parsed = CheckResultSchema.parse({
+      ...available,
+      end_of_life: { ...available.end_of_life, ends_at: "soon" },
+    });
+    expect(parsed.end_of_life).toBeNull();
+    expect(parsed.outcome.kind).toBe("Available");
+  });
+
+  // Toolkits before the end-of-life verdict never send the key.
+  it("accepts a result without the end_of_life key", () => {
+    const { end_of_life: _, ...older } = available;
+    expect(CheckResultSchema.parse(older).end_of_life).toBeUndefined();
   });
 
   it("parses an up-to-date result", () => {

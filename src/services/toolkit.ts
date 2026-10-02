@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   ChannelReleaseSchema,
   CheckOutcomeSchema,
+  EndOfLifeSchema,
   UpdateChannelSchema,
 } from "@src/stores/settingsStore.ts";
 
@@ -39,6 +40,8 @@ export const CheckResultSchema = z.object({
   // inferred from the installed version.
   channel: UpdateChannelSchema,
   outcome: CheckOutcomeSchema,
+  // Only when the installed version is covered; older binaries never send it.
+  end_of_life: EndOfLifeSchema.nullable().optional().catch(null),
   // Both channel entries exactly as fetched; null on outcomes that never got one.
   manifest: UpdateManifestSchema.nullable(),
 });
