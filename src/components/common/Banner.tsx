@@ -15,7 +15,7 @@ export interface BannerProps {
 const containerClasses: Record<NonNullable<BannerProps["variant"]>, string> = {
   warning: "bg-orange-500/15 border border-orange-500/30 text-orange-400",
   critical: "bg-red-500/15 border border-red-500/30 text-red-400",
-  danger: "bg-red-600 border border-red-700 text-white",
+  danger: "bg-red-600/85 border border-red-700 text-white",
   neutral: "bg-bg-surface text-text-primary",
   update:
     "bg-blue-500/10 border border-blue-500/40 text-blue-700 dark:bg-[#1F2936]/50 dark:border-[#1F2936] dark:text-text-secondary",

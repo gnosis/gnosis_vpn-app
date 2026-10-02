@@ -368,9 +368,11 @@ export default function Updates() {
         <Show when={appState.endOfLife}>
           {(endOfLife) => (
             <Banner variant="danger" icon={<WarningIcon />}>
-              <span>
-                {endOfLifeMessage(endOfLife(), Date.now())}.{" "}
-                {endOfLife().reason}
+              <span class="flex flex-col">
+                <span>{endOfLifeMessage(endOfLife(), Date.now())}</span>
+                <Show when={endOfLife().reason?.trim()}>
+                  {(reason) => <span>{reason()}</span>}
+                </Show>
               </span>
             </Banner>
           )}
