@@ -48,6 +48,13 @@ describe("createDeadlineClock", () => {
     dispose();
   });
 
+  it("schedules nothing for a deadline that is not a number", () => {
+    const { now, dispose } = clock(() => Number.NaN);
+    expect(vi.getTimerCount()).toBe(0);
+    expect(now()).toBe(START);
+    dispose();
+  });
+
   it("follows a deadline that changes and stops once disposed", () => {
     const [deadline, setDeadline] = createSignal(START + 1000);
     const { now, dispose } = clock(deadline);

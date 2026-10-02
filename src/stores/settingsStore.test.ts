@@ -60,6 +60,16 @@ describe("SettingsSchema fixtures", () => {
     const { SettingsSchema } = await import("./settingsStore.ts");
     expect(SettingsSchema.safeParse(settingsFull).success).toBe(true);
   });
+
+  it("drops an end of life whose date does not parse, keeping the rest", async () => {
+    const { SettingsSchema } = await import("./settingsStore.ts");
+    const parsed = SettingsSchema.parse({
+      ...settingsFull,
+      lastEndOfLife: { ...settingsFull.lastEndOfLife, ends_at: "soon" },
+    });
+    expect(parsed.lastEndOfLife).toBeNull();
+    expect(parsed.preferredLocation).toBe("exit-1");
+  });
 });
 
 describe("settingsStore", () => {

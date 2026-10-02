@@ -48,6 +48,15 @@ describe("CheckResultSchema", () => {
     expect(CheckResultSchema.parse(upToDate).end_of_life).toBeNull();
   });
 
+  it("drops an end of life whose date does not parse", () => {
+    const parsed = CheckResultSchema.parse({
+      ...available,
+      end_of_life: { ...available.end_of_life, ends_at: "soon" },
+    });
+    expect(parsed.end_of_life).toBeNull();
+    expect(parsed.outcome.kind).toBe("Available");
+  });
+
   // Toolkits before the end-of-life verdict never send the key.
   it("accepts a result without the end_of_life key", () => {
     const { end_of_life: _, ...older } = available;

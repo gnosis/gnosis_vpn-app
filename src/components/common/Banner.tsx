@@ -15,7 +15,8 @@ export interface BannerProps {
 const containerClasses: Record<NonNullable<BannerProps["variant"]>, string> = {
   warning: "bg-orange-500/15 border border-orange-500/30 text-orange-400",
   critical: "bg-red-500/15 border border-red-500/30 text-red-400",
-  danger: "bg-red-600/85 border border-red-700 text-white",
+  // Opaque in light: 85% over the light background drops white below 4.5:1.
+  danger: "bg-red-600 dark:bg-red-600/85 border border-red-700 text-white",
   neutral: "bg-bg-surface text-text-primary",
   update:
     "bg-blue-500/10 border border-blue-500/40 text-blue-700 dark:bg-[#1F2936]/50 dark:border-[#1F2936] dark:text-text-secondary",
@@ -36,23 +37,8 @@ export default function Banner(props: BannerProps): JSX.Element {
 
   return (
     <div
-      onClick={() => props.onClick?.()}
-      // Same activation as ExitNodeCard; keys aimed at the dismiss button or actions stay theirs.
-      onKeyDown={(e) => {
-        if (!props.onClick || e.target !== e.currentTarget) return;
-        if (e.key === "Enter" && !e.repeat) props.onClick();
-        if (e.key === " ") e.preventDefault(); // prevent scroll; activate on keyup
-      }}
-      onKeyUp={(e) => {
-        if (!props.onClick || e.target !== e.currentTarget) return;
-        if (e.key === " ") props.onClick();
-      }}
-      role={props.onClick ? "button" : undefined}
-      tabIndex={props.onClick ? 0 : undefined}
-      class={`rounded-lg px-3 py-1.5 text-xs flex flex-col items-start gap-2 ${
-        props.onClick
-          ? "hover:cursor-pointer hover:bg-darken dark:hover:bg-lighten"
-          : ""
+      class={`relative rounded-lg px-3 py-1.5 text-xs flex flex-col items-start gap-2 ${
+        props.onClick ? "hover:bg-darken dark:hover:bg-lighten" : ""
       } ${containerClasses[variant()]}`}
     >
       <div class="w-full flex items-center justify-between">
@@ -64,18 +50,20 @@ export default function Banner(props: BannerProps): JSX.Element {
             </div>
           }
         >
-          <span class="hover:cursor-pointer flex items-center gap-1.5">
+          {/* A sibling of the dismiss button, not its parent; ::after stretches the target over the banner. */}
+          <button
+            type="button"
+            class="flex items-center gap-1.5 text-left cursor-pointer after:absolute after:inset-0 after:rounded-lg"
+            onClick={() => props.onClick?.()}
+          >
             {content()}
-          </span>
+          </button>
         </Show>
         <Show when={props.onDismiss}>
           <button
             type="button"
-            class="size-5 -my-0.5 -mr-1.5 flex items-center justify-center rounded-full hover:cursor-pointer hover:bg-black/10 dark:hover:bg-white/15 transition-colors"
-            onClick={(event) => {
-              event.stopPropagation();
-              props.onDismiss?.();
-            }}
+            class="relative z-10 size-5 -my-0.5 -mr-1.5 flex items-center justify-center rounded-full hover:cursor-pointer hover:bg-black/10 dark:hover:bg-white/15 transition-colors"
+            onClick={() => props.onDismiss?.()}
             aria-label={props.dismissAriaLabel ?? "Dismiss notification"}
           >
             ✕
@@ -83,7 +71,7 @@ export default function Banner(props: BannerProps): JSX.Element {
         </Show>
       </div>
       <Show when={props.actions}>
-        <div onClick={(e) => e.stopPropagation()}>{props.actions}</div>
+        <div class="relative z-10">{props.actions}</div>
       </Show>
     </div>
   );

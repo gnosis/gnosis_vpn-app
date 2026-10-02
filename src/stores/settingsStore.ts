@@ -36,7 +36,9 @@ export type ChannelRelease = z.infer<typeof ChannelReleaseSchema>;
 // The toolkit's verdict that the installed version stops working at `ends_at`.
 export const EndOfLifeSchema = z.object({
   version: z.string(),
-  ends_at: z.string(),
+  ends_at: z.string().refine((v) => !Number.isNaN(Date.parse(v)), {
+    message: "ends_at is not a date",
+  }),
   reason: z.string(),
 });
 export type EndOfLife = z.infer<typeof EndOfLifeSchema>;
@@ -79,7 +81,8 @@ export const SettingsSchema = z.object({
   exitNodeSortOrder: z.enum(["best", "alpha"]),
   lastCheckedAt: z.number().nullable(),
   lastCheckOutcome: CheckOutcomeSchema.nullable(),
-  lastEndOfLife: EndOfLifeSchema.nullable(),
+  // A corrupt entry is dropped rather than failing the whole snapshot.
+  lastEndOfLife: EndOfLifeSchema.nullable().catch(null),
   channel: UpdateChannelSchema.nullable(),
   dismissedUpdateVersion: z.string().nullable(),
   installedVersion: z.string().nullable(),

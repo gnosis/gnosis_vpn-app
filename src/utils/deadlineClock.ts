@@ -10,6 +10,8 @@ export function createDeadlineClock(
   const [now, setNow] = createSignal(Date.now());
   createEffect(() => {
     const at = deadline();
+    // NaN would never compare as passed and spin on zero-delay timeouts.
+    if (!Number.isFinite(at)) return;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const wait = () => {
       const remaining = at - Date.now();
