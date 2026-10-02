@@ -20,6 +20,7 @@ import { reconcileStrip } from "@src/utils/cardStrip.ts";
 import { cardTitle } from "@src/utils/destinations.ts";
 import DetailCard from "./DetailCard.tsx";
 import ExitNodeList from "./ExitNodeList.tsx";
+import NoDestinationsCard from "./NoDestinationsCard.tsx";
 
 // Must match .banner-card-pulse's animation-duration in index.css — the
 // outgoing card shrinks then grows back before the slide starts. Counts
@@ -420,6 +421,10 @@ export default function LocationBanner() {
 
   const activeId = () => appState.mode.active;
 
+  // Mirrors the per-slide gate below, so an entry whose destination left status counts as empty too.
+  const hasVisibleCard = () =>
+    displayEntries().some((entry) => appState.destinations[entry.id]);
+
   const activeKey = (): number | null => {
     const active = appState.mode.active;
     return active === null ? null : appState.mode.entries[active]?.key ?? null;
@@ -500,13 +505,20 @@ export default function LocationBanner() {
 
   return (
     <>
+      <Show when={!hasVisibleCard()}>
+        <div class="w-full px-[18px]">
+          <NoDestinationsCard />
+        </div>
+      </Show>
+      {/* Hidden, not unmounted: onMount's scroll listeners hold this element. */}
       <div
         ref={containerRef}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
-        class="w-full flex flex-row gap-2 overflow-x-auto no-scrollbar snap-x snap-mandatory scroll-smooth cursor-grab select-none active:cursor-grabbing"
+        class="w-full flex-row gap-2 overflow-x-auto no-scrollbar snap-x snap-mandatory scroll-smooth cursor-grab select-none active:cursor-grabbing"
+        classList={{ flex: hasVisibleCard(), hidden: !hasVisibleCard() }}
       >
         {
           /* Leading/trailing spacer, not container padding — padding would
