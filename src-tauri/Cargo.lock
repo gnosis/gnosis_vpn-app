@@ -4503,7 +4503,7 @@ dependencies = [
 
 [[package]]
 name = "gnosis_vpn-app"
-version = "0.97.0"
+version = "0.37.0"
 dependencies = [
  "ashpd",
  "clap",
