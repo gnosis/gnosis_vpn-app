@@ -38,18 +38,18 @@
       "groupName": "rust crates (minor)"
     },
     {
-      "matchManagers": ["npm"],
+      "matchManagers": ["npm", "deno"],
       "matchUpdateTypes": ["patch"],
       "groupName": "npm packages (patch)"
     },
     {
-      "matchManagers": ["npm"],
+      "matchManagers": ["npm", "deno"],
       "matchUpdateTypes": ["minor"],
       "groupName": "npm packages (minor)"
     },
     {
       "description": "This is an app, not a library: exact versions keep in-range drift from bypassing minimumReleaseAge",
-      "matchManagers": ["npm"],
+      "matchManagers": ["npm", "deno"],
       "rangeStrategy": "pin"
     },
     {
