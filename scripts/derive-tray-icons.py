@@ -1,7 +1,8 @@
-# Derives the tray SVGs from the app icon SVGs: a transparent-background set
-# for macOS/Windows, and a full-color set with a circular (rather than
-# square) backdrop for Linux. Run after changing an app icon SVG, then run
-# generate-icons.sh and commit the regenerated tray SVGs and PNGs.
+# Derives the stalled app icons from the connected ones, then the tray SVGs
+# from the app icon SVGs: a transparent-background set for macOS/Windows, and
+# a full-color set with a circular (rather than square) backdrop for Linux.
+# Run after changing an app icon SVG, then run generate-icons.sh and commit
+# the regenerated SVGs and PNGs.
 import re
 from pathlib import Path
 
@@ -26,7 +27,32 @@ MAPPING = {
     "tray-icon-connected": "app-icon-connected",
     "tray-icon-connected-low-funds": "app-icon-connected-low-funds",
     "tray-icon-connected-out-of-funds": "app-icon-connected-out-of-funds",
+    "tray-icon-connected-stalled": "app-icon-connected-stalled",
+    "tray-icon-connected-stalled-low-funds": "app-icon-connected-stalled-low-funds",
+    "tray-icon-connected-stalled-out-of-funds": "app-icon-connected-stalled-out-of-funds",
 }
+
+# The connected badge: one solid green dot, drawn twice (fill + stroke).
+CONNECTED_DOT = 'fill="#22D363" stroke="#22D363"/>'
+# Stalled turns it into a ring; shape must carry it, macOS template mode renders alpha-only.
+STALLED_RING = 'fill="none" stroke="#F97316" stroke-width="6"/>'
+
+
+def derive_stalled(lines):
+    out, ring_drawn = [], False
+    for line in lines:
+        if not line.strip().endswith(CONNECTED_DOT):
+            out.append(line)
+        elif not ring_drawn:
+            out.append(line.replace(CONNECTED_DOT, STALLED_RING))
+            ring_drawn = True
+    assert ring_drawn, "connected dot not found"
+    return out
+
+
+for suffix in ("", "-low-funds", "-out-of-funds"):
+    lines = (APP / f"app-icon-connected{suffix}.svg").read_text().rstrip("\n").split("\n")
+    (APP / f"app-icon-connected-stalled{suffix}.svg").write_text("\n".join(derive_stalled(lines)) + "\n")
 
 # Black-filled backdrop shapes (badge circle / wallet pill) start with M19x;
 # the warning triangle's exclamation mark starts with M101.736. On the black
