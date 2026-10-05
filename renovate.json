@@ -6,6 +6,44 @@
       "description": "Stable line: everything off by default; vulnerabilityAlerts re-enables CVE fixes.",
       "matchPackageNames": ["*"],
       "enabled": false
+<<<<<<< HEAD
+=======
+    },
+    {
+      "matchManagers": ["cargo"],
+      "matchUpdateTypes": ["patch"],
+      "groupName": "rust crates (patch)"
+    },
+    {
+      "matchManagers": ["cargo"],
+      "matchUpdateTypes": ["minor"],
+      "groupName": "rust crates (minor)"
+    },
+    {
+      "matchManagers": ["npm", "deno"],
+      "matchUpdateTypes": ["patch"],
+      "groupName": "npm packages (patch)"
+    },
+    {
+      "matchManagers": ["npm", "deno"],
+      "matchUpdateTypes": ["minor"],
+      "groupName": "npm packages (minor)"
+    },
+    {
+      "description": "This is an app, not a library: exact versions keep in-range drift from bypassing minimumReleaseAge",
+      "matchManagers": ["npm", "deno"],
+      "rangeStrategy": "pin"
+    },
+    {
+      "description": "Tauri npm packages and Rust crates must stay on the same minor, so bump them together",
+      "matchPackageNames": [
+        "@tauri-apps/**",
+        "tauri",
+        "tauri-build",
+        "tauri-plugin-**"
+      ],
+      "groupName": "tauri"
+>>>>>>> 2a3d151 (fix(renovate): match the deno manager so npm grouping and pinning apply (#544))
     }
   ],
   "vulnerabilityAlerts": { "enabled": true, "minimumReleaseAge": null }
