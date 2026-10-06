@@ -34,6 +34,7 @@ import Stat from "./Stat.tsx";
 import Tag from "../common/Tag.tsx";
 import SignalBars from "./SignalBars.tsx";
 import WeakRouteTag from "./WeakRouteTag.tsx";
+import StalledTag from "./StalledTag.tsx";
 import Flag from "../Flag.tsx";
 
 export default function ExitNodeCard(props: {
@@ -56,6 +57,10 @@ export default function ExitNodeCard(props: {
   const tunnelRtt = () =>
     appState.connected?.destination_id === destId()
       ? appState.connected.tunnel_ping_rtt
+      : null;
+  const stall = () =>
+    appState.connected?.destination_id === destId()
+      ? appState.connected.stall ?? null
       : null;
   const routing = (): number => props.destinationState().destination.routing;
 
@@ -164,6 +169,7 @@ export default function ExitNodeCard(props: {
             </span>
           </span>
           <span class="flex shrink-0 items-center gap-1.5">
+            <Show when={stall()}>{(s) => <StalledTag stall={s()} />}</Show>
             <Show when={isWeak()}>
               <WeakRouteTag />
             </Show>

@@ -35,7 +35,7 @@ done
 linux_svg_dir=src-tauri/icons/tray-icons/svg/linux
 linux_png_dir=src-tauri/icons/tray-icons/linux
 
-for state in disconnected connected; do
+for state in disconnected connected connected-stalled; do
     for suffix in "" "-low-funds" "-out-of-funds"; do
         rsvg-convert -w 201 -h 201 "$linux_svg_dir/$state$suffix.svg" -o "$linux_png_dir/$state$suffix.png"
         echo "rendered $linux_png_dir/$state$suffix.png"
