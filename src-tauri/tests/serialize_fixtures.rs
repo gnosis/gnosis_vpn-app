@@ -291,6 +291,27 @@ fn generate_fixtures() {
         },
     );
 
+    // Tunnel up but the data path stalled: counted ping failures short of the reconnect threshold.
+    let mut connected_stalled = status_base(types::RunMode::Running {
+        funding_status: None,
+        hopr_status: None,
+    });
+    connected_stalled.connected = Some(command::ConnectedInfo {
+        destination_id: "test-exit".to_string(),
+        since: SystemTime::UNIX_EPOCH,
+        tunnel_ping_rtt: Some(Duration::from_millis(12)),
+        stall: Some(command::TunnelStall {
+            since: SystemTime::UNIX_EPOCH,
+            failed_pings: 2,
+            reconnect_at: 3,
+        }),
+    });
+    write(
+        &fixtures_dir,
+        "status_connected_stalled.json",
+        &connected_stalled,
+    );
+
     // A probe session that has not produced a result yet: every optional is null.
     let mut probe_opening = status_base(types::RunMode::Running {
         funding_status: None,

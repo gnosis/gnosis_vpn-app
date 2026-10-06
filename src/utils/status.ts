@@ -5,6 +5,7 @@ import {
   isPreparingSafeRunMode,
   isWarmupRunMode,
   StatusResponse,
+  type TunnelStall,
   type UpPhase,
 } from "@src/services/vpnService.ts";
 import type { AppState } from "@src/stores/appStore.ts";
@@ -161,4 +162,19 @@ export function waitingForRouteMessage(
     return `Route to ${label}: ${formatExitHealthStatus(health, exit)}`;
   }
   return `Waiting for route to ${label}`;
+}
+
+function formatDurationShort(sec: number): string {
+  if (sec < 60) return `${sec} s`;
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min} min`;
+  return `${Math.floor(min / 60)} h`;
+}
+
+/** Bottom-line suffix, mirrors the CLI: "stalled 18 s (2/3)". */
+export function formatStall(stall: TunnelStall, nowMs: number): string {
+  const sec = Math.max(0, Math.floor((nowMs - stall.since) / 1000));
+  return `stalled ${
+    formatDurationShort(sec)
+  } (${stall.failed_pings}/${stall.reconnect_at})`;
 }

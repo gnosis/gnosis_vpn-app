@@ -24,6 +24,7 @@ import statusPreparingSafeWithRecommendation from "./fixtures/status_preparing_s
 import statusDeployingSafe from "./fixtures/status_deploying_safe.json";
 import statusRestarting from "./fixtures/status_restarting.json";
 import statusWithConnections from "./fixtures/status_with_connections.json";
+import statusConnectedStalled from "./fixtures/status_connected_stalled.json";
 import statusReconnectWaiting from "./fixtures/status_reconnect_waiting.json";
 import statusRouteHealthVariants from "./fixtures/status_route_health_variants.json";
 import statusProbeOpening from "./fixtures/status_probe_opening.json";
@@ -120,8 +121,25 @@ describe("StatusResponseSchema", () => {
     const parsed = StatusResponseSchema.safeParse(statusWithConnections);
     expect(parsed.success).toBe(true);
     expect(parsed.data?.connected?.tunnel_ping_rtt).toBe(12);
+    expect(parsed.data?.connected?.stall).toBeNull();
     expect(parsed.data?.probe?.state.state).toBe("Ready");
     expect(parsed.data?.probe?.load?.slots.available).toBe(10);
+  });
+
+  it("parses a stalled tunnel and tolerates daemons without the field", () => {
+    const parsed = StatusResponseSchema.safeParse(statusConnectedStalled);
+    expect(parsed.success).toBe(true);
+    expect(parsed.data?.connected?.stall?.failed_pings).toBe(2);
+    expect(parsed.data?.connected?.stall?.reconnect_at).toBe(3);
+
+    const { stall: _stall, ...legacyConnected } =
+      statusConnectedStalled.connected;
+    const legacy = StatusResponseSchema.safeParse({
+      ...statusConnectedStalled,
+      connected: legacyConnected,
+    });
+    expect(legacy.success).toBe(true);
+    expect(legacy.data?.connected?.stall).toBeUndefined();
   });
 
   it("parses a probe session with no results yet", () => {

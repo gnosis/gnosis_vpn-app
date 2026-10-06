@@ -10,6 +10,7 @@ import type {
 import type { AppState } from "@src/stores/appStore.ts";
 import {
   deriveVPNStatus,
+  formatStall,
   isConnected,
   isConnecting,
   isDisconnected,
@@ -331,6 +332,22 @@ describe("deriveVPNStatus", () => {
     );
   });
 
+  it("stays Connected while the tunnel is stalled", () => {
+    expect(
+      deriveVPNStatus({
+        ...BASE,
+        run_mode: RUNNING,
+        target_destination: "dest-1",
+        connected: {
+          destination_id: "dest-1",
+          since: 0,
+          tunnel_ping_rtt: 12,
+          stall: { since: 0, failed_pings: 2, reconnect_at: 3 },
+        },
+      }),
+    ).toBe("Connected");
+  });
+
   it("keeps Disconnecting while a teardown is still in flight", () => {
     expect(
       deriveVPNStatus({
@@ -401,6 +418,22 @@ describe("waitingForRouteMessage", () => {
   it("falls back to the id for an unknown destination", () => {
     expect(waitingForRouteMessage(BASE_APP_STATE, "dest-9")).toBe(
       "Waiting for route to dest-9",
+    );
+  });
+});
+
+describe("formatStall", () => {
+  const stall = { since: 0, failed_pings: 2, reconnect_at: 3 };
+
+  it("counts seconds, minutes and hours since the stall began", () => {
+    expect(formatStall(stall, 18_000)).toBe("stalled 18 s (2/3)");
+    expect(formatStall(stall, 150_000)).toBe("stalled 2 min (2/3)");
+    expect(formatStall(stall, 7_200_000)).toBe("stalled 2 h (2/3)");
+  });
+
+  it("clamps a clock behind the daemon's to zero", () => {
+    expect(formatStall({ ...stall, since: 5_000 }, 1_000)).toBe(
+      "stalled 0 s (2/3)",
     );
   });
 });
