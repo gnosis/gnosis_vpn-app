@@ -740,7 +740,7 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
                         };
 
                         let quit_label = match conn_state {
-                            ConnectionState::Connected(_) | ConnectionState::Connecting(_) | ConnectionState::Reconnecting(_) => "Disconnect and Quit",
+                            ConnectionState::Connected { .. } | ConnectionState::Connecting(_) | ConnectionState::Reconnecting(_) => "Disconnect and Quit",
                             _ => "Quit",
                         };
                         let quit_item = app.state::<tray::TrayQuitItem>();

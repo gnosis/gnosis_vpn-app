@@ -315,7 +315,7 @@ pub fn update_icon_name_if_changed(current: &Mutex<String>, next: &str) -> bool 
 
 pub fn determine_app_icon(connection_state: &ConnectionState, level: FundsLevel) -> String {
     let icon = match connection_state {
-        ConnectionState::Connected(_) => match level {
+        ConnectionState::Connected { .. } => match level {
             FundsLevel::Sufficient => APP_ICON_CONNECTED,
             FundsLevel::Low => APP_ICON_CONNECTED_LOW_FUNDS,
             FundsLevel::Empty => APP_ICON_CONNECTED_OUT_OF_FUNDS,
@@ -335,7 +335,7 @@ pub fn determine_app_icon(connection_state: &ConnectionState, level: FundsLevel)
 pub fn determine_tray_icon(connection_state: &ConnectionState, level: FundsLevel) -> &'static str {
     if cfg!(target_os = "linux") {
         match connection_state {
-            ConnectionState::Connected(_) => match level {
+            ConnectionState::Connected { .. } => match level {
                 FundsLevel::Sufficient => TRAY_ICON_LINUX_CONNECTED,
                 FundsLevel::Low => TRAY_ICON_LINUX_CONNECTED_LOW_FUNDS,
                 FundsLevel::Empty => TRAY_ICON_LINUX_CONNECTED_OUT_OF_FUNDS,
@@ -351,7 +351,7 @@ pub fn determine_tray_icon(connection_state: &ConnectionState, level: FundsLevel
         }
     } else {
         match connection_state {
-            ConnectionState::Connected(_) => match level {
+            ConnectionState::Connected { .. } => match level {
                 FundsLevel::Sufficient => TRAY_ICON_CONNECTED,
                 FundsLevel::Low => TRAY_ICON_CONNECTED_LOW_FUNDS,
                 FundsLevel::Empty => TRAY_ICON_CONNECTED_OUT_OF_FUNDS,
@@ -453,6 +453,13 @@ mod tests {
     use gnosis_vpn_lib::balance::{Address, FundingLevel as LibFundingLevel};
     use gnosis_vpn_lib::command;
 
+    fn connected() -> ConnectionState {
+        ConnectionState::Connected {
+            destination_id: "x".into(),
+            stalled: false,
+        }
+    }
+
     fn running(status: Option<TauriFundingStatus>) -> RunMode {
         RunMode::Running {
             funding_status: status,
@@ -534,7 +541,7 @@ mod tests {
 
     #[test]
     fn app_icon_matrix() {
-        let connected = ConnectionState::Connected("x".into());
+        let connected = connected();
         let connecting = ConnectionState::Connecting("x".into());
         let reconnecting = ConnectionState::Reconnecting("x".into());
         let disconnecting = ConnectionState::Disconnecting;
@@ -608,21 +615,9 @@ mod tests {
         // determine_tray_icon branches on the host OS, so assert on the
         // state-derived name parts shared by both platform sets.
         let cases = [
-            (
-                ConnectionState::Connected("x".into()),
-                FundsLevel::Sufficient,
-                "connected.png",
-            ),
-            (
-                ConnectionState::Connected("x".into()),
-                FundsLevel::Low,
-                "connected-low-funds.png",
-            ),
-            (
-                ConnectionState::Connected("x".into()),
-                FundsLevel::Empty,
-                "connected-out-of-funds.png",
-            ),
+            (connected(), FundsLevel::Sufficient, "connected.png"),
+            (connected(), FundsLevel::Low, "connected-low-funds.png"),
+            (connected(), FundsLevel::Empty, "connected-out-of-funds.png"),
             (
                 ConnectionState::Reconnecting("x".into()),
                 FundsLevel::Sufficient,
@@ -670,7 +665,7 @@ mod tests {
             "x".into()
         )));
         assert!(!is_animating_state(&ConnectionState::Disconnecting));
-        assert!(!is_animating_state(&ConnectionState::Connected("x".into())));
+        assert!(!is_animating_state(&connected()));
         assert!(!is_animating_state(&ConnectionState::Disconnected));
     }
 

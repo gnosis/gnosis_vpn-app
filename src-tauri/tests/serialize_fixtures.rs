@@ -259,6 +259,7 @@ fn generate_fixtures() {
                 destination_id: "test-exit".to_string(),
                 since: SystemTime::UNIX_EPOCH,
                 tunnel_ping_rtt: Some(Duration::from_millis(12)),
+                stall: None,
             }),
             connecting: Some(command::ConnectingInfo {
                 destination_id: "test-exit".to_string(),
