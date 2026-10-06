@@ -3,6 +3,7 @@ import { useAppStore } from "../../stores/appStore.ts";
 import type { AppState } from "../../stores/appStore.ts";
 import {
   formatConnectionPhase,
+  formatStall,
   waitingForRouteMessage,
 } from "../../utils/status.ts";
 import { destinationLabel } from "../../utils/destinations.ts";
@@ -13,7 +14,7 @@ import { destinationLabel } from "../../utils/destinations.ts";
  * Priority:
  *  1. Reconnecting → "{phase}", or "Waiting for route to {location}" with none in flight
  *  2. Connecting   → "{phase}" or "Connecting to {location}"
- *  3. Connected    → "Connected to {location}"
+ *  3. Connected    → "Connected to {location}", plus " · stalled 18 s (2/3)" while the tunnel stalls
  *  4. Disconnecting (only when nothing is connecting) → "{phase}" or "Disconnecting from {location}"
  */
 function deriveStatus(appState: AppState): string | undefined {
@@ -49,7 +50,10 @@ function deriveStatus(appState: AppState): string | undefined {
     const connectedId = appState.connected.destination_id;
     const dest = appState.destinations[connectedId]?.destination;
     const label = dest ? destinationLabel(dest) : connectedId;
-    return `Connected to ${label}`;
+    const stall = appState.connected.stall;
+    return stall
+      ? `Connected to ${label} · ${formatStall(stall, Date.now())}`
+      : `Connected to ${label}`;
   }
 
   if (appState.disconnecting.length > 0) {
