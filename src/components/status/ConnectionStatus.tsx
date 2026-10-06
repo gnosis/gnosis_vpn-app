@@ -1,4 +1,4 @@
-import { createMemo, Show } from "solid-js";
+import { createMemo, createSignal, onCleanup, Show } from "solid-js";
 import { useAppStore } from "../../stores/appStore.ts";
 import type { AppState } from "../../stores/appStore.ts";
 import {
@@ -17,7 +17,10 @@ import { destinationLabel } from "../../utils/destinations.ts";
  *  3. Connected    → "Connected to {location}", plus " · stalled 18 s (2/3)" while the tunnel stalls
  *  4. Disconnecting (only when nothing is connecting) → "{phase}" or "Disconnecting from {location}"
  */
-function deriveStatus(appState: AppState): string | undefined {
+function deriveStatus(
+  appState: AppState,
+  nowMs: number,
+): string | undefined {
   const reconnecting = appState.reconnecting;
   // No phase: either a phase-less reconnect (waiting on route health) or only a parked target.
   const reconnectingId = reconnecting?.destination_id ??
@@ -52,7 +55,7 @@ function deriveStatus(appState: AppState): string | undefined {
     const label = dest ? destinationLabel(dest) : connectedId;
     const stall = appState.connected.stall;
     return stall
-      ? `Connected to ${label} · ${formatStall(stall, Date.now())}`
+      ? `Connected to ${label} · ${formatStall(stall, nowMs)}`
       : `Connected to ${label}`;
   }
 
@@ -70,9 +73,14 @@ function deriveStatus(appState: AppState): string | undefined {
 export default function ConnectionStatus() {
   const [appState] = useAppStore();
 
+  // Store updates with an unchanged stall never re-run the memo, so the elapsed time needs its own clock.
+  const [nowMs, setNowMs] = createSignal(Date.now());
+  const tick = setInterval(() => setNowMs(Date.now()), 1000);
+  onCleanup(() => clearInterval(tick));
+
   const status = createMemo(() => {
     if (appState.vpnStatus === "ServiceUnavailable") return undefined;
-    return deriveStatus(appState);
+    return deriveStatus(appState, nowMs());
   });
 
   return (
