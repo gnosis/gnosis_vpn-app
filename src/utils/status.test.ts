@@ -9,6 +9,7 @@ import type {
 } from "@src/services/vpnService.ts";
 import type { AppState } from "@src/stores/appStore.ts";
 import {
+  channelMaintenanceWarning,
   connectButtonLook,
   deriveVPNStatus,
   formatStall,
@@ -46,7 +47,11 @@ const DISCONNECTING_INFO = {
 };
 
 const RUNNING: RunMode = {
-  Running: { funding_status: null, hopr_status: null },
+  Running: {
+    funding_status: null,
+    hopr_status: null,
+    channel_maintenance: { type: "Ok" },
+  },
 };
 
 // What the daemon sends once it reports a reconnect without a phase.
@@ -434,6 +439,30 @@ describe("formatStall", () => {
     expect(formatStall({ ...stall, since: 5_000 }, 1_000)).toBe(
       "stalled 0 s (2/3)",
     );
+  });
+});
+
+describe("channelMaintenanceWarning", () => {
+  const running = (
+    channel_maintenance: { type: "Ok" } | {
+      type: "Unavailable";
+      since: number;
+    },
+  ): RunMode => ({
+    Running: { funding_status: null, hopr_status: null, channel_maintenance },
+  });
+
+  it("shows the outage age while maintenance is unavailable", () => {
+    const down = running({ type: "Unavailable", since: 0 });
+    expect(channelMaintenanceWarning(down, 240_000)).toBe(
+      "Channel maintenance down for 4 min — tunnel may degrade",
+    );
+  });
+
+  it("is null while maintenance runs or the service is not running", () => {
+    expect(channelMaintenanceWarning(running({ type: "Ok" }), 0)).toBeNull();
+    expect(channelMaintenanceWarning("NotRunning", 0)).toBeNull();
+    expect(channelMaintenanceWarning(null, 0)).toBeNull();
   });
 });
 

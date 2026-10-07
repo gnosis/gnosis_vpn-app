@@ -23,7 +23,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2.6.3", features = [] }
 
 [dependencies]
-gnosis_vpn-lib = { git = "https://github.com/gnosis/gnosis_vpn-client.git", branch = "ronnyesterluss/gno-698-surface-a-degraded-data-path-stalled-tunnel-state-to-the-cli" }
+gnosis_vpn-lib = { git = "https://github.com/gnosis/gnosis_vpn-client.git", branch = "ronnyesterluss/gno-805-starved-channel-halts-all-traffic-while-funding-level-still" }
 clap = { version = "4", features = ["derive", "env"] }
 liblzma = { version = "0.4.8", default-features = false, features = ["static"] }
 serde = { version = "1.0.229", features = ["derive"] }
