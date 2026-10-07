@@ -8,6 +8,7 @@ import {
   rankContext,
 } from "../utils/destinations.ts";
 import { logError } from "../utils/appLog.ts";
+import { connectButtonLook } from "../utils/status.ts";
 
 export default function ConnectButton() {
   const [appState, appActions] = useAppStore();
@@ -15,7 +16,9 @@ export default function ConnectButton() {
   const isActive = createMemo(() =>
     isVpnActive(appState.vpnStatus, appState.targetDestination)
   );
-  const label = createMemo(() => (isActive() ? "Disconnect" : "Connect"));
+  const look = createMemo(() =>
+    connectButtonLook(appState.vpnStatus, appState.targetDestination)
+  );
 
   const displayedId = createMemo(() =>
     effectiveActive(appState.mode, Date.now())
@@ -51,10 +54,11 @@ export default function ConnectButton() {
     <div class="relative z-20 w-full">
       <Button
         size="lg"
+        variant={look().variant}
         onClick={() => void handleClick()}
         disabled={appState.isLoading || !(isActive() || isTargetSelectable())}
       >
-        {label()}
+        {look().label}
       </Button>
     </div>
   );
