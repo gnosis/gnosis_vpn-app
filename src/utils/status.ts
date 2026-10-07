@@ -92,7 +92,7 @@ export function deriveVPNStatus(
 
 export interface ConnectButtonLook {
   label: "Connect" | "Cancel" | "Disconnect";
-  variant: "primary" | "danger";
+  variant: "primary" | "cancel" | "danger";
 }
 
 /** "Disconnect" would imply a usable tunnel, so an attempt in flight reads "Cancel". */
@@ -101,7 +101,7 @@ export function connectButtonLook(
   targetDestination: string | null,
 ): ConnectButtonLook {
   if (vpnStatus === "Connecting") {
-    return { label: "Cancel", variant: "primary" };
+    return { label: "Cancel", variant: "cancel" };
   }
   if (isVpnActive(vpnStatus, targetDestination)) {
     return { label: "Disconnect", variant: "danger" };
