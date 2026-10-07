@@ -3,7 +3,9 @@ import {
   type DownPhase,
   isDeployingSafeRunMode,
   isPreparingSafeRunMode,
+  isRunningRunMode,
   isWarmupRunMode,
+  type RunMode,
   StatusResponse,
   type TunnelStall,
   type UpPhase,
@@ -200,4 +202,18 @@ export function formatStall(stall: TunnelStall, nowMs: number): string {
   return `stalled ${
     formatDurationShort(sec)
   } (${stall.failed_pings}/${stall.reconnect_at})`;
+}
+
+/** Warning while the daemon's channel maintenance is down, null otherwise. */
+export function channelMaintenanceWarning(
+  runMode: RunMode | null,
+  nowMs: number,
+): string | null {
+  if (!isRunningRunMode(runMode)) return null;
+  const maintenance = runMode.Running.channel_maintenance;
+  if (maintenance.type !== "Unavailable") return null;
+  const sec = Math.max(0, Math.floor((nowMs - maintenance.since) / 1000));
+  return `Channel maintenance down for ${
+    formatDurationShort(sec)
+  } — tunnel may degrade`;
 }

@@ -199,6 +199,19 @@ fn generate_fixtures() {
         &status_base(types::RunMode::Running {
             funding_status: None,
             hopr_status: None,
+            channel_maintenance: command::ChannelMaintenance::Ok,
+        }),
+    );
+
+    write(
+        &fixtures_dir,
+        "status_channel_maintenance_unavailable.json",
+        &status_base(types::RunMode::Running {
+            funding_status: None,
+            hopr_status: None,
+            channel_maintenance: command::ChannelMaintenance::Unavailable {
+                since: SystemTime::UNIX_EPOCH,
+            },
         }),
     );
 
@@ -210,6 +223,7 @@ fn generate_fixtures() {
             run_mode: types::RunMode::Running {
                 funding_status: None,
                 hopr_status: None,
+                channel_maintenance: command::ChannelMaintenance::Ok,
             },
             destinations: vec![],
             target_destination: Some("test-exit".to_string()),
@@ -255,6 +269,7 @@ fn generate_fixtures() {
             fee_to_start: Balance::<WxHOPR>::from(10_000_000_000_000_000u64), // 0.01 wxHOPR
             txs_to_start: 3,
             xdai_fee_per_tx: Balance::<XDai>::from(100_000_000_000_000_000u64), // 0.1 xDAI
+            topup_headroom: Balance::<WxHOPR>::zero(),
         })),
     });
     write(
@@ -323,6 +338,7 @@ fn generate_fixtures() {
     let mut connected_stalled = status_base(types::RunMode::Running {
         funding_status: None,
         hopr_status: None,
+        channel_maintenance: command::ChannelMaintenance::Ok,
     });
     connected_stalled.connected = Some(command::ConnectedInfo {
         destination_id: "test-exit".to_string(),
@@ -344,6 +360,7 @@ fn generate_fixtures() {
     let mut probe_opening = status_base(types::RunMode::Running {
         funding_status: None,
         hopr_status: None,
+        channel_maintenance: command::ChannelMaintenance::Ok,
     });
     probe_opening.probe = Some(ProbeView {
         destination_id: "test-exit".to_string(),
@@ -641,12 +658,14 @@ fn generate_fixtures() {
         fee_to_start: Balance::<WxHOPR>::zero(), // key already bound while running
         txs_to_start: 0,
         xdai_fee_per_tx: Balance::<XDai>::from(50_000_000_000_000_000u64), // 0.05 xDAI
+        topup_headroom: Balance::<WxHOPR>::zero(),
     };
     let funding_status = FundingStatus {
         traffic: FundingLevel::Low,
         gas: FundingLevel::Low,
         wxhopr_deficit: Some(Balance::<WxHOPR>::from(1_000_000_000_000_000_000u64)), // 1 wxHOPR
         xdai_deficit: Some(Balance::<XDai>::from(20_000_000_000_000_000u64)),        // 0.02 xDAI
+        refill_shortfall: None,
     };
     let balance_with_issues = types::BalanceResponse::from(command::BalanceResponse::build(
         &balance_info(),
@@ -660,6 +679,28 @@ fn generate_fixtures() {
         &fixtures_dir,
         "balance_response_with_issues.json",
         &balance_with_issues,
+    );
+
+    // Funded to the ideal, but the Safe cannot cover the next channel top-up pass.
+    let shortfall_status = FundingStatus {
+        traffic: FundingLevel::Low,
+        gas: FundingLevel::Good,
+        wxhopr_deficit: None,
+        xdai_deficit: None,
+        refill_shortfall: Some(Balance::<WxHOPR>::from(500_000_000_000_000_000u64)), // 0.5 wxHOPR
+    };
+    let balance_with_shortfall = types::BalanceResponse::from(command::BalanceResponse::build(
+        &balance_info(),
+        &balances_with_funds,
+        &HashMap::new(),
+        None,
+        None,
+        Some(shortfall_status),
+    ));
+    write(
+        &fixtures_dir,
+        "balance_response_with_refill_shortfall.json",
+        &balance_with_shortfall,
     );
 
     // balance_response — with capacity_allocations (one open channel + Safe + node EOA)

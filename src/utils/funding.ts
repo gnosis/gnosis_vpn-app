@@ -60,6 +60,16 @@ export function deriveXdaiDeficit(
   return resolveFundingStatus(balance, runModeStatus)?.xdai_deficit ?? null;
 }
 
+// A missing ideal balance outranks a missing top-up reserve, so the deficit wins when both are set.
+export function deriveRefillShortfall(
+  balance: BalanceResponse | null,
+  runModeStatus: FundingStatus | null,
+): bigint | null {
+  const status = resolveFundingStatus(balance, runModeStatus);
+  if (!status || status.wxhopr_deficit !== null) return null;
+  return status.refill_shortfall;
+}
+
 const LEVEL_SEVERITY = { Empty: 2, Low: 1, Good: 0 } as const;
 
 // Daemon only hands back the two pooled levels, so the message is per-resource.
