@@ -10,9 +10,11 @@
               "traffic": "Low",
               "gas": "Good",
               "wxhopr_deficit": "500000000000000000",
-              "xdai_deficit": null
+              "xdai_deficit": null,
+              "refill_shortfall": null
             },
-            "hopr_status": "Running"
+            "hopr_status": "Running",
+            "channel_maintenance": { "type": "Ok" }
           }
         },
         "destinations": [
@@ -85,7 +87,8 @@
           "traffic": "Low",
           "gas": "Good",
           "wxhopr_deficit": "500000000000000000",
-          "xdai_deficit": null
+          "xdai_deficit": null,
+          "refill_shortfall": null
         },
         "ideal_balance": null,
         "capacity_allocations": null

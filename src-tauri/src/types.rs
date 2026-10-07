@@ -112,6 +112,7 @@ pub struct TauriFundingStatus {
     pub gas: balance::FundingLevel,
     pub wxhopr_deficit: Option<String>,
     pub xdai_deficit: Option<String>,
+    pub refill_shortfall: Option<String>,
 }
 
 impl From<balance::FundingStatus> for TauriFundingStatus {
@@ -121,6 +122,7 @@ impl From<balance::FundingStatus> for TauriFundingStatus {
             gas: s.gas,
             wxhopr_deficit: s.wxhopr_deficit.map(|d| d.amount().to_string()),
             xdai_deficit: s.xdai_deficit.map(|d| d.amount().to_string()),
+            refill_shortfall: s.refill_shortfall.map(|d| d.amount().to_string()),
         }
     }
 }
@@ -159,6 +161,7 @@ pub enum RunMode {
     Running {
         funding_status: Option<TauriFundingStatus>,
         hopr_status: Option<CombinedHoprStatus>,
+        channel_maintenance: command::ChannelMaintenance,
     },
     Shutdown,
     Restarting,
@@ -265,9 +268,11 @@ impl From<command::RunMode> for RunMode {
             command::RunMode::Running {
                 funding_status,
                 hopr_status,
+                channel_maintenance,
             } => RunMode::Running {
                 funding_status: funding_status.map(Into::into),
                 hopr_status: hopr_status.map(|s| s.into()),
+                channel_maintenance,
             },
             command::RunMode::Shutdown => RunMode::Shutdown,
             command::RunMode::Restarting => RunMode::Restarting,

@@ -17,7 +17,11 @@ vi.mock("@tauri-apps/api/window", () => ({
 }));
 
 const RUNNING: RunMode = {
-  Running: { funding_status: null, hopr_status: null },
+  Running: {
+    funding_status: null,
+    hopr_status: null,
+    channel_maintenance: { type: "Ok" },
+  },
 };
 
 const DESTINATION: DestinationState = {
