@@ -93,19 +93,16 @@ export interface ConnectButtonLook {
   variant: "primary" | "danger";
 }
 
-/** "Disconnect" would imply a usable tunnel, so an attempt in flight reads "Cancel"; red only once connected. */
+/** "Disconnect" would imply a usable tunnel, so an attempt in flight reads "Cancel". */
 export function connectButtonLook(
   vpnStatus: string,
   targetDestination: string | null,
 ): ConnectButtonLook {
-  if (vpnStatus === "Connected") {
-    return { label: "Disconnect", variant: "danger" };
-  }
   if (vpnStatus === "Connecting") {
     return { label: "Cancel", variant: "primary" };
   }
   if (isVpnActive(vpnStatus, targetDestination)) {
-    return { label: "Disconnect", variant: "primary" };
+    return { label: "Disconnect", variant: "danger" };
   }
   return { label: "Connect", variant: "primary" };
 }
