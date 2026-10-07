@@ -448,7 +448,7 @@ describe("connectButtonLook", () => {
   it("offers Cancel while an attempt is in flight", () => {
     expect(connectButtonLook("Connecting", "dest-1")).toEqual({
       label: "Cancel",
-      variant: "primary",
+      variant: "cancel",
     });
   });
 
