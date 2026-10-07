@@ -9,6 +9,7 @@ import type {
 } from "@src/services/vpnService.ts";
 import type { AppState } from "@src/stores/appStore.ts";
 import {
+  connectButtonLook,
   deriveVPNStatus,
   formatStall,
   isConnected,
@@ -435,5 +436,38 @@ describe("formatStall", () => {
     expect(formatStall({ ...stall, since: 5_000 }, 1_000)).toBe(
       "stalled 0 s (2/3)",
     );
+  });
+});
+
+describe("connectButtonLook", () => {
+  it("offers Connect while disconnected", () => {
+    expect(connectButtonLook("Disconnected", null)).toEqual({
+      label: "Connect",
+      variant: "primary",
+    });
+  });
+
+  it("offers Cancel while an attempt is in flight", () => {
+    expect(connectButtonLook("Connecting", "dest-1")).toEqual({
+      label: "Cancel",
+      variant: "primary",
+    });
+  });
+
+  it("offers a red Disconnect while reconnecting or switching", () => {
+    const disconnect = { label: "Disconnect", variant: "danger" };
+    expect(connectButtonLook("Reconnecting", "dest-1")).toEqual(disconnect);
+    expect(connectButtonLook("Disconnecting", "dest-1")).toEqual(disconnect);
+  });
+
+  it("offers Connect once a plain disconnect is under way", () => {
+    expect(connectButtonLook("Disconnecting", null).label).toBe("Connect");
+  });
+
+  it("offers a red Disconnect once connected", () => {
+    expect(connectButtonLook("Connected", "dest-1")).toEqual({
+      label: "Disconnect",
+      variant: "danger",
+    });
   });
 });

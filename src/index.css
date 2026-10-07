@@ -98,6 +98,11 @@ textarea {
   --color-btn-secondary-text: #ffffff;
   --color-btn-secondary-hover: #4b5563;
 
+  /* Danger button colors */
+  --color-btn-danger-bg: #b91c1c;
+  --color-btn-danger-text: #ffffff;
+  --color-btn-danger-hover: #991b1b;
+
   /* Toggle colors */
   --color-toggle-bg: #e5e7eb;
   --color-toggle-checked: var(--color-accent);
@@ -142,6 +147,11 @@ textarea {
   --color-btn-secondary-bg: #4b5563;
   --color-btn-secondary-text: #f9fafb;
   --color-btn-secondary-hover: #6b7280;
+
+  /* Danger button colors */
+  --color-btn-danger-bg: #dc2626;
+  --color-btn-danger-text: #ffffff;
+  --color-btn-danger-hover: #b91c1c;
 
   /* Toggle colors */
   --color-toggle-bg: #374151;
@@ -208,6 +218,9 @@ textarea {
   --color-btn-secondary-bg: var(--color-btn-secondary-bg);
   --color-btn-secondary-text: var(--color-btn-secondary-text);
   --color-btn-secondary-hover: var(--color-btn-secondary-hover);
+  --color-btn-danger-bg: var(--color-btn-danger-bg);
+  --color-btn-danger-text: var(--color-btn-danger-text);
+  --color-btn-danger-hover: var(--color-btn-danger-hover);
 
   --color-toggle-bg: var(--color-toggle-bg);
   --color-toggle-checked: var(--color-toggle-checked);

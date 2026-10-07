@@ -9,7 +9,11 @@ import {
   type UpPhase,
 } from "@src/services/vpnService.ts";
 import type { AppState } from "@src/stores/appStore.ts";
-import { destinationLabel, getExitData } from "@src/utils/destinations.ts";
+import {
+  destinationLabel,
+  getExitData,
+  isVpnActive,
+} from "@src/utils/destinations.ts";
 import { formatExitHealthStatus } from "@src/utils/exitHealth.ts";
 
 export function isConnected(response: StatusResponse): boolean {
@@ -82,6 +86,25 @@ export function deriveVPNStatus(
   }
 
   return "ServiceUnavailable";
+}
+
+export interface ConnectButtonLook {
+  label: "Connect" | "Cancel" | "Disconnect";
+  variant: "primary" | "danger";
+}
+
+/** "Disconnect" would imply a usable tunnel, so an attempt in flight reads "Cancel". */
+export function connectButtonLook(
+  vpnStatus: string,
+  targetDestination: string | null,
+): ConnectButtonLook {
+  if (vpnStatus === "Connecting") {
+    return { label: "Cancel", variant: "primary" };
+  }
+  if (isVpnActive(vpnStatus, targetDestination)) {
+    return { label: "Disconnect", variant: "danger" };
+  }
+  return { label: "Connect", variant: "primary" };
 }
 
 export function isXDAITransferred(state: AppState): boolean {
