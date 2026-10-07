@@ -4,7 +4,8 @@
       "funding_status": null,
       "hopr_status": null,
       "channel_maintenance": {
-        "type": "Ok"
+        "type": "Unavailable",
+        "since": 0
       }
     }
   },

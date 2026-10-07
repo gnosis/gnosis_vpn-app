@@ -2,7 +2,10 @@
   "run_mode": {
     "Running": {
       "funding_status": null,
-      "hopr_status": null
+      "hopr_status": null,
+      "channel_maintenance": {
+        "type": "Ok"
+      }
     }
   },
   "destinations": [],

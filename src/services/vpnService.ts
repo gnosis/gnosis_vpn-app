@@ -310,6 +310,8 @@ export const FundingStatusSchema = z.object({
   gas: FundingLevelSchema,
   wxhopr_deficit: BigIntStringSchema.nullable(),
   xdai_deficit: BigIntStringSchema.nullable(),
+  // wxHOPR the Safe lacks for the next channel top-up pass; set only while traffic is capped at Low.
+  refill_shortfall: BigIntStringSchema.nullable(),
 });
 export type FundingStatus = z.infer<typeof FundingStatusSchema>;
 
@@ -386,9 +388,17 @@ export const WarmupSchema = z.object({
 });
 export type Warmup = z.infer<typeof WarmupSchema>;
 
+// Unavailable after three failed maintenance samples in a row; `since` is ms since epoch.
+export const ChannelMaintenanceSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("Ok") }),
+  z.object({ type: z.literal("Unavailable"), since: z.number() }),
+]);
+export type ChannelMaintenance = z.infer<typeof ChannelMaintenanceSchema>;
+
 export const RunningSchema = z.object({
   funding_status: FundingStatusSchema.nullable(),
   hopr_status: WarmupStatusSchema.nullable(),
+  channel_maintenance: ChannelMaintenanceSchema,
 });
 export type Running = z.infer<typeof RunningSchema>;
 
