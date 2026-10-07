@@ -52,6 +52,9 @@
       "icons/tray-icons/tray-icon-connected.png",
       "icons/tray-icons/tray-icon-connected-low-funds.png",
       "icons/tray-icons/tray-icon-connected-out-of-funds.png",
+      "icons/tray-icons/tray-icon-connected-stalled.png",
+      "icons/tray-icons/tray-icon-connected-stalled-low-funds.png",
+      "icons/tray-icons/tray-icon-connected-stalled-out-of-funds.png",
 
       "icons/tray-icons/linux/disconnected.png",
       "icons/tray-icons/linux/disconnected-low-funds.png",
@@ -65,6 +68,9 @@
       "icons/tray-icons/linux/connected.png",
       "icons/tray-icons/linux/connected-low-funds.png",
       "icons/tray-icons/linux/connected-out-of-funds.png",
+      "icons/tray-icons/linux/connected-stalled.png",
+      "icons/tray-icons/linux/connected-stalled-low-funds.png",
+      "icons/tray-icons/linux/connected-stalled-out-of-funds.png",
 
       "icons/app-icons/app-icon-disconnected.png",
       "icons/app-icons/app-icon-disconnected-low-funds.png",
@@ -77,7 +83,10 @@
       "icons/app-icons/app-icon-connecting-out-of-funds-2.png",
       "icons/app-icons/app-icon-connected.png",
       "icons/app-icons/app-icon-connected-low-funds.png",
-      "icons/app-icons/app-icon-connected-out-of-funds.png"
+      "icons/app-icons/app-icon-connected-out-of-funds.png",
+      "icons/app-icons/app-icon-connected-stalled.png",
+      "icons/app-icons/app-icon-connected-stalled-low-funds.png",
+      "icons/app-icons/app-icon-connected-stalled-out-of-funds.png"
     ],
     "icon": [
       "icons/32x32.png",

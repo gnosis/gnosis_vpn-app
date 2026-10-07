@@ -29,11 +29,21 @@ export const DownPhaseSchema = z.enum([
 ]);
 export type DownPhase = z.infer<typeof DownPhaseSchema>;
 
+export const TunnelStallSchema = z.object({
+  since: z.number(),
+  failed_pings: z.number(),
+  // The daemon reconnects once failed_pings reaches this.
+  reconnect_at: z.number(),
+});
+export type TunnelStall = z.infer<typeof TunnelStallSchema>;
+
 export const ConnectedInfoSchema = z.object({
   destination_id: z.string(),
   since: z.number(),
   // Latest ICMP round trip through the tunnel, in ms.
   tunnel_ping_rtt: z.number().nullable(),
+  // null while healthy; absent on daemons that predate the field.
+  stall: TunnelStallSchema.nullish(),
 });
 export type ConnectedInfo = z.infer<typeof ConnectedInfoSchema>;
 
