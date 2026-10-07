@@ -454,10 +454,10 @@ describe("connectButtonLook", () => {
     });
   });
 
-  it("offers a plain Disconnect while reconnecting or switching", () => {
-    const plain = { label: "Disconnect", variant: "primary" };
-    expect(connectButtonLook("Reconnecting", "dest-1")).toEqual(plain);
-    expect(connectButtonLook("Disconnecting", "dest-1")).toEqual(plain);
+  it("offers a red Disconnect while reconnecting or switching", () => {
+    const disconnect = { label: "Disconnect", variant: "danger" };
+    expect(connectButtonLook("Reconnecting", "dest-1")).toEqual(disconnect);
+    expect(connectButtonLook("Disconnecting", "dest-1")).toEqual(disconnect);
   });
 
   it("offers Connect once a plain disconnect is under way", () => {
