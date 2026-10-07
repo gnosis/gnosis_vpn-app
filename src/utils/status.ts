@@ -83,6 +83,28 @@ export function deriveVPNStatus(
   return "ServiceUnavailable";
 }
 
+<<<<<<< HEAD
+=======
+export interface ConnectButtonLook {
+  label: "Connect" | "Cancel" | "Disconnect";
+  variant: "primary" | "cancel" | "danger";
+}
+
+/** "Disconnect" would imply a usable tunnel, so an attempt in flight reads "Cancel". */
+export function connectButtonLook(
+  vpnStatus: string,
+  targetDestination: string | null,
+): ConnectButtonLook {
+  if (vpnStatus === "Connecting") {
+    return { label: "Cancel", variant: "cancel" };
+  }
+  if (isVpnActive(vpnStatus, targetDestination)) {
+    return { label: "Disconnect", variant: "danger" };
+  }
+  return { label: "Connect", variant: "primary" };
+}
+
+>>>>>>> 907374b (fix(ui): colour Cancel a muted red (#558))
 export function isXDAITransferred(state: AppState): boolean {
   if (!state || !isPreparingSafeRunMode(state.runMode)) return false;
   const { node_xdai, balance_recommendation } = state.runMode.PreparingSafe;

@@ -98,6 +98,19 @@ textarea {
   --color-btn-secondary-text: #ffffff;
   --color-btn-secondary-hover: #4b5563;
 
+<<<<<<< HEAD
+=======
+  /* Danger button colors */
+  --color-btn-danger-bg: #b91c1c;
+  --color-btn-danger-text: #ffffff;
+  --color-btn-danger-hover: #991b1b;
+
+  /* Cancel button colors: a softer red than Disconnect */
+  --color-btn-cancel-bg: #b45353;
+  --color-btn-cancel-text: #ffffff;
+  --color-btn-cancel-hover: #9b4444;
+
+>>>>>>> 907374b (fix(ui): colour Cancel a muted red (#558))
   /* Toggle colors */
   --color-toggle-bg: #e5e7eb;
   --color-toggle-checked: var(--color-accent);
@@ -143,6 +156,19 @@ textarea {
   --color-btn-secondary-text: #f9fafb;
   --color-btn-secondary-hover: #6b7280;
 
+<<<<<<< HEAD
+=======
+  /* Danger button colors */
+  --color-btn-danger-bg: #dc2626;
+  --color-btn-danger-text: #ffffff;
+  --color-btn-danger-hover: #b91c1c;
+
+  /* Cancel button colors: a softer red than Disconnect */
+  --color-btn-cancel-bg: #b45353;
+  --color-btn-cancel-text: #ffffff;
+  --color-btn-cancel-hover: #9b4444;
+
+>>>>>>> 907374b (fix(ui): colour Cancel a muted red (#558))
   /* Toggle colors */
   --color-toggle-bg: #374151;
   --color-toggle-checked: var(--color-accent);
@@ -208,6 +234,15 @@ textarea {
   --color-btn-secondary-bg: var(--color-btn-secondary-bg);
   --color-btn-secondary-text: var(--color-btn-secondary-text);
   --color-btn-secondary-hover: var(--color-btn-secondary-hover);
+<<<<<<< HEAD
+=======
+  --color-btn-danger-bg: var(--color-btn-danger-bg);
+  --color-btn-danger-text: var(--color-btn-danger-text);
+  --color-btn-danger-hover: var(--color-btn-danger-hover);
+  --color-btn-cancel-bg: var(--color-btn-cancel-bg);
+  --color-btn-cancel-text: var(--color-btn-cancel-text);
+  --color-btn-cancel-hover: var(--color-btn-cancel-hover);
+>>>>>>> 907374b (fix(ui): colour Cancel a muted red (#558))
 
   --color-toggle-bg: var(--color-toggle-bg);
   --color-toggle-checked: var(--color-toggle-checked);
