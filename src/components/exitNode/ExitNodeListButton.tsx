@@ -1,4 +1,4 @@
-import SwapArrowsIcon from "../icons/SwapArrowsIcon.tsx";
+import ListIcon from "../icons/ListIcon.tsx";
 import Tooltip from "../common/Tooltip.tsx";
 
 export default function ExitNodeListButton(props: {
@@ -16,7 +16,7 @@ export default function ExitNodeListButton(props: {
           props.onClick(rect.top + rect.height / 2);
         }}
       >
-        <SwapArrowsIcon class="w-3.5 h-3.5" />
+        <ListIcon class="w-[22px] h-3.5" />
       </button>
     </Tooltip>
   );
