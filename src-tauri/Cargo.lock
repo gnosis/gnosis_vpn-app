@@ -4583,7 +4583,7 @@ dependencies = [
 [[package]]
 name = "gnosis_vpn-lib"
 version = "0.101.0"
-source = "git+https://github.com/gnosis/gnosis_vpn-client.git?branch=ronnyesterluss%2Fgno-698-surface-a-degraded-data-path-stalled-tunnel-state-to-the-cli#fb2eb6545ad4b2c3f959084a1b5250f41da51ca1"
+source = "git+https://github.com/gnosis/gnosis_vpn-client.git?branch=ronnyesterluss%2Fgno-805-starved-channel-halts-all-traffic-while-funding-level-still#a68935c24197b852668d2aaf2437b43fc701a368"
 dependencies = [
  "anyhow",
  "async-trait",
