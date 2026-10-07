@@ -310,7 +310,7 @@ export const FundingStatusSchema = z.object({
   gas: FundingLevelSchema,
   wxhopr_deficit: BigIntStringSchema.nullable(),
   xdai_deficit: BigIntStringSchema.nullable(),
-  // wxHOPR the Safe lacks for the next channel top-up pass; set only while traffic is capped at Low.
+  // wxHOPR the Safe lacks for the next channel top-up pass; never set while traffic is Good.
   refill_shortfall: BigIntStringSchema.nullable(),
 });
 export type FundingStatus = z.infer<typeof FundingStatusSchema>;
