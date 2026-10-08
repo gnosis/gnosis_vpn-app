@@ -8,6 +8,7 @@ import {
 import type { JSX } from "solid-js";
 import { useAppStore } from "../../stores/appStore.ts";
 import { UpPhaseSchema } from "../../services/vpnService.ts";
+import { isSwitchingDestination } from "../../utils/status.ts";
 
 type Mode = "idle" | "connecting" | "connected" | "sleeping";
 type Eye = "left" | "right";
@@ -53,7 +54,11 @@ export function StatusHero() {
     const status = appState.vpnStatus;
     if (!appState.runMode) return "sleeping";
     if (status === "Connected") return "connected";
-    if (status === "Connecting" || status === "Reconnecting") {
+    const switching = isSwitchingDestination(
+      status,
+      appState.targetDestination,
+    );
+    if (status === "Connecting" || status === "Reconnecting" || switching) {
       return "connecting";
     }
     if (status === "Disconnected" || status === "Disconnecting") return "idle";
