@@ -15,7 +15,17 @@ export default function ConnectButton() {
   const isActive = createMemo(() =>
     isVpnActive(appState.vpnStatus, appState.targetDestination)
   );
+<<<<<<< HEAD
   const label = createMemo(() => (isActive() ? "Disconnect" : "Connect"));
+=======
+  const look = createMemo(() =>
+    connectButtonLook(
+      appState.vpnStatus,
+      appState.targetDestination,
+      appState.reconnecting !== null,
+    )
+  );
+>>>>>>> 2c73831 (fix(ui): keep Cancel on the button for the whole connect attempt (release/hoprdv4) (#560))
 
   const displayedId = createMemo(() =>
     effectiveActive(appState.mode, Date.now())

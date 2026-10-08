@@ -14,6 +14,7 @@ import {
   isConnecting,
   isDisconnected,
   isDisconnecting,
+  isSwitchingDestination,
   isWxHOPRTransferred,
   isXDAITransferred,
   waitingForRouteMessage,
@@ -402,3 +403,94 @@ describe("waitingForRouteMessage", () => {
     );
   });
 });
+<<<<<<< HEAD
+=======
+
+describe("formatStall", () => {
+  const stall = { since: 0, failed_pings: 2, reconnect_at: 3 };
+
+  it("counts seconds, minutes and hours since the stall began", () => {
+    expect(formatStall(stall, 18_000)).toBe("stalled 18 s (2/3)");
+    expect(formatStall(stall, 150_000)).toBe("stalled 2 min (2/3)");
+    expect(formatStall(stall, 7_200_000)).toBe("stalled 2 h (2/3)");
+  });
+
+  it("clamps a clock behind the daemon's to zero", () => {
+    expect(formatStall({ ...stall, since: 5_000 }, 1_000)).toBe(
+      "stalled 0 s (2/3)",
+    );
+  });
+});
+
+describe("channelMaintenanceWarning", () => {
+  const running = (
+    channel_maintenance: { type: "Ok" } | {
+      type: "Unavailable";
+      since: number;
+    },
+  ): RunMode => ({
+    Running: { funding_status: null, hopr_status: null, channel_maintenance },
+  });
+
+  it("shows the outage age while maintenance is unavailable", () => {
+    const down = running({ type: "Unavailable", since: 0 });
+    expect(channelMaintenanceWarning(down, 240_000)).toBe(
+      "Channel maintenance down for 4 min — tunnel may degrade",
+    );
+  });
+
+  it("is null while maintenance runs or the service is not running", () => {
+    expect(channelMaintenanceWarning(running({ type: "Ok" }), 0)).toBeNull();
+    expect(channelMaintenanceWarning("NotRunning", 0)).toBeNull();
+    expect(channelMaintenanceWarning(null, 0)).toBeNull();
+  });
+});
+
+describe("connectButtonLook", () => {
+  const cancel = { label: "Cancel", variant: "cancel" };
+  const disconnect = { label: "Disconnect", variant: "danger" };
+
+  it("offers Connect while disconnected", () => {
+    expect(connectButtonLook("Disconnected", null, false)).toEqual({
+      label: "Connect",
+      variant: "primary",
+    });
+  });
+
+  it("offers Cancel while an attempt is in flight", () => {
+    expect(connectButtonLook("Connecting", "dest-1", false)).toEqual(cancel);
+  });
+
+  it("offers Cancel while switching away from a connected destination", () => {
+    expect(connectButtonLook("Disconnecting", "dest-2", false)).toEqual(cancel);
+  });
+
+  it("offers Cancel while a parked target waits on a route", () => {
+    expect(connectButtonLook("Reconnecting", "dest-1", false)).toEqual(cancel);
+  });
+
+  it("offers a red Disconnect while an established tunnel reconnects", () => {
+    expect(connectButtonLook("Reconnecting", "dest-1", true)).toEqual(
+      disconnect,
+    );
+  });
+
+  it("offers Connect once a plain disconnect is under way", () => {
+    expect(connectButtonLook("Disconnecting", null, false).label).toBe(
+      "Connect",
+    );
+  });
+
+  it("offers a red Disconnect once connected", () => {
+    expect(connectButtonLook("Connected", "dest-1", false)).toEqual(disconnect);
+  });
+});
+
+describe("isSwitchingDestination", () => {
+  it("tells a destination switch from a plain disconnect", () => {
+    expect(isSwitchingDestination("Disconnecting", "dest-2")).toBe(true);
+    expect(isSwitchingDestination("Disconnecting", null)).toBe(false);
+    expect(isSwitchingDestination("Connecting", "dest-2")).toBe(false);
+  });
+});
+>>>>>>> 2c73831 (fix(ui): keep Cancel on the button for the whole connect attempt (release/hoprdv4) (#560))
