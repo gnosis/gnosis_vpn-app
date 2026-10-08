@@ -17,7 +17,11 @@ export default function ConnectButton() {
     isVpnActive(appState.vpnStatus, appState.targetDestination)
   );
   const look = createMemo(() =>
-    connectButtonLook(appState.vpnStatus, appState.targetDestination)
+    connectButtonLook(
+      appState.vpnStatus,
+      appState.targetDestination,
+      appState.reconnecting !== null,
+    )
   );
 
   const displayedId = createMemo(() =>
