@@ -7,6 +7,7 @@ use tokio_util::sync::CancellationToken;
 use url::Url;
 use zstd::stream::Encoder;
 
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, BufReader, Write};
 use std::path::{Path, PathBuf};
@@ -504,6 +505,8 @@ async fn export_logs_inner(app: AppHandle, dest_path: String) -> Result<String, 
 }
 
 const LOG_UPLOAD_TIMEOUT: Duration = Duration::from_secs(120);
+// Mirrors the uploader's UPLOAD_HEAD_BYTES.
+const UPLOAD_HEAD_BYTES: usize = 4 * 1024 * 1024;
 
 /// Uploads the bundle `export_logs` would write and returns the uploader's reference ID.
 #[tauri::command]
@@ -537,48 +540,103 @@ async fn upload_logs_inner(
         .await
         .map_err(|e| format!("upload_logs: blocking task panicked: {e}"))??;
     tracing::info!(target: "upload", bytes = bundle.len(), "log bundle compressed");
+    send_log_bundle(api_url, file_name, bundle).await
+}
 
-    let part = reqwest::multipart::Part::bytes(bundle)
-        .file_name(file_name)
-        .mime_str("application/zstd")
-        .map_err(|e| format!("Invalid upload content type: {e}"))?;
+async fn send_log_bundle(
+    api_url: Url,
+    file_name: String,
+    bundle: Vec<u8>,
+) -> Result<String, String> {
     let client = reqwest::Client::builder()
         .timeout(LOG_UPLOAD_TIMEOUT)
         .build()
         .map_err(|e| format!("Failed to create HTTP client: {e}"))?;
+
+    // The uploader vets only the head, then signs a URL for PUTting the whole bundle to Cloud Storage.
+    let head = bundle[..bundle.len().min(UPLOAD_HEAD_BYTES)].to_vec();
+    let part = reqwest::multipart::Part::bytes(head)
+        .file_name(file_name)
+        .mime_str("application/zstd")
+        .map_err(|e| format!("Invalid upload content type: {e}"))?;
+    let form = reqwest::multipart::Form::new()
+        .part("head", part)
+        .text("size", bundle.len().to_string());
     let response = client
         .post(api_url)
-        .multipart(reqwest::multipart::Form::new().part("file", part))
+        .multipart(form)
         .send()
         .await
-        .map_err(|e| {
-            if e.is_timeout() {
-                "Upload timed out".to_string()
-            } else {
-                format!("Could not reach the log uploader: {e}")
-            }
-        })?;
+        .map_err(|e| send_error("the log uploader", e))?;
     let status = response.status().as_u16();
     let body = response
         .text()
         .await
         .map_err(|e| format!("Failed to read upload response: {e}"))?;
-    parse_upload_response(status, &body)
+    let signed = parse_upload_response(status, &body)?;
+
+    let mut put = client.put(&signed.url).body(bundle);
+    for (name, value) in &signed.headers {
+        put = put.header(name, value);
+    }
+    let response = put
+        .send()
+        .await
+        .map_err(|e| send_error("Cloud Storage", e))?;
+    let status = response.status();
+    if !status.is_success() {
+        let body: String = response
+            .text()
+            .await
+            .unwrap_or_default()
+            .chars()
+            .take(500)
+            .collect();
+        return Err(format!(
+            "Cloud Storage rejected the upload (HTTP {}): {body}",
+            status.as_u16()
+        ));
+    }
+    Ok(signed.uuid)
+}
+
+fn send_error(target: &str, e: reqwest::Error) -> String {
+    if e.is_timeout() {
+        "Upload timed out".to_string()
+    } else {
+        format!("Could not reach {target}: {e}")
+    }
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct UploadResponse {
     uuid: Option<String>,
+    upload_url: Option<String>,
+    upload_headers: Option<HashMap<String, String>>,
     error: Option<String>,
 }
 
-fn parse_upload_response(status: u16, body: &str) -> Result<String, String> {
+#[derive(Debug, PartialEq)]
+struct SignedUpload {
+    uuid: String,
+    url: String,
+    // The signature covers these, so the PUT must send them unchanged.
+    headers: HashMap<String, String>,
+}
+
+fn parse_upload_response(status: u16, body: &str) -> Result<SignedUpload, String> {
     let parsed = serde_json::from_str::<UploadResponse>(body).ok();
     if (200..300).contains(&status) {
         return parsed
-            .and_then(|r| r.uuid)
-            .filter(|uuid| !uuid.is_empty())
-            .ok_or_else(|| format!("Upload returned no reference ID (HTTP {status})"));
+            .and_then(|r| {
+                Some(SignedUpload {
+                    uuid: r.uuid.filter(|uuid| !uuid.is_empty())?,
+                    url: r.upload_url.filter(|url| !url.is_empty())?,
+                    headers: r.upload_headers?,
+                })
+            })
+            .ok_or_else(|| format!("Upload returned no upload URL (HTTP {status})"));
     }
     // Proxies in front of the uploader (e.g. Cloud Run's 413) answer with HTML, not JSON.
     Err(parsed
@@ -1145,11 +1203,31 @@ mod tests {
     }
 
     #[test]
-    fn upload_response_yields_the_reference_id_on_success() {
+    fn upload_response_yields_the_signed_upload_on_success() {
+        let body = r#"{"success":true,"uuid":"3f2b8c1e-9a4d-4e7b-8c21-5d6f7a8b9c0d","uploadUrl":"https://storage.googleapis.com/bucket/obj?X-Goog-Signature=abc","uploadHeaders":{"Content-Type":"application/zstd","x-goog-content-length-range":"42,42"}}"#;
+        assert_eq!(
+            parse_upload_response(200, body),
+            Ok(SignedUpload {
+                uuid: "3f2b8c1e-9a4d-4e7b-8c21-5d6f7a8b9c0d".to_string(),
+                url: "https://storage.googleapis.com/bucket/obj?X-Goog-Signature=abc".to_string(),
+                headers: HashMap::from([
+                    ("Content-Type".to_string(), "application/zstd".to_string()),
+                    (
+                        "x-goog-content-length-range".to_string(),
+                        "42,42".to_string()
+                    ),
+                ]),
+            })
+        );
+    }
+
+    #[test]
+    fn upload_response_without_an_upload_url_is_an_error() {
+        // The old single-request protocol: accepting it would hand out an ID for an object never stored.
         let body = r#"{"success":true,"uuid":"3f2b8c1e-9a4d-4e7b-8c21-5d6f7a8b9c0d","message":"File uploaded successfully"}"#;
         assert_eq!(
             parse_upload_response(201, body),
-            Ok("3f2b8c1e-9a4d-4e7b-8c21-5d6f7a8b9c0d".to_string())
+            Err("Upload returned no upload URL (HTTP 201)".to_string())
         );
     }
 

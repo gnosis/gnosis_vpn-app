@@ -57,8 +57,8 @@ export default function UploadLogsModal(props: {
       setReferenceId(
         await VPNService.uploadLogs(logBundleFileName(), description()),
       );
-    } catch (e) {
-      setError(String(e instanceof Error ? e.message : e));
+    } catch {
+      setError("Upload logs error.");
     } finally {
       setUploading(false);
     }
