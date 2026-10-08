@@ -133,9 +133,10 @@ source:
   state observable.
 - `uploadLogsUuid` — reference ID that `upload_logs` resolves with after ~800ms
   (defaults to a fixed UUID), shown once the Settings tab's Upload logs modal is
-  acknowledged and submitted. `uploadLogsError` rejects instead and shows the
-  error inside the modal. The last `upload_logs` args are kept in
-  `globalThis.__GVPN_UPLOAD_ARGS__` for `eval` assertions.
+  acknowledged and submitted. `uploadLogsError` rejects instead; the modal then
+  shows the fixed `Upload logs error.` whatever the rejection says. The last
+  `upload_logs` args are kept in `globalThis.__GVPN_UPLOAD_ARGS__` for `eval`
+  assertions.
 - `logUploaderWebsiteUrl` — link shown in the Logs saved modal (defaults to
   `https://log-uploader.gnosisvpn.com/`); the real app serves it from the
   `get_log_uploader_website_url` command.
