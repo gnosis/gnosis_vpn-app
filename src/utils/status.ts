@@ -11,11 +11,7 @@ import {
   type UpPhase,
 } from "@src/services/vpnService.ts";
 import type { AppState } from "@src/stores/appStore.ts";
-import {
-  destinationLabel,
-  getExitData,
-  isVpnActive,
-} from "@src/utils/destinations.ts";
+import { destinationLabel, getExitData } from "@src/utils/destinations.ts";
 import { formatExitHealthStatus } from "@src/utils/exitHealth.ts";
 
 export function isConnected(response: StatusResponse): boolean {
@@ -95,16 +91,24 @@ export interface ConnectButtonLook {
   variant: "primary" | "cancel" | "danger";
 }
 
-/** "Disconnect" would imply a usable tunnel, so an attempt in flight reads "Cancel". */
+/** "Disconnect" would imply a usable tunnel, so the whole attempt reads "Cancel". */
 export function connectButtonLook(
   vpnStatus: string,
   targetDestination: string | null,
+  isReconnecting: boolean,
 ): ConnectButtonLook {
-  if (vpnStatus === "Connecting") {
-    return { label: "Cancel", variant: "cancel" };
-  }
-  if (isVpnActive(vpnStatus, targetDestination)) {
+  // Restoring a tunnel that existed: the tunnel is what the button gives up, not an attempt.
+  if (isReconnecting) return { label: "Disconnect", variant: "danger" };
+  if (vpnStatus === "Connected") {
     return { label: "Disconnect", variant: "danger" };
+  }
+
+  // Target parked with no tunnel: switching away from one, or waiting on a route.
+  const attemptParked =
+    (vpnStatus === "Disconnecting" || vpnStatus === "Reconnecting") &&
+    targetDestination !== null;
+  if (vpnStatus === "Connecting" || attemptParked) {
+    return { label: "Cancel", variant: "cancel" };
   }
   return { label: "Connect", variant: "primary" };
 }
