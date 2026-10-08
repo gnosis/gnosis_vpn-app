@@ -83,6 +83,42 @@ export function deriveVPNStatus(
   return "ServiceUnavailable";
 }
 
+<<<<<<< HEAD
+=======
+export interface ConnectButtonLook {
+  label: "Connect" | "Cancel" | "Disconnect";
+  variant: "primary" | "cancel" | "danger";
+}
+
+/** "Disconnect" would imply a usable tunnel, so the whole attempt reads "Cancel". */
+export function connectButtonLook(
+  vpnStatus: string,
+  targetDestination: string | null,
+  isReconnecting: boolean,
+): ConnectButtonLook {
+  // Restoring a tunnel that existed: the tunnel is what the button gives up, not an attempt.
+  if (isReconnecting) return { label: "Disconnect", variant: "danger" };
+  if (vpnStatus === "Connected") {
+    return { label: "Disconnect", variant: "danger" };
+  }
+
+  const waitingForRoute = vpnStatus === "Reconnecting" &&
+    targetDestination !== null;
+  const attemptInFlight = vpnStatus === "Connecting" ||
+    isSwitchingDestination(vpnStatus, targetDestination) || waitingForRoute;
+  if (attemptInFlight) return { label: "Cancel", variant: "cancel" };
+  return { label: "Connect", variant: "primary" };
+}
+
+/** A switch tears the old tunnel down before the new attempt starts, so it reports as a disconnect. */
+export function isSwitchingDestination(
+  vpnStatus: string,
+  targetDestination: string | null,
+): boolean {
+  return vpnStatus === "Disconnecting" && targetDestination !== null;
+}
+
+>>>>>>> 2c73831 (fix(ui): keep Cancel on the button for the whole connect attempt (release/hoprdv4) (#560))
 export function isXDAITransferred(state: AppState): boolean {
   if (!state || !isPreparingSafeRunMode(state.runMode)) return false;
   const { node_xdai, balance_recommendation } = state.runMode.PreparingSafe;
