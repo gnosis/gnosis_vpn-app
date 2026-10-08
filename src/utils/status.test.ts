@@ -16,6 +16,7 @@ import {
   isConnecting,
   isDisconnected,
   isDisconnecting,
+  isSwitchingDestination,
   isWxHOPRTransferred,
   isXDAITransferred,
   waitingForRouteMessage,
@@ -474,5 +475,13 @@ describe("connectButtonLook", () => {
 
   it("offers a red Disconnect once connected", () => {
     expect(connectButtonLook("Connected", "dest-1", false)).toEqual(disconnect);
+  });
+});
+
+describe("isSwitchingDestination", () => {
+  it("tells a destination switch from a plain disconnect", () => {
+    expect(isSwitchingDestination("Disconnecting", "dest-2")).toBe(true);
+    expect(isSwitchingDestination("Disconnecting", null)).toBe(false);
+    expect(isSwitchingDestination("Connecting", "dest-2")).toBe(false);
   });
 });

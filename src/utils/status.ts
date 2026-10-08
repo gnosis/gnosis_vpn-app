@@ -101,14 +101,20 @@ export function connectButtonLook(
     return { label: "Disconnect", variant: "danger" };
   }
 
-  // Target parked with no tunnel: switching away from one, or waiting on a route.
-  const attemptParked =
-    (vpnStatus === "Disconnecting" || vpnStatus === "Reconnecting") &&
+  const waitingForRoute = vpnStatus === "Reconnecting" &&
     targetDestination !== null;
-  if (vpnStatus === "Connecting" || attemptParked) {
-    return { label: "Cancel", variant: "cancel" };
-  }
+  const attemptInFlight = vpnStatus === "Connecting" ||
+    isSwitchingDestination(vpnStatus, targetDestination) || waitingForRoute;
+  if (attemptInFlight) return { label: "Cancel", variant: "cancel" };
   return { label: "Connect", variant: "primary" };
+}
+
+/** A switch tears the old tunnel down before the new attempt starts, so it reports as a disconnect. */
+export function isSwitchingDestination(
+  vpnStatus: string,
+  targetDestination: string | null,
+): boolean {
+  return vpnStatus === "Disconnecting" && targetDestination !== null;
 }
 
 export function isXDAITransferred(state: AppState): boolean {
