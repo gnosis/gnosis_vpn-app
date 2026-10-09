@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   ChannelReleaseSchema,
   CheckOutcomeSchema,
+  EndOfLifeSchema,
   UpdateChannelSchema,
 } from "@src/stores/settingsStore.ts";
 
@@ -39,6 +40,8 @@ export const CheckResultSchema = z.object({
   // inferred from the installed version.
   channel: UpdateChannelSchema,
   outcome: CheckOutcomeSchema,
+  // null unless the installed version is covered; the Rust bridge always sends the key.
+  end_of_life: EndOfLifeSchema.nullable().catch(null),
   // Both channel entries exactly as fetched; null on outcomes that never got one.
   manifest: UpdateManifestSchema.nullable(),
 });

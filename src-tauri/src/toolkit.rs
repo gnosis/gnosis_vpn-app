@@ -122,6 +122,9 @@ pub enum CheckOutcome {
         release: Box<ChannelRelease>,
     },
     NoReleaseForChannel {
+        /// `None` from toolkits that named only the channel; such a verdict is never judged stale.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        current: Option<String>,
         channel: UpdateChannel,
     },
     VpnNotConnected,
@@ -140,13 +143,23 @@ pub struct CheckResult {
     /// the installed version.
     pub channel: UpdateChannel,
     pub outcome: CheckOutcome,
+    /// Set only when the binary found the installed version covered; older binaries never send it.
+    pub end_of_life: Option<EndOfLife>,
     /// Both channel entries, exactly as fetched. Absent on the three outcomes that never got one
     /// (`VpnNotConnected`, `IntegrityError`, `Error`) — the frontend then keeps its last known.
     pub manifest: Option<Manifest>,
 }
 
+/// The installed version stops working at `ends_at`; `version` is the highest one covered.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EndOfLife {
+    pub version: String,
+    pub ends_at: String,
+    pub reason: String,
+}
+
 /// The same decision as the binary prints it: serde's externally-tagged encoding, e.g.
-/// `{"Available":{…}}`, `{"NoReleaseForChannel":"snapshot"}` or the bare `"VpnNotConnected"`.
+/// `{"Available":{…}}`, `{"NoReleaseForChannel":{…}}` or the bare `"VpnNotConnected"`.
 #[derive(Debug, Deserialize)]
 enum WireOutcome {
     UpToDate {
@@ -156,10 +169,21 @@ enum WireOutcome {
         current: String,
         release: Box<ChannelRelease>,
     },
-    NoReleaseForChannel(UpdateChannel),
+    NoReleaseForChannel(WireNoRelease),
     VpnNotConnected,
     IntegrityError(String),
     Error(String),
+}
+
+/// Toolkits before `current` was added sent the bare channel.
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum WireNoRelease {
+    Named {
+        current: String,
+        channel: UpdateChannel,
+    },
+    Bare(UpdateChannel),
 }
 
 impl From<WireOutcome> for CheckOutcome {
@@ -169,8 +193,17 @@ impl From<WireOutcome> for CheckOutcome {
             WireOutcome::Available { current, release } => {
                 CheckOutcome::Available { current, release }
             }
-            WireOutcome::NoReleaseForChannel(channel) => {
-                CheckOutcome::NoReleaseForChannel { channel }
+            WireOutcome::NoReleaseForChannel(WireNoRelease::Named { current, channel }) => {
+                CheckOutcome::NoReleaseForChannel {
+                    current: Some(current),
+                    channel,
+                }
+            }
+            WireOutcome::NoReleaseForChannel(WireNoRelease::Bare(channel)) => {
+                CheckOutcome::NoReleaseForChannel {
+                    current: None,
+                    channel,
+                }
             }
             WireOutcome::VpnNotConnected => CheckOutcome::VpnNotConnected,
             WireOutcome::IntegrityError(error) => CheckOutcome::IntegrityError { error },
@@ -184,6 +217,8 @@ struct WireCheckResult {
     channel: UpdateChannel,
     outcome: WireOutcome,
     #[serde(default)]
+    end_of_life: Option<EndOfLife>,
+    #[serde(default)]
     manifest: Option<Manifest>,
 }
 
@@ -192,6 +227,7 @@ impl From<WireCheckResult> for CheckResult {
         CheckResult {
             channel: w.channel,
             outcome: w.outcome.into(),
+            end_of_life: w.end_of_life,
             manifest: w.manifest,
         }
     }
@@ -392,6 +428,29 @@ mod tests {
         let manifest = result.manifest.expect("manifest attached");
         assert_eq!(manifest.channels.stable.unwrap().version, "0.78.0");
         assert!(manifest.channels.snapshot.is_none());
+        assert!(
+            result.end_of_life.is_none(),
+            "an older binary never sends it"
+        );
+    }
+
+    #[test]
+    fn check_carries_the_end_of_life_covering_the_installed_version() {
+        let line = format!(
+            r#"{{"channel":"stable","outcome":{{"Available":{{"current":"0.77.0","release":{RELEASE}}}}},"end_of_life":{{"version":"0.77.0","ends_at":"2026-10-15T00:00:00Z","reason":"legacy endpoints"}},"manifest":{}}}"#,
+            manifest_json()
+        );
+        let result = parse_check(&line).unwrap();
+        assert_eq!(
+            result.end_of_life,
+            Some(EndOfLife {
+                version: "0.77.0".to_string(),
+                ends_at: "2026-10-15T00:00:00Z".to_string(),
+                reason: "legacy endpoints".to_string(),
+            })
+        );
+        let v = serde_json::to_value(&result).unwrap();
+        assert_eq!(v["end_of_life"]["ends_at"], "2026-10-15T00:00:00Z");
     }
 
     // The three outcomes that never fetched a manifest omit the key entirely.
@@ -421,9 +480,26 @@ mod tests {
         assert!(matches!(
             result.outcome,
             CheckOutcome::NoReleaseForChannel {
+                current: None,
                 channel: UpdateChannel::Snapshot
             }
         ));
+    }
+
+    #[test]
+    fn check_no_release_names_the_installed_version() {
+        let line = format!(
+            r#"{{"channel":"snapshot","outcome":{{"NoReleaseForChannel":{{"current":"2026.04.20+build.000001","channel":"snapshot"}}}},"manifest":{}}}"#,
+            manifest_json()
+        );
+        let result = parse_check(&line).unwrap();
+        match result.outcome {
+            CheckOutcome::NoReleaseForChannel { current, channel } => {
+                assert_eq!(current.as_deref(), Some("2026.04.20+build.000001"));
+                assert_eq!(channel, UpdateChannel::Snapshot);
+            }
+            other => panic!("unexpected: {other:?}"),
+        }
     }
 
     // "Too old" sends the user off to reinstall, so it must not absorb a garbled line.
@@ -470,12 +546,22 @@ mod tests {
         let v = serde_json::to_value(CheckOutcome::VpnNotConnected).unwrap();
         assert_eq!(v, serde_json::json!({"kind": "VpnNotConnected"}));
         let v = serde_json::to_value(CheckOutcome::NoReleaseForChannel {
+            current: None,
             channel: UpdateChannel::Snapshot,
         })
         .unwrap();
         assert_eq!(
             v,
             serde_json::json!({"kind": "NoReleaseForChannel", "channel": "snapshot"})
+        );
+        let v = serde_json::to_value(CheckOutcome::NoReleaseForChannel {
+            current: Some("2026.04.20+build.000001".to_string()),
+            channel: UpdateChannel::Snapshot,
+        })
+        .unwrap();
+        assert_eq!(
+            v,
+            serde_json::json!({"kind": "NoReleaseForChannel", "current": "2026.04.20+build.000001", "channel": "snapshot"})
         );
         let v = serde_json::to_value(CheckOutcome::UpToDate {
             current: "0.78.0".to_string(),

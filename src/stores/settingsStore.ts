@@ -33,6 +33,16 @@ export const ChannelReleaseSchema = z.object({
 });
 export type ChannelRelease = z.infer<typeof ChannelReleaseSchema>;
 
+// The toolkit's verdict that the installed version stops working at `ends_at`.
+export const EndOfLifeSchema = z.object({
+  version: z.string(),
+  ends_at: z.string().refine((v) => !Number.isNaN(Date.parse(v)), {
+    message: "ends_at is not a date",
+  }),
+  reason: z.string(),
+});
+export type EndOfLife = z.infer<typeof EndOfLifeSchema>;
+
 export const UpdateChannelSchema = z.enum([
   "stable",
   "snapshot",
@@ -51,6 +61,8 @@ export const CheckOutcomeSchema = z.discriminatedUnion("kind", [
   }),
   z.object({
     kind: z.literal("NoReleaseForChannel"),
+    // Absent from toolkits that named only the channel.
+    current: z.string().optional(),
     channel: UpdateChannelSchema,
   }),
   z.object({ kind: z.literal("VpnNotConnected") }),
@@ -71,6 +83,8 @@ export const SettingsSchema = z.object({
   exitNodeSortOrder: z.enum(["best", "alpha"]),
   lastCheckedAt: z.number().nullable(),
   lastCheckOutcome: CheckOutcomeSchema.nullable(),
+  // A corrupt entry is dropped rather than failing the whole snapshot.
+  lastEndOfLife: EndOfLifeSchema.nullable().catch(null),
   channel: UpdateChannelSchema.nullable(),
   dismissedUpdateVersion: z.string().nullable(),
   installedVersion: z.string().nullable(),
@@ -91,6 +105,7 @@ const DEFAULT_SETTINGS: SettingsState = {
   exitNodeSortOrder: "best",
   lastCheckedAt: null,
   lastCheckOutcome: null,
+  lastEndOfLife: null,
   channel: null,
   dismissedUpdateVersion: null,
   installedVersion: null,
@@ -110,6 +125,7 @@ type SettingsActions = {
   setExitNodeSortOrder: (order: "best" | "alpha") => Promise<void>;
   setUpdateCheckResult: (
     outcome: CheckOutcome,
+    endOfLife: EndOfLife | null,
     checkedAt: number,
   ) => Promise<void>;
   setChannel: (channel: UpdateChannel) => Promise<void>;
@@ -197,8 +213,13 @@ export function createSettingsStore(): SettingsStoreTuple {
     setStartMinimized: (enabled) => patch({ startMinimized: enabled }),
     setUpdateCheck: (enabled) => patch({ updateCheck: enabled }),
     setExitNodeSortOrder: (order) => patch({ exitNodeSortOrder: order }),
-    setUpdateCheckResult: (outcome, checkedAt) =>
-      patch({ lastCheckOutcome: outcome, lastCheckedAt: checkedAt }),
+    // One patch, so the EOL never outlives the outcome it was reached with.
+    setUpdateCheckResult: (outcome, endOfLife, checkedAt) =>
+      patch({
+        lastCheckOutcome: outcome,
+        lastEndOfLife: endOfLife,
+        lastCheckedAt: checkedAt,
+      }),
     setChannel: (channel) => patch({ channel }),
     // Marker and channel land in one patch so a crash between them cannot
     // record the new version while keeping the stale channel.
