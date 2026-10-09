@@ -23,6 +23,8 @@ const containerClasses: Record<NonNullable<BannerProps["variant"]>, string> = {
 
 export default function Banner(props: BannerProps): JSX.Element {
   const variant = () => props.variant ?? "neutral";
+  // danger appears after mount and cannot be dismissed, so it must be announced.
+  const role = () => (variant() === "danger" ? "alert" : undefined);
   const content = () => (
     <>
       <Show when={props.icon}>
@@ -36,6 +38,7 @@ export default function Banner(props: BannerProps): JSX.Element {
 
   return (
     <div
+      role={role()}
       class={`relative rounded-lg px-3 py-1.5 text-xs flex flex-col items-start gap-2 ${
         props.onClick ? "hover:bg-darken dark:hover:bg-lighten" : ""
       } ${containerClasses[variant()]}`}
