@@ -326,52 +326,15 @@ export default function Updates() {
   };
 
   return (
-    <Show
-      when={!blocker()}
-      fallback={
-        <div class="flex flex-col items-center justify-center gap-4 w-full h-full p-6 bg-bg-primary">
-          <div class="relative shrink-0 w-[120px] h-[120px]">
-            <img
-              src={brokenDeviceIcon}
-              alt=""
-              class="w-[120px] h-[120px]"
-            />
-          </div>
-          <span class="text-base font-medium text-red-500 text-center">
-            {blocker()?.message}
-          </span>
-          <Show when={blocker()?.retryable}>
-            <Button
-              size="sm"
-              variant="outline"
-              fullWidth={false}
-              loading={retrying()}
-              onClick={() => void retryToolkit()}
-            >
-              Try again
-            </Button>
-          </Show>
-          <button
-            type="button"
-            class="text-sm text-text-secondary underline cursor-default"
-            onClick={() => setShowHowTo(true)}
-          >
-            How to update
-          </button>
-          <HowToUpdateModal
-            open={showHowTo()}
-            onClose={() => setShowHowTo(false)}
-          />
-        </div>
-      }
-    >
-      <div class="space-y-4 w-full p-6 max-w-lg bg-bg-primary flex flex-col h-full">
-        <Show when={appState.endOfLife}>
-          {(endOfLife) => {
-            const now = createDeadlineClock(() =>
-              Date.parse(endOfLife().ends_at)
-            );
-            return (
+    <div class="flex flex-col items-center w-full h-full bg-bg-primary">
+      {/* Above the blocker too: it is the only place the reason is shown. */}
+      <Show when={appState.endOfLife}>
+        {(endOfLife) => {
+          const now = createDeadlineClock(() =>
+            Date.parse(endOfLife().ends_at)
+          );
+          return (
+            <div class="w-full max-w-lg px-6 pt-6">
               <Banner variant="danger" icon={<WarningIcon />}>
                 <span class="flex flex-col">
                   <span>{endOfLifeMessage(endOfLife(), now())}</span>
@@ -380,92 +343,138 @@ export default function Updates() {
                   </Show>
                 </span>
               </Banner>
-            );
-          }}
-        </Show>
-        <UpdateStatusCard
-          onCheck={handleCheck}
-          loading={checking()}
-          isUpToDate={isUpToDate()}
-          latestVersion={decision().release?.version}
-          releaseNotes={decision().release?.release_notes}
-          lastChecked={settings.lastCheckedAt != null
-            ? formatCheckedAt(settings.lastCheckedAt)
-            : undefined}
-          onInstall={handleInstall}
-          installPhase={installPhase()}
-          installError={installError()}
-        />
-        <CheckUpdateModal
-          open={showCheckModal()}
-          onClose={() => setShowCheckModal(false)}
-          onCheckAnyway={handleCheckAnyway}
-          onConnectAndCheck={handleConnectAndCheck}
-        />
-        <InstallUpdateModal
-          open={showInstallModal()}
-          onClose={() => setShowInstallModal(false)}
-          onInstallAnyway={() => {
-            setShowInstallModal(false);
-            startInstall(true);
-          }}
-          onConnectAndInstall={() => {
-            setShowInstallModal(false);
-            const id = effectiveActive(appState.mode, Date.now());
-            if (!id) return;
-            setPendingConnectInstall(true);
-            void appActions.connect(id);
-          }}
-        />
-        <Toggle
-          label="Automatic update check"
-          checked={settings.updateCheck}
-          onChange={(e) =>
-            void settingsActions.setUpdateCheck(e.currentTarget.checked)}
-          description="Done only when connected through the Gnosis VPN"
-        />
-        <SegmentedControl
-          label="Update channel"
-          //  description="Stable is the default, Snapshot is for testing new features"
-          options={channelOptions()}
-          value={effectiveChannel()}
-          onChange={(ch) => void settingsActions.setChannel(ch)}
-          disabled //installedChannel() === "stable"}
-          // tooltipSwitcher="When on Stable, you can't switch to Snapshot"
-        />
-        <div class="grow" />
-        <div
-          class="space-y-1 text-sm text-text-secondary text-center"
-          classList={{ "select-text": showVersionDetails() }}
-        >
-          <div onClick={handleVersionClick} class="cursor-default">
-            Version:{" "}
-            <span class="text-text-primary">
-              {packageVersion() ?? "Something went wrong"}
+            </div>
+          );
+        }}
+      </Show>
+      <Show
+        when={!blocker()}
+        fallback={
+          <div class="flex flex-col items-center justify-center gap-4 w-full flex-1 p-6 bg-bg-primary">
+            <div class="relative shrink-0 w-[120px] h-[120px]">
+              <img
+                src={brokenDeviceIcon}
+                alt=""
+                class="w-[120px] h-[120px]"
+              />
+            </div>
+            <span class="text-base font-medium text-red-500 text-center">
+              {blocker()?.message}
             </span>
+            <Show when={blocker()?.retryable}>
+              <Button
+                size="sm"
+                variant="outline"
+                fullWidth={false}
+                loading={retrying()}
+                onClick={() => void retryToolkit()}
+              >
+                Try again
+              </Button>
+            </Show>
+            <button
+              type="button"
+              class="text-sm text-text-secondary underline cursor-default"
+              onClick={() => setShowHowTo(true)}
+            >
+              How to update
+            </button>
+            <HowToUpdateModal
+              open={showHowTo()}
+              onClose={() => setShowHowTo(false)}
+            />
           </div>
-          <Show when={showVersionDetails()}>
-            <div class="text-xs">
-              Service version:{" "}
+        }
+      >
+        <div
+          class={`space-y-4 w-full px-6 pb-6 ${
+            appState.endOfLife ? "pt-4" : "pt-6"
+          } max-w-lg bg-bg-primary flex flex-col flex-1`}
+        >
+          <UpdateStatusCard
+            onCheck={handleCheck}
+            loading={checking()}
+            isUpToDate={isUpToDate()}
+            latestVersion={decision().release?.version}
+            releaseNotes={decision().release?.release_notes}
+            lastChecked={settings.lastCheckedAt != null
+              ? formatCheckedAt(settings.lastCheckedAt)
+              : undefined}
+            onInstall={handleInstall}
+            installPhase={installPhase()}
+            installError={installError()}
+          />
+          <CheckUpdateModal
+            open={showCheckModal()}
+            onClose={() => setShowCheckModal(false)}
+            onCheckAnyway={handleCheckAnyway}
+            onConnectAndCheck={handleConnectAndCheck}
+          />
+          <InstallUpdateModal
+            open={showInstallModal()}
+            onClose={() => setShowInstallModal(false)}
+            onInstallAnyway={() => {
+              setShowInstallModal(false);
+              startInstall(true);
+            }}
+            onConnectAndInstall={() => {
+              setShowInstallModal(false);
+              const id = effectiveActive(appState.mode, Date.now());
+              if (!id) return;
+              setPendingConnectInstall(true);
+              void appActions.connect(id);
+            }}
+          />
+          <Toggle
+            label="Automatic update check"
+            checked={settings.updateCheck}
+            onChange={(e) =>
+              void settingsActions.setUpdateCheck(e.currentTarget.checked)}
+            description="Done only when connected through the Gnosis VPN"
+          />
+          <SegmentedControl
+            label="Update channel"
+            //  description="Stable is the default, Snapshot is for testing new features"
+            options={channelOptions()}
+            value={effectiveChannel()}
+            onChange={(ch) => void settingsActions.setChannel(ch)}
+            disabled //installedChannel() === "stable"}
+            // tooltipSwitcher="When on Stable, you can't switch to Snapshot"
+          />
+          <div class="grow" />
+          <div
+            class="space-y-1 text-sm text-text-secondary text-center"
+            classList={{ "select-text": showVersionDetails() }}
+          >
+            <div onClick={handleVersionClick} class="cursor-default">
+              Version:{" "}
               <span class="text-text-primary">
-                {appState.serviceInfo?.version ?? "—"}
+                {packageVersion() ?? "Something went wrong"}
               </span>
             </div>
-            <div class="text-xs">
-              App version:{" "}
-              <span class="text-text-primary">
-                {appVersion() ?? "—"}
-              </span>
-            </div>
-            <div class="text-xs">
-              Toolkit version:{" "}
-              <span class="text-text-primary">
-                {appState.toolkit.version ?? "—"}
-              </span>
-            </div>
-          </Show>
+            <Show when={showVersionDetails()}>
+              <div class="text-xs">
+                Service version:{" "}
+                <span class="text-text-primary">
+                  {appState.serviceInfo?.version ?? "—"}
+                </span>
+              </div>
+              <div class="text-xs">
+                App version:{" "}
+                <span class="text-text-primary">
+                  {appVersion() ?? "—"}
+                </span>
+              </div>
+              <div class="text-xs">
+                Toolkit version:{" "}
+                <span class="text-text-primary">
+                  {appState.toolkit.version ?? "—"}
+                </span>
+              </div>
+            </Show>
+          </div>
         </div>
-      </div>
-    </Show>
+      </Show>
+    </div>
   );
 }
