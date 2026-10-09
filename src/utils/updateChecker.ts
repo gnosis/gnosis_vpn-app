@@ -18,7 +18,7 @@ export async function runBackgroundCheck(): Promise<void> {
     const result = await checkUpdate(false);
     await settingsActions.setUpdateCheckResult(
       result.outcome,
-      result.end_of_life ?? null,
+      result.end_of_life,
       Date.now(),
     );
   } catch (e) {

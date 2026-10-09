@@ -40,8 +40,8 @@ export const CheckResultSchema = z.object({
   // inferred from the installed version.
   channel: UpdateChannelSchema,
   outcome: CheckOutcomeSchema,
-  // Only when the installed version is covered; older binaries never send it.
-  end_of_life: EndOfLifeSchema.nullable().optional().catch(null),
+  // null unless the installed version is covered; the Rust bridge always sends the key.
+  end_of_life: EndOfLifeSchema.nullable().catch(null),
   // Both channel entries exactly as fetched; null on outcomes that never got one.
   manifest: UpdateManifestSchema.nullable(),
 });

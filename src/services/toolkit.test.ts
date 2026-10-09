@@ -60,7 +60,7 @@ describe("CheckResultSchema", () => {
   // Toolkits before the end-of-life verdict never send the key.
   it("accepts a result without the end_of_life key", () => {
     const { end_of_life: _, ...older } = available;
-    expect(CheckResultSchema.parse(older).end_of_life).toBeUndefined();
+    expect(CheckResultSchema.parse(older).end_of_life).toBeNull();
   });
 
   it("parses an up-to-date result", () => {

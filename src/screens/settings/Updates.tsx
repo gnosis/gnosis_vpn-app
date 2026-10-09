@@ -95,7 +95,7 @@ export default function Updates() {
       const result = await checkUpdate(skipVpn);
       await settingsActions.setUpdateCheckResult(
         result.outcome,
-        result.end_of_life ?? null,
+        result.end_of_life,
         Date.now(),
       );
     } catch (e) {
@@ -338,7 +338,7 @@ export default function Updates() {
               <Banner variant="danger" icon={<WarningIcon />}>
                 <span class="flex flex-col">
                   <span>{endOfLifeMessage(endOfLife(), now())}</span>
-                  <Show when={endOfLife().reason?.trim()}>
+                  <Show when={endOfLife().reason.trim()}>
                     {(reason) => <span>{reason()}</span>}
                   </Show>
                 </span>
