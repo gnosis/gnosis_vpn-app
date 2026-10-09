@@ -471,7 +471,7 @@ describe("channelMaintenanceWarning", () => {
 
 describe("connectButtonLook", () => {
   const cancel = { label: "Cancel", variant: "cancel" };
-  const disconnect = { label: "Disconnect", variant: "danger" };
+  const disconnect = { label: "Disconnect", variant: "primary" };
 
   it("offers Connect while disconnected", () => {
     expect(connectButtonLook("Disconnected", null, false)).toEqual({
@@ -492,7 +492,7 @@ describe("connectButtonLook", () => {
     expect(connectButtonLook("Reconnecting", "dest-1", false)).toEqual(cancel);
   });
 
-  it("offers a red Disconnect while an established tunnel reconnects", () => {
+  it("offers Disconnect while an established tunnel reconnects", () => {
     expect(connectButtonLook("Reconnecting", "dest-1", true)).toEqual(
       disconnect,
     );
@@ -504,7 +504,7 @@ describe("connectButtonLook", () => {
     );
   });
 
-  it("offers a red Disconnect once connected", () => {
+  it("offers Disconnect once connected", () => {
     expect(connectButtonLook("Connected", "dest-1", false)).toEqual(disconnect);
   });
 });

@@ -88,7 +88,7 @@ export function deriveVPNStatus(
 
 export interface ConnectButtonLook {
   label: "Connect" | "Cancel" | "Disconnect";
-  variant: "primary" | "cancel" | "danger";
+  variant: "primary" | "cancel";
 }
 
 /** "Disconnect" would imply a usable tunnel, so the whole attempt reads "Cancel". */
@@ -98,9 +98,9 @@ export function connectButtonLook(
   isReconnecting: boolean,
 ): ConnectButtonLook {
   // Restoring a tunnel that existed: the tunnel is what the button gives up, not an attempt.
-  if (isReconnecting) return { label: "Disconnect", variant: "danger" };
+  if (isReconnecting) return { label: "Disconnect", variant: "primary" };
   if (vpnStatus === "Connected") {
-    return { label: "Disconnect", variant: "danger" };
+    return { label: "Disconnect", variant: "primary" };
   }
 
   const waitingForRoute = vpnStatus === "Reconnecting" &&
