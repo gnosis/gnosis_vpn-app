@@ -61,6 +61,8 @@ export const CheckOutcomeSchema = z.discriminatedUnion("kind", [
   }),
   z.object({
     kind: z.literal("NoReleaseForChannel"),
+    // Absent from toolkits that named only the channel.
+    current: z.string().optional(),
     channel: UpdateChannelSchema,
   }),
   z.object({ kind: z.literal("VpnNotConnected") }),

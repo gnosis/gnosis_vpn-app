@@ -31,6 +31,12 @@ const available = (current: string, latest: string): CheckOutcome => ({
   release: release(latest),
 });
 
+const noRelease = (current: string): CheckOutcome => ({
+  kind: "NoReleaseForChannel",
+  current,
+  channel: "snapshot",
+});
+
 const decide = (
   outcome: CheckOutcome | null,
   packageVersion: string | null,
@@ -146,6 +152,27 @@ describe("resolveEndOfLife", () => {
     ).toBeNull();
   });
 
+  // e.g. a snapshot build upgraded off an EOL one while snapshot had no release
+  it("shows nothing for a no-release verdict reached for another package", () => {
+    expect(
+      resolveEndOfLife({
+        outcome: noRelease("0.91.0"),
+        endOfLife: eol,
+        packageVersion: "0.95.2",
+      }),
+    ).toBeNull();
+  });
+
+  it("shows the verdict reached with a no-release outcome for the installed package", () => {
+    expect(
+      resolveEndOfLife({
+        outcome: noRelease("0.91.0"),
+        endOfLife: eol,
+        packageVersion: "0.91.0",
+      }),
+    ).toEqual(eol);
+  });
+
   it("shows nothing when the toolkit found the package uncovered", () => {
     expect(
       resolveEndOfLife({
@@ -182,6 +209,11 @@ describe("isStaleOutcome", () => {
   it("compares the version the toolkit checked against the installed one", () => {
     expect(isStaleOutcome(available("0.28.5", "0.29.0"), "0.28.5")).toBe(false);
     expect(isStaleOutcome(available("0.28.5", "0.29.0"), "0.29.0")).toBe(true);
+  });
+
+  it("compares a no-release verdict that names its version", () => {
+    expect(isStaleOutcome(noRelease("0.28.5"), "0.28.5")).toBe(false);
+    expect(isStaleOutcome(noRelease("0.28.5"), "0.29.0")).toBe(true);
   });
 
   it("never calls a missing or version-less outcome stale", () => {

@@ -31,7 +31,7 @@ export function isStaleOutcome(
   outcome: CheckOutcome | null,
   packageVersion: string | null,
 ): boolean {
-  return outcome != null && "current" in outcome &&
+  return outcome != null && "current" in outcome && outcome.current != null &&
     outcome.current !== packageVersion;
 }
 

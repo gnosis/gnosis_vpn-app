@@ -127,8 +127,9 @@ source:
   Without it the shim synthesizes an `UpToDate` result around
   `checkUpdateManifest`. The UI decides from the stored `outcome` alone, so to
   start with the banner up seed `settings.lastCheckOutcome` (and a matching
-  `packageVersion`: an outcome whose `current` differs is ignored as stale). Add
-  `settings.lastEndOfLife` (`{version, ends_at, reason}`) next to it for the
+  `packageVersion`: an outcome whose `current` differs is ignored as stale;
+  `NoReleaseForChannel` may carry `current` too, and is never stale without it).
+  Add `settings.lastEndOfLife` (`{version, ends_at, reason}`) next to it for the
   red, non-dismissible end-of-life banner; it follows the same staleness rule.
   `checkUpdateResult` may carry the same object as `end_of_life`.
   `checkUpdateError` rejects instead — `"VpnNotConnected"` drives the

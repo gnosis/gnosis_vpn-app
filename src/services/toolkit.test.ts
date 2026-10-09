@@ -75,6 +75,19 @@ describe("CheckResultSchema", () => {
       throw new Error(`unexpected outcome: ${parsed.outcome.kind}`);
     }
     expect(parsed.outcome.channel).toBe("snapshot");
+    expect(parsed.outcome.current).toBe("2026.07.01+build.000001");
+  });
+
+  // Toolkits before `current` sent only the channel, which Rust passes on without the key.
+  it("accepts a no-release outcome without the installed version", () => {
+    const parsed = CheckResultSchema.parse({
+      ...noRelease,
+      outcome: { kind: "NoReleaseForChannel", channel: "snapshot" },
+    });
+    expect(parsed.outcome).toEqual({
+      kind: "NoReleaseForChannel",
+      channel: "snapshot",
+    });
   });
 
   // The three outcomes that never fetched one omit the manifest; the app keeps

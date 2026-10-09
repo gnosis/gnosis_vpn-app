@@ -770,6 +770,7 @@ fn generate_fixtures() {
         &CheckResult {
             channel: UpdateChannel::Snapshot,
             outcome: CheckOutcome::NoReleaseForChannel {
+                current: Some("2026.07.01+build.000001".to_string()),
                 channel: UpdateChannel::Snapshot,
             },
             end_of_life: None,
