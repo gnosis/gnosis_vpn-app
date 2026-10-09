@@ -187,7 +187,8 @@ describe("resolveEndOfLife", () => {
 describe("endOfLifeMessage", () => {
   const eol: EndOfLife = {
     version: "0.92.0",
-    ends_at: "2026-10-15T12:00:00Z",
+    // Local noon: the banner shows the user's own date, 15 Oct in every zone.
+    ends_at: new Date(2026, 9, 15, 12).toISOString(),
     reason: "legacy endpoints",
   };
   const endsAt = Date.parse(eol.ends_at);
