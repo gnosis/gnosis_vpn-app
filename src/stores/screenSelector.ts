@@ -4,6 +4,7 @@ import {
   isPreparingSafeRunMode,
   isRunningRunMode,
   isWarmupRunMode,
+  type PreparingSafe,
   type StatusResponse,
 } from "@src/services/vpnService.ts";
 import { logWarn } from "@src/utils/appLog.ts";
@@ -18,8 +19,8 @@ export enum AppScreen {
 
 export type SyncPhaseIndex = 0 | 1 | 2;
 
-/** Screen to show and its status line. */
-export type ScreenChoice = [AppScreen, string];
+/** Screen to show, its status line, and the error a retrying sync waits to recover from. */
+export type ScreenChoice = [AppScreen, string, string | null];
 
 /** How long a stuck startup sync waits for a route before moving on. */
 export const MAXIMUM_DELAY_TIME = 3 * 60 * 1000;
@@ -38,6 +39,22 @@ function findDelayReason(status: StatusResponse): string | null {
   return `Looking for a route to ${waiting} destination${
     waiting > 1 ? "s" : ""
   }`;
+}
+
+// Daemon only deploys once the node holds the recommended balance.
+function isUnderfunded(safe: PreparingSafe): boolean {
+  const rec = safe.balance_recommendation;
+  if (!rec) return false;
+  return safe.node_xdai < rec.xdai || safe.node_wxhopr < rec.wxhopr;
+}
+
+/** A failed safe deployment the daemon retries by itself, without the user topping up. */
+function retryingSafeDeployment(status: StatusResponse): string | null {
+  const runMode = status.run_mode;
+  if (!isPreparingSafeRunMode(runMode)) return null;
+  const safe = runMode.PreparingSafe;
+  if (!safe.error || isUnderfunded(safe)) return null;
+  return safe.error;
 }
 
 export function detectSyncPhase(
@@ -60,33 +77,44 @@ export function createScreenSelector(): (
     | { alreadyRan: true } = { neverRan: true };
   // Spent once a running daemon reaches main; the sync screen has no Disconnect button.
   let syncScreenSpent = false;
+  let safeDeployStarted = false;
 
   return function selectScreen(status: StatusResponse): ScreenChoice {
     const runMode = status.run_mode;
     if (runMode === "Shutdown") {
-      return [AppScreen.Main, "Shutdown"];
+      return [AppScreen.Main, "Shutdown", null];
     }
     if (isPreparingSafeRunMode(runMode)) {
-      return [AppScreen.Onboarding, "Onboarding"];
+      const deployError = retryingSafeDeployment(status);
+      if (!syncScreenSpent && safeDeployStarted && deployError) {
+        return [
+          AppScreen.Synchronization,
+          "Safe deployment failed, retrying",
+          deployError,
+        ];
+      }
+      return [AppScreen.Onboarding, "Onboarding", null];
     }
     if (syncScreenSpent) {
-      return [AppScreen.Main, "Moving on"];
+      return [AppScreen.Main, "Moving on", null];
     }
 
     if (isDeployingSafeRunMode(runMode)) {
-      return [AppScreen.Synchronization, "Safe deployment ongoing"];
+      safeDeployStarted = true;
+      return [AppScreen.Synchronization, "Safe deployment ongoing", null];
     }
     if (isWarmupRunMode(runMode)) {
       return [
         AppScreen.Synchronization,
         formatWarmupStatus(runMode.Warmup.status),
+        runMode.Warmup.last_error,
       ];
     }
     // Only a running daemon counts as reaching main, so a first warmup still syncs.
     const moveOn = (): ScreenChoice => {
       initialDelay = { alreadyRan: true };
       syncScreenSpent = isRunningRunMode(runMode);
-      return [AppScreen.Main, "Moving on"];
+      return [AppScreen.Main, "Moving on", null];
     };
 
     // delay initial screen as long as no interaction makes sense
@@ -95,7 +123,7 @@ export function createScreenSelector(): (
     // delay proposed and never ran - start the delay
     if ("neverRan" in initialDelay) {
       initialDelay = { delayingSince: Date.now() };
-      return [AppScreen.Synchronization, delay];
+      return [AppScreen.Synchronization, delay, null];
     }
     // delay proposed and already in delay - continue until the maximum time is reached
     if ("delayingSince" in initialDelay) {
@@ -107,7 +135,7 @@ export function createScreenSelector(): (
         );
         return moveOn();
       }
-      return [AppScreen.Synchronization, delay];
+      return [AppScreen.Synchronization, delay, null];
     }
     // delay proposed but already ran
     return moveOn();

@@ -1,7 +1,8 @@
-import { createSignal, onCleanup, onMount } from "solid-js";
+import { createSignal, onCleanup, onMount, Show } from "solid-js";
 
 export interface SynchronizationProps {
   syncProgress: number;
+  recoveryReason?: string | null;
 }
 
 const trivia = [
@@ -32,6 +33,7 @@ export default function Synchronization(props: SynchronizationProps) {
   const [isVisible, setIsVisible] = createSignal(true);
 
   const progress = () => Math.min(100, props.syncProgress);
+  const progressDigits = () => progress().toFixed(2).split(".");
 
   const CYCLE_DURATION = 7200;
   const FADE_DURATION = 500;
@@ -62,8 +64,12 @@ export default function Synchronization(props: SynchronizationProps) {
         <span class="text-xs font-bold uppercase tracking-widest text-text-secondary">
           Progress
         </span>
-        <span class="text-3xl font-bold tabular-nums">
-          {progress().toFixed(2)}%
+        {/* tabular digits only: Unica77 widens "." to digit width too */}
+        <span class="text-3xl font-bold">
+          <span class="tabular-nums">{progressDigits()[0]}</span>
+          .
+          <span class="tabular-nums">{progressDigits()[1]}</span>
+          %
         </span>
         <div class="w-full h-2 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
           <div
@@ -76,6 +82,12 @@ export default function Synchronization(props: SynchronizationProps) {
           </div>
         </div>
       </div>
+
+      <Show when={props.recoveryReason}>
+        <p class="text-center text-sm text-text-secondary mt-6 opacity-80">
+          Oh snap, something seems wrong, waiting for recovery
+        </p>
+      </Show>
 
       {/* Trivia Section */}
       <div class="grow flex flex-col items-center justify-center w-full max-w-lg self-center text-center px-4 pb-4">
