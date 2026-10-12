@@ -272,6 +272,8 @@ export function createAppStore(): AppStoreTuple {
     }
     activeSyncPhase = next;
     syncPhaseStartTime = Date.now();
+    // Recapture after the catch-up, or recovery would rewind to the old phase's progress.
+    recoveryStart = null;
     if (!syncTimer) {
       syncTimer = setInterval(tickSyncProgress, TICK_INTERVAL);
     }
