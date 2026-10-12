@@ -73,7 +73,6 @@ const BASE_APP_STATE: AppState = {
   vpnStatus: "ServiceUnavailable",
   warmupStatus: "",
   syncProgress: 0,
-  syncRecoveryDeadline: null,
   isUpdateAvailable: false,
   availableVersion: null,
   endOfLife: null,

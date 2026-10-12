@@ -18,10 +18,11 @@ export enum AppScreen {
 
 export type SyncPhaseIndex = 0 | 1 | 2;
 
-/** Screen to show, its status line, and when a stuck startup sync gives up. */
-export type ScreenChoice = [AppScreen, string, number | null];
+/** Screen to show and its status line. */
+export type ScreenChoice = [AppScreen, string];
 
-const MAXIMUM_DELAY_TIME = 5 * 60 * 1000; // 5 minutes
+/** How long a stuck startup sync waits for a route before moving on. */
+export const MAXIMUM_DELAY_TIME = 3 * 60 * 1000;
 
 /** Nothing to interact with until one destination is connectable. */
 function findDelayReason(status: StatusResponse): string | null {
@@ -63,30 +64,29 @@ export function createScreenSelector(): (
   return function selectScreen(status: StatusResponse): ScreenChoice {
     const runMode = status.run_mode;
     if (runMode === "Shutdown") {
-      return [AppScreen.Main, "Shutdown", null];
+      return [AppScreen.Main, "Shutdown"];
     }
     if (isPreparingSafeRunMode(runMode)) {
-      return [AppScreen.Onboarding, "Onboarding", null];
+      return [AppScreen.Onboarding, "Onboarding"];
     }
     if (syncScreenSpent) {
-      return [AppScreen.Main, "Moving on", null];
+      return [AppScreen.Main, "Moving on"];
     }
 
     if (isDeployingSafeRunMode(runMode)) {
-      return [AppScreen.Synchronization, "Safe deployment ongoing", null];
+      return [AppScreen.Synchronization, "Safe deployment ongoing"];
     }
     if (isWarmupRunMode(runMode)) {
       return [
         AppScreen.Synchronization,
         formatWarmupStatus(runMode.Warmup.status),
-        null,
       ];
     }
     // Only a running daemon counts as reaching main, so a first warmup still syncs.
     const moveOn = (): ScreenChoice => {
       initialDelay = { alreadyRan: true };
       syncScreenSpent = isRunningRunMode(runMode);
-      return [AppScreen.Main, "Moving on", null];
+      return [AppScreen.Main, "Moving on"];
     };
 
     // delay initial screen as long as no interaction makes sense
@@ -94,25 +94,20 @@ export function createScreenSelector(): (
     if (!delay) return moveOn();
     // delay proposed and never ran - start the delay
     if ("neverRan" in initialDelay) {
-      const delayingSince = Date.now();
-      initialDelay = { delayingSince };
-      return [
-        AppScreen.Synchronization,
-        delay,
-        delayingSince + MAXIMUM_DELAY_TIME,
-      ];
+      initialDelay = { delayingSince: Date.now() };
+      return [AppScreen.Synchronization, delay];
     }
     // delay proposed and already in delay - continue until the maximum time is reached
     if ("delayingSince" in initialDelay) {
       if (Date.now() - initialDelay.delayingSince > MAXIMUM_DELAY_TIME) {
-        logWarn(`Initial sync still "${delay}" after 5 minutes, moving on`);
+        logWarn(
+          `Initial sync still "${delay}" after ${
+            MAXIMUM_DELAY_TIME / 60_000
+          } minutes, moving on`,
+        );
         return moveOn();
       }
-      return [
-        AppScreen.Synchronization,
-        delay,
-        initialDelay.delayingSince + MAXIMUM_DELAY_TIME,
-      ];
+      return [AppScreen.Synchronization, delay];
     }
     // delay proposed but already ran
     return moveOn();

@@ -64,6 +64,7 @@ import {
   AppScreen,
   createScreenSelector,
   detectSyncPhase,
+  MAXIMUM_DELAY_TIME,
   type SyncPhaseIndex,
 } from "@src/stores/screenSelector.ts";
 
@@ -98,7 +99,6 @@ export interface AppState {
   vpnStatus: string;
   warmupStatus: string;
   syncProgress: number;
-  syncRecoveryDeadline: number | null;
   isUpdateAvailable: boolean;
   availableVersion: string | null;
   // Set only while the stored verdict covers the installed package.
@@ -156,7 +156,6 @@ function initialState(): AppState {
     vpnStatus: "ServiceUnavailable",
     warmupStatus: "",
     syncProgress: 0,
-    syncRecoveryDeadline: null,
     isUpdateAvailable: false,
     availableVersion: null,
     endOfLife: null,
@@ -181,11 +180,11 @@ function initialState(): AppState {
 
 // Phase boundaries and expected durations for sync progress estimation.
 // floor/ceiling are % values; durationMs is the expected phase duration.
-// Adjust durationMs when real-world timing data is available.
+// Calibrated 2026-10-12 on jura-prod (fresh onboarding): safe 45s, warmup 30s, delay 97s.
 const SYNC_PHASES = [
-  { floor: 0, ceiling: 25, durationMs: 30_000 }, // DeployingSafe
-  { floor: 25, ceiling: 40, durationMs: 30_000 }, // Warmup
-  { floor: 40, ceiling: 100, durationMs: 180_000 }, // Channels/peers delay
+  { floor: 0, ceiling: 25, durationMs: 60_000 }, // DeployingSafe
+  { floor: 25, ceiling: 40, durationMs: 45_000 }, // Warmup
+  { floor: 40, ceiling: 100, durationMs: MAXIMUM_DELAY_TIME }, // Channels/peers delay
 ] as const;
 
 export function createAppStore(): AppStoreTuple {
@@ -196,6 +195,7 @@ export function createAppStore(): AppStoreTuple {
   let unlistenBalanceUpdate: (() => void) | undefined;
   let activeSyncPhase: SyncPhaseIndex | null = null;
   let syncPhaseStartTime = 0;
+  let syncPhaseStartProgress = 0;
   let syncTimer: ReturnType<typeof setInterval> | undefined;
   let catchUpTarget: number | null = null;
   let pendingScreenTransition: AppScreen | null = null;
@@ -203,6 +203,7 @@ export function createAppStore(): AppStoreTuple {
 
   const CATCH_UP_SPEED = 6.6; // % per 100ms tick
   const TICK_INTERVAL = 100; // ms
+  const CEILING_CREEP = 0.01; // % per second at a phase ceiling, so the counter never freezes
 
   const tickSyncProgress = () => {
     const current = state.syncProgress;
@@ -222,9 +223,17 @@ export function createAppStore(): AppStoreTuple {
     if (activeSyncPhase === null) return;
     const phase = SYNC_PHASES[activeSyncPhase];
     const elapsed = Date.now() - syncPhaseStartTime;
-    const phaseRange = phase.ceiling - phase.floor;
-    const raw = phase.floor + (elapsed / phase.durationMs) * phaseRange;
-    setState("syncProgress", Math.min(raw, phase.ceiling));
+    const linear = syncPhaseStartProgress +
+      (elapsed / phase.durationMs) * (phase.ceiling - syncPhaseStartProgress);
+    const overrunSeconds = Math.floor(
+      Math.max(0, elapsed - phase.durationMs) / 1000,
+    );
+    const next = Math.min(
+      100,
+      Math.min(linear, phase.ceiling) + overrunSeconds * CEILING_CREEP,
+    );
+    // phase regressions (2→1) must not move it back
+    setState("syncProgress", Math.max(current, next));
   };
 
   // When advancing to a later phase, animate quickly to the phase boundary.
@@ -232,10 +241,14 @@ export function createAppStore(): AppStoreTuple {
   const enterSyncPhase = (next: SyncPhaseIndex | null) => {
     if (next === null || activeSyncPhase === next) return;
     logInfo(`Sync phase ${next} entered`);
+    syncPhaseStartProgress = Math.max(
+      SYNC_PHASES[next].floor,
+      state.syncProgress,
+    );
     if (activeSyncPhase !== null && next > activeSyncPhase) {
-      catchUpTarget = SYNC_PHASES[next].floor;
+      catchUpTarget = syncPhaseStartProgress;
     } else if (activeSyncPhase === null && next > 0) {
-      catchUpTarget = SYNC_PHASES[next].floor;
+      catchUpTarget = syncPhaseStartProgress;
     }
     activeSyncPhase = next;
     syncPhaseStartTime = Date.now();
@@ -321,7 +334,7 @@ export function createAppStore(): AppStoreTuple {
       }
     }
 
-    const [screen, warmupStatus, syncRecoveryDeadline] = selectScreen(response);
+    const [screen, warmupStatus] = selectScreen(response);
     if (screen === AppScreen.Synchronization) {
       enterSyncPhase(detectSyncPhase(response));
     } else if (
@@ -346,7 +359,6 @@ export function createAppStore(): AppStoreTuple {
       setState("currentScreen", screen);
     }
     setState("warmupStatus", warmupStatus);
-    setState("syncRecoveryDeadline", syncRecoveryDeadline);
     setState("runMode", reconcile(response.run_mode));
     setState("destinations", reconcile(destinations));
     setState("targetDestination", response.target_destination);
