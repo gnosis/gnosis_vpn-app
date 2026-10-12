@@ -7,7 +7,7 @@ import {
 } from "solid-js";
 
 export interface ButtonProps {
-  variant?: "primary" | "secondary" | "outline" | "cancel";
+  variant?: "primary" | "secondary" | "outline" | "stop";
   size?: "sm" | "md" | "lg";
   fullWidth?: boolean;
   disabled?: boolean;
@@ -27,8 +27,8 @@ const variantClasses: Record<NonNullable<ButtonProps["variant"]>, string> = {
     "border border-transparent bg-btn-secondary-bg text-btn-secondary-text focus:outline-none enabled:hover:bg-btn-secondary-hover",
   outline:
     "border border-border bg-transparent text-text-primary focus:outline-none enabled:hover:bg-darken",
-  cancel:
-    "border border-transparent bg-btn-cancel-bg text-btn-cancel-text focus:outline-none enabled:hover:bg-btn-cancel-hover",
+  stop:
+    "border border-transparent bg-btn-stop-bg text-btn-stop-text focus:outline-none enabled:hover:bg-btn-stop-hover",
 };
 
 const sizeClasses: Record<NonNullable<ButtonProps["size"]>, string> = {
