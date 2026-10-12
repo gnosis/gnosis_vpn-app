@@ -4,8 +4,9 @@
     "kind": "UpToDate",
     "current": "0.29.0"
   },
+  "end_of_life": null,
   "manifest": {
-    "schema_version": 1,
+    "schema_version": 2,
     "generated_at": "2026-07-06T00:00:00Z",
     "channels": {
       "stable": {

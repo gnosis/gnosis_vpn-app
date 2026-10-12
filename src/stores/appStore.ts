@@ -4,6 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import {
   resolveChannelResync,
+  resolveEndOfLife,
   resolveUpdateDecision,
 } from "@src/utils/updateAvailability.ts";
 import {
@@ -56,7 +57,7 @@ import {
   rankContext,
 } from "@src/utils/destinations.ts";
 
-import { useSettingsStore } from "@src/stores/settingsStore.ts";
+import { type EndOfLife, useSettingsStore } from "@src/stores/settingsStore.ts";
 import { deriveVPNStatus } from "@src/utils/status.ts";
 import { shortAddress } from "../utils/shortAddress.ts";
 import {
@@ -100,6 +101,8 @@ export interface AppState {
   syncRecoveryDeadline: number | null;
   isUpdateAvailable: boolean;
   availableVersion: string | null;
+  // Set only while the stored verdict covers the installed package.
+  endOfLife: EndOfLife | null;
   targetDestination: string | null;
   balance: BalanceResponse | null;
   // The installed package version everything update-facing keys off: the toolkit's
@@ -156,6 +159,7 @@ function initialState(): AppState {
     syncRecoveryDeadline: null,
     isUpdateAvailable: false,
     availableVersion: null,
+    endOfLife: null,
     targetDestination: null,
     balance: null,
     packageVersion: null,
@@ -801,6 +805,14 @@ export function createAppStore(): AppStoreTuple {
     });
     setState("availableVersion", d.release?.version ?? null);
     setState("isUpdateAvailable", d.isUpdateAvailable);
+    setState(
+      "endOfLife",
+      resolveEndOfLife({
+        outcome: settings.lastCheckOutcome,
+        endOfLife: settings.lastEndOfLife,
+        packageVersion: state.packageVersion,
+      }),
+    );
   });
 
   return [state, actions] as const;
