@@ -470,8 +470,8 @@ describe("channelMaintenanceWarning", () => {
 });
 
 describe("connectButtonLook", () => {
-  const cancel = { label: "Cancel", variant: "cancel" };
-  const disconnect = { label: "Disconnect", variant: "primary" };
+  const cancel = { label: "Cancel", variant: "stop" };
+  const disconnect = { label: "Disconnect", variant: "stop" };
 
   it("offers Connect while disconnected", () => {
     expect(connectButtonLook("Disconnected", null, false)).toEqual({
