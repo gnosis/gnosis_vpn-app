@@ -86,6 +86,7 @@ const BASE_APP_STATE: AppState = {
   syncRecoveryDeadline: null,
   isUpdateAvailable: false,
   availableVersion: null,
+  endOfLife: null,
   targetDestination: null,
   balance: null,
   packageVersion: null,

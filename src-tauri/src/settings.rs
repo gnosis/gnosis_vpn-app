@@ -1,4 +1,4 @@
-use crate::toolkit::CheckOutcome;
+use crate::toolkit::{CheckOutcome, EndOfLife};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -21,6 +21,8 @@ pub struct Settings {
     pub exit_node_sort_order: SortOrder,
     pub last_checked_at: Option<i64>,
     pub last_check_outcome: Option<CheckOutcome>,
+    /// Stored with `last_check_outcome`; it covers the version that outcome was reached for.
+    pub last_end_of_life: Option<EndOfLife>,
     pub channel: Option<UpdateChannel>,
     pub dismissed_update_version: Option<String>,
     pub installed_version: Option<String>,
@@ -39,6 +41,7 @@ impl Default for Settings {
             exit_node_sort_order: SortOrder::default(),
             last_checked_at: None,
             last_check_outcome: None,
+            last_end_of_life: None,
             channel: None,
             dismissed_update_version: None,
             installed_version: None,
@@ -105,6 +108,8 @@ pub struct SettingsPatch {
     #[serde(default, deserialize_with = "double_option")]
     pub last_check_outcome: Option<Option<CheckOutcome>>,
     #[serde(default, deserialize_with = "double_option")]
+    pub last_end_of_life: Option<Option<EndOfLife>>,
+    #[serde(default, deserialize_with = "double_option")]
     pub channel: Option<Option<UpdateChannel>>,
     #[serde(default, deserialize_with = "double_option")]
     pub dismissed_update_version: Option<Option<String>>,
@@ -143,6 +148,9 @@ impl SettingsPatch {
         }
         if self.last_check_outcome.is_some() {
             keys.push("last_check_outcome");
+        }
+        if self.last_end_of_life.is_some() {
+            keys.push("last_end_of_life");
         }
         if self.channel.is_some() {
             keys.push("channel");
@@ -196,6 +204,9 @@ impl Settings {
         }
         if let Some(v) = patch.last_check_outcome {
             self.last_check_outcome = v;
+        }
+        if let Some(v) = patch.last_end_of_life {
+            self.last_end_of_life = v;
         }
         if let Some(v) = patch.channel {
             self.channel = v;
@@ -463,6 +474,37 @@ mod tests {
             .update(patch(json!({ "lastConnectedDestination": null })))
             .expect("update should succeed");
         assert_eq!(store.current().last_connected_destination, None);
+    }
+
+    #[test]
+    fn last_end_of_life_persists_reloads_and_defaults_when_absent() {
+        let path = temp_settings_path();
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        // a file written before the key existed
+        std::fs::write(&path, json!({ "lastCheckedAt": 1 }).to_string()).unwrap();
+        assert_eq!(
+            SettingsStore::load(path.clone()).current().last_end_of_life,
+            None
+        );
+
+        let eol = EndOfLife {
+            version: "0.92.0".to_string(),
+            ends_at: "2026-10-15T00:00:00Z".to_string(),
+            reason: "legacy endpoints".to_string(),
+        };
+        SettingsStore::load(path.clone())
+            .update(patch(json!({ "lastEndOfLife": eol })))
+            .expect("update should succeed");
+        assert_eq!(
+            SettingsStore::load(path.clone()).current().last_end_of_life,
+            Some(eol)
+        );
+
+        let store = SettingsStore::load(path);
+        store
+            .update(patch(json!({ "lastEndOfLife": null })))
+            .expect("update should succeed");
+        assert_eq!(store.current().last_end_of_life, None);
     }
 
     #[test]
