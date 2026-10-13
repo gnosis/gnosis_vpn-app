@@ -2,10 +2,12 @@
   "channel": "snapshot",
   "outcome": {
     "kind": "NoReleaseForChannel",
+    "current": "2026.07.01+build.000001",
     "channel": "snapshot"
   },
+  "end_of_life": null,
   "manifest": {
-    "schema_version": 1,
+    "schema_version": 2,
     "generated_at": "2026-07-06T00:00:00Z",
     "channels": {
       "stable": {

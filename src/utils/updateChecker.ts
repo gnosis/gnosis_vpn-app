@@ -16,7 +16,11 @@ const [, settingsActions] = useSettingsStore();
 export async function runBackgroundCheck(): Promise<void> {
   try {
     const result = await checkUpdate(false);
-    await settingsActions.setUpdateCheckResult(result.outcome, Date.now());
+    await settingsActions.setUpdateCheckResult(
+      result.outcome,
+      result.end_of_life,
+      Date.now(),
+    );
   } catch (e) {
     // other failures are logged by the backend's check_update command
     if (e === "VpnNotConnected") {
