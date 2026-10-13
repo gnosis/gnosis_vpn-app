@@ -48,6 +48,28 @@ const PREPARING_SAFE: RunMode = {
   },
 };
 
+function failedSafeDeployment(
+  funded: boolean,
+): RunMode {
+  return {
+    PreparingSafe: {
+      node_address: "0xnode",
+      node_xdai: funded ? 10n : 0n,
+      node_wxhopr: funded ? 10n : 0n,
+      funding_tool: null,
+      error: "deploy tx reverted",
+      balance_recommendation: {
+        wxhopr: 5n,
+        xdai: 5n,
+        channel_stakes: 0n,
+        fee_to_start: 0n,
+        txs_to_start: 0,
+        xdai_fee_per_tx: 0n,
+      },
+    },
+  };
+}
+
 function destination(route_health: RouteHealthView): DestinationState {
   return {
     destination: makeDestination({ meta: { location: "Brazil" } }),
@@ -153,6 +175,41 @@ describe("createScreenSelector", () => {
         AppScreen.Main,
       );
     expect(screenOf(status(PREPARING_SAFE))).toBe(AppScreen.Onboarding);
+  });
+
+  it("keeps syncing while a failed safe deployment retries", () => {
+    const select = createScreenSelector();
+    select(status(DEPLOYING_SAFE));
+    expect(select(status(failedSafeDeployment(true)))).toEqual([
+      AppScreen.Synchronization,
+      "Safe deployment failed, retrying",
+      "deploy tx reverted",
+    ]);
+  });
+
+  it("onboards after a failed safe deployment that needs funds", () => {
+    screenOf(status(DEPLOYING_SAFE));
+    expect(screenOf(status(failedSafeDeployment(false)))).toBe(
+      AppScreen.Onboarding,
+    );
+  });
+
+  it("onboards on a safe error before any deployment started", () => {
+    expect(screenOf(status(failedSafeDeployment(true)))).toBe(
+      AppScreen.Onboarding,
+    );
+  });
+
+  it("reports the warmup error as the recovery reason", () => {
+    const select = createScreenSelector();
+    const failing: RunMode = {
+      Warmup: {
+        status: "StartingNode",
+        last_error: "safe 0xabc does not exist",
+      },
+    };
+    expect(select(status(failing))[2]).toBe("safe 0xabc does not exist");
+    expect(select(status(WARMUP))[2]).toBeNull();
   });
 
   it("gives each app run its own gate", () => {
