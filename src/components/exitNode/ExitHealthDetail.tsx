@@ -21,7 +21,6 @@ import {
   formatConnectionStatus,
   formatExitHealthStatus,
   formatLatency,
-  formatLoadAvg,
   formatPathValue,
   formatRelays,
   formatRouting,
@@ -103,7 +102,6 @@ export default function ExitHealthDetail(
       ? "font-semibold text-text-primary"
       : levelValueClass(getLatencyLevel(ms));
   };
-  const loadAvg = () => formatLoadAvg(exit());
   const pathValue = () => {
     const rh = routeHealth();
     return rh ? formatPathValue(rh) : null;
@@ -190,7 +188,6 @@ export default function ExitHealthDetail(
   createEffect(() => {
     lastChecked();
     routeHealth();
-    loadAvg();
     if (detailedStatsRef) {
       setDetailedStatsHeightPx(detailedStatsRef.scrollHeight);
     }
@@ -367,29 +364,6 @@ export default function ExitHealthDetail(
                           <span>
                             Distinct first relays over the paths found; more
                             means fewer single points of failure.
-                          </span>
-                        }
-                      />
-                    </div>
-                    <div
-                      class="col-span-2 transition-all duration-300 ease-out"
-                      style={{
-                        opacity: settings.showDetailedMetrics ? 1 : 0,
-                        transform: settings.showDetailedMetrics
-                          ? "translateY(0)"
-                          : "translateY(-4px)",
-                        "transition-delay": settings.showDetailedMetrics
-                          ? "160ms"
-                          : "0ms",
-                      }}
-                    >
-                      <Stat
-                        label="CPU Utilization"
-                        value={loadAvg()}
-                        valueClass="text-text-primary whitespace-nowrap"
-                        tooltip={
-                          <span>
-                            Load average of the server, the lower the better.
                           </span>
                         }
                       />
