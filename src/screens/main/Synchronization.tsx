@@ -1,8 +1,8 @@
-import { createEffect, createSignal, onCleanup, onMount, Show } from "solid-js";
+import { createSignal, onCleanup, onMount, Show } from "solid-js";
 
 export interface SynchronizationProps {
   syncProgress: number;
-  recoveryDeadline?: number | null;
+  recoveryReason?: string | null;
 }
 
 const trivia = [
@@ -31,15 +31,9 @@ const trivia = [
 export default function Synchronization(props: SynchronizationProps) {
   const [index, setIndex] = createSignal(0);
   const [isVisible, setIsVisible] = createSignal(true);
-  const [now, setNow] = createSignal(Date.now());
 
-  const progress = () => Math.min(100, Math.round(props.syncProgress));
-
-  const secondsLeft = () => {
-    const deadline = props.recoveryDeadline;
-    if (deadline == null) return null;
-    return Math.max(0, Math.ceil((deadline - now()) / 1000));
-  };
+  const progress = () => Math.min(100, props.syncProgress);
+  const progressDigits = () => progress().toFixed(2).split(".");
 
   const CYCLE_DURATION = 7200;
   const FADE_DURATION = 500;
@@ -61,13 +55,6 @@ export default function Synchronization(props: SynchronizationProps) {
     });
   });
 
-  createEffect(() => {
-    if (props.recoveryDeadline == null || progress() < 100) return;
-    setNow(Date.now());
-    const timer = setInterval(() => setNow(Date.now()), 1000);
-    onCleanup(() => clearInterval(timer));
-  });
-
   return (
     <div class="h-full w-full flex flex-col p-6 bg-bg-primary text-text-primary">
       <h1 class="text-4xl font-bold">Syncing</h1>
@@ -77,7 +64,13 @@ export default function Synchronization(props: SynchronizationProps) {
         <span class="text-xs font-bold uppercase tracking-widest text-text-secondary">
           Progress
         </span>
-        <span class="text-3xl font-bold">{progress()}%</span>
+        {/* tabular digits only: Unica77 widens "." to digit width too */}
+        <span class="text-3xl font-bold">
+          <span class="tabular-nums">{progressDigits()[0]}</span>
+          .
+          <span class="tabular-nums">{progressDigits()[1]}</span>
+          %
+        </span>
         <div class="w-full h-2 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
           <div
             class="h-full rounded-full bg-accent relative overflow-hidden transition-[width] duration-100 ease-linear"
@@ -90,10 +83,9 @@ export default function Synchronization(props: SynchronizationProps) {
         </div>
       </div>
 
-      {/* Recovery warning when stuck at 100% waiting for peers/channels */}
-      <Show when={secondsLeft() !== null && progress() >= 100}>
+      <Show when={props.recoveryReason}>
         <p class="text-center text-sm text-text-secondary mt-6 opacity-80">
-          Oh snap, something seems wrong, waiting for recovery: {secondsLeft()}s
+          Oh snap, something seems wrong, waiting for recovery
         </p>
       </Show>
 
