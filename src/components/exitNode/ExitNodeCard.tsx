@@ -17,7 +17,6 @@ import {
 } from "@src/utils/destinations.ts";
 import {
   formatLatency,
-  formatLoadAvg,
   formatPathValue,
   formatRelays,
   formatRouting,
@@ -109,7 +108,6 @@ export default function ExitNodeCard(props: {
     return ms === null ? undefined : levelValueClass(getLatencyLevel(ms));
   };
 
-  const loadAvg = () => formatLoadAvg(exit());
   const pathValue = () => {
     const rh = routeHealth();
     return rh ? formatPathValue(rh) : null;
@@ -267,13 +265,6 @@ export default function ExitNodeCard(props: {
                 }
               />
               <SlotLoadStat exit={exit()} />
-              <Stat
-                label="CPU Utilization"
-                value={loadAvg()}
-                tooltip={
-                  <span>Load average of the server, the lower the better.</span>
-                }
-              />
             </Show>
           </div>
         </Show>
