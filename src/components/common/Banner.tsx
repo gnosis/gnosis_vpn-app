@@ -10,15 +10,16 @@ export interface BannerProps {
   children: JSX.Element;
 }
 
-// Variants differ in colors only; sizing (padding, font, icon) is shared so
-// stacked banners always line up.
+// Variants differ in colors only; shared sizing and frosted backdrop keep stacked banners alike.
 const containerClasses: Record<NonNullable<BannerProps["variant"]>, string> = {
-  warning: "bg-orange-500/15 border border-orange-500/30 text-orange-400",
-  critical: "bg-red-500/15 border border-red-500/30 text-red-400",
-  danger: "bg-red-600/85 border border-red-700 text-white",
-  neutral: "bg-bg-surface text-text-primary",
+  warning:
+    "bg-orange-100/65 border border-orange-500/30 text-text-orange dark:bg-orange-950/55",
+  critical:
+    "bg-red-100/65 border border-red-500/30 text-text-red dark:bg-red-950/55",
+  danger: "bg-red-600/75 border border-red-700/60 text-white",
+  neutral: "bg-bg-surface/65 text-text-primary",
   update:
-    "bg-blue-500/10 border border-blue-500/40 text-blue-700 dark:bg-[#1F2936]/50 dark:border-[#1F2936] dark:text-text-secondary",
+    "bg-blue-100/65 border border-blue-500/30 text-blue-700 dark:bg-[#1F2936]/55 dark:border-[#1F2936] dark:text-text-secondary",
 };
 
 export default function Banner(props: BannerProps): JSX.Element {
@@ -39,7 +40,7 @@ export default function Banner(props: BannerProps): JSX.Element {
   return (
     <div
       role={role()}
-      class={`relative rounded-lg px-3 py-1.5 text-xs flex flex-col items-start gap-2 ${
+      class={`relative rounded-lg px-3 py-1.5 text-xs flex flex-col items-start gap-2 backdrop-blur-md backdrop-saturate-150 ${
         props.onClick ? "hover:bg-darken dark:hover:bg-lighten" : ""
       } ${containerClasses[variant()]}`}
     >

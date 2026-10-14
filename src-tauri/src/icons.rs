@@ -500,6 +500,7 @@ mod tests {
         RunMode::Running {
             funding_status: status,
             hopr_status: None,
+            channel_maintenance: command::ChannelMaintenance::Ok,
         }
     }
 
@@ -509,6 +510,7 @@ mod tests {
             gas,
             wxhopr_deficit: None,
             xdai_deficit: None,
+            refill_shortfall: None,
         }
     }
 

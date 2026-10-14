@@ -14,6 +14,7 @@ import { Show } from "solid-js";
 import {
   deriveNodeStatus,
   deriveOverallStatus,
+  deriveRefillShortfall,
   deriveTrafficStatus,
   deriveWxhoprDeficit,
   deriveXdaiDeficit,
@@ -21,6 +22,7 @@ import {
 } from "../../utils/funding.ts";
 import {
   formatXdai,
+  humanWxhopr,
   humanWxhoprParts,
   humanXdai,
   wxhoprDecimal,
@@ -77,6 +79,10 @@ export default function Usage() {
 
   const wxhoprDeficit = createMemo(() =>
     deriveWxhoprDeficit(appState.balance, runModeStatus())
+  );
+
+  const refillShortfall = createMemo(() =>
+    deriveRefillShortfall(appState.balance, runModeStatus())
   );
 
   const xdaiDeficit = createMemo(() =>
@@ -155,20 +161,29 @@ export default function Usage() {
                     // and would wrongly hide the hint.
 
 
-                      <Show
-                        when={effectiveCredit() !== null &&
-                          isRunningRunMode(appState.runMode)}
-                      >
-                        <span
-                          class={`text-xs font-normal ${
-                            trafficStatus() === "Empty"
-                              ? "text-vpn-red"
-                              : "text-text-secondary"
-                          }`}
+                      <>
+                        <Show
+                          when={effectiveCredit() !== null &&
+                            isRunningRunMode(appState.runMode)}
                         >
-                          ≈{formatCredit(effectiveCredit()!)}
-                        </span>
-                      </Show>
+                          <span
+                            class={`text-xs font-normal ${
+                              trafficStatus() === "Empty"
+                                ? "text-vpn-red"
+                                : "text-text-secondary"
+                            }`}
+                          >
+                            ≈{formatCredit(effectiveCredit()!)}
+                          </span>
+                        </Show>
+                        <Show when={refillShortfall()}>
+                          {(shortfall) => (
+                            <span class="text-xs font-normal text-text-secondary">
+                              top up ≥ {humanWxhopr(shortfall(), "ceil")}
+                            </span>
+                          )}
+                        </Show>
+                      </>
 
                   }
                 />
@@ -201,7 +216,7 @@ export default function Usage() {
             onClose={() => setIsAddFundsOpen(false)}
             nodeAddress={preparingSafe()?.node_address ??
               appState.balance?.info.node_address ?? ""}
-            wxhoprDeficit={wxhoprDeficit()}
+            wxhoprDeficit={wxhoprDeficit() ?? refillShortfall()}
             xdaiDeficit={xdaiDeficit()}
           />
         </Match>

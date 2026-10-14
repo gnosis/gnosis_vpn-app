@@ -4,6 +4,7 @@ import {
   ConnectResponseSchema,
   DestinationSchema,
   DisconnectResponseSchema,
+  isRunningRunMode,
   ProbeResponseSchema,
   QuickProbeResponseSchema,
   ServiceInfoSchema,
@@ -28,6 +29,7 @@ import statusConnectedStalled from "./fixtures/status_connected_stalled.json";
 import statusReconnectWaiting from "./fixtures/status_reconnect_waiting.json";
 import statusRouteHealthVariants from "./fixtures/status_route_health_variants.json";
 import statusProbeOpening from "./fixtures/status_probe_opening.json";
+import statusChannelMaintenanceUnavailable from "./fixtures/status_channel_maintenance_unavailable.json";
 import connectNotFound from "./fixtures/connect_destination_not_found.json";
 import connectConnecting from "./fixtures/connect_connecting.json";
 import connectAlreadyConnected from "./fixtures/connect_already_connected.json";
@@ -56,6 +58,7 @@ import quickProbeNotFound from "./fixtures/quick_probe_destination_not_found.jso
 import quickProbeAmbiguous from "./fixtures/quick_probe_ambiguous.json";
 import balanceResponse from "./fixtures/balance_response.json";
 import balanceResponseWithIssues from "./fixtures/balance_response_with_issues.json";
+import balanceResponseWithRefillShortfall from "./fixtures/balance_response_with_refill_shortfall.json";
 import balanceResponseWithCapacity from "./fixtures/balance_response_with_capacity.json";
 import serviceInfo from "./fixtures/service_info.json";
 
@@ -141,6 +144,19 @@ describe("StatusResponseSchema", () => {
     });
     expect(legacy.success).toBe(true);
     expect(legacy.data?.connected?.stall).toBeUndefined();
+  });
+
+  it("parses an unavailable channel maintenance with its start time", () => {
+    const parsed = StatusResponseSchema.safeParse(
+      statusChannelMaintenanceUnavailable,
+    );
+    expect(parsed.success).toBe(true);
+    const runMode = parsed.data?.run_mode;
+    if (!isRunningRunMode(runMode)) throw new Error("expected Running");
+    expect(runMode.Running.channel_maintenance).toEqual({
+      type: "Unavailable",
+      since: 0,
+    });
   });
 
   it("parses a probe session with no results yet", () => {
@@ -272,6 +288,17 @@ describe("BalanceResponseSchema", () => {
     expect(result.data.node).toBe(0n);
     expect(result.data.safe).toBe(0n);
     expect(result.data.channels_out).toBe(0n);
+  });
+
+  it("parses a refill shortfall as bigint", () => {
+    const result = BalanceResponseSchema.safeParse(
+      balanceResponseWithRefillShortfall,
+    );
+    expect(result.success).toBe(true);
+    expect(result.data?.funding_status?.refill_shortfall).toBe(
+      500_000_000_000_000_000n,
+    );
+    expect(result.data?.funding_status?.wxhopr_deficit).toBeNull();
   });
 
   it("parses balance response with ideal_balance and funding_status", () => {

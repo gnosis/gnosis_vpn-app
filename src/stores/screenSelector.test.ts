@@ -27,7 +27,11 @@ import {
 } from "@src/testing/destinations.ts";
 
 const RUNNING: RunMode = {
-  Running: { funding_status: null, hopr_status: null },
+  Running: {
+    funding_status: null,
+    hopr_status: null,
+    channel_maintenance: { type: "Ok" },
+  },
 };
 const WARMUP: RunMode = {
   Warmup: { status: "StartingNode", last_error: null },

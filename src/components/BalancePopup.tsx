@@ -4,6 +4,7 @@ import { isRunningRunMode } from "@src/services/vpnService.ts";
 import { humanWxhopr, humanXdai } from "@src/utils/hopli.ts";
 import {
   deriveNodeStatus,
+  deriveRefillShortfall,
   deriveTrafficStatus,
   type StatusText,
 } from "@src/utils/funding.ts";
@@ -57,6 +58,9 @@ export default function BalancePopup(props: Props) {
 
   const trafficStatus = createMemo(() =>
     deriveTrafficStatus(appState.balance, runModeStatus())
+  );
+  const refillShortfall = createMemo(() =>
+    deriveRefillShortfall(appState.balance, runModeStatus())
   );
   const gasStatus = createMemo(() =>
     deriveNodeStatus(appState.balance, runModeStatus())
@@ -122,6 +126,13 @@ export default function BalancePopup(props: Props) {
                     ? `≈${formatCredit(effectiveCredit()!)}`
                     : "—"}
                 </div>
+                <Show when={refillShortfall()}>
+                  {(shortfall) => (
+                    <div class="text-[10px] text-accent-text/50 font-mono text-right">
+                      top up ≥ {humanWxhopr(shortfall(), "ceil")}
+                    </div>
+                  )}
+                </Show>
               </Show>
             </div>
 

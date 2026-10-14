@@ -1,4 +1,10 @@
-import { createEffect, createMemo, createSignal, Show } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  onCleanup,
+  Show,
+} from "solid-js";
 import { useAppStore } from "../../stores/appStore.ts";
 import { useSettingsStore } from "../../stores/settingsStore.ts";
 import { StatusIndicator } from "../../components/status/StatusIndicator.tsx";
@@ -12,6 +18,7 @@ import { isRunningRunMode } from "../../services/vpnService.ts";
 import { deriveOverallStatus, type StatusText } from "../../utils/funding.ts";
 import { endOfLifeMessage } from "../../utils/updateAvailability.ts";
 import { createDeadlineClock } from "../../utils/deadlineClock.ts";
+import { channelMaintenanceWarning } from "../../utils/status.ts";
 import Banner from "../../components/common/Banner.tsx";
 import UpdateIcon from "../../components/icons/UpdateIcon.tsx";
 import WarningIcon from "../../components/icons/WarningIcon.tsx";
@@ -45,6 +52,13 @@ export function MainScreen() {
     balanceStatus() === "Empty"
       ? "Your balance is empty"
       : "Your balance is low";
+
+  // The outage age has to tick between status updates.
+  const [nowMs, setNowMs] = createSignal(Date.now());
+  const tick = setInterval(() => setNowMs(Date.now()), 1000);
+  onCleanup(() => clearInterval(tick));
+  const maintenanceWarning = () =>
+    channelMaintenanceWarning(appState.runMode, nowMs());
 
   return (
     <div class="flex w-full flex-col h-full py-6 px-4">
@@ -96,6 +110,14 @@ export function MainScreen() {
             >
               {balanceBannerText()}
             </Banner>
+          </Show>
+          {/* No dismiss or click: there is no user action, and it clears once the daemon recovers. */}
+          <Show when={maintenanceWarning()}>
+            {(warning) => (
+              <Banner icon={<WarningIcon filled />} variant="warning">
+                {warning()}
+              </Banner>
+            )}
           </Show>
         </div>
       </div>
