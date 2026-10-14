@@ -81,6 +81,7 @@ export default function ExitHealthDetail(
       appState.disconnecting,
     );
   const isConnected = () => connectionLabel() === "Connected";
+  const isStalled = () => isConnected() && !!appState.connected?.stall;
 
   const color = (): HealthColor => {
     if (isConnected()) return "green";
@@ -163,10 +164,15 @@ export default function ExitHealthDetail(
   );
 
   const connectionStatus = () => formatConnectionStatus(connectionLabel());
-  const connectionStatusClass = () =>
-    connectionStatus() === "Connected"
-      ? "font-semibold text-text-green"
-      : "font-semibold text-text-primary";
+  const connectionStatusText = () =>
+    isStalled() ? "Connected · stalled" : connectionStatus();
+  const connectionStatusClass = () => {
+    if (isStalled()) return "font-semibold text-text-yellow";
+    if (connectionStatus() === "Connected") {
+      return "font-semibold text-text-green";
+    }
+    return "font-semibold text-text-primary";
+  };
 
   // Use separately measured max-heights because WebKitGTK misrenders 0fr/1fr collapse and nested reads race.
   let latencyRowRef: HTMLDivElement | undefined;
@@ -273,7 +279,7 @@ export default function ExitHealthDetail(
                     <span class={`self-center ${connectionStatusClass()}`}>
                       {/* visible "Status" label was dropped by design; keep it for screen readers */}
                       <span class="sr-only">Connection status:</span>
-                      {connectionStatus()}
+                      {connectionStatusText()}
                     </span>
                   </Show>
                 </div>

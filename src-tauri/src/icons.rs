@@ -16,6 +16,10 @@ use crate::types::{BalanceResponse, ConnectionState, RunMode};
 pub const APP_ICON_CONNECTED: &str = "app-icon-connected.png";
 pub const APP_ICON_CONNECTED_LOW_FUNDS: &str = "app-icon-connected-low-funds.png";
 pub const APP_ICON_CONNECTED_OUT_OF_FUNDS: &str = "app-icon-connected-out-of-funds.png";
+pub const APP_ICON_CONNECTED_STALLED: &str = "app-icon-connected-stalled.png";
+pub const APP_ICON_CONNECTED_STALLED_LOW_FUNDS: &str = "app-icon-connected-stalled-low-funds.png";
+pub const APP_ICON_CONNECTED_STALLED_OUT_OF_FUNDS: &str =
+    "app-icon-connected-stalled-out-of-funds.png";
 pub const APP_ICON_CONNECTING_1: &str = "app-icon-connecting-1.png";
 pub const APP_ICON_CONNECTING_2: &str = "app-icon-connecting-2.png";
 pub const APP_ICON_CONNECTING_LOW_FUNDS_1: &str = "app-icon-connecting-low-funds-1.png";
@@ -31,6 +35,11 @@ pub const TRAY_ICON_CONNECTED: &str = "tray-icons/tray-icon-connected.png";
 pub const TRAY_ICON_CONNECTED_LOW_FUNDS: &str = "tray-icons/tray-icon-connected-low-funds.png";
 pub const TRAY_ICON_CONNECTED_OUT_OF_FUNDS: &str =
     "tray-icons/tray-icon-connected-out-of-funds.png";
+pub const TRAY_ICON_CONNECTED_STALLED: &str = "tray-icons/tray-icon-connected-stalled.png";
+pub const TRAY_ICON_CONNECTED_STALLED_LOW_FUNDS: &str =
+    "tray-icons/tray-icon-connected-stalled-low-funds.png";
+pub const TRAY_ICON_CONNECTED_STALLED_OUT_OF_FUNDS: &str =
+    "tray-icons/tray-icon-connected-stalled-out-of-funds.png";
 pub const TRAY_ICON_CONNECTING_1: &str = "tray-icons/tray-icon-connecting-1.png";
 pub const TRAY_ICON_CONNECTING_2: &str = "tray-icons/tray-icon-connecting-2.png";
 pub const TRAY_ICON_CONNECTING_LOW_FUNDS_1: &str =
@@ -54,6 +63,11 @@ pub const TRAY_ICON_LINUX_CONNECTED: &str = "tray-icons/linux/connected.png";
 pub const TRAY_ICON_LINUX_CONNECTED_LOW_FUNDS: &str = "tray-icons/linux/connected-low-funds.png";
 pub const TRAY_ICON_LINUX_CONNECTED_OUT_OF_FUNDS: &str =
     "tray-icons/linux/connected-out-of-funds.png";
+pub const TRAY_ICON_LINUX_CONNECTED_STALLED: &str = "tray-icons/linux/connected-stalled.png";
+pub const TRAY_ICON_LINUX_CONNECTED_STALLED_LOW_FUNDS: &str =
+    "tray-icons/linux/connected-stalled-low-funds.png";
+pub const TRAY_ICON_LINUX_CONNECTED_STALLED_OUT_OF_FUNDS: &str =
+    "tray-icons/linux/connected-stalled-out-of-funds.png";
 pub const TRAY_ICON_LINUX_CONNECTING_1: &str = "tray-icons/linux/connecting-1.png";
 pub const TRAY_ICON_LINUX_CONNECTING_2: &str = "tray-icons/linux/connecting-2.png";
 pub const TRAY_ICON_LINUX_CONNECTING_LOW_FUNDS_1: &str =
@@ -315,7 +329,12 @@ pub fn update_icon_name_if_changed(current: &Mutex<String>, next: &str) -> bool 
 
 pub fn determine_app_icon(connection_state: &ConnectionState, level: FundsLevel) -> String {
     let icon = match connection_state {
-        ConnectionState::Connected(_) => match level {
+        ConnectionState::Connected { stalled: true, .. } => match level {
+            FundsLevel::Sufficient => APP_ICON_CONNECTED_STALLED,
+            FundsLevel::Low => APP_ICON_CONNECTED_STALLED_LOW_FUNDS,
+            FundsLevel::Empty => APP_ICON_CONNECTED_STALLED_OUT_OF_FUNDS,
+        },
+        ConnectionState::Connected { .. } => match level {
             FundsLevel::Sufficient => APP_ICON_CONNECTED,
             FundsLevel::Low => APP_ICON_CONNECTED_LOW_FUNDS,
             FundsLevel::Empty => APP_ICON_CONNECTED_OUT_OF_FUNDS,
@@ -335,7 +354,12 @@ pub fn determine_app_icon(connection_state: &ConnectionState, level: FundsLevel)
 pub fn determine_tray_icon(connection_state: &ConnectionState, level: FundsLevel) -> &'static str {
     if cfg!(target_os = "linux") {
         match connection_state {
-            ConnectionState::Connected(_) => match level {
+            ConnectionState::Connected { stalled: true, .. } => match level {
+                FundsLevel::Sufficient => TRAY_ICON_LINUX_CONNECTED_STALLED,
+                FundsLevel::Low => TRAY_ICON_LINUX_CONNECTED_STALLED_LOW_FUNDS,
+                FundsLevel::Empty => TRAY_ICON_LINUX_CONNECTED_STALLED_OUT_OF_FUNDS,
+            },
+            ConnectionState::Connected { .. } => match level {
                 FundsLevel::Sufficient => TRAY_ICON_LINUX_CONNECTED,
                 FundsLevel::Low => TRAY_ICON_LINUX_CONNECTED_LOW_FUNDS,
                 FundsLevel::Empty => TRAY_ICON_LINUX_CONNECTED_OUT_OF_FUNDS,
@@ -351,7 +375,12 @@ pub fn determine_tray_icon(connection_state: &ConnectionState, level: FundsLevel
         }
     } else {
         match connection_state {
-            ConnectionState::Connected(_) => match level {
+            ConnectionState::Connected { stalled: true, .. } => match level {
+                FundsLevel::Sufficient => TRAY_ICON_CONNECTED_STALLED,
+                FundsLevel::Low => TRAY_ICON_CONNECTED_STALLED_LOW_FUNDS,
+                FundsLevel::Empty => TRAY_ICON_CONNECTED_STALLED_OUT_OF_FUNDS,
+            },
+            ConnectionState::Connected { .. } => match level {
                 FundsLevel::Sufficient => TRAY_ICON_CONNECTED,
                 FundsLevel::Low => TRAY_ICON_CONNECTED_LOW_FUNDS,
                 FundsLevel::Empty => TRAY_ICON_CONNECTED_OUT_OF_FUNDS,
@@ -453,6 +482,20 @@ mod tests {
     use gnosis_vpn_lib::balance::{Address, FundingLevel as LibFundingLevel};
     use gnosis_vpn_lib::command;
 
+    fn connected() -> ConnectionState {
+        ConnectionState::Connected {
+            destination_id: "x".into(),
+            stalled: false,
+        }
+    }
+
+    fn stalled() -> ConnectionState {
+        ConnectionState::Connected {
+            destination_id: "x".into(),
+            stalled: true,
+        }
+    }
+
     fn running(status: Option<TauriFundingStatus>) -> RunMode {
         RunMode::Running {
             funding_status: status,
@@ -534,7 +577,7 @@ mod tests {
 
     #[test]
     fn app_icon_matrix() {
-        let connected = ConnectionState::Connected("x".into());
+        let connected = connected();
         let connecting = ConnectionState::Connecting("x".into());
         let reconnecting = ConnectionState::Reconnecting("x".into());
         let disconnecting = ConnectionState::Disconnecting;
@@ -555,6 +598,20 @@ mod tests {
         assert_eq!(
             determine_app_icon(&connected, empty),
             APP_ICON_CONNECTED_OUT_OF_FUNDS
+        );
+
+        let stalled = stalled();
+        assert_eq!(
+            determine_app_icon(&stalled, sufficient),
+            APP_ICON_CONNECTED_STALLED
+        );
+        assert_eq!(
+            determine_app_icon(&stalled, low),
+            APP_ICON_CONNECTED_STALLED_LOW_FUNDS
+        );
+        assert_eq!(
+            determine_app_icon(&stalled, empty),
+            APP_ICON_CONNECTED_STALLED_OUT_OF_FUNDS
         );
 
         assert_eq!(
@@ -608,20 +665,19 @@ mod tests {
         // determine_tray_icon branches on the host OS, so assert on the
         // state-derived name parts shared by both platform sets.
         let cases = [
+            (connected(), FundsLevel::Sufficient, "connected.png"),
+            (connected(), FundsLevel::Low, "connected-low-funds.png"),
+            (connected(), FundsLevel::Empty, "connected-out-of-funds.png"),
+            (stalled(), FundsLevel::Sufficient, "connected-stalled.png"),
             (
-                ConnectionState::Connected("x".into()),
-                FundsLevel::Sufficient,
-                "connected.png",
-            ),
-            (
-                ConnectionState::Connected("x".into()),
+                stalled(),
                 FundsLevel::Low,
-                "connected-low-funds.png",
+                "connected-stalled-low-funds.png",
             ),
             (
-                ConnectionState::Connected("x".into()),
+                stalled(),
                 FundsLevel::Empty,
-                "connected-out-of-funds.png",
+                "connected-stalled-out-of-funds.png",
             ),
             (
                 ConnectionState::Reconnecting("x".into()),
@@ -670,7 +726,8 @@ mod tests {
             "x".into()
         )));
         assert!(!is_animating_state(&ConnectionState::Disconnecting));
-        assert!(!is_animating_state(&ConnectionState::Connected("x".into())));
+        assert!(!is_animating_state(&connected()));
+        assert!(!is_animating_state(&stalled()));
         assert!(!is_animating_state(&ConnectionState::Disconnected));
     }
 

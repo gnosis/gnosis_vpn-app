@@ -1,0 +1,24 @@
+{
+  "run_mode": {
+    "Running": {
+      "funding_status": null,
+      "hopr_status": null
+    }
+  },
+  "destinations": [],
+  "target_destination": null,
+  "connected": {
+    "destination_id": "test-exit",
+    "since": 0,
+    "tunnel_ping_rtt": 12.0,
+    "stall": {
+      "since": 0,
+      "failed_pings": 2,
+      "reconnect_at": 3
+    }
+  },
+  "connecting": null,
+  "reconnecting": null,
+  "disconnecting": [],
+  "probe": null
+}

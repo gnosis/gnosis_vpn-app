@@ -17,7 +17,9 @@ export function StatusIndicator(
     : "rounded-full bg-bg-surface px-4 h-10";
   const status = () => {
     if (appState.vpnStatus === "Connected") {
-      return { text: "Connected", color: "bg-vpn-light-green" };
+      return appState.connected?.stall
+        ? { text: "Connected · stalled", color: "bg-vpn-yellow" }
+        : { text: "Connected", color: "bg-vpn-light-green" };
     }
     if (appState.vpnStatus === "Connecting") {
       return { text: "Connecting", color: "bg-text-primary" };

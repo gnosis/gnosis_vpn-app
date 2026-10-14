@@ -5,7 +5,8 @@
   "connected": {
     "destination_id": "test-exit",
     "since": 0,
-    "tunnel_ping_rtt": 12.0
+    "tunnel_ping_rtt": 12.0,
+    "stall": null
   },
   "connecting": {
     "destination_id": "test-exit",
