@@ -457,7 +457,7 @@ describe("channelMaintenanceWarning", () => {
   it("shows the outage age while maintenance is unavailable", () => {
     const down = running({ type: "Unavailable", since: 0 });
     expect(channelMaintenanceWarning(down, 240_000)).toBe(
-      "Channel maintenance down for 4 min — tunnel may degrade",
+      "Can't reach the network to keep your connection healthy (4 min). Your VPN may slow down or disconnect. Retrying automatically.",
     );
   });
 

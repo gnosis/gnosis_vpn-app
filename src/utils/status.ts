@@ -223,7 +223,7 @@ export function channelMaintenanceWarning(
   const maintenance = runMode.Running.channel_maintenance;
   if (maintenance.type !== "Unavailable") return null;
   const sec = Math.max(0, Math.floor((nowMs - maintenance.since) / 1000));
-  return `Channel maintenance down for ${
+  return `Can't reach the network to keep your connection healthy (${
     formatDurationShort(sec)
-  } — tunnel may degrade`;
+  }). Your VPN may slow down or disconnect. Retrying automatically.`;
 }
