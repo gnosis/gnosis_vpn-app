@@ -2,10 +2,13 @@ import { describe, expect, it } from "vitest";
 import type {
   ChannelRelease,
   CheckOutcome,
+  EndOfLife,
 } from "@src/stores/settingsStore.ts";
 import {
+  endOfLifeMessage,
   isStaleOutcome,
   resolveChannelResync,
+  resolveEndOfLife,
   resolveUpdateBlocker,
   resolveUpdateDecision,
 } from "./updateAvailability.ts";
@@ -26,6 +29,12 @@ const available = (current: string, latest: string): CheckOutcome => ({
   kind: "Available",
   current,
   release: release(latest),
+});
+
+const noRelease = (current: string): CheckOutcome => ({
+  kind: "NoReleaseForChannel",
+  current,
+  channel: "snapshot",
 });
 
 const decide = (
@@ -98,10 +107,114 @@ describe("resolveUpdateDecision", () => {
   });
 });
 
+describe("resolveEndOfLife", () => {
+  const eol: EndOfLife = {
+    version: "0.92.0",
+    ends_at: "2026-10-15T00:00:00Z",
+    reason: "legacy endpoints",
+  };
+
+  it("shows nothing before the toolkit has been asked", () => {
+    expect(
+      resolveEndOfLife({
+        outcome: null,
+        endOfLife: eol,
+        packageVersion: "0.91.0",
+      }),
+    ).toBeNull();
+  });
+
+  it("shows the verdict reached for the installed package", () => {
+    expect(
+      resolveEndOfLife({
+        outcome: available("0.91.0", "0.95.2"),
+        endOfLife: eol,
+        packageVersion: "0.91.0",
+      }),
+    ).toEqual(eol);
+    expect(
+      resolveEndOfLife({
+        outcome: { kind: "UpToDate", current: "0.91.0" },
+        endOfLife: eol,
+        packageVersion: "0.91.0",
+      }),
+    ).toEqual(eol);
+  });
+
+  // e.g. the user upgraded since: the verdict was about the old package
+  it("shows nothing for a verdict reached for another package", () => {
+    expect(
+      resolveEndOfLife({
+        outcome: available("0.91.0", "0.95.2"),
+        endOfLife: eol,
+        packageVersion: "0.95.2",
+      }),
+    ).toBeNull();
+  });
+
+  // e.g. a snapshot build upgraded off an EOL one while snapshot had no release
+  it("shows nothing for a no-release verdict reached for another package", () => {
+    expect(
+      resolveEndOfLife({
+        outcome: noRelease("0.91.0"),
+        endOfLife: eol,
+        packageVersion: "0.95.2",
+      }),
+    ).toBeNull();
+  });
+
+  it("shows the verdict reached with a no-release outcome for the installed package", () => {
+    expect(
+      resolveEndOfLife({
+        outcome: noRelease("0.91.0"),
+        endOfLife: eol,
+        packageVersion: "0.91.0",
+      }),
+    ).toEqual(eol);
+  });
+
+  it("shows nothing when the toolkit found the package uncovered", () => {
+    expect(
+      resolveEndOfLife({
+        outcome: available("0.93.0", "0.95.2"),
+        endOfLife: null,
+        packageVersion: "0.93.0",
+      }),
+    ).toBeNull();
+  });
+});
+
+describe("endOfLifeMessage", () => {
+  const eol: EndOfLife = {
+    version: "0.92.0",
+    // Local noon: the banner shows the user's own date, 15 Oct in every zone.
+    ends_at: new Date(2026, 9, 15, 12).toISOString(),
+    reason: "legacy endpoints",
+  };
+  const endsAt = Date.parse(eol.ends_at);
+
+  it("names the date it stops working on", () => {
+    expect(endOfLifeMessage(eol, endsAt - 1)).toBe(
+      "Update required: this version stops working on 15\u00a0Oct\u00a02026",
+    );
+  });
+
+  it("switches to the past once the date has passed", () => {
+    expect(endOfLifeMessage(eol, endsAt)).toBe(
+      "Update required: this version stopped working on 15\u00a0Oct\u00a02026",
+    );
+  });
+});
+
 describe("isStaleOutcome", () => {
   it("compares the version the toolkit checked against the installed one", () => {
     expect(isStaleOutcome(available("0.28.5", "0.29.0"), "0.28.5")).toBe(false);
     expect(isStaleOutcome(available("0.28.5", "0.29.0"), "0.29.0")).toBe(true);
+  });
+
+  it("compares a no-release verdict that names its version", () => {
+    expect(isStaleOutcome(noRelease("0.28.5"), "0.28.5")).toBe(false);
+    expect(isStaleOutcome(noRelease("0.28.5"), "0.29.0")).toBe(true);
   });
 
   it("never calls a missing or version-less outcome stale", () => {
