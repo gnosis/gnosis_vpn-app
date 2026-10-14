@@ -692,7 +692,7 @@ fn generate_fixtures() {
     let balance_with_shortfall = types::BalanceResponse::from(command::BalanceResponse::build(
         &balance_info(),
         &balances_with_funds,
-        &HashMap::new(),
+        &Destinations::default(),
         None,
         None,
         Some(shortfall_status),
