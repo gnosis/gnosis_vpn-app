@@ -98,6 +98,11 @@ textarea {
   --color-btn-secondary-text: #ffffff;
   --color-btn-secondary-hover: #4b5563;
 
+  /* Cancel and Disconnect button colors: muted red */
+  --color-btn-stop-bg: #b45353;
+  --color-btn-stop-text: #ffffff;
+  --color-btn-stop-hover: #9b4444;
+
   /* Toggle colors */
   --color-toggle-bg: #e5e7eb;
   --color-toggle-checked: var(--color-accent);
@@ -142,6 +147,11 @@ textarea {
   --color-btn-secondary-bg: #4b5563;
   --color-btn-secondary-text: #f9fafb;
   --color-btn-secondary-hover: #6b7280;
+
+  /* Cancel and Disconnect button colors: muted red */
+  --color-btn-stop-bg: #b45353;
+  --color-btn-stop-text: #ffffff;
+  --color-btn-stop-hover: #9b4444;
 
   /* Toggle colors */
   --color-toggle-bg: #374151;
@@ -208,6 +218,9 @@ textarea {
   --color-btn-secondary-bg: var(--color-btn-secondary-bg);
   --color-btn-secondary-text: var(--color-btn-secondary-text);
   --color-btn-secondary-hover: var(--color-btn-secondary-hover);
+  --color-btn-stop-bg: var(--color-btn-stop-bg);
+  --color-btn-stop-text: var(--color-btn-stop-text);
+  --color-btn-stop-hover: var(--color-btn-stop-hover);
 
   --color-toggle-bg: var(--color-toggle-bg);
   --color-toggle-checked: var(--color-toggle-checked);
