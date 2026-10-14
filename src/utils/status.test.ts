@@ -17,6 +17,7 @@ import {
   isConnecting,
   isDisconnected,
   isDisconnecting,
+  isSwitchingDestination,
   isWxHOPRTransferred,
   isXDAITransferred,
   waitingForRouteMessage,
@@ -80,9 +81,10 @@ const BASE_APP_STATE: AppState = {
   vpnStatus: "ServiceUnavailable",
   warmupStatus: "",
   syncProgress: 0,
-  syncRecoveryDeadline: null,
+  syncRecoveryReason: null,
   isUpdateAvailable: false,
   availableVersion: null,
+  endOfLife: null,
   targetDestination: null,
   balance: null,
   packageVersion: null,
@@ -467,34 +469,49 @@ describe("channelMaintenanceWarning", () => {
 });
 
 describe("connectButtonLook", () => {
+  const cancel = { label: "Cancel", variant: "stop" };
+  const disconnect = { label: "Disconnect", variant: "stop" };
+
   it("offers Connect while disconnected", () => {
-    expect(connectButtonLook("Disconnected", null)).toEqual({
+    expect(connectButtonLook("Disconnected", null, false)).toEqual({
       label: "Connect",
       variant: "primary",
     });
   });
 
   it("offers Cancel while an attempt is in flight", () => {
-    expect(connectButtonLook("Connecting", "dest-1")).toEqual({
-      label: "Cancel",
-      variant: "primary",
-    });
+    expect(connectButtonLook("Connecting", "dest-1", false)).toEqual(cancel);
   });
 
-  it("offers a red Disconnect while reconnecting or switching", () => {
-    const disconnect = { label: "Disconnect", variant: "danger" };
-    expect(connectButtonLook("Reconnecting", "dest-1")).toEqual(disconnect);
-    expect(connectButtonLook("Disconnecting", "dest-1")).toEqual(disconnect);
+  it("offers Cancel while switching away from a connected destination", () => {
+    expect(connectButtonLook("Disconnecting", "dest-2", false)).toEqual(cancel);
+  });
+
+  it("offers Cancel while a parked target waits on a route", () => {
+    expect(connectButtonLook("Reconnecting", "dest-1", false)).toEqual(cancel);
+  });
+
+  it("offers Disconnect while an established tunnel reconnects", () => {
+    expect(connectButtonLook("Reconnecting", "dest-1", true)).toEqual(
+      disconnect,
+    );
   });
 
   it("offers Connect once a plain disconnect is under way", () => {
-    expect(connectButtonLook("Disconnecting", null).label).toBe("Connect");
+    expect(connectButtonLook("Disconnecting", null, false).label).toBe(
+      "Connect",
+    );
   });
 
-  it("offers a red Disconnect once connected", () => {
-    expect(connectButtonLook("Connected", "dest-1")).toEqual({
-      label: "Disconnect",
-      variant: "danger",
-    });
+  it("offers Disconnect once connected", () => {
+    expect(connectButtonLook("Connected", "dest-1", false)).toEqual(disconnect);
+  });
+});
+
+describe("isSwitchingDestination", () => {
+  it("tells a destination switch from a plain disconnect", () => {
+    expect(isSwitchingDestination("Disconnecting", "dest-2")).toBe(true);
+    expect(isSwitchingDestination("Disconnecting", null)).toBe(false);
+    expect(isSwitchingDestination("Connecting", "dest-2")).toBe(false);
   });
 });

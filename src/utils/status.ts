@@ -11,11 +11,7 @@ import {
   type UpPhase,
 } from "@src/services/vpnService.ts";
 import type { AppState } from "@src/stores/appStore.ts";
-import {
-  destinationLabel,
-  getExitData,
-  isVpnActive,
-} from "@src/utils/destinations.ts";
+import { destinationLabel, getExitData } from "@src/utils/destinations.ts";
 import { formatExitHealthStatus } from "@src/utils/exitHealth.ts";
 
 export function isConnected(response: StatusResponse): boolean {
@@ -92,21 +88,35 @@ export function deriveVPNStatus(
 
 export interface ConnectButtonLook {
   label: "Connect" | "Cancel" | "Disconnect";
-  variant: "primary" | "danger";
+  variant: "primary" | "stop";
 }
 
-/** "Disconnect" would imply a usable tunnel, so an attempt in flight reads "Cancel". */
+/** "Disconnect" would imply a usable tunnel, so the whole attempt reads "Cancel". */
 export function connectButtonLook(
   vpnStatus: string,
   targetDestination: string | null,
+  isReconnecting: boolean,
 ): ConnectButtonLook {
-  if (vpnStatus === "Connecting") {
-    return { label: "Cancel", variant: "primary" };
+  // Restoring a tunnel that existed: the tunnel is what the button gives up, not an attempt.
+  if (isReconnecting) return { label: "Disconnect", variant: "stop" };
+  if (vpnStatus === "Connected") {
+    return { label: "Disconnect", variant: "stop" };
   }
-  if (isVpnActive(vpnStatus, targetDestination)) {
-    return { label: "Disconnect", variant: "danger" };
-  }
+
+  const waitingForRoute = vpnStatus === "Reconnecting" &&
+    targetDestination !== null;
+  const attemptInFlight = vpnStatus === "Connecting" ||
+    isSwitchingDestination(vpnStatus, targetDestination) || waitingForRoute;
+  if (attemptInFlight) return { label: "Cancel", variant: "stop" };
   return { label: "Connect", variant: "primary" };
+}
+
+/** A switch tears the old tunnel down before the new attempt starts, so it reports as a disconnect. */
+export function isSwitchingDestination(
+  vpnStatus: string,
+  targetDestination: string | null,
+): boolean {
+  return vpnStatus === "Disconnecting" && targetDestination !== null;
 }
 
 export function isXDAITransferred(state: AppState): boolean {

@@ -7,6 +7,7 @@ use tokio_util::sync::CancellationToken;
 use url::Url;
 use zstd::stream::Encoder;
 
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, BufReader, Write};
 use std::path::{Path, PathBuf};
@@ -504,6 +505,8 @@ async fn export_logs_inner(app: AppHandle, dest_path: String) -> Result<String, 
 }
 
 const LOG_UPLOAD_TIMEOUT: Duration = Duration::from_secs(120);
+// Mirrors the uploader's UPLOAD_HEAD_BYTES.
+const UPLOAD_HEAD_BYTES: usize = 4 * 1024 * 1024;
 
 /// Uploads the bundle `export_logs` would write and returns the uploader's reference ID.
 #[tauri::command]
@@ -537,53 +540,116 @@ async fn upload_logs_inner(
         .await
         .map_err(|e| format!("upload_logs: blocking task panicked: {e}"))??;
     tracing::info!(target: "upload", bytes = bundle.len(), "log bundle compressed");
+    send_log_bundle(api_url, file_name, bundle).await
+}
 
-    let part = reqwest::multipart::Part::bytes(bundle)
-        .file_name(file_name)
-        .mime_str("application/zstd")
-        .map_err(|e| format!("Invalid upload content type: {e}"))?;
+async fn send_log_bundle(
+    api_url: Url,
+    file_name: String,
+    bundle: Vec<u8>,
+) -> Result<String, String> {
     let client = reqwest::Client::builder()
         .timeout(LOG_UPLOAD_TIMEOUT)
         .build()
         .map_err(|e| format!("Failed to create HTTP client: {e}"))?;
+
+    // The uploader vets only the head, then signs a URL for PUTting the whole bundle to Cloud Storage.
+    let head = bundle[..bundle.len().min(UPLOAD_HEAD_BYTES)].to_vec();
+    let part = reqwest::multipart::Part::bytes(head)
+        .file_name(file_name)
+        .mime_str("application/zstd")
+        .map_err(|e| format!("Invalid upload content type: {e}"))?;
+    let form = reqwest::multipart::Form::new()
+        .part("head", part)
+        .text("size", bundle.len().to_string());
     let response = client
         .post(api_url)
-        .multipart(reqwest::multipart::Form::new().part("file", part))
+        .multipart(form)
         .send()
         .await
-        .map_err(|e| {
-            if e.is_timeout() {
-                "Upload timed out".to_string()
-            } else {
-                format!("Could not reach the log uploader: {e}")
-            }
-        })?;
+        .map_err(|e| send_error("the log uploader", e))?;
     let status = response.status().as_u16();
     let body = response
         .text()
         .await
         .map_err(|e| format!("Failed to read upload response: {e}"))?;
-    parse_upload_response(status, &body)
+    let signed = parse_upload_response(status, &body)?;
+
+    let mut put = client.put(&signed.url).body(bundle);
+    for (name, value) in &signed.headers {
+        put = put.header(name, value);
+    }
+    let response = put
+        .send()
+        .await
+        .map_err(|e| send_error("Cloud Storage", e))?;
+    let status = response.status();
+    if !status.is_success() {
+        let body: String = response
+            .text()
+            .await
+            .unwrap_or_default()
+            .chars()
+            .take(500)
+            .collect();
+        return Err(format!(
+            "Cloud Storage rejected the upload (HTTP {}): {body}",
+            status.as_u16()
+        ));
+    }
+    Ok(signed.uuid)
+}
+
+fn send_error(target: &str, e: reqwest::Error) -> String {
+    if e.is_timeout() {
+        "Upload timed out".to_string()
+    } else {
+        // The Display form embeds the URL, which on the storage leg carries the signed credentials.
+        format!("Could not reach {target}: {}", e.without_url())
+    }
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct UploadResponse {
     uuid: Option<String>,
+    upload_url: Option<String>,
+    upload_headers: Option<HashMap<String, String>>,
     error: Option<String>,
 }
 
-fn parse_upload_response(status: u16, body: &str) -> Result<String, String> {
-    let parsed = serde_json::from_str::<UploadResponse>(body).ok();
-    if (200..300).contains(&status) {
-        return parsed
-            .and_then(|r| r.uuid)
-            .filter(|uuid| !uuid.is_empty())
-            .ok_or_else(|| format!("Upload returned no reference ID (HTTP {status})"));
+#[derive(Debug, PartialEq)]
+struct SignedUpload {
+    uuid: String,
+    url: String,
+    // The signature covers these, so the PUT must send them unchanged.
+    headers: HashMap<String, String>,
+}
+
+fn parse_upload_response(status: u16, body: &str) -> Result<SignedUpload, String> {
+    let parsed = serde_json::from_str::<UploadResponse>(body);
+    if !(200..300).contains(&status) {
+        // Proxies in front of the uploader (e.g. Cloud Run's 413) answer with HTML, not JSON.
+        return Err(parsed
+            .ok()
+            .and_then(|r| r.error)
+            .unwrap_or_else(|| format!("Upload failed (HTTP {status})")));
     }
-    // Proxies in front of the uploader (e.g. Cloud Run's 413) answer with HTML, not JSON.
-    Err(parsed
-        .and_then(|r| r.error)
-        .unwrap_or_else(|| format!("Upload failed (HTTP {status})")))
+    let response =
+        parsed.map_err(|e| format!("Upload returned malformed JSON (HTTP {status}): {e}"))?;
+    let missing = |field: &str| format!("Upload returned no {field} (HTTP {status})");
+    let uuid = response
+        .uuid
+        .filter(|uuid| !uuid.is_empty())
+        .ok_or_else(|| missing("uuid"))?;
+    let url = response
+        .upload_url
+        .filter(|url| !url.is_empty())
+        .ok_or_else(|| missing("uploadUrl"))?;
+    let headers = response
+        .upload_headers
+        .ok_or_else(|| missing("uploadHeaders"))?;
+    Ok(SignedUpload { uuid, url, headers })
 }
 
 pub async fn stop_client() -> Result<(), String> {
@@ -1145,11 +1211,49 @@ mod tests {
     }
 
     #[test]
-    fn upload_response_yields_the_reference_id_on_success() {
+    fn upload_response_yields_the_signed_upload_on_success() {
+        let body = r#"{"success":true,"uuid":"3f2b8c1e-9a4d-4e7b-8c21-5d6f7a8b9c0d","uploadUrl":"https://storage.googleapis.com/bucket/obj?X-Goog-Signature=abc","uploadHeaders":{"Content-Type":"application/zstd","x-goog-content-length-range":"42,42"}}"#;
+        assert_eq!(
+            parse_upload_response(200, body),
+            Ok(SignedUpload {
+                uuid: "3f2b8c1e-9a4d-4e7b-8c21-5d6f7a8b9c0d".to_string(),
+                url: "https://storage.googleapis.com/bucket/obj?X-Goog-Signature=abc".to_string(),
+                headers: HashMap::from([
+                    ("Content-Type".to_string(), "application/zstd".to_string()),
+                    (
+                        "x-goog-content-length-range".to_string(),
+                        "42,42".to_string()
+                    ),
+                ]),
+            })
+        );
+    }
+
+    #[test]
+    fn upload_response_without_an_upload_url_is_an_error() {
+        // The old single-request protocol: accepting it would hand out an ID for an object never stored.
         let body = r#"{"success":true,"uuid":"3f2b8c1e-9a4d-4e7b-8c21-5d6f7a8b9c0d","message":"File uploaded successfully"}"#;
         assert_eq!(
             parse_upload_response(201, body),
-            Ok("3f2b8c1e-9a4d-4e7b-8c21-5d6f7a8b9c0d".to_string())
+            Err("Upload returned no uploadUrl (HTTP 201)".to_string())
+        );
+    }
+
+    #[test]
+    fn upload_response_names_what_is_missing() {
+        assert_eq!(
+            parse_upload_response(201, "{}"),
+            Err("Upload returned no uuid (HTTP 201)".to_string())
+        );
+        let body = r#"{"uuid":"3f2b8c1e-9a4d-4e7b-8c21-5d6f7a8b9c0d","uploadUrl":"https://storage.googleapis.com/bucket/obj"}"#;
+        assert_eq!(
+            parse_upload_response(200, body),
+            Err("Upload returned no uploadHeaders (HTTP 200)".to_string())
+        );
+        let malformed = parse_upload_response(200, "<html>ok</html>").unwrap_err();
+        assert!(
+            malformed.starts_with("Upload returned malformed JSON (HTTP 200): "),
+            "{malformed}"
         );
     }
 
@@ -1169,7 +1273,198 @@ mod tests {
             parse_upload_response(413, body),
             Err("Upload failed (HTTP 413)".to_string())
         );
-        assert!(parse_upload_response(201, "{}").is_err());
+    }
+
+    const UPLOAD_UUID: &str = "3f2b8c1e-9a4d-4e7b-8c21-5d6f7a8b9c0d";
+    const BUNDLE_NAME: &str = "gnosis_vpn-20261008-122431.log.zst";
+
+    struct Received {
+        method: String,
+        target: String,
+        headers: Vec<(String, String)>,
+        body: Vec<u8>,
+    }
+
+    impl Received {
+        fn header(&self, name: &str) -> &str {
+            self.headers
+                .iter()
+                .find(|(n, _)| n == name)
+                .map(|(_, v)| v.as_str())
+                .unwrap_or_else(|| panic!("no {name} header in {:?}", self.headers))
+        }
+    }
+
+    // One canned (status, body) per expected connection; the thread exits (closing the channel) after the last.
+    fn serve(
+        responses: impl FnOnce(&str) -> Vec<(u16, String)>,
+    ) -> (String, std::sync::mpsc::Receiver<Received>) {
+        use std::io::{BufRead, Read};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        let responses = responses(&base);
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            for (status, body) in responses {
+                let (stream, _) = listener.accept().unwrap();
+                let mut reader = BufReader::new(stream);
+                let mut line = String::new();
+                reader.read_line(&mut line).unwrap();
+                let mut request_line = line.split_whitespace();
+                let method = request_line.next().unwrap().to_string();
+                let target = request_line.next().unwrap().to_string();
+                let mut headers = Vec::new();
+                loop {
+                    let mut line = String::new();
+                    reader.read_line(&mut line).unwrap();
+                    let Some((name, value)) = line.trim_end().split_once(':') else {
+                        break;
+                    };
+                    headers.push((name.to_ascii_lowercase(), value.trim().to_string()));
+                }
+                let length: usize = headers
+                    .iter()
+                    .find(|(name, _)| name == "content-length")
+                    .map(|(_, value)| value.parse().unwrap())
+                    .expect("requests must declare Content-Length");
+                let mut received = vec![0; length];
+                reader.read_exact(&mut received).unwrap();
+                tx.send(Received {
+                    method,
+                    target,
+                    headers,
+                    body: received,
+                })
+                .unwrap();
+                let mut stream = reader.into_inner();
+                write!(
+                    stream,
+                    "HTTP/1.1 {status} X\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    body.len()
+                )
+                .unwrap();
+                stream.flush().unwrap();
+            }
+        });
+        (base, rx)
+    }
+
+    fn signed_response(base: &str, size: usize) -> String {
+        format!(
+            r#"{{"success":true,"uuid":"{UPLOAD_UUID}","uploadUrl":"{base}/bucket/obj?X-Goog-Signature=abc","uploadHeaders":{{"Content-Type":"application/zstd","x-goog-content-length-range":"{size},{size}"}}}}"#
+        )
+    }
+
+    fn find(haystack: &[u8], needle: &[u8]) -> Option<usize> {
+        haystack.windows(needle.len()).position(|w| w == needle)
+    }
+
+    // Each part: delimiter CRLF headers CRLFCRLF payload CRLF; the closing delimiter ends in "--".
+    fn multipart_parts(received: &Received) -> Vec<(String, Vec<u8>)> {
+        let content_type = received.header("content-type");
+        let delimiter = format!("--{}", content_type.split_once("boundary=").unwrap().1);
+        let mut parts = Vec::new();
+        let mut rest = received.body.as_slice();
+        while let Some(start) = find(rest, delimiter.as_bytes()) {
+            rest = &rest[start + delimiter.len()..];
+            if rest.starts_with(b"--") {
+                break;
+            }
+            let end = find(rest, delimiter.as_bytes()).unwrap();
+            let part = &rest[2..end - 2];
+            let split = find(part, b"\r\n\r\n").unwrap();
+            parts.push((
+                String::from_utf8(part[..split].to_vec()).unwrap(),
+                part[split + 4..].to_vec(),
+            ));
+            rest = &rest[end..];
+        }
+        parts
+    }
+
+    fn send(base: &str, bundle: Vec<u8>) -> Result<String, String> {
+        let api_url = Url::parse(&format!("{base}/api/upload")).unwrap();
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(send_log_bundle(api_url, BUNDLE_NAME.to_string(), bundle))
+    }
+
+    #[test]
+    fn log_bundle_head_is_vetted_then_the_whole_bundle_is_put_to_the_signed_url() {
+        let bundle: Vec<u8> = (0..UPLOAD_HEAD_BYTES + 3)
+            .map(|i| (i % 251) as u8)
+            .collect();
+        let size = bundle.len();
+        let (base, requests) =
+            serve(|base| vec![(200, signed_response(base, size)), (200, String::new())]);
+
+        assert_eq!(send(&base, bundle.clone()), Ok(UPLOAD_UUID.to_string()));
+
+        let post = requests.recv().unwrap();
+        assert_eq!(
+            (post.method.as_str(), post.target.as_str()),
+            ("POST", "/api/upload")
+        );
+        let parts = multipart_parts(&post);
+        let [(head_headers, head), (size_headers, size_text)] = parts.as_slice() else {
+            panic!("expected head and size parts, got {}", parts.len());
+        };
+        assert!(
+            head_headers.contains(&format!(r#"name="head"; filename="{BUNDLE_NAME}""#)),
+            "{head_headers}"
+        );
+        assert!(
+            head_headers.contains("Content-Type: application/zstd"),
+            "{head_headers}"
+        );
+        assert_eq!(head.as_slice(), &bundle[..UPLOAD_HEAD_BYTES]);
+        assert!(size_headers.contains(r#"name="size""#), "{size_headers}");
+        assert_eq!(size_text.as_slice(), size.to_string().as_bytes());
+
+        let put = requests.recv().unwrap();
+        assert_eq!(
+            (put.method.as_str(), put.target.as_str()),
+            ("PUT", "/bucket/obj?X-Goog-Signature=abc")
+        );
+        assert_eq!(put.header("content-type"), "application/zstd");
+        assert_eq!(
+            put.header("x-goog-content-length-range"),
+            format!("{size},{size}")
+        );
+        assert_eq!(put.body, bundle);
+    }
+
+    #[test]
+    fn rejected_storage_put_withholds_the_reference_id() {
+        let bundle = b"bundle".to_vec();
+        let (base, requests) = serve(|base| {
+            vec![
+                (200, signed_response(base, 6)),
+                (
+                    403,
+                    "<Error><Code>SignatureDoesNotMatch</Code></Error>".to_string(),
+                ),
+            ]
+        });
+
+        assert_eq!(
+            send(&base, bundle),
+            Err("Cloud Storage rejected the upload (HTTP 403): <Error><Code>SignatureDoesNotMatch</Code></Error>".to_string())
+        );
+        assert_eq!(requests.iter().count(), 2);
+    }
+
+    #[test]
+    fn rejected_head_skips_the_storage_put() {
+        let (base, requests) = serve(|_| vec![(413, r#"{"error":"File too large."}"#.to_string())]);
+
+        assert_eq!(
+            send(&base, b"bundle".to_vec()),
+            Err("File too large.".to_string())
+        );
+        assert_eq!(requests.iter().count(), 1);
     }
 
     #[test]
