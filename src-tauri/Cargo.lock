@@ -1273,7 +1273,7 @@ version = "1.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "40c48f72fd53cd289104fc64099abca73db4166ad86ea0b4341abe65af83dadc"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -1284,7 +1284,7 @@ checksum = "291e6a250ff86cd4a820112fb8898808a366d8f9f58ce16d1f538353ad55747d"
 dependencies = [
  "anstyle",
  "once_cell_polyfill",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -4013,7 +4013,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -4469,7 +4469,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -5245,7 +5245,7 @@ dependencies = [
 [[package]]
 name = "gnosis_vpn-lib"
 version = "0.101.0"
-source = "git+https://github.com/gnosis/gnosis_vpn-client.git?branch=main#80cf19186c55966d24ca806619178e3d30f0256a"
+source = "git+https://github.com/gnosis/gnosis_vpn-client.git?branch=ronnyesterluss%2Fgno-910-exit-country-from-geoip#cb57022bfddfddce4daee53e9b5d94bd3a79bd8b"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5261,6 +5261,7 @@ dependencies = [
  "humantime-serde",
  "ipnetwork",
  "libc",
+ "maxminddb",
  "mnl",
  "neptun",
  "nftnl",
@@ -5780,7 +5781,7 @@ dependencies = [
 [[package]]
 name = "hopr-crypto-packet"
 version = "2.1.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#1462e4a019db9babd14f32f941c3762563d57157"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#77f0e221a1bfb3964f7f4f492706baa91418697f"
 dependencies = [
  "bimap",
  "const-hex",
@@ -5817,7 +5818,7 @@ dependencies = [
 [[package]]
 name = "hopr-lib"
 version = "5.0.0-rc.5"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#1462e4a019db9babd14f32f941c3762563d57157"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#77f0e221a1bfb3964f7f4f492706baa91418697f"
 dependencies = [
  "anyhow",
  "async-broadcast",
@@ -5869,7 +5870,7 @@ dependencies = [
 [[package]]
 name = "hopr-protocol-app"
 version = "1.2.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#1462e4a019db9babd14f32f941c3762563d57157"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#77f0e221a1bfb3964f7f4f492706baa91418697f"
 dependencies = [
  "hopr-crypto-packet",
  "hopr-types",
@@ -5882,7 +5883,7 @@ dependencies = [
 [[package]]
 name = "hopr-protocol-hopr"
 version = "6.4.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#1462e4a019db9babd14f32f941c3762563d57157"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#77f0e221a1bfb3964f7f4f492706baa91418697f"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5911,7 +5912,7 @@ dependencies = [
 [[package]]
 name = "hopr-protocol-pix"
 version = "0.3.1"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#1462e4a019db9babd14f32f941c3762563d57157"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#77f0e221a1bfb3964f7f4f492706baa91418697f"
 dependencies = [
  "ahash",
  "auto_impl",
@@ -5934,7 +5935,7 @@ dependencies = [
 [[package]]
 name = "hopr-protocol-session"
 version = "1.6.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#1462e4a019db9babd14f32f941c3762563d57157"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#77f0e221a1bfb3964f7f4f492706baa91418697f"
 dependencies = [
  "aquamarine",
  "asynchronous-codec",
@@ -5965,7 +5966,7 @@ dependencies = [
 [[package]]
 name = "hopr-protocol-start"
 version = "3.1.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#1462e4a019db9babd14f32f941c3762563d57157"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#77f0e221a1bfb3964f7f4f492706baa91418697f"
 dependencies = [
  "aquamarine",
  "flagset",
@@ -6053,7 +6054,7 @@ dependencies = [
 [[package]]
 name = "hopr-transport"
 version = "0.52.1"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#1462e4a019db9babd14f32f941c3762563d57157"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#77f0e221a1bfb3964f7f4f492706baa91418697f"
 dependencies = [
  "ahash",
  "anyhow",
@@ -6083,6 +6084,7 @@ dependencies = [
  "libp2p",
  "moka",
  "multiaddr",
+ "parking_lot",
  "proc-macro-regex",
  "rand 0.10.3",
  "rand_distr",
@@ -6099,7 +6101,7 @@ dependencies = [
 [[package]]
 name = "hopr-transport-mixer"
 version = "0.5.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#1462e4a019db9babd14f32f941c3762563d57157"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#77f0e221a1bfb3964f7f4f492706baa91418697f"
 dependencies = [
  "futures",
  "futures-timer",
@@ -6139,7 +6141,7 @@ dependencies = [
 [[package]]
 name = "hopr-transport-probe"
 version = "0.9.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#1462e4a019db9babd14f32f941c3762563d57157"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#77f0e221a1bfb3964f7f4f492706baa91418697f"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6165,7 +6167,7 @@ dependencies = [
 [[package]]
 name = "hopr-transport-session"
 version = "0.33.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#1462e4a019db9babd14f32f941c3762563d57157"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#77f0e221a1bfb3964f7f4f492706baa91418697f"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6199,7 +6201,7 @@ dependencies = [
 [[package]]
 name = "hopr-transport-tag-allocator"
 version = "0.2.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#1462e4a019db9babd14f32f941c3762563d57157"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#77f0e221a1bfb3964f7f4f492706baa91418697f"
 dependencies = [
  "hopr-protocol-app",
  "serde",
@@ -6310,7 +6312,7 @@ dependencies = [
 [[package]]
 name = "hopr-utils-session"
 version = "1.3.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#1462e4a019db9babd14f32f941c3762563d57157"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#77f0e221a1bfb3964f7f4f492706baa91418697f"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6508,7 +6510,7 @@ dependencies = [
  "js-sys",
  "log",
  "wasm-bindgen",
- "windows-core 0.62.2",
+ "windows-core 0.61.2",
 ]
 
 [[package]]
@@ -7858,6 +7860,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "maxminddb"
+version = "0.32.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9b43d2458d977b610b04a3858e6504f06133663d303a1a0606601b530bfc9bc6"
+dependencies = [
+ "ipnetwork",
+ "memchr",
+ "serde",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "memchr"
 version = "2.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8015,7 +8029,7 @@ dependencies = [
  "png 0.18.1",
  "serde",
  "thiserror 2.0.21",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -8132,7 +8146,7 @@ dependencies = [
 [[package]]
 name = "neptun"
 version = "2.2.3"
-source = "git+https://github.com/NordSecurity/neptun.git?tag=v3.0.4#0aebe247729574acc449f9debd62fc8d419dbf07"
+source = "git+https://github.com/NordSecurity/neptun.git?tag=v3.0.5#ed75813cebb00c2fbe1a7723764c12dd381818c3"
 dependencies = [
  "aead 0.5.2",
  "base64 0.22.1",
@@ -8283,7 +8297,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -8378,7 +8392,7 @@ version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "680998035259dcfcafe653688bf2aa6d3e2dc05e98be6ab46afb089dc84f1df8"
 dependencies = [
- "proc-macro-crate 2.0.2",
+ "proc-macro-crate 1.3.1",
  "proc-macro2",
  "quote",
  "syn 2.0.119",
@@ -9088,9 +9102,9 @@ checksum = "8b870d8c151b6f2fb93e84a13146138f05d02ed11c7e7c54f8826aaaf7c9f184"
 
 [[package]]
 name = "ping"
-version = "0.9.0"
+version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7704264c7d31443a8dc10dcb3301457980be49b9e5bffef7a41fd0e7c0f4e823"
+checksum = "1b9b6f1c9925ed567de6b7f09ebd5972a0f56ed1679902ec9abdb84d12545655"
 dependencies = [
  "rand 0.9.5",
  "socket2 0.6.5",
@@ -9640,7 +9654,7 @@ dependencies = [
  "once_cell",
  "socket2 0.6.5",
  "tracing",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -9652,7 +9666,7 @@ dependencies = [
  "cfg_aliases",
  "libc",
  "socket2 0.6.5",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -10174,7 +10188,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -10233,7 +10247,7 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -10546,12 +10560,12 @@ dependencies = [
 
 [[package]]
 name = "serde-saphyr"
-version = "1.2.0"
+version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3afb591f9cdb6223c88ba39269aff895620c7f0716dc42b705b5733d5c7c0823"
+checksum = "b8050abb251097357e24aff63ba2c52a6309ecb7d23a5474023df960a02694d8"
 dependencies = [
  "annotate-snippets",
- "base64 0.21.7",
+ "base64 0.23.1",
  "encoding_rs_io",
  "granit-parser",
  "nohash-hasher",
@@ -10992,7 +11006,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3d1e2c7f27f8d4cb10542a02c49005dbd6e93095799d6f3be745fae9f8fedd4"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -11707,7 +11721,7 @@ dependencies = [
  "getrandom 0.4.3",
  "once_cell",
  "rustix",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -12221,7 +12235,7 @@ dependencies = [
  "png 0.18.1",
  "serde",
  "thiserror 2.0.21",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -12262,7 +12276,7 @@ checksum = "f2f6fb2847f6742cd76af783a2a2c49e9375d0a111c7bef6f71cd9e738c72d6e"
 dependencies = [
  "memoffset",
  "tempfile",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -12837,7 +12851,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
