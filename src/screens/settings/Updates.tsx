@@ -483,7 +483,11 @@ export default function Updates() {
                 </span>
               </div>
             </Show>
-            {/* CC BY-SA 4.0 attribution for the exit-country database. */}
+            {/* CC BY-SA 4.0 attribution; the offline note keeps users from assuming their IP goes to IPinfo. */}
+            <div class="text-xs">
+              Exit countries come from an offline database on this device.
+              Nothing is sent to IPinfo.
+            </div>
             <div class="text-xs">
               IP address data is powered by{" "}
               <button
