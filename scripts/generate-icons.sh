@@ -47,3 +47,6 @@ for suffix in "" "-low-funds" "-out-of-funds"; do
         echo "rendered $linux_png_dir/connecting$suffix-$frame.png"
     done
 done
+# No funds variants: a non-owner sees no balance.
+rsvg-convert -w 201 -h 201 "$linux_svg_dir/in-use.svg" -o "$linux_png_dir/in-use.png"
+echo "rendered $linux_png_dir/in-use.png"
