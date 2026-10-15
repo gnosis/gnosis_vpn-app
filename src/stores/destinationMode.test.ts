@@ -32,7 +32,7 @@ const SETTLE_MS = SWITCH_COUNTDOWN_MS + SWITCH_CROSSOVER_MS;
 const BASE_DESTINATION: Destination = makeDestination({
   id: "a",
   address: "0x1234",
-  meta: { location: "EU" },
+  geo: { country_code: "de", source: "announced_ip" },
 });
 
 /** Eligible; `relays` is distinct first relays, so a higher number ranks higher. */

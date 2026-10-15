@@ -8,6 +8,7 @@ import {
   Show,
 } from "solid-js";
 import { getVersion } from "@tauri-apps/api/app";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { emit, listen } from "@tauri-apps/api/event";
 import brokenDeviceIcon from "@assets/icons/broken-device.svg";
 import Toggle from "@src/components/common/Toggle.tsx";
@@ -44,6 +45,16 @@ import {
   installUpdate,
   UPDATE_INSTALL_STATUS_EVENT,
 } from "@src/services/updateInstall.ts";
+
+const IPINFO_URL = "https://ipinfo.io";
+
+async function openIpinfo() {
+  try {
+    await openUrl(IPINFO_URL);
+  } catch (e) {
+    logWarn(`Failed to open ${IPINFO_URL}: ${e}`);
+  }
+}
 
 const REVEAL_CLICKS = 7;
 const REVEAL_WINDOW_MS = 2000;
@@ -472,6 +483,17 @@ export default function Updates() {
                 </span>
               </div>
             </Show>
+            {/* CC BY-SA 4.0 attribution for the exit-country database. */}
+            <div class="text-xs">
+              IP address data is powered by{" "}
+              <button
+                type="button"
+                class="underline text-text-primary cursor-pointer"
+                onClick={() => void openIpinfo()}
+              >
+                IPinfo
+              </button>
+            </div>
           </div>
         </div>
       </Show>

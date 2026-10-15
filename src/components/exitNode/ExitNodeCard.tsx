@@ -179,11 +179,8 @@ export default function ExitNodeCard(props: {
         <div class="flex items-start justify-between gap-1.5 mb-1">
           <span class="flex items-center gap-1.5 font-semibold text-sm text-text-primary min-w-0">
             <Flag
-              code={props.destinationState().destination.meta.flag ?? ""}
-              pinned={isConfigPinned(
-                props.destinationState().destination,
-                "flag",
-              )}
+              code={props.destinationState().destination.geo?.country_code ??
+                ""}
             />
             <DestinationLabel
               destination={props.destinationState().destination}

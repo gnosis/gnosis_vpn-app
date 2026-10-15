@@ -23,11 +23,10 @@ export function makeDestination(
     gnosis_vpn_server: "172.30.0.1:8000",
     wireguard_server: "172.30.0.1:51820",
     source: "Configured",
+    geo: null,
     ...overrides,
     meta: {
       name: null,
-      location: null,
-      flag: undefined,
       description: null,
       other: {},
       ...overrides.meta,

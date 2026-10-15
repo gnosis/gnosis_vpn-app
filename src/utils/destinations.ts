@@ -350,8 +350,20 @@ export function destinationTitle(d: Destination): string {
   return name === null ? d.id : `${d.id} (${name})`;
 }
 
-export function destinationLocation(d: Destination): string | null {
-  return d.meta.location === null ? null : sanitizeMetaText(d.meta.location);
+// The app's copy is English-only, so the country names are too.
+const COUNTRY_NAMES = new Intl.DisplayNames("en", { type: "region" });
+
+/** The exit's country as the client derived it; never the operator's claim. */
+export function destinationCountry(d: Destination): string | null {
+  const code = d.geo?.country_code;
+  if (code === undefined) return null;
+  // Subdivision suffixes are flag art only; DisplayNames knows countries.
+  const country = code.split("-")[0].toUpperCase();
+  try {
+    return COUNTRY_NAMES.of(country) ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export function destinationDescription(d: Destination): string | null {
@@ -362,8 +374,8 @@ export function destinationDescription(d: Destination): string | null {
 
 export function destinationLabel(d: Destination): string {
   const title = destinationTitle(d);
-  const loc = destinationLocation(d);
-  return loc ? `${title} - ${loc}` : title;
+  const country = destinationCountry(d);
+  return country ? `${title} - ${country}` : title;
 }
 
 /** Label plus description, so the list's search reaches operator blurbs too. */
@@ -373,7 +385,7 @@ export function destinationSearchText(d: Destination): string {
   return description ? `${label} ${description}` : label;
 }
 
-export type PinnableMeta = "name" | "location" | "flag" | "description";
+export type PinnableMeta = "name" | "description";
 
 /** Configuration set this value; only meaningful where config and discovery mix, as on a config-only entry every value is config's. */
 export function isConfigPinned(d: Destination, key: PinnableMeta): boolean {

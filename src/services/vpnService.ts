@@ -86,10 +86,14 @@ const FlagCodeSchema = z
 // Operator-published labels: the keys the client recognizes, plus everything else it kept.
 const MetaSchema = z.object({
   name: z.string().nullable(),
-  location: z.string().nullable(),
-  flag: FlagCodeSchema,
   description: z.string().nullable(),
   other: z.record(z.string(), z.string()),
+});
+
+// Derived by the client from the exit's announced address; source is informational, so any value parses.
+const GeoSchema = z.object({
+  country_code: FlagCodeSchema,
+  source: z.string(),
 });
 
 export const DestinationSourceSchema = z.enum([
@@ -109,6 +113,7 @@ const OverridesSchema = z.object({
 export const DestinationSchema = z.object({
   id: z.string(),
   meta: MetaSchema,
+  geo: GeoSchema.nullable().optional(),
   address: z.string(),
   routing: z.number(),
   gnosis_vpn_server: z.string(),

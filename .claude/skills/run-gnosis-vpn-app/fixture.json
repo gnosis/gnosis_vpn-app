@@ -23,10 +23,10 @@
               "id": "dest-berlin",
               "meta": {
                 "name": null,
-                "location": "Germany, Berlin",
                 "description": null,
                 "other": {}
               },
+              "geo": { "country_code": "DE", "source": "announced_ip" },
               "address": "0x1111111111111111111111111111111111111111",
               "routing": 1,
               "gnosis_vpn_server": "172.30.0.1:8000",
@@ -56,10 +56,10 @@
               "id": "dest-zurich",
               "meta": {
                 "name": null,
-                "location": "Switzerland, Zurich",
                 "description": null,
                 "other": {}
               },
+              "geo": { "country_code": "CH", "source": "announced_ip" },
               "address": "0x2222222222222222222222222222222222222222",
               "routing": 1,
               "gnosis_vpn_server": "172.30.0.1:8000",

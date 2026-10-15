@@ -26,7 +26,9 @@ const RUNNING: RunMode = {
 };
 
 const DESTINATION: DestinationState = {
-  destination: makeDestination({ meta: { location: "Brazil" } }),
+  destination: makeDestination({
+    geo: { country_code: "br", source: "announced_ip" },
+  }),
   route_health: null,
 };
 

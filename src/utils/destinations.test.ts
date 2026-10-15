@@ -6,6 +6,7 @@ import type {
   Slots,
 } from "@src/services/vpnService.ts";
 import {
+  destinationCountry,
   destinationDescription,
   destinationLabel,
   destinationSearchText,
@@ -42,7 +43,7 @@ import {
 const BASE_DESTINATION: Destination = makeDestination({
   id: "a",
   address: "0x1234",
-  meta: { location: "EU" },
+  geo: { country_code: "de", source: "announced_ip" },
 });
 
 function withRouteHealth(
@@ -725,13 +726,43 @@ describe("destinationTitle", () => {
     expect(destinationTitle(dest)).toBe("Frankfurt-1");
   });
 
-  it("puts the location after the title in the label", () => {
+  it("puts the derived country after the title in the label", () => {
     const dest = makeDestination({
       id: "frankfurt-1-a1b2",
       source: "Discovered",
-      meta: { name: "Frankfurt-1", location: "Germany" },
+      meta: { name: "Frankfurt-1" },
+      geo: { country_code: "de", source: "announced_ip" },
     });
     expect(destinationLabel(dest)).toBe("Frankfurt-1 - Germany");
+  });
+});
+
+describe("destinationCountry", () => {
+  it("names the country the client derived", () => {
+    const dest = makeDestination({
+      geo: { country_code: "gb", source: "announced_ip" },
+    });
+    expect(destinationCountry(dest)).toBe("United Kingdom");
+  });
+
+  it("names the parent country of a subdivision code", () => {
+    const dest = makeDestination({
+      geo: { country_code: "gb-sct", source: "announced_ip" },
+    });
+    expect(destinationCountry(dest)).toBe("United Kingdom");
+  });
+
+  it("is null without a derived country, and the label is just the title", () => {
+    const dest = makeDestination({ id: "my-exit", geo: null });
+    expect(destinationCountry(dest)).toBeNull();
+    expect(destinationLabel(dest)).toBe("my-exit");
+  });
+
+  it("is null when the schema dropped a malformed code", () => {
+    const dest = makeDestination({
+      geo: { country_code: undefined, source: "announced_ip" },
+    });
+    expect(destinationCountry(dest)).toBeNull();
   });
 });
 
@@ -774,7 +805,8 @@ describe("destinationSearchText", () => {
   it("appends the description so a search can reach it", () => {
     const dest = makeDestination({
       id: "my-exit",
-      meta: { location: "Germany", description: "no logs kept" },
+      meta: { description: "no logs kept" },
+      geo: { country_code: "de", source: "announced_ip" },
     });
     expect(destinationSearchText(dest)).toBe("my-exit - Germany no logs kept");
   });
@@ -805,16 +837,16 @@ describe("isConfigOnly", () => {
 
 // The ctl's rule: configuration's own values are marked only where config and discovery mix.
 describe("isConfigPinned", () => {
-  const pinnedLocation = { configured_meta: { location: "Germany" } };
+  const pinnedName = { configured_meta: { name: "Frankfurt-1" } };
 
   it("marks a value configuration set on a configured-and-discovered destination", () => {
     const dest = makeDestination({
       source: "ConfiguredAndDiscovered",
-      meta: { location: "Germany" },
-      overrides: pinnedLocation,
+      meta: { name: "Frankfurt-1" },
+      overrides: pinnedName,
     });
-    expect(isConfigPinned(dest, "location")).toBe(true);
-    expect(isConfigPinned(dest, "name")).toBe(false);
+    expect(isConfigPinned(dest, "name")).toBe(true);
+    expect(isConfigPinned(dest, "description")).toBe(false);
   });
 
   it("marks a pinned description", () => {
@@ -829,17 +861,17 @@ describe("isConfigPinned", () => {
   it("marks nothing on a config-only destination, where every value is config's by definition", () => {
     const dest = makeDestination({
       source: "Configured",
-      meta: { location: "Germany" },
-      overrides: pinnedLocation,
+      meta: { name: "Frankfurt-1" },
+      overrides: pinnedName,
     });
-    expect(isConfigPinned(dest, "location")).toBe(false);
+    expect(isConfigPinned(dest, "name")).toBe(false);
   });
 
   it("marks nothing on a discovered-only destination", () => {
     const dest = makeDestination({
       source: "Discovered",
-      meta: { location: "Germany" },
+      meta: { name: "Frankfurt-1" },
     });
-    expect(isConfigPinned(dest, "location")).toBe(false);
+    expect(isConfigPinned(dest, "name")).toBe(false);
   });
 });

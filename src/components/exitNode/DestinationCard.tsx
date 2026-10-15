@@ -103,10 +103,7 @@ export default function DestinationCard(props: {
           {displayTitle()}
         </span>
         <span class="flex items-center gap-1.5 min-w-0 text-xs font-semibold text-text-primary">
-          <Flag
-            code={destination().meta.flag ?? ""}
-            pinned={isConfigPinned(destination(), "flag")}
-          />
+          <Flag code={destination().geo?.country_code ?? ""} />
           <DestinationLabel destination={destination()} class="truncate" />
           <Show when={configOnly()}>
             <ConfigPill tooltip={CONFIG_ONLY_DESTINATION} class="size-2.5" />
