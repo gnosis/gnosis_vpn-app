@@ -186,12 +186,6 @@ fn install_macos_about_panel_override(
 pub fn run() {
     let cli = Cli::from_env();
 
-    // Fix for the random Ubuntu black screen issuse
-    #[cfg(target_os = "linux")]
-    if std::env::var_os("WEBKIT_DISABLE_COMPOSITING_MODE").is_none() {
-        std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
-    }
-
     tauri::Builder::default()
         .manage(cli)
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {

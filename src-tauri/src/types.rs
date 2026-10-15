@@ -24,7 +24,10 @@ pub struct StatusResponse {
 
 #[derive(Debug, Clone)]
 pub enum ConnectionState {
-    Connected(String),
+    Connected {
+        destination_id: String,
+        stalled: bool,
+    },
     Connecting(String),
     Reconnecting(String),
     Disconnecting,
@@ -109,6 +112,7 @@ pub struct TauriFundingStatus {
     pub gas: balance::FundingLevel,
     pub wxhopr_deficit: Option<String>,
     pub xdai_deficit: Option<String>,
+    pub refill_shortfall: Option<String>,
 }
 
 impl From<balance::FundingStatus> for TauriFundingStatus {
@@ -118,6 +122,7 @@ impl From<balance::FundingStatus> for TauriFundingStatus {
             gas: s.gas,
             wxhopr_deficit: s.wxhopr_deficit.map(|d| d.amount().to_string()),
             xdai_deficit: s.xdai_deficit.map(|d| d.amount().to_string()),
+            refill_shortfall: s.refill_shortfall.map(|d| d.amount().to_string()),
         }
     }
 }
@@ -156,6 +161,7 @@ pub enum RunMode {
     Running {
         funding_status: Option<TauriFundingStatus>,
         hopr_status: Option<CombinedHoprStatus>,
+        channel_maintenance: command::ChannelMaintenance,
     },
     Shutdown,
     Restarting,
@@ -262,9 +268,11 @@ impl From<command::RunMode> for RunMode {
             command::RunMode::Running {
                 funding_status,
                 hopr_status,
+                channel_maintenance,
             } => RunMode::Running {
                 funding_status: funding_status.map(Into::into),
                 hopr_status: hopr_status.map(|s| s.into()),
+                channel_maintenance,
             },
             command::RunMode::Shutdown => RunMode::Shutdown,
             command::RunMode::Restarting => RunMode::Restarting,
@@ -301,7 +309,10 @@ impl From<command::BalanceResponse> for BalanceResponse {
 impl From<&StatusResponse> for ConnectionState {
     fn from(sr: &StatusResponse) -> Self {
         if let Some(ref info) = sr.connected {
-            ConnectionState::Connected(info.destination_id.clone())
+            ConnectionState::Connected {
+                destination_id: info.destination_id.clone(),
+                stalled: info.stall.is_some(),
+            }
         } else if let Some(ref info) = sr.connecting {
             ConnectionState::Connecting(info.destination_id.clone())
         } else if let Some(ref info) = sr.reconnecting {
@@ -317,11 +328,64 @@ impl From<&StatusResponse> for ConnectionState {
 impl Display for ConnectionState {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ConnectionState::Connected(dest) => write!(f, "Connected to {}", dest),
+            ConnectionState::Connected {
+                destination_id,
+                stalled: false,
+            } => {
+                write!(f, "Connected to {destination_id}")
+            }
+            // Only the flag, not the counts: this string is the tray text and the state-change log key.
+            ConnectionState::Connected {
+                destination_id,
+                stalled: true,
+            } => {
+                write!(f, "Connected to {destination_id} (stalled)")
+            }
             ConnectionState::Connecting(dest) => write!(f, "Connecting to {}", dest),
             ConnectionState::Reconnecting(dest) => write!(f, "Reconnecting to {}", dest),
             ConnectionState::Disconnecting => write!(f, "Disconnecting"),
             ConnectionState::Disconnected => write!(f, "Disconnected"),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{Duration, SystemTime};
+
+    fn connected_status(stall: Option<command::TunnelStall>) -> StatusResponse {
+        StatusResponse {
+            run_mode: RunMode::NotRunning,
+            destinations: vec![],
+            target_destination: Some("x".to_string()),
+            connected: Some(command::ConnectedInfo {
+                destination_id: "x".to_string(),
+                since: SystemTime::UNIX_EPOCH,
+                tunnel_ping_rtt: Some(Duration::from_millis(12)),
+                stall,
+            }),
+            connecting: None,
+            reconnecting: None,
+            disconnecting: vec![],
+            probe: None,
+        }
+    }
+
+    #[test]
+    fn connected_state_carries_the_stall_flag_into_the_tray_text() {
+        let healthy = ConnectionState::from(&connected_status(None));
+        assert_eq!(healthy.to_string(), "Connected to x");
+
+        let stalled = ConnectionState::from(&connected_status(Some(command::TunnelStall {
+            since: SystemTime::UNIX_EPOCH,
+            failed_pings: 2,
+            reconnect_at: 3,
+        })));
+        assert!(matches!(
+            stalled,
+            ConnectionState::Connected { stalled: true, .. }
+        ));
+        assert_eq!(stalled.to_string(), "Connected to x (stalled)");
     }
 }

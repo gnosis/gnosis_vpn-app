@@ -3,8 +3,11 @@ import {
   type DownPhase,
   isDeployingSafeRunMode,
   isPreparingSafeRunMode,
+  isRunningRunMode,
   isWarmupRunMode,
+  type RunMode,
   StatusResponse,
+  type TunnelStall,
   type UpPhase,
 } from "@src/services/vpnService.ts";
 import type { AppState } from "@src/stores/appStore.ts";
@@ -81,6 +84,39 @@ export function deriveVPNStatus(
   }
 
   return "ServiceUnavailable";
+}
+
+export interface ConnectButtonLook {
+  label: "Connect" | "Cancel" | "Disconnect";
+  variant: "primary" | "stop";
+}
+
+/** "Disconnect" would imply a usable tunnel, so the whole attempt reads "Cancel". */
+export function connectButtonLook(
+  vpnStatus: string,
+  targetDestination: string | null,
+  isReconnecting: boolean,
+): ConnectButtonLook {
+  // Restoring a tunnel that existed: the tunnel is what the button gives up, not an attempt.
+  if (isReconnecting) return { label: "Disconnect", variant: "stop" };
+  if (vpnStatus === "Connected") {
+    return { label: "Disconnect", variant: "stop" };
+  }
+
+  const waitingForRoute = vpnStatus === "Reconnecting" &&
+    targetDestination !== null;
+  const attemptInFlight = vpnStatus === "Connecting" ||
+    isSwitchingDestination(vpnStatus, targetDestination) || waitingForRoute;
+  if (attemptInFlight) return { label: "Cancel", variant: "stop" };
+  return { label: "Connect", variant: "primary" };
+}
+
+/** A switch tears the old tunnel down before the new attempt starts, so it reports as a disconnect. */
+export function isSwitchingDestination(
+  vpnStatus: string,
+  targetDestination: string | null,
+): boolean {
+  return vpnStatus === "Disconnecting" && targetDestination !== null;
 }
 
 export function isXDAITransferred(state: AppState): boolean {
@@ -161,4 +197,33 @@ export function waitingForRouteMessage(
     return `Route to ${label}: ${formatExitHealthStatus(health, exit)}`;
   }
   return `Waiting for route to ${label}`;
+}
+
+function formatDurationShort(sec: number): string {
+  if (sec < 60) return `${sec} s`;
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min} min`;
+  return `${Math.floor(min / 60)} h`;
+}
+
+/** Bottom-line suffix, mirrors the CLI: "stalled 18 s (2/3)". */
+export function formatStall(stall: TunnelStall, nowMs: number): string {
+  const sec = Math.max(0, Math.floor((nowMs - stall.since) / 1000));
+  return `stalled ${
+    formatDurationShort(sec)
+  } (${stall.failed_pings}/${stall.reconnect_at})`;
+}
+
+/** Warning while the daemon's channel maintenance is down, null otherwise. */
+export function channelMaintenanceWarning(
+  runMode: RunMode | null,
+  nowMs: number,
+): string | null {
+  if (!isRunningRunMode(runMode)) return null;
+  const maintenance = runMode.Running.channel_maintenance;
+  if (maintenance.type !== "Unavailable") return null;
+  const sec = Math.max(0, Math.floor((nowMs - maintenance.since) / 1000));
+  return `Channel maintenance down for ${
+    formatDurationShort(sec)
+  } — tunnel may degrade`;
 }

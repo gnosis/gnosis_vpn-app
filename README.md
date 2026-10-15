@@ -75,6 +75,8 @@ In order to start development, run a local dev server via:
 
 The source-of-truth icons live under `src-tauri/icons/` (SVGs in
 `app-icons/svg/` and `tray-icons/svg/`, with pre-rendered PNGs alongside them).
+The `connected-stalled` variants are derived from the connected SVGs by
+`derive-tray-icons.py`; edit the connected icons, never the stalled ones.
 
 After editing a state SVG in `app-icons/svg/`, regenerate the derived tray SVGs
 and all PNGs, then commit the results:

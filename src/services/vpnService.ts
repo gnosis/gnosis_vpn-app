@@ -29,11 +29,21 @@ export const DownPhaseSchema = z.enum([
 ]);
 export type DownPhase = z.infer<typeof DownPhaseSchema>;
 
+export const TunnelStallSchema = z.object({
+  since: z.number(),
+  failed_pings: z.number(),
+  // The daemon reconnects once failed_pings reaches this.
+  reconnect_at: z.number(),
+});
+export type TunnelStall = z.infer<typeof TunnelStallSchema>;
+
 export const ConnectedInfoSchema = z.object({
   destination_id: z.string(),
   since: z.number(),
   // Latest ICMP round trip through the tunnel, in ms.
   tunnel_ping_rtt: z.number().nullable(),
+  // null while healthy; absent on daemons that predate the field.
+  stall: TunnelStallSchema.nullish(),
 });
 export type ConnectedInfo = z.infer<typeof ConnectedInfoSchema>;
 
@@ -345,6 +355,8 @@ export const FundingStatusSchema = z.object({
   gas: FundingLevelSchema,
   wxhopr_deficit: BigIntStringSchema.nullable(),
   xdai_deficit: BigIntStringSchema.nullable(),
+  // wxHOPR the Safe lacks for the next channel top-up pass; set only while traffic is capped at Low.
+  refill_shortfall: BigIntStringSchema.nullable(),
 });
 export type FundingStatus = z.infer<typeof FundingStatusSchema>;
 
@@ -421,9 +433,17 @@ export const WarmupSchema = z.object({
 });
 export type Warmup = z.infer<typeof WarmupSchema>;
 
+// Unavailable after three failed maintenance samples in a row; `since` is ms since epoch.
+export const ChannelMaintenanceSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("Ok") }),
+  z.object({ type: z.literal("Unavailable"), since: z.number() }),
+]);
+export type ChannelMaintenance = z.infer<typeof ChannelMaintenanceSchema>;
+
 export const RunningSchema = z.object({
   funding_status: FundingStatusSchema.nullable(),
   hopr_status: WarmupStatusSchema.nullable(),
+  channel_maintenance: ChannelMaintenanceSchema,
 });
 export type Running = z.infer<typeof RunningSchema>;
 

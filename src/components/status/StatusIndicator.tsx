@@ -1,5 +1,6 @@
 import { Show } from "solid-js";
 import { useAppStore } from "../../stores/appStore.ts";
+import { isSwitchingDestination } from "../../utils/status.ts";
 
 export function StatusIndicator(
   { size, whenOfflineOnly = false }: {
@@ -17,13 +18,20 @@ export function StatusIndicator(
     : "rounded-full bg-bg-surface px-4 h-10";
   const status = () => {
     if (appState.vpnStatus === "Connected") {
-      return { text: "Connected", color: "bg-vpn-light-green" };
+      return appState.connected?.stall
+        ? { text: "Connected · stalled", color: "bg-vpn-yellow" }
+        : { text: "Connected", color: "bg-vpn-light-green" };
     }
     if (appState.vpnStatus === "Connecting") {
       return { text: "Connecting", color: "bg-text-primary" };
     }
     if (appState.vpnStatus === "Reconnecting") {
       return { text: "Reconnecting", color: "bg-text-primary" };
+    }
+    if (
+      isSwitchingDestination(appState.vpnStatus, appState.targetDestination)
+    ) {
+      return { text: "Connecting", color: "bg-text-primary" };
     }
     if (appState.vpnStatus === "WorkerRestarting") {
       return { text: "Restarting...", color: "bg-vpn-yellow" };

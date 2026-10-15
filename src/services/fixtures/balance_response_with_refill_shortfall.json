@@ -1,0 +1,19 @@
+{
+  "node": "30000000000000000",
+  "safe": "1000000000000000000",
+  "channels_out": "0",
+  "info": {
+    "node_address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
+    "node_peer_id": "16Uiu2HAmTest",
+    "safe_address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa"
+  },
+  "funding_status": {
+    "traffic": "Low",
+    "gas": "Good",
+    "wxhopr_deficit": null,
+    "xdai_deficit": null,
+    "refill_shortfall": "500000000000000000"
+  },
+  "ideal_balance": null,
+  "capacity_allocations": null
+}

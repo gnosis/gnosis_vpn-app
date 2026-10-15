@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   deriveNodeStatus,
   deriveOverallStatus,
+  deriveRefillShortfall,
   deriveTrafficStatus,
   deriveWxhoprDeficit,
   deriveXdaiDeficit,
@@ -15,13 +16,18 @@ import type {
 function makeStatus(
   traffic: FundingStatus["traffic"],
   gas: FundingStatus["gas"],
-  opts: { wxhoprDeficit?: bigint; xdaiDeficit?: bigint } = {},
+  opts: {
+    wxhoprDeficit?: bigint;
+    xdaiDeficit?: bigint;
+    refillShortfall?: bigint;
+  } = {},
 ): FundingStatus {
   return {
     traffic,
     gas,
     wxhopr_deficit: opts.wxhoprDeficit ?? null,
     xdai_deficit: opts.xdaiDeficit ?? null,
+    refill_shortfall: opts.refillShortfall ?? null,
   };
 }
 
@@ -100,6 +106,27 @@ describe("deriveWxhoprDeficit / deriveXdaiDeficit", () => {
   it("returns null without a status", () => {
     expect(deriveWxhoprDeficit(null, null)).toBeNull();
     expect(deriveXdaiDeficit(makeBalance(null), null)).toBeNull();
+  });
+});
+
+describe("deriveRefillShortfall", () => {
+  it("returns the shortfall while the ideal balance is covered", () => {
+    const status = makeStatus("Low", "Good", { refillShortfall: 5n });
+    expect(deriveRefillShortfall(makeBalance(status), null)).toBe(5n);
+  });
+
+  it("yields to the wxHOPR deficit when both are set", () => {
+    const status = makeStatus("Low", "Good", {
+      wxhoprDeficit: 7n,
+      refillShortfall: 5n,
+    });
+    expect(deriveRefillShortfall(makeBalance(status), null)).toBeNull();
+  });
+
+  it("is null without a shortfall or any status", () => {
+    expect(deriveRefillShortfall(makeBalance(makeStatus("Good", "Good")), null))
+      .toBeNull();
+    expect(deriveRefillShortfall(null, null)).toBeNull();
   });
 });
 
