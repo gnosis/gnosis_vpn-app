@@ -296,6 +296,13 @@ fn generate_fixtures() {
         &status_base(types::RunMode::Restarting),
     );
 
+    // App-synthesised: the daemon answers a bare InUseByOtherUser, the app shapes it into a status.
+    write(
+        &fixtures_dir,
+        "status_in_use_by_other_user.json",
+        &types::StatusResponse::in_use_by_other_user(),
+    );
+
     write(
         &fixtures_dir,
         "status_with_connections.json",

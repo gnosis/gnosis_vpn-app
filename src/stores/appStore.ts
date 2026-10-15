@@ -25,6 +25,7 @@ import {
   type ProbeView,
   type ReconnectingInfo,
   type RunMode,
+  SERVICE_NOT_RUNNING_ERROR,
   type ServiceInfo,
   ServiceInfoSchema,
   type StatusResponse,
@@ -327,7 +328,11 @@ export function createAppStore(): AppStoreTuple {
     );
   });
 
-  const criticalError = (message: string) => {
+  const criticalError = (message: string) =>
+    resetToScreen(AppScreen.Initialization, message);
+
+  // Drops everything the daemon told us; `screen` is the one that explains why.
+  const resetToScreen = (screen: AppScreen, message: string) => {
     // status errors repeat every poll tick; log only when the message changes
     if (state.error !== message) logError(message);
     stopSyncProgress();
@@ -336,7 +341,8 @@ export function createAppStore(): AppStoreTuple {
     // file itself), so a daemon error says nothing about its result: keep it.
     const savedToolkit = { ...state.toolkit };
     const savedPackageVersion = state.packageVersion;
-    setState(reconcile(initialState()));
+    // One reconcile, so App.tsx never sees an intermediate screen.
+    setState(reconcile({ ...initialState(), currentScreen: screen }));
     setState("serviceInfo", savedServiceInfo);
     setState("toolkit", savedToolkit);
     setState("packageVersion", savedPackageVersion);
@@ -644,6 +650,14 @@ export function createAppStore(): AppStoreTuple {
       }
 
       const listenCb = (event: unknown) => {
+        // Installed but not started: its own screen, not the critical one.
+        if (isServiceNotRunning(event as StatusEvent)) {
+          resetToScreen(
+            AppScreen.ServiceNotRunning,
+            "Gnosis VPN service is not running",
+          );
+          return;
+        }
         let statusResp: StatusResponse | void;
         try {
           statusResp = incomingStatusEvent(event as StatusEvent);
@@ -871,6 +885,11 @@ const appStore = createRoot(() => createAppStore());
 
 export function useAppStore(): AppStoreTuple {
   return appStore;
+}
+
+function isServiceNotRunning(event: StatusEvent): boolean {
+  const payload = event.payload;
+  return "Err" in payload && payload.Err === SERVICE_NOT_RUNNING_ERROR;
 }
 
 function incomingStatusEvent(event: StatusEvent): StatusResponse | void {

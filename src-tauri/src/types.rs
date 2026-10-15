@@ -22,6 +22,22 @@ pub struct StatusResponse {
     pub probe: Option<command::ProbeView>,
 }
 
+impl StatusResponse {
+    /// What the app shows a non-owner: the daemon answers `InUseByOtherUser` instead of a status.
+    pub fn in_use_by_other_user() -> Self {
+        StatusResponse {
+            run_mode: RunMode::InUseByOtherUser,
+            destinations: vec![],
+            target_destination: None,
+            connected: None,
+            connecting: None,
+            reconnecting: None,
+            disconnecting: vec![],
+            probe: None,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum ConnectionState {
     Connected {
@@ -32,6 +48,7 @@ pub enum ConnectionState {
     Reconnecting(String),
     Disconnecting,
     Disconnected,
+    InUseByOtherUser,
 }
 
 // Mirrors balance::BalanceRecommendation but serializes amounts as raw hopli
@@ -166,6 +183,8 @@ pub enum RunMode {
     Shutdown,
     Restarting,
     NotRunning,
+    /// App-only: another local user owns the worker; never comes from the lib's RunMode.
+    InUseByOtherUser,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -308,7 +327,9 @@ impl From<command::BalanceResponse> for BalanceResponse {
 
 impl From<&StatusResponse> for ConnectionState {
     fn from(sr: &StatusResponse) -> Self {
-        if let Some(ref info) = sr.connected {
+        if matches!(sr.run_mode, RunMode::InUseByOtherUser) {
+            ConnectionState::InUseByOtherUser
+        } else if let Some(ref info) = sr.connected {
             ConnectionState::Connected {
                 destination_id: info.destination_id.clone(),
                 stalled: info.stall.is_some(),
@@ -345,6 +366,7 @@ impl Display for ConnectionState {
             ConnectionState::Reconnecting(dest) => write!(f, "Reconnecting to {}", dest),
             ConnectionState::Disconnecting => write!(f, "Disconnecting"),
             ConnectionState::Disconnected => write!(f, "Disconnected"),
+            ConnectionState::InUseByOtherUser => write!(f, "In use by another user"),
         }
     }
 }
@@ -387,5 +409,12 @@ mod tests {
             ConnectionState::Connected { stalled: true, .. }
         ));
         assert_eq!(stalled.to_string(), "Connected to x (stalled)");
+    }
+
+    #[test]
+    fn in_use_by_other_user_is_its_own_connection_state() {
+        let state = ConnectionState::from(&StatusResponse::in_use_by_other_user());
+        assert!(matches!(state, ConnectionState::InUseByOtherUser));
+        assert_eq!(state.to_string(), "In use by another user");
     }
 }
