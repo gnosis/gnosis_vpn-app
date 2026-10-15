@@ -172,7 +172,13 @@ export type RouteHealthState = z.infer<typeof RouteHealthStateSchema>;
 // What the last graph walk found for this exit.
 export const RouteWalkSchema = z.discriminatedUnion("found", [
   z.object({ found: z.literal("NotAnnounced"), walked_at: z.number() }),
-  z.object({ found: z.literal("NoPath"), walked_at: z.number() }),
+  // No path survived in at least one direction; the counts say which leg came up empty.
+  z.object({
+    found: z.literal("NoPath"),
+    walked_at: z.number(),
+    forward_count: z.number(),
+    return_count: z.number(),
+  }),
   z.object({
     found: z.literal("Paths"),
     walked_at: z.number(),
@@ -181,6 +187,10 @@ export const RouteWalkSchema = z.discriminatedUnion("found", [
     best_relays: z.array(z.string()),
     // In (0, 1]; higher is better.
     best_value: z.number(),
+    // The exit -> me leg, same shape.
+    return_count: z.number(),
+    return_best_relays: z.array(z.string()),
+    return_best_value: z.number(),
   }),
 ]);
 export type RouteWalk = z.infer<typeof RouteWalkSchema>;

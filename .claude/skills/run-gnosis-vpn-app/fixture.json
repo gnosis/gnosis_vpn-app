@@ -46,7 +46,12 @@
                 "best_relays": [
                   "0x1111111111111111111111111111111111111111"
                 ],
-                "best_value": 1.0
+                "best_value": 1.0,
+                "return_count": 3,
+                "return_best_relays": [
+                  "0x1111111111111111111111111111111111111111"
+                ],
+                "return_best_value": 1.0
               },
               "quick_probe": null
             }
@@ -79,7 +84,12 @@
                 "best_relays": [
                   "0x1111111111111111111111111111111111111111"
                 ],
-                "best_value": 0.42
+                "best_value": 0.42,
+                "return_count": 2,
+                "return_best_relays": [
+                  "0x1111111111111111111111111111111111111111"
+                ],
+                "return_best_value": 0.42
               },
               "quick_probe": null
             }

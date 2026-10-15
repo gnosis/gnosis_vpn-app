@@ -759,6 +759,7 @@ fn generate_fixtures() {
             version: "0.91.0".to_string(),
             log_file: None,
             package_version: None,
+            worker_log_dir: Some(PathBuf::from("/home/alice/.local/state/gnosisvpn")),
         },
     );
 
