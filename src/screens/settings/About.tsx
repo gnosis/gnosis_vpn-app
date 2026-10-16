@@ -50,13 +50,13 @@ export default function About() {
         <div class="space-y-1">
           <div class="text-text-primary">IPinfo</div>
           <div>
+            Exit countries come from an offline database on this device. Nothing
+            is sent to IPinfo.
+          </div>
+          <div>
             IP address data is powered by{" "}
             <Link url={IPINFO_URL} label="IPinfo" />, licensed under CC BY-SA
             4.0.
-          </div>
-          <div class="text-xs">
-            Exit countries come from an offline database on this device. Nothing
-            is sent to IPinfo.
           </div>
         </div>
 
