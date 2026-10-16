@@ -745,13 +745,6 @@ describe("destinationCountry", () => {
     expect(destinationCountry(dest)).toBe("United Kingdom");
   });
 
-  it("names the parent country of a subdivision code", () => {
-    const dest = makeDestination({
-      geo: { country_code: "gb-sct", source: "announced_ip" },
-    });
-    expect(destinationCountry(dest)).toBe("United Kingdom");
-  });
-
   it("is null without a derived country, and the label is just the title", () => {
     const dest = makeDestination({ id: "my-exit", geo: null });
     expect(destinationCountry(dest)).toBeNull();

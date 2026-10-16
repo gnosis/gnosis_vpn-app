@@ -381,6 +381,11 @@ describe("DestinationSchema geo parsing", () => {
       .toBeUndefined();
   });
 
+  it("drops a subdivision code, flags are country-only", () => {
+    expect(parsedCode({ country_code: "GB-SCT", source: "announced_ip" }))
+      .toBeUndefined();
+  });
+
   it("accepts a source this app does not know yet", () => {
     expect(parsedCode({ country_code: "DE", source: "tunnel_egress" })).toBe(
       "de",
