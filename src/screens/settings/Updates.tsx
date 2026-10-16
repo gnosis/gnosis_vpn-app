@@ -8,7 +8,6 @@ import {
   Show,
 } from "solid-js";
 import { getVersion } from "@tauri-apps/api/app";
-import { openUrl } from "@tauri-apps/plugin-opener";
 import { emit, listen } from "@tauri-apps/api/event";
 import brokenDeviceIcon from "@assets/icons/broken-device.svg";
 import Toggle from "@src/components/common/Toggle.tsx";
@@ -45,38 +44,6 @@ import {
   installUpdate,
   UPDATE_INSTALL_STATUS_EVENT,
 } from "@src/services/updateInstall.ts";
-
-const IPINFO_URL = "https://ipinfo.io";
-
-async function openIpinfo() {
-  try {
-    await openUrl(IPINFO_URL);
-  } catch (e) {
-    logWarn(`Failed to open ${IPINFO_URL}: ${e}`);
-  }
-}
-
-// CC BY-SA 4.0 attribution; the offline note keeps users from assuming their IP goes to IPinfo.
-function IpinfoCredit() {
-  return (
-    <>
-      <div class="text-xs">
-        Exit countries come from an offline database on this device. Nothing is
-        sent to IPinfo.
-      </div>
-      <div class="text-xs">
-        IP address data is powered by{" "}
-        <button
-          type="button"
-          class="underline text-text-primary cursor-pointer"
-          onClick={() => void openIpinfo()}
-        >
-          IPinfo
-        </button>
-      </div>
-    </>
-  );
-}
 
 const REVEAL_CLICKS = 7;
 const REVEAL_WINDOW_MS = 2000;
@@ -416,9 +383,6 @@ export default function Updates() {
               open={showHowTo()}
               onClose={() => setShowHowTo(false)}
             />
-            <div class="space-y-1 text-sm text-text-secondary text-center">
-              <IpinfoCredit />
-            </div>
           </div>
         }
       >
@@ -508,7 +472,6 @@ export default function Updates() {
                 </span>
               </div>
             </Show>
-            <IpinfoCredit />
           </div>
         </div>
       </Show>

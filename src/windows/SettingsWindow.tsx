@@ -1,14 +1,15 @@
-import { createSignal, onCleanup, onMount } from "solid-js";
+import { createSignal, Match, onCleanup, onMount, Switch } from "solid-js";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import Settings from "../screens/settings/Settings.tsx";
 import Usage from "../screens/settings/Usage.tsx";
 import Updates from "../screens/settings/Updates.tsx";
+import About from "../screens/settings/About.tsx";
 import Tabs from "@src/components/common/Tabs.tsx";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { logError, logWarn } from "@src/utils/appLog.ts";
 
-type GlobalTab = "settings" | "usage" | "updates";
+type GlobalTab = "settings" | "usage" | "updates" | "about";
 
 export default function SettingsWindow() {
   const [tab, setTab] = createSignal<GlobalTab>("settings");
@@ -57,15 +58,25 @@ export default function SettingsWindow() {
           { id: "settings", label: "Settings" },
           { id: "usage", label: "Usage" },
           { id: "updates", label: "Updates" },
+          { id: "about", label: "About" },
         ]}
         activeId={tab()}
         onChange={(id) => setTab(id as GlobalTab)}
       />
-      {tab() === "settings"
-        ? <Settings />
-        : tab() === "usage"
-        ? <Usage />
-        : <Updates />}
+      <Switch>
+        <Match when={tab() === "settings"}>
+          <Settings />
+        </Match>
+        <Match when={tab() === "usage"}>
+          <Usage />
+        </Match>
+        <Match when={tab() === "updates"}>
+          <Updates />
+        </Match>
+        <Match when={tab() === "about"}>
+          <About />
+        </Match>
+      </Switch>
     </div>
   );
 }
