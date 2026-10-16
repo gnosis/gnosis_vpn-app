@@ -351,6 +351,7 @@ describe("DestinationSchema flag parsing", () => {
     expect(result.data.meta.flag).toBe("gb-sct");
   });
 
+<<<<<<< HEAD
   // Regression: a malformed subdivision suffix used to fail the schema regex
   // outright, so .catch(undefined) dropped the flag entirely and Flag.tsx
   // never got the chance to fall back to the parent country's flag.
@@ -359,6 +360,28 @@ describe("DestinationSchema flag parsing", () => {
     expect(result.success).toBe(true);
     if (!result.success) return;
     expect(result.data.meta.flag).toBe("gb-foobar");
+=======
+  it("lowercases the alpha-2 code for the flag class", () => {
+    expect(parsedCode({ country_code: "GB", source: "announced_ip" })).toBe(
+      "gb",
+    );
+  });
+
+  it("drops a code that would not be safe in a CSS class", () => {
+    expect(parsedCode({ country_code: "x y", source: "announced_ip" }))
+      .toBeUndefined();
+  });
+
+  it("drops a subdivision code, flags are country-only", () => {
+    expect(parsedCode({ country_code: "GB-SCT", source: "announced_ip" }))
+      .toBeUndefined();
+  });
+
+  it("accepts a source this app does not know yet", () => {
+    expect(parsedCode({ country_code: "DE", source: "tunnel_egress" })).toBe(
+      "de",
+    );
+>>>>>>> 2fbca3c (refactor(flags): ship country flags only, drop subdivision art (GNO-1013) (#589))
   });
 });
 

@@ -663,3 +663,203 @@ describe("pickStartupTarget — connect-on-startup pick", () => {
     expect(pickStartupTarget({}, null, null, NO_CONTEXT)).toBeNull();
   });
 });
+<<<<<<< HEAD
+=======
+
+// Mirrors the client's naming rule so the app and gvpn-ctl name an exit the same way.
+describe("destinationTitle", () => {
+  it("is the connect id without a name", () => {
+    expect(destinationTitle(makeDestination({ id: "my-exit" }))).toBe(
+      "my-exit",
+    );
+  });
+
+  it("leads with a configured id, the user's own handle, and brackets the published name", () => {
+    const dest = makeDestination({
+      id: "my-exit",
+      source: "ConfiguredAndDiscovered",
+      meta: { name: "Frankfurt-1" },
+    });
+    expect(destinationTitle(dest)).toBe("my-exit (Frankfurt-1)");
+  });
+
+  it("does not repeat a name spelled exactly like the configured id", () => {
+    const dest = makeDestination({
+      id: "frankfurt-1",
+      source: "ConfiguredAndDiscovered",
+      meta: { name: "frankfurt-1" },
+    });
+    expect(destinationTitle(dest)).toBe("frankfurt-1");
+  });
+
+  it("still shows a pinned name spelled like the id, so the override stays visible", () => {
+    const dest = makeDestination({
+      id: "frankfurt-1",
+      source: "ConfiguredAndDiscovered",
+      meta: { name: "frankfurt-1" },
+      overrides: { configured_meta: { name: "frankfurt-1" } },
+    });
+    expect(destinationTitle(dest)).toBe("frankfurt-1 (frankfurt-1)");
+  });
+
+  it("treats a name that sanitizes to nothing as absent", () => {
+    const dest = makeDestination({
+      id: "0xabc-1234",
+      source: "Discovered",
+      meta: { name: "\u200b\u202e" },
+    });
+    expect(destinationTitle(dest)).toBe("0xabc-1234");
+  });
+
+  it("is the published name alone for a discovered destination, whose id is that name slugged", () => {
+    const dest = makeDestination({
+      id: "frankfurt-1-a1b2",
+      source: "Discovered",
+      meta: { name: "Frankfurt-1" },
+    });
+    expect(destinationTitle(dest)).toBe("Frankfurt-1");
+  });
+
+  it("puts the derived country after the title in the label", () => {
+    const dest = makeDestination({
+      id: "frankfurt-1-a1b2",
+      source: "Discovered",
+      meta: { name: "Frankfurt-1" },
+      geo: { country_code: "de", source: "announced_ip" },
+    });
+    expect(destinationLabel(dest)).toBe("Frankfurt-1 - Germany");
+  });
+});
+
+describe("destinationCountry", () => {
+  it("names the country the client derived", () => {
+    const dest = makeDestination({
+      geo: { country_code: "gb", source: "announced_ip" },
+    });
+    expect(destinationCountry(dest)).toBe("United Kingdom");
+  });
+
+  it("is null without a derived country, and the label is just the title", () => {
+    const dest = makeDestination({ id: "my-exit", geo: null });
+    expect(destinationCountry(dest)).toBeNull();
+    expect(destinationLabel(dest)).toBe("my-exit");
+  });
+
+  it("is null when the schema dropped a malformed code", () => {
+    const dest = makeDestination({
+      geo: { country_code: undefined, source: "announced_ip" },
+    });
+    expect(destinationCountry(dest)).toBeNull();
+  });
+});
+
+describe("sanitizeMetaText", () => {
+  it("strips control and bidi-override characters", () => {
+    expect(sanitizeMetaText("\u001b[2K\u202eGermany\u200b")).toBe("[2KGermany");
+  });
+
+  it("elides after 64 code points, counting characters rather than UTF-16 units", () => {
+    const long = "\u{1F1E9}".repeat(70);
+    const shown = sanitizeMetaText(long);
+    expect(Array.from(shown)).toHaveLength(65);
+    expect(shown.endsWith("\u2026")).toBe(true);
+  });
+
+  it("leaves a short plain value alone", () => {
+    expect(sanitizeMetaText("Germany")).toBe("Germany");
+  });
+});
+
+describe("destinationDescription", () => {
+  it("is null when the operator published none", () => {
+    expect(destinationDescription(makeDestination())).toBeNull();
+  });
+
+  it("sanitizes the published text like every other label", () => {
+    const dest = makeDestination({
+      meta: { description: "\u202e10Gbit uplink\u200b" },
+    });
+    expect(destinationDescription(dest)).toBe("10Gbit uplink");
+  });
+
+  it("elides past 64 characters", () => {
+    const dest = makeDestination({ meta: { description: "a".repeat(70) } });
+    expect(destinationDescription(dest)).toBe("a".repeat(64) + "\u2026");
+  });
+});
+
+describe("destinationSearchText", () => {
+  it("appends the description so a search can reach it", () => {
+    const dest = makeDestination({
+      id: "my-exit",
+      meta: { description: "no logs kept" },
+      geo: { country_code: "de", source: "announced_ip" },
+    });
+    expect(destinationSearchText(dest)).toBe("my-exit - Germany no logs kept");
+  });
+
+  it("is just the label when no description was published", () => {
+    const dest = makeDestination({ id: "my-exit" });
+    expect(destinationSearchText(dest)).toBe("my-exit");
+  });
+
+  it("keeps a configured id searchable beside the published name", () => {
+    const dest = makeDestination({
+      id: "pinned-exit",
+      source: "ConfiguredAndDiscovered",
+      meta: { name: "Frankfurt-1" },
+    });
+    expect(destinationSearchText(dest)).toContain("pinned-exit");
+  });
+});
+
+describe("isConfigOnly", () => {
+  it("is true only for a destination discovery never saw", () => {
+    expect(isConfigOnly(makeDestination({ source: "Configured" }))).toBe(true);
+    expect(isConfigOnly(makeDestination({ source: "Discovered" }))).toBe(false);
+    expect(isConfigOnly(makeDestination({ source: "ConfiguredAndDiscovered" })))
+      .toBe(false);
+  });
+});
+
+// The ctl's rule: configuration's own values are marked only where config and discovery mix.
+describe("isConfigPinned", () => {
+  const pinnedName = { configured_meta: { name: "Frankfurt-1" } };
+
+  it("marks a value configuration set on a configured-and-discovered destination", () => {
+    const dest = makeDestination({
+      source: "ConfiguredAndDiscovered",
+      meta: { name: "Frankfurt-1" },
+      overrides: pinnedName,
+    });
+    expect(isConfigPinned(dest, "name")).toBe(true);
+    expect(isConfigPinned(dest, "description")).toBe(false);
+  });
+
+  it("marks a pinned description", () => {
+    const dest = makeDestination({
+      source: "ConfiguredAndDiscovered",
+      meta: { description: "10Gbit uplink" },
+      overrides: { configured_meta: { description: "10Gbit uplink" } },
+    });
+    expect(isConfigPinned(dest, "description")).toBe(true);
+  });
+
+  it("marks nothing on a config-only destination, where every value is config's by definition", () => {
+    const dest = makeDestination({
+      source: "Configured",
+      meta: { name: "Frankfurt-1" },
+      overrides: pinnedName,
+    });
+    expect(isConfigPinned(dest, "name")).toBe(false);
+  });
+
+  it("marks nothing on a discovered-only destination", () => {
+    const dest = makeDestination({
+      source: "Discovered",
+      meta: { name: "Frankfurt-1" },
+    });
+    expect(isConfigPinned(dest, "name")).toBe(false);
+  });
+});
+>>>>>>> 2fbca3c (refactor(flags): ship country flags only, drop subdivision art (GNO-1013) (#589))
