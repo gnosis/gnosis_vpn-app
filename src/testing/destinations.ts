@@ -55,6 +55,12 @@ export function eligibleRouteHealth(
       distinct_first_relays: relays,
       best_relays: Array.from({ length: relays }, (_, i) => `0xrelay${i}`),
       best_value: 1,
+      return_count: count,
+      return_best_relays: Array.from(
+        { length: relays },
+        (_, i) => `0xrelay${i}`,
+      ),
+      return_best_value: 1,
     },
     quick_probe: null,
   };
@@ -71,6 +77,9 @@ export function weakRouteHealth(bestValue = 0.5): RouteHealthView {
       distinct_first_relays: 1,
       best_relays: ["0xrelay0"],
       best_value: bestValue,
+      return_count: 1,
+      return_best_relays: ["0xrelay0"],
+      return_best_value: bestValue,
     },
   };
 }
@@ -80,7 +89,7 @@ export function noPathRouteHealth(): RouteHealthView {
   return {
     state: { state: "NotRoutable" },
     last_error: null,
-    walk: { found: "NoPath", walked_at: 0 },
+    walk: { found: "NoPath", walked_at: 0, forward_count: 0, return_count: 0 },
     quick_probe: null,
   };
 }

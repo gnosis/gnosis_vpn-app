@@ -296,6 +296,13 @@ fn generate_fixtures() {
         &status_base(types::RunMode::Restarting),
     );
 
+    // App-synthesised: the daemon answers a bare InUseByOtherUser, the app shapes it into a status.
+    write(
+        &fixtures_dir,
+        "status_in_use_by_other_user.json",
+        &types::StatusResponse::in_use_by_other_user(),
+    );
+
     write(
         &fixtures_dir,
         "status_with_connections.json",
@@ -759,6 +766,7 @@ fn generate_fixtures() {
             version: "0.91.0".to_string(),
             log_file: None,
             package_version: None,
+            worker_log_dir: Some(PathBuf::from("/home/alice/.local/state/gnosisvpn")),
         },
     );
 

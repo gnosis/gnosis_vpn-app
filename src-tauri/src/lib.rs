@@ -18,6 +18,7 @@ mod icons;
 mod logging;
 mod navigation;
 mod platform;
+mod service_control;
 pub mod settings;
 mod theme;
 pub mod toolkit;
@@ -35,6 +36,7 @@ use gnosis_vpn_lib::command::InfoResponse;
 use gnosis_vpn_lib::{command, socket::root as root_socket};
 use icons::{IconState, TrayIconState, determine_tray_icon, start_icon_heartbeat};
 use platform::{Platform, PlatformInterface, get_platform, get_system_info};
+use service_control::{get_service_not_running_info, start_service};
 use settings::{SettingsStore, get_settings, update_settings};
 #[cfg(target_os = "linux")]
 use theme::spawn_linux_theme_monitor;
@@ -289,6 +291,9 @@ pub fn run() {
                                 Ok(command::Response::Unprobe(resp)) => {
                                     tracing::info!(target: "tray", response = ?resp, "unprobe on quit")
                                 }
+                                Ok(command::Response::InUseByOtherUser) => {
+                                    tracing::info!(target: "tray", "worker owned by another user, nothing to unprobe")
+                                }
                                 Ok(other) => {
                                     tracing::warn!(target: "tray", response = ?other, "unexpected unprobe response")
                                 }
@@ -515,7 +520,9 @@ pub fn run() {
             get_system_info,
             install_update,
             get_install_status,
-            get_toolkit_version
+            get_toolkit_version,
+            get_service_not_running_info,
+            start_service
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
