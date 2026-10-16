@@ -336,60 +336,55 @@ describe("ServiceInfoSchema", () => {
   });
 });
 
-describe("DestinationSchema flag parsing", () => {
+describe("DestinationSchema geo parsing", () => {
   // Wire-shaped input, as the daemon sends it, so the parse is exercised end to end.
-  const destination = (flag: string | null) => ({
+  const destination = (geo?: unknown) => ({
     id: "dest-1",
-    meta: {
-      name: null,
-      location: "Somewhere",
-      flag,
-      description: null,
-      other: {},
-    },
+    meta: { name: null, description: null, other: {} },
+    ...(geo === undefined ? {} : { geo }),
     address: "0x1111111111111111111111111111111111111111",
     routing: 1,
     gnosis_vpn_server: "172.30.0.1:8000",
     wireguard_server: "172.30.0.1:51820",
     source: "Configured",
   });
-
-  it("turns an unset flag into undefined", () => {
-    const result = DestinationSchema.safeParse(destination(null));
+  const parsedCode = (geo?: unknown) => {
+    const result = DestinationSchema.safeParse(destination(geo));
     expect(result.success).toBe(true);
-    if (!result.success) return;
-    expect(result.data.meta.flag).toBeUndefined();
+    return result.success ? result.data.geo?.country_code : "parse failed";
+  };
+
+  it("parses meta without location or flag", () => {
+    expect(DestinationSchema.safeParse(destination()).success).toBe(true);
   });
 
   it("defaults the overrides an older daemon does not send", () => {
-    const result = DestinationSchema.safeParse(destination("DE"));
+    const result = DestinationSchema.safeParse(destination());
     expect(result.success).toBe(true);
     if (!result.success) return;
     expect(result.data.overrides.configured_meta).toEqual({});
   });
 
-  it("keeps a plain alpha-2 code", () => {
-    const result = DestinationSchema.safeParse(destination("DE"));
-    expect(result.success).toBe(true);
-    if (!result.success) return;
-    expect(result.data.meta.flag).toBe("de");
+  it("keeps a null or absent geo as no country", () => {
+    expect(parsedCode(null)).toBeUndefined();
+    expect(parsedCode()).toBeUndefined();
   });
 
-  it("keeps a well-formed ISO 3166-2 subdivision code", () => {
-    const result = DestinationSchema.safeParse(destination("GB-SCT"));
-    expect(result.success).toBe(true);
-    if (!result.success) return;
-    expect(result.data.meta.flag).toBe("gb-sct");
+  it("lowercases the alpha-2 code for the flag class", () => {
+    expect(parsedCode({ country_code: "GB", source: "announced_ip" })).toBe(
+      "gb",
+    );
   });
 
-  // Regression: a malformed subdivision suffix used to fail the schema regex
-  // outright, so .catch(undefined) dropped the flag entirely and Flag.tsx
-  // never got the chance to fall back to the parent country's flag.
-  it("preserves the parent country prefix for a malformed subdivision suffix", () => {
-    const result = DestinationSchema.safeParse(destination("GB-foobar"));
-    expect(result.success).toBe(true);
-    if (!result.success) return;
-    expect(result.data.meta.flag).toBe("gb-foobar");
+  it("drops a code that would not be safe in a CSS class", () => {
+    expect(parsedCode({ country_code: "x y", source: "announced_ip" }))
+      .toBeUndefined();
+  });
+
+  it("accepts a source this app does not know yet", () => {
+    expect(parsedCode({ country_code: "DE", source: "tunnel_egress" })).toBe(
+      "de",
+    );
   });
 });
 

@@ -72,7 +72,9 @@ function failedSafeDeployment(
 
 function destination(route_health: RouteHealthView): DestinationState {
   return {
-    destination: makeDestination({ meta: { location: "Brazil" } }),
+    destination: makeDestination({
+      geo: { country_code: "br", source: "announced_ip" },
+    }),
     route_health,
   };
 }

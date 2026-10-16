@@ -4,10 +4,12 @@
     "id": "test-exit",
     "meta": {
       "name": null,
-      "location": "EU",
-      "flag": null,
       "description": null,
       "other": {}
+    },
+    "geo": {
+      "country_code": "DE",
+      "source": "announced_ip"
     },
     "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
     "routing": 1,

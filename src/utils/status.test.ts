@@ -63,7 +63,7 @@ const PHASELESS_RECONNECTING_INFO = {
 };
 
 const DESTINATION: Destination = makeDestination({
-  meta: { location: "Brazil" },
+  geo: { country_code: "br", source: "announced_ip" },
 });
 
 const BASE_APP_STATE: AppState = {

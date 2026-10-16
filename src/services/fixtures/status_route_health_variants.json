@@ -6,10 +6,12 @@
         "id": "test-exit",
         "meta": {
           "name": null,
-          "location": "EU",
-          "flag": null,
           "description": null,
           "other": {}
+        },
+        "geo": {
+          "country_code": "DE",
+          "source": "announced_ip"
         },
         "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
         "routing": 1,
@@ -35,7 +37,12 @@
           "best_relays": [
             "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa"
           ],
-          "best_value": 0.75
+          "best_value": 0.75,
+          "return_count": 2,
+          "return_best_relays": [
+            "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa"
+          ],
+          "return_best_value": 0.5
         },
         "quick_probe": {
           "state": "Checked",
@@ -69,10 +76,12 @@
         "id": "test-exit",
         "meta": {
           "name": null,
-          "location": "EU",
-          "flag": null,
           "description": null,
           "other": {}
+        },
+        "geo": {
+          "country_code": "DE",
+          "source": "announced_ip"
         },
         "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
         "routing": 1,
@@ -96,7 +105,10 @@
           "count": 1,
           "distinct_first_relays": 0,
           "best_relays": [],
-          "best_value": 1.0
+          "best_value": 1.0,
+          "return_count": 1,
+          "return_best_relays": [],
+          "return_best_value": 1.0
         },
         "quick_probe": {
           "state": "Checking",
@@ -110,10 +122,12 @@
         "id": "test-exit",
         "meta": {
           "name": null,
-          "location": "EU",
-          "flag": null,
           "description": null,
           "other": {}
+        },
+        "geo": {
+          "country_code": "DE",
+          "source": "announced_ip"
         },
         "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
         "routing": 1,
@@ -133,7 +147,9 @@
         "last_error": "walk timed out",
         "walk": {
           "found": "NoPath",
-          "walked_at": 0
+          "walked_at": 0,
+          "forward_count": 0,
+          "return_count": 0
         },
         "quick_probe": null
       }
@@ -143,10 +159,12 @@
         "id": "test-exit",
         "meta": {
           "name": null,
-          "location": "EU",
-          "flag": null,
           "description": null,
           "other": {}
+        },
+        "geo": {
+          "country_code": "DE",
+          "source": "announced_ip"
         },
         "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
         "routing": 1,
@@ -176,10 +194,12 @@
         "id": "test-exit",
         "meta": {
           "name": null,
-          "location": "EU",
-          "flag": null,
           "description": null,
           "other": {}
+        },
+        "geo": {
+          "country_code": "DE",
+          "source": "announced_ip"
         },
         "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
         "routing": 1,
@@ -207,10 +227,12 @@
         "id": "test-exit",
         "meta": {
           "name": null,
-          "location": "EU",
-          "flag": null,
           "description": null,
           "other": {}
+        },
+        "geo": {
+          "country_code": "DE",
+          "source": "announced_ip"
         },
         "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
         "routing": 1,
@@ -243,7 +265,12 @@
           "best_relays": [
             "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa"
           ],
-          "best_value": 0.75
+          "best_value": 0.75,
+          "return_count": 2,
+          "return_best_relays": [
+            "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa"
+          ],
+          "return_best_value": 0.5
         },
         "quick_probe": {
           "state": "Failed",
@@ -257,10 +284,12 @@
         "id": "test-exit",
         "meta": {
           "name": null,
-          "location": "EU",
-          "flag": null,
           "description": null,
           "other": {}
+        },
+        "geo": {
+          "country_code": "DE",
+          "source": "announced_ip"
         },
         "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
         "routing": 1,
@@ -291,7 +320,12 @@
           "best_relays": [
             "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa"
           ],
-          "best_value": 0.75
+          "best_value": 0.75,
+          "return_count": 2,
+          "return_best_relays": [
+            "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa"
+          ],
+          "return_best_value": 0.5
         },
         "quick_probe": null
       }
@@ -301,10 +335,12 @@
         "id": "test-exit",
         "meta": {
           "name": null,
-          "location": "EU",
-          "flag": null,
           "description": null,
           "other": {}
+        },
+        "geo": {
+          "country_code": "DE",
+          "source": "announced_ip"
         },
         "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
         "routing": 1,
@@ -324,11 +360,10 @@
         "id": "pinned-exit",
         "meta": {
           "name": "Frankfurt-1",
-          "location": "Germany",
-          "flag": "DE",
           "description": "10Gbit uplink, no logs kept",
           "other": {}
         },
+        "geo": null,
         "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
         "routing": 1,
         "gnosis_vpn_server": "172.30.0.1:8000",
@@ -336,7 +371,7 @@
         "source": "ConfiguredAndDiscovered",
         "overrides": {
           "configured_meta": {
-            "location": "Germany"
+            "name": "Frankfurt-1"
           },
           "configured_gnosis_vpn_server": null,
           "configured_wireguard_server": null
@@ -349,10 +384,12 @@
         "id": "test-exit",
         "meta": {
           "name": null,
-          "location": "EU",
-          "flag": null,
           "description": null,
           "other": {}
+        },
+        "geo": {
+          "country_code": "DE",
+          "source": "announced_ip"
         },
         "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
         "routing": 1,
@@ -378,7 +415,12 @@
           "best_relays": [
             "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa"
           ],
-          "best_value": 0.75
+          "best_value": 0.75,
+          "return_count": 2,
+          "return_best_relays": [
+            "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa"
+          ],
+          "return_best_value": 0.5
         },
         "quick_probe": {
           "state": "Checking",

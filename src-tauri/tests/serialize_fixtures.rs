@@ -12,6 +12,7 @@ use gnosis_vpn_lib::command::{
 use gnosis_vpn_lib::connection::destination::{
     Destination, DestinationSource, Destinations, HopRouting, Meta, Overrides,
 };
+use gnosis_vpn_lib::geoip::{Geo, GeoSource};
 use gnosis_vpn_lib::prelude::Address;
 use gnosis_vpn_lib::probe::{Health, LoadAvg, ProbeState, Slots, Versions};
 use gnosis_vpn_lib::route_health::{
@@ -27,26 +28,27 @@ fn address() -> Address {
 }
 
 fn destination() -> Destination {
-    let mut meta = HashMap::new();
-    meta.insert("location".to_string(), "EU".to_string());
-    Destination::new(
+    let mut dest = Destination::new(
         "test-exit".to_string(),
         address(),
         HopRouting::try_from(1).unwrap(),
-        Meta::from_map(meta),
+        Meta::default(),
         "172.30.0.1:8000".parse().unwrap(),
         "172.30.0.1:51820".parse().unwrap(),
         DestinationSource::Configured,
-    )
+    );
+    dest.geo = Some(Geo {
+        country_code: "DE".to_string(),
+        source: GeoSource::AnnouncedIp,
+    });
+    dest
 }
 
 /// A c+d exit with one pinned label; a second pin would make the HashMap's key order flaky.
 fn pinned_destination() -> Destination {
     let mut pinned = HashMap::new();
-    pinned.insert("location".to_string(), "Germany".to_string());
+    pinned.insert("name".to_string(), "Frankfurt-1".to_string());
     let mut meta = pinned.clone();
-    meta.insert("name".to_string(), "Frankfurt-1".to_string());
-    meta.insert("flag".to_string(), "DE".to_string());
     meta.insert(
         "description".to_string(),
         "10Gbit uplink, no logs kept".to_string(),
@@ -93,6 +95,9 @@ fn paths_walk() -> RouteWalk {
         distinct_first_relays: 2,
         best_relays: vec![address()],
         best_value: 0.75,
+        return_count: 2,
+        return_best_relays: vec![address()],
+        return_best_value: 0.5,
     }
 }
 
@@ -381,6 +386,8 @@ fn generate_fixtures() {
         RouteHealthState::NotRoutable,
         Some(RouteWalk::NoPath {
             walked_at: SystemTime::UNIX_EPOCH,
+            forward_count: 0,
+            return_count: 0,
         }),
         None,
     );
@@ -400,6 +407,9 @@ fn generate_fixtures() {
                 distinct_first_relays: 0,
                 best_relays: vec![],
                 best_value: 1.0,
+                return_count: 1,
+                return_best_relays: vec![],
+                return_best_value: 1.0,
             }),
             Some(QuickProbeState::Checking {
                 since: SystemTime::UNIX_EPOCH,
