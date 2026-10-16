@@ -357,10 +357,8 @@ const COUNTRY_NAMES = new Intl.DisplayNames("en", { type: "region" });
 export function destinationCountry(d: Destination): string | null {
   const code = d.geo?.country_code;
   if (code === undefined) return null;
-  // Subdivision suffixes are flag art only; DisplayNames knows countries.
-  const country = code.split("-")[0].toUpperCase();
   try {
-    return COUNTRY_NAMES.of(country) ?? null;
+    return COUNTRY_NAMES.of(code.toUpperCase()) ?? null;
   } catch {
     return null;
   }

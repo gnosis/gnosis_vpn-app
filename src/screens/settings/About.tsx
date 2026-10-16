@@ -1,13 +1,9 @@
-import { createSignal, For, Show } from "solid-js";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import flagNotice from "@assets/flags/NOTICE.md?raw";
-import { parseFlagAttributions } from "@src/utils/flagNotice.ts";
 import { logWarn } from "@src/utils/appLog.ts";
 
 const SOURCE_URL = "https://github.com/gnosis/gnosis_vpn-app";
 const IPINFO_URL = "https://ipinfo.io";
-
-const flagAttributions = parseFlagAttributions(flagNotice);
+const FLAG_ICONS_URL = "https://github.com/lipis/flag-icons";
 
 async function open(url: string) {
   try {
@@ -30,8 +26,6 @@ function Link(props: { url: string; label: string }) {
 }
 
 export default function About() {
-  const [showFlags, setShowFlags] = createSignal(false);
-
   return (
     <div class="space-y-4 w-full p-6 max-w-lg bg-bg-primary flex flex-col flex-1 min-h-0 overflow-y-auto text-sm text-text-secondary">
       <div class="space-y-1">
@@ -63,31 +57,10 @@ export default function About() {
         <div class="space-y-1">
           <div class="text-text-primary">Flag art</div>
           <div>
-            Country flags from flag-icons (MIT). Subdivision flags from
-            Wikimedia Commons, used under the licences credited below.
+            Flags from{" "}
+            <Link url={FLAG_ICONS_URL} label="flag-icons" />, licensed under
+            MIT.
           </div>
-          <button
-            type="button"
-            class="underline text-text-primary cursor-pointer"
-            onClick={() => setShowFlags(!showFlags())}
-          >
-            {showFlags()
-              ? "Hide credits"
-              : `Show all credits (${flagAttributions.length})`}
-          </button>
-          <Show when={showFlags()}>
-            <ul class="space-y-1 text-xs select-text">
-              <For each={flagAttributions}>
-                {(a) => (
-                  <li>
-                    <span class="text-text-primary">{a.source}</span>
-                    {` · ${a.licence}`}
-                    <Show when={a.author}>{` · ${a.author}`}</Show>
-                  </li>
-                )}
-              </For>
-            </ul>
-          </Show>
         </div>
       </div>
     </div>
