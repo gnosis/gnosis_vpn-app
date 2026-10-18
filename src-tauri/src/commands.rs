@@ -29,6 +29,12 @@ use crate::{AppStateCache, BalancePollingHandle, PollingExit, StatusPollingHandl
 const COMPATIBLE_VERSIONS: &[&str] = &["0.101"];
 /// Poll cap while the destination list is open; mirrors STATUS_POLL_FAST_MS in docs/destinationMode.md.
 const STATUS_POLL_FAST: Duration = Duration::from_millis(500);
+/// Status `Err` payload the frontend routes to its own screen; mirrors SERVICE_NOT_RUNNING_ERROR in vpnService.ts.
+pub const SERVICE_NOT_RUNNING_ERROR: &str = "service_not_running";
+/// Worker-scoped commands share this answer while another local user owns the worker.
+const IN_USE_BY_OTHER_USER_ERROR: &str = "The VPN is in use by another user on this computer";
+/// Same cap as the app's own rolling logs (logging::MAX_LOG_FILES).
+const MAX_WORKER_LOG_FILES: usize = 7;
 
 fn version_matches(version: &str, requirements: &[&str]) -> bool {
     let Ok(version) = semver::Version::parse(version.trim()) else {
@@ -80,14 +86,30 @@ pub async fn check_update(skip_vpn: bool) -> Result<toolkit::CheckResult, String
     }
 }
 
-async fn query_info() -> Result<command::InfoResponse, String> {
+/// Only the socket-absent case gets its own screen; everything else is the critical screen.
+#[derive(Debug)]
+enum InfoError {
+    ServiceNotRunning,
+    Other(String),
+}
+
+impl From<root_socket::Error> for InfoError {
+    fn from(e: root_socket::Error) -> Self {
+        match e {
+            root_socket::Error::ServiceNotRunning => InfoError::ServiceNotRunning,
+            other => InfoError::Other(other.to_string()),
+        }
+    }
+}
+
+async fn query_info() -> Result<command::InfoResponse, InfoError> {
     let p = PathBuf::from(root_socket::DEFAULT_PATH);
-    let resp = root_socket::process_cmd(&p, &command::Command::Info)
-        .await
-        .map_err(|e| e.to_string())?;
+    let resp = root_socket::process_cmd(&p, &command::Command::Info).await?;
     match resp {
         command::Response::Info(info) => Ok(info),
-        other => Err(format!("Unexpected info response: {other:?}")),
+        other => Err(InfoError::Other(format!(
+            "Unexpected info response: {other:?}"
+        ))),
     }
 }
 
@@ -96,8 +118,21 @@ async fn start_client_worker(keep_alive: Duration) -> Result<(), String> {
     let resp = root_socket::process_cmd(&p, &command::Command::StartClient(keep_alive))
         .await
         .map_err(|e| e.to_string())?;
+    classify_start_client_response(resp)
+}
+
+/// Ok means "go on to polling": the status loop also shows the in-use state.
+fn classify_start_client_response(resp: command::Response) -> Result<(), String> {
+    use command::StartClientResponse::{AlreadyRunning, SpawnFailed, Started};
     match resp {
-        command::Response::StartClient(_) => Ok(()),
+        command::Response::StartClient(Started | AlreadyRunning) => Ok(()),
+        command::Response::InUseByOtherUser => Ok(()),
+        command::Response::StartClient(SpawnFailed { reason }) => Err(format!(
+            "The service could not start the client worker: {reason}"
+        )),
+        command::Response::RootCannotOwnWorker => {
+            Err("Running the app as root is not supported".to_string())
+        }
         other => Err(format!("Unexpected start-client response: {other:?}")),
     }
 }
@@ -124,6 +159,7 @@ pub async fn connect(
             }
             Ok(resp)
         }
+        command::Response::InUseByOtherUser => Err(IN_USE_BY_OTHER_USER_ERROR.to_string()),
         other => {
             tracing::warn!(target: "status", response = ?other, "unexpected connect response");
             Err("Unexpected response type".to_string())
@@ -144,6 +180,7 @@ pub async fn probe(id: String) -> Result<command::ProbeResponse, String> {
         })?;
     match resp {
         command::Response::Probe(resp) => Ok(resp),
+        command::Response::InUseByOtherUser => Err(IN_USE_BY_OTHER_USER_ERROR.to_string()),
         other => {
             tracing::warn!(target: "status", response = ?other, "unexpected probe response");
             Err("Unexpected response type".to_string())
@@ -164,6 +201,7 @@ pub async fn quick_probe(id: String) -> Result<command::QuickProbeResponse, Stri
         })?;
     match resp {
         command::Response::QuickProbe(resp) => Ok(resp),
+        command::Response::InUseByOtherUser => Err(IN_USE_BY_OTHER_USER_ERROR.to_string()),
         other => {
             tracing::warn!(target: "status", response = ?other, "unexpected quick probe response");
             Err("Unexpected response type".to_string())
@@ -204,6 +242,7 @@ pub async fn disconnect(
             }
             Ok(resp)
         }
+        command::Response::InUseByOtherUser => Err(IN_USE_BY_OTHER_USER_ERROR.to_string()),
         other => {
             tracing::warn!(target: "status", response = ?other, "unexpected disconnect response");
             Err("Unexpected response type".to_string())
@@ -227,10 +266,12 @@ async fn query_balance(
             warn_on_change(last_warn, format!("daemon balance query failed: {e:?}"));
             (Duration::from_secs(5), Ok(None))
         }
-        // worker up/down recovery is the status loop's story; stay quiet here
-        Ok(command::Response::WorkerOffline | command::Response::WorkerRestarting) => {
-            (Duration::from_secs(5), Ok(None))
-        }
+        // worker up/down and ownership are the status loop's story; stay quiet here
+        Ok(
+            command::Response::WorkerOffline
+            | command::Response::WorkerRestarting
+            | command::Response::InUseByOtherUser,
+        ) => (Duration::from_secs(5), Ok(None)),
         Ok(unexpected) => {
             let msg = format!("Unexpected balance response: {unexpected:?}");
             warn_on_change(last_warn, msg.clone());
@@ -373,7 +414,8 @@ fn write_log_section<W: Write>(
 // The uploader UTF-8-checks only the first 100 bytes, so a multi-byte character cut at that
 // boundary gets the bundle rejected; an ASCII preamble keeps user text and logs past it.
 const LOG_BUNDLE_PREAMBLE: &str = "===== Gnosis VPN log bundle =====\n\
-    Sections: system info, user description (if given), gnosis_vpn-app logs, gnosisvpn daemon log.\n\n";
+    Sections: system info, user description (if given), gnosis_vpn-app logs, gnosisvpn daemon log, \
+    gnosisvpn worker logs.\n\n";
 const MAX_DESCRIPTION_CHARS: usize = 2000;
 
 struct LogBundleSources {
@@ -381,6 +423,8 @@ struct LogBundleSources {
     package_version: Option<String>,
     app_logs: Vec<PathBuf>,
     daemon_log: Option<PathBuf>,
+    /// Newest first; empty for a non-owner, whom the daemon tells no log dir.
+    worker_logs: Vec<PathBuf>,
 }
 
 fn write_log_bundle<W: Write>(
@@ -419,23 +463,60 @@ fn write_log_bundle<W: Write>(
         None => writeln!(encoder, "===== gnosisvpn daemon log (unavailable) =====")
             .map_err(|e| format!("Failed to write section header: {e}"))?,
     }
+    if sources.worker_logs.is_empty() {
+        writeln!(encoder, "===== gnosisvpn worker log (unavailable) =====")
+            .map_err(|e| format!("Failed to write section header: {e}"))?;
+    }
+    for path in &sources.worker_logs {
+        write_log_section(&mut encoder, "gnosisvpn worker log", path)?;
+    }
     encoder
         .finish()
         .map_err(|e| format!("Failed to finalize compression: {e}"))
 }
 
+/// The daily-rolled `worker.log.YYYY-MM-DD` files, newest first, capped like the app's own logs.
+fn worker_log_files(dir: &Path) -> Vec<PathBuf> {
+    let entries = match std::fs::read_dir(dir) {
+        Ok(entries) => entries,
+        Err(e) => {
+            tracing::warn!(target: "export", dir = %dir.display(), error = %e, "cannot read worker log dir");
+            return Vec::new();
+        }
+    };
+    let mut files: Vec<PathBuf> = entries
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| {
+            p.file_name()
+                .and_then(|n| n.to_str())
+                .is_some_and(|n| n.starts_with("worker.log"))
+        })
+        .collect();
+    // The date suffix sorts chronologically, so reverse order is newest first.
+    files.sort_by(|a, b| b.cmp(a));
+    files.truncate(MAX_WORKER_LOG_FILES);
+    files
+}
+
 async fn collect_log_sources(app: &AppHandle) -> LogBundleSources {
-    let app_logs = app
-        .path()
-        .app_log_dir()
+    let app_logs = crate::logging::log_dir(app)
         .map(|dir| crate::logging::log_files(&dir))
         .unwrap_or_default();
-    let (daemon_log, daemon_package_version) = app
-        .state::<AppStateCache>()
-        .service_info
-        .borrow()
-        .as_ref()
-        .map(|info| (info.log_file.clone(), info.package_version.clone()))
+    // Asked afresh: the cached info predates StartClient, when no worker (and no log dir) existed yet.
+    let cached_info = app.state::<AppStateCache>().service_info.borrow().clone();
+    let info = match query_info().await {
+        Ok(info) => Some(info),
+        Err(e) => {
+            tracing::warn!(target: "export", error = ?e, "daemon info unavailable, using cached");
+            cached_info
+        }
+    };
+    let (daemon_log, daemon_package_version, worker_log_dir) = info
+        .map(|info| (info.log_file, info.package_version, info.worker_log_dir))
+        .unwrap_or_default();
+    let worker_logs = worker_log_dir
+        .map(|dir| worker_log_files(&dir))
         .unwrap_or_default();
     // Toolkit first, daemon as fallback: the order the frontend resolves the package version in.
     let package_version = toolkit::version()
@@ -447,6 +528,7 @@ async fn collect_log_sources(app: &AppHandle) -> LogBundleSources {
         target: "export",
         app_log_files = app_logs.len(),
         daemon_log_available = daemon_log.is_some(),
+        worker_log_files = worker_logs.len(),
         "collected log sources",
     );
     LogBundleSources {
@@ -454,6 +536,7 @@ async fn collect_log_sources(app: &AppHandle) -> LogBundleSources {
         package_version,
         app_logs,
         daemon_log,
+        worker_logs,
     }
 }
 
@@ -660,6 +743,7 @@ pub async fn stop_client() -> Result<(), String> {
         .map_err(|e| e.to_string())?;
     match resp {
         command::Response::StopClient(_resp) => Ok(()),
+        command::Response::InUseByOtherUser => Err(IN_USE_BY_OTHER_USER_ERROR.to_string()),
         _ => Err("Unexpected response type".to_string()),
     }
 }
@@ -686,6 +770,74 @@ pub fn get_cached_state(cache: State<'_, AppStateCache>) -> CachedState {
         balance: flatten_cached(cache.balance.borrow().clone()),
         service_info: cache.service_info.borrow().clone(),
     }
+}
+
+/// Tray text, quit label and the dock/tray icons follow the polled status; `last_*` only gate the log lines.
+async fn reflect_status_in_tray(
+    app: &AppHandle,
+    status: &StatusResponse,
+    last_conn_state: &mut Option<String>,
+    last_funds_level: &mut Option<icons::FundsLevel>,
+) {
+    let conn_state: ConnectionState = status.into();
+    let state_label = conn_state.to_string();
+    if last_conn_state.as_deref() != Some(state_label.as_str()) {
+        tracing::info!(
+            target: "status",
+            from = last_conn_state.as_deref().unwrap_or("<startup>"),
+            to = %state_label,
+            "connection state changed",
+        );
+        *last_conn_state = Some(state_label);
+    }
+
+    // Funding level needs the balance poll's data; use the latest cached response.
+    let cached_balance = app.state::<AppStateCache>().balance.borrow().clone();
+    let balance = cached_balance
+        .as_ref()
+        .and_then(|res| res.as_ref().ok())
+        .and_then(|opt| opt.as_ref());
+    let level = icons::funds_level(&status.run_mode, balance);
+    if *last_funds_level != Some(level) {
+        tracing::info!(target: "status", level = ?level, "funds level changed");
+        *last_funds_level = Some(level);
+    }
+
+    let icon_state = app.state::<Arc<Mutex<icons::IconState>>>();
+    let new_dock_icon = match icon_state.lock() {
+        Ok(mut guard) => guard.apply_status(&conn_state, level),
+        Err(e) => {
+            tracing::warn!(target: "status", error = %e, "failed to lock icon state");
+            None
+        }
+    };
+
+    // during animation, the heartbeat logic owns app and tray icon changes
+    if !icons::is_animating_state(&conn_state) {
+        icons::update_tray_icon(app, &app.state::<TrayIconState>(), &conn_state, level);
+
+        if let Some(icon_name) = new_dock_icon {
+            if let Err(e) = set_app_icon(app.clone(), icon_name).await {
+                tracing::warn!(target: "status", error = %e, "failed to set app icon");
+            }
+        }
+    }
+
+    let status_item = app.state::<tray::TrayStatusItem>();
+    if let Ok(guard) = status_item.0.lock() {
+        let _ = guard.set_text(conn_state.to_string());
+    };
+
+    let quit_label = match conn_state {
+        ConnectionState::Connected { .. }
+        | ConnectionState::Connecting(_)
+        | ConnectionState::Reconnecting(_) => "Disconnect and Quit",
+        _ => "Quit",
+    };
+    let quit_item = app.state::<tray::TrayQuitItem>();
+    if let Ok(guard) = quit_item.0.lock() {
+        let _ = guard.set_text(quit_label);
+    };
 }
 
 async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
@@ -746,76 +898,19 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
                         delay
                     };
                     tick_timeout.as_mut().reset(Instant::now() + delay);
-                    let Some(result) = answer else {
-                        continue;
-                    };
-                    if let Err(ref e) = result {
-                        warn_on_change(&mut last_status_warn, format!("status query failed: {e}"));
-                    }
-                    if let Ok(Some(ref status)) = result {
-                        if last_status_warn.take().is_some() {
-                            tracing::info!(target: "status", "status query recovered");
+                    if let Some(result) = answer {
+                        if let Err(ref e) = result {
+                            warn_on_change(&mut last_status_warn, format!("status query failed: {e}"));
                         }
-                        let conn_state: ConnectionState = status.into();
-                        let state_label = conn_state.to_string();
-                        if last_conn_state.as_deref() != Some(state_label.as_str()) {
-                            tracing::info!(
-                                target: "status",
-                                from = last_conn_state.as_deref().unwrap_or("<startup>"),
-                                to = %state_label,
-                                "connection state changed",
-                            );
-                            last_conn_state = Some(state_label);
-                        }
-
-                        // Funding level needs the balance poll's data; use the latest cached response.
-                        let cached_balance = app.state::<AppStateCache>().balance.borrow().clone();
-                        let balance = cached_balance
-                            .as_ref()
-                            .and_then(|res| res.as_ref().ok())
-                            .and_then(|opt| opt.as_ref());
-                        let level = icons::funds_level(&status.run_mode, balance);
-                        if last_funds_level != Some(level) {
-                            tracing::info!(target: "status", level = ?level, "funds level changed");
-                            last_funds_level = Some(level);
-                        }
-
-                        let icon_state = app.state::<Arc<Mutex<icons::IconState>>>();
-                        let new_dock_icon = match icon_state.lock() {
-                            Ok(mut guard) => guard.apply_status(&conn_state, level),
-                            Err(e) => {
-                                tracing::warn!(target: "status", error = %e, "failed to lock icon state");
-                                None
+                        if let Ok(Some(ref status)) = result {
+                            if last_status_warn.take().is_some() {
+                                tracing::info!(target: "status", "status query recovered");
                             }
-                        };
-
-                        // during animation, the heartbeat logic owns app and tray icon changes
-                        if !icons::is_animating_state(&conn_state) {
-                            icons::update_tray_icon(&app, &app.state::<TrayIconState>(), &conn_state, level);
-
-                            if let Some(icon_name) = new_dock_icon {
-                                if let Err(e) = set_app_icon(app.clone(), icon_name).await {
-                                    tracing::warn!(target: "status", error = %e, "failed to set app icon");
-                                }
-                            }
+                            reflect_status_in_tray(&app, status, &mut last_conn_state, &mut last_funds_level).await;
                         }
-
-                        let status_item = app.state::<tray::TrayStatusItem>();
-                        if let Ok(guard) = status_item.0.lock() {
-                            let _ = guard.set_text(conn_state.to_string());
-                        };
-
-                        let quit_label = match conn_state {
-                            ConnectionState::Connected { .. } | ConnectionState::Connecting(_) | ConnectionState::Reconnecting(_) => "Disconnect and Quit",
-                            _ => "Quit",
-                        };
-                        let quit_item = app.state::<tray::TrayQuitItem>();
-                        if let Ok(guard) = quit_item.0.lock() {
-                            let _ = guard.set_text(quit_label);
-                        };
+                        app.state::<AppStateCache>().status.send_replace(Some(result.clone()));
+                        let _ = app.emit("status", result);
                     }
-                    app.state::<AppStateCache>().status.send_replace(Some(result.clone()));
-                    let _ = app.emit("status", result);
                     if needs_reinit {
                         tracing::warn!(target: "status", "daemon worker offline, restarting initialization");
                         break PollingExit::NeedsReinit;
@@ -873,7 +968,17 @@ pub async fn run_initialization_loop(app: AppHandle) {
     loop {
         let info = match query_info().await {
             Ok(i) => i,
-            Err(e) => {
+            // Socket absent: installed but not started, which gets its own screen instead of the critical one.
+            Err(InfoError::ServiceNotRunning) => {
+                warn_on_change(&mut last_warn, "service not running, retrying".to_string());
+                let _ = app.emit(
+                    "status",
+                    Err::<Option<StatusResponse>, String>(SERVICE_NOT_RUNNING_ERROR.to_string()),
+                );
+                time::sleep(RETRY_DELAY).await;
+                continue;
+            }
+            Err(InfoError::Other(e)) => {
                 warn_on_change(&mut last_warn, format!("daemon unreachable, retrying: {e}"));
                 let _ = app.emit(
                     "status",
@@ -973,7 +1078,7 @@ struct StatusPoll {
     delay: Duration,
     /// Whether the worker is gone and initialization has to run again.
     needs_reinit: bool,
-    /// What to hand the frontend - `None` while the worker is bouncing and has nothing to report.
+    /// What to hand the frontend - `None` while the worker is away and has nothing to report.
     answer: Option<Result<Option<StatusResponse>, String>>,
 }
 
@@ -981,6 +1086,12 @@ async fn query_status() -> StatusPoll {
     let p = PathBuf::from(root_socket::DEFAULT_PATH);
     match root_socket::process_cmd(&p, &command::Command::Status).await {
         Ok(resp) => classify_status_response(resp),
+        // Same screen as at startup: the service stopped underneath a running app.
+        Err(root_socket::Error::ServiceNotRunning) => StatusPoll {
+            delay: Duration::from_secs_f64(2.3),
+            needs_reinit: false,
+            answer: Some(Err(SERVICE_NOT_RUNNING_ERROR.to_string())),
+        },
         Err(e) => StatusPoll {
             delay: Duration::from_secs_f64(2.3),
             needs_reinit: false,
@@ -1035,11 +1146,17 @@ fn classify_status_response(resp: command::Response) -> StatusPoll {
             needs_reinit: false,
             answer: None,
         },
-        // socket-level response: worker process not running
+        // Worker gone (every owner hand-over passes through here): re-init quietly, no empty event.
         command::Response::WorkerOffline => StatusPoll {
             delay: Duration::from_secs(5),
             needs_reinit: true,
-            answer: Some(Ok(None)),
+            answer: None,
+        },
+        // A normal status event, so the UI shows a state rather than an error; it clears via WorkerOffline.
+        command::Response::InUseByOtherUser => StatusPoll {
+            delay: Duration::from_secs(5),
+            needs_reinit: false,
+            answer: Some(Ok(Some(StatusResponse::in_use_by_other_user()))),
         },
         // Internal response sent by the root process to itself; never forwarded to the app.
         command::Response::ForceReconnectAcknowledged => StatusPoll {
@@ -1075,12 +1192,16 @@ mod tests {
         );
     }
 
+    // Every owner hand-over goes through WorkerOffline; an empty event would flash the critical screen.
     #[test]
     fn worker_offline_restarts_initialization() {
         let poll = classify_status_response(command::Response::WorkerOffline);
 
         assert!(poll.needs_reinit);
-        assert!(matches!(poll.answer, Some(Ok(None))));
+        assert!(
+            poll.answer.is_none(),
+            "nothing to report, reinit says it all"
+        );
     }
 
     #[test]
@@ -1088,6 +1209,79 @@ mod tests {
         let poll = classify_status_response(command::Response::Pong);
 
         assert!(matches!(poll.answer, Some(Err(_))));
+    }
+
+    #[test]
+    fn in_use_by_other_user_is_a_status_not_an_error() {
+        let poll = classify_status_response(command::Response::InUseByOtherUser);
+
+        assert!(
+            !poll.needs_reinit,
+            "the owner's worker is alive, nothing to restart"
+        );
+        let Some(Ok(Some(status))) = poll.answer else {
+            panic!("expected a synthesised status, got {:?}", poll.answer);
+        };
+        assert!(matches!(
+            status.run_mode,
+            crate::types::RunMode::InUseByOtherUser
+        ));
+        assert!(status.destinations.is_empty());
+    }
+
+    #[test]
+    fn spawn_failed_surfaces_reason() {
+        let failed = command::Response::StartClient(command::StartClientResponse::SpawnFailed {
+            reason: "no home directory for uid 1001".to_string(),
+        });
+        let err = classify_start_client_response(failed).unwrap_err();
+        assert!(err.contains("no home directory for uid 1001"), "{err}");
+
+        assert!(classify_start_client_response(command::Response::InUseByOtherUser).is_ok());
+        assert!(
+            classify_start_client_response(command::Response::StartClient(
+                command::StartClientResponse::AlreadyRunning
+            ))
+            .is_ok()
+        );
+        assert!(classify_start_client_response(command::Response::RootCannotOwnWorker).is_err());
+    }
+
+    #[test]
+    fn service_not_running_is_distinguished_from_io_error() {
+        assert!(matches!(
+            InfoError::from(root_socket::Error::ServiceNotRunning),
+            InfoError::ServiceNotRunning
+        ));
+        let refused = io::Error::from(io::ErrorKind::ConnectionRefused);
+        assert!(matches!(
+            InfoError::from(root_socket::Error::IO(refused)),
+            InfoError::Other(_)
+        ));
+    }
+
+    #[test]
+    fn worker_logs_are_newest_first_and_capped() {
+        let dir = std::env::temp_dir().join("gnosis_vpn-app-worker-log-files");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        for day in 1..=9 {
+            std::fs::write(dir.join(format!("worker.log.2026-10-0{day}")), "x\n").unwrap();
+        }
+        std::fs::write(dir.join("unrelated.txt"), "x\n").unwrap();
+
+        let files = worker_log_files(&dir);
+        let names: Vec<String> = files
+            .iter()
+            .map(|p| p.file_name().unwrap().to_str().unwrap().to_string())
+            .collect();
+
+        assert_eq!(names.len(), MAX_WORKER_LOG_FILES);
+        assert_eq!(names[0], "worker.log.2026-10-09");
+        assert_eq!(names[MAX_WORKER_LOG_FILES - 1], "worker.log.2026-10-03");
+        assert!(worker_log_files(&dir.join("missing")).is_empty());
+
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     // The list is rewritten by the bump-version workflow; a malformed entry
@@ -1146,6 +1340,7 @@ mod tests {
             package_version: Some("0.77.0".to_string()),
             app_logs: Vec::new(),
             daemon_log: None,
+            worker_logs: Vec::new(),
         }
     }
 
@@ -1155,9 +1350,12 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         let source = dir.join("gnosis_vpn-app.2026-09-28.log");
         std::fs::write(&source, "app line\n").unwrap();
+        let worker_log = dir.join("worker.log.2026-09-28");
+        std::fs::write(&worker_log, "worker line\n").unwrap();
 
         let sources = LogBundleSources {
             app_logs: vec![source],
+            worker_logs: vec![worker_log],
             ..test_bundle_sources()
         };
         let bytes =
@@ -1175,8 +1373,22 @@ mod tests {
         assert!(text.contains("===== user description =====\nVPN drops după o oră\n"));
         assert!(text.contains("app line"));
         assert!(text.contains("===== gnosisvpn daemon log (unavailable) ====="));
+        assert!(
+            text.contains(
+                "===== gnosisvpn worker log (worker.log.2026-09-28) =====\nworker line\n"
+            )
+        );
+        assert!(!text.contains("worker log (unavailable)"));
 
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn missing_worker_logs_are_spelled_out() {
+        let bytes = write_log_bundle(Vec::new(), None, &test_bundle_sources()).unwrap();
+        let text = String::from_utf8(zstd::decode_all(&bytes[..]).unwrap()).unwrap();
+
+        assert!(text.contains("===== gnosisvpn worker log (unavailable) ====="));
     }
 
     #[test]

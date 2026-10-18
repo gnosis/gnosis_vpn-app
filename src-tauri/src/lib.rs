@@ -18,6 +18,7 @@ mod icons;
 mod logging;
 mod navigation;
 mod platform;
+mod service_control;
 pub mod settings;
 mod theme;
 pub mod toolkit;
@@ -35,6 +36,7 @@ use gnosis_vpn_lib::command::InfoResponse;
 use gnosis_vpn_lib::{command, socket::root as root_socket};
 use icons::{IconState, TrayIconState, determine_tray_icon, start_icon_heartbeat};
 use platform::{Platform, PlatformInterface, get_platform, get_system_info};
+use service_control::{get_service_not_running_info, start_service};
 use settings::{SettingsStore, get_settings, update_settings};
 #[cfg(target_os = "linux")]
 use theme::spawn_linux_theme_monitor;
@@ -205,7 +207,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             // Logging first so everything below is captured; failure must not block startup.
-            match app.path().app_log_dir() {
+            match logging::log_dir(app) {
                 Ok(dir) => match logging::init(&dir) {
                     Ok(filter) => {
                         let pkg = app.package_info();
@@ -231,8 +233,8 @@ pub fn run() {
             // Load settings (settings.json) before any UI decisions
             let settings_path = app
                 .path()
-                .app_data_dir()
-                .inspect_err(|e| tracing::error!(error = %e, "cannot resolve app data dir"))?
+                .app_config_dir()
+                .inspect_err(|e| tracing::error!(error = %e, "cannot resolve app config dir"))?
                 .join("settings.json");
             let settings_store = SettingsStore::load(settings_path.clone());
             tracing::info!(target: "settings", path = %settings_path.display(), settings = ?settings_store.current(), "loaded");
@@ -288,6 +290,9 @@ pub fn run() {
                             match root_socket::process_cmd(&socket, &command::Command::Unprobe).await {
                                 Ok(command::Response::Unprobe(resp)) => {
                                     tracing::info!(target: "tray", response = ?resp, "unprobe on quit")
+                                }
+                                Ok(command::Response::InUseByOtherUser) => {
+                                    tracing::info!(target: "tray", "worker owned by another user, nothing to unprobe")
                                 }
                                 Ok(other) => {
                                     tracing::warn!(target: "tray", response = ?other, "unexpected unprobe response")
@@ -515,7 +520,9 @@ pub fn run() {
             get_system_info,
             install_update,
             get_install_status,
-            get_toolkit_version
+            get_toolkit_version,
+            get_service_not_running_info,
+            start_service
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

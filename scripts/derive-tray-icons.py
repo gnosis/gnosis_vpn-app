@@ -1,6 +1,7 @@
-# Derives the stalled app icons from the connected ones, then the tray SVGs
-# from the app icon SVGs: a transparent-background set for macOS/Windows, and
-# a full-color set with a circular (rather than square) backdrop for Linux.
+# Derives the stalled app icons from the connected ones and the in-use icon
+# from the disconnected one, then the tray SVGs from the app icon SVGs: a
+# transparent-background set for macOS/Windows, and a full-color set with a
+# circular (rather than square) backdrop for Linux.
 # Run after changing an app icon SVG, then run generate-icons.sh and commit
 # the regenerated SVGs and PNGs.
 import re
@@ -30,6 +31,7 @@ MAPPING = {
     "tray-icon-connected-stalled": "app-icon-connected-stalled",
     "tray-icon-connected-stalled-low-funds": "app-icon-connected-stalled-low-funds",
     "tray-icon-connected-stalled-out-of-funds": "app-icon-connected-stalled-out-of-funds",
+    "tray-icon-in-use": "app-icon-in-use",
 }
 
 # The connected badge: one solid green dot, drawn twice (fill + stroke).
@@ -53,6 +55,15 @@ def derive_stalled(lines):
 for suffix in ("", "-low-funds", "-out-of-funds"):
     lines = (APP / f"app-icon-connected{suffix}.svg").read_text().rstrip("\n").split("\n")
     (APP / f"app-icon-connected-stalled{suffix}.svg").write_text("\n".join(derive_stalled(lines)) + "\n")
+
+# Padlock on the disconnected owl (shape, not colour: macOS template mode); wallet-pill backdrop so the transforms below treat it as a badge, paths because circularize() would round a <rect>.
+IN_USE_BADGE = [
+    '<path d="M190 180C190 187.732 183.732 194 176 194L133.612 194C125.88 194 119.612 187.732 119.612 180L119.612 151C119.612 143.268 125.88 137 133.612 137L176 137C183.732 137 190 143.268 190 151L190 180Z" fill="black"/>',
+    '<path d="M146 164V156A9 9 0 0 1 164 156V164" stroke="white" stroke-width="5" stroke-linecap="round" fill="none"/>',
+    '<path fill-rule="evenodd" d="M143 163H167A4 4 0 0 1 171 167V181A4 4 0 0 1 167 185H143A4 4 0 0 1 139 181V167A4 4 0 0 1 143 163ZM155 170.5A3.5 3.5 0 0 0 151.5 174A3.5 3.5 0 0 0 158.5 174A3.5 3.5 0 0 0 155 170.5Z" fill="white"/>',
+]
+lines = (APP / "app-icon-disconnected.svg").read_text().rstrip("\n").split("\n")
+(APP / "app-icon-in-use.svg").write_text("\n".join([*lines[:-1], *IN_USE_BADGE, lines[-1]]) + "\n")
 
 # Black-filled backdrop shapes (badge circle / wallet pill) start with M19x;
 # the warning triangle's exclamation mark starts with M101.736. On the black
