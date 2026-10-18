@@ -500,9 +500,7 @@ fn worker_log_files(dir: &Path) -> Vec<PathBuf> {
 }
 
 async fn collect_log_sources(app: &AppHandle) -> LogBundleSources {
-    let app_logs = app
-        .path()
-        .app_log_dir()
+    let app_logs = crate::logging::log_dir(app)
         .map(|dir| crate::logging::log_files(&dir))
         .unwrap_or_default();
     // Asked afresh: the cached info predates StartClient, when no worker (and no log dir) existed yet.

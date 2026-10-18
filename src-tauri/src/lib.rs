@@ -207,7 +207,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             // Logging first so everything below is captured; failure must not block startup.
-            match app.path().app_log_dir() {
+            match logging::log_dir(app) {
                 Ok(dir) => match logging::init(&dir) {
                     Ok(filter) => {
                         let pkg = app.package_info();
@@ -233,8 +233,8 @@ pub fn run() {
             // Load settings (settings.json) before any UI decisions
             let settings_path = app
                 .path()
-                .app_data_dir()
-                .inspect_err(|e| tracing::error!(error = %e, "cannot resolve app data dir"))?
+                .app_config_dir()
+                .inspect_err(|e| tracing::error!(error = %e, "cannot resolve app config dir"))?
                 .join("settings.json");
             let settings_store = SettingsStore::load(settings_path.clone());
             tracing::info!(target: "settings", path = %settings_path.display(), settings = ?settings_store.current(), "loaded");

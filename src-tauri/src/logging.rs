@@ -1,4 +1,4 @@
-//! App-side file logging: daily-rotating, auto-pruned files under the Tauri app log dir.
+//! App-side file logging: daily-rotating, auto-pruned files in the platform's per-user log dir.
 
 use tracing_appender::non_blocking::{NonBlocking, WorkerGuard};
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
@@ -6,6 +6,22 @@ use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
+
+/// Linux logs are XDG state (`$XDG_STATE_HOME`, default `~/.local/state`); tauri's `app_log_dir` only knows the data dir there.
+#[cfg(target_os = "linux")]
+pub fn log_dir<R: tauri::Runtime>(app: &impl tauri::Manager<R>) -> tauri::Result<PathBuf> {
+    let state_home = match std::env::var_os("XDG_STATE_HOME").filter(|v| !v.is_empty()) {
+        Some(dir) => PathBuf::from(dir),
+        None => app.path().home_dir()?.join(".local/state"),
+    };
+    Ok(state_home.join(&app.config().identifier))
+}
+
+/// `~/Library/Logs/<identifier>`, which is what tauri resolves on macOS.
+#[cfg(target_os = "macos")]
+pub fn log_dir<R: tauri::Runtime>(app: &impl tauri::Manager<R>) -> tauri::Result<PathBuf> {
+    app.path().app_log_dir()
+}
 
 const DEFAULT_LOG_FILTER: &str = "info";
 const LOG_FILE_PREFIX: &str = "gnosis_vpn-app";

@@ -14,7 +14,7 @@ const LEGACY_CONFIG_DIR: &str = "/Library/Application Support/GnosisVPN/.config"
 #[cfg(target_os = "linux")]
 const LEGACY_CONFIG_DIR: &str = "/var/lib/gnosisvpn/.config";
 
-/// Linux gets a second copy because an rpm upgrade deletes the log dir after the installer wrote it.
+/// Linux gets a second copy because old package hooks may remove /var/log/gnosisvpn after the installer wrote it.
 #[cfg(target_os = "macos")]
 const MIGRATE_LOG_PATHS: &[&str] = &["/Library/Logs/GnosisVPN/installer/migrate.log"];
 #[cfg(target_os = "linux")]
