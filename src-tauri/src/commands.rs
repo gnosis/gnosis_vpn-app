@@ -373,13 +373,13 @@ fn write_log_section<W: Write>(
 // The uploader UTF-8-checks only the first 100 bytes, so a multi-byte character cut at that
 // boundary gets the bundle rejected; an ASCII preamble keeps user text and logs past it.
 const LOG_BUNDLE_PREAMBLE: &str = "===== Gnosis VPN log bundle =====\n\
-    Sections: system info, user description (if given), gnosis_vpn-app logs, gnosisvpn daemon log.\n\n";
+    Sections: system info, user description (if given), gnosis_vpn-app log, gnosisvpn daemon log.\n\n";
 const MAX_DESCRIPTION_CHARS: usize = 2000;
 
 struct LogBundleSources {
     system: SystemInfo,
     package_version: Option<String>,
-    app_logs: Vec<PathBuf>,
+    app_log: Option<PathBuf>,
     daemon_log: Option<PathBuf>,
 }
 
@@ -411,7 +411,7 @@ fn write_log_bundle<W: Write>(
         writeln!(encoder, "===== user description =====\n{description}\n")
             .map_err(|e| format!("Failed to write description: {e}"))?;
     }
-    for path in &sources.app_logs {
+    if let Some(path) = &sources.app_log {
         write_log_section(&mut encoder, "gnosis_vpn-app log", path)?;
     }
     match &sources.daemon_log {
@@ -425,11 +425,11 @@ fn write_log_bundle<W: Write>(
 }
 
 async fn collect_log_sources(app: &AppHandle) -> LogBundleSources {
-    let app_logs = app
+    let app_log = app
         .path()
         .app_log_dir()
-        .map(|dir| crate::logging::log_files(&dir))
-        .unwrap_or_default();
+        .ok()
+        .and_then(|dir| crate::logging::latest_log_file(&dir));
     let (daemon_log, daemon_package_version) = app
         .state::<AppStateCache>()
         .service_info
@@ -445,14 +445,14 @@ async fn collect_log_sources(app: &AppHandle) -> LogBundleSources {
         .or(daemon_package_version);
     tracing::info!(
         target: "export",
-        app_log_files = app_logs.len(),
+        app_log_available = app_log.is_some(),
         daemon_log_available = daemon_log.is_some(),
         "collected log sources",
     );
     LogBundleSources {
         system: get_system_info().await,
         package_version,
-        app_logs,
+        app_log,
         daemon_log,
     }
 }
@@ -1144,7 +1144,7 @@ mod tests {
                 distribution: Some("Ubuntu 24.04.3 LTS".to_string()),
             },
             package_version: Some("0.77.0".to_string()),
-            app_logs: Vec::new(),
+            app_log: None,
             daemon_log: None,
         }
     }
@@ -1157,7 +1157,7 @@ mod tests {
         std::fs::write(&source, "app line\n").unwrap();
 
         let sources = LogBundleSources {
-            app_logs: vec![source],
+            app_log: Some(source),
             ..test_bundle_sources()
         };
         let bytes =
