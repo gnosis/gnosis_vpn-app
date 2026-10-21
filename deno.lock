@@ -1,7 +1,7 @@
 {
   "version": "5",
   "specifiers": {
-    "npm:@tailwindcss/vite@4.3.3": "4.3.3_vite@8.2.2",
+    "npm:@tailwindcss/vite@4.3.3": "4.3.3_vite@8.2.4",
     "npm:@tauri-apps/api@2.11.1": "2.11.1",
     "npm:@tauri-apps/cli@2.11.4": "2.11.4",
     "npm:@tauri-apps/plugin-dialog@2.7.3": "2.7.3",
@@ -16,9 +16,9 @@
     "npm:solid-js@1.9.16": "1.9.16",
     "npm:tailwindcss@4.3.3": "4.3.3",
     "npm:typescript@6.0.3": "6.0.3",
-    "npm:vite-plugin-solid@2.11.14": "2.11.14_solid-js@1.9.16_vite@8.2.2",
-    "npm:vite@8.2.2": "8.2.2",
-    "npm:vitest@4.1.11": "4.1.11_vite@8.2.2",
+    "npm:vite-plugin-solid@2.11.14": "2.11.14_solid-js@1.9.16_vite@8.2.4",
+    "npm:vite@8.2.4": "8.2.4",
+    "npm:vitest@4.1.11": "4.1.11_vite@8.2.4",
     "npm:zod@4.4.3": "4.4.3"
   },
   "npm": {
@@ -420,7 +420,7 @@
         "@tailwindcss/oxide-win32-x64-msvc"
       ]
     },
-    "@tailwindcss/vite@4.3.3_vite@8.2.2": {
+    "@tailwindcss/vite@4.3.3_vite@8.2.4": {
       "integrity": "sha512-yYU8cogLeSh/ms2jh8Fj7jaba/EWa7Ja6GoUqYZaraEuCI5YS6ms6ObZgjjedm+jm6XZjdNRWBpPP6Z86oOxcw==",
       "dependencies": [
         "@tailwindcss/node",
@@ -590,7 +590,7 @@
         "tinyrainbow"
       ]
     },
-    "@vitest/mocker@4.1.11_vite@8.2.2": {
+    "@vitest/mocker@4.1.11_vite@8.2.4": {
       "integrity": "sha512-2XJVD55d1o5AZous5CCGKS74g/riOj9odEt2bQpCVZeblHyHdnMeFl4jl0XjU21stf4mbjUkew2eXQZt65g5CQ==",
       "dependencies": [
         "@vitest/spy",
@@ -1464,7 +1464,7 @@
         "punycode"
       ]
     },
-    "vite-plugin-solid@2.11.14_solid-js@1.9.16_vite@8.2.2": {
+    "vite-plugin-solid@2.11.14_solid-js@1.9.16_vite@8.2.4": {
       "integrity": "sha512-7ZVBt8rpoyqmlwin2kRIUveaHoF6/kulY7gsnD+qFh4nS29V4OPAnw+ojoAspXIjObiL9o1xh9a/nTuYHm02Rw==",
       "dependencies": [
         "@babel/core",
@@ -1477,8 +1477,8 @@
         "vitefu"
       ]
     },
-    "vite@8.2.2": {
-      "integrity": "sha512-cFKLV/PRgAUlIRm5WjMjJ86jrftzpqcgH+Us+DS8mI3CDNiH30Whrz8uHL3+MOLPAgqbMBAqWdAHAphOAM+z/Q==",
+    "vite@8.2.4": {
+      "integrity": "sha512-lfauXnrf2x0p+UoA+wXh0dgFWnUjCyG6Js95KBkgaCwUU9k0DAHI4W6Q0WCx+h+5g+Alce1y4Zi2QjjK0UvGBw==",
       "dependencies": [
         "lightningcss@1.33.0",
         "picomatch",
@@ -1491,7 +1491,7 @@
       ],
       "bin": true
     },
-    "vitefu@1.1.3_vite@8.2.2": {
+    "vitefu@1.1.3_vite@8.2.4": {
       "integrity": "sha512-ub4okH7Z5KLjb6hDyjqrGXqWtWvoYdU3IGm/NorpgHncKoLTCfRIbvlhBm7r0YstIaQRYlp4yEbFqDcKSzXSSg==",
       "dependencies": [
         "vite"
@@ -1500,7 +1500,7 @@
         "vite"
       ]
     },
-    "vitest@4.1.11_vite@8.2.2": {
+    "vitest@4.1.11_vite@8.2.4": {
       "integrity": "sha512-fhACrNXUidIbGSBr5FlbuBkO7VWC1ZyLl0DO4CU2DrQoAPxX84Ysxs+HeGQpii5lZWV1Q4gBZTTu49mF+A6Edw==",
       "dependencies": [
         "@vitest/expect",
@@ -1610,7 +1610,7 @@
         "npm:tailwindcss@4.3.3",
         "npm:typescript@6.0.3",
         "npm:vite-plugin-solid@2.11.14",
-        "npm:vite@8.2.2",
+        "npm:vite@8.2.4",
         "npm:vitest@4.1.11",
         "npm:zod@4.4.3"
       ],
