@@ -1,5 +1,6 @@
 use gnosis_vpn_app_lib::settings::{FlagDisplay, Settings, SortOrder, UpdateChannel};
 use gnosis_vpn_app_lib::toolkit::{CheckOutcome, CheckResult, EndOfLife, Manifest, ToolkitInfo};
+use gnosis_vpn_app_lib::traffic::{CaptureStatus, Cell, Class, Frame, FrameResponse};
 use gnosis_vpn_app_lib::types;
 use gnosis_vpn_app_lib::update_install::InstallStatus;
 use gnosis_vpn_lib::balance::{
@@ -146,6 +147,73 @@ fn write(dir: &Path, name: &str, val: &impl serde::Serialize) {
 fn generate_fixtures() {
     let fixtures_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../src/services/fixtures");
     std::fs::create_dir_all(&fixtures_dir).expect("failed to create fixtures dir");
+
+    write(
+        &fixtures_dir,
+        "traffic_frame.json",
+        &FrameResponse {
+            frame: Frame {
+                timeframe_seconds: 5,
+                current_second: 42,
+                total_rows: 3,
+                first_row: 0,
+                rows: 50,
+                cells: vec![
+                    Cell {
+                        row: 0,
+                        column: 0,
+                        band: 3,
+                        class: Class::HoprAssociated,
+                    },
+                    Cell {
+                        row: 0,
+                        column: 4,
+                        band: 6,
+                        class: Class::HoprAssociated,
+                    },
+                    Cell {
+                        row: 2,
+                        column: 2,
+                        band: 1,
+                        class: Class::Other,
+                    },
+                ],
+                dropped_targets: 0,
+                dropped_batches: 0,
+            },
+            capture: CaptureStatus {
+                active: true,
+                interface: Some("en0".to_string()),
+                error: None,
+                ended: None,
+            },
+            gap: false,
+        },
+    );
+    // Capture never started: no rows, and the reason is host state, not a cell.
+    write(
+        &fixtures_dir,
+        "traffic_frame_failed.json",
+        &FrameResponse {
+            frame: Frame {
+                timeframe_seconds: 20,
+                current_second: 0,
+                total_rows: 0,
+                first_row: 0,
+                rows: 50,
+                cells: vec![],
+                dropped_targets: 0,
+                dropped_batches: 0,
+            },
+            capture: CaptureStatus {
+                active: false,
+                interface: None,
+                error: Some("The Gnosis VPN service is not running".to_string()),
+                ended: None,
+            },
+            gap: true,
+        },
+    );
 
     write(
         &fixtures_dir,

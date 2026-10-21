@@ -1,0 +1,19 @@
+{
+  "frame": {
+    "timeframe_seconds": 20,
+    "current_second": 0,
+    "total_rows": 0,
+    "first_row": 0,
+    "rows": 50,
+    "cells": [],
+    "dropped_targets": 0,
+    "dropped_batches": 0
+  },
+  "capture": {
+    "active": false,
+    "interface": null,
+    "error": "The Gnosis VPN service is not running",
+    "ended": null
+  },
+  "gap": true
+}

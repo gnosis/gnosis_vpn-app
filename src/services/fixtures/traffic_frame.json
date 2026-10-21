@@ -1,0 +1,38 @@
+{
+  "frame": {
+    "timeframe_seconds": 5,
+    "current_second": 42,
+    "total_rows": 3,
+    "first_row": 0,
+    "rows": 50,
+    "cells": [
+      {
+        "row": 0,
+        "column": 0,
+        "band": 3,
+        "class": "hopr_associated"
+      },
+      {
+        "row": 0,
+        "column": 4,
+        "band": 6,
+        "class": "hopr_associated"
+      },
+      {
+        "row": 2,
+        "column": 2,
+        "band": 1,
+        "class": "other"
+      }
+    ],
+    "dropped_targets": 0,
+    "dropped_batches": 0
+  },
+  "capture": {
+    "active": true,
+    "interface": "en0",
+    "error": null,
+    "ended": null
+  },
+  "gap": false
+}

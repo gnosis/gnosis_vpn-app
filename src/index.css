@@ -107,6 +107,10 @@ textarea {
   --color-toggle-bg: #e5e7eb;
   --color-toggle-checked: var(--color-accent);
   --color-toggle-thumb: #ffffff;
+
+  /* Traffic visualization: hue encodes the category, bar length the volume */
+  --color-traffic-hopr: #4335df;
+  --color-traffic-other: #64748b;
 }
 
 :root.dark {
@@ -157,6 +161,10 @@ textarea {
   --color-toggle-bg: #374151;
   --color-toggle-checked: var(--color-accent);
   --color-toggle-thumb: #d1d5db;
+
+  /* Traffic visualization: lifted hues for the dark background */
+  --color-traffic-hopr: #8b7cf6;
+  --color-traffic-other: #94a3b8;
 }
 @utility bg-darken {
   background-image: linear-gradient(rgb(0 0 0 / 0.12), rgb(0 0 0 / 0.12));
@@ -225,6 +233,9 @@ textarea {
   --color-toggle-bg: var(--color-toggle-bg);
   --color-toggle-checked: var(--color-toggle-checked);
   --color-toggle-thumb: var(--color-toggle-thumb);
+
+  --color-traffic-hopr: var(--color-traffic-hopr);
+  --color-traffic-other: var(--color-traffic-other);
 }
 
 @keyframes progress-shimmer {

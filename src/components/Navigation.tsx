@@ -2,7 +2,9 @@ import IconButton from "./common/IconButton.tsx";
 import BalancePopup from "./BalancePopup.tsx";
 import { Portal } from "solid-js/web";
 import settingsIcon from "../assets/icons/settings.svg";
+import trafficIcon from "../assets/icons/traffic.svg";
 import { openSettingsWindow } from "../utils/settingsWindow.ts";
+import { openTrafficWindow } from "../utils/trafficWindow.ts";
 import { isRunningRunMode } from "../services/vpnService.ts";
 import fundsFullIcon from "../assets/icons/funds-full.svg";
 import fundsOutIcon from "../assets/icons/funds-out.svg";
@@ -71,6 +73,13 @@ function Navigation() {
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
           />
+          <Tooltip content="Traffic" position="bottom">
+            <IconButton
+              icon={trafficIcon}
+              alt="Traffic"
+              onClick={() => openTrafficWindow()}
+            />
+          </Tooltip>
           <Tooltip content="Settings" position="bottom">
             <IconButton
               icon={settingsIcon}
