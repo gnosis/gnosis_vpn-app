@@ -132,8 +132,6 @@ export default function FundsInfo(props: Props) {
               bottom: `${anchorBottom()}px`,
               left: `${left()}px`,
             }}
-            onMouseEnter={show}
-            onMouseLeave={hide}
           >
             {props.tooltip}
             <span
