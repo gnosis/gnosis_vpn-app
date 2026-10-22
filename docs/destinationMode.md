@@ -278,6 +278,11 @@ The complete input surface. Nothing else reaches the model.
 Disconnect is **not** an event — it arrives as a `statusUpdate` with no
 connection.
 
+Since the main-screen redesign (2026-10) the carousel is gone: one hero shows
+`effectiveActive` and the list is the only way to another destination.
+`dragStarted` and `slideCommitted` therefore have no UI source any more; the
+model keeps them unchanged, and the rules below still hold for them.
+
 ## statusUpdate
 
 **Precondition.** `status.probe` is the daemon's probe view, or null.

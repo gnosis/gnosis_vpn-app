@@ -9,9 +9,10 @@ import { useAppStore } from "../../stores/appStore.ts";
 import { useSettingsStore } from "../../stores/settingsStore.ts";
 import StatusHeader from "../../components/status/StatusHeader.tsx";
 import Navigation from "../../components/Navigation.tsx";
-import LocationBanner from "../../components/exitNode/LocationBanner.tsx";
+import DestinationHero from "../../components/exitNode/DestinationHero.tsx";
+import ExitHealthDetail from "../../components/exitNode/ExitHealthDetail.tsx";
+import { effectiveActive } from "../../stores/destinationMode.ts";
 import ConnectButton from "../../components/ConnectButton.tsx";
-import StatusHero from "../../components/status/StatusHero.tsx";
 import { openSettingsWindow } from "../../utils/settingsWindow.ts";
 import { isRunningRunMode } from "../../services/vpnService.ts";
 import { deriveOverallStatus, type StatusText } from "../../utils/funding.ts";
@@ -58,6 +59,11 @@ export function MainScreen() {
   onCleanup(() => clearInterval(tick));
   const maintenanceWarning = () =>
     channelMaintenanceWarning(appState.runMode, nowMs());
+
+  const activeDestinationState = createMemo(() => {
+    const id = effectiveActive(appState.mode, Date.now());
+    return id ? appState.destinations[id] : undefined;
+  });
 
   return (
     <div class="flex w-full flex-col h-full py-6 px-4">
@@ -121,16 +127,16 @@ export function MainScreen() {
         </div>
       </div>
 
-      <main class="flex w-full flex-1 flex-col items-center relative min-h-0">
-        <StatusHero />
-        {
-          /* -mx-4 cancels the screen's own px-4 so the carousel's edge-peek
-            (LocationBanner.tsx) can bleed all the way to the true window
-            border instead of stopping at the page margin. */
-        }
-        <div class="-mx-4 self-stretch flex justify-center z-10">
-          <LocationBanner />
-        </div>
+      <main class="flex w-full flex-1 flex-col items-center min-h-0 gap-5 pt-6">
+        <DestinationHero />
+        {/* Interim: the status card replaces this panel in the next step. */}
+        <Show when={activeDestinationState()}>
+          {(ds) => (
+            <div class="w-full rounded-xl bg-bg-surface px-3 py-2">
+              <ExitHealthDetail destinationState={ds()} />
+            </div>
+          )}
+        </Show>
       </main>
       <div class="mt-4 w-full z-10">
         <ConnectButton />

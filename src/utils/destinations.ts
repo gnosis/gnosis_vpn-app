@@ -405,19 +405,3 @@ export function destinationLabelById(
 }
 
 export type CardPhase = "auto" | "selected" | "connecting" | "uninitialized";
-
-// "uninitialized" never actually reaches a rendered card — LocationBanner's
-// entryIds() is empty until the mode resolves — but this stays exhaustive
-// over the real union instead of a narrowed duplicate of it.
-export function cardTitle(phase: CardPhase): string {
-  switch (phase) {
-    case "auto":
-      return "Best Location";
-    case "selected":
-      return "Selected Location";
-    case "connecting":
-      return "Current Location";
-    case "uninitialized":
-      return "";
-  }
-}
