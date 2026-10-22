@@ -109,7 +109,7 @@ export function MainScreen() {
     <div class="flex w-full flex-col h-full py-6 px-4">
       <div class="flex flex-row justify-between z-60">
         <StatusHeader />
-        <Navigation />
+        <Navigation pickerFrame={pickerFrame} />
       </div>
 
       <div class="relative h-0 z-50">

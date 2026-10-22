@@ -1,29 +1,29 @@
 import IconButton from "./common/IconButton.tsx";
-import BalancePopup from "./BalancePopup.tsx";
+import WalletPopover from "./WalletPopover.tsx";
 import { Portal } from "solid-js/web";
 import settingsIcon from "../assets/icons/settings.svg";
-import { push } from "../stores/pageStack.ts";
+import { push, walletOpenRequest } from "../stores/pageStack.ts";
 import { isRunningRunMode } from "../services/vpnService.ts";
 import fundsFullIcon from "../assets/icons/funds-full.svg";
 import fundsOutIcon from "../assets/icons/funds-out.svg";
 import fundsEmptyIcon from "../assets/icons/funds-empty.svg";
 import { deriveOverallStatus } from "../utils/funding.ts";
-import { createSignal, onCleanup } from "solid-js";
-import { gateOnWindowFocus } from "../utils/windowFocus.ts";
+import { createEffect, createSignal, on, Show } from "solid-js";
 import { useAppStore } from "../stores/appStore.ts";
 import Tooltip from "./common/Tooltip.tsx";
+import type { PickerFrame } from "./exitNode/LocationPicker.tsx";
 
-function Navigation() {
+function Navigation(props: {
+  // The column the wallet popover keeps to; measured when it opens.
+  pickerFrame?: () => PickerFrame | null;
+}) {
   const [appState] = useAppStore();
-  const [showPopup, setShowPopup] = createSignal(false);
-  const [buttonRect, setButtonRect] = createSignal<DOMRect | null>(null);
-  const [containerRect, setContainerRect] = createSignal<DOMRect | null>(null);
-  let buttonRef: HTMLButtonElement | undefined;
-  let containerRef: HTMLDivElement | undefined;
-  let hoverTimeout: ReturnType<typeof globalThis.setTimeout> | undefined;
+  const [walletAnchor, setWalletAnchor] = createSignal<DOMRect | null>(null);
+  const [walletFrame, setWalletFrame] = createSignal<PickerFrame | null>(null);
+  let walletButtonRef: HTMLButtonElement | undefined;
 
   // Icon reflects the worst of traffic and gas status, matching the two
-  // status dots in the balance popup.
+  // status labels in the wallet popover.
   const getFundsIcon = () => {
     if (!isRunningRunMode(appState.runMode)) return fundsEmptyIcon;
     const status = deriveOverallStatus(
@@ -35,42 +35,32 @@ function Navigation() {
     return fundsFullIcon;
   };
 
-  const handleMouseLeave = () => {
-    clearTimeout(hoverTimeout);
-    hoverTimeout = undefined;
-    setShowPopup(false);
+  const openWallet = () => {
+    if (!walletButtonRef) return;
+    setWalletFrame(props.pickerFrame?.() ?? null);
+    setWalletAnchor(walletButtonRef.getBoundingClientRect());
   };
+  const closeWallet = () => {
+    setWalletAnchor(null);
+    walletButtonRef?.focus();
+  };
+  const toggleWallet = () => (walletAnchor() ? closeWallet() : openWallet());
 
-  const handleMouseEnter = gateOnWindowFocus(() => {
-    clearTimeout(hoverTimeout);
-    hoverTimeout = setTimeout(() => {
-      if (buttonRef && containerRef) {
-        setButtonRect(buttonRef.getBoundingClientRect());
-        setContainerRect(containerRef.getBoundingClientRect());
-      }
-      setShowPopup(true);
-    }, 500);
-  }, handleMouseLeave);
-
-  onCleanup(() => {
-    clearTimeout(hoverTimeout);
-  });
+  // The tray's "Usage" lands here as a request to open the popover.
+  createEffect(on(walletOpenRequest, () => openWallet(), { defer: true }));
 
   return (
     <>
       <Portal>
-        <div
-          ref={(el) => (containerRef = el)}
-          class="fixed top-6 right-4 z-60 flex items-center gap-2 justify-center"
-        >
-          <IconButton
-            ref={(el) => (buttonRef = el)}
-            icon={getFundsIcon()}
-            alt="Funds"
-            onClick={() => push("add-funds")}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-          />
+        <div class="fixed top-6 right-4 z-60 flex items-center gap-2 justify-center">
+          <Tooltip content="Balance" position="bottom">
+            <IconButton
+              ref={(el) => (walletButtonRef = el)}
+              icon={getFundsIcon()}
+              alt="Balance"
+              onClick={toggleWallet}
+            />
+          </Tooltip>
           <Tooltip content="Settings" position="bottom">
             <IconButton
               icon={settingsIcon}
@@ -81,13 +71,19 @@ function Navigation() {
         </div>
       </Portal>
 
-      <BalancePopup
-        show={showPopup()}
-        buttonRect={buttonRect()}
-        containerRect={containerRect()}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-      />
+      <Show when={walletAnchor()}>
+        {(anchor) => (
+          <WalletPopover
+            anchor={anchor()}
+            frame={walletFrame()}
+            onClose={closeWallet}
+            onAddFunds={() => {
+              setWalletAnchor(null);
+              push("add-funds");
+            }}
+          />
+        )}
+      </Show>
     </>
   );
 }
