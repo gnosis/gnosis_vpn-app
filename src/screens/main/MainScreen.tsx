@@ -28,6 +28,7 @@ import Page from "../../components/common/Page.tsx";
 import SettingsPage from "./pages/SettingsPage.tsx";
 import SoftwareUpdatePage from "./pages/SoftwareUpdatePage.tsx";
 import AboutPage from "./pages/AboutPage.tsx";
+import AddFundsPage from "./pages/AddFundsPage.tsx";
 import { isRunningRunMode } from "../../services/vpnService.ts";
 import { deriveOverallStatus, type StatusText } from "../../utils/funding.ts";
 import {
@@ -223,6 +224,9 @@ export function MainScreen() {
             </Match>
             <Match when={page === "about"}>
               <AboutPage />
+            </Match>
+            <Match when={page === "add-funds"}>
+              <AddFundsPage />
             </Match>
           </Switch>
         </Page>
