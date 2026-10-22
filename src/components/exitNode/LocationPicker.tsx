@@ -135,6 +135,11 @@ export default function LocationPicker(props: {
     row?.scrollIntoView({ block: "nearest" });
   });
 
+  // One clock for every row's "Checked": it has to age between status updates.
+  const [nowSec, setNowSec] = createSignal(Date.now() / 1000);
+  const tick = setInterval(() => setNowSec(Date.now() / 1000), 1000);
+  onCleanup(() => clearInterval(tick));
+
   const vpnActive = () =>
     isVpnActive(appState.vpnStatus, appState.targetDestination);
   const isAvailable = (id: string) =>
@@ -309,6 +314,7 @@ export default function LocationPicker(props: {
                 destinationState={stateOf(dest.id, dest)}
                 current={dest.id === currentId()}
                 highlighted={i() === highlight()}
+                nowSec={nowSec()}
                 onHover={() => setHighlight(i())}
                 onPick={() => pick(dest.id)}
               />
