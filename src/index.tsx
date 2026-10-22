@@ -2,7 +2,6 @@
 import "@src/index.css";
 import { render } from "solid-js/web";
 import App from "./windows/App.tsx";
-import SettingsWindow from "./windows/SettingsWindow.tsx";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -19,10 +18,8 @@ globalThis.addEventListener("unhandledrejection", (e) => {
 globalThis.addEventListener("contextmenu", (e) => e.preventDefault());
 globalThis.addEventListener("dragstart", (e) => e.preventDefault());
 
-function screenFromLabel(label: string) {
-  if (label === "settings") {
-    return <SettingsWindow />;
-  }
+// One window, one tree: settings, wallet and add funds are pages inside App.
+function screenFromLabel(_label: string) {
   return <App />;
 }
 
