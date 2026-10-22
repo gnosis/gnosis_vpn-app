@@ -168,6 +168,16 @@ textarea {
   );
 }
 
+/* Header dot while a connection is being set up */
+.status-dot-blink {
+  animation: status-dot-blink 1s ease-in-out infinite;
+}
+@keyframes status-dot-blink {
+  50% {
+    opacity: 0.25;
+  }
+}
+
 /* Button press animation */
 .btn-press {
   animation: btn-press-keyframes 160ms ease-out;
@@ -330,6 +340,7 @@ textarea {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .status-dot-blink,
   .owl-blink,
   .check-draw,
   .check-pop-entry,

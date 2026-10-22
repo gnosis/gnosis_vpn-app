@@ -7,12 +7,11 @@ import {
 } from "solid-js";
 import { useAppStore } from "../../stores/appStore.ts";
 import { useSettingsStore } from "../../stores/settingsStore.ts";
-import { StatusIndicator } from "../../components/status/StatusIndicator.tsx";
+import StatusHeader from "../../components/status/StatusHeader.tsx";
 import Navigation from "../../components/Navigation.tsx";
 import LocationBanner from "../../components/exitNode/LocationBanner.tsx";
 import ConnectButton from "../../components/ConnectButton.tsx";
 import StatusHero from "../../components/status/StatusHero.tsx";
-import ConnectionStatus from "../../components/status/ConnectionStatus.tsx";
 import { openSettingsWindow } from "../../utils/settingsWindow.ts";
 import { isRunningRunMode } from "../../services/vpnService.ts";
 import { deriveOverallStatus, type StatusText } from "../../utils/funding.ts";
@@ -63,7 +62,7 @@ export function MainScreen() {
   return (
     <div class="flex w-full flex-col h-full py-6 px-4">
       <div class="flex flex-row justify-between z-60">
-        <StatusIndicator />
+        <StatusHeader />
         <Navigation />
       </div>
 
@@ -136,7 +135,6 @@ export function MainScreen() {
       <div class="mt-4 w-full z-10">
         <ConnectButton />
       </div>
-      <ConnectionStatus />
     </div>
   );
 }
