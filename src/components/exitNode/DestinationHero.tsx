@@ -20,13 +20,15 @@ import ConfigPill, {
   CONFIG_ONLY_DESTINATION,
   OVERRIDDEN_VALUE,
 } from "./ConfigPill.tsx";
-import LocationPicker from "./LocationPicker.tsx";
+import LocationPicker, { type PickerFrame } from "./LocationPicker.tsx";
 import SwitchSpinner from "./SwitchSpinner.tsx";
 
 /** The destination Connect targets: flag, name, country, and the way to another one. */
 export default function DestinationHero(props: {
   // Hands the parent a way to open the picker, for the keyboard shortcut.
   registerOpenPicker?: (open: () => void) => void;
+  // The column the picker spans and where it must stop; measured when it opens.
+  pickerFrame?: () => PickerFrame | null;
 }) {
   const [appState, appActions] = useAppStore();
 
@@ -58,11 +60,13 @@ export default function DestinationHero(props: {
 
   // Where the Change location button sits: the picker hangs under it.
   const [anchor, setAnchor] = createSignal<DOMRect | null>(null);
+  const [frame, setFrame] = createSignal<PickerFrame | null>(null);
   let changeButtonRef: HTMLButtonElement | undefined;
 
   const openList = () => {
     if (!changeButtonRef) return;
     setAnchor(changeButtonRef.getBoundingClientRect());
+    setFrame(props.pickerFrame?.() ?? null);
     appActions.destinationListOpened();
   };
   props.registerOpenPicker?.(openList);
@@ -180,7 +184,9 @@ export default function DestinationHero(props: {
       </Show>
 
       <Show when={appState.mode.listOpen && anchor()}>
-        {(rect) => <LocationPicker anchor={rect()} onClose={closeList} />}
+        {(rect) => (
+          <LocationPicker anchor={rect()} frame={frame()} onClose={closeList} />
+        )}
       </Show>
     </div>
   );
