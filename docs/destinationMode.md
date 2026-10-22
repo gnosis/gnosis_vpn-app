@@ -158,7 +158,10 @@ discounted the same way as before; `min(freeSlots, total)` keeps the share in
 [0, 1] when we hold the last slot.
 
 **`sortByRouteQuality` ranks measured exits by score, then the unmeasured by
-resilience, then the rest by closeness to eligible.**
+resilience, then the rest by closeness to eligible.** The location list's "Best"
+order (`sortForPicker`) keeps these tiers but puts the fastest measured exit
+first, score only breaking latency ties; it is frozen when the list opens. Auto
+still picks from `sortByRouteQuality`.
 
 ```
 eligible with exit data, ordered by  score desc, label

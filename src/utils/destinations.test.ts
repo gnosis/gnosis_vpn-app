@@ -27,6 +27,7 @@ import {
   sanitizeMetaText,
   sortAlphaDestinations,
   sortByRouteQuality,
+  sortForPicker,
 } from "./destinations.ts";
 import {
   checkedQuickProbe,
@@ -533,6 +534,46 @@ describe("sortAlphaDestinations", () => {
     );
     expect(sorted[0].id).toBe("mu");
     expect(sorted[1].id).toBe("zeta");
+  });
+});
+
+describe("sortForPicker", () => {
+  it("puts the fastest measured exit first, whatever its capacity or relays", () => {
+    expect(
+      sortForPicker({
+        crowded: makeMeasured("crowded", {
+          total: 8,
+          available: 1,
+          connected: 7,
+        }, 100),
+        roomy: makeMeasured(
+          "roomy",
+          { total: 8, available: 6, connected: 2 },
+          300,
+        ),
+        single: makeMeasured("single", OPEN_SLOTS, 50, 1),
+        diverse: makeMeasured("diverse", OPEN_SLOTS, 200, 3),
+      }, NO_CONTEXT),
+    ).toEqual(["single", "crowded", "diverse", "roomy"]);
+  });
+
+  it("keeps the readiness tiers: measured, then promised, then the rest", () => {
+    expect(
+      sortForPicker({
+        "a-weak": makeWeak("a-weak", 0.5),
+        "b-promise": makeEligible("b-promise", 4),
+        "c-slow": makeMeasured("c-slow", OPEN_SLOTS, 1_800, 1),
+      }, NO_CONTEXT),
+    ).toEqual(["c-slow", "b-promise", "a-weak"]);
+  });
+
+  it("breaks a latency tie with the blended order", () => {
+    expect(
+      sortForPicker({
+        single: makeMeasured("single", OPEN_SLOTS, 100, 1),
+        diverse: makeMeasured("diverse", OPEN_SLOTS, 100, 3),
+      }, NO_CONTEXT),
+    ).toEqual(["diverse", "single"]);
   });
 });
 
