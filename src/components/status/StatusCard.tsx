@@ -35,7 +35,7 @@ import {
 import { levelValueClass } from "../exitNode/levelColor.ts";
 import HopsIcon from "../exitNode/HopsIcon.tsx";
 import StalledTag from "../exitNode/StalledTag.tsx";
-import WeakRouteTag from "../exitNode/WeakRouteTag.tsx";
+import { WEAK_ROUTE } from "../exitNode/WeakRouteTag.tsx";
 import ChevronIcon from "../common/ChevronIcon.tsx";
 import Tag from "../common/Tag.tsx";
 import Tooltip from "../common/Tooltip.tsx";
@@ -309,12 +309,15 @@ export default function StatusCard(
               />
               <span class="truncate text-text-secondary">
                 {row().prefix}{" "}
-                <span class={`font-bold ${row().class}`}>{row().text}</span>
+                {/* The verdict is the text itself; a weak route explains itself on hover instead of repeating as a tag. */}
+                <Tooltip
+                  content={<span>{WEAK_ROUTE}</span>}
+                  disabled={isConnected() || !isWeak()}
+                >
+                  <span class={`font-bold ${row().class}`}>{row().text}</span>
+                </Tooltip>
               </span>
               <Show when={stall()}>{(s) => <StalledTag stall={s()} />}</Show>
-              <Show when={!isConnected() && isWeak()}>
-                <WeakRouteTag />
-              </Show>
               <Show when={hopCount() !== 1}>
                 <Tag>
                   <HopsIcon count={hopCount()} hideCount />
