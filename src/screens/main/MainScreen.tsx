@@ -26,6 +26,8 @@ import {
 } from "../../stores/pageStack.ts";
 import Page from "../../components/common/Page.tsx";
 import SettingsPage from "./pages/SettingsPage.tsx";
+import SoftwareUpdatePage from "./pages/SoftwareUpdatePage.tsx";
+import AboutPage from "./pages/AboutPage.tsx";
 import { isRunningRunMode } from "../../services/vpnService.ts";
 import { deriveOverallStatus, type StatusText } from "../../utils/funding.ts";
 import {
@@ -215,6 +217,12 @@ export function MainScreen() {
           <Switch>
             <Match when={page === "settings"}>
               <SettingsPage />
+            </Match>
+            <Match when={page === "software-update"}>
+              <SoftwareUpdatePage />
+            </Match>
+            <Match when={page === "about"}>
+              <AboutPage />
             </Match>
           </Switch>
         </Page>
