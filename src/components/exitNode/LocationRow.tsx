@@ -9,18 +9,11 @@ import {
   isSelectable,
   rankContext,
 } from "@src/utils/destinations.ts";
-import {
-  formatExitHealthStatus,
-  formatRouting,
-  getHopCount,
-  getRouteVerdict,
-} from "@src/utils/exitHealth.ts";
+import { pickerGrade, pickerVerdict } from "@src/utils/pickerVerdict.ts";
 import Flag from "../Flag.tsx";
-import Tag from "../common/Tag.tsx";
-import HopsIcon from "./HopsIcon.tsx";
-import WeakRouteTag from "./WeakRouteTag.tsx";
+import SignalBars from "./SignalBars.tsx";
 
-/** One line of the location picker: flag, name, country, and the tags that qualify it. */
+/** One line of the location picker: flag, name, country, and the route's bars in one column. */
 export default function LocationRow(props: {
   destinationState: DestinationState;
   current: boolean;
@@ -34,27 +27,30 @@ export default function LocationRow(props: {
   const exit = createMemo(() =>
     getExitData(props.destinationState, appState.probe)
   );
-  const verdict = () => {
-    const rh = props.destinationState.route_health;
-    return rh ? getRouteVerdict(rh, exit()) : null;
-  };
+  const grade = createMemo(() =>
+    pickerGrade(props.destinationState, exit(), rankContext(appState))
+  );
+  const verdict = () =>
+    pickerVerdict(grade(), props.destinationState.route_health ?? null, exit());
   // The live destination stays pickable: its tunnel exists and the slot it fills is ours.
   const pickable = () =>
     props.current ||
     isSelectable(props.destinationState, rankContext(appState));
-  const hopCount = () => getHopCount(destination().routing);
-  // A pickable row explains a weak route with its tag; an unpickable one states the verdict.
-  const verdictTag = () => {
-    const rh = props.destinationState.route_health;
-    if (pickable() || !rh) return null;
-    return formatExitHealthStatus(rh, exit());
-  };
+  const accessibleName = () =>
+    [
+      destinationTitle(destination()),
+      destinationCountry(destination()),
+      verdict().headline,
+    ]
+      .filter(Boolean)
+      .join(", ");
 
   return (
     <div
       role="option"
       aria-selected={props.highlighted}
       aria-disabled={!pickable()}
+      aria-label={accessibleName()}
       data-pickable={pickable()}
       class="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-xs"
       classList={{
@@ -84,47 +80,9 @@ export default function LocationRow(props: {
           )}
         </Show>
       </span>
-      <span class="flex shrink-0 items-center gap-1">
-        <Show when={verdict() === "weak" && pickable()}>
-          <WeakRouteTag />
-        </Show>
-        <Show when={verdictTag()}>
-          {(text) => (
-            // The name keeps its room; a long verdict is what gets cut.
-            <Tag class="max-w-[120px] bg-bg-primary text-text-secondary">
-              <span class="truncate">{text()}</span>
-            </Tag>
-          )}
-        </Show>
-        <Show when={hopCount() !== 1}>
-          <Tag>
-            <HopsIcon count={hopCount()} hideCount />
-            <span class="ml-1 whitespace-nowrap">
-              {formatRouting(destination().routing)}
-            </span>
-          </Tag>
-        </Show>
-        <Show when={props.current}>
-          <svg
-            viewBox="0 0 16 16"
-            class="size-3.5"
-            classList={{
-              "text-accent-text": props.highlighted,
-              "text-text-green": !props.highlighted,
-            }}
-            aria-label="Current location"
-            role="img"
-          >
-            <path
-              d="M3 8.5l3.2 3.2L13 5"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
-        </Show>
+      {/* One column: every row's bars sit at the same x, whatever their state. */}
+      <span class="flex w-5 shrink-0 justify-end">
+        <SignalBars grade={grade()} highlighted={props.highlighted} />
       </span>
     </div>
   );
