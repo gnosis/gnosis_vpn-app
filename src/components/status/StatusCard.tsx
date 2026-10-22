@@ -124,7 +124,7 @@ function DiagnosticRow(props: {
         <Label text={props.label} tooltip={props.tooltip} />
       </span>
       <span
-        class={`tabular-nums ${
+        class={`${
           props.value === null ? "text-text-muted" : "text-text-primary"
         }`}
       >
