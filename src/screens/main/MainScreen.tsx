@@ -10,6 +10,7 @@ import { useSettingsStore } from "../../stores/settingsStore.ts";
 import StatusHeader from "../../components/status/StatusHeader.tsx";
 import Navigation from "../../components/Navigation.tsx";
 import DestinationHero from "../../components/exitNode/DestinationHero.tsx";
+import type { PickerFrame } from "../../components/exitNode/LocationPicker.tsx";
 import StatusCard from "../../components/status/StatusCard.tsx";
 import ConnectingExplainer from "../../components/status/ConnectingExplainer.tsx";
 import { effectiveActive } from "../../stores/destinationMode.ts";
@@ -72,6 +73,19 @@ export function MainScreen() {
   // The hero registers how to open the picker; Cmd/Ctrl+L goes through it.
   let openPicker: () => void = () => {};
   createMainShortcuts({ openPicker: () => openPicker() });
+
+  // The picker spans the content column (the status card's width) and stops above the primary button.
+  let columnRef: HTMLElement | undefined;
+  let buttonRef: HTMLDivElement | undefined;
+  const pickerFrame = (): PickerFrame | null => {
+    if (!columnRef || !buttonRef) return null;
+    const column = columnRef.getBoundingClientRect();
+    return {
+      left: column.left,
+      width: column.width,
+      maxBottom: buttonRef.getBoundingClientRect().top,
+    };
+  };
 
   // While a connect is in flight the explainer takes the status card's place.
   const connectInFlight = () => {
@@ -142,8 +156,14 @@ export function MainScreen() {
         </div>
       </div>
 
-      <main class="flex w-full flex-1 flex-col items-center min-h-0 gap-5 pt-6">
-        <DestinationHero registerOpenPicker={(open) => (openPicker = open)} />
+      <main
+        ref={(el) => (columnRef = el)}
+        class="flex w-full flex-1 flex-col items-center min-h-0 gap-5 pt-6"
+      >
+        <DestinationHero
+          registerOpenPicker={(open) => (openPicker = open)}
+          pickerFrame={pickerFrame}
+        />
         <Show when={activeDestinationState()}>
           {(ds) => (
             // Both share one grid cell so the swap cross-fades in place.
@@ -166,7 +186,7 @@ export function MainScreen() {
           )}
         </Show>
       </main>
-      <div class="mt-4 w-full z-10">
+      <div ref={(el) => (buttonRef = el)} class="mt-4 w-full z-10">
         <ConnectButton />
       </div>
     </div>

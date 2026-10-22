@@ -25,11 +25,21 @@ import {
 import LocationRow from "./LocationRow.tsx";
 import UnreachableDialog from "./UnreachableDialog.tsx";
 
-const WIDTH_PX = 270;
+// Fallback width when no frame is given; the frame normally sets it.
+const DEFAULT_WIDTH_PX = 270;
 // Distance from the window edge the popover keeps, and from the anchor to the arrow tip.
 const MARGIN_PX = 8;
 const GAP_PX = 10;
 const ARROW_PX = 12;
+// Gap kept above the primary button.
+const BOTTOM_GAP_PX = 10;
+
+/** The column the popover spans (the status card's edges) and the y it must not pass. */
+export interface PickerFrame {
+  left: number;
+  width: number;
+  maxBottom: number;
+}
 
 /** The next index in `direction` that passes `ok`, wrapping; `from` when nothing does. */
 function step<T>(
@@ -49,6 +59,8 @@ function step<T>(
 export default function LocationPicker(props: {
   // Where the opening button sits; the arrow points at its middle.
   anchor: DOMRect;
+  // The edges to span and the floor to stop at; without it, centred under the anchor.
+  frame: PickerFrame | null;
   // The destination chosen, or null when the picker was dismissed.
   onClose: (picked: string | null) => void;
 }) {
@@ -189,17 +201,24 @@ export default function LocationPicker(props: {
     document.removeEventListener("pointerdown", onDocumentPointerDown);
   });
 
-  // Centred under the anchor, kept inside the window; the arrow follows the anchor.
+  // Spans the frame's column; without one, centred under the anchor and kept inside the window.
   const anchorX = () => props.anchor.left + props.anchor.width / 2;
+  const width = () => props.frame?.width ?? DEFAULT_WIDTH_PX;
   const left = () =>
-    Math.max(
-      MARGIN_PX,
-      Math.min(
-        anchorX() - WIDTH_PX / 2,
-        globalThis.innerWidth - WIDTH_PX - MARGIN_PX,
-      ),
-    );
+    props.frame?.left ??
+      Math.max(
+        MARGIN_PX,
+        Math.min(
+          anchorX() - width() / 2,
+          globalThis.innerWidth - width() - MARGIN_PX,
+        ),
+      );
   const top = () => props.anchor.bottom + GAP_PX;
+  // Down to just above the primary button; the list scrolls inside beyond that.
+  const maxHeight = () => {
+    const floor = props.frame?.maxBottom ?? globalThis.innerHeight;
+    return Math.max(120, floor - BOTTOM_GAP_PX - top());
+  };
   const arrowLeft = () => anchorX() - left() - ARROW_PX / 2;
 
   const sortOptions = [
@@ -213,11 +232,12 @@ export default function LocationPicker(props: {
         ref={popoverRef}
         role="dialog"
         aria-label="Choose location"
-        class="fixed z-100 rounded-xl border border-border bg-bg-surface shadow-xl transition-[opacity,transform] duration-150 ease-out starting:-translate-y-1 starting:opacity-0"
+        class="fixed z-100 flex flex-col rounded-xl border border-border bg-bg-surface shadow-xl transition-[opacity,transform] duration-150 ease-out starting:-translate-y-1 starting:opacity-0"
         style={{
           left: `${left()}px`,
           top: `${top()}px`,
-          width: `${WIDTH_PX}px`,
+          width: `${width()}px`,
+          "max-height": `${maxHeight()}px`,
         }}
       >
         <span
@@ -225,7 +245,7 @@ export default function LocationPicker(props: {
           style={{ left: `${arrowLeft()}px` }}
           aria-hidden="true"
         />
-        <div class="flex items-center gap-1.5 p-2">
+        <div class="flex shrink-0 items-center gap-1.5 p-2">
           <div class="relative min-w-0 flex-1">
             <svg
               viewBox="0 0 24 24"
@@ -275,12 +295,11 @@ export default function LocationPicker(props: {
           </div>
         </div>
 
-        {/* About eight rows, then it scrolls. */}
         <div
           ref={listRef}
           role="listbox"
           aria-label="Locations"
-          class="max-h-[272px] overflow-y-auto px-1.5 pb-1.5"
+          class="min-h-0 flex-1 overflow-y-auto px-1.5 pb-1.5"
         >
           <For each={filtered()}>
             {(dest, i) => (
