@@ -11,12 +11,16 @@ import StatusHeader from "../../components/status/StatusHeader.tsx";
 import Navigation from "../../components/Navigation.tsx";
 import DestinationHero from "../../components/exitNode/DestinationHero.tsx";
 import StatusCard from "../../components/status/StatusCard.tsx";
+import ConnectingExplainer from "../../components/status/ConnectingExplainer.tsx";
 import { effectiveActive } from "../../stores/destinationMode.ts";
 import ConnectButton from "../../components/ConnectButton.tsx";
 import { openSettingsWindow } from "../../utils/settingsWindow.ts";
 import { isRunningRunMode } from "../../services/vpnService.ts";
 import { deriveOverallStatus, type StatusText } from "../../utils/funding.ts";
-import { channelMaintenanceWarning } from "../../utils/status.ts";
+import {
+  channelMaintenanceWarning,
+  isSwitchingDestination,
+} from "../../utils/status.ts";
 import { endOfLifeMessage } from "../../utils/updateAvailability.ts";
 import { createDeadlineClock } from "../../utils/deadlineClock.ts";
 import Banner from "../../components/common/Banner.tsx";
@@ -64,6 +68,12 @@ export function MainScreen() {
     const id = effectiveActive(appState.mode, Date.now());
     return id ? appState.destinations[id] : undefined;
   });
+  // While a connect is in flight the explainer takes the status card's place.
+  const connectInFlight = () => {
+    const status = appState.vpnStatus;
+    return status === "Connecting" || status === "Reconnecting" ||
+      isSwitchingDestination(status, appState.targetDestination);
+  };
 
   return (
     <div class="flex w-full flex-col h-full py-6 px-4">
@@ -130,7 +140,25 @@ export function MainScreen() {
       <main class="flex w-full flex-1 flex-col items-center min-h-0 gap-5 pt-6">
         <DestinationHero />
         <Show when={activeDestinationState()}>
-          {(ds) => <StatusCard destinationState={ds()} />}
+          {(ds) => (
+            // Both share one grid cell so the swap cross-fades in place.
+            <div class="grid w-full">
+              <div
+                class="col-start-1 row-start-1 transition-opacity duration-300"
+                classList={{
+                  "opacity-0 pointer-events-none": connectInFlight(),
+                }}
+                aria-hidden={connectInFlight()}
+              >
+                <StatusCard destinationState={ds()} />
+              </div>
+              <Show when={connectInFlight()}>
+                <div class="col-start-1 row-start-1 transition-opacity duration-300 starting:opacity-0">
+                  <ConnectingExplainer destinationState={ds()} />
+                </div>
+              </Show>
+            </div>
+          )}
         </Show>
       </main>
       <div class="mt-4 w-full z-10">
