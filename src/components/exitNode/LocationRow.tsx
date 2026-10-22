@@ -22,6 +22,8 @@ export default function LocationRow(props: {
   highlighted: boolean;
   // Live clock for "Checked"; the picker owns it so the rows share one.
   nowSec: number;
+  // Shows the bars' tooltip without a pointer, e.g. for the keyboard-highlighted row.
+  tooltipOpen?: boolean;
   onHover: () => void;
   onPick: () => void;
 }) {
@@ -106,6 +108,7 @@ export default function LocationRow(props: {
           description={`${verdict().headline}. ${verdict().context}`}
           position="auto"
           align="end"
+          open={props.tooltipOpen}
           bubbleClass="max-w-64"
         >
           <SignalBars grade={grade()} highlighted={props.highlighted} />

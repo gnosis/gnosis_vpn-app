@@ -69,6 +69,8 @@ export default function LocationPicker(props: {
 
   const [query, setQuery] = createSignal("");
   const [highlight, setHighlight] = createSignal(0);
+  // True while the highlight was last moved by the arrow keys: that row's tooltip then opens on its own.
+  const [keyboardHighlight, setKeyboardHighlight] = createSignal(false);
   const [showUnreachable, setShowUnreachable] = createSignal(false);
 
   let popoverRef: HTMLDivElement | undefined;
@@ -169,6 +171,7 @@ export default function LocationPicker(props: {
       e.preventDefault();
       const dir = e.key === "ArrowDown" ? 1 : -1;
       setHighlight((h) => step(filtered(), h, dir, (_, i) => isPickable(i)));
+      setKeyboardHighlight(true);
       return;
     }
     if (e.key === "Enter") {
@@ -313,7 +316,11 @@ export default function LocationPicker(props: {
                 current={dest.id === currentId()}
                 highlighted={i() === highlight()}
                 nowSec={nowSec()}
-                onHover={() => setHighlight(i())}
+                tooltipOpen={keyboardHighlight() && i() === highlight()}
+                onHover={() => {
+                  setKeyboardHighlight(false);
+                  setHighlight(i());
+                }}
                 onPick={() => pick(dest.id)}
               />
             )}
