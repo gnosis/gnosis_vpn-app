@@ -320,6 +320,21 @@ export function isVpnActive(
     (vpnStatus === "Disconnecting" && targetDestination !== null);
 }
 
+/** The place itself (e.g. "Sydney"); the id when the operator published no location. */
+export function destinationTitle(d: Destination): string {
+  return d.meta?.location || d.id;
+}
+
+/** What qualifies the title: the id (e.g. "Australia") once the location names the place. */
+export function destinationCountry(d: Destination): string | null {
+  return d.meta?.location ? d.id : null;
+}
+
+/** The flag code the operator published, or "" for none. */
+export function destinationFlag(d: Destination): string {
+  return d.meta?.flag ?? "";
+}
+
 export function destinationLabel(d: Destination): string {
   const loc = d.meta?.location;
   return loc ? `${d.id} - ${loc}` : d.id;
@@ -334,19 +349,3 @@ export function destinationLabelById(
 }
 
 export type CardPhase = "auto" | "selected" | "connecting" | "uninitialized";
-
-// "uninitialized" never actually reaches a rendered card — LocationBanner's
-// entryIds() is empty until the mode resolves — but this stays exhaustive
-// over the real union instead of a narrowed duplicate of it.
-export function cardTitle(phase: CardPhase): string {
-  switch (phase) {
-    case "auto":
-      return "Best Location";
-    case "selected":
-      return "Selected Location";
-    case "connecting":
-      return "Current Location";
-    case "uninitialized":
-      return "";
-  }
-}
