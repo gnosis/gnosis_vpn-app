@@ -81,16 +81,8 @@ pub struct Model {
 }
 
 impl Model {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
     pub fn reset(&mut self) {
         *self = Self::default();
-    }
-
-    pub fn current_second(&self) -> u64 {
-        self.current_second
     }
 
     pub fn ingest(&mut self, batch: &Batch) {
@@ -253,7 +245,7 @@ mod tests {
 
     #[test]
     fn opposing_columns_for_a_five_second_window() {
-        let mut model = Model::new();
+        let mut model = Model::default();
         // One upstream and one downstream block, both in second 4.
         model.ingest(&batch(
             0,
@@ -283,7 +275,7 @@ mod tests {
 
     #[test]
     fn blocks_advance_one_column_per_second() {
-        let mut model = Model::new();
+        let mut model = Model::default();
         model.ingest(&batch(
             0,
             4_000,
@@ -301,7 +293,7 @@ mod tests {
 
     #[test]
     fn rows_stay_put_and_expired_slots_are_reused_lowest_first() {
-        let mut model = Model::new();
+        let mut model = Model::default();
         model.ingest(&batch(
             0,
             0,
@@ -354,7 +346,7 @@ mod tests {
 
     #[test]
     fn retention_keeps_the_boundary_second_only() {
-        let mut model = Model::new();
+        let mut model = Model::default();
         let now = RETENTION_SECONDS; // second 300
         model.ingest(&batch(
             0,
@@ -377,7 +369,7 @@ mod tests {
 
     #[test]
     fn changing_the_window_reprojects_without_moving_rows() {
-        let mut model = Model::new();
+        let mut model = Model::default();
         model.ingest(&batch(
             0,
             10_000,
@@ -392,7 +384,7 @@ mod tests {
 
     #[test]
     fn rows_outside_the_requested_range_are_not_projected() {
-        let mut model = Model::new();
+        let mut model = Model::default();
         model.ingest(&batch(
             0,
             0,
@@ -409,7 +401,7 @@ mod tests {
 
     #[test]
     fn classes_share_a_row_per_target_and_class() {
-        let mut model = Model::new();
+        let mut model = Model::default();
         let mut hopr = delta(0, "203.0.113.1", Direction::Upstream, 10);
         hopr.class = Class::HoprAssociated;
         model.ingest(&batch(
@@ -425,7 +417,7 @@ mod tests {
 
     #[test]
     fn batches_from_another_protocol_are_ignored() {
-        let mut model = Model::new();
+        let mut model = Model::default();
         let mut foreign = batch(
             0,
             5_000,
@@ -433,13 +425,14 @@ mod tests {
         );
         foreign.protocol = PROTOCOL_VERSION + 1;
         model.ingest(&foreign);
-        assert_eq!(model.current_second(), 0);
-        assert!(model.project(5, 0, 10).cells.is_empty());
+        let frame = model.project(5, 0, 10);
+        assert_eq!(frame.current_second, 0);
+        assert!(frame.cells.is_empty());
     }
 
     #[test]
     fn target_capacity_refuses_new_lanes_but_keeps_existing_ones() {
-        let mut model = Model::new();
+        let mut model = Model::default();
         let deltas: Vec<_> = (0..MAX_LANES)
             .map(|index| {
                 delta(
@@ -494,7 +487,7 @@ mod tests {
 
     #[test]
     fn reset_clears_rows_and_history() {
-        let mut model = Model::new();
+        let mut model = Model::default();
         model.ingest(&batch(
             0,
             0,

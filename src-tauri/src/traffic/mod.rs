@@ -36,7 +36,6 @@ pub struct FrameResponse {
 
 struct Session {
     id: u64,
-    interface: String,
 }
 
 #[derive(Default)]
@@ -93,7 +92,6 @@ pub async fn traffic_start(
             inner.gap = false;
             inner.session = Some(Session {
                 id: started.session_id,
-                interface: started.interface.name.clone(),
             });
             inner.capture = CaptureStatus {
                 active: true,
@@ -194,8 +192,14 @@ async fn stop_inner(inner: &Arc<Mutex<Inner>>) {
         let request = protocol::StopRequest {
             session_id: session.id,
         };
-        if let Err(e) = daemon::call(&protocol::Request::TrafficStop(&request)).await {
-            tracing::warn!(target: "traffic", error = %e, "cannot stop traffic capture");
+        match daemon::call(&protocol::Request::TrafficStop(&request)).await {
+            Ok(protocol::Response::TrafficStop(stop)) if !stop.stopped => {
+                tracing::debug!(target: "traffic", session = session.id, "traffic session was already gone");
+            }
+            Ok(_) => {}
+            Err(e) => {
+                tracing::warn!(target: "traffic", error = %e, "cannot stop traffic capture");
+            }
         }
         tracing::info!(target: "traffic", session = session.id, "traffic session stopped");
     }

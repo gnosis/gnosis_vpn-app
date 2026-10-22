@@ -67,14 +67,23 @@ mod tests {
     use super::*;
     use tokio::net::UnixListener;
 
+    use std::sync::atomic::{AtomicU32, Ordering};
     use std::time::{SystemTime, UNIX_EPOCH};
+
+    /// Distinguishes sockets bound by tests running in the same process; the
+    /// clock alone is too coarse for that.
+    static NEXT_SOCKET: AtomicU32 = AtomicU32::new(0);
 
     fn socket_path() -> PathBuf {
         let nanos = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("clock")
             .as_nanos();
-        std::env::temp_dir().join(format!("gvpn-traffic-{}-{nanos}.sock", std::process::id()))
+        let sequence = NEXT_SOCKET.fetch_add(1, Ordering::Relaxed);
+        std::env::temp_dir().join(format!(
+            "gvpn-traffic-{}-{nanos}-{sequence}.sock",
+            std::process::id()
+        ))
     }
 
     /// Answers one connection with `reply`, after recording what was asked.
