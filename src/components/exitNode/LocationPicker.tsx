@@ -20,8 +20,9 @@ import {
   isVpnActive,
   rankContext,
   sortAlphaDestinations,
-  sortByRouteQuality,
+  sortForPicker,
 } from "@src/utils/destinations.ts";
+import Tooltip from "../common/Tooltip.tsx";
 import LocationRow from "./LocationRow.tsx";
 import UnreachableDialog from "./UnreachableDialog.tsx";
 
@@ -86,8 +87,8 @@ export default function LocationPicker(props: {
         context,
       );
     }
-    // the same ranking auto picks from, so the list's head is the destination it would choose
-    return sortByRouteQuality(appState.destinations, context)
+    // Usable first, then fastest first; frozen below at the moment the list opened.
+    return sortForPicker(appState.destinations, context)
       .map((id) => appState.destinations[id].destination);
   });
 
@@ -280,27 +281,42 @@ export default function LocationPicker(props: {
               class="h-7 w-full rounded-md border border-border bg-bg-primary pl-6 pr-2 text-xs text-text-primary placeholder:text-text-muted focus:border-transparent focus:outline-2 focus:outline-accent"
             />
           </div>
-          <div class="flex shrink-0 gap-0.5" role="group" aria-label="Sort by">
-            <For each={sortOptions}>
-              {({ order, label }) => (
-                <button
-                  type="button"
-                  aria-pressed={settings.exitNodeSortOrder === order}
-                  class="rounded px-1.5 py-0.5 text-[11px] font-semibold transition-colors focus:outline-none focus-visible:outline-2 focus-visible:outline-accent"
-                  classList={{
-                    "bg-accent text-accent-text":
-                      settings.exitNodeSortOrder === order,
-                    "text-text-secondary hover:bg-darken":
-                      settings.exitNodeSortOrder !== order,
-                  }}
-                  onClick={() =>
-                    void settingsActions.setExitNodeSortOrder(order)}
-                >
-                  {label}
-                </button>
-              )}
-            </For>
-          </div>
+          <Tooltip
+            content={
+              <span>
+                Best: locations you can use first, fastest at the top, as
+                measured when the list opened. A–Z: by name.
+              </span>
+            }
+            position="auto"
+            align="end"
+          >
+            <div
+              class="flex shrink-0 gap-0.5"
+              role="group"
+              aria-label="Sort by"
+            >
+              <For each={sortOptions}>
+                {({ order, label }) => (
+                  <button
+                    type="button"
+                    aria-pressed={settings.exitNodeSortOrder === order}
+                    class="rounded px-1.5 py-0.5 text-[11px] font-semibold transition-colors focus:outline-none focus-visible:outline-2 focus-visible:outline-accent"
+                    classList={{
+                      "bg-accent text-accent-text":
+                        settings.exitNodeSortOrder === order,
+                      "text-text-secondary hover:bg-darken":
+                        settings.exitNodeSortOrder !== order,
+                    }}
+                    onClick={() =>
+                      void settingsActions.setExitNodeSortOrder(order)}
+                  >
+                    {label}
+                  </button>
+                )}
+              </For>
+            </div>
+          </Tooltip>
         </div>
 
         <div

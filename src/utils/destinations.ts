@@ -290,6 +290,35 @@ export function sortByRouteQuality(
   });
 }
 
+/**
+ * The picker's "Best" order: usable destinations first, and among the
+ * measured ones the fastest at the top. Readiness tiers are the same as
+ * `sortByRouteQuality`; only the measured tier differs, where latency comes
+ * before the blended score. The list freezes this order when it opens.
+ */
+export function sortForPicker(
+  destinations: Record<string, DestinationState>,
+  context: RankContext,
+): string[] {
+  const ranked = sortByRouteQuality(destinations, context);
+  const latencyOf = (id: string): number | null => {
+    const state = destinations[id];
+    if (!isReady(state, context)) return null;
+    const exit = getExitData(state, context.probe);
+    return exit === null ? null : exit.rtt;
+  };
+  // Stable: ids with equal latency keep the blended order.
+  return ranked
+    .map((id, index) => ({ id, index, latency: latencyOf(id) }))
+    .sort((a, b) => {
+      if (a.latency !== null && b.latency !== null && a.latency !== b.latency) {
+        return a.latency - b.latency;
+      }
+      return a.index - b.index;
+    })
+    .map((entry) => entry.id);
+}
+
 /** Connect-on-startup pick: where the last session left off, else the preferred location, else the best — each only while ready. */
 export function pickStartupTarget(
   destinations: Record<string, DestinationState>,
