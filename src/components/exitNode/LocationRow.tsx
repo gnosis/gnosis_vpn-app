@@ -11,6 +11,8 @@ import {
 } from "@src/utils/destinations.ts";
 import { pickerGrade, pickerVerdict } from "@src/utils/pickerVerdict.ts";
 import Flag from "../Flag.tsx";
+import CardTooltip from "./CardTooltip.tsx";
+import RouteTooltip from "./RouteTooltip.tsx";
 import SignalBars from "./SignalBars.tsx";
 
 /** One line of the location picker: flag, name, country, and the route's bars in one column. */
@@ -18,6 +20,8 @@ export default function LocationRow(props: {
   destinationState: DestinationState;
   current: boolean;
   highlighted: boolean;
+  // Live clock for "Checked"; the picker owns it so the rows share one.
+  nowSec: number;
   onHover: () => void;
   onPick: () => void;
 }) {
@@ -30,8 +34,12 @@ export default function LocationRow(props: {
   const grade = createMemo(() =>
     pickerGrade(props.destinationState, exit(), rankContext(appState))
   );
-  const verdict = () =>
-    pickerVerdict(grade(), props.destinationState.route_health ?? null, exit());
+  const routeHealth = () => props.destinationState.route_health ?? null;
+  const verdict = () => pickerVerdict(grade(), routeHealth(), exit());
+  const connected = () =>
+    appState.connected?.destination_id === destination().id;
+  const tunnelRtt = () =>
+    connected() ? appState.connected?.tunnel_ping_rtt ?? null : null;
   // The live destination stays pickable: its tunnel exists and the slot it fills is ours.
   const pickable = () =>
     props.current ||
@@ -82,7 +90,26 @@ export default function LocationRow(props: {
       </span>
       {/* One column: every row's bars sit at the same x, whatever their state. */}
       <span class="flex w-5 shrink-0 justify-end">
-        <SignalBars grade={grade()} highlighted={props.highlighted} />
+        <CardTooltip
+          tooltip={
+            <RouteTooltip
+              verdict={verdict()}
+              grade={grade()}
+              routeHealth={routeHealth()}
+              exit={exit()}
+              tunnelRtt={tunnelRtt()}
+              routing={destination().routing}
+              connected={connected()}
+              nowSec={props.nowSec}
+            />
+          }
+          description={`${verdict().headline}. ${verdict().context}`}
+          position="auto"
+          align="end"
+          bubbleClass="max-w-64"
+        >
+          <SignalBars grade={grade()} highlighted={props.highlighted} />
+        </CardTooltip>
       </span>
     </div>
   );
