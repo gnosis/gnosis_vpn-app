@@ -188,6 +188,16 @@ textarea {
   }
 }
 
+/* Picker bars while a location is still being measured */
+.bars-pulse {
+  animation: bars-pulse 2.4s ease-in-out infinite;
+}
+@keyframes bars-pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+
 /* Button press animation */
 .btn-press {
   animation: btn-press-keyframes 160ms ease-out;
@@ -283,7 +293,8 @@ textarea {
 
 @media (prefers-reduced-motion: reduce) {
   .status-dot-blink,
-  .bars-scan {
+  .bars-scan,
+  .bars-pulse {
     animation: none;
   }
   .flag-ramp {
