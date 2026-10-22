@@ -14,6 +14,7 @@ import StatusCard from "../../components/status/StatusCard.tsx";
 import ConnectingExplainer from "../../components/status/ConnectingExplainer.tsx";
 import { effectiveActive } from "../../stores/destinationMode.ts";
 import ConnectButton from "../../components/ConnectButton.tsx";
+import { createMainShortcuts } from "./mainShortcuts.ts";
 import { openSettingsWindow } from "../../utils/settingsWindow.ts";
 import { isRunningRunMode } from "../../services/vpnService.ts";
 import { deriveOverallStatus, type StatusText } from "../../utils/funding.ts";
@@ -68,6 +69,10 @@ export function MainScreen() {
     const id = effectiveActive(appState.mode, Date.now());
     return id ? appState.destinations[id] : undefined;
   });
+  // The hero registers how to open the picker; Cmd/Ctrl+L goes through it.
+  let openPicker: () => void = () => {};
+  createMainShortcuts({ openPicker: () => openPicker() });
+
   // While a connect is in flight the explainer takes the status card's place.
   const connectInFlight = () => {
     const status = appState.vpnStatus;
@@ -138,7 +143,7 @@ export function MainScreen() {
       </div>
 
       <main class="flex w-full flex-1 flex-col items-center min-h-0 gap-5 pt-6">
-        <DestinationHero />
+        <DestinationHero registerOpenPicker={(open) => (openPicker = open)} />
         <Show when={activeDestinationState()}>
           {(ds) => (
             // Both share one grid cell so the swap cross-fades in place.

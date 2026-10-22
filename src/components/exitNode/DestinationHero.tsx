@@ -16,7 +16,10 @@ import LocationPicker from "./LocationPicker.tsx";
 import SwitchSpinner from "./SwitchSpinner.tsx";
 
 /** The destination Connect targets: flag, name, country, and the way to another one. */
-export default function DestinationHero() {
+export default function DestinationHero(props: {
+  // Hands the parent a way to open the picker, for the keyboard shortcut.
+  registerOpenPicker?: (open: () => void) => void;
+}) {
   const [appState, appActions] = useAppStore();
 
   const activeState = createMemo((): DestinationState | undefined => {
@@ -54,6 +57,7 @@ export default function DestinationHero() {
     setAnchor(changeButtonRef.getBoundingClientRect());
     appActions.destinationListOpened();
   };
+  props.registerOpenPicker?.(openList);
   const closeList = (picked: string | null) => {
     appActions.destinationListClosed(picked);
     changeButtonRef?.focus();
