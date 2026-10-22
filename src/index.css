@@ -198,6 +198,21 @@ textarea {
   }
 }
 
+/* In-window pages slide in from the right; MainScreen keys them so every push replays it */
+.page-enter {
+  animation: page-enter 200ms ease-out both;
+}
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 /* Button press animation */
 .btn-press {
   animation: btn-press-keyframes 160ms ease-out;
@@ -294,7 +309,8 @@ textarea {
 @media (prefers-reduced-motion: reduce) {
   .status-dot-blink,
   .bars-scan,
-  .bars-pulse {
+  .bars-pulse,
+  .page-enter {
     animation: none;
   }
   .flag-ramp {

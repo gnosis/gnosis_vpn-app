@@ -5,7 +5,7 @@ import {
   primaryActionEnabled,
   runPrimaryAction,
 } from "@src/utils/primaryAction.ts";
-import { openSettingsWindow } from "@src/utils/settingsWindow.ts";
+import { push } from "@src/stores/pageStack.ts";
 import { isControl, resolveMainShortcut } from "@src/utils/shortcuts.ts";
 import { isSwitchingDestination } from "@src/utils/status.ts";
 
@@ -48,7 +48,7 @@ export function createMainShortcuts(opts: { openPicker: () => void }): void {
         else opts.openPicker();
         return;
       case "settings":
-        void openSettingsWindow("settings");
+        push("settings");
         return;
       case "cancel":
         void appActions.disconnect();
