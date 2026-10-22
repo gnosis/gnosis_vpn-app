@@ -102,7 +102,9 @@ export default function Tooltip(props: {
   });
 
   // Tracks hover/focus intent even while disabled, so the tooltip can
-  // reappear when `disabled` clears without a fresh mouseenter.
+  // reappear when `disabled` clears without a fresh mouseenter. Only the
+  // trigger counts: moving into the bubble does not hold it open, so leaving
+  // the trigger is always enough to dismiss it.
   const [wantHover, setWantHover] = createSignal(false);
   const wantVisible = () => wantHover() || props.open === true;
 
@@ -149,8 +151,6 @@ export default function Tooltip(props: {
               props.bubbleClass ?? "max-w-52"
             }`}
             style={{ ...anchorStyle(), left: `${left()}px` }}
-            onMouseEnter={show}
-            onMouseLeave={hide}
           >
             {props.content}
             <span
