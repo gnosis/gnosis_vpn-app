@@ -2,8 +2,10 @@ import {
   createEffect,
   createMemo,
   createSignal,
+  Match,
   onCleanup,
   Show,
+  Switch,
 } from "solid-js";
 import { useAppStore } from "../../stores/appStore.ts";
 import { useSettingsStore } from "../../stores/settingsStore.ts";
@@ -16,7 +18,14 @@ import ConnectingExplainer from "../../components/status/ConnectingExplainer.tsx
 import { effectiveActive } from "../../stores/destinationMode.ts";
 import ConnectButton from "../../components/ConnectButton.tsx";
 import { createMainShortcuts } from "./mainShortcuts.ts";
-import { openSettingsWindow } from "../../utils/settingsWindow.ts";
+import {
+  back,
+  currentPage,
+  type PageId,
+  push,
+} from "../../stores/pageStack.ts";
+import Page from "../../components/common/Page.tsx";
+import SettingsPage from "./pages/SettingsPage.tsx";
 import { isRunningRunMode } from "../../services/vpnService.ts";
 import { deriveOverallStatus, type StatusText } from "../../utils/funding.ts";
 import {
@@ -94,7 +103,7 @@ export function MainScreen() {
       isSwitchingDestination(status, appState.targetDestination);
   };
 
-  return (
+  const mainContent = () => (
     <div class="flex w-full flex-col h-full py-6 px-4">
       <div class="flex flex-row justify-between z-60">
         <StatusHeader />
@@ -113,7 +122,7 @@ export function MainScreen() {
                 <Banner
                   variant="danger"
                   icon={<WarningIcon />}
-                  onClick={() => openSettingsWindow("updates")}
+                  onClick={() => push("software-update")}
                 >
                   {endOfLifeMessage(endOfLife(), now())}
                 </Banner>
@@ -124,7 +133,7 @@ export function MainScreen() {
             <Banner
               variant="update"
               icon={<UpdateIcon />}
-              onClick={() => openSettingsWindow("updates")}
+              onClick={() => push("software-update")}
               onDismiss={() =>
                 void settingsActions.setDismissedUpdateVersion(
                   appState.availableVersion,
@@ -140,7 +149,7 @@ export function MainScreen() {
               variant="warning"
               onDismiss={() => setDismissedBalanceStatus(balanceStatus())}
               dismissAriaLabel="Dismiss balance notification"
-              onClick={() => openSettingsWindow("usage")}
+              onClick={() => push("add-funds")}
             >
               {balanceBannerText()}
             </Banner>
@@ -190,6 +199,27 @@ export function MainScreen() {
         <ConnectButton />
       </div>
     </div>
+  );
+
+  const pageTitle: Record<PageId, string> = {
+    settings: "Settings",
+    "software-update": "Software update",
+    about: "About Gnosis VPN",
+    "add-funds": "Add funds",
+  };
+
+  return (
+    <Show when={currentPage()} keyed fallback={mainContent()}>
+      {(page) => (
+        <Page title={pageTitle[page]} onBack={() => back()}>
+          <Switch>
+            <Match when={page === "settings"}>
+              <SettingsPage />
+            </Match>
+          </Switch>
+        </Page>
+      )}
+    </Show>
   );
 }
 
