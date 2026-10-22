@@ -13,6 +13,7 @@ import {
   connectButtonLook,
   deriveVPNStatus,
   formatStall,
+  headerStatus,
   isConnected,
   isConnecting,
   isDisconnected,
@@ -465,6 +466,61 @@ describe("channelMaintenanceWarning", () => {
     expect(channelMaintenanceWarning(running({ type: "Ok" }), 0)).toBeNull();
     expect(channelMaintenanceWarning("NotRunning", 0)).toBeNull();
     expect(channelMaintenanceWarning(null, 0)).toBeNull();
+  });
+});
+
+describe("headerStatus", () => {
+  const STALL = { since: 0, failed_pings: 2, reconnect_at: 3 };
+  const connected = (stall: typeof STALL | null) => ({
+    destination_id: "dest-1",
+    since: 0,
+    tunnel_ping_rtt: null,
+    stall,
+  });
+  const at = (
+    vpnStatus: string,
+    extra: Partial<AppState> = {},
+  ): AppState => ({ ...BASE_APP_STATE, vpnStatus, ...extra });
+
+  it("ends in 'to' while connected: the hero names the destination", () => {
+    expect(headerStatus(at("Connected", { connected: connected(null) })))
+      .toEqual({ text: "Connected to", tone: "connected" });
+  });
+
+  it("marks a stalled tunnel in the same line", () => {
+    expect(headerStatus(at("Connected", { connected: connected(STALL) })))
+      .toEqual({ text: "Connected to · stalled", tone: "stalled" });
+  });
+
+  it.each(["Connecting", "Reconnecting"])(
+    "reads 'Connecting to' while %s",
+    (vpnStatus) => {
+      expect(headerStatus(at(vpnStatus)))
+        .toEqual({ text: "Connecting to", tone: "connecting" });
+    },
+  );
+
+  it("treats a destination switch (disconnecting with a target) as connecting", () => {
+    expect(
+      headerStatus(at("Disconnecting", { targetDestination: "dest-2" })),
+    ).toEqual({ text: "Connecting to", tone: "connecting" });
+  });
+
+  it.each(["Disconnected", "Disconnecting"])(
+    "reads 'Not connected' while %s",
+    (vpnStatus) => {
+      expect(headerStatus(at(vpnStatus)))
+        .toEqual({ text: "Not connected", tone: "idle" });
+    },
+  );
+
+  it("keeps the service texts", () => {
+    expect(headerStatus(at("WorkerRestarting")))
+      .toEqual({ text: "Restarting...", tone: "restarting" });
+    expect(headerStatus(at("ServiceUnavailable")))
+      .toEqual({ text: "Service unavailable", tone: "unavailable" });
+    expect(headerStatus(at("ServiceUnavailable", { isLoading: true })))
+      .toEqual({ text: "Loading...", tone: "unavailable" });
   });
 });
 
