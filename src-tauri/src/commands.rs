@@ -17,7 +17,7 @@ use std::time::Duration;
 use tokio::task::spawn_blocking;
 use tokio::time::{self, Instant};
 
-use crate::cli::Cli;
+use crate::cli::{self, Cli};
 use crate::icons::{self, TrayIconState};
 use crate::platform::{SystemInfo, get_system_info};
 use crate::toolkit;
@@ -81,7 +81,7 @@ pub async fn check_update(skip_vpn: bool) -> Result<toolkit::CheckResult, String
 }
 
 async fn query_info() -> Result<command::InfoResponse, String> {
-    let p = PathBuf::from(root_socket::DEFAULT_PATH);
+    let p = cli::socket_path();
     let resp = root_socket::process_cmd(&p, &command::Command::Info)
         .await
         .map_err(|e| e.to_string())?;
@@ -92,7 +92,7 @@ async fn query_info() -> Result<command::InfoResponse, String> {
 }
 
 async fn start_client_worker(keep_alive: Duration) -> Result<(), String> {
-    let p = PathBuf::from(root_socket::DEFAULT_PATH);
+    let p = cli::socket_path();
     let resp = root_socket::process_cmd(&p, &command::Command::StartClient(keep_alive))
         .await
         .map_err(|e| e.to_string())?;
@@ -108,7 +108,7 @@ pub async fn connect(
     polling_state: State<'_, Mutex<StatusPollingHandle>>,
 ) -> Result<command::ConnectResponse, String> {
     tracing::info!(target: "status", destination = %id, "connect requested");
-    let p = PathBuf::from(root_socket::DEFAULT_PATH);
+    let p = cli::socket_path();
     let cmd = command::Command::Connect(id);
     let resp = root_socket::process_cmd(&p, &cmd).await.map_err(|e| {
         tracing::warn!(target: "status", error = %e, "connect failed");
@@ -135,7 +135,7 @@ pub async fn connect(
 #[tauri::command]
 pub async fn probe(id: String) -> Result<command::ProbeResponse, String> {
     tracing::info!(target: "status", destination = %id, "probe requested");
-    let p = PathBuf::from(root_socket::DEFAULT_PATH);
+    let p = cli::socket_path();
     let resp = root_socket::process_cmd(&p, &command::Command::Probe(id))
         .await
         .map_err(|e| {
@@ -155,7 +155,7 @@ pub async fn probe(id: String) -> Result<command::ProbeResponse, String> {
 #[tauri::command]
 pub async fn quick_probe(id: String) -> Result<command::QuickProbeResponse, String> {
     tracing::info!(target: "status", destination = %id, "quick probe requested");
-    let p = PathBuf::from(root_socket::DEFAULT_PATH);
+    let p = cli::socket_path();
     let resp = root_socket::process_cmd(&p, &command::Command::QuickProbe(id))
         .await
         .map_err(|e| {
@@ -188,7 +188,7 @@ pub async fn disconnect(
     polling_state: State<'_, Mutex<StatusPollingHandle>>,
 ) -> Result<command::DisconnectResponse, String> {
     tracing::info!(target: "status", "disconnect requested");
-    let p = PathBuf::from(root_socket::DEFAULT_PATH);
+    let p = cli::socket_path();
     let cmd = command::Command::Disconnect;
     let resp = root_socket::process_cmd(&p, &cmd).await.map_err(|e| {
         tracing::warn!(target: "status", error = %e, "disconnect failed");
@@ -214,7 +214,7 @@ pub async fn disconnect(
 async fn query_balance(
     last_warn: &mut Option<String>,
 ) -> (Duration, Result<Option<BalanceResponse>, String>) {
-    let p = PathBuf::from(root_socket::DEFAULT_PATH);
+    let p = cli::socket_path();
     let resp = root_socket::process_cmd(&p, &command::Command::Balance).await;
     match resp {
         Ok(command::Response::Balance(Ok(balance_resp))) => {
@@ -653,7 +653,7 @@ fn parse_upload_response(status: u16, body: &str) -> Result<SignedUpload, String
 }
 
 pub async fn stop_client() -> Result<(), String> {
-    let p = PathBuf::from(root_socket::DEFAULT_PATH);
+    let p = cli::socket_path();
     let cmd = command::Command::StopClient;
     let resp = root_socket::process_cmd(&p, &cmd)
         .await
@@ -978,7 +978,7 @@ struct StatusPoll {
 }
 
 async fn query_status() -> StatusPoll {
-    let p = PathBuf::from(root_socket::DEFAULT_PATH);
+    let p = cli::socket_path();
     match root_socket::process_cmd(&p, &command::Command::Status).await {
         Ok(resp) => classify_status_response(resp),
         Err(e) => StatusPoll {

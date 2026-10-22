@@ -4,11 +4,10 @@
 //! request/response shapes live in [`super::protocol`] so the app does not need
 //! to build against an unreleased client library to use them.
 
-use gnosis_vpn_lib::socket::root::DEFAULT_PATH;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::UnixStream;
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use super::protocol::{Request, Response};
 
@@ -20,7 +19,7 @@ pub const SERVICE_UNSUPPORTED: &str =
     "This Gnosis VPN version does not support traffic capture; update the client";
 
 pub async fn call(request: &Request<'_>) -> Result<Response, String> {
-    call_at(&PathBuf::from(DEFAULT_PATH), request).await
+    call_at(&crate::cli::socket_path(), request).await
 }
 
 async fn call_at(path: &Path, request: &Request<'_>) -> Result<Response, String> {
@@ -66,6 +65,8 @@ async fn call_at(path: &Path, request: &Request<'_>) -> Result<Response, String>
 mod tests {
     use super::*;
     use tokio::net::UnixListener;
+
+    use std::path::PathBuf;
 
     use std::sync::atomic::{AtomicU32, Ordering};
     use std::time::{SystemTime, UNIX_EPOCH};

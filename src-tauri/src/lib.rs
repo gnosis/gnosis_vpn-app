@@ -8,7 +8,6 @@ use tokio::sync::Notify;
 use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
 
-use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
@@ -186,6 +185,8 @@ fn install_macos_about_panel_override(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let cli = Cli::from_env();
+    // Resolve the client socket once so every call site uses the same path.
+    cli::init_socket_path(cli.socket_path.clone());
 
     // Random black windows on Ubuntu (GNO-421); costs backdrop-filter on Linux.
     #[cfg(target_os = "linux")]
@@ -284,7 +285,7 @@ pub fn run() {
                         tracing::info!(target: "tray", "quit requested, disconnecting");
                         let app_clone = app.clone();
                         tauri::async_runtime::spawn(async move {
-                            let socket = PathBuf::from(root_socket::DEFAULT_PATH);
+                            let socket = cli::socket_path();
                             if let Err(e) =
                                 root_socket::process_cmd(&socket, &command::Command::Disconnect)
                                     .await
@@ -392,7 +393,7 @@ pub fn run() {
                     let pkg: String = match from_toolkit {
                         Some(pkg) => pkg,
                         None => {
-                            let socket = PathBuf::from(root_socket::DEFAULT_PATH);
+                            let socket = cli::socket_path();
                             match root_socket::process_cmd(&socket, &command::Command::Info).await {
                                 Ok(command::Response::Info(info)) => {
                                     // debug: the init loop's "initialized" line already records versions
