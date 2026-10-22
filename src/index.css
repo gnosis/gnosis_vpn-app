@@ -178,6 +178,16 @@ textarea {
   }
 }
 
+/* Status card bars while a verdict is pending */
+.bars-scan {
+  animation: bars-scan 1.2s ease-in-out infinite;
+}
+@keyframes bars-scan {
+  50% {
+    opacity: 0.25;
+  }
+}
+
 /* Button press animation */
 .btn-press {
   animation: btn-press-keyframes 160ms ease-out;
@@ -273,6 +283,7 @@ textarea {
 
 @media (prefers-reduced-motion: reduce) {
   .status-dot-blink,
+  .bars-scan,
   .list-expand-in {
     animation: none;
   }

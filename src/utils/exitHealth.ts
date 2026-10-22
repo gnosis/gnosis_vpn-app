@@ -1,11 +1,15 @@
-import type { Destination, RouteHealthView } from "@src/services/vpnService.ts";
+import type {
+  Destination,
+  RouteHealthView,
+  TunnelStall,
+} from "@src/services/vpnService.ts";
 import { type ExitData, MIN_PATH_VALUE } from "@src/utils/destinations.ts";
 
 /** Visual health color for a destination; "default" renders as plain text. */
 export type HealthColor = "green" | "yellow" | "red" | "gray" | "default";
 
 /** The walk's verdict on this destination, with exit data tightening a route within the band. */
-type RouteVerdict =
+export type RouteVerdict =
   | "checking"
   | "ready"
   | "full"
@@ -13,7 +17,7 @@ type RouteVerdict =
   | "no-route"
   | "unrecoverable";
 
-function routeVerdict(
+export function getRouteVerdict(
   rhv: RouteHealthView,
   exit: ExitData | null,
 ): RouteVerdict {
@@ -33,7 +37,7 @@ export function getExitHealthColor(
   rhv: RouteHealthView,
   exit: ExitData | null,
 ): HealthColor {
-  switch (routeVerdict(rhv, exit)) {
+  switch (getRouteVerdict(rhv, exit)) {
     case "ready":
       return "green";
     case "full":
@@ -52,7 +56,7 @@ export function formatExitHealthStatus(
   rhv: RouteHealthView,
   exit: ExitData | null,
 ): string {
-  switch (routeVerdict(rhv, exit)) {
+  switch (getRouteVerdict(rhv, exit)) {
     case "ready":
       return "Ready to connect";
     case "full":
@@ -130,6 +134,27 @@ export function getLatencyLevel(ms: number): LoadLevel {
   if (ms < 500) return "low";
   if (ms <= 1100) return "medium";
   return "high";
+}
+
+/** How the live tunnel feels, in one word. */
+export type ConnectionQuality = "good" | "fair" | "poor";
+
+/**
+ * Grades a live connection from the same bands the stats use. Unknown latency
+ * counts as medium until the first sample; unknown load (an exit that reports
+ * no slots) holds nothing against the connection.
+ */
+export function getConnectionQuality(
+  latencyMs: number | null,
+  loadLevel: LoadLevel | null,
+  stall: TunnelStall | null | undefined,
+): ConnectionQuality {
+  const latencyLevel: LoadLevel = latencyMs === null
+    ? "medium"
+    : getLatencyLevel(latencyMs);
+  if (stall || latencyLevel === "high" || loadLevel === "high") return "poor";
+  if (latencyLevel === "medium" || loadLevel === "medium") return "fair";
+  return "good";
 }
 
 /** Determine load level from 1-minute load average relative to nproc. */

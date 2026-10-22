@@ -10,7 +10,7 @@ import { useSettingsStore } from "../../stores/settingsStore.ts";
 import StatusHeader from "../../components/status/StatusHeader.tsx";
 import Navigation from "../../components/Navigation.tsx";
 import DestinationHero from "../../components/exitNode/DestinationHero.tsx";
-import ExitHealthDetail from "../../components/exitNode/ExitHealthDetail.tsx";
+import StatusCard from "../../components/status/StatusCard.tsx";
 import { effectiveActive } from "../../stores/destinationMode.ts";
 import ConnectButton from "../../components/ConnectButton.tsx";
 import { openSettingsWindow } from "../../utils/settingsWindow.ts";
@@ -129,13 +129,8 @@ export function MainScreen() {
 
       <main class="flex w-full flex-1 flex-col items-center min-h-0 gap-5 pt-6">
         <DestinationHero />
-        {/* Interim: the status card replaces this panel in the next step. */}
         <Show when={activeDestinationState()}>
-          {(ds) => (
-            <div class="w-full rounded-xl bg-bg-surface px-3 py-2">
-              <ExitHealthDetail destinationState={ds()} />
-            </div>
-          )}
+          {(ds) => <StatusCard destinationState={ds()} />}
         </Show>
       </main>
       <div class="mt-4 w-full z-10">
