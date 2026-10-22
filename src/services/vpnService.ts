@@ -648,6 +648,15 @@ export class VPNService {
     }
   }
 
+  /** Caps the balance poll interval while the Add funds page waits for a transfer. */
+  static async setBalancePollFast(fast: boolean): Promise<void> {
+    try {
+      await invoke("set_balance_poll_fast", { fast });
+    } catch (error) {
+      throw new Error(`Set balance poll error: ${error}`);
+    }
+  }
+
   // failures are logged by the backend's export_logs command
   static async exportLogs(destPath: string): Promise<string> {
     try {
