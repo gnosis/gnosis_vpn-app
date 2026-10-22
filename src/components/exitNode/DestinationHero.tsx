@@ -1,5 +1,4 @@
 import { createMemo, createSignal, Show } from "solid-js";
-import { Portal } from "solid-js/web";
 import type { DestinationState } from "@src/services/vpnService.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { effectiveActive } from "@src/stores/destinationMode.ts";
@@ -13,7 +12,7 @@ import { isSwitchingDestination } from "@src/utils/status.ts";
 import Flag from "../Flag.tsx";
 import GlobeIcon from "../icons/GlobeIcon.tsx";
 import Tooltip from "../common/Tooltip.tsx";
-import ExitNodeList from "./ExitNodeList.tsx";
+import LocationPicker from "./LocationPicker.tsx";
 import SwitchSpinner from "./SwitchSpinner.tsx";
 
 /** The destination Connect targets: flag, name, country, and the way to another one. */
@@ -46,15 +45,13 @@ export default function DestinationHero() {
     return candidate ? destinationTitle(candidate) : id ?? "";
   };
 
-  // Viewport Y of the button that opened the list — the expand animation's origin.
-  const [listOriginY, setListOriginY] = createSignal(0);
+  // Where the Change location button sits: the picker hangs under it.
+  const [anchor, setAnchor] = createSignal<DOMRect | null>(null);
   let changeButtonRef: HTMLButtonElement | undefined;
 
   const openList = () => {
-    if (changeButtonRef) {
-      const rect = changeButtonRef.getBoundingClientRect();
-      setListOriginY(rect.top + rect.height / 2);
-    }
+    if (!changeButtonRef) return;
+    setAnchor(changeButtonRef.getBoundingClientRect());
     appActions.destinationListOpened();
   };
   const closeList = (picked: string | null) => {
@@ -127,11 +124,9 @@ export default function DestinationHero() {
         )}
       </Show>
 
-      <Portal>
-        <Show when={appState.mode.listOpen}>
-          <ExitNodeList originY={listOriginY()} onClose={closeList} />
-        </Show>
-      </Portal>
+      <Show when={appState.mode.listOpen && anchor()}>
+        {(rect) => <LocationPicker anchor={rect()} onClose={closeList} />}
+      </Show>
     </div>
   );
 }
