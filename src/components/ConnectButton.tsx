@@ -1,5 +1,5 @@
-import { createMemo } from "solid-js";
-import Button from "./common/Button.tsx";
+import { createMemo, Show } from "solid-js";
+import Button, { type ButtonProps } from "./common/Button.tsx";
 import { useAppStore } from "../stores/appStore.ts";
 import { effectiveActive } from "../stores/destinationMode.ts";
 import {
@@ -8,7 +8,16 @@ import {
   rankContext,
 } from "../utils/destinations.ts";
 import { logError } from "../utils/appLog.ts";
-import { connectButtonLook } from "../utils/status.ts";
+import { type ConnectButtonLook, connectButtonLook } from "../utils/status.ts";
+import { destinationTitle } from "../utils/destinations.ts";
+import OwlIcon from "./icons/OwlIcon.tsx";
+
+// The look's own variant is for the old full-size button; here Cancel is quiet grey, not red.
+const variantOf: Record<ConnectButtonLook["label"], ButtonProps["variant"]> = {
+  Connect: "primary",
+  Cancel: "neutral",
+  Disconnect: "stop",
+};
 
 export default function ConnectButton() {
   const [appState, appActions] = useAppStore();
@@ -54,15 +63,30 @@ export default function ConnectButton() {
     }
   };
 
+  const targetTitle = () => {
+    const dest = targetDestinationState()?.destination;
+    return dest ? destinationTitle(dest) : null;
+  };
+
   return (
     <div class="relative z-20 w-full">
       <Button
-        size="lg"
-        variant={look().variant}
+        size="main"
+        variant={variantOf[look().label]}
         onClick={() => void handleClick()}
         disabled={appState.isLoading || !(isActive() || isTargetSelectable())}
       >
-        {look().label}
+        <Show
+          when={look().label === "Connect" && targetTitle()}
+          fallback={look().label}
+        >
+          {(title) => (
+            <span class="inline-flex items-center gap-2">
+              <OwlIcon class="size-[18px]" />
+              <span class="truncate">Connect to {title()}</span>
+            </span>
+          )}
+        </Show>
       </Button>
     </div>
   );

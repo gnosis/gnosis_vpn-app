@@ -26,7 +26,7 @@ export default function IconButton(props: {
   return (
     <button
       ref={props.ref}
-      class="p-2 rounded-2xl bg-accent hover:bg-accent-hover hover:cursor-pointer w-10 h-10 flex items-center justify-center transition-transform duration-150 ease-out select-none"
+      class="p-2 rounded-2xl bg-accent hover:bg-accent-hover w-10 h-10 flex items-center justify-center transition-transform duration-150 ease-out select-none focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       classList={{ "btn-press": pressed() }}
       onPointerDown={() => playPressAnimation()}
       onClick={props.onClick}
