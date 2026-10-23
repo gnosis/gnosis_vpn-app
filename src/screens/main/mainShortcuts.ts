@@ -5,7 +5,7 @@ import {
   primaryActionEnabled,
   runPrimaryAction,
 } from "@src/utils/primaryAction.ts";
-import { push } from "@src/stores/pageStack.ts";
+import { currentPage, push } from "@src/stores/pageStack.ts";
 import { isControl, resolveMainShortcut } from "@src/utils/shortcuts.ts";
 import { isSwitchingDestination } from "@src/utils/status.ts";
 
@@ -36,6 +36,8 @@ export function createMainShortcuts(opts: { openPicker: () => void }): void {
       connecting: connecting(),
     });
     if (!action) return;
+    // A page replaces the main content, and its keys with it; only the Settings chord still applies.
+    if (currentPage() !== null && action !== "settings") return;
     e.preventDefault();
     switch (action) {
       case "primary":

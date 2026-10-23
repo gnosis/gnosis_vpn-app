@@ -36,8 +36,8 @@ export function popPage(stack: readonly PageId[]): PageId[] {
 const [stack, setStack] = createSignal<PageId[]>([]);
 // One host request kept while the app is not on the main screen.
 const [pending, setPending] = createSignal<HostTarget | null>(null);
-// A one-shot request to open the wallet popover; Navigation consumes it.
-const [walletRequest, setWalletRequest] = createSignal(0);
+// A request to open the wallet popover, held until Navigation consumes it.
+const [walletRequested_, setWalletRequested] = createSignal(false);
 
 /** The page on top, or null for the main content. */
 export const currentPage = (): PageId | null => {
@@ -63,11 +63,16 @@ export function reset(): void {
   setStack([]);
 }
 
-/** Bumps once per request; Navigation watches it and opens the popover. */
-export const walletOpenRequest = walletRequest;
+/** True until Navigation has opened the popover for it. */
+export const walletRequested = walletRequested_;
 
 export function requestWallet(): void {
-  setWalletRequest((n) => n + 1);
+  setWalletRequested(true);
+}
+
+/** Navigation calls this once it has opened the popover. */
+export function consumeWalletRequest(): void {
+  setWalletRequested(false);
 }
 
 /**
@@ -119,5 +124,5 @@ export function onScreenChange(onMainScreen: boolean): void {
 export function resetPageStackForTests(): void {
   setStack([]);
   setPending(null);
-  setWalletRequest(0);
+  setWalletRequested(false);
 }

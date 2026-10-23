@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   back,
+  consumeWalletRequest,
   currentPage,
   isHostTarget,
   isPageId,
@@ -10,7 +11,7 @@ import {
   push,
   pushPage,
   resetPageStackForTests,
-  walletOpenRequest,
+  walletRequested,
 } from "./pageStack.ts";
 
 describe("pushPage / popPage", () => {
@@ -79,9 +80,17 @@ describe("page stack store", () => {
 
   it("turns a wallet request into a popover request and no page", () => {
     push("settings");
-    const before = walletOpenRequest();
     navigateFromHost("wallet", true);
     expect(currentPage()).toBe(null);
-    expect(walletOpenRequest()).toBe(before + 1);
+    expect(walletRequested()).toBe(true);
+    consumeWalletRequest();
+    expect(walletRequested()).toBe(false);
+  });
+
+  it("holds a wallet request from another screen until the main screen shows", () => {
+    navigateFromHost("wallet", false);
+    expect(walletRequested()).toBe(false);
+    onScreenChange(true);
+    expect(walletRequested()).toBe(true);
   });
 });

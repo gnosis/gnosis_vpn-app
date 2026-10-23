@@ -2,13 +2,17 @@ import IconButton from "./common/IconButton.tsx";
 import WalletPopover from "./WalletPopover.tsx";
 import { Portal } from "solid-js/web";
 import settingsIcon from "../assets/icons/settings.svg";
-import { push, walletOpenRequest } from "../stores/pageStack.ts";
+import {
+  consumeWalletRequest,
+  push,
+  walletRequested,
+} from "../stores/pageStack.ts";
 import { isRunningRunMode } from "../services/vpnService.ts";
 import fundsFullIcon from "../assets/icons/funds-full.svg";
 import fundsOutIcon from "../assets/icons/funds-out.svg";
 import fundsEmptyIcon from "../assets/icons/funds-empty.svg";
 import { deriveOverallStatus } from "../utils/funding.ts";
-import { createEffect, createSignal, on, Show } from "solid-js";
+import { createEffect, createSignal, Show } from "solid-js";
 import { useAppStore } from "../stores/appStore.ts";
 import Tooltip from "./common/Tooltip.tsx";
 import type { PickerFrame } from "./exitNode/LocationPicker.tsx";
@@ -46,8 +50,14 @@ function Navigation(props: {
   };
   const toggleWallet = () => (walletAnchor() ? closeWallet() : openWallet());
 
-  // The tray's "Usage" lands here as a request to open the popover.
-  createEffect(on(walletOpenRequest, () => openWallet(), { defer: true }));
+  // The tray's "Usage" lands here as a request to open the popover. Consumed
+  // here, so a request kept while another screen showed opens it on mount and
+  // never replays on a later mount.
+  createEffect(() => {
+    if (!walletRequested()) return;
+    consumeWalletRequest();
+    openWallet();
+  });
 
   return (
     <>
