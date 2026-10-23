@@ -29,7 +29,7 @@ describe("pickerVerdict", () => {
     expect(pickerVerdict({ kind: "measured", bars: 4 }, READY, measured(4)))
       .toEqual({
         headline: "Fast and ready",
-        context: "Low delay and plenty of room. A good pick.",
+        context: "Low delay. A good pick.",
       });
     expect(pickerVerdict({ kind: "measured", bars: 3 }, READY, measured(4)))
       .toEqual({

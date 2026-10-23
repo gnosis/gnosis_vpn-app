@@ -159,9 +159,10 @@ discounted the same way as before; `min(freeSlots, total)` keeps the share in
 
 **`sortByRouteQuality` ranks measured exits by score, then the unmeasured by
 resilience, then the rest by closeness to eligible.** The location list's "Best"
-order (`sortForPicker`) keeps these tiers but puts the fastest measured exit
-first, score only breaking latency ties; it is frozen when the list opens. Auto
-still picks from `sortByRouteQuality`.
+order (`sortForPicker`) is different: every pickable destination (ready or weak)
+by latency, the unmeasured pickable ones next in this order, the unusable last.
+It is frozen when the list opens and re-sorted only as a destination's first
+latency arrives. Auto still picks from `sortByRouteQuality`.
 
 ```
 eligible with exit data, ordered by  score desc, label

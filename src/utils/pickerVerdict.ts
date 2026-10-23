@@ -39,7 +39,7 @@ export interface PickerVerdict {
 const MEASURED: Record<1 | 2 | 3 | 4, PickerVerdict> = {
   4: {
     headline: "Fast and ready",
-    context: "Low delay and plenty of room. A good pick.",
+    context: "Low delay. A good pick.",
   },
   3: { headline: "Ready", context: "Works well for everyday browsing." },
   2: {

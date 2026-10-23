@@ -122,7 +122,14 @@ export default function LocationPicker(props: {
       next.some((d) => !prevIds.has(d.id));
     const newlyMeasured = measured.some((id) => !knownMeasured.has(id));
     if (newlyMeasured) knownMeasured = new Set(measured);
-    if (membershipChanged || newlyMeasured) setFrozenList([...next]);
+    if (!membershipChanged && !newlyMeasured) return;
+    // The highlight stays on the same location when rows move.
+    const highlightedId = untrack(() => filtered()[untrack(highlight)]?.id);
+    setFrozenList([...next]);
+    if (highlightedId !== undefined) {
+      const at = untrack(filtered).findIndex((d) => d.id === highlightedId);
+      if (at >= 0) setHighlight(at);
+    }
   });
 
   const filtered = createMemo(() => {
