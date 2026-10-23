@@ -6,6 +6,9 @@ import type {
   Slots,
 } from "@src/services/vpnService.ts";
 import {
+  destinationCountry,
+  destinationFlag,
+  destinationTitle,
   freeSlots,
   getExitData,
   isReady,
@@ -25,6 +28,7 @@ import {
   checkedQuickProbe,
   checkingQuickProbe,
   eligibleRouteHealth,
+  makeDestination,
   noPathRouteHealth,
   probeViewFor,
   quickProbeCheck,
@@ -702,5 +706,25 @@ describe("pickStartupTarget — connect-on-startup pick", () => {
 
     expect(pickStartupTarget(destinations, null, null, NO_CONTEXT)).toBeNull();
     expect(pickStartupTarget({}, null, null, NO_CONTEXT)).toBeNull();
+  });
+});
+
+describe("hero lines on the 0.37 schema", () => {
+  const sydney = makeDestination({
+    id: "Australia",
+    meta: { location: "Sydney", flag: "au" },
+  });
+  const bare = makeDestination({ id: "exit-9", meta: { location: "" } });
+
+  it("shows the location as the title and the id as the country line", () => {
+    expect(destinationTitle(sydney)).toBe("Sydney");
+    expect(destinationCountry(sydney)).toBe("Australia");
+    expect(destinationFlag(sydney)).toBe("au");
+  });
+
+  it("falls back to the id alone when no location is published", () => {
+    expect(destinationTitle(bare)).toBe("exit-9");
+    expect(destinationCountry(bare)).toBe(null);
+    expect(destinationFlag(bare)).toBe("");
   });
 });

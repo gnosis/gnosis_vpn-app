@@ -6,7 +6,6 @@ import { useAppStore } from "@src/stores/appStore.ts";
 import { logWarn } from "@src/utils/appLog.ts";
 
 const SOURCE_URL = "https://github.com/gnosis/gnosis_vpn-app";
-const IPINFO_URL = "https://ipinfo.io";
 const FLAG_ICONS_URL = "https://github.com/lipis/flag-icons";
 
 // Seven quick clicks on the version reveal the component versions.
@@ -86,20 +85,8 @@ export default function AboutPage() {
         />
       </Section>
 
-      {/* CC BY-SA 4.0 attribution; the offline note keeps users from assuming their IP goes to IPinfo. */}
+      {/* This line shows operator-published locations; there is no geo database to credit. */}
       <Section title="Third-party notices">
-        <Row
-          label="IPinfo"
-          description={
-            <>
-              Exit countries come from an offline database on this device.
-              Nothing is sent to IPinfo. IP address data is powered by IPinfo,
-              licensed under CC BY-SA 4.0.
-            </>
-          }
-          control={<ExternalMark />}
-          onClick={() => void open(IPINFO_URL)}
-        />
         <Row
           label="Flag art"
           description="Flags from flag-icons, licensed under MIT."
