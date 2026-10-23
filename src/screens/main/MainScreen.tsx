@@ -180,7 +180,12 @@ export function MainScreen() {
           {(ds) => (
             // Both share one grid cell so the swap cross-fades in place.
             <div class="grid w-full">
+              {/* inert: the faded card must not keep a Tab stop while the explainer covers it */}
               <div
+                ref={(el) =>
+                  createEffect(() =>
+                    el.toggleAttribute("inert", connectInFlight())
+                  )}
                 class="col-start-1 row-start-1 transition-opacity duration-300"
                 classList={{
                   "opacity-0 pointer-events-none": connectInFlight(),

@@ -198,7 +198,7 @@ export default function ConnectingExplainer(
             {(_, i) => (
               <path
                 d={linkD(i())}
-                class={`fill-none stroke-[1.5] transition-[stroke] duration-300 ${
+                class={`explainer-transition fill-none stroke-[1.5] transition-[stroke] duration-300 ${
                   isOnPath(i()) ? "stroke-text-yellow" : "stroke-border"
                 }`}
               />
@@ -281,7 +281,7 @@ export default function ConnectingExplainer(
                 cx={x}
                 cy={y}
                 r={isOnPath(i()) ? 7 : 5}
-                class={`stroke-[1.5] transition-[fill,stroke] duration-300 ${
+                class={`explainer-transition stroke-[1.5] transition-[fill,stroke] duration-300 ${
                   isOnPath(i())
                     ? "fill-text-yellow/15 stroke-text-yellow"
                     : "fill-bg-surface stroke-text-muted/60"
@@ -366,7 +366,7 @@ export default function ConnectingExplainer(
         aria-valuenow={Math.round(progress())}
       >
         <div
-          class="h-full rounded-full bg-text-yellow transition-[width] duration-700 ease-out"
+          class="explainer-transition h-full rounded-full bg-text-yellow transition-[width] duration-700 ease-out"
           style={{ width: `${progress()}%` }}
         />
       </div>
