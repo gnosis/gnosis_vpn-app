@@ -241,19 +241,22 @@ describe("routeGrade — the score as shown, never as used", () => {
     });
   });
 
-  it("fills bars by score band: latency half, capacity a third, relays a fifth", () => {
-    // OPEN_SLOTS free 6/8 = 0.225, two relays = 0.1; latency decides the band
+  it("fills bars by latency alone: fast under 100 ms one-way, then the stat bands", () => {
     const bars = (rtt: number) =>
       routeGrade(makeMeasured("a", OPEN_SLOTS, rtt), NO_CONTEXT);
-    expect(bars(0), "0.825").toEqual({ kind: "measured", bars: 4 });
-    expect(bars(1_000), "0.575").toEqual({ kind: "measured", bars: 3 });
-    expect(bars(2_000), "0.325").toEqual({ kind: "measured", bars: 2 });
-
-    const nearlyFull: Slots = { total: 8, available: 1, connected: 7 };
+    expect(bars(198), "99 ms").toEqual({ kind: "measured", bars: 4 });
+    expect(bars(200), "100 ms").toEqual({ kind: "measured", bars: 3 });
+    expect(bars(998), "499 ms").toEqual({ kind: "measured", bars: 3 });
+    expect(bars(1_000), "500 ms").toEqual({ kind: "measured", bars: 2 });
+    expect(bars(2_200), "1100 ms").toEqual({ kind: "measured", bars: 2 });
+    expect(bars(2_202), "1101 ms").toEqual({ kind: "measured", bars: 1 });
+    // capacity and relays no longer move the bars
     expect(
-      routeGrade(makeMeasured("a", nearlyFull, 2_000, 1), NO_CONTEXT),
-      "0.0875",
-    ).toEqual({ kind: "measured", bars: 1 });
+      routeGrade(
+        makeMeasured("a", { total: 8, available: 1, connected: 7 }, 198, 1),
+        NO_CONTEXT,
+      ),
+    ).toEqual({ kind: "measured", bars: 4 });
   });
 
   it("keeps its bars through a re-check", () => {
@@ -534,7 +537,7 @@ describe("sortAlphaDestinations", () => {
 });
 
 describe("sortForPicker", () => {
-  it("puts the fastest measured exit first, whatever its capacity or relays", () => {
+  it("puts the fastest pickable exit first, whatever its capacity or relays", () => {
     expect(
       sortForPicker({
         crowded: makeMeasured("crowded", {
@@ -553,17 +556,32 @@ describe("sortForPicker", () => {
     ).toEqual(["single", "crowded", "diverse", "roomy"]);
   });
 
-  it("keeps the readiness tiers: measured, then promised, then the rest", () => {
+  it("ranks a measured weak route by its latency like any other pickable exit", () => {
+    const fastWeak = withRouteHealth("fast-weak", {
+      ...weakRouteHealth(),
+      quick_probe: checkedQuickProbe(OPEN_SLOTS, 40),
+    });
     expect(
       sortForPicker({
-        "a-weak": makeWeak("a-weak", 0.5),
+        "fast-weak": fastWeak,
+        slow: makeMeasured("slow", OPEN_SLOTS, 1_800),
         "b-promise": makeEligible("b-promise", 4),
-        "c-slow": makeMeasured("c-slow", OPEN_SLOTS, 1_800, 1),
       }, NO_CONTEXT),
-    ).toEqual(["c-slow", "b-promise", "a-weak"]);
+    ).toEqual(["fast-weak", "slow", "b-promise"]);
   });
 
-  it("breaks a latency tie with the blended order", () => {
+  it("keeps unmeasured pickable exits in auto's order after the measured ones, and the unusable last", () => {
+    expect(
+      sortForPicker({
+        "a-full": makeMeasured("a-full", FULL_SLOTS, 10),
+        "b-promise": makeEligible("b-promise", 4),
+        "c-slow": makeMeasured("c-slow", OPEN_SLOTS, 1_800, 1),
+        "d-weak-unprobed": makeWeak("d-weak-unprobed", 0.5),
+      }, NO_CONTEXT),
+    ).toEqual(["c-slow", "b-promise", "d-weak-unprobed", "a-full"]);
+  });
+
+  it("breaks a latency tie with auto's order", () => {
     expect(
       sortForPicker({
         single: makeMeasured("single", OPEN_SLOTS, 100, 1),

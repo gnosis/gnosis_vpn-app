@@ -17,6 +17,7 @@ import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import { logInfo, logWarn } from "@src/utils/appLog.ts";
 import {
   destinationLabel,
+  getExitData,
   isVpnActive,
   rankContext,
   sortAlphaDestinations,
@@ -103,12 +104,25 @@ export default function LocationPicker(props: {
       { defer: true },
     ),
   );
+  // A latency arriving for the first time (the quick probes start when the list opens) also re-sorts, once per exit.
+  const measuredIds = createMemo(() => {
+    const context = rankContext(appState);
+    return appState.availableDestinations
+      .filter((d) =>
+        getExitData(appState.destinations[d.id], context.probe) !== null
+      )
+      .map((d) => d.id);
+  });
+  let knownMeasured = new Set<string>(untrack(measuredIds));
   createEffect(() => {
     const next = sortedDestinations();
+    const measured = measuredIds();
     const prevIds = new Set(untrack(frozenList).map((d) => d.id));
     const membershipChanged = prevIds.size !== next.length ||
       next.some((d) => !prevIds.has(d.id));
-    if (membershipChanged) setFrozenList([...next]);
+    const newlyMeasured = measured.some((id) => !knownMeasured.has(id));
+    if (newlyMeasured) knownMeasured = new Set(measured);
+    if (membershipChanged || newlyMeasured) setFrozenList([...next]);
   });
 
   const filtered = createMemo(() => {
@@ -284,8 +298,8 @@ export default function LocationPicker(props: {
           <Tooltip
             content={
               <span>
-                Best: locations you can use first, fastest at the top, as
-                measured when the list opened. A–Z: by name.
+                Best: locations you can use, fastest first; the order settles as
+                the first measurements arrive. A–Z: by name.
               </span>
             }
             position="auto"

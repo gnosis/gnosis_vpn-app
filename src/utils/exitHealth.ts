@@ -4,6 +4,9 @@ import type {
   TunnelStall,
 } from "@src/services/vpnService.ts";
 import { type ExitData, MIN_PATH_VALUE } from "@src/utils/destinations.ts";
+import { getLatencyLevel, type LoadLevel } from "@src/utils/latencyBands.ts";
+
+export { getLatencyLevel, type LoadLevel };
 
 /** Visual health color for a destination; "default" renders as plain text. */
 export type HealthColor = "green" | "yellow" | "red" | "gray" | "default";
@@ -119,20 +122,10 @@ export function getSlotLoad(exit: ExitData | null): SlotLoad | null {
   };
 }
 
-/** Normalized load level relative to processor count. */
-export type LoadLevel = "low" | "medium" | "high";
-
 /** Slot-usage color band: <=50 low, <=75 medium, else high. */
 export function getSlotLoadLevel(percent: number): LoadLevel {
   if (percent <= 50) return "low";
   if (percent <= 75) return "medium";
-  return "high";
-}
-
-/** Latency color band, graded like load: <500 low, <=1100 medium, else high. */
-export function getLatencyLevel(ms: number): LoadLevel {
-  if (ms < 500) return "low";
-  if (ms <= 1100) return "medium";
   return "high";
 }
 
