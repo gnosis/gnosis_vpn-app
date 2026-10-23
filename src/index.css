@@ -313,7 +313,8 @@ textarea {
   .page-enter {
     animation: none;
   }
-  .flag-ramp {
+  .flag-ramp,
+  .explainer-transition {
     transition: none;
   }
 }
