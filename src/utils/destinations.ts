@@ -8,6 +8,7 @@ import type {
   Slots,
   Versions,
 } from "@src/services/vpnService.ts";
+import { latencyBars } from "@src/utils/latencyBands.ts";
 
 export function getPreferredAvailabilityChangeMessage(
   previous: Destination[],
@@ -226,10 +227,7 @@ export type RouteGrade =
   | { kind: "weak" }
   | { kind: "none" };
 
-/** A score at or above a threshold earns that many bars; below the last one it is a single bar. */
-const BAR_THRESHOLDS: [number, 4 | 3 | 2][] = [[0.75, 4], [0.5, 3], [0.25, 2]];
-
-/** The score as shown on a card. Display only: it feeds neither the sort nor auto. */
+/** The grade as shown on a row: readiness from the walk, bars from latency alone. Display only: it feeds neither the sort nor auto. */
 export function routeGrade(
   state: DestinationState | undefined,
   context: RankContext,
@@ -240,9 +238,7 @@ export function routeGrade(
   }
   const exit = getExitData(state, context.probe);
   if (exit === null) return { kind: "unmeasured" };
-  const value = score(state, exit, context);
-  const reached = BAR_THRESHOLDS.find(([min]) => value >= min);
-  return { kind: "measured", bars: reached ? reached[1] : 1 };
+  return { kind: "measured", bars: latencyBars(exit.rtt / 2) };
 }
 
 /** Measured eligible first (by score), then unmeasured eligible (by resilience), then the rest (by closeness). */
@@ -290,6 +286,43 @@ export function sortByRouteQuality(
   });
 }
 
+/**
+ * The picker's "Best" order: every location you can pick first, fastest at
+ * the top, whatever its path quality or free capacity; those without a
+ * latency yet follow in auto's order; the unusable rest comes last. The list
+ * freezes this order when it opens and re-sorts only as latencies first arrive.
+ */
+export function sortForPicker(
+  destinations: Record<string, DestinationState>,
+  context: RankContext,
+): string[] {
+  const ranked = sortByRouteQuality(destinations, context);
+  const pickable = (id: string) =>
+    id === context.liveId || isSelectable(destinations[id], context);
+  const latencyOf = (id: string): number | null =>
+    getExitData(destinations[id], context.probe)?.rtt ?? null;
+  const tierOf = (id: string) => {
+    if (!pickable(id)) return 2;
+    return latencyOf(id) === null ? 1 : 0;
+  };
+  // Stable: equal keys keep auto's order.
+  return ranked
+    .map((id, index) => ({
+      id,
+      index,
+      tier: tierOf(id),
+      latency: latencyOf(id),
+    }))
+    .sort((a, b) => {
+      if (a.tier !== b.tier) return a.tier - b.tier;
+      if (a.tier === 0 && a.latency !== b.latency) {
+        return a.latency! - b.latency!;
+      }
+      return a.index - b.index;
+    })
+    .map((entry) => entry.id);
+}
+
 /** Connect-on-startup pick: where the last session left off, else the preferred location, else the best — each only while ready. */
 export function pickStartupTarget(
   destinations: Record<string, DestinationState>,
@@ -320,6 +353,21 @@ export function isVpnActive(
     (vpnStatus === "Disconnecting" && targetDestination !== null);
 }
 
+/** The place itself (e.g. "Sydney"); the id when the operator published no location. */
+export function destinationTitle(d: Destination): string {
+  return d.meta?.location || d.id;
+}
+
+/** What qualifies the title: the id (e.g. "Australia") once the location names the place. */
+export function destinationCountry(d: Destination): string | null {
+  return d.meta?.location ? d.id : null;
+}
+
+/** The flag code the operator published, or "" for none. */
+export function destinationFlag(d: Destination): string {
+  return d.meta?.flag ?? "";
+}
+
 export function destinationLabel(d: Destination): string {
   const loc = d.meta?.location;
   return loc ? `${d.id} - ${loc}` : d.id;
@@ -334,19 +382,3 @@ export function destinationLabelById(
 }
 
 export type CardPhase = "auto" | "selected" | "connecting" | "uninitialized";
-
-// "uninitialized" never actually reaches a rendered card — LocationBanner's
-// entryIds() is empty until the mode resolves — but this stays exhaustive
-// over the real union instead of a narrowed duplicate of it.
-export function cardTitle(phase: CardPhase): string {
-  switch (phase) {
-    case "auto":
-      return "Best Location";
-    case "selected":
-      return "Selected Location";
-    case "connecting":
-      return "Current Location";
-    case "uninitialized":
-      return "";
-  }
-}

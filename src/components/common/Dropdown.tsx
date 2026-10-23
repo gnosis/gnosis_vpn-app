@@ -24,7 +24,8 @@ export type DropdownProps<T> = {
   renderOption?: (v: T) => JSX.Element;
   isOptionDisabled?: (v: T) => boolean;
   class?: string;
-  size?: "sm" | "lg";
+  // "compact": a small popup button for list rows, sized to its value.
+  size?: "sm" | "lg" | "compact";
   header?: () => JSX.Element;
   onOpen?: () => void;
   onClose?: () => void;
@@ -188,6 +189,8 @@ export function Dropdown<T>(props: DropdownProps<T>) {
         class={`relative text-left ${
           props.size === "sm"
             ? "bg-accent text-accent-text hover:bg-accent-hover pr-0 pl-4 py-2 rounded-full min-w-48 hover:cursor-pointer"
+            : props.size === "compact"
+            ? "h-7 rounded-md border border-border bg-bg-surface pl-2.5 pr-0 text-sm text-text-primary hover:bg-darken"
             : "w-full"
         } flex flex-row gap-2 items-center ${props.class ?? ""}`}
       >
@@ -200,6 +203,8 @@ export function Dropdown<T>(props: DropdownProps<T>) {
             class={`${
               props.size === "sm"
                 ? "text-accent-text"
+                : props.size === "compact"
+                ? "text-text-primary"
                 : "font-bold text-text-primary"
             }`}
           >
@@ -217,11 +222,13 @@ export function Dropdown<T>(props: DropdownProps<T>) {
           aria-haspopup="listbox"
           aria-expanded={open()}
           class={`inline-flex items-center justify-center rounded-2xl px-4 py-2
-               text-accent-text disabled:opacity-50 hover:cursor-pointer outline-none
+               text-accent-text disabled:opacity-50 outline-none focus-visible:outline-2 focus-visible:outline-accent
                transition-transform duration-150 ease-out select-none ${
             props.size === "sm"
-              ? "bg-transparent h-6 w-10 hover:bg-transparent"
-              : "bg-accent h-10 w-16 hover:bg-accent-hover"
+              ? "bg-transparent h-6 w-10 hover:bg-transparent hover:cursor-pointer"
+              : props.size === "compact"
+              ? "h-6 w-7 bg-transparent px-0 text-text-secondary hover:bg-transparent"
+              : "bg-accent h-10 w-16 hover:bg-accent-hover hover:cursor-pointer"
           }`}
           classList={{ "btn-press": pressed() }}
           onPointerDown={() => playPressAnimation()}
@@ -238,8 +245,8 @@ export function Dropdown<T>(props: DropdownProps<T>) {
         >
           <img
             src={arrowDownIcon}
-            class={`opacity-90 ${
-              props.size === "sm" ? "w-4 h-4" : "w-5 h-5"
+            class={`opacity-90 ${props.size === "lg" ? "w-5 h-5" : "w-4 h-4"} ${
+              props.size === "compact" ? "dark:invert-0 invert" : ""
             } transition-transform duration-200 ${open() ? "rotate-180" : ""}`}
             alt="dropdown"
             aria-hidden="true"

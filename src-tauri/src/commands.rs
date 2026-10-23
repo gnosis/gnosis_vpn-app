@@ -29,6 +29,8 @@ use crate::{AppStateCache, BalancePollingHandle, PollingExit, StatusPollingHandl
 const COMPATIBLE_VERSIONS: &[&str] = &["0.97"];
 /// Poll cap while the destination list is open; mirrors STATUS_POLL_FAST_MS in docs/destinationMode.md.
 const STATUS_POLL_FAST: Duration = Duration::from_millis(500);
+/// Poll cap while the Add funds page waits for a transfer; the daemon's own cadence is a minute.
+const BALANCE_POLL_FAST: Duration = Duration::from_secs(10);
 
 fn version_matches(version: &str, requirements: &[&str]) -> bool {
     let Ok(version) = semver::Version::parse(version.trim()) else {
@@ -183,6 +185,18 @@ pub fn set_status_poll_fast(
     Ok(())
 }
 
+/// Caps the balance poll at BALANCE_POLL_FAST while the frontend waits for incoming funds.
+#[tauri::command]
+pub fn set_balance_poll_fast(
+    fast: bool,
+    polling_state: State<'_, Mutex<BalancePollingHandle>>,
+) -> Result<(), String> {
+    let guard = polling_state.lock().map_err(|e| e.to_string())?;
+    guard.fast.store(fast, Ordering::Relaxed);
+    guard.trigger.notify_one();
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn disconnect(
     polling_state: State<'_, Mutex<StatusPollingHandle>>,
@@ -312,14 +326,8 @@ pub async fn set_app_icon(app: AppHandle, icon_name: String) -> Result<(), Strin
     let mut errors = Vec::new();
 
     if let Some(window) = app.get_webview_window("main") {
-        if let Err(e) = window.set_icon(image.clone()) {
-            errors.push(format!("Failed to set main window icon: {e}"));
-        }
-    }
-
-    if let Some(window) = app.get_webview_window("settings") {
         if let Err(e) = window.set_icon(image) {
-            errors.push(format!("Failed to set settings window icon: {e}"));
+            errors.push(format!("Failed to set main window icon: {e}"));
         }
     }
 
@@ -830,9 +838,13 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
         guard.handle = Some(join_handle);
     }
 
-    let bal_cancel = {
+    let (bal_cancel, bal_wake, bal_fast) = {
         let guard = bal_polling_state.lock().map_err(|e| e.to_string())?;
-        guard.cancel.clone()
+        (
+            guard.cancel.clone(),
+            guard.trigger.clone(),
+            guard.fast.clone(),
+        )
     };
 
     let app_bal = app_handle.clone();
@@ -846,8 +858,16 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
                     tracing::info!(target: "balance", "balance polling cancelled");
                     break;
                 }
+                _ = bal_wake.notified() => {
+                    tick_timeout.as_mut().reset(Instant::now());
+                }
                 _ = tick_timeout.as_mut() => {
                     let (delay, result) = query_balance(&mut last_warn).await;
+                    let delay = if bal_fast.load(Ordering::Relaxed) {
+                        delay.min(BALANCE_POLL_FAST)
+                    } else {
+                        delay
+                    };
                     tick_timeout.as_mut().reset(Instant::now() + delay);
                     app_bal.state::<AppStateCache>().balance.send_replace(Some(result.clone()));
                     let _ = app_bal.emit("balance", result);

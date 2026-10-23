@@ -1,15 +1,9 @@
-import {
-  createEffect,
-  createMemo,
-  createSignal,
-  onCleanup,
-  Show,
-} from "solid-js";
+import { createMemo, createSignal, onCleanup, Show } from "solid-js";
 import { logWarn } from "../../utils/appLog.ts";
 import { explorerUrl } from "../../utils/explorerUrl.ts";
 import { shortAddress } from "../../utils/shortAddress.ts";
 import QrCode from "./QrCode.tsx";
-import QRCodeGenerator from "qrcode";
+import AddressQr from "./AddressQr.tsx";
 import linkIcon from "@assets/icons/link.svg";
 import copyIcon from "@assets/icons/copy.svg";
 import qrIcon from "@assets/icons/qr.png";
@@ -36,43 +30,10 @@ export default function FundingAddress(
 
   const [showQR, setShowQR] = createSignal(false);
   const [copied, setCopied] = createSignal(false);
-  const [qrDataUrl, setQrDataUrl] = createSignal<string | undefined>();
-  const [isDark, setIsDark] = createSignal(
-    document.documentElement.classList.contains("dark"),
-  );
   let copyTimeout: ReturnType<typeof setTimeout> | undefined;
 
   onCleanup(() => {
     clearTimeout(copyTimeout);
-  });
-
-  createEffect(() => {
-    if (!props.qrVisible || isMissing()) {
-      setQrDataUrl(undefined);
-      return;
-    }
-    const observer = new MutationObserver(() => {
-      setIsDark(document.documentElement.classList.contains("dark"));
-    });
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["class"],
-    });
-    onCleanup(() => observer.disconnect());
-    const dark = isDark();
-    QRCodeGenerator.toDataURL(address(), {
-      margin: 1,
-      width: 224,
-      color: {
-        dark: dark ? "#ffffff" : "#000000",
-        light: dark ? "#00000000" : "#ffffff",
-      },
-    })
-      .then(setQrDataUrl)
-      .catch((error) => {
-        logWarn(`Funding address: error generating QR code: ${String(error)}`);
-        setQrDataUrl(undefined);
-      });
   });
 
   async function copy(addr = address()) {
@@ -168,9 +129,9 @@ export default function FundingAddress(
         </div>
       </div>
 
-      <Show when={props.qrVisible && qrDataUrl()}>
+      <Show when={props.qrVisible}>
         <div class="flex justify-center my-6">
-          <img src={qrDataUrl()} alt="QR Code" class="h-[157px] w-[157px]" />
+          <AddressQr address={address()} sizePx={157} />
         </div>
       </Show>
 
