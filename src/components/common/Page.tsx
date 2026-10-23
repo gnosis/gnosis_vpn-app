@@ -11,7 +11,11 @@ export default function Page(props: {
   children: JSX.Element;
 }) {
   const onKeyDown = (e: KeyboardEvent) => {
-    if (document.querySelector('[role="dialog"][aria-modal="true"]')) return;
+    // A modal or an open popup button owns Esc first.
+    if (
+      document.querySelector('[role="dialog"][aria-modal="true"]') ||
+      document.querySelector('[aria-haspopup="listbox"][aria-expanded="true"]')
+    ) return;
     const backChord = (e.key === "[" && (e.metaKey || e.ctrlKey)) ||
       (e.key === "ArrowLeft" && e.altKey);
     if (e.key === "Escape" || backChord) {

@@ -22,6 +22,7 @@ import {
 } from "@src/utils/destinations.ts";
 import { logBundleFileName } from "@src/utils/logBundle.ts";
 import { resolveUpdateDecision } from "@src/utils/updateAvailability.ts";
+import { updateChecking } from "@src/utils/updateChecker.ts";
 
 const FLAG_DISPLAY_OPTIONS: { id: FlagDisplay; label: string }[] = [
   { id: "none", label: "Off" },
@@ -46,6 +47,7 @@ export default function SettingsPage() {
       : { id: null as string | null, label: "No preference" };
 
   const updateValue = createMemo(() => {
+    if (updateChecking()) return "Checking…";
     const decision = resolveUpdateDecision({
       outcome: settings.lastCheckOutcome,
       packageVersion: appState.packageVersion,

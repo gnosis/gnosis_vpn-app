@@ -188,7 +188,7 @@ function App() {
       await settingsActions.load();
       await appActions.initializeApp();
 
-      // window-scoped listen: a target-Any listener would also get emits aimed at the settings window
+      // window-scoped listen: the tray emits to this window by label
       const unlisten = await getCurrentWebviewWindow().listen<NavigatePayload>(
         "navigate",
         ({ payload }) =>

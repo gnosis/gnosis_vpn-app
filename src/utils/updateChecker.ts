@@ -13,7 +13,11 @@ export const [pendingCheckAfterConnect, setPendingCheckAfterConnect] =
 
 const [, settingsActions] = useSettingsStore();
 
+/** True while any update check runs, so the Settings row can say "Checking…". */
+export const [updateChecking, setUpdateChecking] = createSignal(false);
+
 export async function runBackgroundCheck(): Promise<void> {
+  setUpdateChecking(true);
   try {
     const result = await checkUpdate(false);
     await settingsActions.setUpdateCheckResult(
@@ -27,5 +31,7 @@ export async function runBackgroundCheck(): Promise<void> {
       logInfo("Update check deferred until VPN connects");
       setPendingCheckAfterConnect(true);
     }
+  } finally {
+    setUpdateChecking(false);
   }
 }

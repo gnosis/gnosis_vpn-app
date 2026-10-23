@@ -28,6 +28,7 @@ import {
 } from "@src/stores/settingsStore.ts";
 import { checkUpdate } from "@src/services/toolkit.ts";
 import { detectChannel } from "@src/utils/version.ts";
+import { setUpdateChecking } from "@src/utils/updateChecker.ts";
 import {
   endOfLifeMessage,
   resolveUpdateBlocker,
@@ -71,6 +72,7 @@ export default function SoftwareUpdatePage() {
   const [pendingConnectInstall, setPendingConnectInstall] = createSignal(false);
   const runCheck = async (skipVpn: boolean) => {
     setChecking(true);
+    setUpdateChecking(true);
     try {
       const result = await checkUpdate(skipVpn);
       await settingsActions.setUpdateCheckResult(
@@ -87,6 +89,7 @@ export default function SoftwareUpdatePage() {
       // TODO: surface other errors in the UI
     } finally {
       setChecking(false);
+      setUpdateChecking(false);
     }
   };
 

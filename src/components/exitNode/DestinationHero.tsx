@@ -56,7 +56,8 @@ export default function DestinationHero(props: {
   let changeButtonRef: HTMLButtonElement | undefined;
 
   const openList = () => {
-    if (!changeButtonRef) return;
+    // A page may have unmounted the hero while its registration lives on in MainScreen.
+    if (!changeButtonRef?.isConnected) return;
     setAnchor(changeButtonRef.getBoundingClientRect());
     setFrame(props.pickerFrame?.() ?? null);
     appActions.destinationListOpened();
