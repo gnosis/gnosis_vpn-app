@@ -10,7 +10,9 @@ use tauri::{AppHandle, Manager, tray::TrayIcon};
 use tokio::time::sleep;
 
 use crate::commands::set_app_icon;
-use crate::types::{BalanceResponse, ConnectionState, RunMode};
+use gnosis_vpn_ipc as ipc;
+
+use crate::types::{BalanceResponse, ConnectionState};
 
 // App icon constants
 pub const APP_ICON_CONNECTED: &str = "app-icon-connected.png";
@@ -233,20 +235,20 @@ pub enum FundsLevel {
     Empty,
 }
 
-impl From<gnosis_vpn_lib::balance::FundingLevel> for FundsLevel {
-    fn from(level: gnosis_vpn_lib::balance::FundingLevel) -> Self {
+impl From<ipc::FundingLevel> for FundsLevel {
+    fn from(level: ipc::FundingLevel) -> Self {
         match level {
-            gnosis_vpn_lib::balance::FundingLevel::Good => FundsLevel::Sufficient,
-            gnosis_vpn_lib::balance::FundingLevel::Low => FundsLevel::Low,
-            gnosis_vpn_lib::balance::FundingLevel::Empty => FundsLevel::Empty,
+            ipc::FundingLevel::Good => FundsLevel::Sufficient,
+            ipc::FundingLevel::Low => FundsLevel::Low,
+            ipc::FundingLevel::Empty => FundsLevel::Empty,
         }
     }
 }
 
 // Prefers the balance poll's fresher status, falling back to the status poll's.
-pub fn funds_level(run_mode: &RunMode, balance: Option<&BalanceResponse>) -> FundsLevel {
+pub fn funds_level(run_mode: &ipc::RunMode, balance: Option<&BalanceResponse>) -> FundsLevel {
     let run_mode_status = match run_mode {
-        RunMode::Running { funding_status, .. } => funding_status.as_ref(),
+        ipc::RunMode::Running { funding_status, .. } => funding_status.as_ref(),
         _ => return FundsLevel::Sufficient,
     };
     let Some(status) = balance
@@ -478,9 +480,7 @@ pub fn start_icon_heartbeat(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::TauriFundingStatus;
-    use gnosis_vpn_lib::balance::{Address, FundingLevel as LibFundingLevel};
-    use gnosis_vpn_lib::command;
+    use ipc::{FundingLevel as LibFundingLevel, FundingStatus, RunMode};
 
     fn connected() -> ConnectionState {
         ConnectionState::Connected {
@@ -496,16 +496,16 @@ mod tests {
         }
     }
 
-    fn running(status: Option<TauriFundingStatus>) -> RunMode {
+    fn running(status: Option<FundingStatus>) -> RunMode {
         RunMode::Running {
             funding_status: status,
             hopr_status: None,
-            channel_maintenance: command::ChannelMaintenance::Ok,
+            channel_maintenance: ipc::ChannelMaintenance::Ok,
         }
     }
 
-    fn status(traffic: LibFundingLevel, gas: LibFundingLevel) -> TauriFundingStatus {
-        TauriFundingStatus {
+    fn status(traffic: LibFundingLevel, gas: LibFundingLevel) -> FundingStatus {
+        FundingStatus {
             traffic,
             gas,
             wxhopr_deficit: None,
@@ -514,15 +514,15 @@ mod tests {
         }
     }
 
-    fn balance(status: Option<TauriFundingStatus>) -> BalanceResponse {
+    fn balance(status: Option<FundingStatus>) -> BalanceResponse {
         BalanceResponse {
-            node: "0".to_string(),
-            safe: "0".to_string(),
-            channels_out: "0".to_string(),
-            info: command::Info {
-                node_address: Address::from([0u8; 20]),
-                node_peer_id: String::new(),
-                safe_address: Address::from([0u8; 20]),
+            node: ipc::Balance::zero(),
+            safe: ipc::Balance::zero(),
+            channels_out: ipc::Balance::zero(),
+            info: ipc::NodeInfo {
+                node_address: ipc::Address::new([0u8; 20]),
+                node_peer_id: "".into(),
+                safe_address: ipc::Address::new([0u8; 20]),
             },
             funding_status: status,
             ideal_balance: None,

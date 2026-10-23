@@ -18,28 +18,25 @@ vi.mock("@tauri-apps/api/window", () => ({
 }));
 
 const RUNNING: RunMode = {
-  Running: {
-    funding_status: null,
-    hopr_status: null,
-    channel_maintenance: { type: "Ok" },
-  },
+  type: "running",
+  funding_status: null,
+  hopr_status: null,
+  channel_maintenance: { type: "ok" },
 };
 
 const DESTINATION: DestinationState = {
   destination: makeDestination({
-    geo: { country_code: "br", source: "announced_ip" },
+    geo: { country: "br", source: { type: "announced_ip" } },
   }),
   route_health: null,
 };
 
-function status(target_destination: string | null): StatusResponse {
+function status(target: string | null): StatusResponse {
   return {
     run_mode: RUNNING,
     destinations: [DESTINATION],
-    target_destination,
-    connected: null,
-    connecting: null,
-    reconnecting: null,
+    target,
+    connection: { type: "disconnected" },
     disconnecting: [],
     probe: null,
   };
@@ -67,7 +64,12 @@ describe("logStatus", () => {
   it("logs a phase-less reconnect as waiting for route", () => {
     logStatus({
       ...status("dest-1"),
-      reconnecting: { destination_id: "dest-1", since: 0, phase: null },
+      connection: {
+        type: "reconnecting",
+        destination: "dest-1",
+        since: 0,
+        phase: null,
+      },
     });
     expect(loggedMessage()).toBe(
       "Reconnecting: dest-1 - Brazil - waiting for route",

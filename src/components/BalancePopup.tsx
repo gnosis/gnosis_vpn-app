@@ -39,9 +39,7 @@ export default function BalancePopup(props: Props) {
   const [appState] = useAppStore();
 
   const runModeStatus = createMemo(() =>
-    isRunningRunMode(appState.runMode)
-      ? appState.runMode.Running.funding_status
-      : null
+    isRunningRunMode(appState.runMode) ? appState.runMode.funding_status : null
   );
 
   const effectiveCredit = createMemo(() => {

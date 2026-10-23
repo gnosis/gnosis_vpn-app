@@ -1,4 +1,10 @@
-import type { Destination, RouteHealthView } from "@src/services/vpnService.ts";
+import {
+  type Connection,
+  connectionDestination,
+  type Destination,
+  type Disconnecting,
+  type RouteHealthView,
+} from "@src/services/vpnService.ts";
 import { type ExitData, MIN_PATH_VALUE } from "@src/utils/destinations.ts";
 
 /** Visual health color for a destination; "default" renders as plain text. */
@@ -18,9 +24,9 @@ function routeVerdict(
   exit: ExitData | null,
 ): RouteVerdict {
   const { state, walk } = rhv;
-  if (state.state === "Unrecoverable") return "unrecoverable";
+  if (state.type === "unrecoverable") return "unrecoverable";
   if (walk === null) return "checking";
-  if (state.state === "NotRoutable" || walk.found !== "Paths") {
+  if (state.type === "not_routable" || walk.type !== "paths") {
     return "no-route";
   }
   if (walk.best_value < MIN_PATH_VALUE) return "weak";
@@ -69,12 +75,15 @@ export function formatExitHealthStatus(
 }
 
 function formatUnrecoverable(rhv: RouteHealthView): string {
-  if (rhv.state.state !== "Unrecoverable") return "Unreachable";
-  const { reason } = rhv.state;
-  if (reason === "NotAllowed") return "Connection not allowed";
-  if ("IncompatibleApiVersion" in reason) return "Incompatible server version";
-  if ("CannotOpenSession" in reason) return "Cannot open session";
-  return "Unreachable";
+  if (rhv.state.type !== "unrecoverable") return "Unreachable";
+  switch (rhv.state.reason.type) {
+    case "not_allowed":
+      return "Connection not allowed";
+    case "incompatible_api_version":
+      return "Incompatible server version";
+    case "cannot_open_session":
+      return "Cannot open session";
+  }
 }
 
 /** One-way latency in whole ms, as displayed; the tunnel's own sample wins once it exists. */
@@ -164,14 +173,14 @@ export function getLastCheckedEpoch(
 /** The best path's value as a percentage, e.g. "100%"; null before the first walk. */
 export function formatPathValue(rhv: RouteHealthView): string | null {
   const walk = rhv.walk;
-  if (walk?.found !== "Paths") return null;
+  if (walk?.type !== "paths") return null;
   return `${Math.round(walk.best_value * 100)}%`;
 }
 
 /** Distinct first relays over the paths found, e.g. "3 of 5"; null before the first walk. */
 export function formatRelays(rhv: RouteHealthView): string | null {
   const walk = rhv.walk;
-  if (walk?.found !== "Paths") return null;
+  if (walk?.type !== "paths") return null;
   return `${walk.distinct_first_relays} of ${walk.count}`;
 }
 
@@ -187,24 +196,24 @@ export function formatSecondsAgo(diffSec: number): string {
 
 /** Whether the card has route stats to show: anything the walk found. */
 export function hasHealthContent(rhv: RouteHealthView | null): boolean {
-  return rhv?.walk?.found === "Paths";
+  return rhv?.walk?.type === "paths";
 }
 
-/** Get the raw hop count from routing. */
-export function getHopCount(routing: number): number {
-  return routing;
+/** Get the raw hop count. */
+export function getHopCount(hops: number): number {
+  return hops;
 }
 
-/** Format routing as e.g. "1-hop" */
-export function formatRouting(routing: number): string {
-  const n = getHopCount(routing);
+/** Format hops as e.g. "1-hop" */
+export function formatRouting(hops: number): string {
+  const n = getHopCount(hops);
   return n === 1 ? "1-hop" : `${n}-hops`;
 }
 
 /** Largest hop count across all available destinations, minimum 1. */
 export function getMaxHopCount(destinations: Destination[]): number {
   if (destinations.length === 0) return 1;
-  return Math.max(1, ...destinations.map((d) => getHopCount(d.routing)));
+  return Math.max(1, ...destinations.map((d) => getHopCount(d.hops)));
 }
 
 export type ConnectionState =
@@ -224,15 +233,14 @@ export function formatConnectionStatus(state: ConnectionState): string {
 
 export function getConnectionState(
   destId: string,
-  connected: string | null | undefined,
-  connectingId: string | undefined,
-  reconnectingId: string | undefined,
-  disconnecting: { destination_id: string }[],
+  connection: Connection,
+  disconnecting: Disconnecting[],
 ): ConnectionState {
-  if (connected === destId) return "Connected";
-  if (connectingId === destId) return "Connecting";
-  if (reconnectingId === destId) return "Reconnecting";
-  if (disconnecting.some((d) => d.destination_id === destId)) {
+  const isLiveHere = connectionDestination(connection) === destId;
+  if (isLiveHere && connection.type === "connected") return "Connected";
+  if (isLiveHere && connection.type === "connecting") return "Connecting";
+  if (isLiveHere && connection.type === "reconnecting") return "Reconnecting";
+  if (disconnecting.some((d) => d.destination === destId)) {
     return "Disconnecting";
   }
   return "None";

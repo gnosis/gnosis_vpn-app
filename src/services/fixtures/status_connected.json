@@ -1,44 +1,44 @@
 {
-  "run_mode": "NotRunning",
+  "run_mode": {
+    "type": "running",
+    "hopr_status": null,
+    "funding_status": null,
+    "channel_maintenance": {
+      "type": "ok"
+    }
+  },
   "destinations": [],
-  "target_destination": "test-exit",
-  "connected": {
-    "destination_id": "test-exit",
+  "target": "test-exit",
+  "connection": {
+    "type": "connected",
+    "destination": "test-exit",
     "since": 0,
-    "tunnel_ping_rtt": 12.0,
+    "tunnel_ping_rtt": 12,
     "stall": null
-  },
-  "connecting": {
-    "destination_id": "test-exit",
-    "since": 0,
-    "phase": "Init"
-  },
-  "reconnecting": {
-    "destination_id": "test-exit",
-    "since": 0,
-    "phase": "Init"
   },
   "disconnecting": [
     {
-      "destination_id": "test-exit",
+      "destination": "pinned-exit",
       "since": 0,
-      "phase": "Disconnecting"
+      "phase": {
+        "type": "unregister_wg"
+      }
     }
   ],
   "probe": {
-    "destination_id": "test-exit",
+    "destination": "test-exit",
     "state": {
-      "state": "Ready"
+      "type": "ready"
     },
     "session_since": 0,
     "versions": {
-      "versions": [
+      "api": [
         "v1"
       ],
-      "latest": "v1"
+      "server": "0.7.1"
     },
     "api_version": "v1",
-    "ping_rtt": 42.0,
+    "ping_rtt": 42,
     "load": {
       "slots": {
         "total": 16,

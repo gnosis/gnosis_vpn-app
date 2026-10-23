@@ -83,10 +83,10 @@ behaviour may depend on a timer having fired.
 
 ```
 walk(d)              = d.route_health?.walk ?? null
-lastCheck(d)         = quick_probe.state === "Checked"  ? quick_probe
-                       : quick_probe.state === "Checking" ? quick_probe.last
-                                                          : null
-exitData(d)          = probe?.destination_id === d.id && probe.load && probe.ping_rtt
+lastCheck(d)         = quick_probe.type === "checked"  ? quick_probe
+                       : quick_probe.type === "checking" ? quick_probe.last
+                                                         : null
+exitData(d)          = probe?.destination === d.id && probe.load && probe.ping_rtt
                          ? { slots: probe.load.slots, rtt: probe.ping_rtt, checkedAt: probe.checked_at }
                        : lastCheck(d) !== null
                          ? { slots: lastCheck.load.slots, rtt: lastCheck.status_rtt, checkedAt: lastCheck.checked_at }
@@ -96,12 +96,12 @@ occupiedByUs(d)      = d.id === liveId ? 1 : 0
 freeSlots(d)         = exitData(d) === null ? null : slots.available + occupiedByUs(d)
 
 MIN_PATH_VALUE       = 0.9
-routable(d)          = d.state === "Routable"
-                       && walk(d)?.found === "Paths" && walk(d).best_value >= MIN_PATH_VALUE
+routable(d)          = d.state.type === "routable"
+                       && walk(d)?.type === "paths" && walk(d).best_value >= MIN_PATH_VALUE
 hasFreeSlot(d)       = freeSlots(d) === null || freeSlots(d) > 0
 isReady(d)           = routable(d) && hasFreeSlot(d)
 isReadyForDisplay(d) = d.id === liveId || isReady(d)
-isSelectable(d)      = d.state === "Routable" && hasFreeSlot(d)
+isSelectable(d)      = d.state.type === "routable" && hasFreeSlot(d)
 weak(d)              = isSelectable(d) && !isReady(d)
 
 oneWayMs(d)          = rtt / 2
@@ -118,7 +118,7 @@ effectiveActive(now) = pending && now >= pending.settleAt && !isStale(pending, n
 isStale(p, now)      = now - p.settleAt > STATUS_POLL_MS
 
 suspended            = listOpen || dragging
-liveId               = connected ?? connecting ?? reconnecting  ->  destination_id
+liveId               = connection.type === "disconnected" ? null : connection.destination
 ```
 
 **`isReady` is the walk's verdict, tightened by exit data when there is any.**
@@ -143,9 +143,9 @@ sits in the top latency tier with near-perfect delivery; it is the app's own
 product line, since the daemon's `Routable` only says a path of non-zero value
 exists.
 
-`Routable` implies `walk.found === "Paths"`: the daemon writes both from the
-same walk result, so `weak(d)` reduces to "routable, with a free slot, below the
-band". The `found === "Paths"` re-test in `routable` is defensive.
+`Routable` implies `walk.type === "paths"`: the daemon writes both from the same
+walk result, so `weak(d)` reduces to "routable, with a free slot, below the
+band". The `walk.type === "paths"` re-test in `routable` is defensive.
 
 **`exitData` prefers the probe.** The one long-lived probe session follows the
 active destination (see [Probing](#probing)) and refreshes continuously; a quick

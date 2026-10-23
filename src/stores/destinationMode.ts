@@ -1,13 +1,12 @@
 // Spec: docs/destinationMode.md — on disagreement the spec is right and this file has a bug.
 import { createStore, type Store as SolidStore } from "solid-js/store";
 
-import type {
-  ConnectedInfo,
-  ConnectingInfo,
-  Destination,
-  DestinationState,
-  ProbeView,
-  ReconnectingInfo,
+import {
+  type Connection,
+  connectionDestination,
+  type Destination,
+  type DestinationState,
+  type ProbeView,
 } from "@src/services/vpnService.ts";
 import {
   type CardPhase,
@@ -85,9 +84,7 @@ export interface DestinationMode {
 export interface ModeAppState {
   availableDestinations: Destination[];
   destinations: Record<string, DestinationState>;
-  connected: ConnectedInfo | null;
-  connecting: ConnectingInfo | null;
-  reconnecting: ReconnectingInfo | null;
+  connection: Connection;
   probe: ProbeView | null;
 }
 
@@ -131,10 +128,7 @@ function initialModel(settings: DestinationModeSettings): DestinationMode {
 }
 
 function liveIdOf(status: ModeAppState): string | null {
-  return status.connected?.destination_id ??
-    status.connecting?.destination_id ??
-    status.reconnecting?.destination_id ??
-    null;
+  return connectionDestination(status.connection);
 }
 
 /** Mints the entry if it is new; appends so history reads oldest to newest. */

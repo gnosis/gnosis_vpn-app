@@ -59,29 +59,28 @@ export default function ExitHealthDetail(
   const routeHealth = createMemo((): RouteHealthView | null =>
     props.destinationState.route_health ?? null
   );
-  const routing = (): number => props.destinationState.destination.routing;
+  const routing = (): number => props.destinationState.destination.hops;
 
   const destId = () => props.destinationState.destination.id;
   const exit = createMemo(() =>
     getExitData(props.destinationState, appState.probe)
   );
   // The tunnel's own sample once we are connected through this exit.
-  const tunnelRtt = () =>
-    appState.connected?.destination_id === destId()
-      ? appState.connected.tunnel_ping_rtt
-      : null;
+  const connectedHere = () => {
+    const c = appState.connection;
+    return c.type === "connected" && c.destination === destId() ? c : null;
+  };
+  const tunnelRtt = () => connectedHere()?.tunnel_ping_rtt ?? null;
 
   // Top-level app state owns the live connection label.
   const connectionLabel = () =>
     getConnectionState(
       destId(),
-      appState.connected?.destination_id,
-      appState.connecting?.destination_id,
-      appState.reconnecting?.destination_id,
+      appState.connection,
       appState.disconnecting,
     );
   const isConnected = () => connectionLabel() === "Connected";
-  const isStalled = () => isConnected() && !!appState.connected?.stall;
+  const isStalled = () => isConnected() && !!connectedHere()?.stall;
 
   const color = (): HealthColor => {
     if (isConnected()) return "green";

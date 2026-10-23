@@ -21,39 +21,36 @@ function deriveStatus(
   appState: AppState,
   nowMs: number,
 ): string | undefined {
-  const reconnecting = appState.reconnecting;
+  const connection = appState.connection;
+  const labelOf = (id: string): string => {
+    const dest = appState.destinations[id]?.destination;
+    return dest ? destinationLabel(dest) : id;
+  };
+
+  const reconnecting = connection.type === "reconnecting" ? connection : null;
   // No phase: either a phase-less reconnect (waiting on route health) or only a parked target.
-  const reconnectingId = reconnecting?.destination_id ??
+  const reconnectingId = reconnecting?.destination ??
     (appState.vpnStatus === "Reconnecting" ? appState.targetDestination : null);
   if (reconnectingId !== null) {
     if (!reconnecting?.phase) {
       return waitingForRouteMessage(appState, reconnectingId);
     }
-    const dest = appState.destinations[reconnectingId]?.destination;
-    const label = dest ? destinationLabel(dest) : reconnectingId;
     const phaseLabel = formatConnectionPhase(reconnecting.phase);
     return phaseLabel !== reconnecting.phase
       ? phaseLabel
-      : `Reconnecting to ${label}`;
+      : `Reconnecting to ${labelOf(reconnectingId)}`;
   }
 
-  if (appState.connecting) {
-    const dest = appState.destinations[appState.connecting.destination_id]
-      ?.destination;
-    const label = dest
-      ? destinationLabel(dest)
-      : appState.connecting.destination_id;
-    const phaseLabel = formatConnectionPhase(appState.connecting.phase);
-    return phaseLabel !== appState.connecting.phase
+  if (connection.type === "connecting") {
+    const phaseLabel = formatConnectionPhase(connection.phase);
+    return phaseLabel !== connection.phase
       ? phaseLabel
-      : `Connecting to ${label}`;
+      : `Connecting to ${labelOf(connection.destination)}`;
   }
 
-  if (appState.connected) {
-    const connectedId = appState.connected.destination_id;
-    const dest = appState.destinations[connectedId]?.destination;
-    const label = dest ? destinationLabel(dest) : connectedId;
-    const stall = appState.connected.stall;
+  if (connection.type === "connected") {
+    const label = labelOf(connection.destination);
+    const stall = connection.stall;
     return stall
       ? `Connected to ${label} · ${formatStall(stall, nowMs)}`
       : `Connected to ${label}`;
@@ -61,8 +58,7 @@ function deriveStatus(
 
   if (appState.disconnecting.length > 0) {
     const d = appState.disconnecting[0];
-    const dest = appState.destinations[d.destination_id]?.destination;
-    const label = dest ? destinationLabel(dest) : d.destination_id;
+    const label = labelOf(d.destination);
     const phaseLabel = formatConnectionPhase(d.phase);
     return phaseLabel !== d.phase ? phaseLabel : `Disconnecting from ${label}`;
   }

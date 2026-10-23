@@ -1,5 +1,7 @@
 {
-  "run_mode": "NotRunning",
+  "run_mode": {
+    "type": "not_running"
+  },
   "destinations": [
     {
       "destination": {
@@ -10,14 +12,18 @@
           "other": {}
         },
         "geo": {
-          "country_code": "DE",
-          "source": "announced_ip"
+          "country": "DE",
+          "source": {
+            "type": "announced_ip"
+          }
         },
         "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
-        "routing": 1,
+        "hops": 1,
         "gnosis_vpn_server": "172.30.0.1:8000",
         "wireguard_server": "172.30.0.1:51820",
-        "source": "Configured",
+        "source": {
+          "type": "configured"
+        },
         "overrides": {
           "configured_meta": {},
           "configured_gnosis_vpn_server": null,
@@ -26,11 +32,11 @@
       },
       "route_health": {
         "state": {
-          "state": "Routable"
+          "type": "routable"
         },
         "last_error": null,
         "walk": {
-          "found": "Paths",
+          "type": "paths",
           "walked_at": 0,
           "count": 3,
           "distinct_first_relays": 2,
@@ -45,13 +51,13 @@
           "return_best_value": 0.5
         },
         "quick_probe": {
-          "state": "Checked",
+          "type": "checked",
           "checked_at": 0,
           "versions": {
-            "versions": [
+            "api": [
               "v1"
             ],
-            "latest": "v1"
+            "server": "0.7.1"
           },
           "api_version": "v1",
           "load": {
@@ -67,7 +73,7 @@
               "nproc": 4
             }
           },
-          "status_rtt": 42.0
+          "status_rtt": 42
         }
       }
     },
@@ -80,14 +86,18 @@
           "other": {}
         },
         "geo": {
-          "country_code": "DE",
-          "source": "announced_ip"
+          "country": "DE",
+          "source": {
+            "type": "announced_ip"
+          }
         },
         "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
-        "routing": 1,
+        "hops": 1,
         "gnosis_vpn_server": "172.30.0.1:8000",
         "wireguard_server": "172.30.0.1:51820",
-        "source": "Configured",
+        "source": {
+          "type": "configured"
+        },
         "overrides": {
           "configured_meta": {},
           "configured_gnosis_vpn_server": null,
@@ -96,11 +106,11 @@
       },
       "route_health": {
         "state": {
-          "state": "Routable"
+          "type": "routable"
         },
         "last_error": null,
         "walk": {
-          "found": "Paths",
+          "type": "paths",
           "walked_at": 0,
           "count": 1,
           "distinct_first_relays": 0,
@@ -111,7 +121,7 @@
           "return_best_value": 1.0
         },
         "quick_probe": {
-          "state": "Checking",
+          "type": "checking",
           "since": 0,
           "last": null
         }
@@ -126,14 +136,18 @@
           "other": {}
         },
         "geo": {
-          "country_code": "DE",
-          "source": "announced_ip"
+          "country": "DE",
+          "source": {
+            "type": "announced_ip"
+          }
         },
         "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
-        "routing": 1,
+        "hops": 1,
         "gnosis_vpn_server": "172.30.0.1:8000",
         "wireguard_server": "172.30.0.1:51820",
-        "source": "Configured",
+        "source": {
+          "type": "configured"
+        },
         "overrides": {
           "configured_meta": {},
           "configured_gnosis_vpn_server": null,
@@ -142,11 +156,11 @@
       },
       "route_health": {
         "state": {
-          "state": "NotRoutable"
+          "type": "not_routable"
         },
         "last_error": "walk timed out",
         "walk": {
-          "found": "NoPath",
+          "type": "no_path",
           "walked_at": 0,
           "forward_count": 0,
           "return_count": 0
@@ -163,14 +177,18 @@
           "other": {}
         },
         "geo": {
-          "country_code": "DE",
-          "source": "announced_ip"
+          "country": "DE",
+          "source": {
+            "type": "announced_ip"
+          }
         },
         "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
-        "routing": 1,
+        "hops": 1,
         "gnosis_vpn_server": "172.30.0.1:8000",
         "wireguard_server": "172.30.0.1:51820",
-        "source": "Configured",
+        "source": {
+          "type": "configured"
+        },
         "overrides": {
           "configured_meta": {},
           "configured_gnosis_vpn_server": null,
@@ -179,11 +197,11 @@
       },
       "route_health": {
         "state": {
-          "state": "NotRoutable"
+          "type": "not_routable"
         },
         "last_error": null,
         "walk": {
-          "found": "NotAnnounced",
+          "type": "not_announced",
           "walked_at": 0
         },
         "quick_probe": null
@@ -198,14 +216,18 @@
           "other": {}
         },
         "geo": {
-          "country_code": "DE",
-          "source": "announced_ip"
+          "country": "DE",
+          "source": {
+            "type": "announced_ip"
+          }
         },
         "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
-        "routing": 1,
+        "hops": 1,
         "gnosis_vpn_server": "172.30.0.1:8000",
         "wireguard_server": "172.30.0.1:51820",
-        "source": "Configured",
+        "source": {
+          "type": "configured"
+        },
         "overrides": {
           "configured_meta": {},
           "configured_gnosis_vpn_server": null,
@@ -214,8 +236,10 @@
       },
       "route_health": {
         "state": {
-          "state": "Unrecoverable",
-          "reason": "NotAllowed"
+          "type": "unrecoverable",
+          "reason": {
+            "type": "not_allowed"
+          }
         },
         "last_error": null,
         "walk": null,
@@ -231,14 +255,18 @@
           "other": {}
         },
         "geo": {
-          "country_code": "DE",
-          "source": "announced_ip"
+          "country": "DE",
+          "source": {
+            "type": "announced_ip"
+          }
         },
         "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
-        "routing": 1,
+        "hops": 1,
         "gnosis_vpn_server": "172.30.0.1:8000",
         "wireguard_server": "172.30.0.1:51820",
-        "source": "Configured",
+        "source": {
+          "type": "configured"
+        },
         "overrides": {
           "configured_meta": {},
           "configured_gnosis_vpn_server": null,
@@ -247,18 +275,17 @@
       },
       "route_health": {
         "state": {
-          "state": "Unrecoverable",
+          "type": "unrecoverable",
           "reason": {
-            "IncompatibleApiVersion": {
-              "server_versions": [
-                "v2"
-              ]
-            }
+            "type": "incompatible_api_version",
+            "offered": [
+              "v2"
+            ]
           }
         },
         "last_error": null,
         "walk": {
-          "found": "Paths",
+          "type": "paths",
           "walked_at": 0,
           "count": 3,
           "distinct_first_relays": 2,
@@ -273,7 +300,7 @@
           "return_best_value": 0.5
         },
         "quick_probe": {
-          "state": "Failed",
+          "type": "failed",
           "checked_at": 0,
           "error": "unsupported api"
         }
@@ -288,14 +315,18 @@
           "other": {}
         },
         "geo": {
-          "country_code": "DE",
-          "source": "announced_ip"
+          "country": "DE",
+          "source": {
+            "type": "announced_ip"
+          }
         },
         "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
-        "routing": 1,
+        "hops": 1,
         "gnosis_vpn_server": "172.30.0.1:8000",
         "wireguard_server": "172.30.0.1:51820",
-        "source": "Configured",
+        "source": {
+          "type": "configured"
+        },
         "overrides": {
           "configured_meta": {},
           "configured_gnosis_vpn_server": null,
@@ -304,16 +335,15 @@
       },
       "route_health": {
         "state": {
-          "state": "Unrecoverable",
+          "type": "unrecoverable",
           "reason": {
-            "CannotOpenSession": {
-              "error": "surb buffer too small"
-            }
+            "type": "cannot_open_session",
+            "error": "surb buffer too small"
           }
         },
         "last_error": null,
         "walk": {
-          "found": "Paths",
+          "type": "paths",
           "walked_at": 0,
           "count": 3,
           "distinct_first_relays": 2,
@@ -339,14 +369,18 @@
           "other": {}
         },
         "geo": {
-          "country_code": "DE",
-          "source": "announced_ip"
+          "country": "DE",
+          "source": {
+            "type": "announced_ip"
+          }
         },
         "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
-        "routing": 1,
+        "hops": 1,
         "gnosis_vpn_server": "172.30.0.1:8000",
         "wireguard_server": "172.30.0.1:51820",
-        "source": "Configured",
+        "source": {
+          "type": "configured"
+        },
         "overrides": {
           "configured_meta": {},
           "configured_gnosis_vpn_server": null,
@@ -365,10 +399,12 @@
         },
         "geo": null,
         "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
-        "routing": 1,
+        "hops": 1,
         "gnosis_vpn_server": "172.30.0.1:8000",
         "wireguard_server": "172.30.0.1:51820",
-        "source": "ConfiguredAndDiscovered",
+        "source": {
+          "type": "configured_and_discovered"
+        },
         "overrides": {
           "configured_meta": {
             "name": "Frankfurt-1"
@@ -388,14 +424,18 @@
           "other": {}
         },
         "geo": {
-          "country_code": "DE",
-          "source": "announced_ip"
+          "country": "DE",
+          "source": {
+            "type": "announced_ip"
+          }
         },
         "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
-        "routing": 1,
+        "hops": 1,
         "gnosis_vpn_server": "172.30.0.1:8000",
         "wireguard_server": "172.30.0.1:51820",
-        "source": "Configured",
+        "source": {
+          "type": "configured"
+        },
         "overrides": {
           "configured_meta": {},
           "configured_gnosis_vpn_server": null,
@@ -404,11 +444,11 @@
       },
       "route_health": {
         "state": {
-          "state": "Routable"
+          "type": "routable"
         },
         "last_error": null,
         "walk": {
-          "found": "Paths",
+          "type": "paths",
           "walked_at": 0,
           "count": 3,
           "distinct_first_relays": 2,
@@ -423,15 +463,15 @@
           "return_best_value": 0.5
         },
         "quick_probe": {
-          "state": "Checking",
+          "type": "checking",
           "since": 0,
           "last": {
             "checked_at": 0,
             "versions": {
-              "versions": [
+              "api": [
                 "v1"
               ],
-              "latest": "v1"
+              "server": "0.7.1"
             },
             "api_version": "v1",
             "load": {
@@ -447,16 +487,16 @@
                 "nproc": 4
               }
             },
-            "status_rtt": 42.0
+            "status_rtt": 42
           }
         }
       }
     }
   ],
-  "target_destination": null,
-  "connected": null,
-  "connecting": null,
-  "reconnecting": null,
+  "target": null,
+  "connection": {
+    "type": "disconnected"
+  },
   "disconnecting": [],
   "probe": null
 }

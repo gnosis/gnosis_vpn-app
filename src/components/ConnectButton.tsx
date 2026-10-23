@@ -20,7 +20,7 @@ export default function ConnectButton() {
     connectButtonLook(
       appState.vpnStatus,
       appState.targetDestination,
-      appState.reconnecting !== null,
+      appState.connection.type === "reconnecting",
     )
   );
 

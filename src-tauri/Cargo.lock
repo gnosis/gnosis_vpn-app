@@ -5221,6 +5221,7 @@ dependencies = [
  "dark-light",
  "dispatch",
  "futures-core",
+ "gnosis_vpn-ipc",
  "gnosis_vpn-lib",
  "liblzma",
  "objc",
@@ -5243,9 +5244,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "gnosis_vpn-ipc"
+version = "0.101.1"
+source = "git+https://github.com/gnosis/gnosis_vpn-client.git?rev=b78efcd9a98c64435cf58208bfe403b7fe3eb2c5#b78efcd9a98c64435cf58208bfe403b7fe3eb2c5"
+dependencies = [
+ "base64 0.23.1",
+ "humantime",
+ "semver 1.0.28",
+ "serde",
+ "serde_json",
+ "sha3 0.10.9",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "gnosis_vpn-lib"
-version = "0.101.0"
-source = "git+https://github.com/gnosis/gnosis_vpn-client.git?branch=main#6116a91f70f387227a6e595a872a00db4aadbb2f"
+version = "0.101.1"
+source = "git+https://github.com/gnosis/gnosis_vpn-client.git?rev=b78efcd9a98c64435cf58208bfe403b7fe3eb2c5#b78efcd9a98c64435cf58208bfe403b7fe3eb2c5"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5255,6 +5270,7 @@ dependencies = [
  "cfg-if",
  "edgli",
  "futures-util",
+ "gnosis_vpn-ipc",
  "hopr-utils-session",
  "human-bandwidth",
  "humantime",
@@ -5272,6 +5288,7 @@ dependencies = [
  "rand 0.10.3",
  "reqwest",
  "rustix",
+ "semver 1.0.28",
  "serde",
  "serde-saphyr",
  "serde_json",

@@ -47,9 +47,7 @@ function statusFor(
       d.destination
     ),
     destinations,
-    connected: null,
-    connecting: null,
-    reconnecting: null,
+    connection: { type: "disconnected" },
     probe: null,
   };
 }
@@ -131,7 +129,7 @@ describe("nextQuickProbe — which exit to check next", () => {
   it("treats a failed check as a result too", () => {
     const inFlight = { inFlight: { id: "a", issuedAt: 100 } };
     const status = statusFor({
-      a: dest("a", 2, { state: "Failed", checked_at: 150, error: "timeout" }),
+      a: dest("a", 2, { type: "failed", checked_at: 150, error: "timeout" }),
       b: dest("b", 1),
     });
 

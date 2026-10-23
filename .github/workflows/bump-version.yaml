@@ -16,14 +16,10 @@ on:
         required: false
         type: string
       update_client:
-        description: "Advance gnosis_vpn-lib to the tip of the client branch pinned in src-tauri/Cargo.toml"
+        description: "Advance gnosis_vpn-ipc to the tip of the client branch pinned in src-tauri/Cargo.toml"
         required: false
         type: boolean
         default: false
-      supported_client_versions:
-        description: "Comma-separated compatible gnosis_vpn-client service versions, e.g. '0.93' or '0.93, 0.94' (empty: keep current)"
-        required: false
-        type: string
 concurrency:
   group: bump-version-${{ github.ref_name }}
   cancel-in-progress: false
@@ -117,38 +113,7 @@ jobs:
             echo "package.json still lacks version ${NEW_VERSION} after the substitution" >&2
             exit 1
           fi
-      - name: Update supported client versions
-        if: inputs.supported_client_versions != ''
-        shell: bash
-        env:
-          SUPPORTED_CLIENT_VERSIONS: ${{ inputs.supported_client_versions }}
-        run: |
-          # Semver requirements commands.rs can parse (bare "0.93", or < <= = ^ ~); ">="/">" are rejected since they'd match every future version and disable the check.
-          req_pattern='^([<]=?|[=^~])?[0-9]+(\.[0-9]+){0,2}$'
-          joined=""
-          IFS=',' read -ra raw_entries <<< "${SUPPORTED_CLIENT_VERSIONS}"
-          for entry in "${raw_entries[@]}"; do
-            entry="${entry#"${entry%%[![:space:]]*}"}"
-            entry="${entry%"${entry##*[![:space:]]}"}"
-            [[ -z "${entry}" ]] && continue
-            if ! [[ "${entry}" =~ ${req_pattern} ]]; then
-              echo "Invalid version requirement '${entry}' in supported_client_versions" >&2
-              exit 1
-            fi
-            joined+="${joined:+, }\"${entry}\""
-          done
-          if [[ -z "${joined}" ]]; then
-            echo "supported_client_versions contained no usable entries" >&2
-            exit 1
-          fi
-          # perl -0777 so the pattern also matches after rustfmt reflows a
-          # long list to multiple lines; a line-anchored sed would then miss it.
-          perl -0777 -pi -e "s|const COMPATIBLE_VERSIONS: &\[&str\] = &\[[^\]]*\];|const COMPATIBLE_VERSIONS: &[&str] = &[${joined}];|" src-tauri/src/commands.rs
-          if ! grep -qF "const COMPATIBLE_VERSIONS: &[&str] = &[${joined}];" src-tauri/src/commands.rs; then
-            echo "src-tauri/src/commands.rs still lacks the new COMPATIBLE_VERSIONS list after the substitution" >&2
-            exit 1
-          fi
-      # --recursive re-resolves gnosis_vpn-lib's subtree; without it, a branch-tip bump can leave transitive deps (e.g. tokio) locked stale and cargo update fails.
+      # --recursive re-resolves the client crates' subtree; without it, a branch-tip bump can leave transitive deps (e.g. tokio) locked stale and cargo update fails.
       - name: Update Cargo.lock
         shell: bash
         env:
@@ -157,14 +122,14 @@ jobs:
         run: |
           nix develop --command cargo update -p gnosis_vpn-app --manifest-path src-tauri/Cargo.toml
           if [[ "${UPDATE_CLIENT}" == "true" ]]; then
-            nix develop --command cargo update -p gnosis_vpn-lib --recursive --manifest-path src-tauri/Cargo.toml
+            nix develop --command cargo update -p gnosis_vpn-ipc --recursive --manifest-path src-tauri/Cargo.toml
           fi
           if ! grep -A1 '^name = "gnosis_vpn-app"$' src-tauri/Cargo.lock | grep -q "^version = \"${NEW_VERSION}\"$"; then
             echo "src-tauri/Cargo.lock still lacks gnosis_vpn-app ${NEW_VERSION} after the update" >&2
             exit 1
           fi
       # Keeps the treefmt check in `nix flake check` green: taplo re-formats
-      # Cargo.toml, deno fmt package.json, rustfmt commands.rs.
+      # Cargo.toml, deno fmt package.json.
       - name: Format
         shell: bash
         run: |
@@ -188,7 +153,7 @@ jobs:
           git config user.name "${APP_SLUG}[bot]"
           git config user.email "${APP_SLUG}[bot]@users.noreply.github.com"
           git switch -c "${branch}"
-          git add src-tauri/Cargo.toml src-tauri/Cargo.lock package.json src-tauri/src/commands.rs
+          git add src-tauri/Cargo.toml src-tauri/Cargo.lock package.json
           git commit -m "chore(version): v${NEW_VERSION}"
           # Force so a retry after a failed run reuses the same branch and
           # updates any PR already open from it.

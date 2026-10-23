@@ -2,67 +2,61 @@ use gnosis_vpn_app_lib::settings::{FlagDisplay, Settings, SortOrder, UpdateChann
 use gnosis_vpn_app_lib::toolkit::{CheckOutcome, CheckResult, EndOfLife, Manifest, ToolkitInfo};
 use gnosis_vpn_app_lib::types;
 use gnosis_vpn_app_lib::update_install::InstallStatus;
-use gnosis_vpn_lib::balance::{
-    Balance, BalanceRecommendation, Balances, Capacity, CapacityAllocations, FundingLevel,
-    FundingStatus, WxHOPR, XDai,
+use gnosis_vpn_ipc as ipc;
+use gnosis_vpn_ipc::{
+    Address, ApiVersion, Balance, BalanceRecommendation, Balances, Capacity, CapacityAllocations,
+    ChannelMaintenance, Connection, Destination, DestinationSource, DestinationStatus,
+    ExitVersions, FundingLevel, FundingStatus, Geo, GeoSource, Health, Hops, LoadAvg, Meta,
+    Overrides, ProbeResponse, ProbeState, ProbeView, QuickProbeCheck, QuickProbeResponse,
+    QuickProbeState, RouteHealthState, RouteHealthView, RouteWalk, RunMode, Slots, Status,
+    UnprobeResponse, UnrecoverableReason, WarmupStage, WxHopr, XDai,
 };
-use gnosis_vpn_lib::command::{
-    ProbeResponse, ProbeView, QuickProbeResponse, RouteHealthView, UnprobeResponse,
-};
-use gnosis_vpn_lib::connection::destination::{
-    Destination, DestinationSource, Destinations, HopRouting, Meta, Overrides,
-};
-use gnosis_vpn_lib::geoip::{Geo, GeoSource};
-use gnosis_vpn_lib::prelude::Address;
-use gnosis_vpn_lib::probe::{Health, LoadAvg, ProbeState, Slots, Versions};
-use gnosis_vpn_lib::route_health::{
-    QuickProbeCheck, QuickProbeState, RouteHealthState, RouteWalk, UnrecoverableReason,
-};
-use gnosis_vpn_lib::{command, connection};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
 fn address() -> Address {
-    Address::from([0xaau8; 20])
+    Address::new([0xaa; 20])
 }
 
 fn destination() -> Destination {
-    let mut dest = Destination::new(
-        "test-exit".to_string(),
-        address(),
-        HopRouting::try_from(1).unwrap(),
-        Meta::default(),
-        "172.30.0.1:8000".parse().unwrap(),
-        "172.30.0.1:51820".parse().unwrap(),
-        DestinationSource::Configured,
-    );
-    dest.geo = Some(Geo {
-        country_code: "DE".to_string(),
-        source: GeoSource::AnnouncedIp,
-    });
-    dest
+    Destination {
+        id: "test-exit".into(),
+        meta: Meta::default(),
+        geo: Some(Geo {
+            country: "DE".parse().unwrap(),
+            source: GeoSource::AnnouncedIp,
+        }),
+        address: address(),
+        hops: Hops::try_from(1).unwrap(),
+        gnosis_vpn_server: "172.30.0.1:8000".parse().unwrap(),
+        wireguard_server: "172.30.0.1:51820".parse().unwrap(),
+        source: DestinationSource::Configured,
+        overrides: Overrides::default(),
+    }
 }
 
-/// A c+d exit with one pinned label; a second pin would make the HashMap's key order flaky.
 fn pinned_destination() -> Destination {
-    let mut pinned = HashMap::new();
-    pinned.insert("name".to_string(), "Frankfurt-1".to_string());
-    let mut meta = pinned.clone();
-    meta.insert(
-        "description".to_string(),
-        "10Gbit uplink, no logs kept".to_string(),
-    );
-    Destination::new(
-        "pinned-exit".to_string(),
-        address(),
-        HopRouting::try_from(1).unwrap(),
-        Meta::from_map(meta),
-        "172.30.0.1:8000".parse().unwrap(),
-        "172.30.0.1:51820".parse().unwrap(),
-        DestinationSource::ConfiguredAndDiscovered,
-    )
-    .with_overrides(Overrides::from_config(pinned, None, None))
+    let pinned = BTreeMap::from([("name".to_string(), "Frankfurt-1".to_string())]);
+    let labels = [
+        ("name".to_string(), "Frankfurt-1".to_string()),
+        (
+            "description".to_string(),
+            "10Gbit uplink, no logs kept".to_string(),
+        ),
+    ];
+    Destination {
+        id: "pinned-exit".into(),
+        meta: Meta::from_labels(labels),
+        geo: None,
+        source: DestinationSource::ConfiguredAndDiscovered,
+        overrides: Overrides {
+            configured_meta: pinned,
+            configured_gnosis_vpn_server: None,
+            configured_wireguard_server: None,
+        },
+        ..destination()
+    }
 }
 
 fn health() -> Health {
@@ -81,10 +75,10 @@ fn health() -> Health {
     }
 }
 
-fn versions() -> Versions {
-    Versions {
-        versions: vec!["v1".to_string()],
-        latest: "v1".to_string(),
+fn versions() -> ExitVersions {
+    ExitVersions {
+        api: vec![ApiVersion::new(1)],
+        server: Some(semver::Version::new(0, 7, 1)),
     }
 }
 
@@ -105,7 +99,7 @@ fn quick_check() -> QuickProbeCheck {
     QuickProbeCheck {
         checked_at: SystemTime::UNIX_EPOCH,
         versions: versions(),
-        api_version: Some("v1".to_string()),
+        api_version: Some(ApiVersion::new(1)),
         load: health(),
         status_rtt: Duration::from_millis(42),
     }
@@ -115,32 +109,61 @@ fn checked_probe() -> QuickProbeState {
     QuickProbeState::Checked(quick_check())
 }
 
-fn balance_info() -> command::Info {
-    command::Info {
-        node_address: address(),
-        node_peer_id: "16Uiu2HAmTest".to_string(),
-        safe_address: address(),
+fn ready_probe() -> ProbeView {
+    ProbeView {
+        destination: "test-exit".into(),
+        state: ProbeState::Ready,
+        session_since: Some(SystemTime::UNIX_EPOCH),
+        versions: Some(versions()),
+        api_version: Some(ApiVersion::new(1)),
+        ping_rtt: Some(Duration::from_millis(42)),
+        load: Some(health()),
+        checked_at: Some(SystemTime::UNIX_EPOCH),
+        consecutive_failures: 0,
+        last_error: None,
     }
 }
 
-fn zero_balances() -> Balances {
+fn running() -> RunMode {
+    RunMode::Running {
+        hopr_status: None,
+        funding_status: None,
+        channel_maintenance: ChannelMaintenance::Ok,
+    }
+}
+
+fn balances(node: Balance<XDai>, safe: Balance<WxHopr>) -> Balances {
     Balances {
-        node_xdai: Balance::<XDai>::zero(),
-        safe_wxhopr: Balance::<WxHOPR>::zero(),
-        channels_out: HashMap::new(),
+        node,
+        safe,
+        channels_out: vec![],
+        info: ipc::NodeInfo {
+            node_address: address(),
+            node_peer_id: "16Uiu2HAmTest".into(),
+            safe_address: address(),
+        },
+        capacity_allocations: None,
+        ideal_balance: None,
+        funding_status: None,
     }
 }
 
-fn status_base(run_mode: types::RunMode) -> types::StatusResponse {
-    types::StatusResponse {
+fn status_base(run_mode: RunMode) -> Status {
+    Status {
         run_mode,
         destinations: vec![],
-        target_destination: None,
-        connected: None,
-        connecting: None,
-        reconnecting: None,
+        target: None,
+        connection: Connection::Disconnected,
         disconnecting: vec![],
         probe: None,
+    }
+}
+
+fn status_with_connection(connection: Connection) -> Status {
+    Status {
+        target: connection.destination().cloned(),
+        connection,
+        ..status_base(running())
     }
 }
 
@@ -157,11 +180,15 @@ fn route_health_view(
     }
 }
 
-fn dest_state(route_health: Option<RouteHealthView>) -> command::DestinationState {
-    command::DestinationState {
+fn dest_state(route_health: Option<RouteHealthView>) -> DestinationStatus {
+    DestinationStatus {
         destination: destination(),
         route_health,
     }
+}
+
+fn ambiguous_candidates() -> Vec<ipc::DestinationId> {
+    vec!["frankfurt-1".into(), "frankfurt-1-a4c2".into()]
 }
 
 fn write(dir: &Path, name: &str, val: &impl serde::Serialize) {
@@ -170,11 +197,7 @@ fn write(dir: &Path, name: &str, val: &impl serde::Serialize) {
     std::fs::write(&path, format!("{json}\n")).expect("failed to write fixture");
 }
 
-// Generates JSON fixture files from real Rust serde output so TypeScript Zod tests
-// stay coupled to the actual wire format rather than hand-written guesses.
-//
-// Run `cargo test --test serialize_fixtures` after library type changes to regenerate.
-// Then run `vitest` — a Zod mismatch means the schemas need updating.
+// Real serde output keeps the TypeScript Zod tests honest; regenerate with `cargo test --test serialize_fixtures`.
 #[test]
 fn generate_fixtures() {
     let fixtures_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../src/services/fixtures");
@@ -183,38 +206,39 @@ fn generate_fixtures() {
     write(
         &fixtures_dir,
         "status_not_running.json",
-        &status_base(types::RunMode::NotRunning),
+        &status_base(RunMode::NotRunning),
     );
     write(
         &fixtures_dir,
         "status_shutdown.json",
-        &status_base(types::RunMode::Shutdown),
+        &status_base(RunMode::Shutdown),
+    );
+    write(
+        &fixtures_dir,
+        "status_init.json",
+        &status_base(RunMode::Init { last_error: None }),
     );
     write(
         &fixtures_dir,
         "status_warmup.json",
-        &status_base(types::RunMode::Warmup {
-            status: types::CombinedHoprStatus::Initializing,
+        &status_base(RunMode::Warmup {
+            stage: WarmupStage::WaitingForFunds,
             last_error: None,
         }),
     );
     write(
         &fixtures_dir,
         "status_running.json",
-        &status_base(types::RunMode::Running {
-            funding_status: None,
-            hopr_status: None,
-            channel_maintenance: command::ChannelMaintenance::Ok,
-        }),
+        &status_base(running()),
     );
 
     write(
         &fixtures_dir,
         "status_channel_maintenance_unavailable.json",
-        &status_base(types::RunMode::Running {
-            funding_status: None,
+        &status_base(RunMode::Running {
             hopr_status: None,
-            channel_maintenance: command::ChannelMaintenance::Unavailable {
+            funding_status: None,
+            channel_maintenance: ChannelMaintenance::Unavailable {
                 since: SystemTime::UNIX_EPOCH,
             },
         }),
@@ -224,164 +248,148 @@ fn generate_fixtures() {
     write(
         &fixtures_dir,
         "status_reconnect_waiting.json",
-        &types::StatusResponse {
-            run_mode: types::RunMode::Running {
-                funding_status: None,
-                hopr_status: None,
-                channel_maintenance: command::ChannelMaintenance::Ok,
-            },
-            destinations: vec![],
-            target_destination: Some("test-exit".to_string()),
-            connected: None,
-            connecting: None,
-            reconnecting: Some(command::ReconnectingInfo {
-                destination_id: "test-exit".to_string(),
-                since: SystemTime::UNIX_EPOCH,
-                phase: None,
-            }),
-            disconnecting: vec![],
-            probe: None,
-        },
+        &status_with_connection(Connection::Reconnecting {
+            destination: "test-exit".into(),
+            since: SystemTime::UNIX_EPOCH,
+            phase: None,
+        }),
     );
 
-    // PreparingSafe — no balance_recommendation
-    let preparing_safe_zero = types::RunMode::from(command::RunMode::PreparingSafe {
-        node_address: address(),
-        node_xdai: Balance::<XDai>::zero(),
-        node_wxhopr: Balance::<WxHOPR>::zero(),
-        funding_tool: None,
-        error: None,
-        balance_recommendation: None,
-    });
     write(
         &fixtures_dir,
         "status_preparing_safe.json",
-        &status_base(preparing_safe_zero),
+        &status_base(RunMode::PreparingSafe {
+            node_address: address(),
+            node_xdai: Balance::zero(),
+            node_wxhopr: Balance::zero(),
+            funding_tool: None,
+            error: None,
+            balance_recommendation: None,
+        }),
     );
 
-    // PreparingSafe — with a non-zero balance_recommendation
-    // 10 wxHOPR = 10 * 10^18 wei, 0.1 xDAI = 10^17 wei
-    let preparing_safe_with_rec = types::RunMode::from(command::RunMode::PreparingSafe {
-        node_address: address(),
-        node_xdai: Balance::<XDai>::from(10_000_000_000_000_000u64), // 0.01 xDAI
-        node_wxhopr: Balance::<WxHOPR>::from(500_000_000_000_000_000u64), // 0.5 wxHOPR
-        funding_tool: None,
-        error: None,
-        balance_recommendation: Some(Box::new(BalanceRecommendation {
-            wxhopr: Balance::<WxHOPR>::from(10_000_000_000_000_000_000u64), // 10 wxHOPR
-            xdai: Balance::<XDai>::from(100_000_000_000_000_000u64),        // 0.1 xDAI
-            channel_stakes: Balance::<WxHOPR>::from(9_990_000_000_000_000_000u64), // 9.99 wxHOPR
-            fee_to_start: Balance::<WxHOPR>::from(10_000_000_000_000_000u64), // 0.01 wxHOPR
-            txs_to_start: 3,
-            xdai_fee_per_tx: Balance::<XDai>::from(100_000_000_000_000_000u64), // 0.1 xDAI
-            topup_headroom: Balance::<WxHOPR>::zero(),
-        })),
-    });
     write(
         &fixtures_dir,
         "status_preparing_safe_with_recommendation.json",
-        &status_base(preparing_safe_with_rec),
+        &status_base(RunMode::PreparingSafe {
+            node_address: address(),
+            node_xdai: Balance::from_wei(10_000_000_000_000_000), // 0.01 xDAI
+            node_wxhopr: Balance::from_wei(500_000_000_000_000_000), // 0.5 wxHOPR
+            funding_tool: None,
+            error: None,
+            balance_recommendation: Some(Box::new(BalanceRecommendation {
+                wxhopr: Balance::from_wei(10_000_000_000_000_000_000), // 10 wxHOPR
+                xdai: Balance::from_wei(100_000_000_000_000_000),      // 0.1 xDAI
+                channel_stakes: Balance::from_wei(9_990_000_000_000_000_000), // 9.99 wxHOPR
+                fee_to_start: Balance::from_wei(10_000_000_000_000_000), // 0.01 wxHOPR
+                txs_to_start: 3,
+                xdai_fee_per_tx: Balance::from_wei(100_000_000_000_000_000), // 0.1 xDAI
+                topup_headroom: Balance::zero(),
+            })),
+        }),
     );
 
     write(
         &fixtures_dir,
         "status_deploying_safe.json",
-        &status_base(types::RunMode::DeployingSafe {
-            node_address: "0x0000000000000000000000000000000000000000".to_string(),
+        &status_base(RunMode::DeployingSafe {
+            node_address: Address::new([0; 20]),
         }),
     );
     write(
         &fixtures_dir,
         "status_restarting.json",
-        &status_base(types::RunMode::Restarting),
+        &status_base(RunMode::Restarting),
     );
 
+    // Connected while the previous exit still tears down in the background, with a ready probe.
     write(
         &fixtures_dir,
-        "status_with_connections.json",
-        &types::StatusResponse {
-            run_mode: types::RunMode::NotRunning,
-            destinations: vec![],
-            target_destination: Some("test-exit".to_string()),
-            connected: Some(command::ConnectedInfo {
-                destination_id: "test-exit".to_string(),
+        "status_connected.json",
+        &Status {
+            disconnecting: vec![ipc::Disconnecting {
+                destination: "pinned-exit".into(),
+                since: SystemTime::UNIX_EPOCH,
+                phase: ipc::DisconnectPhase::UnregisterWg,
+            }],
+            probe: Some(ready_probe()),
+            ..status_with_connection(Connection::Connected {
+                destination: "test-exit".into(),
                 since: SystemTime::UNIX_EPOCH,
                 tunnel_ping_rtt: Some(Duration::from_millis(12)),
                 stall: None,
-            }),
-            connecting: Some(command::ConnectingInfo {
-                destination_id: "test-exit".to_string(),
+            })
+        },
+    );
+    write(
+        &fixtures_dir,
+        "status_connecting.json",
+        &status_with_connection(Connection::Connecting {
+            destination: "test-exit".into(),
+            since: SystemTime::UNIX_EPOCH,
+            phase: ipc::ConnectPhase::RegisterWg,
+        }),
+    );
+    write(
+        &fixtures_dir,
+        "status_reconnecting.json",
+        &status_with_connection(Connection::Reconnecting {
+            destination: "test-exit".into(),
+            since: SystemTime::UNIX_EPOCH,
+            phase: Some(ipc::ConnectPhase::Init),
+        }),
+    );
+    write(
+        &fixtures_dir,
+        "status_disconnecting.json",
+        &Status {
+            disconnecting: vec![ipc::Disconnecting {
+                destination: "test-exit".into(),
                 since: SystemTime::UNIX_EPOCH,
-                phase: connection::UpPhase::Init,
-            }),
-            reconnecting: Some(command::ReconnectingInfo {
-                destination_id: "test-exit".to_string(),
-                since: SystemTime::UNIX_EPOCH,
-                phase: Some(connection::UpPhase::Init),
-            }),
-            disconnecting: vec![command::DisconnectingInfo {
-                destination_id: "test-exit".to_string(),
-                since: SystemTime::UNIX_EPOCH,
-                phase: connection::DownPhase::Disconnecting,
+                phase: ipc::DisconnectPhase::Disconnecting,
             }],
-            probe: Some(ProbeView {
-                destination_id: "test-exit".to_string(),
-                state: ProbeState::Ready,
-                session_since: Some(SystemTime::UNIX_EPOCH),
-                versions: Some(versions()),
-                api_version: Some("v1".to_string()),
-                ping_rtt: Some(Duration::from_millis(42)),
-                load: Some(health()),
-                checked_at: Some(SystemTime::UNIX_EPOCH),
-                consecutive_failures: 0,
-                last_error: None,
-            }),
+            ..status_base(running())
         },
     );
 
     // Tunnel up but the data path stalled: counted ping failures short of the reconnect threshold.
-    let mut connected_stalled = status_base(types::RunMode::Running {
-        funding_status: None,
-        hopr_status: None,
-        channel_maintenance: command::ChannelMaintenance::Ok,
-    });
-    connected_stalled.connected = Some(command::ConnectedInfo {
-        destination_id: "test-exit".to_string(),
-        since: SystemTime::UNIX_EPOCH,
-        tunnel_ping_rtt: Some(Duration::from_millis(12)),
-        stall: Some(command::TunnelStall {
-            since: SystemTime::UNIX_EPOCH,
-            failed_pings: 2,
-            reconnect_at: 3,
-        }),
-    });
     write(
         &fixtures_dir,
         "status_connected_stalled.json",
-        &connected_stalled,
+        &status_with_connection(Connection::Connected {
+            destination: "test-exit".into(),
+            since: SystemTime::UNIX_EPOCH,
+            tunnel_ping_rtt: Some(Duration::from_millis(12)),
+            stall: Some(ipc::TunnelStall {
+                since: SystemTime::UNIX_EPOCH,
+                failed_pings: 2,
+                reconnect_at: 3,
+            }),
+        }),
     );
 
     // A probe session that has not produced a result yet: every optional is null.
-    let mut probe_opening = status_base(types::RunMode::Running {
-        funding_status: None,
-        hopr_status: None,
-        channel_maintenance: command::ChannelMaintenance::Ok,
-    });
-    probe_opening.probe = Some(ProbeView {
-        destination_id: "test-exit".to_string(),
-        state: ProbeState::Opening,
-        session_since: None,
-        versions: None,
-        api_version: None,
-        ping_rtt: None,
-        load: None,
-        checked_at: None,
-        consecutive_failures: 2,
-        last_error: Some("timeout".to_string()),
-    });
-    write(&fixtures_dir, "status_probe_opening.json", &probe_opening);
+    write(
+        &fixtures_dir,
+        "status_probe_opening.json",
+        &Status {
+            probe: Some(ProbeView {
+                destination: "test-exit".into(),
+                state: ProbeState::Opening,
+                session_since: None,
+                versions: None,
+                api_version: None,
+                ping_rtt: None,
+                load: None,
+                checked_at: None,
+                consecutive_failures: 2,
+                last_error: Some("timeout".to_string()),
+            }),
+            ..status_base(running())
+        },
+    );
 
-    // One DestinationState per RouteHealthState/RouteWalk/QuickProbeState variant, in one fixture.
+    // One DestinationStatus per RouteHealthState/RouteWalk/QuickProbeState variant, in one fixture.
     let mut walk_timed_out = route_health_view(
         RouteHealthState::NotRoutable,
         Some(RouteWalk::NoPath {
@@ -434,7 +442,7 @@ fn generate_fixtures() {
         dest_state(Some(route_health_view(
             RouteHealthState::Unrecoverable {
                 reason: UnrecoverableReason::IncompatibleApiVersion {
-                    server_versions: vec!["v2".to_string()],
+                    offered: vec![ApiVersion::new(2)],
                 },
             },
             Some(paths_walk()),
@@ -453,7 +461,7 @@ fn generate_fixtures() {
             None,
         ))),
         dest_state(None),
-        command::DestinationState {
+        DestinationStatus {
             destination: pinned_destination(),
             route_health: None,
         },
@@ -467,53 +475,54 @@ fn generate_fixtures() {
             }),
         ))),
     ];
-    let mut route_health_status = status_base(types::RunMode::NotRunning);
-    route_health_status.destinations = route_health_variants;
     write(
         &fixtures_dir,
         "status_route_health_variants.json",
-        &route_health_status,
+        &Status {
+            destinations: route_health_variants,
+            ..status_base(RunMode::NotRunning)
+        },
     );
 
     write(
         &fixtures_dir,
         "connect_destination_not_found.json",
-        &command::ConnectResponse::DestinationNotFound,
+        &ipc::ConnectResponse::DestinationNotFound,
     );
     write(
         &fixtures_dir,
         "connect_ambiguous.json",
-        &command::ConnectResponse::DestinationAmbiguous {
-            connect_ids: vec!["frankfurt-1".to_string(), "frankfurt-1-a4c2".to_string()],
+        &ipc::ConnectResponse::DestinationAmbiguous {
+            candidates: ambiguous_candidates(),
         },
     );
     write(
         &fixtures_dir,
         "connect_connecting.json",
-        &command::ConnectResponse::Connecting {
-            destination: destination(),
+        &ipc::ConnectResponse::Connecting {
+            destination: Box::new(destination()),
         },
     );
     write(
         &fixtures_dir,
         "connect_already_connected.json",
-        &command::ConnectResponse::AlreadyConnected {
-            destination: destination(),
+        &ipc::ConnectResponse::AlreadyConnected {
+            destination: Box::new(destination()),
         },
     );
     write(
         &fixtures_dir,
         "connect_waiting.json",
-        &command::ConnectResponse::WaitingToConnect {
-            destination: destination(),
+        &ipc::ConnectResponse::WaitingToConnect {
+            destination: Box::new(destination()),
             route_health: RouteHealthState::Routable,
         },
     );
     write(
         &fixtures_dir,
         "connect_unable.json",
-        &command::ConnectResponse::UnableToConnect {
-            destination: destination(),
+        &ipc::ConnectResponse::UnableToConnect {
+            destination: Box::new(destination()),
             route_health: RouteHealthState::NotRoutable,
         },
     );
@@ -521,26 +530,28 @@ fn generate_fixtures() {
     write(
         &fixtures_dir,
         "disconnect_not_connected.json",
-        &command::DisconnectResponse::NotConnected,
+        &ipc::DisconnectResponse::NotConnected,
     );
     write(
         &fixtures_dir,
         "disconnect_disconnecting.json",
-        &command::DisconnectResponse::new(destination()),
+        &ipc::DisconnectResponse::Disconnecting {
+            destination: Box::new(destination()),
+        },
     );
 
     write(
         &fixtures_dir,
         "probe_probing.json",
         &ProbeResponse::Probing {
-            destination: destination(),
+            destination: Box::new(destination()),
         },
     );
     write(
         &fixtures_dir,
         "probe_replaced.json",
         &ProbeResponse::Replaced {
-            destination: destination(),
+            destination: Box::new(destination()),
             previous: Box::new(pinned_destination()),
         },
     );
@@ -548,7 +559,7 @@ fn generate_fixtures() {
         &fixtures_dir,
         "probe_already_probing.json",
         &ProbeResponse::AlreadyProbing {
-            destination: destination(),
+            destination: Box::new(destination()),
         },
     );
     write(
@@ -562,7 +573,7 @@ fn generate_fixtures() {
         &fixtures_dir,
         "probe_unable.json",
         &ProbeResponse::UnableToProbe {
-            destination: destination(),
+            destination: Box::new(destination()),
             route_health: RouteHealthState::NotRoutable,
         },
     );
@@ -580,19 +591,23 @@ fn generate_fixtures() {
         &fixtures_dir,
         "probe_ambiguous.json",
         &ProbeResponse::DestinationAmbiguous {
-            connect_ids: vec!["frankfurt-1".to_string(), "frankfurt-1-a4c2".to_string()],
+            candidates: ambiguous_candidates(),
         },
     );
 
     write(
         &fixtures_dir,
         "unprobe_closing.json",
-        &UnprobeResponse::closing(destination()),
+        &UnprobeResponse::Closing {
+            destination: Box::new(destination()),
+        },
     );
     write(
         &fixtures_dir,
         "unprobe_in_use.json",
-        &UnprobeResponse::in_use(destination()),
+        &UnprobeResponse::InUse {
+            destination: Box::new(destination()),
+        },
     );
     write(
         &fixtures_dir,
@@ -603,27 +618,33 @@ fn generate_fixtures() {
     write(
         &fixtures_dir,
         "quick_probe_checking.json",
-        &QuickProbeResponse::checking(destination()),
+        &QuickProbeResponse::Checking {
+            destination: Box::new(destination()),
+        },
     );
     write(
         &fixtures_dir,
         "quick_probe_unable.json",
-        &QuickProbeResponse::unable(
-            destination(),
-            RouteHealthState::Unrecoverable {
+        &QuickProbeResponse::UnableToProbe {
+            destination: Box::new(destination()),
+            route_health: RouteHealthState::Unrecoverable {
                 reason: UnrecoverableReason::NotAllowed,
             },
-        ),
+        },
     );
     write(
         &fixtures_dir,
         "quick_probe_already_probing.json",
-        &QuickProbeResponse::already_probing(destination()),
+        &QuickProbeResponse::AlreadyProbing {
+            destination: Box::new(destination()),
+        },
     );
     write(
         &fixtures_dir,
         "quick_probe_already_checking.json",
-        &QuickProbeResponse::already_checking(destination()),
+        &QuickProbeResponse::AlreadyChecking {
+            destination: Box::new(destination()),
+        },
     );
     write(
         &fixtures_dir,
@@ -639,124 +660,97 @@ fn generate_fixtures() {
         &fixtures_dir,
         "quick_probe_ambiguous.json",
         &QuickProbeResponse::DestinationAmbiguous {
-            connect_ids: vec!["frankfurt-1".to_string(), "frankfurt-1-a4c2".to_string()],
+            candidates: ambiguous_candidates(),
         },
     );
 
-    // balance_response — all nulls, zero balances
-    let balance_zero = types::BalanceResponse::from(command::BalanceResponse::build(
-        &balance_info(),
-        &zero_balances(),
-        &Destinations::default(),
-        None,
-        None,
-        None,
-    ));
-    write(&fixtures_dir, "balance_response.json", &balance_zero);
+    write(
+        &fixtures_dir,
+        "balance_response.json",
+        &types::BalanceResponse::from(balances(Balance::zero(), Balance::zero())),
+    );
 
-    // balance_response — with ideal_balance and a low funding status
-    // 1 wxHOPR = 10^18 wei, 0.05 xDAI = 5 * 10^16 wei
-    let balances_with_funds = Balances {
-        node_xdai: Balance::<XDai>::from(30_000_000_000_000_000u64), // 0.03 xDAI
-        safe_wxhopr: Balance::<WxHOPR>::from(1_000_000_000_000_000_000u64), // 1 wxHOPR
-        channels_out: HashMap::new(),
-    };
-    let ideal = BalanceRecommendation {
-        wxhopr: Balance::<WxHOPR>::from(2_000_000_000_000_000_000u64), // 2 wxHOPR
-        xdai: Balance::<XDai>::from(50_000_000_000_000_000u64),        // 0.05 xDAI
-        channel_stakes: Balance::<WxHOPR>::from(2_000_000_000_000_000_000u64), // 2 wxHOPR
-        fee_to_start: Balance::<WxHOPR>::zero(), // key already bound while running
-        txs_to_start: 0,
-        xdai_fee_per_tx: Balance::<XDai>::from(50_000_000_000_000_000u64), // 0.05 xDAI
-        topup_headroom: Balance::<WxHOPR>::zero(),
-    };
-    let funding_status = FundingStatus {
-        traffic: FundingLevel::Low,
-        gas: FundingLevel::Low,
-        wxhopr_deficit: Some(Balance::<WxHOPR>::from(1_000_000_000_000_000_000u64)), // 1 wxHOPR
-        xdai_deficit: Some(Balance::<XDai>::from(20_000_000_000_000_000u64)),        // 0.02 xDAI
-        refill_shortfall: None,
-    };
-    let balance_with_issues = types::BalanceResponse::from(command::BalanceResponse::build(
-        &balance_info(),
-        &balances_with_funds,
-        &Destinations::default(),
-        None,
-        Some(ideal),
-        Some(funding_status),
-    ));
+    let node_xdai = Balance::from_wei(30_000_000_000_000_000); // 0.03 xDAI
+    let safe_wxhopr = Balance::from_wei(1_000_000_000_000_000_000); // 1 wxHOPR
+
     write(
         &fixtures_dir,
         "balance_response_with_issues.json",
-        &balance_with_issues,
+        &types::BalanceResponse::from(Balances {
+            ideal_balance: Some(BalanceRecommendation {
+                wxhopr: Balance::from_wei(2_000_000_000_000_000_000), // 2 wxHOPR
+                xdai: Balance::from_wei(50_000_000_000_000_000),      // 0.05 xDAI
+                channel_stakes: Balance::from_wei(2_000_000_000_000_000_000), // 2 wxHOPR
+                fee_to_start: Balance::zero(), // key already bound while running
+                txs_to_start: 0,
+                xdai_fee_per_tx: Balance::from_wei(50_000_000_000_000_000), // 0.05 xDAI
+                topup_headroom: Balance::zero(),
+            }),
+            funding_status: Some(FundingStatus {
+                traffic: FundingLevel::Low,
+                gas: FundingLevel::Low,
+                wxhopr_deficit: Some(Balance::from_wei(1_000_000_000_000_000_000)), // 1 wxHOPR
+                xdai_deficit: Some(Balance::from_wei(20_000_000_000_000_000)),      // 0.02 xDAI
+                refill_shortfall: None,
+            }),
+            ..balances(node_xdai, safe_wxhopr)
+        }),
     );
 
     // Funded to the ideal, but the Safe cannot cover the next channel top-up pass.
-    let shortfall_status = FundingStatus {
-        traffic: FundingLevel::Low,
-        gas: FundingLevel::Good,
-        wxhopr_deficit: None,
-        xdai_deficit: None,
-        refill_shortfall: Some(Balance::<WxHOPR>::from(500_000_000_000_000_000u64)), // 0.5 wxHOPR
-    };
-    let balance_with_shortfall = types::BalanceResponse::from(command::BalanceResponse::build(
-        &balance_info(),
-        &balances_with_funds,
-        &Destinations::default(),
-        None,
-        None,
-        Some(shortfall_status),
-    ));
     write(
         &fixtures_dir,
         "balance_response_with_refill_shortfall.json",
-        &balance_with_shortfall,
+        &types::BalanceResponse::from(Balances {
+            funding_status: Some(FundingStatus {
+                traffic: FundingLevel::Low,
+                gas: FundingLevel::Good,
+                wxhopr_deficit: None,
+                xdai_deficit: None,
+                refill_shortfall: Some(Balance::from_wei(500_000_000_000_000_000)), // 0.5 wxHOPR
+            }),
+            ..balances(node_xdai, safe_wxhopr)
+        }),
     );
 
-    // balance_response — with capacity_allocations (one open channel + Safe + node EOA)
+    // One open channel, the Safe, and wxHOPR on the node EOA not yet swept into the Safe.
     let capacity_allocations = CapacityAllocations {
-        peer_allocations: HashMap::from([(
+        peer_allocations: BTreeMap::from([(
             address(),
             Capacity {
-                stake: Balance::<WxHOPR>::from(500_000_000_000_000_000u64), // 0.5 wxHOPR
+                stake: Balance::from_wei(500_000_000_000_000_000), // 0.5 wxHOPR
                 expected_messages: 250,
                 min_guaranteed_messages: 25,
                 byte_capacity: 262_144,
             },
         )]),
-        // wxHOPR sitting on the node EOA, not yet swept into the Safe
         node: Capacity {
-            stake: Balance::<WxHOPR>::from(250_000_000_000_000_000u64), // 0.25 wxHOPR
+            stake: Balance::from_wei(250_000_000_000_000_000), // 0.25 wxHOPR
             expected_messages: 125,
             min_guaranteed_messages: 12,
             byte_capacity: 131_072,
         },
         safe: Capacity {
-            stake: Balance::<WxHOPR>::from(2_000_000_000_000_000_000u64), // 2 wxHOPR
+            stake: Balance::from_wei(2_000_000_000_000_000_000), // 2 wxHOPR
             expected_messages: 1000,
             min_guaranteed_messages: 100,
             byte_capacity: 1_048_576,
         },
     };
-    let balance_with_capacity = types::BalanceResponse::from(command::BalanceResponse::build(
-        &balance_info(),
-        &balances_with_funds,
-        &Destinations::default(),
-        Some(&capacity_allocations),
-        None,
-        None,
-    ));
     write(
         &fixtures_dir,
         "balance_response_with_capacity.json",
-        &balance_with_capacity,
+        &types::BalanceResponse::from(Balances {
+            capacity_allocations: Some(capacity_allocations),
+            ..balances(node_xdai, safe_wxhopr)
+        }),
     );
 
     write(
         &fixtures_dir,
         "service_info.json",
-        &command::InfoResponse {
-            version: "0.91.0".to_string(),
+        &ipc::InfoResponse {
+            version: semver::Version::new(0, 91, 0),
             log_file: None,
             package_version: None,
         },

@@ -8,8 +8,12 @@
     "safe_address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa"
   },
   "funding_status": {
-    "traffic": "Low",
-    "gas": "Low",
+    "traffic": {
+      "type": "low"
+    },
+    "gas": {
+      "type": "low"
+    },
     "wxhopr_deficit": "1000000000000000000",
     "xdai_deficit": "20000000000000000",
     "refill_shortfall": null
@@ -20,7 +24,8 @@
     "channel_stakes": "2000000000000000000",
     "fee_to_start": "0",
     "txs_to_start": 0,
-    "xdai_fee_per_tx": "50000000000000000"
+    "xdai_fee_per_tx": "50000000000000000",
+    "topup_headroom": "0"
   },
   "capacity_allocations": null
 }
