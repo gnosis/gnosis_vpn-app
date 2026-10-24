@@ -27,45 +27,48 @@ import {
 } from "@src/testing/destinations.ts";
 
 const RUNNING: RunMode = {
-  Running: {
-    funding_status: null,
-    hopr_status: null,
-    channel_maintenance: { type: "Ok" },
-  },
+  type: "running",
+  funding_status: null,
+  hopr_status: null,
+  channel_maintenance: { type: "ok" },
 };
 const WARMUP: RunMode = {
-  Warmup: { status: "StartingNode", last_error: null },
+  type: "warmup",
+  stage: "starting_node",
+  last_error: null,
 };
-const DEPLOYING_SAFE: RunMode = { DeployingSafe: { node_address: "0xnode" } };
+const DEPLOYING_SAFE: RunMode = {
+  type: "deploying_safe",
+  node_address: "0xnode",
+};
 const PREPARING_SAFE: RunMode = {
-  PreparingSafe: {
-    node_address: "0xnode",
-    node_xdai: 0n,
-    node_wxhopr: 0n,
-    funding_tool: null,
-    error: null,
-    balance_recommendation: null,
-  },
+  type: "preparing_safe",
+  node_address: "0xnode",
+  node_xdai: 0n,
+  node_wxhopr: 0n,
+  funding_tool: null,
+  error: null,
+  balance_recommendation: null,
 };
 
 function failedSafeDeployment(
   funded: boolean,
 ): RunMode {
   return {
-    PreparingSafe: {
-      node_address: "0xnode",
-      node_xdai: funded ? 10n : 0n,
-      node_wxhopr: funded ? 10n : 0n,
-      funding_tool: null,
-      error: "deploy tx reverted",
-      balance_recommendation: {
-        wxhopr: 5n,
-        xdai: 5n,
-        channel_stakes: 0n,
-        fee_to_start: 0n,
-        txs_to_start: 0,
-        xdai_fee_per_tx: 0n,
-      },
+    type: "preparing_safe",
+    node_address: "0xnode",
+    node_xdai: funded ? 10n : 0n,
+    node_wxhopr: funded ? 10n : 0n,
+    funding_tool: null,
+    error: "deploy tx reverted",
+    balance_recommendation: {
+      wxhopr: 5n,
+      xdai: 5n,
+      channel_stakes: 0n,
+      fee_to_start: 0n,
+      txs_to_start: 0,
+      xdai_fee_per_tx: 0n,
+      topup_headroom: 0n,
     },
   };
 }
@@ -73,7 +76,7 @@ function failedSafeDeployment(
 function destination(route_health: RouteHealthView): DestinationState {
   return {
     destination: makeDestination({
-      geo: { country_code: "br", source: "announced_ip" },
+      geo: { country: "br", source: { type: "announced_ip" } },
     }),
     route_health,
   };
@@ -86,10 +89,8 @@ function status(
   return {
     run_mode,
     destinations,
-    target_destination: null,
-    connected: null,
-    connecting: null,
-    reconnecting: null,
+    target: null,
+    connection: { type: "disconnected" },
     disconnecting: [],
     probe: null,
   };
@@ -167,7 +168,7 @@ describe("createScreenSelector", () => {
   });
 
   it("still syncs for the first warmup after the service was not running", () => {
-    expect(screenOf(status("NotRunning"))).toBe(AppScreen.Main);
+    expect(screenOf(status({ type: "not_running" }))).toBe(AppScreen.Main);
     expect(screenOf(status(WARMUP))).toBe(AppScreen.Synchronization);
   });
 
@@ -202,13 +203,21 @@ describe("createScreenSelector", () => {
     );
   });
 
+  it("syncs through init as the first warmup stage", () => {
+    const init: RunMode = { type: "init", last_error: null };
+    expect(createScreenSelector()(status(init))).toEqual([
+      AppScreen.Synchronization,
+      "Initializing edge client",
+      null,
+    ]);
+  });
+
   it("reports the warmup error as the recovery reason", () => {
     const select = createScreenSelector();
     const failing: RunMode = {
-      Warmup: {
-        status: "StartingNode",
-        last_error: "safe 0xabc does not exist",
-      },
+      type: "warmup",
+      stage: "starting_node",
+      last_error: "safe 0xabc does not exist",
     };
     expect(select(status(failing))[2]).toBe("safe 0xabc does not exist");
     expect(select(status(WARMUP))[2]).toBeNull();

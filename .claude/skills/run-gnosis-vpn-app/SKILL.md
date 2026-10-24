@@ -69,11 +69,14 @@ handler in `shim.js`.
 The fixture drives the app's real logic — edit a copy, don't force UI state in
 source:
 
-- `cached_state.status.Ok.run_mode` — `{"Running": {...}}` reaches the main
-  screen; `funding_status: {"traffic": "Low", "gas": "Good", ...}` shows the
-  low-balance banner (`"Empty"` on either axis → the "empty" variant; see
-  `FundingStatusSchema` in `src/services/vpnService.ts`).
-- `destination.geo` — `{"country_code": "SE", "source": "announced_ip"}` or
+- `cached_state.status.Ok.run_mode` — `{"type": "running", ...}` reaches the
+  main screen;
+  `funding_status: {"traffic": {"type": "low"}, "gas": {"type": "good"}, ...}`
+  shows the low-balance banner (`{"type": "empty"}` on either axis → the "empty"
+  variant; see `FundingStatusSchema` in `src/services/vpnService.ts`). The
+  connection is `connection`, one of `{"type": "disconnected"}`, `connecting`,
+  `reconnecting` or `connected` (see `ConnectionSchema`).
+- `destination.geo` — `{"country": "SE", "source": {"type": "announced_ip"}}` or
   `null`; the client derives it from the exit's announced IP. With a code the
   label gains the country name and, unless `settings.flagDisplay` is `"none"`,
   the flag.

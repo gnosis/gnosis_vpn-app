@@ -3,9 +3,9 @@ import {
   isDeployingSafeRunMode,
   isPreparingSafeRunMode,
   isRunningRunMode,
-  isWarmupRunMode,
   type PreparingSafe,
   type StatusResponse,
+  warmupProgress,
 } from "@src/services/vpnService.ts";
 import { logWarn } from "@src/utils/appLog.ts";
 import { isSelectable, rankContext } from "@src/utils/destinations.ts";
@@ -32,7 +32,7 @@ function findDelayReason(status: StatusResponse): string | null {
   const context = rankContext(status);
   if (known.some((ds) => isSelectable(ds, context))) return null;
   const unrecoverable =
-    known.filter((ds) => ds.route_health?.state.state === "Unrecoverable")
+    known.filter((ds) => ds.route_health?.state.type === "unrecoverable")
       .length;
   if (unrecoverable === known.length) return null;
   const waiting = known.length - unrecoverable;
@@ -52,7 +52,7 @@ function isUnderfunded(safe: PreparingSafe): boolean {
 function retryingSafeDeployment(status: StatusResponse): string | null {
   const runMode = status.run_mode;
   if (!isPreparingSafeRunMode(runMode)) return null;
-  const safe = runMode.PreparingSafe;
+  const safe = runMode;
   if (!safe.error || isUnderfunded(safe)) return null;
   return safe.error;
 }
@@ -62,7 +62,7 @@ export function detectSyncPhase(
 ): SyncPhaseIndex | null {
   const { run_mode } = response;
   if (isDeployingSafeRunMode(run_mode)) return 0;
-  if (isWarmupRunMode(run_mode)) return 1;
+  if (warmupProgress(run_mode)) return 1;
   if (findDelayReason(response)) return 2;
   return null;
 }
@@ -81,7 +81,7 @@ export function createScreenSelector(): (
 
   return function selectScreen(status: StatusResponse): ScreenChoice {
     const runMode = status.run_mode;
-    if (runMode === "Shutdown") {
+    if (runMode.type === "shutdown") {
       return [AppScreen.Main, "Shutdown", null];
     }
     if (isPreparingSafeRunMode(runMode)) {
@@ -103,11 +103,12 @@ export function createScreenSelector(): (
       safeDeployStarted = true;
       return [AppScreen.Synchronization, "Safe deployment ongoing", null];
     }
-    if (isWarmupRunMode(runMode)) {
+    const warmup = warmupProgress(runMode);
+    if (warmup) {
       return [
         AppScreen.Synchronization,
-        formatWarmupStatus(runMode.Warmup.status),
-        runMode.Warmup.last_error,
+        formatWarmupStatus(warmup.stage),
+        warmup.last_error,
       ];
     }
     // Only a running daemon counts as reaching main, so a first warmup still syncs.

@@ -1,15 +1,16 @@
 {
   "run_mode": {
-    "Warmup": {
-      "status": "Initializing",
-      "last_error": null
-    }
+    "type": "warmup",
+    "stage": {
+      "type": "waiting_for_funds"
+    },
+    "last_error": null
   },
   "destinations": [],
-  "target_destination": null,
-  "connected": null,
-  "connecting": null,
-  "reconnecting": null,
+  "target": null,
+  "connection": {
+    "type": "disconnected"
+  },
   "disconnecting": [],
   "probe": null
 }

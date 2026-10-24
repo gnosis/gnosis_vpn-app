@@ -1,5 +1,5 @@
 {
-  "type": "WaitingToConnect",
+  "type": "waiting_to_connect",
   "destination": {
     "id": "test-exit",
     "meta": {
@@ -8,14 +8,18 @@
       "other": {}
     },
     "geo": {
-      "country_code": "DE",
-      "source": "announced_ip"
+      "country": "DE",
+      "source": {
+        "type": "announced_ip"
+      }
     },
     "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
-    "routing": 1,
+    "hops": 1,
     "gnosis_vpn_server": "172.30.0.1:8000",
     "wireguard_server": "172.30.0.1:51820",
-    "source": "Configured",
+    "source": {
+      "type": "configured"
+    },
     "overrides": {
       "configured_meta": {},
       "configured_gnosis_vpn_server": null,
@@ -23,6 +27,6 @@
     }
   },
   "route_health": {
-    "state": "Routable"
+    "type": "routable"
   }
 }

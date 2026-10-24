@@ -1,19 +1,17 @@
 {
   "run_mode": {
-    "Running": {
-      "funding_status": null,
-      "hopr_status": null,
-      "channel_maintenance": {
-        "type": "Ok"
-      }
+    "type": "running",
+    "hopr_status": null,
+    "funding_status": null,
+    "channel_maintenance": {
+      "type": "ok"
     }
   },
   "destinations": [],
-  "target_destination": "test-exit",
-  "connected": null,
-  "connecting": null,
-  "reconnecting": {
-    "destination_id": "test-exit",
+  "target": "test-exit",
+  "connection": {
+    "type": "reconnecting",
+    "destination": "test-exit",
     "since": 0,
     "phase": null
   },

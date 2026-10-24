@@ -1,5 +1,6 @@
 import type {
   BalanceResponse,
+  FundingLevel,
   FundingStatus,
 } from "@src/services/vpnService.ts";
 
@@ -13,8 +14,15 @@ function resolveFundingStatus(
   return balance?.funding_status ?? runModeStatus ?? null;
 }
 
-function toStatusText(level: FundingStatus["traffic"]): StatusText {
-  return level === "Good" ? "Sufficient" : level;
+function toStatusText(level: FundingLevel): StatusText {
+  switch (level) {
+    case "good":
+      return "Sufficient";
+    case "low":
+      return "Low";
+    case "empty":
+      return "Empty";
+  }
 }
 
 export function deriveTrafficStatus(
@@ -70,7 +78,7 @@ export function deriveRefillShortfall(
   return status.refill_shortfall;
 }
 
-const LEVEL_SEVERITY = { Empty: 2, Low: 1, Good: 0 } as const;
+const LEVEL_SEVERITY = { empty: 2, low: 1, good: 0 } as const;
 
 // Daemon only hands back the two pooled levels, so the message is per-resource.
 export function describeCriticalIssue(
@@ -83,9 +91,9 @@ export function describeCriticalIssue(
   const trafficIsWorse =
     LEVEL_SEVERITY[status.traffic] >= LEVEL_SEVERITY[status.gas];
   const worstLevel = trafficIsWorse ? status.traffic : status.gas;
-  if (worstLevel === "Good") return null;
+  if (worstLevel === "good") return null;
 
-  const urgency = worstLevel === "Empty" ? "empty" : "low";
+  const urgency = worstLevel;
   return trafficIsWorse
     ? `Traffic funds are ${urgency} — top up wxHOPR`
     : `Gas is ${urgency} — top up xDAI`;

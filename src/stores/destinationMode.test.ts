@@ -32,7 +32,7 @@ const SETTLE_MS = SWITCH_COUNTDOWN_MS + SWITCH_CROSSOVER_MS;
 const BASE_DESTINATION: Destination = makeDestination({
   id: "a",
   address: "0x1234",
-  geo: { country_code: "de", source: "announced_ip" },
+  geo: { country: "de", source: { type: "announced_ip" } },
 });
 
 /** Eligible; `relays` is distinct first relays, so a higher number ranks higher. */
@@ -63,9 +63,7 @@ function statusFor(
       d.destination
     ),
     destinations,
-    connected: null,
-    connecting: null,
-    reconnecting: null,
+    connection: { type: "disconnected" },
     probe: null,
   };
 }
@@ -76,7 +74,13 @@ function connectedTo(
 ): ModeAppState {
   return {
     ...statusFor(destinations),
-    connected: { destination_id: id, since: 0, tunnel_ping_rtt: null },
+    connection: {
+      type: "connected",
+      destination: id,
+      since: 0,
+      tunnel_ping_rtt: null,
+      stall: null,
+    },
   };
 }
 
@@ -86,7 +90,12 @@ function connectingTo(
 ): ModeAppState {
   return {
     ...statusFor(destinations),
-    connecting: { destination_id: id, since: 0, phase: "Init" },
+    connection: {
+      type: "connecting",
+      destination: id,
+      since: 0,
+      phase: "init",
+    },
   };
 }
 

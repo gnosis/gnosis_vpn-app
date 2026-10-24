@@ -1,19 +1,18 @@
 {
   "run_mode": {
-    "Running": {
-      "funding_status": null,
-      "hopr_status": null,
-      "channel_maintenance": {
-        "type": "Unavailable",
-        "since": 0
-      }
+    "type": "running",
+    "hopr_status": null,
+    "funding_status": null,
+    "channel_maintenance": {
+      "type": "unavailable",
+      "since": 0
     }
   },
   "destinations": [],
-  "target_destination": null,
-  "connected": null,
-  "connecting": null,
-  "reconnecting": null,
+  "target": null,
+  "connection": {
+    "type": "disconnected"
+  },
   "disconnecting": [],
   "probe": null
 }

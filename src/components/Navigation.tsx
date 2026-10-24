@@ -28,7 +28,7 @@ function Navigation() {
     if (!isRunningRunMode(appState.runMode)) return fundsEmptyIcon;
     const status = deriveOverallStatus(
       appState.balance,
-      appState.runMode.Running.funding_status,
+      appState.runMode.funding_status,
     );
     if (status === "Empty") return fundsEmptyIcon;
     if (status === "Low") return fundsOutIcon;
