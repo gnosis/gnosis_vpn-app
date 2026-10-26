@@ -53,6 +53,11 @@
       "rangeStrategy": "pin"
     },
     {
+      "description": "Only an unchanged Cargo.toml range gets cargo update --precise; a bumped range re-resolves past minimumReleaseAge",
+      "matchManagers": ["cargo"],
+      "rangeStrategy": "update-lockfile"
+    },
+    {
       "description": "Tauri npm packages and Rust crates must stay on the same minor, so bump them together",
       "matchPackageNames": [
         "@tauri-apps/**",
