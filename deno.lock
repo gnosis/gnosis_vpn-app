@@ -10,13 +10,8 @@
     "npm:dompurify@3.4.17": "3.4.17",
     "npm:eslint@10.12.0": "10.12.0",
     "npm:flag-icons@7.5.0": "7.5.0",
-<<<<<<< HEAD
-    "npm:marked@18.0.9": "18.0.9",
-    "npm:prettier@3.9.9": "3.9.9",
-=======
     "npm:marked@18.1.0": "18.1.0",
-    "npm:prettier@3.9.10": "3.9.10",
->>>>>>> 7f6190d (fix(deps): update npm packages (minor) (#611))
+    "npm:prettier@3.9.9": "3.9.9",
     "npm:qrcode@1.5.4": "1.5.4",
     "npm:solid-js@1.9.16": "1.9.16",
     "npm:tailwindcss@4.3.3": "4.3.3",
@@ -1661,13 +1656,8 @@
         "npm:dompurify@3.4.17",
         "npm:eslint@10.12.0",
         "npm:flag-icons@7.5.0",
-<<<<<<< HEAD
-        "npm:marked@18.0.9",
-        "npm:prettier@3.9.9",
-=======
         "npm:marked@18.1.0",
-        "npm:prettier@3.9.10",
->>>>>>> 7f6190d (fix(deps): update npm packages (minor) (#611))
+        "npm:prettier@3.9.9",
         "npm:qrcode@1.5.4",
         "npm:solid-js@1.9.16",
         "npm:tailwindcss@4.3.3",
