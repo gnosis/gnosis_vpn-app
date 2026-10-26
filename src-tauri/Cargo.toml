@@ -20,26 +20,26 @@ name = "gnosis_vpn_app_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2.6.3", features = [] }
+tauri-build = { version = "2.7.4", features = [] }
 
 [dependencies]
 gnosis_vpn-lib = { git = "https://github.com/gnosis/gnosis_vpn-client.git", branch = "main" }
-clap = { version = "4", features = ["derive", "env"] }
-liblzma = { version = "0.4.8", default-features = false, features = ["static"] }
+clap = { version = "4.6.7", features = ["derive", "env"] }
+liblzma = { version = "0.4.9", default-features = false, features = ["static"] }
 serde = { version = "1.0.229", features = ["derive"] }
-serde_json = "1.0.151"
-tauri = { version = "2.11.5", features = ["tray-icon", "image-png"] }
-tauri-plugin-single-instance = "2.4.3"
-tauri-plugin-opener = "2.5.4"
-tauri-plugin-dialog = "2.7.2"
+serde_json = "1.0.154"
+tauri = { version = "2.12.5", features = ["tray-icon", "image-png"] }
+tauri-plugin-single-instance = "2.5.4"
+tauri-plugin-opener = "2.7.2"
+tauri-plugin-dialog = "2.8.3"
 dark-light = "2.0"
-reqwest = { version = "0.13.4", features = ["json", "multipart"] }
+reqwest = { version = "0.13.5", features = ["json", "multipart"] }
 semver = "1.0.28"
-tokio = { version = "1.53.1", features = ["time", "rt", "sync", "process"] }
-tokio-util = { version = "0.7.19", features = ["rt"] }
-tracing = "0.1"
-tracing-appender = "0.2"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tokio = { version = "1.53.3", features = ["time", "rt", "sync", "process"] }
+tokio-util = { version = "0.7.20", features = ["rt"] }
+tracing = "0.1.44"
+tracing-appender = "0.2.5"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 url = "2.5.8"
 zstd = "0.13.3"
 
