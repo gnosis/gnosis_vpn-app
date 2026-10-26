@@ -22,7 +22,7 @@
     "flag-icons": "7.5.0",
     "marked": "18.0.9",
     "qrcode": "1.5.4",
-    "solid-js": "1.9.16",
+    "solid-js": "1.9.17",
     "tailwindcss": "4.3.3",
     "vite": "8.3.4",
     "zod": "4.6.7"
@@ -31,7 +31,7 @@
     "@tailwindcss/vite": "4.3.3",
     "@tauri-apps/cli": "2.11.4",
     "eslint": "10.8.1",
-    "prettier": "3.9.9",
+    "prettier": "3.9.10",
     "typescript": "6.0.3",
     "vite-plugin-solid": "2.11.14",
     "vitest": "4.1.11"
