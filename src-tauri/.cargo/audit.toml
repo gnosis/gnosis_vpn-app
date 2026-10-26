@@ -4,6 +4,7 @@
 ignore = [
   "RUSTSEC-2024-0388", # derivative: unmaintained - transitive from alloy ecosystem
   "RUSTSEC-2024-0436", # paste: unmaintained - transitive from alloy-sol-macro
+  "RUSTSEC-2026-0387", # crypto-bigint 0.5.5: timing variability - pinned by elliptic-curve 0.13 via alloy-signer; fixed in >=0.7.6 (0.7.x already updated)
   "RUSTSEC-2026-0118", # hickory-proto: NSEC3 unbounded loop - no fixed version; transitive via libp2p 0.56 → libp2p-mdns
   "RUSTSEC-2026-0119", # hickory-proto: name compression CPU exhaustion - fixed in >=0.26.1, blocked on libp2p
 ]
