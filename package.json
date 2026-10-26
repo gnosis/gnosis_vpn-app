@@ -1,6 +1,6 @@
 {
   "name": "gnosis-vpn-ui-app",
-  "version": "0.37.0",
+  "version": "0.37.1",
   "description": "UI component for Gnosis VPN",
   "type": "module",
   "scripts": {
@@ -14,26 +14,26 @@
   },
   "license": "MIT",
   "dependencies": {
+    "@tauri-apps/api": "2.11.1",
     "@tauri-apps/plugin-dialog": "2.7.3",
+    "@tauri-apps/plugin-opener": "2.5.5",
     "@types/qrcode": "1.5.6",
     "dompurify": "3.4.16",
     "flag-icons": "7.5.0",
+    "marked": "18.0.9",
     "qrcode": "1.5.4",
     "solid-js": "1.9.16",
-    "@tauri-apps/api": "2.11.1",
-    "@tauri-apps/plugin-opener": "2.5.5",
     "tailwindcss": "4.3.3",
-    "zod": "4.4.3",
-    "marked": "18.0.9"
+    "vite": "8.3.4",
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.3.3",
+    "@tauri-apps/cli": "2.11.4",
     "eslint": "10.8.1",
     "prettier": "3.9.9",
     "typescript": "6.0.3",
-    "vite": "8.2.2",
     "vite-plugin-solid": "2.11.14",
-    "@tauri-apps/cli": "2.11.4",
     "vitest": "4.1.11"
   },
   "overrides": {
