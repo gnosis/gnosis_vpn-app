@@ -6,6 +6,49 @@
       "description": "Stable line: everything off by default; vulnerabilityAlerts re-enables CVE fixes.",
       "matchPackageNames": ["*"],
       "enabled": false
+<<<<<<< HEAD
+=======
+    },
+    {
+      "matchManagers": ["cargo"],
+      "matchUpdateTypes": ["patch"],
+      "groupName": "rust crates (patch)"
+    },
+    {
+      "matchManagers": ["cargo"],
+      "matchUpdateTypes": ["minor"],
+      "groupName": "rust crates (minor)"
+    },
+    {
+      "matchManagers": ["npm", "deno"],
+      "matchUpdateTypes": ["patch"],
+      "groupName": "npm packages (patch)"
+    },
+    {
+      "matchManagers": ["npm", "deno"],
+      "matchUpdateTypes": ["minor"],
+      "groupName": "npm packages (minor)"
+    },
+    {
+      "description": "This is an app, not a library: exact versions keep in-range drift from bypassing minimumReleaseAge",
+      "matchManagers": ["npm", "deno"],
+      "rangeStrategy": "pin"
+    },
+    {
+      "description": "Only an unchanged Cargo.toml range gets cargo update --precise; a bumped range re-resolves past minimumReleaseAge",
+      "matchManagers": ["cargo"],
+      "rangeStrategy": "update-lockfile"
+    },
+    {
+      "description": "Tauri npm packages and Rust crates must stay on the same minor, so bump them together",
+      "matchPackageNames": [
+        "@tauri-apps/**",
+        "tauri",
+        "tauri-build",
+        "tauri-plugin-**"
+      ],
+      "groupName": "tauri"
+>>>>>>> 75b07ac (fix(renovate): update cargo lockfile precisely so crates respect minimumReleaseAge (#617))
     }
   ],
   "vulnerabilityAlerts": { "enabled": true, "minimumReleaseAge": null }
