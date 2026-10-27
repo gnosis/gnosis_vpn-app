@@ -105,6 +105,10 @@ describe("createScreenSelector", () => {
     expect(screenOf(status(WARMUP))).toBe(AppScreen.Synchronization);
   });
 
+  it("shows main for a worker owned by another user, like Shutdown", () => {
+    expect(screenOf(status("InUseByOtherUser"))).toBe(AppScreen.Main);
+  });
+
   it("syncs on the way to main while the safe is deploying", () => {
     expect(screenOf(status(DEPLOYING_SAFE))).toBe(AppScreen.Synchronization);
   });

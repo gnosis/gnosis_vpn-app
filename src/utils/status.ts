@@ -68,6 +68,8 @@ export function deriveVPNStatus(
   if ("Shutdown" === response.run_mode) return "ServiceUnavailable";
   if ("NotRunning" === response.run_mode) return "ServiceUnavailable";
   if ("Restarting" === response.run_mode) return "WorkerRestarting";
+  // A known state, not an outage: the service is fine, just somebody else's.
+  if ("InUseByOtherUser" === response.run_mode) return "InUseByOtherUser";
   if (isPreparingSafeRunMode(response.run_mode)) return "PreparingSafe";
   if (isDeployingSafeRunMode(response.run_mode)) return "DeployingSafe";
   if (isWarmupRunMode(response.run_mode)) {

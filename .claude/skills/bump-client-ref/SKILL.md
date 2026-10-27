@@ -5,13 +5,15 @@ description: Bump the pinned gnosis_vpn-client rev in src-tauri/Cargo.toml and f
 
 # Bump the gnosis_vpn-client ref
 
-`src-tauri/Cargo.toml` pins `gnosis_vpn-lib` to a commit of the sibling
-`gnosis_vpn-client` repo via a git `rev`. There is no automation for doing this
-locally (`renovate.json` explicitly disables auto-bumping this dependency —
-manual bumps are expected); `.github/workflows/bump-version.yaml` does the
-equivalent in CI, and is the ground truth for the exact commands below. This
-skill is the manual/local walkthrough, plus the failure modes that workflow
-doesn't have to handle interactively.
+`src-tauri/Cargo.toml` names the client line to follow
+(`gnosis_vpn-lib = { git = …, branch = "main" }`, see
+`docs/branch-strategy.md`); the exact commit is pinned by
+`src-tauri/Cargo.lock`. There is no automation for doing this locally
+(`renovate.json` explicitly disables auto-bumping this dependency — manual bumps
+are expected); `.github/workflows/bump-version.yaml` does the equivalent in CI,
+and is the ground truth for the exact commands below. This skill is the
+manual/local walkthrough, plus the failure modes that workflow doesn't have to
+handle interactively.
 
 ## 1. Find the target rev and diff the API
 
@@ -19,7 +21,7 @@ Find the sibling client checkout (usually `../gnosis_vpn-client` next to this
 repo) and the current pinned rev:
 
 ```bash
-grep gnosis_vpn-lib src-tauri/Cargo.toml   # current rev
+grep -A2 'name = "gnosis_vpn-lib"' src-tauri/Cargo.lock   # current rev (after the #)
 cd ../gnosis_vpn-client && git rev-parse HEAD   # target rev (or whatever ref you were asked to bump to)
 ```
 
@@ -55,26 +57,34 @@ shape), `settings.rs`, `icons.rs`, `platform/macos.rs`, `lib.rs`. Also check:
   `vpnService.ts` schemas (TypeScript will flag these with a clear "missing
   properties" error once the schema changes).
 
-## 3. Bump the rev and refresh the lockfile
+## 3. Move the lockfile pin
+
+`Cargo.toml` stays as it is (`branch = "main"` on `main`,
+`branch = "release/hoprdv4"` on the release line); only `Cargo.lock` moves. The
+rev must be reachable from that branch — for a client PR that is not merged yet,
+cargo still resolves it as long as the commit is pushed.
 
 ```bash
-# src-tauri/Cargo.toml
-gnosis_vpn-lib = { git = "https://github.com/gnosis/gnosis_vpn-client.git", rev = "<new-rev>" }
+cd src-tauri
+nix develop ..# --command cargo update -p gnosis_vpn-lib --precise <new-rev>
 ```
 
-Run the same commands CI uses:
+`cargo update -p gnosis_vpn-lib` without `--precise` floats every `branch` git
+dependency the lib pulls in, and so does `--precise` for the hoprnet crates
+(`branch = "master"`): compare the hoprnet and edge-client revs against the
+client's own lock at that commit and pin them back when they differ, otherwise
+the app builds against a different hoprnet than the daemon it talks to:
 
 ```bash
-nix develop --command cargo update -p gnosis_vpn-app --manifest-path src-tauri/Cargo.toml
-nix develop --command cargo update -p gnosis_vpn-lib --recursive --manifest-path src-tauri/Cargo.toml
+git -C ../../gnosis_vpn-client show <new-rev>:Cargo.lock | grep -o 'hoprnet?branch=master#[0-9a-f]*' | sort -u
+grep -o 'hoprnet?branch=master#[0-9a-f]*' Cargo.lock | sort -u
+nix develop ..# --command cargo update -p hopr-lib --precise <client's hoprnet sha>   # one --precise moves every crate of that git source
 ```
 
-The first call only refreshes the app's own lock entry. The second forces a real
-re-resolution of `gnosis_vpn-lib`'s entire dependency subtree — `--recursive` is
-what makes this reliable: a bare `cargo update -p gnosis_vpn-lib` (or
-`--workspace`, which doesn't touch `gnosis_vpn-lib` at all) leaves every other
-already-locked dependency alone, so when the new rev transitively needs a newer
-version of something shared (e.g. `tokio`) it can fail instead of bumping it:
+When the resolution fails because the new rev transitively needs a newer version
+of something shared (e.g. `tokio`), add `--recursive` — a bare
+`cargo update -p gnosis_vpn-lib` leaves every other already-locked dependency
+alone, so it can fail instead of bumping it:
 
 ```
 error: failed to select a version for `tokio`.
@@ -85,7 +95,7 @@ previously selected package `tokio v1.52.3` ... locked to 1.52.3
 
 `--recursive` avoids this by letting cargo freely re-resolve the whole subtree,
 which also prunes any now-orphaned entries (e.g. a stale `base64` version)
-instead of leaving them behind.
+instead of leaving them behind. Re-check the hoprnet pin afterwards.
 
 Expect a _large_ lockfile diff when the client pulls in hoprnet/edge-client
 bumps (dozens of transitive crates) — that's normal, not a mistake. Don't try to

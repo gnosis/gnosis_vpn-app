@@ -23,7 +23,12 @@
           "best_relays": [
             "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa"
           ],
-          "best_value": 0.75
+          "best_value": 0.75,
+          "return_count": 2,
+          "return_best_relays": [
+            "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa"
+          ],
+          "return_best_value": 0.5
         },
         "quick_probe": {
           "state": "Checked",
@@ -72,7 +77,10 @@
           "count": 1,
           "distinct_first_relays": 0,
           "best_relays": [],
-          "best_value": 1.0
+          "best_value": 1.0,
+          "return_count": 1,
+          "return_best_relays": [],
+          "return_best_value": 1.0
         },
         "quick_probe": {
           "state": "Checking",
@@ -97,7 +105,9 @@
         "last_error": "walk timed out",
         "walk": {
           "found": "NoPath",
-          "walked_at": 0
+          "walked_at": 0,
+          "forward_count": 0,
+          "return_count": 0
         },
         "quick_probe": null
       }
@@ -171,7 +181,12 @@
           "best_relays": [
             "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa"
           ],
-          "best_value": 0.75
+          "best_value": 0.75,
+          "return_count": 2,
+          "return_best_relays": [
+            "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa"
+          ],
+          "return_best_value": 0.5
         },
         "quick_probe": {
           "state": "Failed",
@@ -207,7 +222,12 @@
           "best_relays": [
             "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa"
           ],
-          "best_value": 0.75
+          "best_value": 0.75,
+          "return_count": 2,
+          "return_best_relays": [
+            "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa"
+          ],
+          "return_best_value": 0.5
         },
         "quick_probe": null
       }
@@ -245,7 +265,12 @@
           "best_relays": [
             "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa"
           ],
-          "best_value": 0.75
+          "best_value": 0.75,
+          "return_count": 2,
+          "return_best_relays": [
+            "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa"
+          ],
+          "return_best_value": 0.5
         },
         "quick_probe": {
           "state": "Checking",
