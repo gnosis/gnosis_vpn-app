@@ -22,7 +22,6 @@ import {
 } from "../../utils/funding.ts";
 import {
   formatXdai,
-  humanWxhopr,
   humanWxhoprParts,
   humanXdai,
   wxhoprDecimal,
@@ -166,29 +165,20 @@ export default function Usage() {
                     // and would wrongly hide the hint.
 
 
-                      <>
-                        <Show
-                          when={effectiveCredit() !== null &&
-                            isRunningRunMode(appState.runMode)}
+                      <Show
+                        when={effectiveCredit() !== null &&
+                          isRunningRunMode(appState.runMode)}
+                      >
+                        <span
+                          class={`text-xs font-normal ${
+                            trafficStatus() === "Empty"
+                              ? "text-vpn-red"
+                              : "text-text-secondary"
+                          }`}
                         >
-                          <span
-                            class={`text-xs font-normal ${
-                              trafficStatus() === "Empty"
-                                ? "text-vpn-red"
-                                : "text-text-secondary"
-                            }`}
-                          >
-                            ≈{formatCredit(effectiveCredit()!)}
-                          </span>
-                        </Show>
-                        <Show when={refillShortfall()}>
-                          {(shortfall) => (
-                            <span class="text-xs font-normal text-text-secondary">
-                              top up ≥ {humanWxhopr(shortfall(), "ceil")}
-                            </span>
-                          )}
-                        </Show>
-                      </>
+                          ≈{formatCredit(effectiveCredit()!)}
+                        </span>
+                      </Show>
 
                   }
                 />
