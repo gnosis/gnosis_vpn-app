@@ -30,6 +30,7 @@ pub const APP_ICON_DISCONNECTED: &str = "app-icon-disconnected.png";
 pub const APP_ICON_DISCONNECTED_LOW_FUNDS: &str = "app-icon-disconnected-low-funds.png";
 pub const APP_ICON_DISCONNECTED_OUT_OF_FUNDS: &str = "app-icon-disconnected-out-of-funds.png";
 pub const APP_ICON_IN_USE: &str = "app-icon-in-use.png";
+pub const APP_ICON_SERVICE_DOWN: &str = "app-icon-service-down.png";
 
 // Tray icon constants (macOS/Windows, macOS renders them alpha-only via template mode)
 pub const TRAY_ICON_CONNECTED: &str = "tray-icons/tray-icon-connected.png";
@@ -57,6 +58,7 @@ pub const TRAY_ICON_DISCONNECTED_LOW_FUNDS: &str =
 pub const TRAY_ICON_DISCONNECTED_OUT_OF_FUNDS: &str =
     "tray-icons/tray-icon-disconnected-out-of-funds.png";
 pub const TRAY_ICON_IN_USE: &str = "tray-icons/tray-icon-in-use.png";
+pub const TRAY_ICON_SERVICE_DOWN: &str = "tray-icons/tray-icon-service-down.png";
 
 // Linux tray icon constants (theme-independent, full-color app icon design
 // with a circular rather than square backdrop, so it reads as a badge next
@@ -86,6 +88,7 @@ pub const TRAY_ICON_LINUX_DISCONNECTED_LOW_FUNDS: &str =
 pub const TRAY_ICON_LINUX_DISCONNECTED_OUT_OF_FUNDS: &str =
     "tray-icons/linux/disconnected-out-of-funds.png";
 pub const TRAY_ICON_LINUX_IN_USE: &str = "tray-icons/linux/in-use.png";
+pub const TRAY_ICON_LINUX_SERVICE_DOWN: &str = "tray-icons/linux/service-down.png";
 
 // State to hold a reference to the tray icon so we can update it
 pub struct TrayIconState {
@@ -350,8 +353,9 @@ pub fn determine_app_icon(connection_state: &ConnectionState, level: FundsLevel)
             FundsLevel::Low => APP_ICON_DISCONNECTED_LOW_FUNDS,
             FundsLevel::Empty => APP_ICON_DISCONNECTED_OUT_OF_FUNDS,
         },
-        // No funds variants: the non-owner sees no balance at all.
+        // No funds variants: neither a non-owner nor a stopped service has a balance to show.
         ConnectionState::InUseByOtherUser => APP_ICON_IN_USE,
+        ConnectionState::ServiceNotRunning => APP_ICON_SERVICE_DOWN,
     };
     icon.to_string()
 }
@@ -378,6 +382,7 @@ pub fn determine_tray_icon(connection_state: &ConnectionState, level: FundsLevel
                 FundsLevel::Empty => TRAY_ICON_LINUX_DISCONNECTED_OUT_OF_FUNDS,
             },
             ConnectionState::InUseByOtherUser => TRAY_ICON_LINUX_IN_USE,
+            ConnectionState::ServiceNotRunning => TRAY_ICON_LINUX_SERVICE_DOWN,
         }
     } else {
         match connection_state {
@@ -400,6 +405,7 @@ pub fn determine_tray_icon(connection_state: &ConnectionState, level: FundsLevel
                 FundsLevel::Empty => TRAY_ICON_DISCONNECTED_OUT_OF_FUNDS,
             },
             ConnectionState::InUseByOtherUser => TRAY_ICON_IN_USE,
+            ConnectionState::ServiceNotRunning => TRAY_ICON_SERVICE_DOWN,
         }
     }
 }
@@ -668,11 +674,15 @@ mod tests {
             APP_ICON_DISCONNECTED_OUT_OF_FUNDS
         );
 
-        // the funds level is meaningless to a non-owner, one icon covers all three
+        // the funds level is meaningless to a non-owner or without a service, one icon covers all three
         for level in [sufficient, low, empty] {
             assert_eq!(
                 determine_app_icon(&ConnectionState::InUseByOtherUser, level),
                 APP_ICON_IN_USE
+            );
+            assert_eq!(
+                determine_app_icon(&ConnectionState::ServiceNotRunning, level),
+                APP_ICON_SERVICE_DOWN
             );
         }
     }
@@ -731,6 +741,11 @@ mod tests {
                 FundsLevel::Empty,
                 "in-use.png",
             ),
+            (
+                ConnectionState::ServiceNotRunning,
+                FundsLevel::Low,
+                "service-down.png",
+            ),
         ];
         for (conn, level, expected_suffix) in cases {
             let icon = determine_tray_icon(&conn, level);
@@ -752,6 +767,7 @@ mod tests {
         assert!(!is_animating_state(&stalled()));
         assert!(!is_animating_state(&ConnectionState::Disconnected));
         assert!(!is_animating_state(&ConnectionState::InUseByOtherUser));
+        assert!(!is_animating_state(&ConnectionState::ServiceNotRunning));
     }
 
     #[test]

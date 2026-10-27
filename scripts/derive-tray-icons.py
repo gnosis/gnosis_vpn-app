@@ -1,5 +1,5 @@
-# Derives the stalled app icons from the connected ones and the in-use icon
-# from the disconnected one, then the tray SVGs from the app icon SVGs: a
+# Derives the stalled app icons from the connected ones and the in-use and
+# service-down icons from the disconnected one, then the tray SVGs from the app icon SVGs: a
 # transparent-background set for macOS/Windows, and a full-color set with a
 # circular (rather than square) backdrop for Linux.
 # Run after changing an app icon SVG, then run generate-icons.sh and commit
@@ -32,6 +32,7 @@ MAPPING = {
     "tray-icon-connected-stalled-low-funds": "app-icon-connected-stalled-low-funds",
     "tray-icon-connected-stalled-out-of-funds": "app-icon-connected-stalled-out-of-funds",
     "tray-icon-in-use": "app-icon-in-use",
+    "tray-icon-service-down": "app-icon-service-down",
 }
 
 # The connected badge: one solid green dot, drawn twice (fill + stroke).
@@ -56,14 +57,20 @@ for suffix in ("", "-low-funds", "-out-of-funds"):
     lines = (APP / f"app-icon-connected{suffix}.svg").read_text().rstrip("\n").split("\n")
     (APP / f"app-icon-connected-stalled{suffix}.svg").write_text("\n".join(derive_stalled(lines)) + "\n")
 
-# Padlock on the disconnected owl (shape, not colour: macOS template mode); wallet-pill backdrop so the transforms below treat it as a badge, paths because circularize() would round a <rect>.
+# Badges on the disconnected owl differ in shape, not colour (macOS template mode); wallet-pill backdrop so the transforms below treat them as badges, paths because circularize() would round a <rect>.
+PILL = '<path d="M190 180C190 187.732 183.732 194 176 194L133.612 194C125.88 194 119.612 187.732 119.612 180L119.612 151C119.612 143.268 125.88 137 133.612 137L176 137C183.732 137 190 143.268 190 151L190 180Z" fill="black"/>'
 IN_USE_BADGE = [
-    '<path d="M190 180C190 187.732 183.732 194 176 194L133.612 194C125.88 194 119.612 187.732 119.612 180L119.612 151C119.612 143.268 125.88 137 133.612 137L176 137C183.732 137 190 143.268 190 151L190 180Z" fill="black"/>',
-    '<path d="M146 164V156A9 9 0 0 1 164 156V164" stroke="white" stroke-width="5" stroke-linecap="round" fill="none"/>',
-    '<path fill-rule="evenodd" d="M143 163H167A4 4 0 0 1 171 167V181A4 4 0 0 1 167 185H143A4 4 0 0 1 139 181V167A4 4 0 0 1 143 163ZM155 170.5A3.5 3.5 0 0 0 151.5 174A3.5 3.5 0 0 0 158.5 174A3.5 3.5 0 0 0 155 170.5Z" fill="white"/>',
+    PILL,
+    '<path d="M155 152.5A13 13 0 1 1 155 178.5A13 13 0 1 1 155 152.5Z" stroke="white" stroke-width="5" stroke-linecap="round" fill="none"/>',
+    '<path d="M145.8 174.7L164.2 156.3" stroke="white" stroke-width="5" stroke-linecap="round" fill="none"/>',
+]
+SERVICE_DOWN_BADGE = [
+    PILL,
+    '<path d="M145 155.5L165 175.5M165 155.5L145 175.5" stroke="white" stroke-width="6.5" stroke-linecap="round" fill="none"/>',
 ]
 lines = (APP / "app-icon-disconnected.svg").read_text().rstrip("\n").split("\n")
 (APP / "app-icon-in-use.svg").write_text("\n".join([*lines[:-1], *IN_USE_BADGE, lines[-1]]) + "\n")
+(APP / "app-icon-service-down.svg").write_text("\n".join([*lines[:-1], *SERVICE_DOWN_BADGE, lines[-1]]) + "\n")
 
 # Black-filled backdrop shapes (badge circle / wallet pill) start with M19x;
 # the warning triangle's exclamation mark starts with M101.736. On the black

@@ -49,6 +49,8 @@ pub enum ConnectionState {
     Disconnecting,
     Disconnected,
     InUseByOtherUser,
+    /// App-only: the daemon's socket is absent, so there is no status to derive a state from.
+    ServiceNotRunning,
 }
 
 // Mirrors balance::BalanceRecommendation but serializes amounts as raw hopli
@@ -367,6 +369,7 @@ impl Display for ConnectionState {
             ConnectionState::Disconnecting => write!(f, "Disconnecting"),
             ConnectionState::Disconnected => write!(f, "Disconnected"),
             ConnectionState::InUseByOtherUser => write!(f, "In use by another user"),
+            ConnectionState::ServiceNotRunning => write!(f, "Service not running"),
         }
     }
 }
