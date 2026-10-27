@@ -14,7 +14,6 @@ import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import {
   getExitData,
   isSelectable,
-  isWeakRoute,
   rankContext,
 } from "@src/utils/destinations.ts";
 import {
@@ -118,8 +117,6 @@ export default function ExitHealthDetail(
   const isGoodState = () =>
     isConnected() || isActionInFlight() ||
     isSelectable(props.destinationState, rankContext(appState));
-  const isWeak = () =>
-    isWeakRoute(props.destinationState, rankContext(appState));
 
   // Own clock: this panel mounts separately from ExitNodeList.
   const [nowSec, setNowSec] = createSignal(Date.now() / 1000);
@@ -264,18 +261,7 @@ export default function ExitHealthDetail(
                     />
                     {hopsTag()}
                   </div>
-                  {/* Disconnected, a weak route shows its verdict where the status sits. */}
-                  <Show
-                    when={connectionStatus() !== "Disconnected"}
-                    fallback={
-                      <Tag
-                        value={isWeak() ? status() : null}
-                        class={`self-center ${
-                          statusColorClass[color()]
-                        } bg-bg-primary`}
-                      />
-                    }
-                  >
+                  <Show when={connectionStatus() !== "Disconnected"}>
                     <span class={`self-center ${connectionStatusClass()}`}>
                       {/* visible "Status" label was dropped by design; keep it for screen readers */}
                       <span class="sr-only">Connection status:</span>
