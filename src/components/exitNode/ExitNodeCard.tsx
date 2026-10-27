@@ -32,7 +32,6 @@ import SlotLoadStat from "./SlotLoadStat.tsx";
 import Stat from "./Stat.tsx";
 import Tag from "../common/Tag.tsx";
 import SignalBars from "./SignalBars.tsx";
-import WeakRouteTag from "./WeakRouteTag.tsx";
 import Flag from "../Flag.tsx";
 
 export default function ExitNodeCard(props: {
@@ -162,9 +161,6 @@ export default function ExitNodeCard(props: {
             </span>
           </span>
           <span class="flex shrink-0 items-center gap-1.5">
-            <Show when={isWeak()}>
-              <WeakRouteTag />
-            </Show>
             <SignalBars grade={grade()} />
             <Show when={route() && hopCount() !== 1}>
               <Tag>
