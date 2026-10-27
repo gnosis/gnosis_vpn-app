@@ -93,7 +93,7 @@
           ? "sudo launchctl bootstrap system /Library/LaunchDaemons/com.gnosisvpn.gnosisvpnclient.plist"
           : "sudo systemctl start gnosisvpn",
         migration_pending: false,
-        migrate_commands: [],
+        migrate_commands: null,
         can_start_from_app: macos,
         ...(fixture.serviceNotRunningInfo ?? {}),
       };

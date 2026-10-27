@@ -43,7 +43,7 @@ export default function ServiceNotRunning() {
               </For>
             </ul>
             <Show
-              when={details().migration_pending}
+              when={details().migrate_commands}
               fallback={
                 <>
                   <Show when={details().can_start_from_app}>
@@ -72,19 +72,45 @@ export default function ServiceNotRunning() {
                 </>
               }
             >
-              {/* No Start button: starting now would mint a fresh identity and turn the retry into a conflict. */}
-              <p class="text-sm text-text-secondary">
-                The previous identity has not been migrated yet. Pick one of
-                these in a terminal, then start the service:
-              </p>
-              <CopyBlock
-                text={details().migrate_commands.join("\n")}
-                label="migration commands"
-              />
-              <CopyBlock
-                text={details().start_command}
-                label="start command"
-              />
+              {(commands) => (
+                <>
+                  {/* No Start button: starting now would mint a fresh identity and turn the retry into a conflict. */}
+                  <p class="text-sm text-text-secondary">
+                    The previous identity has not been migrated yet. Run one of
+                    these in a terminal.
+                  </p>
+                  <p class="text-sm text-text-secondary">
+                    Migrate the previous identity (recommended):
+                  </p>
+                  <CopyBlock
+                    text={commands().identity}
+                    label="identity migration command"
+                  />
+                  <p class="text-sm text-text-secondary">
+                    Or set the previous identity aside and start with a new one:
+                  </p>
+                  <CopyBlock
+                    text={commands().start_clean}
+                    label="start-clean command"
+                  />
+                  <p class="text-sm text-text-secondary">
+                    Stuck? Send the migration log to support. This only shares
+                    diagnostics and fixes nothing:
+                  </p>
+                  <CopyBlock
+                    text={commands().upload_log}
+                    label="upload log command"
+                  />
+                  <p class="text-sm text-text-secondary">
+                    Start the service only after the migration succeeded or you
+                    chose a new identity:
+                  </p>
+                  <CopyBlock
+                    text={details().start_command}
+                    label="start command"
+                  />
+                </>
+              )}
             </Show>
           </>
         )}

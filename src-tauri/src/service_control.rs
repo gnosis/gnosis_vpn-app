@@ -41,35 +41,39 @@ pub struct ServiceNotRunningInfo {
     /// Starting now would mint a fresh identity and turn a migration retry into a conflict.
     pub migration_pending: bool,
     /// The installer's three ways forward, only while the migration is pending.
-    pub migrate_commands: Vec<String>,
+    pub migrate_commands: Option<MigrateCommands>,
     /// macOS only, and never while the migration is pending.
     pub can_start_from_app: bool,
+}
+
+/// Separate fields so each gets its own copy button; pasting them together would run start-clean after a good migration.
+#[derive(Clone, Debug, Serialize)]
+pub struct MigrateCommands {
+    pub identity: String,
+    pub upload_log: String,
+    pub start_clean: String,
 }
 
 fn migration_pending() -> bool {
     Path::new(LEGACY_CONFIG_DIR).is_dir()
 }
 
-fn migrate_commands() -> Vec<String> {
+fn migrate_commands() -> MigrateCommands {
     let user = std::env::var("USER")
         .ok()
         .filter(|u| !u.is_empty())
         .unwrap_or_else(|| "<your username>".to_string());
-    vec![
-        format!("sudo gnosis_vpn-migrate identity --user {user}"),
-        "sudo gnosis_vpn-migrate upload-log".to_string(),
-        format!("sudo gnosis_vpn-migrate start-clean --user {user}"),
-    ]
+    MigrateCommands {
+        identity: format!("sudo gnosis_vpn-migrate identity --user {user}"),
+        upload_log: "sudo gnosis_vpn-migrate upload-log".to_string(),
+        start_clean: format!("sudo gnosis_vpn-migrate start-clean --user {user}"),
+    }
 }
 
 #[tauri::command]
 pub fn get_service_not_running_info() -> ServiceNotRunningInfo {
     let migration_pending = migration_pending();
-    let migrate_commands = if migration_pending {
-        migrate_commands()
-    } else {
-        Vec::new()
-    };
+    let migrate_commands = migration_pending.then(migrate_commands);
     ServiceNotRunningInfo {
         platform: std::env::consts::OS,
         migrate_log_paths: MIGRATE_LOG_PATHS.to_vec(),
@@ -127,7 +131,7 @@ mod tests {
         assert!(info.start_command.starts_with("sudo "));
         // Nobody runs the tests on a host with the legacy dir, so the button side is deterministic.
         assert!(!info.migration_pending);
-        assert!(info.migrate_commands.is_empty());
+        assert!(info.migrate_commands.is_none());
         assert_eq!(info.can_start_from_app, cfg!(target_os = "macos"));
     }
 
@@ -135,11 +139,14 @@ mod tests {
     fn migrate_commands_carry_the_current_user() {
         let user = std::env::var("USER").unwrap_or_default();
         let commands = migrate_commands();
-        assert_eq!(commands.len(), 3);
-        assert!(commands[0].starts_with("sudo gnosis_vpn-migrate identity --user "));
-        assert_eq!(commands[1], "sudo gnosis_vpn-migrate upload-log");
+        assert!(
+            commands
+                .identity
+                .starts_with("sudo gnosis_vpn-migrate identity --user ")
+        );
+        assert_eq!(commands.upload_log, "sudo gnosis_vpn-migrate upload-log");
         if !user.is_empty() {
-            assert!(commands[2].ends_with(&user));
+            assert!(commands.start_clean.ends_with(&user));
         }
     }
 }
