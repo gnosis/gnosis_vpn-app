@@ -114,7 +114,7 @@ source:
   `eval "__GVPN_FIRE_EVENT__('status', __GVPN_FIXTURE__.states.serviceNotRunning)" wait 1500 shot /tmp/snr.png`.
 - `serviceNotRunningInfo` — overrides for what `get_service_not_running_info`
   answers (defaults follow `platform`): e.g.
-  `{ "migration_pending": true, "migrate_commands": { "identity": "sudo gnosis_vpn-migrate identity --user alice", "upload_log": "...", "start_clean": "..." } }`
+  `{ "migration_pending": true, "migrate_commands": { "has_own_identity": false, "identity": "sudo gnosis_vpn-migrate identity --user alice", "upload_log": "...", "start_clean": "..." } }`
   shows the three migration commands and no Start button; `"platform": "macos"`
   alone shows the _Start service_ button. `startServiceError` makes that button
   fail with the given text.
