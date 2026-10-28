@@ -101,6 +101,11 @@ export default function Usage() {
             Service unavailable
           </Banner>
         </Match>
+        <Match when={appState.vpnStatus === "InUseByOtherUser"}>
+          <Banner variant="warning" icon={<WarningIcon filled />}>
+            In use by another user on this computer
+          </Banner>
+        </Match>
         <Match when={appState.vpnStatus === "DeployingSafe"}>
           <Banner variant="warning" icon={<WarningIcon filled />}>
             Preparing service

@@ -1,0 +1,10 @@
+{
+  "run_mode": "InUseByOtherUser",
+  "destinations": [],
+  "target_destination": null,
+  "connected": null,
+  "connecting": null,
+  "reconnecting": null,
+  "disconnecting": [],
+  "probe": null
+}

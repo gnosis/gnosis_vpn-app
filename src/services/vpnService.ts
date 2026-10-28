@@ -172,7 +172,13 @@ export type RouteHealthState = z.infer<typeof RouteHealthStateSchema>;
 // What the last graph walk found for this exit.
 export const RouteWalkSchema = z.discriminatedUnion("found", [
   z.object({ found: z.literal("NotAnnounced"), walked_at: z.number() }),
-  z.object({ found: z.literal("NoPath"), walked_at: z.number() }),
+  // No path survived in at least one direction; the counts say which leg came up empty.
+  z.object({
+    found: z.literal("NoPath"),
+    walked_at: z.number(),
+    forward_count: z.number(),
+    return_count: z.number(),
+  }),
   z.object({
     found: z.literal("Paths"),
     walked_at: z.number(),
@@ -181,6 +187,10 @@ export const RouteWalkSchema = z.discriminatedUnion("found", [
     best_relays: z.array(z.string()),
     // In (0, 1]; higher is better.
     best_value: z.number(),
+    // The exit -> me leg, same shape.
+    return_count: z.number(),
+    return_best_relays: z.array(z.string()),
+    return_best_value: z.number(),
   }),
 ]);
 export type RouteWalk = z.infer<typeof RouteWalkSchema>;
@@ -454,6 +464,8 @@ export const RunModeSchema = z.union([
   z.literal("Shutdown"),
   z.literal("Restarting"),
   z.literal("NotRunning"),
+  // App-synthesised: another local user owns the worker; the daemon never sends it as a run mode.
+  z.literal("InUseByOtherUser"),
 ]);
 export type RunMode = z.infer<typeof RunModeSchema>;
 
@@ -491,8 +503,28 @@ export const ServiceInfoSchema = z.object({
   version: z.string(),
   package_version: z.string().nullable(),
   log_file: z.string().nullable(),
+  // Null for a non-owner: the daemon keeps another user's home path to itself.
+  worker_log_dir: z.string().nullable(),
 });
 export type ServiceInfo = z.infer<typeof ServiceInfoSchema>;
+
+/** Status `Err` payload for a missing daemon socket; mirrors SERVICE_NOT_RUNNING_ERROR in commands.rs. */
+export const SERVICE_NOT_RUNNING_ERROR = "service_not_running";
+
+export const ServiceNotRunningInfoSchema = z.object({
+  platform: z.string(),
+  migrate_log_paths: z.array(z.string()),
+  start_command: z.string(),
+  migration_pending: z.boolean(),
+  migrate_commands: z.object({
+    has_own_identity: z.boolean(),
+    identity: z.string(),
+    upload_log: z.string(),
+    start_clean: z.string(),
+  }).nullable(),
+  can_start_from_app: z.boolean(),
+});
+export type ServiceNotRunningInfo = z.infer<typeof ServiceNotRunningInfoSchema>;
 
 // ==========================================
 // Helper Functions
@@ -622,6 +654,26 @@ export class VPNService {
       }
       throw new Error(`Probe error: ${error}`);
     }
+  }
+
+  /** What the "service not running" screen shows: OS-specific paths, commands and whether a button can start it. */
+  static async serviceNotRunningInfo(): Promise<ServiceNotRunningInfo> {
+    let rawRes;
+    try {
+      rawRes = await invoke("get_service_not_running_info");
+      return ServiceNotRunningInfoSchema.parse(rawRes);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        console.error("Issues with ServiceNotRunningInfoSchema", rawRes);
+        VPNService.logZodIssues("service not running info", error);
+      }
+      throw new Error(`Service info error: ${error}`);
+    }
+  }
+
+  /** macOS only: `sudo -n launchctl bootstrap` through the installer's sudoers rule; rejects with the reason. */
+  static async startService(): Promise<void> {
+    await invoke("start_service");
   }
 
   /** One-shot check of `id`; the daemon answers at once and reports the result under the destination. */

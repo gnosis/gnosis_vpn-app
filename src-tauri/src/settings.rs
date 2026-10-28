@@ -8,8 +8,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard};
 
 /// App settings owned by the Rust layer and mirrored by the webviews.
-/// Persisted as a flat JSON object in `app_data_dir/settings.json` —
-/// the same path and format previously written via tauri-plugin-store.
+/// Persisted as a flat JSON object in `app_config_dir/settings.json`.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Settings {

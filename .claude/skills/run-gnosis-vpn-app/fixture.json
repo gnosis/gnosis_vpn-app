@@ -46,7 +46,12 @@
                 "best_relays": [
                   "0x1111111111111111111111111111111111111111"
                 ],
-                "best_value": 1.0
+                "best_value": 1.0,
+                "return_count": 3,
+                "return_best_relays": [
+                  "0x1111111111111111111111111111111111111111"
+                ],
+                "return_best_value": 1.0
               },
               "quick_probe": null
             }
@@ -79,7 +84,12 @@
                 "best_relays": [
                   "0x1111111111111111111111111111111111111111"
                 ],
-                "best_value": 0.42
+                "best_value": 0.42,
+                "return_count": 2,
+                "return_best_relays": [
+                  "0x1111111111111111111111111111111111111111"
+                ],
+                "return_best_value": 0.42
               },
               "quick_probe": null
             }
@@ -117,9 +127,25 @@
     "service_info": {
       "version": "0.0.0-fixture",
       "package_version": "0.78.0",
-      "log_file": null
+      "log_file": null,
+      "worker_log_dir": "/home/user/.local/state/gnosisvpn"
     }
   },
   "toolkitVersion": "0.4.0",
-  "packageVersion": "0.78.0"
+  "packageVersion": "0.78.0",
+  "states": {
+    "inUseByOtherUser": {
+      "Ok": {
+        "run_mode": "InUseByOtherUser",
+        "destinations": [],
+        "target_destination": null,
+        "connected": null,
+        "connecting": null,
+        "reconnecting": null,
+        "disconnecting": [],
+        "probe": null
+      }
+    },
+    "serviceNotRunning": { "Err": "service_not_running" }
+  }
 }

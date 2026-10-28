@@ -105,6 +105,19 @@ source:
   screenshots matters (mount time varies seconds between runs). Stash payloads
   in a custom fixture key (unknown keys are ignored) and fire them:
   `eval "__GVPN_FIRE_EVENT__('status', __GVPN_FIXTURE__.myStates.connected)"`.
+- `states` — ready-made `status` payloads for `__GVPN_FIRE_EVENT__`:
+  `inUseByOtherUser` (another local user owns the worker: no controls, banner,
+  tray text) and `serviceNotRunning` (the `{Err: "service_not_running"}` tag the
+  init loop emits while the daemon socket is absent, which renders the
+  ServiceNotRunning screen). Fire one after mount, then `wait 1500` for the
+  screen throttle:
+  `eval "__GVPN_FIRE_EVENT__('status', __GVPN_FIXTURE__.states.serviceNotRunning)" wait 1500 shot /tmp/snr.png`.
+- `serviceNotRunningInfo` — overrides for what `get_service_not_running_info`
+  answers (defaults follow `platform`): e.g.
+  `{ "migration_pending": true, "migrate_commands": { "has_own_identity": false, "identity": "sudo gnosis_vpn-migrate identity --user alice", "upload_log": "...", "start_clean": "..." } }`
+  shows the three migration commands and no Start button; `"platform": "macos"`
+  alone shows the _Start service_ button. `startServiceError` makes that button
+  fail with the given text.
 - Opened links: the shim records every `openUrl` target in
   `globalThis.__GVPN_OPENED_URLS__` instead of opening it, so an `eval` step can
   assert where a button points, e.g. `eval "__GVPN_OPENED_URLS__"`.
