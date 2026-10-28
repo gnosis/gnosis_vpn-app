@@ -66,7 +66,7 @@ fn migration_pending() -> bool {
 
 fn own_data_dir() -> Option<PathBuf> {
     let home = std::env::home_dir()?;
-    Some(gnosis_vpn_lib::dirs::user_dirs(&home, None).data)
+    Some(gnosis_vpn_lib::dirs::user_dirs(&home).data)
 }
 
 fn has_own_identity(data_dir: &Path) -> bool {
