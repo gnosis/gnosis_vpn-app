@@ -8,7 +8,8 @@ export default function Start(
   const [appState] = useAppStore();
 
   const isServiceUnavailable = () =>
-    appState.vpnStatus === "ServiceUnavailable";
+    appState.vpnStatus === "ServiceUnavailable" ||
+    appState.vpnStatus === "InUseByOtherUser";
 
   return (
     <div class="relative h-full w-full flex flex-col items-center p-6">

@@ -32,6 +32,15 @@ the target branch: `experimental_build` from `main`, `snapshot_build` from
 `0.100.0` boundary, so each line only ever picks up components from its own side
 of the gap.
 
+## Release order with the client
+
+The Rust side matches on the lib's `Response` enum and serde rejects variants it
+does not know, so a client that answers with a new variant breaks an older app
+at the first poll. Whenever a client change adds a `Response` variant, the app
+release that carries the matching lib pin must reach users **before** that
+client release, on each line: land it on `main` first and hold the backport PR
+until `release/hoprdv4` carries the matching client.
+
 ## Backports
 
 Label a merged `main` PR `backport release/hoprdv4`;

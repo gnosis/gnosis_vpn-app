@@ -106,9 +106,9 @@ jobs:
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libmnl-dev libnftnl-dev
       - name: Install frontend dependencies
         run: deno install
-      - name: Verify fixture freshness
+      - name: Verify fixtures and bundled icons
         run: |
-          cargo test --release --manifest-path src-tauri/Cargo.toml --test serialize_fixtures
+          cargo test --release --manifest-path src-tauri/Cargo.toml --test serialize_fixtures --test bundled_icons
           git diff --exit-code src/services/fixtures/
       - name: Import Apple Developer Certificate
         if: ${{ endsWith(inputs.architecture, '-darwin') }}

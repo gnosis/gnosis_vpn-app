@@ -313,6 +313,12 @@ function routeHealth(state: RouteHealthView["state"]): RouteHealthView {
 }
 
 describe("deriveVPNStatus", () => {
+  it("reports InUseByOtherUser as its own state, not an outage", () => {
+    expect(deriveVPNStatus({ ...BASE, run_mode: "InUseByOtherUser" })).toBe(
+      "InUseByOtherUser",
+    );
+  });
+
   it("reports Reconnecting when a target is kept with nothing in flight", () => {
     expect(
       deriveVPNStatus({
