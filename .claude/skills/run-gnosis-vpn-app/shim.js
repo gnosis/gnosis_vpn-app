@@ -85,10 +85,7 @@
         platform,
         migrate_log_paths: macos
           ? ["/Library/Logs/GnosisVPN/installer/migrate.log"]
-          : [
-            "/var/log/gnosisvpn/migrate.log",
-            "/var/lib/gnosisvpn/migrate.log",
-          ],
+          : ["/var/log/gnosisvpn/migrate.log"],
         start_command: macos
           ? "sudo launchctl bootstrap system /Library/LaunchDaemons/com.gnosisvpn.gnosisvpnclient.plist"
           : "sudo systemctl start gnosisvpn",

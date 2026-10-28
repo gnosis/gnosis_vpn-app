@@ -14,14 +14,10 @@ const LEGACY_CONFIG_DIR: &str = "/Library/Application Support/GnosisVPN/.config"
 #[cfg(target_os = "linux")]
 const LEGACY_CONFIG_DIR: &str = "/var/lib/gnosisvpn/.config";
 
-/// Linux gets a second copy because old package hooks may remove /var/log/gnosisvpn after the installer wrote it.
 #[cfg(target_os = "macos")]
 const MIGRATE_LOG_PATHS: &[&str] = &["/Library/Logs/GnosisVPN/installer/migrate.log"];
 #[cfg(target_os = "linux")]
-const MIGRATE_LOG_PATHS: &[&str] = &[
-    "/var/log/gnosisvpn/migrate.log",
-    "/var/lib/gnosisvpn/migrate.log",
-];
+const MIGRATE_LOG_PATHS: &[&str] = &["/var/log/gnosisvpn/migrate.log"];
 
 #[cfg(target_os = "macos")]
 fn start_command() -> String {
@@ -133,6 +129,16 @@ mod tests {
         assert!(!info.migration_pending);
         assert!(info.migrate_commands.is_none());
         assert_eq!(info.can_start_from_app, cfg!(target_os = "macos"));
+    }
+
+    #[test]
+    fn only_the_migrate_log_the_installer_writes_is_listed() {
+        let expected: &[&str] = if cfg!(target_os = "macos") {
+            &["/Library/Logs/GnosisVPN/installer/migrate.log"]
+        } else {
+            &["/var/log/gnosisvpn/migrate.log"]
+        };
+        assert_eq!(MIGRATE_LOG_PATHS, expected);
     }
 
     #[test]
