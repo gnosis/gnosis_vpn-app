@@ -2,10 +2,10 @@
 #[macro_use]
 extern crate objc;
 
-use tauri::Manager;
 use tauri::tray::TrayIconBuilder;
-use tokio::sync::Notify;
+use tauri::Manager;
 use tokio::sync::watch;
+use tokio::sync::Notify;
 use tokio_util::sync::CancellationToken;
 
 use std::sync::atomic::AtomicBool;
@@ -25,7 +25,7 @@ pub mod tray;
 pub mod types;
 pub mod update_install;
 
-use cli::{Cli, get_log_uploader_website_url};
+use cli::{get_log_uploader_website_url, Cli};
 use commands::{
     check_update, connect, disconnect, export_logs, get_cached_state, log_from_frontend, probe,
     quick_probe, run_initialization_loop, set_app_icon, set_status_poll_fast, stop_client,
@@ -33,13 +33,13 @@ use commands::{
 };
 use gnosis_vpn_lib::command::InfoResponse;
 use gnosis_vpn_lib::{command, socket::root as root_socket};
-use icons::{IconState, TrayIconState, determine_tray_icon, start_icon_heartbeat};
-use platform::{Platform, PlatformInterface, get_platform, get_system_info};
-use settings::{SettingsStore, get_settings, update_settings};
+use icons::{determine_tray_icon, start_icon_heartbeat, IconState, TrayIconState};
+use platform::{get_platform, get_system_info, Platform, PlatformInterface};
+use settings::{get_settings, update_settings, SettingsStore};
 #[cfg(target_os = "linux")]
 use theme::spawn_linux_theme_monitor;
 #[cfg_attr(target_os = "macos", allow(unused_imports))]
-use theme::{InitialTheme, get_initial_theme, system_theme};
+use theme::{get_initial_theme, system_theme, InitialTheme};
 use toolkit::get_toolkit_version;
 use tray::{
     create_tray_menu, handle_tray_event, show_settings, show_settings_and_check,
@@ -47,7 +47,7 @@ use tray::{
 };
 use types::ConnectionState;
 use types::{BalanceResponse, StatusResponse};
-use update_install::{UpdateInstallState, get_install_status, install_update};
+use update_install::{get_install_status, install_update, UpdateInstallState};
 
 struct HeartbeatHandle(Mutex<Option<tauri::async_runtime::JoinHandle<()>>>);
 

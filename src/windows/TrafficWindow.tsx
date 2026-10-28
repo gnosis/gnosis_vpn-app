@@ -1,30 +1,17 @@
-import {
-  createEffect,
-  createMemo,
-  createSignal,
-  onCleanup,
-  onMount,
-  Show,
-} from "solid-js";
+import { createMemo, createSignal, onCleanup, onMount, Show } from "solid-js";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
-import TrafficCanvas from "@src/components/traffic/TrafficCanvas.tsx";
-import SegmentedControlSwitcher from "@src/components/common/SegmentedControlSwitcher.tsx";
+import TrafficGlobe from "@src/components/traffic/TrafficGlobe.tsx";
 import { Dropdown } from "@src/components/common/Dropdown.tsx";
 import Spinner from "@src/components/common/Spinner.tsx";
-import Tooltip from "@src/components/common/Tooltip.tsx";
 import { logInfo, logWarn } from "@src/utils/appLog.ts";
+import { formatRate } from "@src/utils/trafficFormat.ts";
 import {
+  averageRates,
   type CaptureStatus,
-  DEFAULT_TIMEFRAME_SECONDS,
   fetchTrafficFrame,
   listTrafficInterfaces,
-  MAX_TIMEFRAME_SECONDS,
-  MIN_TIMEFRAME_SECONDS,
-  parseTimeframe,
   startTrafficCapture,
   stopTrafficCapture,
-  TIMEFRAME_PRESETS,
-  TRAFFIC_ROW_HEIGHT,
   type TrafficFrame,
   type TrafficInterface,
 } from "@src/services/trafficService.ts";
@@ -32,25 +19,11 @@ import {
 /** Frame cadence; one request is in flight at a time. */
 const FRAME_INTERVAL_MS = 100;
 
-const PRESET_OPTIONS = TIMEFRAME_PRESETS.map((seconds) => ({
-  value: String(seconds),
-  label: `${seconds}s`,
-}));
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(Math.max(value, min), max);
-}
-
 export default function TrafficWindow() {
   const [interfaces, setInterfaces] = createSignal<TrafficInterface[]>([]);
   const [selectedId, setSelectedId] = createSignal<string | null>(null);
-  const [timeframe, setTimeframe] = createSignal(DEFAULT_TIMEFRAME_SECONDS);
-  const [customTimeframe, setCustomTimeframe] = createSignal("");
-  const [customInvalid, setCustomInvalid] = createSignal(false);
   const [frame, setFrame] = createSignal<TrafficFrame | null>(null);
   const [capture, setCapture] = createSignal<CaptureStatus | null>(null);
-  const [firstRow, setFirstRow] = createSignal(0);
-  const [areaHeight, setAreaHeight] = createSignal(0);
   const [busy, setBusy] = createSignal(true);
   const [failure, setFailure] = createSignal<string | null>(null);
   const [gap, setGap] = createSignal(false);
@@ -58,21 +31,16 @@ export default function TrafficWindow() {
   let disposed = false;
   let polling = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
-  let areaRef: HTMLDivElement | undefined;
 
   const selected = createMemo(() =>
     interfaces().find((entry) => entry.id === selectedId()) ?? null
   );
-  // Both panes share one row mapping, so the row count comes from the area.
-  const rowsPerPane = createMemo(() =>
-    Math.max(
-      1,
-      Math.floor((areaHeight() - 1) / 2 / TRAFFIC_ROW_HEIGHT),
-    )
-  );
-  const maxFirstRow = createMemo(() =>
-    Math.max(0, (frame()?.total_rows ?? 0) - rowsPerPane())
-  );
+  const endpoints = createMemo(() => frame()?.endpoints ?? []);
+  const observedSeconds = createMemo(() => frame()?.observed_seconds ?? 0);
+  const rates = createMemo(() => {
+    const current = frame();
+    return current ? averageRates(current) : null;
+  });
 
   const stopPolling = () => {
     polling = false;
@@ -85,11 +53,7 @@ export default function TrafficWindow() {
   const tick = async () => {
     if (disposed || !polling) return;
     try {
-      const response = await fetchTrafficFrame(
-        timeframe(),
-        firstRow(),
-        rowsPerPane(),
-      );
+      const response = await fetchTrafficFrame();
       if (disposed || !polling) return;
       setFrame(response.frame);
       setCapture(response.capture);
@@ -127,7 +91,6 @@ export default function TrafficWindow() {
     setGap(false);
     setSelectedId(interfaceId);
     setFrame(null);
-    setFirstRow(0);
     // A previous session may still be running; the daemon replaces it anyway.
     await stopTrafficCapture().catch(() => {});
     try {
@@ -170,22 +133,6 @@ export default function TrafficWindow() {
     }
   };
 
-  const applyCustomTimeframe = () => {
-    const parsed = parseTimeframe(customTimeframe());
-    if (parsed === null) {
-      setCustomInvalid(true);
-      return;
-    }
-    setCustomInvalid(false);
-    setTimeframe(parsed);
-  };
-
-  // Keep the window anchored when retained history shrinks.
-  createEffect(() => {
-    const max = maxFirstRow();
-    if (firstRow() > max) setFirstRow(max);
-  });
-
   onMount(() => {
     let unlistenOpen: (() => void) | undefined;
 
@@ -203,15 +150,6 @@ export default function TrafficWindow() {
       setBusy(false);
       setFailure(String(error));
     });
-
-    if (areaRef) {
-      const resize = new ResizeObserver((entries) => {
-        const rect = entries[0]?.contentRect;
-        if (rect) setAreaHeight(rect.height);
-      });
-      resize.observe(areaRef);
-      onCleanup(() => resize.disconnect());
-    }
 
     onCleanup(() => unlistenOpen?.());
   });
@@ -235,20 +173,37 @@ export default function TrafficWindow() {
     return "Choose an interface to start observing";
   };
 
-  const emptyHint = () =>
-    capture()?.active && (frame()?.total_rows ?? 0) === 0
-      ? "No traffic observed yet"
-      : null;
-
-  const diagnostics = () => {
+  const emptyHint = () => {
+    if (!capture()?.active) return null;
     const current = frame();
-    if (!current) return null;
-    const parts = [`${current.timeframe_seconds} s window`];
-    if (gap() || current.dropped_batches > 0) {
-      parts.push("some data was dropped");
+    if (!current || current.observed_seconds === 0) {
+      return "Collecting traffic…";
     }
-    if (current.dropped_targets > 0) parts.push("target limit reached");
-    return parts.join(" · ");
+    if (current.endpoints.length === 0) return "No traffic observed yet";
+    return null;
+  };
+
+  const endpointSummary = () => {
+    const current = frame();
+    if (!capture()?.active || !current || current.endpoints.length === 0) {
+      return null;
+    }
+    const listed = current.endpoints.length;
+    const omitted = current.omitted_endpoints;
+    const noun = listed + omitted === 1 ? "endpoint" : "endpoints";
+    return omitted > 0
+      ? `${listed + omitted} ${noun}, ${omitted} quietest not shown`
+      : `${listed} ${noun}`;
+  };
+
+  // Rates outside the globe, so the plot itself stays free of text.
+  const rateCaption = () => {
+    const current = rates();
+    if (!capture()?.active || !current || observedSeconds() === 0) return null;
+    const approximate = gap() ? "~" : "";
+    return `Sent ${approximate}${
+      formatRate(current.sent)
+    } · Received ${approximate}${formatRate(current.received)}`;
   };
 
   return (
@@ -267,66 +222,16 @@ export default function TrafficWindow() {
           />
         </div>
 
-        <div class="flex items-center gap-2">
-          <span class="text-xs text-text-secondary">Window</span>
-          <SegmentedControlSwitcher
-            options={PRESET_OPTIONS}
-            value={String(timeframe())}
-            onChange={(value) => setTimeframe(Number(value))}
-            ariaLabel="Timeframe"
-            disabled={busy()}
-          />
-          <input
-            type="text"
-            inputMode="numeric"
-            class="w-16 rounded-lg border bg-bg-surface px-2 py-1 text-sm text-text-primary outline-none focus:border-accent"
-            classList={{
-              "border-text-red": customInvalid(),
-              "border-border": !customInvalid(),
-            }}
-            placeholder={`${MIN_TIMEFRAME_SECONDS}–${MAX_TIMEFRAME_SECONDS}`}
-            aria-label="Custom window in seconds"
-            value={customTimeframe()}
-            disabled={busy()}
-            onInput={(event) => {
-              setCustomTimeframe(event.currentTarget.value);
-              setCustomInvalid(false);
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") applyCustomTimeframe();
-            }}
-            onBlur={applyCustomTimeframe}
-          />
-        </div>
-
-        <div class="ml-auto flex items-center gap-4">
-          <div class="flex items-center gap-3 text-xs text-text-secondary">
-            <span class="flex items-center gap-1.5">
-              <span class="h-2 w-4 rounded-sm bg-traffic-hopr" />
-              HOPR-associated
-            </span>
-            <span class="flex items-center gap-1.5">
-              <span class="h-2 w-4 rounded-sm bg-traffic-other" />
-              Other
-            </span>
-          </div>
-          <Tooltip
-            position="bottom"
-            content={
-              <span>
-                Blocks age from left to right in the upper pane and right to
-                left in the lower one. HOPR-associated traffic goes to an
-                address the node announced. The mixnet carries the tunnel, so
-                inner VPN destinations and other VPNs cannot be attributed on
-                this interface.
+        <Show when={rateCaption()}>
+          {(caption) => (
+            <span class="ml-auto text-xs text-text-secondary">
+              {caption()}{" "}
+              <span class="text-text-muted">
+                · {frame()?.window_seconds ?? 10} s avg
               </span>
-            }
-          >
-            <span class="cursor-default text-xs text-text-muted underline decoration-dotted">
-              About this view
             </span>
-          </Tooltip>
-        </div>
+          )}
+        </Show>
       </header>
 
       <Show when={failure()}>
@@ -350,42 +255,27 @@ export default function TrafficWindow() {
             <Spinner class="h-6 w-6 text-text-secondary" />
           </div>
         </Show>
-        <div
-          ref={areaRef}
-          class="flex h-full w-full flex-col"
-          onWheel={(event) => {
-            event.preventDefault();
-            const step = Math.max(
-              1,
-              Math.round(Math.abs(event.deltaY) / TRAFFIC_ROW_HEIGHT),
-            );
-            const direction = event.deltaY > 0 ? step : -step;
-            setFirstRow((current) =>
-              clamp(current + direction, 0, maxFirstRow())
-            );
-          }}
-        >
-          <TrafficCanvas
-            pane="upstream"
-            frame={frame()}
-            rows={rowsPerPane()}
-            firstRow={firstRow()}
-          />
-          <div class="h-px w-full bg-border" />
-          <TrafficCanvas
-            pane="downstream"
-            frame={frame()}
-            rows={rowsPerPane()}
-            firstRow={firstRow()}
-          />
-        </div>
+        <TrafficGlobe
+          class="h-full w-full"
+          endpoints={endpoints()}
+          observedSeconds={observedSeconds()}
+        />
       </div>
 
       <footer class="flex items-center justify-between gap-4 border-t border-border px-4 py-2 text-xs text-text-secondary">
         <span>
           {emptyHint() ?? statusText() ?? "Capture unavailable"}
+          <Show when={endpointSummary()}>
+            {(summary) => (
+              <span class="ml-1 text-text-muted">· {summary()}</span>
+            )}
+          </Show>
         </span>
-        <span>{diagnostics()}</span>
+        <Show when={gap() && capture()?.active}>
+          <span class="text-text-yellow">
+            Some traffic data was not received
+          </span>
+        </Show>
       </footer>
     </div>
   );

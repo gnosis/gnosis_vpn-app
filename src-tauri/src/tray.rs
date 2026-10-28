@@ -1,9 +1,9 @@
 use std::sync::Mutex;
 use std::time::Duration;
 use tauri::{
-    AppHandle, Emitter, Listener, Manager,
     menu::{Menu, MenuBuilder, MenuItem},
     tray::TrayIconEvent,
+    AppHandle, Emitter, Listener, Manager,
 };
 use tokio::time::sleep;
 

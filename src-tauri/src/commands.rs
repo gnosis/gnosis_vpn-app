@@ -19,7 +19,7 @@ use tokio::time::{self, Instant};
 
 use crate::cli::{self, Cli};
 use crate::icons::{self, TrayIconState};
-use crate::platform::{SystemInfo, get_system_info};
+use crate::platform::{get_system_info, SystemInfo};
 use crate::toolkit;
 use crate::tray;
 use crate::types::{BalanceResponse, ConnectionState, StatusResponse};

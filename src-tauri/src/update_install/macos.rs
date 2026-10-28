@@ -259,18 +259,14 @@ mod tests {
         assert!(!InstallStatus::Checking.is_terminal());
         assert!(!InstallStatus::Downloading.is_terminal());
         assert!(!InstallStatus::Installing.is_terminal());
-        assert!(
-            InstallStatus::Completed {
-                new_version: String::new()
-            }
-            .is_terminal()
-        );
-        assert!(
-            InstallStatus::Failed {
-                stage: String::new(),
-                error: String::new()
-            }
-            .is_terminal()
-        );
+        assert!(InstallStatus::Completed {
+            new_version: String::new()
+        }
+        .is_terminal());
+        assert!(InstallStatus::Failed {
+            stage: String::new(),
+            error: String::new()
+        }
+        .is_terminal());
     }
 }

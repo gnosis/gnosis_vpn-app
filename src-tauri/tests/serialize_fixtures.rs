@@ -1,6 +1,6 @@
 use gnosis_vpn_app_lib::settings::{FlagDisplay, Settings, SortOrder, UpdateChannel};
 use gnosis_vpn_app_lib::toolkit::{CheckOutcome, CheckResult, EndOfLife, Manifest, ToolkitInfo};
-use gnosis_vpn_app_lib::traffic::{CaptureStatus, Cell, Class, Frame, FrameResponse};
+use gnosis_vpn_app_lib::traffic::{CaptureStatus, Endpoint, Frame, FrameResponse};
 use gnosis_vpn_app_lib::types;
 use gnosis_vpn_app_lib::update_install::InstallStatus;
 use gnosis_vpn_lib::balance::{
@@ -153,33 +153,37 @@ fn generate_fixtures() {
         "traffic_frame.json",
         &FrameResponse {
             frame: Frame {
-                timeframe_seconds: 5,
+                window_seconds: 10,
                 current_second: 42,
-                total_rows: 3,
-                first_row: 0,
-                rows: 50,
-                cells: vec![
-                    Cell {
-                        row: 0,
-                        column: 0,
-                        band: 3,
-                        class: Class::HoprAssociated,
+                observed_seconds: 10,
+                endpoints: vec![
+                    Endpoint {
+                        id: "9f2c4e81a07b3d56".to_string(),
+                        sent: 120_000,
+                        received: 4_800_000,
                     },
-                    Cell {
-                        row: 0,
-                        column: 4,
-                        band: 6,
-                        class: Class::HoprAssociated,
+                    Endpoint {
+                        id: "41d8be0c6a2f9e13".to_string(),
+                        sent: 300_000,
+                        received: 90_000,
                     },
-                    Cell {
-                        row: 2,
-                        column: 2,
-                        band: 1,
-                        class: Class::Other,
+                    Endpoint {
+                        id: "c37a10f5e9d24b88".to_string(),
+                        sent: 12_000,
+                        received: 40_000,
+                    },
+                    Endpoint {
+                        id: "0b6e93d2f1a85c47".to_string(),
+                        sent: 2_400,
+                        received: 6_100,
+                    },
+                    Endpoint {
+                        id: "e5f07a3b28c61d94".to_string(),
+                        sent: 600,
+                        received: 0,
                     },
                 ],
-                dropped_targets: 0,
-                dropped_batches: 0,
+                omitted_endpoints: 0,
             },
             capture: CaptureStatus {
                 active: true,
@@ -190,20 +194,17 @@ fn generate_fixtures() {
             gap: false,
         },
     );
-    // Capture never started: no rows, and the reason is host state, not a cell.
+    // Capture never started: no endpoints, and the reason is host state.
     write(
         &fixtures_dir,
         "traffic_frame_failed.json",
         &FrameResponse {
             frame: Frame {
-                timeframe_seconds: 20,
+                window_seconds: 10,
                 current_second: 0,
-                total_rows: 0,
-                first_row: 0,
-                rows: 50,
-                cells: vec![],
-                dropped_targets: 0,
-                dropped_batches: 0,
+                observed_seconds: 0,
+                endpoints: vec![],
+                omitted_endpoints: 0,
             },
             capture: CaptureStatus {
                 active: false,

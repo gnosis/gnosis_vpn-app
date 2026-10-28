@@ -1,8 +1,9 @@
 //! Traffic visualization: daemon source, retained model, projection and window.
 //!
-//! Capture runs in the privileged root daemon. This module only reads one-second
-//! aggregates from it, keeps presentation state and projects what the window
-//! asks for. Nothing here sees a packet.
+//! Capture runs in the privileged root daemon. This module only reads per-endpoint
+//! one-second aggregates from it, keeps presentation state and projects what the
+//! window asks for. Nothing here sees a packet, and remote addresses never reach
+//! the webview.
 
 mod daemon;
 mod model;
@@ -13,8 +14,8 @@ use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager, State};
 use tokio::sync::Mutex;
 
-pub use model::{Cell, DEFAULT_TIMEFRAME, Frame, MAX_TIMEFRAME};
-pub use protocol::{Class, Interface};
+pub use model::{Endpoint, Frame, MAX_ENDPOINTS, WINDOW_SECONDS};
+pub use protocol::Interface;
 
 /// What the window shows about the capture itself, as opposed to its data.
 #[derive(Clone, Debug, Default, Serialize)]
@@ -77,6 +78,25 @@ pub async fn traffic_start(
         interface_id: interface_id.clone(),
     };
     let result = daemon::call(&protocol::Request::TrafficStart(&request)).await;
+
+    // A daemon from another protocol version would answer with shapes this app
+    // cannot read. Refuse the session instead of showing an empty chart.
+    if let Ok(protocol::Response::TrafficStart(Ok(started))) = &result {
+        if let Some(reason) = incompatible_protocol(started.protocol) {
+            tracing::warn!(target: "traffic", error = %reason, "traffic protocol mismatch");
+            let stop = protocol::StopRequest {
+                session_id: started.session_id,
+            };
+            if let Err(e) = daemon::call(&protocol::Request::TrafficStop(&stop)).await {
+                tracing::warn!(target: "traffic", error = %e, "cannot stop an incompatible traffic session");
+            }
+            let mut inner = state.inner.lock().await;
+            inner.session = None;
+            inner.capture = failed(&reason);
+            return Err(reason);
+        }
+    }
+
     let mut inner = state.inner.lock().await;
 
     match result {
@@ -122,16 +142,12 @@ pub async fn traffic_start(
     }
 }
 
-/// Reads pending aggregates and projects the requested rows.
+/// Reads pending aggregates and projects the rolling window.
 #[tauri::command]
-pub async fn traffic_frame(
-    timeframe_seconds: u32,
-    first_row: u32,
-    row_count: u32,
-    state: State<'_, TrafficState>,
-) -> Result<FrameResponse, String> {
+pub async fn traffic_frame(state: State<'_, TrafficState>) -> Result<FrameResponse, String> {
     let mut inner = state.inner.lock().await;
     let session_id = inner.session.as_ref().map(|session| session.id);
+    let mut stop_session = None;
 
     if let Some(session_id) = session_id {
         let request = protocol::ReadRequest {
@@ -140,13 +156,22 @@ pub async fn traffic_frame(
         };
         match daemon::call(&protocol::Request::TrafficRead(&request)).await {
             Ok(protocol::Response::TrafficRead(read)) => {
+                let mut mismatch = None;
                 for batch in &read.batches {
-                    inner.model.ingest(batch);
+                    if let Err(reason) = inner.model.ingest(batch) {
+                        mismatch = Some(reason);
+                        break;
+                    }
                 }
                 inner.cursor = read.cursor;
                 inner.gap |= read.gap;
                 inner.capture.active = read.active;
-                if let Some(reason) = read.ended {
+                if let Some(reason) = mismatch {
+                    tracing::warn!(target: "traffic", reason = %reason, "traffic protocol mismatch");
+                    inner.capture = failed(&reason);
+                    inner.session = None;
+                    stop_session = Some(session_id);
+                } else if let Some(reason) = read.ended {
                     tracing::warn!(target: "traffic", reason = %reason, "traffic capture ended");
                     inner.capture.ended = Some(reason);
                     inner.session = None;
@@ -163,11 +188,20 @@ pub async fn traffic_frame(
         }
     }
 
-    Ok(FrameResponse {
-        frame: inner.model.project(timeframe_seconds, first_row, row_count),
+    let response = FrameResponse {
+        frame: inner.model.project(),
         capture: inner.capture.clone(),
         gap: inner.gap,
-    })
+    };
+    drop(inner);
+
+    if let Some(session_id) = stop_session {
+        let stop = protocol::StopRequest { session_id };
+        if let Err(e) = daemon::call(&protocol::Request::TrafficStop(&stop)).await {
+            tracing::warn!(target: "traffic", error = %e, "cannot stop an incompatible traffic session");
+        }
+    }
+    Ok(response)
 }
 
 /// Ends the capture session and forgets its history.
@@ -184,6 +218,16 @@ fn failed(reason: &str) -> CaptureStatus {
         error: Some(reason.to_string()),
         ended: None,
     }
+}
+
+/// Names both versions when the daemon speaks another traffic protocol.
+fn incompatible_protocol(version: u16) -> Option<String> {
+    (version != protocol::PROTOCOL_VERSION).then(|| {
+        format!(
+            "The Gnosis VPN service speaks traffic protocol {version}, this app needs {}. Update the client and app together.",
+            protocol::PROTOCOL_VERSION
+        )
+    })
 }
 
 async fn stop_inner(inner: &Arc<Mutex<Inner>>) {
@@ -291,5 +335,13 @@ mod tests {
         let interfaces = [interface("en0", false), interface("en1", false)];
         assert!(preferred_interface(&interfaces).is_none());
         assert!(preferred_interface(&[]).is_none());
+    }
+
+    #[test]
+    fn another_protocol_version_names_both_sides() {
+        assert!(incompatible_protocol(protocol::PROTOCOL_VERSION).is_none());
+        let error = incompatible_protocol(protocol::PROTOCOL_VERSION + 1).expect("mismatch");
+        assert!(error.contains("traffic protocol 4"), "{error}");
+        assert!(error.contains("needs 3"), "{error}");
     }
 }

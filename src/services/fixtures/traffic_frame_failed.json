@@ -1,13 +1,10 @@
 {
   "frame": {
-    "timeframe_seconds": 20,
+    "window_seconds": 10,
     "current_second": 0,
-    "total_rows": 0,
-    "first_row": 0,
-    "rows": 50,
-    "cells": [],
-    "dropped_targets": 0,
-    "dropped_batches": 0
+    "observed_seconds": 0,
+    "endpoints": [],
+    "omitted_endpoints": 0
   },
   "capture": {
     "active": false,

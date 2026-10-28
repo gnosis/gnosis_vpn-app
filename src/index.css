@@ -108,9 +108,13 @@ textarea {
   --color-toggle-checked: var(--color-accent);
   --color-toggle-thumb: #ffffff;
 
-  /* Traffic visualization: hue encodes the category, bar length the volume */
-  --color-traffic-hopr: #4335df;
-  --color-traffic-other: #64748b;
+  /* Traffic globe: a pale indigo sphere with saturated links */
+  --color-globe-surface: #f1effc;
+  --color-globe-edge: #a9a3ea;
+  --color-globe-grid: #dcd8f5;
+  --color-globe-link: #4335df;
+  --color-globe-dot: #8f88d8;
+  --color-globe-home: #12112a;
 }
 
 :root.dark {
@@ -162,9 +166,13 @@ textarea {
   --color-toggle-checked: var(--color-accent);
   --color-toggle-thumb: #d1d5db;
 
-  /* Traffic visualization: lifted hues for the dark background */
-  --color-traffic-hopr: #8b7cf6;
-  --color-traffic-other: #94a3b8;
+  /* Traffic globe: lifted hues for the dark background */
+  --color-globe-surface: #1c1d45;
+  --color-globe-edge: #4b47a6;
+  --color-globe-grid: #2c2d5e;
+  --color-globe-link: #a69dff;
+  --color-globe-dot: #6e68b8;
+  --color-globe-home: #f5f3ff;
 }
 @utility bg-darken {
   background-image: linear-gradient(rgb(0 0 0 / 0.12), rgb(0 0 0 / 0.12));
@@ -234,8 +242,12 @@ textarea {
   --color-toggle-checked: var(--color-toggle-checked);
   --color-toggle-thumb: var(--color-toggle-thumb);
 
-  --color-traffic-hopr: var(--color-traffic-hopr);
-  --color-traffic-other: var(--color-traffic-other);
+  --color-globe-surface: var(--color-globe-surface);
+  --color-globe-edge: var(--color-globe-edge);
+  --color-globe-grid: var(--color-globe-grid);
+  --color-globe-link: var(--color-globe-link);
+  --color-globe-dot: var(--color-globe-dot);
+  --color-globe-home: var(--color-globe-home);
 }
 
 @keyframes progress-shimmer {

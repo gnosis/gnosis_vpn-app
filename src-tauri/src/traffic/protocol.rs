@@ -3,14 +3,14 @@
 //! These types mirror the JSON the daemon speaks (`gnosis_vpn_lib::traffic`).
 //! They are declared here rather than imported so the app can talk to a released
 //! daemon without pinning its build to an unreleased library commit; the daemon
-//! stamps every batch with [`PROTOCOL_VERSION`] and mismatches are ignored.
+//! stamps every batch with [`PROTOCOL_VERSION`] and mismatches are rejected.
 
 use serde::{Deserialize, Serialize};
 
 use std::net::IpAddr;
 
 /// Must match the daemon's protocol version.
-pub const PROTOCOL_VERSION: u16 = 1;
+pub const PROTOCOL_VERSION: u16 = 3;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Interface {
@@ -22,29 +22,19 @@ pub struct Interface {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum Class {
-    /// Remote address is one announced by the HOPR node.
-    HoprAssociated,
-    /// No association rule matched.
-    Other,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
 pub enum Direction {
     Upstream,
     Downstream,
 }
 
+/// Bytes observed for one remote endpoint and direction in one second. Several
+/// deltas may cover the same second and endpoint; consumers add them.
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
 pub struct Delta {
     pub second: u64,
     pub target: IpAddr,
-    pub class: Class,
     pub direction: Direction,
-    pub packets: u32,
     pub bytes: u64,
-    pub largest_packet: u32,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
@@ -143,7 +133,7 @@ mod tests {
     #[test]
     fn responses_parse_including_failures_and_denials() {
         let started: Response = serde_json::from_str(
-            r#"{"TrafficStart":{"Ok":{"session_id":1,"interface":{"id":"en0","name":"en0","addresses":["192.0.2.2"],"is_default":true},"protocol":1}}}"#,
+            r#"{"TrafficStart":{"Ok":{"session_id":1,"interface":{"id":"en0","name":"en0","addresses":["192.0.2.2"],"is_default":true},"protocol":3}}}"#,
         )
         .expect("parse start");
         assert!(matches!(
@@ -164,10 +154,14 @@ mod tests {
     #[test]
     fn batches_parse_with_snake_case_tags() {
         let batch: Batch = serde_json::from_str(
-            r#"{"protocol":1,"session_id":1,"sequence":0,"elapsed_ms":1000,"dropped_batches":0,"deltas":[{"second":1,"target":"203.0.113.4","class":"hopr_associated","direction":"downstream","packets":2,"bytes":900,"largest_packet":500}]}"#,
+            r#"{"protocol":3,"session_id":1,"sequence":0,"elapsed_ms":1000,"dropped_batches":0,"deltas":[{"second":1,"target":"192.0.2.10","direction":"downstream","bytes":900}]}"#,
         )
         .expect("parse batch");
-        assert_eq!(batch.deltas[0].class, Class::HoprAssociated);
         assert_eq!(batch.deltas[0].direction, Direction::Downstream);
+        assert_eq!(batch.deltas[0].bytes, 900);
+        assert_eq!(
+            batch.deltas[0].target,
+            "192.0.2.10".parse::<IpAddr>().expect("ip")
+        );
     }
 }
