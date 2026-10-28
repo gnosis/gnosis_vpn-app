@@ -4,9 +4,11 @@ use serde::Serialize;
 
 use std::path::Path;
 
-/// The sudoers rule the installer ships names exactly this argv for `%gnosisvpn` members.
+/// The sudoers rules the installer ships name exactly these argvs for `%gnosisvpn` members.
 #[cfg(target_os = "macos")]
 const LAUNCHD_PLIST: &str = "/Library/LaunchDaemons/com.gnosisvpn.gnosisvpnclient.plist";
+#[cfg(target_os = "macos")]
+const LAUNCHD_SERVICE: &str = "system/com.gnosisvpn.gnosisvpnclient";
 
 /// The legacy single-identity dir; still unrenamed means gnosis_vpn-migrate has not succeeded.
 #[cfg(target_os = "macos")]
@@ -19,14 +21,17 @@ const MIGRATE_LOG_PATHS: &[&str] = &["/Library/Logs/GnosisVPN/installer/migrate.
 #[cfg(target_os = "linux")]
 const MIGRATE_LOG_PATHS: &[&str] = &["/var/log/gnosisvpn/migrate.log"];
 
+/// A failed migration leaves the service disabled, so a plain bootstrap/start would fail.
 #[cfg(target_os = "macos")]
 fn start_command() -> String {
-    format!("sudo launchctl bootstrap system {LAUNCHD_PLIST}")
+    format!(
+        "sudo launchctl enable {LAUNCHD_SERVICE} && sudo launchctl bootstrap system {LAUNCHD_PLIST}"
+    )
 }
 
 #[cfg(target_os = "linux")]
 fn start_command() -> String {
-    "sudo systemctl start gnosisvpn".to_string()
+    "sudo systemctl enable --now gnosisvpn".to_string()
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -83,8 +88,6 @@ pub fn get_service_not_running_info() -> ServiceNotRunningInfo {
 #[cfg(target_os = "macos")]
 #[tauri::command]
 pub async fn start_service() -> Result<(), String> {
-    use tokio::process::Command;
-
     if migration_pending() {
         return Err(
             "The previous identity has not been migrated yet; run the gnosis_vpn-migrate commands first"
@@ -92,9 +95,19 @@ pub async fn start_service() -> Result<(), String> {
         );
     }
     tracing::info!(target: "service", "starting the service via launchctl");
+    run_launchctl(&["enable", LAUNCHD_SERVICE]).await?;
+    run_launchctl(&["bootstrap", "system", LAUNCHD_PLIST]).await
+}
+
+#[cfg(target_os = "macos")]
+async fn run_launchctl(args: &[&str]) -> Result<(), String> {
+    use tokio::process::Command;
+
     // -n fails fast instead of prompting when the sudoers rule is missing for this account.
     let output = Command::new("sudo")
-        .args(["-n", "/bin/launchctl", "bootstrap", "system", LAUNCHD_PLIST])
+        .arg("-n")
+        .arg("/bin/launchctl")
+        .args(args)
         .output()
         .await
         .map_err(|e| format!("Could not run sudo: {e}"))?;
@@ -102,11 +115,20 @@ pub async fn start_service() -> Result<(), String> {
         return Ok(());
     }
     let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-    tracing::warn!(target: "service", status = ?output.status.code(), %stderr, "launchctl bootstrap failed");
-    Err(format!(
-        "Could not start the service: {stderr}. Your account must be in the gnosisvpn group \
-         (sudo dseditgroup -o edit -a $USER -t user gnosisvpn), or run the command below in Terminal."
-    ))
+    tracing::warn!(target: "service", ?args, status = ?output.status.code(), %stderr, "launchctl failed");
+    Err(start_failure_message(&stderr))
+}
+
+/// The group hint only helps when sudo itself refused; any launchctl failure is shown as launchctl said it.
+#[cfg(target_os = "macos")]
+fn start_failure_message(stderr: &str) -> String {
+    let sudo_refused = stderr.contains("a password is required");
+    if sudo_refused {
+        return "Could not start the service: your account must be in the gnosisvpn group \
+                (sudo dseditgroup -o edit -a $USER -t user gnosisvpn), or run the command below in Terminal."
+            .to_string();
+    }
+    format!("Could not start the service: {stderr}")
 }
 
 #[cfg(target_os = "linux")]
@@ -139,6 +161,34 @@ mod tests {
             &["/var/log/gnosisvpn/migrate.log"]
         };
         assert_eq!(MIGRATE_LOG_PATHS, expected);
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn macos_start_command_enables_before_bootstrapping() {
+        assert_eq!(
+            start_command(),
+            "sudo launchctl enable system/com.gnosisvpn.gnosisvpnclient && \
+             sudo launchctl bootstrap system /Library/LaunchDaemons/com.gnosisvpn.gnosisvpnclient.plist"
+        );
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn group_hint_only_when_sudo_refused() {
+        let refused = start_failure_message("sudo: a password is required");
+        assert!(refused.contains("gnosisvpn group"));
+        let launchctl = start_failure_message("Bootstrap failed: 5: Input/output error");
+        assert_eq!(
+            launchctl,
+            "Could not start the service: Bootstrap failed: 5: Input/output error"
+        );
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn linux_start_command_enables_the_unit() {
+        assert_eq!(start_command(), "sudo systemctl enable --now gnosisvpn");
     }
 
     #[test]
