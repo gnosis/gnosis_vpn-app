@@ -87,8 +87,8 @@
           ? ["/Library/Logs/GnosisVPN/installer/migrate.log"]
           : ["/var/log/gnosisvpn/migrate.log"],
         start_command: macos
-          ? "sudo launchctl bootstrap system /Library/LaunchDaemons/com.gnosisvpn.gnosisvpnclient.plist"
-          : "sudo systemctl start gnosisvpn",
+          ? "sudo launchctl enable system/com.gnosisvpn.gnosisvpnclient && sudo launchctl bootstrap system /Library/LaunchDaemons/com.gnosisvpn.gnosisvpnclient.plist"
+          : "sudo systemctl enable --now gnosisvpn",
         migration_pending: false,
         migrate_commands: null,
         can_start_from_app: macos,
