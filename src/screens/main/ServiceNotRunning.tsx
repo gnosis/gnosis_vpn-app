@@ -79,20 +79,46 @@ export default function ServiceNotRunning() {
                     The previous identity has not been migrated yet. Run one of
                     these in a terminal.
                   </p>
-                  <p class="text-sm text-text-secondary">
-                    Migrate the previous identity (recommended):
-                  </p>
-                  <CopyBlock
-                    text={commands().identity}
-                    label="identity migration command"
-                  />
-                  <p class="text-sm text-text-secondary">
-                    Or set the previous identity aside and start with a new one:
-                  </p>
-                  <CopyBlock
-                    text={commands().start_clean}
-                    label="start-clean command"
-                  />
+                  <Show
+                    when={commands().has_own_identity}
+                    fallback={
+                      <>
+                        <p class="text-sm text-text-secondary">
+                          Migrate the previous identity (recommended):
+                        </p>
+                        <CopyBlock
+                          text={commands().identity}
+                          label="identity migration command"
+                        />
+                        <p class="text-sm text-text-secondary">
+                          Or set the previous identity aside and start with a
+                          new one:
+                        </p>
+                        <CopyBlock
+                          text={commands().start_clean}
+                          label="start-clean command"
+                        />
+                      </>
+                    }
+                  >
+                    {/* Exit-75 case: start-clean --user would park the account's own, possibly funded identity. */}
+                    <p class="text-sm text-text-secondary">
+                      Your account already has its own identity. Keep the
+                      previous identity, which replaces your current one:
+                    </p>
+                    <CopyBlock
+                      text={commands().identity}
+                      label="identity migration command"
+                    />
+                    <p class="text-sm text-text-secondary">
+                      Or keep your current identity and set the previous one
+                      aside:
+                    </p>
+                    <CopyBlock
+                      text={commands().start_clean}
+                      label="start-clean command"
+                    />
+                  </Show>
                   <p class="text-sm text-text-secondary">
                     Stuck? Send the migration log to support. This only shares
                     diagnostics and fixes nothing:

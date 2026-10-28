@@ -473,6 +473,7 @@ export const ServiceNotRunningInfoSchema = z.object({
   start_command: z.string(),
   migration_pending: z.boolean(),
   migrate_commands: z.object({
+    has_own_identity: z.boolean(),
     identity: z.string(),
     upload_log: z.string(),
     start_clean: z.string(),
