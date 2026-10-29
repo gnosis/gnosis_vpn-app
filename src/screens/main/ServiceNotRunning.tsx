@@ -27,7 +27,8 @@ export default function ServiceNotRunning() {
   };
 
   return (
-    <div class="h-full w-full flex flex-col p-6 gap-4 overflow-y-auto text-text-primary">
+    // *:shrink-0: otherwise flex squashes the logo and CopyBlocks instead of scrolling
+    <div class="h-full w-full flex flex-col p-6 gap-4 overflow-y-auto text-text-primary *:shrink-0">
       <GnosisVpnLogo class="w-2/3 self-center text-text-primary" />
       <h1 class="text-2xl font-bold">Gnosis VPN service is not running</h1>
       <p class="text-sm text-text-secondary">
