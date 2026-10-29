@@ -7,6 +7,7 @@ export const PAGE_IDS = [
   "software-update",
   "about",
   "add-funds",
+  "changelog",
 ] as const;
 export type PageId = (typeof PAGE_IDS)[number];
 

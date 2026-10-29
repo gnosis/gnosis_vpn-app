@@ -1,9 +1,8 @@
 import { createResource, createSignal, Show } from "solid-js";
-import { Modal } from "./Modal.tsx";
-import { Markdown } from "./Markdown.tsx";
 import HowToUpdateModal from "./HowToUpdateModal.tsx";
 import SyncIcon from "../icons/SyncIcon.tsx";
 import { useAppStore } from "@src/stores/appStore.ts";
+import { push } from "@src/stores/pageStack.ts";
 import { getPlatform } from "@src/utils/platform.ts";
 
 // UI phases of a driven install (macOS): mapped from the updater's
@@ -33,7 +32,6 @@ interface UpdateStatusCardProps {
 /** Icon, headline, one muted line of version and last check, and the one button that matters now. */
 export default function UpdateStatusCard(props: UpdateStatusCardProps) {
   const [appState] = useAppStore();
-  const [showChangelog, setShowChangelog] = createSignal(false);
   const [showHowTo, setShowHowTo] = createSignal(false);
   const [platform, { refetch: refetchPlatform }] = createResource(getPlatform);
   const installing = () => props.installPhase != null;
@@ -145,7 +143,7 @@ export default function UpdateStatusCard(props: UpdateStatusCardProps) {
               <button
                 type="button"
                 class="shrink-0 underline"
-                onClick={() => setShowChangelog(true)}
+                onClick={() => push("changelog")}
               >
                 changelog
               </button>
@@ -167,25 +165,6 @@ export default function UpdateStatusCard(props: UpdateStatusCardProps) {
           </span>
         </div>
       </Show>
-      <Modal open={showChangelog()} onClose={() => setShowChangelog(false)}>
-        <div class="flex flex-col gap-4">
-          <div class="text-base font-semibold text-text-primary">
-            What's new in {props.latestVersion}
-          </div>
-          <div class="max-h-64 overflow-y-auto">
-            <div class="pr-[18px]">
-              <Markdown>{props.releaseNotes || ""}</Markdown>
-            </div>
-          </div>
-          <button
-            type="button"
-            class="h-10 rounded-lg border border-border bg-transparent px-4 text-sm font-bold text-text-primary transition-colors hover:bg-darken"
-            onClick={() => setShowChangelog(false)}
-          >
-            Close
-          </button>
-        </div>
-      </Modal>
       <HowToUpdateModal
         open={showHowTo()}
         onClose={() => setShowHowTo(false)}

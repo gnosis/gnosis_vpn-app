@@ -29,6 +29,7 @@ import SettingsPage from "./pages/SettingsPage.tsx";
 import SoftwareUpdatePage from "./pages/SoftwareUpdatePage.tsx";
 import AboutPage from "./pages/AboutPage.tsx";
 import AddFundsPage from "./pages/AddFundsPage.tsx";
+import ChangelogPage from "./pages/ChangelogPage.tsx";
 import { isRunningRunMode } from "../../services/vpnService.ts";
 import { deriveOverallStatus, type StatusText } from "../../utils/funding.ts";
 import {
@@ -222,6 +223,7 @@ export function MainScreen() {
     "software-update": "Software update",
     about: "About Gnosis VPN",
     "add-funds": "Add funds",
+    changelog: "What's new",
   };
 
   return (
@@ -240,6 +242,9 @@ export function MainScreen() {
             </Match>
             <Match when={page === "add-funds"}>
               <AddFundsPage />
+            </Match>
+            <Match when={page === "changelog"}>
+              <ChangelogPage />
             </Match>
           </Switch>
         </Page>
