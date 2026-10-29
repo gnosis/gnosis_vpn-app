@@ -66,6 +66,8 @@ export default function LocationPicker(props: {
   frame: PickerFrame | null;
   // The destination chosen, or null when the picker was dismissed.
   onClose: (picked: string | null) => void;
+  // The opening button; presses on it are left to its own toggle.
+  trigger?: HTMLElement;
 }) {
   const [appState, appActions] = useAppStore();
   const [settings, settingsActions] = useSettingsStore();
@@ -216,6 +218,8 @@ export default function LocationPicker(props: {
     const target = e.target instanceof Node ? e.target : null;
     if (showUnreachable()) return;
     if (target && popoverRef?.contains(target)) return;
+    // Closing here would let the same click reopen it.
+    if (target && props.trigger?.contains(target)) return;
     props.onClose(null);
   };
   onMount(() => {

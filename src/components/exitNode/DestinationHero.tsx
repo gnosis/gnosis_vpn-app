@@ -67,6 +67,8 @@ export default function DestinationHero(props: {
     appActions.destinationListClosed(picked);
     changeButtonRef?.focus();
   };
+  const toggleList = () =>
+    appState.mode.listOpen ? closeList(null) : openList();
 
   return (
     <div class="flex w-full flex-col items-center gap-2.5 text-center">
@@ -124,7 +126,7 @@ export default function DestinationHero(props: {
               class="inline-flex h-[30px] items-center gap-1.5 rounded-lg border border-border bg-bg-surface px-3 text-xs font-semibold text-text-primary transition-colors hover:bg-darken focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               aria-haspopup="dialog"
               aria-expanded={appState.mode.listOpen}
-              onClick={openList}
+              onClick={toggleList}
             >
               <GlobeIcon class="size-3.5" />
               Change location
@@ -135,7 +137,12 @@ export default function DestinationHero(props: {
 
       <Show when={appState.mode.listOpen && anchor()}>
         {(rect) => (
-          <LocationPicker anchor={rect()} frame={frame()} onClose={closeList} />
+          <LocationPicker
+            anchor={rect()}
+            frame={frame()}
+            onClose={closeList}
+            trigger={changeButtonRef}
+          />
         )}
       </Show>
     </div>
