@@ -161,8 +161,9 @@ discounted the same way as before; `min(freeSlots, total)` keeps the share in
 resilience, then the rest by closeness to eligible.** The location list's "Best"
 order (`sortForPicker`) is different: every pickable destination (ready or weak)
 by latency, the unmeasured pickable ones next in this order, the unusable last.
-It is frozen when the list opens and re-sorted only as a destination's first
-latency arrives. Auto still picks from `sortByRouteQuality`.
+It is frozen when the list opens and re-sorted only when the set of destinations
+changes, so rows never jump under the pointer. Auto still picks from
+`sortByRouteQuality`.
 
 ```
 eligible with exit data, ordered by  score desc, label
