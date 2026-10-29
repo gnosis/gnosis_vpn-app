@@ -163,6 +163,7 @@
         : { type: "DestinationNotFound" };
     },
     set_status_poll_fast: () => null,
+    set_balance_poll_fast: () => null,
     log_from_frontend: () => null,
     export_logs: (args) => args?.destPath ?? "/tmp/gnosis_vpn-export.log.zst",
     // Resolves with fixture.uploadLogsUuid after ~800ms; uploadLogsError rejects instead.

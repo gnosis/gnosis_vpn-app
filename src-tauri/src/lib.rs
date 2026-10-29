@@ -29,8 +29,8 @@ pub mod update_install;
 use cli::{Cli, get_log_uploader_website_url};
 use commands::{
     check_update, connect, disconnect, export_logs, get_cached_state, log_from_frontend, probe,
-    quick_probe, run_initialization_loop, set_app_icon, set_status_poll_fast, stop_client,
-    upload_logs,
+    quick_probe, run_initialization_loop, set_app_icon, set_balance_poll_fast,
+    set_status_poll_fast, stop_client, upload_logs,
 };
 use gnosis_vpn_lib::command::InfoResponse;
 use gnosis_vpn_lib::{command, socket::root as root_socket};
@@ -44,7 +44,7 @@ use theme::spawn_linux_theme_monitor;
 use theme::{InitialTheme, get_initial_theme, system_theme};
 use toolkit::get_toolkit_version;
 use tray::{
-    create_tray_menu, handle_tray_event, show_settings, show_settings_and_check,
+    create_tray_menu, handle_tray_event, show_main_and_check_update, show_main_and_navigate,
     toggle_main_window_visibility,
 };
 use types::ConnectionState;
@@ -69,6 +69,10 @@ pub struct StatusPollingHandle {
 pub struct BalancePollingHandle {
     pub cancel: CancellationToken,
     pub handle: Option<tauri::async_runtime::JoinHandle<()>>,
+    /// Wakes the loop so a changed poll cap applies at once.
+    pub trigger: Arc<Notify>,
+    /// Caps the poll interval while the Add funds page waits for a transfer.
+    pub fast: Arc<AtomicBool>,
 }
 
 pub struct AppStateCache {
@@ -310,15 +314,15 @@ pub fn run() {
                     }
                     "settings" => {
                         tracing::info!(target: "tray", "settings requested");
-                        show_settings(app, "settings");
+                        show_main_and_navigate(app, "settings");
                     }
                     "usage" => {
                         tracing::info!(target: "tray", "usage requested");
-                        show_settings(app, "usage");
+                        show_main_and_navigate(app, "wallet");
                     }
                     "check_update" => {
                         tracing::info!(target: "tray", "update check requested");
-                        show_settings_and_check(app);
+                        show_main_and_check_update(app);
                     }
                     other => tracing::warn!(target: "tray", id = other, "unknown tray menu item"),
                 })
@@ -435,18 +439,6 @@ pub fn run() {
                 });
             }
 
-            // Intercept settings window close to hide instead of destroying the window
-            if let Some(settings_window) = app.get_webview_window("settings") {
-                let settings_clone = settings_window.clone();
-                settings_window.on_window_event(move |event| {
-                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                        tracing::info!(target: "window", "settings window close requested, hiding");
-                        api.prevent_close();
-                        let _ = settings_clone.hide();
-                    }
-                });
-            }
-
             // Decide initial window visibility based on settings
             if let Some(window) = app.get_webview_window("main") {
                 let start_minimized = app.state::<SettingsStore>().current().start_minimized;
@@ -479,6 +471,8 @@ pub fn run() {
             app.manage(Mutex::new(BalancePollingHandle {
                 cancel: CancellationToken::new(),
                 handle: None,
+                trigger: Arc::new(Notify::new()),
+                fast: Arc::new(AtomicBool::new(false)),
             }));
 
             // last update-install status: re-hydration + concurrent-install guard
@@ -506,6 +500,7 @@ pub fn run() {
             probe,
             quick_probe,
             set_status_poll_fast,
+            set_balance_poll_fast,
             export_logs,
             upload_logs,
             log_from_frontend,

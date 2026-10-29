@@ -7,8 +7,8 @@ import {
 } from "solid-js";
 
 export interface ButtonProps {
-  variant?: "primary" | "secondary" | "outline" | "stop";
-  size?: "sm" | "md" | "lg";
+  variant?: "primary" | "secondary" | "outline" | "stop" | "neutral";
+  size?: "sm" | "md" | "lg" | "main";
   fullWidth?: boolean;
   disabled?: boolean;
   class?: string;
@@ -17,8 +17,9 @@ export interface ButtonProps {
   onClick?: () => void;
 }
 
+// Default arrow cursor on buttons, as native desktop toolkits do; the focus ring only shows for keyboard focus.
 const baseClasses =
-  "font-bold inline-flex items-center justify-center focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed gap-2 enabled:cursor-pointer transition-transform duration-150 ease-out select-none";
+  "font-bold inline-flex items-center justify-center focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50 gap-2 transition-transform duration-150 ease-out select-none";
 
 const variantClasses: Record<NonNullable<ButtonProps["variant"]>, string> = {
   primary:
@@ -29,12 +30,17 @@ const variantClasses: Record<NonNullable<ButtonProps["variant"]>, string> = {
     "border border-border bg-transparent text-text-primary focus:outline-none enabled:hover:bg-darken",
   stop:
     "border border-transparent bg-btn-stop-bg text-btn-stop-text focus:outline-none enabled:hover:bg-btn-stop-hover",
+  // Quiet grey for an action that gives something up without being destructive (Cancel).
+  neutral:
+    "border border-border bg-bg-surface-alt text-text-primary focus:outline-none enabled:hover:bg-darken",
 };
 
 const sizeClasses: Record<NonNullable<ButtonProps["size"]>, string> = {
   sm: "h-8 px-3 text-sm rounded-md",
   md: "h-10 px-4 text-sm rounded-lg",
   lg: "h-14 px-6 text-base rounded-2xl",
+  // The main screen's primary action: desktop-sized, not touch-sized.
+  main: "h-9 px-4 text-sm rounded-lg",
 };
 
 export default function Button(allProps: ButtonProps): JSX.Element {

@@ -5,6 +5,7 @@ import type {
   QuickProbeState,
   RouteHealthView,
   Slots,
+  UnrecoverableReason,
 } from "@src/services/vpnService.ts";
 
 type DestinationOverrides = Partial<Omit<Destination, "meta">> & {
@@ -78,9 +79,11 @@ export function noPathRouteHealth(): RouteHealthView {
   };
 }
 
-export function unrecoverableRouteHealth(): RouteHealthView {
+export function unrecoverableRouteHealth(
+  reason: UnrecoverableReason = "NotAllowed",
+): RouteHealthView {
   return {
-    state: { state: "Unrecoverable", reason: "NotAllowed" },
+    state: { state: "Unrecoverable", reason },
     last_error: null,
     walk: null,
     quick_probe: null,

@@ -8,7 +8,7 @@
 //
 // Flags:
 //   --fixture <path>   fixture JSON (default: fixture.json next to this file)
-//   --size <WxH>       viewport, default 360x640 (settings window: 640x480)
+//   --size <WxH>       viewport, default 360x640 (the app has one window)
 //
 // Steps (executed in order, after navigation and app mount):
 //   shot <file.png>    capture screenshot

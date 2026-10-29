@@ -1,6 +1,6 @@
 ---
 name: run-gnosis-vpn-app
-description: Run, screenshot, and drive the Gnosis VPN UI headlessly. Renders any screen (main, settings, usage) in headless Chromium WITHOUT the Rust/Tauri backend, using a fixture-driven Tauri shim. Use to run the app, verify UI changes visually, take screenshots, or click through screens.
+description: Run, screenshot, and drive the Gnosis VPN UI headlessly. Renders any screen or page (main, settings, add funds, wallet) in headless Chromium WITHOUT the Rust/Tauri backend, using a fixture-driven Tauri shim. Use to run the app, verify UI changes visually, take screenshots, or click through screens.
 ---
 
 # Run the Gnosis VPN app (headless, no backend)
@@ -38,7 +38,7 @@ again), waits for the Solid app to mount, then executes the steps in order:
 | `handoff`         | diff the splash logo against the mounted one (see below) |
 
 Flags: `--fixture <path>` (default: the skill's `fixture.json`), `--size WxH`
-(default `360x640` — the main window; settings window is `640x480`).
+(default `360x640`, the app's one window).
 
 ### Checking the splash→Solid handoff
 
@@ -160,15 +160,23 @@ source:
 - `exportLogsDest` — path the Export logs save dialog resolves with; omitted, it
   accepts the suggested `/home/user/Downloads/gnosis_vpn-*.log.zst`, and `null`
   cancels. `export_logs` echoes it back, which opens the Logs saved modal.
-- `windowLabel: "settings"` renders the settings window instead (use
-  `--size 640x480`). Switch tabs by clicking the nav buttons, e.g. Usage:
+- Settings, Software update, About and Add funds are pages inside the main
+  window, and the balance is a popover on the wallet icon. Reach them the way
+  the user does: `click 'button:has(img[alt="Settings"])'` opens Settings, then
+  click a row by its text; `click 'button:has(img[alt="Balance"])'` opens the
+  wallet popover and its `Add funds…` button opens that page. The tray's
+  requests arrive as `navigate` events, which the shim can replay:
+  `eval "__GVPN_FIRE_EVENT__('navigate', 'software-update')"` (targets:
+  `settings`, `software-update`, `about`, `add-funds`, `wallet`). Esc goes back
+  a page. The fixture's `windowLabel` only names the window the shim reports;
+  there is no second window any more.
 
 ```bash
-deno run -A .claude/skills/run-gnosis-vpn-app/driver.ts --size 640x480 \
-  --fixture /tmp/fixture-settings.json \
-  eval "[...document.querySelectorAll('button')].find(b => b.textContent.includes('Usage')).click()" \
+deno run -A .claude/skills/run-gnosis-vpn-app/driver.ts \
+  --fixture /tmp/fixture-update-available.json \
+  eval "__GVPN_FIRE_EVENT__('navigate', 'software-update')" \
   wait 500 \
-  shot /tmp/usage.png
+  shot /tmp/software-update.png
 ```
 
 Fixture shapes must satisfy the zod schemas in `src/services/vpnService.ts`

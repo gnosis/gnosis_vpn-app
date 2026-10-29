@@ -1,10 +1,7 @@
-import { For, Show } from "solid-js";
+import { For } from "solid-js";
 import type { RouteGrade } from "@src/utils/destinations.ts";
-import CardTooltip from "./CardTooltip.tsx";
 
 const BAR_COUNT = 4;
-const MEASURED_TOOLTIP =
-  "Route quality from latency, free capacity and relay diversity.";
 
 /** Same green/orange/red ramp as the graded stats, keyed on the filled count. */
 const BAND_COLOR: Record<1 | 2 | 3 | 4, string> = {
@@ -15,74 +12,80 @@ const BAND_COLOR: Record<1 | 2 | 3 | 4, string> = {
 };
 
 function filledBars(grade: RouteGrade): number {
-  if (grade.kind === "measured") return grade.bars;
-  return grade.kind === "weak" ? 1 : 0;
-}
-
-function label(grade: RouteGrade): string {
   switch (grade.kind) {
     case "measured":
-      return `Route quality ${grade.bars} of ${BAR_COUNT}`;
-    case "unmeasured":
-      return "Route quality not measured yet";
+      return grade.bars;
     case "weak":
-      return "Weak route";
     case "none":
-      return "";
+      // One bar keeps the column aligned; the colour says why it is one.
+      return 1;
+    case "unmeasured":
+      return 0;
   }
 }
 
-function tooltip(grade: RouteGrade): string {
-  if (grade.kind === "measured") {
-    return `${label(grade)}. ${MEASURED_TOOLTIP}`;
+function filledColor(grade: RouteGrade): string {
+  switch (grade.kind) {
+    case "measured":
+      return BAND_COLOR[grade.bars];
+    case "weak":
+      return "text-text-orange";
+    case "none":
+      return "text-text-red";
+    case "unmeasured":
+      return "text-text-muted";
   }
-  if (grade.kind === "unmeasured") {
-    return `${label(grade)}; the exit is being probed.`;
-  }
-  return `${label(grade)}: the best path found has degraded links.`;
 }
 
-/** Four rising bars; hollow while the exit is unmeasured, so the count is honest without color. */
-export default function SignalBars(props: { grade: RouteGrade }) {
+/**
+ * Four rising bars for a route grade. Decorative: the row or tooltip around it
+ * carries the words. On a highlighted row the bars take the highlight's
+ * foreground, filled solid and empty translucent.
+ */
+export default function SignalBars(props: {
+  grade: RouteGrade;
+  highlighted?: boolean;
+  class?: string;
+}) {
   const filled = () => filledBars(props.grade);
-  const filledColor = () =>
-    props.grade.kind === "measured"
-      ? BAND_COLOR[props.grade.bars]
-      : BAND_COLOR[1];
-  const hollow = () => props.grade.kind === "unmeasured";
+  const pulsing = () => props.grade.kind === "unmeasured";
+  const barClass = (i: number) => {
+    if (props.highlighted) {
+      return i < filled() ? "text-accent-text" : "text-accent-text/35";
+    }
+    if (pulsing()) return "text-text-muted/60";
+    return i < filled() ? filledColor(props.grade) : "text-text-muted/40";
+  };
 
   return (
-    <Show when={props.grade.kind !== "none"}>
-      <CardTooltip tooltip={tooltip(props.grade)}>
-        <svg
-          width="16"
-          height="12"
-          viewBox="0 0 16 12"
-          class="shrink-0"
-          role="img"
-          aria-label={label(props.grade)}
-        >
-          <For each={Array.from({ length: BAR_COUNT }, (_, i) => i)}>
-            {(i) => {
-              const height = 3 * (i + 1);
-              const isFilled = () => i < filled();
-              return (
-                <rect
-                  x={i * 4}
-                  y={12 - height}
-                  width="3"
-                  height={height}
-                  rx="0.5"
-                  class={isFilled() ? filledColor() : "text-text-muted"}
-                  fill={hollow() ? "none" : "currentColor"}
-                  stroke={hollow() ? "currentColor" : "none"}
-                  stroke-width="1"
-                />
-              );
-            }}
-          </For>
-        </svg>
-      </CardTooltip>
-    </Show>
+    <svg
+      width="16"
+      height="12"
+      viewBox="0 0 16 12"
+      class={`shrink-0 ${props.class ?? ""}`}
+      aria-hidden="true"
+    >
+      <For each={Array.from({ length: BAR_COUNT }, (_, i) => i)}>
+        {(i) => {
+          const height = 3 * (i + 1);
+          return (
+            <rect
+              x={i * 4}
+              y={12 - height}
+              width="3"
+              height={height}
+              rx="0.5"
+              fill="currentColor"
+              class={`transition-colors duration-200 ${barClass(i)} ${
+                pulsing() ? "bars-pulse" : ""
+              }`}
+              style={pulsing()
+                ? { "animation-delay": `${i * 200}ms` }
+                : undefined}
+            />
+          );
+        }}
+      </For>
+    </svg>
   );
 }

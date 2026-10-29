@@ -19,16 +19,6 @@
         "visible": false,
         "backgroundColor": "#111827",
         "allowLinkPreview": false
-      },
-      {
-        "label": "settings",
-        "title": "Gnosis VPN Settings",
-        "minWidth": 430,
-        "width": 640,
-        "height": 480,
-        "visible": false,
-        "backgroundColor": "#111827",
-        "allowLinkPreview": false
       }
     ],
     "security": {
@@ -57,7 +47,6 @@
       "icons/tray-icons/tray-icon-connected-stalled-out-of-funds.png",
       "icons/tray-icons/tray-icon-in-use.png",
       "icons/tray-icons/tray-icon-service-down.png",
-
       "icons/tray-icons/linux/disconnected.png",
       "icons/tray-icons/linux/disconnected-low-funds.png",
       "icons/tray-icons/linux/disconnected-out-of-funds.png",
@@ -75,7 +64,6 @@
       "icons/tray-icons/linux/connected-stalled-out-of-funds.png",
       "icons/tray-icons/linux/in-use.png",
       "icons/tray-icons/linux/service-down.png",
-
       "icons/app-icons/app-icon-disconnected.png",
       "icons/app-icons/app-icon-disconnected-low-funds.png",
       "icons/app-icons/app-icon-disconnected-out-of-funds.png",

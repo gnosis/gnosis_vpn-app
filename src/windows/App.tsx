@@ -17,6 +17,11 @@ import {
 } from "@src/utils/updateChecker.ts";
 import { isStaleOutcome } from "@src/utils/updateAvailability.ts";
 import { logError, logWarn } from "@src/utils/appLog.ts";
+import {
+  isHostTarget,
+  navigateFromHost,
+  onScreenChange,
+} from "@src/stores/pageStack.ts";
 
 const validScreens = [
   "main",
@@ -42,8 +47,14 @@ const isValidScreen = (s: string): s is ValidScreen =>
 function handleNavigate(
   payload: NavigatePayload,
   setScreen: (s: ValidScreen) => void,
+  onMainScreen: () => boolean,
 ): void {
   const screen = typeof payload === "string" ? payload : payload.screen;
+  // Pages and the wallet popover live inside the main screen; the page stack queues them until it shows.
+  if (typeof payload === "string" && isHostTarget(payload)) {
+    navigateFromHost(payload, onMainScreen());
+    return;
+  }
   if (!isValidScreen(screen)) {
     logWarn(`Ignoring navigate event with invalid screen: ${screen}`);
     return;
@@ -173,21 +184,28 @@ function App() {
     }
   });
 
+  // Pages never outlive the main screen; a kept tray request lands once it shows.
+  createEffect(() => onScreenChange(displayedScreen() === "main"));
+
   onMount(() => {
     void (async () => {
       await settingsActions.load();
       await appActions.initializeApp();
 
-      // window-scoped listen: a target-Any listener would also get emits aimed at the settings window
+      // window-scoped listen: the tray emits to this window by label
       const unlisten = await getCurrentWebviewWindow().listen<NavigatePayload>(
         "navigate",
         ({ payload }) =>
-          handleNavigate(payload, (s) => {
-            const screen = s as AppScreen;
-            if (screen) {
-              appActions.setScreen(screen);
-            }
-          }),
+          handleNavigate(
+            payload,
+            (s) => {
+              const screen = s as AppScreen;
+              if (screen) {
+                appActions.setScreen(screen);
+              }
+            },
+            () => displayedScreen() === "main",
+          ),
       );
       if (disposed) unlisten();
       else unlistenNavigate = unlisten;
