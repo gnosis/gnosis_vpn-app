@@ -343,7 +343,7 @@ export default function StatusCard(
             }}
             aria-hidden={!expanded()}
           >
-            <div ref={panelRef}>
+            <div ref={panelRef} class="pt-2">
               <div class="mx-3.5 flex border-b border-border pb-3">
                 <Metric
                   label="Latency"
