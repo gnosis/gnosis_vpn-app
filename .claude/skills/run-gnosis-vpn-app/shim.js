@@ -76,6 +76,8 @@
         ? fixture.osDistribution
         : "Ubuntu 24.04.3 LTS",
     }),
+    get_render_profile: () =>
+      fixture.renderProfile ?? { softwareRendering: false, cpuCores: 8 },
     get_install_status: () => fixture.installStatus ?? null,
     // The "service not running" screen's content; fixture.serviceNotRunningInfo overrides any key.
     get_service_not_running_info: () => {

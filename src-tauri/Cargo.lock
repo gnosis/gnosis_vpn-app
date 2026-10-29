@@ -5223,6 +5223,7 @@ dependencies = [
  "futures-core",
  "gnosis_vpn-ipc",
  "gnosis_vpn-lib",
+ "libloading",
  "liblzma",
  "objc",
  "reqwest",
