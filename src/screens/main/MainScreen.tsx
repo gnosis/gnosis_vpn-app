@@ -62,8 +62,12 @@ export function MainScreen() {
   createEffect(() => {
     if (balanceStatus() === "Sufficient") setDismissedBalanceStatus(null);
   });
+  // Somebody else's worker: nothing to pick, probe or connect; it recovers once they stop.
+  const inUseByOtherUser = () => appState.vpnStatus === "InUseByOtherUser";
+
   // Dismissal is per status level so an escalation (Low → Empty) also resurfaces the banner.
   const showBalanceBanner = () =>
+    !inUseByOtherUser() && // a non-owner sees no funds, even ones lingering from before the hand-over
     balanceStatus() !== "Sufficient" &&
     dismissedBalanceStatus() !== balanceStatus();
   const balanceBannerText = () =>
@@ -172,40 +176,44 @@ export function MainScreen() {
         ref={(el) => (columnRef = el)}
         class="flex w-full flex-1 flex-col items-center min-h-0 gap-5 pt-6"
       >
-        <DestinationHero
-          registerOpenPicker={(open) => (openPicker = open)}
-          pickerFrame={pickerFrame}
-        />
-        <Show when={activeDestinationState()}>
-          {(ds) => (
-            // Both share one grid cell so the swap cross-fades in place.
-            <div class="grid w-full">
-              {/* inert: the faded card must not keep a Tab stop while the explainer covers it */}
-              <div
-                ref={(el) =>
-                  createEffect(() =>
-                    el.toggleAttribute("inert", connectInFlight())
-                  )}
-                class="col-start-1 row-start-1 transition-opacity duration-300"
-                classList={{
-                  "opacity-0 pointer-events-none": connectInFlight(),
-                }}
-                aria-hidden={connectInFlight()}
-              >
-                <StatusCard destinationState={ds()} />
-              </div>
-              <Show when={connectInFlight()}>
-                <div class="col-start-1 row-start-1 transition-opacity duration-300 starting:opacity-0">
-                  <ConnectingExplainer destinationState={ds()} />
+        <Show when={!inUseByOtherUser()} fallback={<InUseByOtherUserCard />}>
+          <DestinationHero
+            registerOpenPicker={(open) => (openPicker = open)}
+            pickerFrame={pickerFrame}
+          />
+          <Show when={activeDestinationState()}>
+            {(ds) => (
+              // Both share one grid cell so the swap cross-fades in place.
+              <div class="grid w-full">
+                {/* inert: the faded card must not keep a Tab stop while the explainer covers it */}
+                <div
+                  ref={(el) =>
+                    createEffect(() =>
+                      el.toggleAttribute("inert", connectInFlight())
+                    )}
+                  class="col-start-1 row-start-1 transition-opacity duration-300"
+                  classList={{
+                    "opacity-0 pointer-events-none": connectInFlight(),
+                  }}
+                  aria-hidden={connectInFlight()}
+                >
+                  <StatusCard destinationState={ds()} />
                 </div>
-              </Show>
-            </div>
-          )}
+                <Show when={connectInFlight()}>
+                  <div class="col-start-1 row-start-1 transition-opacity duration-300 starting:opacity-0">
+                    <ConnectingExplainer destinationState={ds()} />
+                  </div>
+                </Show>
+              </div>
+            )}
+          </Show>
         </Show>
       </main>
-      <div ref={(el) => (buttonRef = el)} class="mt-4 w-full z-10">
-        <ConnectButton />
-      </div>
+      <Show when={!inUseByOtherUser()}>
+        <div ref={(el) => (buttonRef = el)} class="mt-4 w-full z-10">
+          <ConnectButton />
+        </div>
+      </Show>
     </div>
   );
 
@@ -241,3 +249,19 @@ export function MainScreen() {
 }
 
 export default MainScreen;
+
+function InUseByOtherUserCard() {
+  return (
+    <div class="w-full bg-bg-card-outer rounded-2xl p-1.5">
+      <div class="flex w-full flex-col gap-2 rounded-2xl bg-bg-card px-3 py-3.5">
+        <span class="text-sm font-semibold text-text-primary">
+          In use by another user on this computer
+        </span>
+        <span class="text-xs text-text-secondary">
+          Gnosis VPN is running for another user account. It becomes available
+          here once that user disconnects and quits.
+        </span>
+      </div>
+    </div>
+  );
+}

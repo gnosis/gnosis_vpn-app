@@ -65,6 +65,9 @@ fn paths_walk() -> RouteWalk {
         distinct_first_relays: 2,
         best_relays: vec![address()],
         best_value: 0.75,
+        return_count: 2,
+        return_best_relays: vec![address()],
+        return_best_value: 0.5,
     }
 }
 
@@ -263,6 +266,13 @@ fn generate_fixtures() {
         &status_base(types::RunMode::Restarting),
     );
 
+    // App-synthesised: the daemon answers a bare InUseByOtherUser, the app shapes it into a status.
+    write(
+        &fixtures_dir,
+        "status_in_use_by_other_user.json",
+        &types::StatusResponse::in_use_by_other_user(),
+    );
+
     write(
         &fixtures_dir,
         "status_with_connections.json",
@@ -353,6 +363,8 @@ fn generate_fixtures() {
         RouteHealthState::NotRoutable,
         Some(RouteWalk::NoPath {
             walked_at: SystemTime::UNIX_EPOCH,
+            forward_count: 0,
+            return_count: 0,
         }),
         None,
     );
@@ -372,6 +384,9 @@ fn generate_fixtures() {
                 distinct_first_relays: 0,
                 best_relays: vec![],
                 best_value: 1.0,
+                return_count: 1,
+                return_best_relays: vec![],
+                return_best_value: 1.0,
             }),
             Some(QuickProbeState::Checking {
                 since: SystemTime::UNIX_EPOCH,
@@ -700,6 +715,7 @@ fn generate_fixtures() {
             version: "0.91.0".to_string(),
             log_file: None,
             package_version: None,
+            worker_log_dir: Some(PathBuf::from("/home/alice/.local/state/gnosisvpn")),
         },
     );
 

@@ -24,6 +24,7 @@ import statusPreparingSafe from "./fixtures/status_preparing_safe.json";
 import statusPreparingSafeWithRecommendation from "./fixtures/status_preparing_safe_with_recommendation.json";
 import statusDeployingSafe from "./fixtures/status_deploying_safe.json";
 import statusRestarting from "./fixtures/status_restarting.json";
+import statusInUseByOtherUser from "./fixtures/status_in_use_by_other_user.json";
 import statusWithConnections from "./fixtures/status_with_connections.json";
 import statusConnectedStalled from "./fixtures/status_connected_stalled.json";
 import statusReconnectWaiting from "./fixtures/status_reconnect_waiting.json";
@@ -71,6 +72,12 @@ describe("StatusResponseSchema", () => {
 
   it("parses Shutdown run_mode", () => {
     expect(StatusResponseSchema.safeParse(statusShutdown).success).toBe(true);
+  });
+
+  it("parses the app-synthesised InUseByOtherUser run_mode", () => {
+    const result = StatusResponseSchema.safeParse(statusInUseByOtherUser);
+    expect(result.success).toBe(true);
+    expect(result.data?.run_mode).toBe("InUseByOtherUser");
   });
 
   it("parses Warmup run_mode", () => {
@@ -324,8 +331,17 @@ describe("BalanceResponseSchema", () => {
 });
 
 describe("ServiceInfoSchema", () => {
-  it("parses service info", () => {
-    expect(ServiceInfoSchema.safeParse(serviceInfo).success).toBe(true);
+  it("parses service info with the owner's worker log dir", () => {
+    const result = ServiceInfoSchema.safeParse(serviceInfo);
+    expect(result.success).toBe(true);
+    expect(result.data?.worker_log_dir).toBe(
+      "/home/alice/.local/state/gnosisvpn",
+    );
+  });
+
+  it("accepts a null worker log dir, which a non-owner gets", () => {
+    const nonOwner = { ...serviceInfo, worker_log_dir: null };
+    expect(ServiceInfoSchema.safeParse(nonOwner).success).toBe(true);
   });
 });
 

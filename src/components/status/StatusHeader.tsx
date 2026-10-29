@@ -7,6 +7,7 @@ const dotClass: Record<HeaderTone, string> = {
   connected: "bg-vpn-light-green",
   stalled: "bg-text-yellow",
   restarting: "bg-text-yellow",
+  inUse: "bg-text-yellow",
   unavailable: "bg-vpn-red",
 };
 
@@ -16,6 +17,7 @@ const textClass: Record<HeaderTone, string> = {
   connected: "text-text-green",
   stalled: "text-text-yellow",
   restarting: "text-text-yellow",
+  inUse: "text-text-yellow",
   unavailable: "text-text-red",
 };
 

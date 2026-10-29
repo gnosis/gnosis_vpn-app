@@ -144,6 +144,12 @@ export default function WalletPopover(props: {
       if (status === "ServiceUnavailable") {
         return { text: "Service unavailable", critical: true };
       }
+      if (status === "InUseByOtherUser") {
+        return {
+          text: "In use by another user on this computer",
+          critical: false,
+        };
+      }
       if (status === "DeployingSafe") {
         return { text: "Preparing service", critical: false };
       }

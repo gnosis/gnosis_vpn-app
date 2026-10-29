@@ -77,6 +77,29 @@
         : "Ubuntu 24.04.3 LTS",
     }),
     get_install_status: () => fixture.installStatus ?? null,
+    // The "service not running" screen's content; fixture.serviceNotRunningInfo overrides any key.
+    get_service_not_running_info: () => {
+      const platform = fixture.platform ?? "linux";
+      const macos = platform === "macos";
+      return {
+        platform,
+        migrate_log_paths: macos
+          ? ["/Library/Logs/GnosisVPN/installer/migrate.log"]
+          : ["/var/log/gnosisvpn/migrate.log"],
+        start_command: macos
+          ? "sudo launchctl enable system/com.gnosisvpn.gnosisvpnclient && sudo launchctl bootstrap system /Library/LaunchDaemons/com.gnosisvpn.gnosisvpnclient.plist"
+          : "sudo systemctl enable --now gnosisvpn",
+        migration_pending: false,
+        migrate_commands: null,
+        can_start_from_app: macos,
+        ...(fixture.serviceNotRunningInfo ?? {}),
+      };
+    },
+    // Resolves unless fixture.startServiceError is set, which is the rejection text.
+    start_service: () =>
+      fixture.startServiceError
+        ? Promise.reject(fixture.startServiceError)
+        : null,
     get_toolkit_version: () => {
       if (fixture.toolkitVersion === null) {
         return Promise.reject("ToolkitMissing");

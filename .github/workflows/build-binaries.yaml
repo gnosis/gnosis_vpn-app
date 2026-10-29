@@ -33,7 +33,7 @@ jobs:
     steps:
       - name: Harden Runner
         if: startsWith(inputs.runner, 'depot-ubuntu')
-        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
           disable-sudo: false
           egress-policy: audit
@@ -106,9 +106,9 @@ jobs:
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libmnl-dev libnftnl-dev
       - name: Install frontend dependencies
         run: deno install
-      - name: Verify fixture freshness
+      - name: Verify fixtures and bundled icons
         run: |
-          cargo test --release --manifest-path src-tauri/Cargo.toml --test serialize_fixtures
+          cargo test --release --manifest-path src-tauri/Cargo.toml --test serialize_fixtures --test bundled_icons
           git diff --exit-code src/services/fixtures/
       - name: Import Apple Developer Certificate
         if: ${{ endsWith(inputs.architecture, '-darwin') }}
@@ -188,7 +188,7 @@ jobs:
           package: gnosis_vpn-app
           version: ${{ steps.version.outputs.build_version }}
       - name: Upload ${{ inputs.architecture }} binaries
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: gnosis_vpn-app-${{ inputs.architecture }}-binaries
           path: ${{ github.workspace }}/artifacts

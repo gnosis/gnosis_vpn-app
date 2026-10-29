@@ -34,12 +34,14 @@ import {
 } from "@src/utils/exitHealth.ts";
 import { levelValueClass } from "../exitNode/levelColor.ts";
 import HopsIcon from "../exitNode/HopsIcon.tsx";
-import StalledTag from "../exitNode/StalledTag.tsx";
-import { WEAK_ROUTE } from "../exitNode/WeakRouteTag.tsx";
 import ChevronIcon from "../common/ChevronIcon.tsx";
 import Tag from "../common/Tag.tsx";
 import Tooltip from "../common/Tooltip.tsx";
 import QualityBars, { type BarTone } from "./QualityBars.tsx";
+
+/** Why a weak route is still offered; shown on hover of the verdict that says so. */
+const WEAK_ROUTE =
+  "The best path found has degraded links. Connecting is your call; auto never picks it.";
 
 // Module scope: the choice survives screen switches and resets on app restart.
 const [expanded, setExpanded] = createSignal(false);
@@ -317,7 +319,6 @@ export default function StatusCard(
                   <span class={`font-bold ${row().class}`}>{row().text}</span>
                 </Tooltip>
               </span>
-              <Show when={stall()}>{(s) => <StalledTag stall={s()} />}</Show>
               <Show when={hopCount() !== 1}>
                 <Tag>
                   <HopsIcon count={hopCount()} hideCount />

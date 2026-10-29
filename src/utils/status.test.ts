@@ -314,6 +314,12 @@ function routeHealth(state: RouteHealthView["state"]): RouteHealthView {
 }
 
 describe("deriveVPNStatus", () => {
+  it("reports InUseByOtherUser as its own state, not an outage", () => {
+    expect(deriveVPNStatus({ ...BASE, run_mode: "InUseByOtherUser" })).toBe(
+      "InUseByOtherUser",
+    );
+  });
+
   it("reports Reconnecting when a target is kept with nothing in flight", () => {
     expect(
       deriveVPNStatus({
@@ -519,6 +525,8 @@ describe("headerStatus", () => {
   it("keeps the service texts", () => {
     expect(headerStatus(at("WorkerRestarting")))
       .toEqual({ text: "Restarting...", tone: "restarting" });
+    expect(headerStatus(at("InUseByOtherUser")))
+      .toEqual({ text: "In use by another user", tone: "inUse" });
     expect(headerStatus(at("ServiceUnavailable")))
       .toEqual({ text: "Service unavailable", tone: "unavailable" });
     expect(headerStatus(at("ServiceUnavailable", { isLoading: true })))

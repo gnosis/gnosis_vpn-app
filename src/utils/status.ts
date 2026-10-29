@@ -68,6 +68,8 @@ export function deriveVPNStatus(
   if ("Shutdown" === response.run_mode) return "ServiceUnavailable";
   if ("NotRunning" === response.run_mode) return "ServiceUnavailable";
   if ("Restarting" === response.run_mode) return "WorkerRestarting";
+  // A known state, not an outage: the service is fine, just somebody else's.
+  if ("InUseByOtherUser" === response.run_mode) return "InUseByOtherUser";
   if (isPreparingSafeRunMode(response.run_mode)) return "PreparingSafe";
   if (isDeployingSafeRunMode(response.run_mode)) return "DeployingSafe";
   if (isWarmupRunMode(response.run_mode)) {
@@ -93,6 +95,7 @@ export type HeaderTone =
   | "connected"
   | "stalled"
   | "restarting"
+  | "inUse"
   | "unavailable";
 
 export interface HeaderStatus {
@@ -124,6 +127,9 @@ export function headerStatus(
   }
   if (status === "WorkerRestarting") {
     return { text: "Restarting...", tone: "restarting" };
+  }
+  if (status === "InUseByOtherUser") {
+    return { text: "In use by another user", tone: "inUse" };
   }
   if (status === "ServiceUnavailable") {
     return {

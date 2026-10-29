@@ -38,6 +38,9 @@ export function createMainShortcuts(opts: { openPicker: () => void }): void {
     if (!action) return;
     // A page replaces the main content, and its keys with it; only the Settings chord still applies.
     if (currentPage() !== null && action !== "settings") return;
+    // Somebody else's worker: nothing to connect or pick here.
+    const inUseByOtherUser = appState.vpnStatus === "InUseByOtherUser";
+    if (inUseByOtherUser && action !== "settings") return;
     e.preventDefault();
     switch (action) {
       case "primary":

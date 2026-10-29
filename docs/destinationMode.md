@@ -126,10 +126,10 @@ The daemon walks the HOPR graph for every destination and reports what it found
 under `route_health.walk`. A destination is routable only when the state is
 `Routable` and the best path it found is worth at least `MIN_PATH_VALUE`. A
 `Routable` destination whose best path is weaker is `isSelectable` but not
-ready: the list offers it to the user grayed and tagged "Weak route", since the
-daemon will connect over any `Routable` route, but connecting over it is the
-user's explicit choice, never auto's. Once the exit itself has been measured, a
-full exit is neither ready nor selectable: a connect against it can only fail.
+ready: the list offers it to the user grayed, untagged, since the daemon will
+connect over any `Routable` route, but connecting over it is the user's explicit
+choice, never auto's. Once the exit itself has been measured, a full exit is
+neither ready nor selectable: a connect against it can only fail.
 
 **`best_value` is a product, so the gate is a band, not an equality.** The walk
 starts a path at 1 and multiplies in each edge's score: the edge's probe
@@ -562,8 +562,8 @@ abandoned by the clock, never by a timer.
   the original deadline. If this becomes the visible defect, the fix is a
   debounce on arming — not a change to the sort.
 - **Auto never proposes an ineligible destination.** A weak route is offered in
-  the list, grayed out, tagged and clickable, for the user to pick deliberately;
-  it is never a candidate.
+  the list, grayed out and clickable, for the user to pick deliberately; it is
+  never a candidate.
 - **Live is inert, and shows nothing but itself.** It never proposes a better
   destination; a live tunnel is never torn down automatically, and no other card
   sits next to it — the list is the only way to another destination.
