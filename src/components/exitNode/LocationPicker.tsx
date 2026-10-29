@@ -15,6 +15,7 @@ import { useAppStore } from "@src/stores/appStore.ts";
 import { effectiveActive } from "@src/stores/destinationMode.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import { logInfo, logWarn } from "@src/utils/appLog.ts";
+import { isWindowFocused } from "@src/utils/windowFocus.ts";
 import {
   destinationLabel,
   getExitData,
@@ -57,7 +58,7 @@ function step<T>(
   return from;
 }
 
-/** A popover under its anchor: search, arrow keys, Enter to pick, Esc or a click outside to close. */
+/** A popover under its anchor: search, arrow keys, Enter to pick, Esc, a click outside or the window losing focus to close. */
 export default function LocationPicker(props: {
   // Where the opening button sits; the arrow points at its middle.
   anchor: DOMRect;
@@ -204,7 +205,7 @@ export default function LocationPicker(props: {
     }
   };
 
-  // Esc closes (the dialog first, if it is up); a press outside closes too.
+  // Esc closes (the dialog first, if it is up); a press outside or the window losing focus closes too.
   const onDocumentKeyDown = (e: KeyboardEvent) => {
     if (e.key !== "Escape") return;
     e.stopPropagation();
@@ -229,6 +230,10 @@ export default function LocationPicker(props: {
   onCleanup(() => {
     document.removeEventListener("keydown", onDocumentKeyDown, true);
     document.removeEventListener("pointerdown", onDocumentPointerDown);
+  });
+  // A click outside the window never reaches the document, only the blur does.
+  createEffect(() => {
+    if (!isWindowFocused()) props.onClose(null);
   });
 
   // Spans the frame's column; without one, centred under the anchor and kept inside the window.
