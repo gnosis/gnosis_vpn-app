@@ -143,6 +143,10 @@ sits in the top latency tier with near-perfect delivery; it is the app's own
 product line, since the daemon's `Routable` only says a path of non-zero value
 exists.
 
+The UI shows `best_value` as "Route score". While connected, the route also caps
+the status card's connection quality: a weak route is at best fair, a lost one
+(no route, unrecoverable) poor, whatever latency and load say.
+
 `Routable` implies `walk.found === "Paths"`: the daemon writes both from the
 same walk result, so `weak(d)` reduces to "routable, with a free slot, below the
 band". The `found === "Paths"` re-test in `routable` is defensive.

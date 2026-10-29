@@ -82,8 +82,8 @@ const LATENCY_TOOLTIP = (
   </div>
 );
 const CHECKED_TOOLTIP = "Time since last health check";
-const PATH_TOOLTIP =
-  "Value of the best path found; below 90% counts as a weak route.";
+const ROUTE_SCORE_TOOLTIP =
+  "How healthy the best route through the network is, from link delivery and speed; below 90% is a weak route.";
 const RELAYS_TOOLTIP =
   "Distinct first relays over the paths found; more means fewer single points of failure.";
 const ROUTE_TOOLTIP =
@@ -197,12 +197,14 @@ export default function StatusCard(
     }. Lower is better.`;
   };
 
-  const quality = () => getConnectionQuality(latencyMs(), loadLevel(), stall());
   // The walk's own verdict, not isWeakRoute: a destination still being checked is not weak yet.
-  const isWeak = () => {
+  const routeVerdict = () => {
     const rh = routeHealth();
-    return rh !== null && getRouteVerdict(rh, exit()) === "weak";
+    return rh ? getRouteVerdict(rh, exit()) : null;
   };
+  const isWeak = () => routeVerdict() === "weak";
+  const quality = () =>
+    getConnectionQuality(latencyMs(), loadLevel(), stall(), routeVerdict());
   const hopCount = () =>
     getHopCount(props.destinationState.destination.routing);
 
@@ -366,8 +368,8 @@ export default function StatusCard(
                   value={lastChecked()}
                 />
                 <DiagnosticRow
-                  label="Path"
-                  tooltip={<span>{PATH_TOOLTIP}</span>}
+                  label="Route score"
+                  tooltip={<span>{ROUTE_SCORE_TOOLTIP}</span>}
                   value={pathValue()}
                 />
                 <DiagnosticRow
