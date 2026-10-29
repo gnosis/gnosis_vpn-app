@@ -51,9 +51,11 @@ export default function ConnectButton() {
           fallback={look().label}
         >
           {(title) => (
-            <span class="inline-flex items-center gap-2">
-              <OwlIcon class="size-[18px]" />
+            // The trailing spacer mirrors the owl so the label sits on the button's true centre.
+            <span class="flex min-w-0 items-center gap-2">
+              <OwlIcon class="size-[18px] shrink-0" />
               <span class="truncate">Connect to {title()}</span>
+              <span class="size-[18px] shrink-0" aria-hidden="true" />
             </span>
           )}
         </Show>
