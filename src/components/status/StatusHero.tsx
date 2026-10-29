@@ -130,6 +130,10 @@ export function StatusHero() {
   const showFill = () => mode() === "connecting" || morphing();
 
   const ariaLabel = () => {
+    // Sleeping owl, but the service is fine: it is somebody else's.
+    if (appState.vpnStatus === "InUseByOtherUser") {
+      return "In use by another user on this computer";
+    }
     const labels: Record<Mode, string> = {
       idle: "Disconnected",
       connecting: "Connecting",

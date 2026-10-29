@@ -2497,7 +2497,7 @@ version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cdeb9d870516001442e364c5220d3574d2da8dc765554b4a617230d33fa58ef5"
 dependencies = [
- "objc2 0.6.4",
+ "objc2 0.6.5",
 ]
 
 [[package]]
@@ -3011,8 +3011,8 @@ dependencies = [
  "compression-core",
  "flate2",
  "memchr",
- "zstd 0.14.0",
- "zstd-safe 8.0.0",
+ "zstd",
+ "zstd-safe",
 ]
 
 [[package]]
@@ -3297,9 +3297,9 @@ dependencies = [
 
 [[package]]
 name = "crypto-bigint"
-version = "0.7.5"
+version = "0.7.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1a52aa3fcda4e6302a9f48734f234d35d4721b96f8fe07d073f07ce9df4f0271"
+checksum = "9c035cb64cba03dad2fb921f3e218785e8cf9a41790da5eb3a1400f62fa2be11"
 dependencies = [
  "cpubits",
  "ctutils",
@@ -3393,9 +3393,9 @@ dependencies = [
 
 [[package]]
 name = "ctutils"
-version = "0.4.2"
+version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d5515a3834141de9eafb9717ad39eea8247b5674e6066c404e8c4b365d2a29e"
+checksum = "fe3e9d21d39e6f39ff46e03d5b621424f88ee23d8a1672c6bfc9ccc7f2da4f6a"
 dependencies = [
  "cmov",
  "subtle",
@@ -3495,7 +3495,7 @@ dependencies = [
  "ark-ec 0.6.0",
  "ark-ff 0.6.0",
  "ark-secp256k1",
- "crypto-bigint 0.7.5",
+ "crypto-bigint 0.7.10",
  "ctr 0.10.1",
  "getrandom 0.2.17",
  "hkdf 0.13.0",
@@ -3808,7 +3808,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c54e03a951783e8b327515db3f2a2fd0e3bed362a96b066f341ce66ed49b4ead"
 dependencies = [
  "data-encoding",
- "syn 1.0.109",
+ "syn 3.0.6",
 ]
 
 [[package]]
@@ -4031,7 +4031,7 @@ dependencies = [
  "bitflags 2.13.2",
  "block2 0.6.2",
  "libc",
- "objc2 0.6.4",
+ "objc2 0.6.5",
 ]
 
 [[package]]
@@ -4221,7 +4221,7 @@ dependencies = [
 [[package]]
 name = "edgli"
 version = "5.2.0"
-source = "git+https://github.com/hoprnet/edge-client.git?rev=b6614471abb975959060e86df1b0c28ce8305d07#b6614471abb975959060e86df1b0c28ce8305d07"
+source = "git+https://github.com/hoprnet/edge-client.git?rev=89c799f378f0d5c060a71f15b4f3fda47e2794f8#89c799f378f0d5c060a71f15b4f3fda47e2794f8"
 dependencies = [
  "anyhow",
  "async-signal",
@@ -4304,7 +4304,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9d65aa39b3a5c1c9c1b745c9a019234bb7a21b77abcb4f4d266d706e2d577d65"
 dependencies = [
  "base16ct 1.0.0",
- "crypto-bigint 0.7.5",
+ "crypto-bigint 0.7.10",
  "crypto-common 0.2.2",
  "digest 0.11.3",
  "ff 0.14.0",
@@ -5240,13 +5240,13 @@ dependencies = [
  "tracing-appender",
  "tracing-subscriber",
  "url",
- "zstd 0.13.3",
+ "zstd",
 ]
 
 [[package]]
 name = "gnosis_vpn-ipc"
 version = "0.101.1"
-source = "git+https://github.com/gnosis/gnosis_vpn-client.git?rev=b78efcd9a98c64435cf58208bfe403b7fe3eb2c5#b78efcd9a98c64435cf58208bfe403b7fe3eb2c5"
+source = "git+https://github.com/gnosis/gnosis_vpn-client.git?rev=be1eee70ed5c3793b563104f2fb6730be6bcf58f#be1eee70ed5c3793b563104f2fb6730be6bcf58f"
 dependencies = [
  "base64 0.23.1",
  "humantime",
@@ -5260,9 +5260,8 @@ dependencies = [
 [[package]]
 name = "gnosis_vpn-lib"
 version = "0.101.1"
-source = "git+https://github.com/gnosis/gnosis_vpn-client.git?rev=b78efcd9a98c64435cf58208bfe403b7fe3eb2c5#b78efcd9a98c64435cf58208bfe403b7fe3eb2c5"
+source = "git+https://github.com/gnosis/gnosis_vpn-client.git?rev=be1eee70ed5c3793b563104f2fb6730be6bcf58f#be1eee70ed5c3793b563104f2fb6730be6bcf58f"
 dependencies = [
- "anyhow",
  "async-trait",
  "backon",
  "base64 0.23.1",
@@ -5281,7 +5280,7 @@ dependencies = [
  "mnl",
  "neptun",
  "nftnl",
- "objc2 0.6.4",
+ "objc2 0.6.5",
  "objc2-foundation 0.3.2",
  "pfctl",
  "ping",
@@ -5298,6 +5297,7 @@ dependencies = [
  "tokio-util",
  "toml 1.1.6+spec-1.1.0",
  "tracing",
+ "tracing-appender",
  "tracing-subscriber",
  "url",
  "uzers",
@@ -5798,7 +5798,7 @@ dependencies = [
 [[package]]
 name = "hopr-crypto-packet"
 version = "2.1.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#77f0e221a1bfb3964f7f4f492706baa91418697f"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#1462e4a019db9babd14f32f941c3762563d57157"
 dependencies = [
  "bimap",
  "const-hex",
@@ -5835,7 +5835,7 @@ dependencies = [
 [[package]]
 name = "hopr-lib"
 version = "5.0.0-rc.5"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#77f0e221a1bfb3964f7f4f492706baa91418697f"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#1462e4a019db9babd14f32f941c3762563d57157"
 dependencies = [
  "anyhow",
  "async-broadcast",
@@ -5887,7 +5887,7 @@ dependencies = [
 [[package]]
 name = "hopr-protocol-app"
 version = "1.2.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#77f0e221a1bfb3964f7f4f492706baa91418697f"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#1462e4a019db9babd14f32f941c3762563d57157"
 dependencies = [
  "hopr-crypto-packet",
  "hopr-types",
@@ -5900,7 +5900,7 @@ dependencies = [
 [[package]]
 name = "hopr-protocol-hopr"
 version = "6.4.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#77f0e221a1bfb3964f7f4f492706baa91418697f"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#1462e4a019db9babd14f32f941c3762563d57157"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5929,7 +5929,7 @@ dependencies = [
 [[package]]
 name = "hopr-protocol-pix"
 version = "0.3.1"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#77f0e221a1bfb3964f7f4f492706baa91418697f"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#1462e4a019db9babd14f32f941c3762563d57157"
 dependencies = [
  "ahash",
  "auto_impl",
@@ -5952,7 +5952,7 @@ dependencies = [
 [[package]]
 name = "hopr-protocol-session"
 version = "1.6.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#77f0e221a1bfb3964f7f4f492706baa91418697f"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#1462e4a019db9babd14f32f941c3762563d57157"
 dependencies = [
  "aquamarine",
  "asynchronous-codec",
@@ -5983,7 +5983,7 @@ dependencies = [
 [[package]]
 name = "hopr-protocol-start"
 version = "3.1.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#77f0e221a1bfb3964f7f4f492706baa91418697f"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#1462e4a019db9babd14f32f941c3762563d57157"
 dependencies = [
  "aquamarine",
  "flagset",
@@ -6071,7 +6071,7 @@ dependencies = [
 [[package]]
 name = "hopr-transport"
 version = "0.52.1"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#77f0e221a1bfb3964f7f4f492706baa91418697f"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#1462e4a019db9babd14f32f941c3762563d57157"
 dependencies = [
  "ahash",
  "anyhow",
@@ -6101,7 +6101,6 @@ dependencies = [
  "libp2p",
  "moka",
  "multiaddr",
- "parking_lot",
  "proc-macro-regex",
  "rand 0.10.3",
  "rand_distr",
@@ -6118,7 +6117,7 @@ dependencies = [
 [[package]]
 name = "hopr-transport-mixer"
 version = "0.5.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#77f0e221a1bfb3964f7f4f492706baa91418697f"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#1462e4a019db9babd14f32f941c3762563d57157"
 dependencies = [
  "futures",
  "futures-timer",
@@ -6158,7 +6157,7 @@ dependencies = [
 [[package]]
 name = "hopr-transport-probe"
 version = "0.9.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#77f0e221a1bfb3964f7f4f492706baa91418697f"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#1462e4a019db9babd14f32f941c3762563d57157"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6184,7 +6183,7 @@ dependencies = [
 [[package]]
 name = "hopr-transport-session"
 version = "0.33.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#77f0e221a1bfb3964f7f4f492706baa91418697f"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#1462e4a019db9babd14f32f941c3762563d57157"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6218,7 +6217,7 @@ dependencies = [
 [[package]]
 name = "hopr-transport-tag-allocator"
 version = "0.2.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#77f0e221a1bfb3964f7f4f492706baa91418697f"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#1462e4a019db9babd14f32f941c3762563d57157"
 dependencies = [
  "hopr-protocol-app",
  "serde",
@@ -6329,7 +6328,7 @@ dependencies = [
 [[package]]
 name = "hopr-utils-session"
 version = "1.3.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#77f0e221a1bfb3964f7f4f492706baa91418697f"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#1462e4a019db9babd14f32f941c3762563d57157"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7290,9 +7289,9 @@ dependencies = [
 
 [[package]]
 name = "libc"
-version = "0.2.189"
+version = "0.2.190"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3eaf3ede3fee6db1a4c2ee091bf8a8b4dccdc6d17f656fb07896ee72867612f2"
+checksum = "ce5d3ddc6d3fa000eb1536d85e147bfe31aacaba692ed6a876f95cb7c855be78"
 
 [[package]]
 name = "libdbus-sys"
@@ -8038,7 +8037,7 @@ dependencies = [
  "dpi",
  "gtk",
  "keyboard-types",
- "objc2 0.6.4",
+ "objc2 0.6.5",
  "objc2-app-kit",
  "objc2-core-foundation",
  "objc2-foundation 0.3.2",
@@ -8163,7 +8162,7 @@ dependencies = [
 [[package]]
 name = "neptun"
 version = "2.2.3"
-source = "git+https://github.com/NordSecurity/neptun.git?tag=v3.0.5#ed75813cebb00c2fbe1a7723764c12dd381818c3"
+source = "git+https://github.com/NordSecurity/neptun.git?tag=v3.0.6#ce185155e1639403cc40e01260d0830065a49555"
 dependencies = [
  "aead 0.5.2",
  "base64 0.22.1",
@@ -8456,9 +8455,9 @@ dependencies = [
 
 [[package]]
 name = "objc2"
-version = "0.6.4"
+version = "0.6.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3a12a8ed07aefc768292f076dc3ac8c48f3781c8f2d5851dd3d98950e8c5a89f"
+checksum = "08849bbd4767dfae9457696856ae1c84fe4e0281bbe4a7abff2d0e06fb7981f8"
 dependencies = [
  "objc2-encode",
  "objc2-exception-helper",
@@ -8472,7 +8471,7 @@ checksum = "d49e936b501e5c5bf01fda3a9452ff86dc3ea98ad5f283e1455153142d97518c"
 dependencies = [
  "bitflags 2.13.2",
  "block2 0.6.2",
- "objc2 0.6.4",
+ "objc2 0.6.5",
  "objc2-core-foundation",
  "objc2-foundation 0.3.2",
 ]
@@ -8484,7 +8483,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "73ad74d880bb43877038da939b7427bba67e9dd42004a18b809ba7d87cee241c"
 dependencies = [
  "bitflags 2.13.2",
- "objc2 0.6.4",
+ "objc2 0.6.5",
  "objc2-foundation 0.3.2",
 ]
 
@@ -8494,7 +8493,7 @@ version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b402a653efbb5e82ce4df10683b6b28027616a2715e90009947d50b8dd298fa"
 dependencies = [
- "objc2 0.6.4",
+ "objc2 0.6.5",
  "objc2-foundation 0.3.2",
 ]
 
@@ -8506,7 +8505,7 @@ checksum = "2a180dd8642fa45cdb7dd721cd4c11b1cadd4929ce112ebd8b9f5803cc79d536"
 dependencies = [
  "bitflags 2.13.2",
  "dispatch2",
- "objc2 0.6.4",
+ "objc2 0.6.5",
 ]
 
 [[package]]
@@ -8517,7 +8516,7 @@ checksum = "e022c9d066895efa1345f8e33e584b9f958da2fd4cd116792e15e07e4720a807"
 dependencies = [
  "bitflags 2.13.2",
  "dispatch2",
- "objc2 0.6.4",
+ "objc2 0.6.5",
  "objc2-core-foundation",
  "objc2-io-surface",
 ]
@@ -8528,7 +8527,7 @@ version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e5d563b38d2b97209f8e861173de434bd0214cf020e3423a52624cd1d989f006"
 dependencies = [
- "objc2 0.6.4",
+ "objc2 0.6.5",
  "objc2-foundation 0.3.2",
 ]
 
@@ -8538,7 +8537,7 @@ version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ca347214e24bc973fc025fd0d36ebb179ff30536ed1f80252706db19ee452009"
 dependencies = [
- "objc2 0.6.4",
+ "objc2 0.6.5",
  "objc2-foundation 0.3.2",
 ]
 
@@ -8549,7 +8548,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0cde0dfb48d25d2b4862161a4d5fcc0e3c24367869ad306b0c9ec0073bfed92d"
 dependencies = [
  "bitflags 2.13.2",
- "objc2 0.6.4",
+ "objc2 0.6.5",
  "objc2-core-foundation",
  "objc2-core-graphics",
 ]
@@ -8590,7 +8589,7 @@ dependencies = [
  "bitflags 2.13.2",
  "block2 0.6.2",
  "libc",
- "objc2 0.6.4",
+ "objc2 0.6.5",
  "objc2-core-foundation",
 ]
 
@@ -8601,7 +8600,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "180788110936d59bab6bd83b6060ffdfffb3b922ba1396b312ae795e1de9d81d"
 dependencies = [
  "bitflags 2.13.2",
- "objc2 0.6.4",
+ "objc2 0.6.5",
  "objc2-core-foundation",
 ]
 
@@ -8612,7 +8611,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "96c1358452b371bf9f104e21ec536d37a650eb10f7ee379fff67d2e08d537f1f"
 dependencies = [
  "bitflags 2.13.2",
- "objc2 0.6.4",
+ "objc2 0.6.5",
  "objc2-core-foundation",
  "objc2-foundation 0.3.2",
 ]
@@ -8625,7 +8624,7 @@ checksum = "d87d638e33c06f577498cbcc50491496a3ed4246998a7fbba7ccb98b1e7eab22"
 dependencies = [
  "bitflags 2.13.2",
  "block2 0.6.2",
- "objc2 0.6.4",
+ "objc2 0.6.5",
  "objc2-cloud-kit",
  "objc2-core-data",
  "objc2-core-foundation",
@@ -8644,7 +8643,7 @@ version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9df9128cbbfef73cda168416ccf7f837b62737d748333bfe9ab71c245d76613e"
 dependencies = [
- "objc2 0.6.4",
+ "objc2 0.6.5",
  "objc2-foundation 0.3.2",
 ]
 
@@ -8656,7 +8655,7 @@ checksum = "b2e5aaab980c433cf470df9d7af96a7b46a9d892d521a2cbbb2f8a4c16751e7f"
 dependencies = [
  "bitflags 2.13.2",
  "block2 0.6.2",
- "objc2 0.6.4",
+ "objc2 0.6.5",
  "objc2-app-kit",
  "objc2-core-foundation",
  "objc2-foundation 0.3.2",
@@ -9332,7 +9331,7 @@ version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c555a6e4eb7d4e158fcb028c835c3b8642206ddc279b5c6b202ef9a8bdb592f4"
 dependencies = [
- "crypto-bigint 0.7.5",
+ "crypto-bigint 0.7.10",
  "crypto-common 0.2.2",
  "ff 0.14.0",
  "rand_core 0.10.1",
@@ -10025,7 +10024,7 @@ version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4a459cddafb3fe76b31fd8f1108007566c40301feb64dc7b54656eb7388172b"
 dependencies = [
- "crypto-bigint 0.7.5",
+ "crypto-bigint 0.7.10",
  "hmac 0.13.0",
 ]
 
@@ -10042,7 +10041,7 @@ dependencies = [
  "gtk-sys",
  "js-sys",
  "log",
- "objc2 0.6.4",
+ "objc2 0.6.5",
  "objc2-app-kit",
  "objc2-core-foundation",
  "objc2-foundation 0.3.2",
@@ -10582,7 +10581,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b8050abb251097357e24aff63ba2c52a6309ecb7d23a5474023df960a02694d8"
 dependencies = [
  "annotate-snippets",
- "base64 0.23.1",
+ "base64 0.21.7",
  "encoding_rs_io",
  "granit-parser",
  "nohash-hasher",
@@ -10657,9 +10656,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.151"
+version = "1.0.154"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c841b55ecdae098c80dcae9cf767f6f8a0c2cdb3416bbef72181df4d0fe73f14"
+checksum = "e7e9cc8b1b85264074fbcc02a88680c4096b1e47df8f739dceb03bf482f04bd6"
 dependencies = [
  "itoa",
  "memchr",
@@ -11035,7 +11034,7 @@ dependencies = [
  "bytemuck",
  "js-sys",
  "ndk",
- "objc2 0.6.4",
+ "objc2 0.6.5",
  "objc2-core-foundation",
  "objc2-core-graphics",
  "objc2-foundation 0.3.2",
@@ -11378,7 +11377,7 @@ dependencies = [
  "log",
  "ndk",
  "ndk-sys",
- "objc2 0.6.4",
+ "objc2 0.6.5",
  "objc2-app-kit",
  "objc2-foundation 0.3.2",
  "objc2-ui-kit",
@@ -11441,7 +11440,7 @@ dependencies = [
  "log",
  "mime",
  "muda",
- "objc2 0.6.4",
+ "objc2 0.6.5",
  "objc2-app-kit",
  "objc2-foundation 0.3.2",
  "objc2-ui-kit",
@@ -11639,7 +11638,7 @@ dependencies = [
  "gtk",
  "http",
  "jni 0.21.1",
- "objc2 0.6.4",
+ "objc2 0.6.5",
  "objc2-ui-kit",
  "objc2-web-kit",
  "raw-window-handle",
@@ -11663,7 +11662,7 @@ dependencies = [
  "http",
  "jni 0.21.1",
  "log",
- "objc2 0.6.4",
+ "objc2 0.6.5",
  "objc2-app-kit",
  "once_cell",
  "percent-encoding",
@@ -11735,7 +11734,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.3.4",
+ "getrandom 0.4.3",
  "once_cell",
  "rustix",
  "windows-sys 0.59.0",
@@ -11856,9 +11855,9 @@ checksum = "fd3ca314f692efd6c868f8408f53fe444634a845f96c028b97d35f6a1f79f0ee"
 
 [[package]]
 name = "tokio"
-version = "1.53.1"
+version = "1.53.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "202caea871b69668250d242070849eb495be178ed697a3e98aebce5bc81a0bed"
+checksum = "ce3335fa71841cda333a58d7615b03901380ecf09d59b3296d21f8bbac0dde4e"
 dependencies = [
  "bytes",
  "libc",
@@ -11907,9 +11906,9 @@ dependencies = [
 
 [[package]]
 name = "tokio-util"
-version = "0.7.19"
+version = "0.7.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "494815d09bf52b5548659851081238f0ca39ff638363907596da739561c62c52"
+checksum = "e464cf451ba96ebfc6f9b6542f17ee8b8956e33f1e40d9690624e59d7a7f8a4b"
 dependencies = [
  "bytes",
  "futures-core",
@@ -12243,7 +12242,7 @@ dependencies = [
  "dirs",
  "libappindicator",
  "muda",
- "objc2 0.6.4",
+ "objc2 0.6.5",
  "objc2-app-kit",
  "objc2-core-foundation",
  "objc2-core-graphics",
@@ -12558,7 +12557,7 @@ version = "6.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6bfc736cfd88115aedb95ba84bc2d428fe351e92a56f69fce090af301402d91"
 dependencies = [
- "crypto-bigint 0.7.5",
+ "crypto-bigint 0.7.10",
  "elliptic-curve 0.14.1",
  "elliptic-curve-tools",
  "ff 0.14.0",
@@ -12787,9 +12786,9 @@ dependencies = [
 
 [[package]]
 name = "webpki-root-certs"
-version = "1.0.10"
+version = "1.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "58ec80e73fd8baf57bf0d9615554c75348bda990d6d5bbeab964dd068319fecb"
+checksum = "e49d0e65abc00c142e8f9428da991da9f1a250c39be97459901eb12b9b49f62a"
 dependencies = [
  "rustls-pki-types",
 ]
@@ -12883,7 +12882,7 @@ version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d9bec5a31f3f9362f2258fd0e9c9dd61a9ca432e7306cc78c444258f0dce9a9c"
 dependencies = [
- "objc2 0.6.4",
+ "objc2 0.6.5",
  "objc2-app-kit",
  "objc2-core-foundation",
  "objc2-foundation 0.3.2",
@@ -13497,7 +13496,7 @@ dependencies = [
  "jni 0.21.1",
  "libc",
  "ndk",
- "objc2 0.6.4",
+ "objc2 0.6.5",
  "objc2-app-kit",
  "objc2-core-foundation",
  "objc2-foundation 0.3.2",
@@ -13841,45 +13840,27 @@ checksum = "29666d0abbfad1e3dc4dcf6144730dd3a3ab225bbbdac83319345b1b44ccfc1b"
 
 [[package]]
 name = "zstd"
-version = "0.13.3"
+version = "0.14.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e91ee311a569c327171651566e07972200e76fcfe2242a4fa446149a3881c08a"
+checksum = "db3ae9bf90af6e40197bef767eeefc46ad6397420fe873830bd85e5fbbfb3c70"
 dependencies = [
- "zstd-safe 7.3.0",
-]
-
-[[package]]
-name = "zstd"
-version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bf06bd8162af0734b344780deb55b42a2429ae430870d13fcc12f238e880fe6e"
-dependencies = [
- "zstd-safe 8.0.0",
+ "zstd-safe",
 ]
 
 [[package]]
 name = "zstd-safe"
-version = "7.3.0"
+version = "8.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "64d80649ab6db9d9f6f9c80a40becd948eda4714a0a5ac8c4d157a32231c7882"
-dependencies = [
- "zstd-sys",
-]
-
-[[package]]
-name = "zstd-safe"
-version = "8.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ae42c0555055784c70058d19ba8e275528e8a99a706684868ace5da4e716a4ab"
+checksum = "ded520f16b29e1a9b771c722221b2b0a0398c2316d9bb3c42b458a5414d7434b"
 dependencies = [
  "zstd-sys",
 ]
 
 [[package]]
 name = "zstd-sys"
-version = "2.1.0+zstd.1.5.7"
+version = "2.1.2+zstd.1.5.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0ef0a8027ec3ee71300ab3bcbcd0393f434aa72b91ca6d635a39941deae8eea0"
+checksum = "481ada9c543b2323cbb7bbdbb5249177fbf0188ed959ed2c15e4b22421c84ed3"
 dependencies = [
  "cc",
  "pkg-config",

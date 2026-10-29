@@ -21,8 +21,10 @@ import {
   type Destination,
   type DestinationState,
   type Disconnecting,
+  IN_USE_BY_OTHER_USER_ERROR,
   type ProbeView,
   type RunMode,
+  SERVICE_NOT_RUNNING_ERROR,
   type ServiceInfo,
   ServiceInfoSchema,
   type StatusResponse,
@@ -322,20 +324,37 @@ export function createAppStore(): AppStoreTuple {
     );
   });
 
-  const criticalError = (message: string) => {
+  const criticalError = (message: string) =>
+    resetToScreen(AppScreen.Initialization, message);
+
+  // Drops everything the daemon told us; `screen` is the one that explains why.
+  const resetToScreen = (screen: AppScreen, message: string) => {
     // status errors repeat every poll tick; log only when the message changes
     if (state.error !== message) logError(message);
+    dropDaemonState(screen);
+    setState("error", message);
+  };
+
+  // Somebody else's worker is a known state, not an error; nothing of theirs stays on screen.
+  const showInUseByOtherUser = () => {
+    if (state.vpnStatus === "InUseByOtherUser") return;
+    logInfo("VPN in use by another user on this computer");
+    dropDaemonState(AppScreen.Main);
+    setState("vpnStatus", "InUseByOtherUser");
+  };
+
+  const dropDaemonState = (screen: AppScreen) => {
     stopSyncProgress();
     const savedServiceInfo = state.serviceInfo;
     // The toolkit probe does not go through the daemon (it reads the version
     // file itself), so a daemon error says nothing about its result: keep it.
     const savedToolkit = { ...state.toolkit };
     const savedPackageVersion = state.packageVersion;
-    setState(reconcile(initialState()));
+    // One reconcile, so App.tsx never sees an intermediate screen.
+    setState(reconcile({ ...initialState(), currentScreen: screen }));
     setState("serviceInfo", savedServiceInfo);
     setState("toolkit", savedToolkit);
     setState("packageVersion", savedPackageVersion);
-    setState("error", message);
     destinationMode?.reset({
       preferredLocation: settings.preferredLocation,
       lastConnectedDestination: settings.lastConnectedDestination,
@@ -619,6 +638,18 @@ export function createAppStore(): AppStoreTuple {
       }
 
       const listenCb = (event: unknown) => {
+        // Installed but not started: its own screen, not the critical one.
+        if (isServiceNotRunning(event as StatusEvent)) {
+          resetToScreen(
+            AppScreen.ServiceNotRunning,
+            "Gnosis VPN service is not running",
+          );
+          return;
+        }
+        if (isInUseByOtherUser(event as StatusEvent)) {
+          showInUseByOtherUser();
+          return;
+        }
         let statusResp: StatusResponse | void;
         try {
           statusResp = incomingStatusEvent(event as StatusEvent);
@@ -846,6 +877,16 @@ const appStore = createRoot(() => createAppStore());
 
 export function useAppStore(): AppStoreTuple {
   return appStore;
+}
+
+function isServiceNotRunning(event: StatusEvent): boolean {
+  const payload = event.payload;
+  return "Err" in payload && payload.Err === SERVICE_NOT_RUNNING_ERROR;
+}
+
+function isInUseByOtherUser(event: StatusEvent): boolean {
+  const payload = event.payload;
+  return "Err" in payload && payload.Err === IN_USE_BY_OTHER_USER_ERROR;
 }
 
 function incomingStatusEvent(event: StatusEvent): StatusResponse | void {

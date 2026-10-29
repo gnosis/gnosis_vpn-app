@@ -42,8 +42,12 @@ export function MainScreen() {
   createEffect(() => {
     if (balanceStatus() === "Sufficient") setDismissedBalanceStatus(null);
   });
+  // Somebody else's worker: nothing to pick, probe or connect; it recovers once they stop.
+  const inUseByOtherUser = () => appState.vpnStatus === "InUseByOtherUser";
+
   // Dismissal is per status level so an escalation (Low → Empty) also resurfaces the banner.
   const showBalanceBanner = () =>
+    !inUseByOtherUser() && // a non-owner sees no funds, even ones lingering from before the hand-over
     balanceStatus() !== "Sufficient" &&
     dismissedBalanceStatus() !== balanceStatus();
   const balanceBannerText = () =>
@@ -122,19 +126,38 @@ export function MainScreen() {
 
       <main class="flex w-full flex-1 flex-col items-center relative min-h-0">
         <StatusHero />
-        {
-          /* -mx-4 cancels the screen's own px-4 so the carousel's edge-peek
+        <Show
+          when={!inUseByOtherUser()}
+          fallback={
+            <div class="w-full bg-bg-card-outer rounded-2xl p-1.5">
+              <div class="flex w-full flex-col gap-2 rounded-2xl bg-bg-card px-3 py-3.5">
+                <span class="text-sm font-semibold text-text-primary">
+                  In use by another user on this computer
+                </span>
+                <span class="text-xs text-text-secondary">
+                  Gnosis VPN is running for another user account. It becomes
+                  available here once that user disconnects and quits.
+                </span>
+              </div>
+            </div>
+          }
+        >
+          {
+            /* -mx-4 cancels the screen's own px-4 so the carousel's edge-peek
             (LocationBanner.tsx) can bleed all the way to the true window
             border instead of stopping at the page margin. */
-        }
-        <div class="-mx-4 self-stretch flex justify-center z-10">
-          <LocationBanner />
-        </div>
+          }
+          <div class="-mx-4 self-stretch flex justify-center z-10">
+            <LocationBanner />
+          </div>
+        </Show>
       </main>
-      <div class="mt-4 w-full z-10">
-        <ConnectButton />
-      </div>
-      <ConnectionStatus />
+      <Show when={!inUseByOtherUser()}>
+        <div class="mt-4 w-full z-10">
+          <ConnectButton />
+        </div>
+        <ConnectionStatus />
+      </Show>
     </div>
   );
 }

@@ -753,6 +753,7 @@ fn generate_fixtures() {
             version: semver::Version::new(0, 91, 0),
             log_file: None,
             package_version: None,
+            worker_log_dir: Some(PathBuf::from("/home/alice/.local/state/gnosisvpn")),
         },
     );
 

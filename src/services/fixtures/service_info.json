@@ -1,5 +1,6 @@
 {
   "version": "0.91.0",
   "package_version": null,
-  "log_file": null
+  "log_file": null,
+  "worker_log_dir": "/home/alice/.local/state/gnosisvpn"
 }

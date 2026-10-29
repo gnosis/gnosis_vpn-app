@@ -27,6 +27,12 @@ use gnosis_vpn_ipc::Status;
 
 /// Poll cap while the destination list is open; mirrors STATUS_POLL_FAST_MS in docs/destinationMode.md.
 const STATUS_POLL_FAST: Duration = Duration::from_millis(500);
+/// Status `Err` payload the frontend routes to its own screen; mirrors SERVICE_NOT_RUNNING_ERROR in vpnService.ts.
+pub const SERVICE_NOT_RUNNING_ERROR: &str = "service_not_running";
+/// Status `Err` payload while another local user owns the worker; mirrors IN_USE_BY_OTHER_USER_ERROR in vpnService.ts.
+pub const IN_USE_BY_OTHER_USER_ERROR: &str = "in_use_by_other_user";
+/// Same cap as the app's own rolling logs (logging::MAX_LOG_FILES).
+const MAX_WORKER_LOG_FILES: usize = 7;
 
 /// The ipc client blocks; socket calls are short, so a blocking-pool thread each is fine.
 pub(crate) async fn on_socket<T: Send + 'static>(
@@ -73,10 +79,25 @@ pub async fn check_update(skip_vpn: bool) -> Result<toolkit::CheckResult, String
 }
 
 async fn start_client_worker(keep_alive: Duration) -> Result<(), String> {
-    on_socket(move |p| ipc::start_client(p, keep_alive))
-        .await
-        .map(|_| ())
-        .map_err(|e| e.to_string())
+    classify_start_client_response(on_socket(move |p| ipc::start_client(p, keep_alive)).await)
+}
+
+/// Ok means "go on to polling": the status loop also shows the in-use state.
+fn classify_start_client_response(
+    resp: Result<ipc::StartClientResponse, CallError>,
+) -> Result<(), String> {
+    use ipc::StartClientResponse::{AlreadyRunning, SpawnFailed, Started};
+    match resp {
+        Ok(Started | AlreadyRunning) => Ok(()),
+        Err(CallError::Service(ServiceError::InUseByOtherUser)) => Ok(()),
+        Ok(SpawnFailed { reason }) => Err(format!(
+            "The service could not start the client worker: {reason}"
+        )),
+        Err(CallError::Service(ServiceError::RootCannotOwnWorker)) => {
+            Err("Running the app as root is not supported".to_string())
+        }
+        Err(e) => Err(e.to_string()),
+    }
 }
 
 #[tauri::command]
@@ -309,7 +330,8 @@ fn write_log_section<W: Write>(
 // The uploader UTF-8-checks only the first 100 bytes, so a multi-byte character cut at that
 // boundary gets the bundle rejected; an ASCII preamble keeps user text and logs past it.
 const LOG_BUNDLE_PREAMBLE: &str = "===== Gnosis VPN log bundle =====\n\
-    Sections: system info, user description (if given), gnosis_vpn-app logs, gnosisvpn daemon log.\n\n";
+    Sections: system info, user description (if given), gnosis_vpn-app logs, gnosisvpn daemon log, \
+    gnosisvpn worker logs.\n\n";
 const MAX_DESCRIPTION_CHARS: usize = 2000;
 
 struct LogBundleSources {
@@ -317,6 +339,8 @@ struct LogBundleSources {
     package_version: Option<String>,
     app_logs: Vec<PathBuf>,
     daemon_log: Option<PathBuf>,
+    /// Newest first; empty for a non-owner, whom the daemon tells no log dir.
+    worker_logs: Vec<PathBuf>,
 }
 
 fn write_log_bundle<W: Write>(
@@ -355,23 +379,60 @@ fn write_log_bundle<W: Write>(
         None => writeln!(encoder, "===== gnosisvpn daemon log (unavailable) =====")
             .map_err(|e| format!("Failed to write section header: {e}"))?,
     }
+    if sources.worker_logs.is_empty() {
+        writeln!(encoder, "===== gnosisvpn worker log (unavailable) =====")
+            .map_err(|e| format!("Failed to write section header: {e}"))?;
+    }
+    for path in &sources.worker_logs {
+        write_log_section(&mut encoder, "gnosisvpn worker log", path)?;
+    }
     encoder
         .finish()
         .map_err(|e| format!("Failed to finalize compression: {e}"))
 }
 
+/// The daily-rolled `worker.log.YYYY-MM-DD` files, newest first, capped like the app's own logs.
+fn worker_log_files(dir: &Path) -> Vec<PathBuf> {
+    let entries = match std::fs::read_dir(dir) {
+        Ok(entries) => entries,
+        Err(e) => {
+            tracing::warn!(target: "export", dir = %dir.display(), error = %e, "cannot read worker log dir");
+            return Vec::new();
+        }
+    };
+    let mut files: Vec<PathBuf> = entries
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| {
+            p.file_name()
+                .and_then(|n| n.to_str())
+                .is_some_and(|n| n.starts_with("worker.log"))
+        })
+        .collect();
+    // The date suffix sorts chronologically, so reverse order is newest first.
+    files.sort_by(|a, b| b.cmp(a));
+    files.truncate(MAX_WORKER_LOG_FILES);
+    files
+}
+
 async fn collect_log_sources(app: &AppHandle) -> LogBundleSources {
-    let app_logs = app
-        .path()
-        .app_log_dir()
+    let app_logs = crate::logging::log_dir(app)
         .map(|dir| crate::logging::log_files(&dir))
         .unwrap_or_default();
-    let (daemon_log, daemon_package_version) = app
-        .state::<AppStateCache>()
-        .service_info
-        .borrow()
-        .as_ref()
-        .map(|info| (info.log_file.clone(), info.package_version.clone()))
+    // Asked afresh: the cached info predates StartClient, when no worker (and no log dir) existed yet.
+    let cached_info = app.state::<AppStateCache>().service_info.borrow().clone();
+    let info = match on_socket(ipc::info).await {
+        Ok(info) => Some(info),
+        Err(e) => {
+            tracing::warn!(target: "export", error = ?e, "daemon info unavailable, using cached");
+            cached_info
+        }
+    };
+    let (daemon_log, daemon_package_version, worker_log_dir) = info
+        .map(|info| (info.log_file, info.package_version, info.worker_log_dir))
+        .unwrap_or_default();
+    let worker_logs = worker_log_dir
+        .map(|dir| worker_log_files(&dir))
         .unwrap_or_default();
     // Toolkit first, daemon as fallback: the order the frontend resolves the package version in.
     let package_version = toolkit::version()
@@ -383,6 +444,7 @@ async fn collect_log_sources(app: &AppHandle) -> LogBundleSources {
         target: "export",
         app_log_files = app_logs.len(),
         daemon_log_available = daemon_log.is_some(),
+        worker_log_files = worker_logs.len(),
         "collected log sources",
     );
     LogBundleSources {
@@ -390,6 +452,7 @@ async fn collect_log_sources(app: &AppHandle) -> LogBundleSources {
         package_version,
         app_logs,
         daemon_log,
+        worker_logs,
     }
 }
 
@@ -619,6 +682,91 @@ pub fn get_cached_state(cache: State<'_, AppStateCache>) -> CachedState {
     }
 }
 
+/// The tray's state for a status answer; `None` leaves the tray as it is.
+fn tray_connection_state(answer: &Result<Option<Status>, String>) -> Option<ConnectionState> {
+    match answer {
+        Ok(Some(status)) => Some(status.into()),
+        Err(e) if e == SERVICE_NOT_RUNNING_ERROR => Some(ConnectionState::ServiceNotRunning),
+        Err(e) if e == IN_USE_BY_OTHER_USER_ERROR => Some(ConnectionState::InUseByOtherUser),
+        _ => None,
+    }
+}
+
+/// Tray text, quit label and the dock/tray icons follow the polled state; `last_*` only gate the log lines.
+async fn reflect_state_in_tray(
+    app: &AppHandle,
+    conn_state: &ConnectionState,
+    run_mode: Option<&ipc::RunMode>,
+    last_conn_state: &mut Option<String>,
+    last_funds_level: &mut Option<icons::FundsLevel>,
+) {
+    let state_label = conn_state.to_string();
+    if last_conn_state.as_deref() != Some(state_label.as_str()) {
+        tracing::info!(
+            target: "status",
+            from = last_conn_state.as_deref().unwrap_or("<startup>"),
+            to = %state_label,
+            "connection state changed",
+        );
+        *last_conn_state = Some(state_label);
+    }
+
+    // Without a run mode the daemon is gone and the icon ignores funds; skip the funds log too.
+    let level = match run_mode {
+        Some(run_mode) => {
+            // Funding level needs the balance poll's data; use the latest cached response.
+            let cached_balance = app.state::<AppStateCache>().balance.borrow().clone();
+            let balance = cached_balance
+                .as_ref()
+                .and_then(|res| res.as_ref().ok())
+                .and_then(|opt| opt.as_ref());
+            let level = icons::funds_level(run_mode, balance);
+            if *last_funds_level != Some(level) {
+                tracing::info!(target: "status", level = ?level, "funds level changed");
+                *last_funds_level = Some(level);
+            }
+            level
+        }
+        None => icons::FundsLevel::Sufficient,
+    };
+
+    let icon_state = app.state::<Arc<Mutex<icons::IconState>>>();
+    let new_dock_icon = match icon_state.lock() {
+        Ok(mut guard) => guard.apply_status(conn_state, level),
+        Err(e) => {
+            tracing::warn!(target: "status", error = %e, "failed to lock icon state");
+            None
+        }
+    };
+
+    // during animation, the heartbeat logic owns app and tray icon changes
+    if !icons::is_animating_state(conn_state) {
+        icons::update_tray_icon(app, &app.state::<TrayIconState>(), conn_state, level);
+
+        if let Some(icon_name) = new_dock_icon {
+            if let Err(e) = set_app_icon(app.clone(), icon_name).await {
+                tracing::warn!(target: "status", error = %e, "failed to set app icon");
+            }
+        }
+    }
+
+    let status_item = app.state::<tray::TrayStatusItem>();
+    if let Ok(guard) = status_item.0.lock() {
+        let _ = guard.set_text(conn_state.to_string());
+    };
+
+    let quit_label = match conn_state {
+        ConnectionState::Connected { .. }
+        | ConnectionState::Connecting(_)
+        | ConnectionState::Reconnecting(_) => "Disconnect and Quit",
+        _ => "Quit",
+    };
+    let quit_item = app.state::<tray::TrayQuitItem>();
+    if let Ok(guard) = quit_item.0.lock() {
+        let _ = guard.set_text(quit_label);
+    };
+}
+
 async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
     let polling_state = app_handle.state::<Mutex<StatusPollingHandle>>();
     let bal_polling_state = app_handle.state::<Mutex<BalancePollingHandle>>();
@@ -677,76 +825,23 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
                         delay
                     };
                     tick_timeout.as_mut().reset(Instant::now() + delay);
-                    let Some(result) = answer else {
-                        continue;
-                    };
-                    if let Err(ref e) = result {
-                        warn_on_change(&mut last_status_warn, format!("status query failed: {e}"));
-                    }
-                    if let Ok(Some(ref status)) = result {
-                        if last_status_warn.take().is_some() {
+                    if let Some(result) = answer {
+                        if let Err(ref e) = result {
+                            warn_on_change(&mut last_status_warn, format!("status query failed: {e}"));
+                        }
+                        let run_mode = match &result {
+                            Ok(Some(status)) => Some(&status.run_mode),
+                            _ => None,
+                        };
+                        if run_mode.is_some() && last_status_warn.take().is_some() {
                             tracing::info!(target: "status", "status query recovered");
                         }
-                        let conn_state: ConnectionState = status.into();
-                        let state_label = conn_state.to_string();
-                        if last_conn_state.as_deref() != Some(state_label.as_str()) {
-                            tracing::info!(
-                                target: "status",
-                                from = last_conn_state.as_deref().unwrap_or("<startup>"),
-                                to = %state_label,
-                                "connection state changed",
-                            );
-                            last_conn_state = Some(state_label);
+                        if let Some(conn_state) = tray_connection_state(&result) {
+                            reflect_state_in_tray(&app, &conn_state, run_mode, &mut last_conn_state, &mut last_funds_level).await;
                         }
-
-                        // Funding level needs the balance poll's data; use the latest cached response.
-                        let cached_balance = app.state::<AppStateCache>().balance.borrow().clone();
-                        let balance = cached_balance
-                            .as_ref()
-                            .and_then(|res| res.as_ref().ok())
-                            .and_then(|opt| opt.as_ref());
-                        let level = icons::funds_level(&status.run_mode, balance);
-                        if last_funds_level != Some(level) {
-                            tracing::info!(target: "status", level = ?level, "funds level changed");
-                            last_funds_level = Some(level);
-                        }
-
-                        let icon_state = app.state::<Arc<Mutex<icons::IconState>>>();
-                        let new_dock_icon = match icon_state.lock() {
-                            Ok(mut guard) => guard.apply_status(&conn_state, level),
-                            Err(e) => {
-                                tracing::warn!(target: "status", error = %e, "failed to lock icon state");
-                                None
-                            }
-                        };
-
-                        // during animation, the heartbeat logic owns app and tray icon changes
-                        if !icons::is_animating_state(&conn_state) {
-                            icons::update_tray_icon(&app, &app.state::<TrayIconState>(), &conn_state, level);
-
-                            if let Some(icon_name) = new_dock_icon {
-                                if let Err(e) = set_app_icon(app.clone(), icon_name).await {
-                                    tracing::warn!(target: "status", error = %e, "failed to set app icon");
-                                }
-                            }
-                        }
-
-                        let status_item = app.state::<tray::TrayStatusItem>();
-                        if let Ok(guard) = status_item.0.lock() {
-                            let _ = guard.set_text(conn_state.to_string());
-                        };
-
-                        let quit_label = match conn_state {
-                            ConnectionState::Connected { .. } | ConnectionState::Connecting(_) | ConnectionState::Reconnecting(_) => "Disconnect and Quit",
-                            _ => "Quit",
-                        };
-                        let quit_item = app.state::<tray::TrayQuitItem>();
-                        if let Ok(guard) = quit_item.0.lock() {
-                            let _ = guard.set_text(quit_label);
-                        };
+                        app.state::<AppStateCache>().status.send_replace(Some(result.clone()));
+                        let _ = app.emit("status", result);
                     }
-                    app.state::<AppStateCache>().status.send_replace(Some(result.clone()));
-                    let _ = app.emit("status", result);
                     if needs_reinit {
                         tracing::warn!(target: "status", "daemon worker offline, restarting initialization");
                         break PollingExit::NeedsReinit;
@@ -801,9 +896,29 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
 pub async fn run_initialization_loop(app: AppHandle) {
     const RETRY_DELAY: Duration = Duration::from_secs(5);
     let mut last_warn: Option<String> = None;
+    let mut last_conn_state: Option<String> = None;
+    let mut last_funds_level: Option<icons::FundsLevel> = None;
     loop {
         let info = match on_socket(ipc::info).await {
             Ok(i) => i,
+            // Socket absent: installed but not started, which gets its own screen instead of the critical one.
+            Err(CallError::ServiceNotRunning) => {
+                warn_on_change(&mut last_warn, "service not running, retrying".to_string());
+                reflect_state_in_tray(
+                    &app,
+                    &ConnectionState::ServiceNotRunning,
+                    None,
+                    &mut last_conn_state,
+                    &mut last_funds_level,
+                )
+                .await;
+                let _ = app.emit(
+                    "status",
+                    Err::<Option<Status>, String>(SERVICE_NOT_RUNNING_ERROR.to_string()),
+                );
+                time::sleep(RETRY_DELAY).await;
+                continue;
+            }
             // A daemon of another protocol version answers every request this way.
             Err(CallError::Service(ServiceError::ProtocolMismatch { service })) => {
                 warn_on_change(
@@ -945,7 +1060,19 @@ fn classify_status_response(resp: Result<Status, CallError>) -> StatusPoll {
         Err(CallError::Service(ServiceError::WorkerOffline)) => StatusPoll {
             delay: Duration::from_secs(5),
             needs_reinit: true,
-            answer: Some(Ok(None)),
+            answer: None,
+        },
+        // The owner's worker is alive, nothing to restart; the frontend shows its own in-use state.
+        Err(CallError::Service(ServiceError::InUseByOtherUser)) => StatusPoll {
+            delay: Duration::from_secs(5),
+            needs_reinit: false,
+            answer: Some(Err(IN_USE_BY_OTHER_USER_ERROR.to_string())),
+        },
+        // Same screen as at startup: the service stopped underneath a running app.
+        Err(CallError::ServiceNotRunning) => StatusPoll {
+            delay: Duration::from_secs_f64(2.3),
+            needs_reinit: false,
+            answer: Some(Err(SERVICE_NOT_RUNNING_ERROR.to_string())),
         },
         // A daemon swapped for another protocol version needs the version check of initialization.
         Err(CallError::Service(ServiceError::ProtocolMismatch { .. })) => StatusPoll {
@@ -982,12 +1109,16 @@ mod tests {
         );
     }
 
+    // Every owner hand-over goes through WorkerOffline; an empty event would flash the critical screen.
     #[test]
     fn worker_offline_restarts_initialization() {
         let poll = classify_status_response(Err(CallError::Service(ServiceError::WorkerOffline)));
 
         assert!(poll.needs_reinit);
-        assert!(matches!(poll.answer, Some(Ok(None))));
+        assert!(
+            poll.answer.is_none(),
+            "nothing to report, reinit says it all"
+        );
     }
 
     #[test]
@@ -1000,6 +1131,87 @@ mod tests {
         assert!(matches!(poll.answer, Some(Err(_))));
     }
 
+    #[test]
+    fn in_use_by_other_user_is_its_own_status_answer() {
+        let poll =
+            classify_status_response(Err(CallError::Service(ServiceError::InUseByOtherUser)));
+
+        assert!(
+            !poll.needs_reinit,
+            "the owner's worker is alive, nothing to restart"
+        );
+        let Some(answer) = poll.answer else {
+            panic!("expected an answer for the frontend");
+        };
+        assert!(matches!(
+            tray_connection_state(&answer),
+            Some(ConnectionState::InUseByOtherUser)
+        ));
+    }
+
+    #[test]
+    fn service_not_running_is_its_own_tray_state() {
+        let poll = classify_status_response(Err(CallError::ServiceNotRunning));
+
+        let Some(answer) = poll.answer else {
+            panic!("expected an answer for the frontend");
+        };
+        assert!(matches!(
+            tray_connection_state(&answer),
+            Some(ConnectionState::ServiceNotRunning)
+        ));
+    }
+
+    // Other errors have their own screens; the tray keeps the last known state.
+    #[test]
+    fn other_status_errors_leave_the_tray_alone() {
+        assert!(tray_connection_state(&Err("socket timed out".to_string())).is_none());
+        assert!(tray_connection_state(&Ok(None)).is_none());
+    }
+
+    #[test]
+    fn spawn_failed_surfaces_reason() {
+        let failed = Ok(ipc::StartClientResponse::SpawnFailed {
+            reason: "no home directory for uid 1001".to_string(),
+        });
+        let err = classify_start_client_response(failed).unwrap_err();
+        assert!(err.contains("no home directory for uid 1001"), "{err}");
+
+        let in_use = Err(CallError::Service(ServiceError::InUseByOtherUser));
+        assert!(classify_start_client_response(in_use).is_ok());
+        assert!(
+            classify_start_client_response(Ok(ipc::StartClientResponse::AlreadyRunning)).is_ok()
+        );
+        let as_root = Err(CallError::Service(ServiceError::RootCannotOwnWorker));
+        assert!(classify_start_client_response(as_root).is_err());
+    }
+
+    #[test]
+    fn worker_logs_are_newest_first_and_capped() {
+        let dir = std::env::temp_dir().join("gnosis_vpn-app-worker-log-files");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        for day in 1..=9 {
+            std::fs::write(dir.join(format!("worker.log.2026-10-0{day}")), "x\n").unwrap();
+        }
+        std::fs::write(dir.join("unrelated.txt"), "x\n").unwrap();
+
+        let files = worker_log_files(&dir);
+        let names: Vec<String> = files
+            .iter()
+            .map(|p| p.file_name().unwrap().to_str().unwrap().to_string())
+            .collect();
+
+        assert_eq!(names.len(), MAX_WORKER_LOG_FILES);
+        assert_eq!(names[0], "worker.log.2026-10-09");
+        assert_eq!(names[MAX_WORKER_LOG_FILES - 1], "worker.log.2026-10-03");
+        assert!(worker_log_files(&dir.join("missing")).is_empty());
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    // The list is rewritten by the bump-version workflow; a malformed entry
+    // would otherwise only surface as a silent runtime mismatch.
     #[test]
     fn a_daemon_of_another_protocol_restarts_initialization() {
         let poll =
@@ -1043,6 +1255,7 @@ mod tests {
             package_version: Some("0.77.0".to_string()),
             app_logs: Vec::new(),
             daemon_log: None,
+            worker_logs: Vec::new(),
         }
     }
 
@@ -1052,9 +1265,12 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         let source = dir.join("gnosis_vpn-app.2026-09-28.log");
         std::fs::write(&source, "app line\n").unwrap();
+        let worker_log = dir.join("worker.log.2026-09-28");
+        std::fs::write(&worker_log, "worker line\n").unwrap();
 
         let sources = LogBundleSources {
             app_logs: vec![source],
+            worker_logs: vec![worker_log],
             ..test_bundle_sources()
         };
         let bytes =
@@ -1072,8 +1288,22 @@ mod tests {
         assert!(text.contains("===== user description =====\nVPN drops după o oră\n"));
         assert!(text.contains("app line"));
         assert!(text.contains("===== gnosisvpn daemon log (unavailable) ====="));
+        assert!(
+            text.contains(
+                "===== gnosisvpn worker log (worker.log.2026-09-28) =====\nworker line\n"
+            )
+        );
+        assert!(!text.contains("worker log (unavailable)"));
 
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn missing_worker_logs_are_spelled_out() {
+        let bytes = write_log_bundle(Vec::new(), None, &test_bundle_sources()).unwrap();
+        let text = String::from_utf8(zstd::decode_all(&bytes[..]).unwrap()).unwrap();
+
+        assert!(text.contains("===== gnosisvpn worker log (unavailable) ====="));
     }
 
     #[test]

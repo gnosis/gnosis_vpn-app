@@ -17,6 +17,7 @@ mod icons;
 mod logging;
 mod navigation;
 mod platform;
+mod service_control;
 pub mod settings;
 mod theme;
 pub mod toolkit;
@@ -33,6 +34,7 @@ use commands::{
 use gnosis_vpn_ipc::{self as ipc, InfoResponse, Status};
 use icons::{IconState, TrayIconState, determine_tray_icon, start_icon_heartbeat};
 use platform::{Platform, PlatformInterface, get_platform, get_system_info};
+use service_control::{get_service_not_running_info, start_service};
 use settings::{SettingsStore, get_settings, update_settings};
 #[cfg(target_os = "linux")]
 use theme::spawn_linux_theme_monitor;
@@ -184,12 +186,6 @@ fn install_macos_about_panel_override(
 pub fn run() {
     let cli = Cli::from_env();
 
-    // Random black windows on Ubuntu (GNO-421); costs backdrop-filter on Linux.
-    #[cfg(target_os = "linux")]
-    if std::env::var_os("WEBKIT_DISABLE_COMPOSITING_MODE").is_none() {
-        std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
-    }
-
     tauri::Builder::default()
         .manage(cli)
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
@@ -209,7 +205,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             // Logging first so everything below is captured; failure must not block startup.
-            match app.path().app_log_dir() {
+            match logging::log_dir(app) {
                 Ok(dir) => match logging::init(&dir) {
                     Ok(filter) => {
                         let pkg = app.package_info();
@@ -235,8 +231,8 @@ pub fn run() {
             // Load settings (settings.json) before any UI decisions
             let settings_path = app
                 .path()
-                .app_data_dir()
-                .inspect_err(|e| tracing::error!(error = %e, "cannot resolve app data dir"))?
+                .app_config_dir()
+                .inspect_err(|e| tracing::error!(error = %e, "cannot resolve app config dir"))?
                 .join("settings.json");
             let settings_store = SettingsStore::load(settings_path.clone());
             tracing::info!(target: "settings", path = %settings_path.display(), settings = ?settings_store.current(), "loaded");
@@ -288,6 +284,9 @@ pub fn run() {
                             match commands::on_socket(ipc::unprobe).await {
                                 Ok(resp) => {
                                     tracing::info!(target: "tray", response = ?resp, "unprobe on quit")
+                                }
+                                Err(ipc::CallError::Service(ipc::ServiceError::InUseByOtherUser)) => {
+                                    tracing::info!(target: "tray", "worker owned by another user, nothing to unprobe")
                                 }
                                 Err(e) => {
                                     tracing::warn!(target: "tray", error = %e, "unprobe on quit failed")
@@ -503,7 +502,9 @@ pub fn run() {
             get_system_info,
             install_update,
             get_install_status,
-            get_toolkit_version
+            get_toolkit_version,
+            get_service_not_running_info,
+            start_service
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

@@ -38,6 +38,9 @@ export function StatusIndicator(
     if (appState.vpnStatus === "WorkerRestarting") {
       return { text: "Restarting...", color: "bg-vpn-yellow" };
     }
+    if (appState.vpnStatus === "InUseByOtherUser") {
+      return { text: "In use by another user", color: "bg-vpn-yellow" };
+    }
     if (appState.vpnStatus === "ServiceUnavailable") {
       return {
         text: appState.isLoading ? "Loading..." : "Service unavailable",

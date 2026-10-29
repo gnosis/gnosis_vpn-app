@@ -368,8 +368,17 @@ describe("BalanceResponseSchema", () => {
 });
 
 describe("ServiceInfoSchema", () => {
-  it("parses service info", () => {
-    expect(ServiceInfoSchema.safeParse(serviceInfo).success).toBe(true);
+  it("parses service info with the owner's worker log dir", () => {
+    const result = ServiceInfoSchema.safeParse(serviceInfo);
+    expect(result.success).toBe(true);
+    expect(result.data?.worker_log_dir).toBe(
+      "/home/alice/.local/state/gnosisvpn",
+    );
+  });
+
+  it("accepts a null worker log dir, which a non-owner gets", () => {
+    const nonOwner = { ...serviceInfo, worker_log_dir: null };
+    expect(ServiceInfoSchema.safeParse(nonOwner).success).toBe(true);
   });
 });
 

@@ -6,6 +6,7 @@ import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import Onboarding from "../screens/main/Onboarding.tsx";
 import Synchronization from "../screens/main/Synchronization.tsx";
 import Initialization from "../screens/main/Initialization.tsx";
+import ServiceNotRunning from "../screens/main/ServiceNotRunning.tsx";
 import { emit } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import {
@@ -22,6 +23,7 @@ const validScreens = [
   "onboarding",
   "synchronization",
   "initialization",
+  "serviceNotRunning",
 ] as const;
 type ValidScreen = (typeof validScreens)[number];
 type OnboardingStep = "start" | "airdrop" | "manually";
@@ -72,6 +74,7 @@ function mapStoreToScreenProps(screen: ValidScreen, state: AppState) {
       };
     case "main":
     case "onboarding":
+    case "serviceNotRunning":
     default:
       return {};
   }
@@ -82,6 +85,7 @@ const screens = {
   main: MainScreen,
   onboarding: Onboarding,
   synchronization: Synchronization,
+  serviceNotRunning: ServiceNotRunning,
 } as const;
 
 function App() {

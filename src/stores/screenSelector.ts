@@ -15,6 +15,7 @@ export enum AppScreen {
   Main = "main",
   Onboarding = "onboarding",
   Synchronization = "synchronization",
+  ServiceNotRunning = "serviceNotRunning",
 }
 
 export type SyncPhaseIndex = 0 | 1 | 2;

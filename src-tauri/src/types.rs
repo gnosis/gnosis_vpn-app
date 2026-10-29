@@ -16,6 +16,10 @@ pub enum ConnectionState {
     Reconnecting(String),
     Disconnecting,
     Disconnected,
+    /// The daemon refuses this user: another local user owns the worker.
+    InUseByOtherUser,
+    /// App-only: the daemon's socket is absent, so there is no status to derive a state from.
+    ServiceNotRunning,
 }
 
 /// The balances as the service reports them, with the outgoing channels summed into one stake.
@@ -87,6 +91,8 @@ impl Display for ConnectionState {
             ConnectionState::Reconnecting(dest) => write!(f, "Reconnecting to {}", dest),
             ConnectionState::Disconnecting => write!(f, "Disconnecting"),
             ConnectionState::Disconnected => write!(f, "Disconnected"),
+            ConnectionState::InUseByOtherUser => write!(f, "In use by another user"),
+            ConnectionState::ServiceNotRunning => write!(f, "Service not running"),
         }
     }
 }
