@@ -40,7 +40,7 @@ const sizeClasses: Record<NonNullable<ButtonProps["size"]>, string> = {
   md: "h-10 px-4 text-sm rounded-lg",
   lg: "h-14 px-6 text-base rounded-2xl",
   // The main screen's primary action: desktop-sized, not touch-sized.
-  main: "h-9 px-4 text-sm rounded-lg",
+  main: "h-11 px-4 text-base rounded-xl",
 };
 
 export default function Button(allProps: ButtonProps): JSX.Element {
