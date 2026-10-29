@@ -57,14 +57,22 @@ export function Dropdown<T>(props: DropdownProps<T>) {
   let list!: HTMLUListElement;
   let listContainer!: HTMLDivElement;
 
-  const [listPos, setListPos] = createSignal({ top: 0, left: 0, width: 0 });
+  // Right-aligned and at least as wide as the control, so long options grow leftwards instead of clipping.
+  const [listPos, setListPos] = createSignal({
+    top: 0,
+    right: 0,
+    minWidth: 0,
+    maxWidth: 0,
+  });
   const updatePosition = () => {
     if (!root) return;
     const rect = root.getBoundingClientRect();
+    const windowMargin = 8;
     setListPos({
       top: Math.round(rect.bottom),
-      left: Math.round(rect.left),
-      width: Math.round(rect.width),
+      right: Math.round(globalThis.innerWidth - rect.right),
+      minWidth: Math.round(rect.width),
+      maxWidth: Math.round(rect.right - windowMargin),
     });
   };
 
@@ -184,8 +192,10 @@ export function Dropdown<T>(props: DropdownProps<T>) {
 
   return (
     <>
+      {/* The whole control opens the list; a click on the chevron bubbles here. */}
       <div
         ref={root}
+        onClick={() => !props.disabled && setOpen(!open())}
         class={`relative text-left ${
           props.size === "sm"
             ? "bg-accent text-accent-text hover:bg-accent-hover pr-0 pl-4 py-2 rounded-full min-w-48 hover:cursor-pointer"
@@ -221,18 +231,17 @@ export function Dropdown<T>(props: DropdownProps<T>) {
           disabled={props.disabled}
           aria-haspopup="listbox"
           aria-expanded={open()}
-          class={`inline-flex items-center justify-center rounded-2xl px-4 py-2
+          class={`inline-flex items-center justify-center rounded-2xl
                text-accent-text disabled:opacity-50 outline-none focus-visible:outline-2 focus-visible:outline-accent
                transition-transform duration-150 ease-out select-none ${
             props.size === "sm"
-              ? "bg-transparent h-6 w-10 hover:bg-transparent hover:cursor-pointer"
+              ? "bg-transparent h-6 w-10 px-4 py-2 hover:bg-transparent hover:cursor-pointer"
               : props.size === "compact"
-              ? "h-6 w-7 bg-transparent px-0 text-text-secondary hover:bg-transparent"
-              : "bg-accent h-10 w-16 hover:bg-accent-hover hover:cursor-pointer"
+              ? "h-6 w-7 bg-transparent text-text-secondary hover:bg-transparent"
+              : "bg-accent h-10 w-16 px-4 py-2 hover:bg-accent-hover hover:cursor-pointer"
           }`}
           classList={{ "btn-press": pressed() }}
           onPointerDown={() => playPressAnimation()}
-          onClick={() => !props.disabled && setOpen(!open())}
           onKeyDown={(e) => {
             if (
               (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") &&
@@ -264,7 +273,7 @@ export function Dropdown<T>(props: DropdownProps<T>) {
                 btn?.focus();
               }
             }}
-            class={`fixed z-50 rounded-xl bg-bg-surface shadow-lg ring-1 ring-black/10 outline-none
+            class={`fixed z-50 w-max rounded-xl bg-bg-surface shadow-lg ring-1 ring-black/10 outline-none
                      transition-all duration-200 ease-out origin-top
                      starting:opacity-0 starting:-translate-y-2 starting:pointer-events-none
                      ${
@@ -274,8 +283,9 @@ export function Dropdown<T>(props: DropdownProps<T>) {
             }`}
             style={{
               top: `${listPos().top}px`,
-              left: `${listPos().left}px`,
-              width: `${listPos().width}px`,
+              right: `${listPos().right}px`,
+              "min-width": `${listPos().minWidth}px`,
+              "max-width": `${listPos().maxWidth}px`,
             }}
           >
             {/* header lives outside the listbox so interactive controls don't violate ARIA listbox semantics */}
