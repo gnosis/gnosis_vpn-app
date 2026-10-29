@@ -25,7 +25,7 @@ export function getPreferredAvailabilityChangeMessage(
     : `Preferred location ${preferredId} currently unavailable.`;
 }
 
-/** Sort: eligible first (A–Z within tier), all others after (A–Z). */
+/** Sort: eligible first, all others after; A–Z by city within a tier, then by country. */
 export function sortAlphaDestinations(
   available: Destination[],
   destinations: Record<string, DestinationState>,
@@ -35,7 +35,8 @@ export function sortAlphaDestinations(
     const aReady = isReadyForDisplay(destinations[a.id], context);
     const bReady = isReadyForDisplay(destinations[b.id], context);
     if (aReady !== bReady) return aReady ? -1 : 1;
-    return destinationLabel(a).localeCompare(destinationLabel(b));
+    const byTitle = destinationTitle(a).localeCompare(destinationTitle(b));
+    return byTitle !== 0 ? byTitle : a.id.localeCompare(b.id);
   });
 }
 

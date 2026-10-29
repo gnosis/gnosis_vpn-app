@@ -520,6 +520,28 @@ describe("sortAlphaDestinations", () => {
     expect(sorted[1].id).toBe("bravo");
   });
 
+  it("sorts by city, not by country", () => {
+    const sydney: Destination = {
+      ...BASE_DESTINATION,
+      id: "Australia",
+      meta: { location: "Sydney" },
+    };
+    const amsterdam: Destination = {
+      ...BASE_DESTINATION,
+      id: "Netherlands",
+      meta: { location: "Amsterdam" },
+    };
+    const sorted = sortAlphaDestinations(
+      [sydney, amsterdam],
+      {
+        Australia: makeEligible("Australia"),
+        Netherlands: makeEligible("Netherlands"),
+      },
+      NO_CONTEXT,
+    );
+    expect(sorted.map((d) => d.id)).toEqual(["Netherlands", "Australia"]);
+  });
+
   it("sorts non-ready destinations alphabetically within the tier", () => {
     const zeta: Destination = { ...BASE_DESTINATION, id: "zeta" };
     const mu: Destination = { ...BASE_DESTINATION, id: "mu" };
