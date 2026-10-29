@@ -264,7 +264,21 @@ export default function AddFundsPage() {
                 class="h-8 rounded-md border border-border bg-bg-surface px-3 text-xs font-semibold text-text-primary transition-colors hover:bg-darken focus:outline-none focus-visible:outline-2 focus-visible:outline-accent"
                 onClick={() => void copyAddress()}
               >
-                {copied() ? FUNDING_COPY.copied : FUNDING_COPY.copy}
+                {/* Both labels share one cell so the swap never resizes the button and shifts its neighbour. */}
+                <span class="grid">
+                  <span
+                    class="col-start-1 row-start-1"
+                    classList={{ invisible: copied() }}
+                  >
+                    {FUNDING_COPY.copy}
+                  </span>
+                  <span
+                    class="col-start-1 row-start-1"
+                    classList={{ invisible: !copied() }}
+                  >
+                    {FUNDING_COPY.copied}
+                  </span>
+                </span>
               </button>
               <button
                 type="button"
