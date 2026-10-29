@@ -34,6 +34,7 @@ import {
   formatWxhopr,
   formatXdai,
   humanWxhopr,
+  humanWxhoprParts,
   humanXdai,
   wxhoprDecimal,
 } from "@src/utils/hopli.ts";
@@ -96,7 +97,6 @@ function TokenRow(props: {
           <span class="select-text font-mono text-base text-text-primary">
             {props.balance}
           </span>
-          <span class="text-xs text-text-secondary">now</span>
           <span
             class={`text-xs font-bold ${
               statusClass[props.status] ?? "text-text-secondary"
@@ -264,7 +264,21 @@ export default function AddFundsPage() {
                 class="h-8 rounded-md border border-border bg-bg-surface px-3 text-xs font-semibold text-text-primary transition-colors hover:bg-darken focus:outline-none focus-visible:outline-2 focus-visible:outline-accent"
                 onClick={() => void copyAddress()}
               >
-                {copied() ? FUNDING_COPY.copied : FUNDING_COPY.copy}
+                {/* Both labels share one cell so the swap never resizes the button and shifts its neighbour. */}
+                <span class="grid">
+                  <span
+                    class="col-start-1 row-start-1"
+                    classList={{ invisible: copied() }}
+                  >
+                    {FUNDING_COPY.copy}
+                  </span>
+                  <span
+                    class="col-start-1 row-start-1"
+                    classList={{ invisible: !copied() }}
+                  >
+                    {FUNDING_COPY.copied}
+                  </span>
+                </span>
               </button>
               <button
                 type="button"
@@ -291,7 +305,7 @@ export default function AddFundsPage() {
         <TokenRow
           name={FUNDING_COPY.wxhopr.name}
           purpose={FUNDING_COPY.wxhopr.purpose}
-          balance={formatWxhopr(balances().wxhopr, 2)}
+          balance={humanWxhoprParts(balances().wxhopr).amount}
           status={trafficStatus()}
           hint={wxhoprHint()}
         />

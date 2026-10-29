@@ -1,5 +1,4 @@
 import { createSignal } from "solid-js";
-import { logInfo } from "@src/utils/appLog.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import { checkUpdate } from "@src/services/toolkit.ts";
 
@@ -19,18 +18,15 @@ export const [updateChecking, setUpdateChecking] = createSignal(false);
 export async function runBackgroundCheck(): Promise<void> {
   setUpdateChecking(true);
   try {
-    const result = await checkUpdate(false);
+    // Callers run this only once the app sees Connected; the update tool's own probe can misread that.
+    const result = await checkUpdate(true);
     await settingsActions.setUpdateCheckResult(
       result.outcome,
       result.end_of_life,
       Date.now(),
     );
-  } catch (e) {
-    // other failures are logged by the backend's check_update command
-    if (e === "VpnNotConnected") {
-      logInfo("Update check deferred until VPN connects");
-      setPendingCheckAfterConnect(true);
-    }
+  } catch {
+    // failures are logged by the backend's check_update command
   } finally {
     setUpdateChecking(false);
   }

@@ -143,6 +143,10 @@ sits in the top latency tier with near-perfect delivery; it is the app's own
 product line, since the daemon's `Routable` only says a path of non-zero value
 exists.
 
+The UI shows `best_value` as "Route score". While connected, the route also caps
+the status card's connection quality: a weak route is at best fair, a lost one
+(no route, unrecoverable) poor, whatever latency and load say.
+
 `Routable` implies `walk.found === "Paths"`: the daemon writes both from the
 same walk result, so `weak(d)` reduces to "routable, with a free slot, below the
 band". The `found === "Paths"` re-test in `routable` is defensive.
@@ -161,8 +165,9 @@ discounted the same way as before; `min(freeSlots, total)` keeps the share in
 resilience, then the rest by closeness to eligible.** The location list's "Best"
 order (`sortForPicker`) is different: every pickable destination (ready or weak)
 by latency, the unmeasured pickable ones next in this order, the unusable last.
-It is frozen when the list opens and re-sorted only as a destination's first
-latency arrives. Auto still picks from `sortByRouteQuality`.
+It is frozen when the list opens and re-sorted only when the set of destinations
+changes, so rows never jump under the pointer. Auto still picks from
+`sortByRouteQuality`.
 
 ```
 eligible with exit data, ordered by  score desc, label

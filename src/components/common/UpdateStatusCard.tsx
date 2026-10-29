@@ -1,9 +1,8 @@
 import { createResource, createSignal, Show } from "solid-js";
-import { Modal } from "./Modal.tsx";
-import { Markdown } from "./Markdown.tsx";
 import HowToUpdateModal from "./HowToUpdateModal.tsx";
 import SyncIcon from "../icons/SyncIcon.tsx";
 import { useAppStore } from "@src/stores/appStore.ts";
+import { push } from "@src/stores/pageStack.ts";
 import { getPlatform } from "@src/utils/platform.ts";
 
 // UI phases of a driven install (macOS): mapped from the updater's
@@ -30,10 +29,9 @@ interface UpdateStatusCardProps {
   installError?: string | null;
 }
 
-/** Icon, headline, one muted line of version and last check, and the one button that matters now. */
+/** Icon, headline, the installed and available versions, the last check, and the one button that matters now. */
 export default function UpdateStatusCard(props: UpdateStatusCardProps) {
   const [appState] = useAppStore();
-  const [showChangelog, setShowChangelog] = createSignal(false);
   const [showHowTo, setShowHowTo] = createSignal(false);
   const [platform, { refetch: refetchPlatform }] = createResource(getPlatform);
   const installing = () => props.installPhase != null;
@@ -82,14 +80,13 @@ export default function UpdateStatusCard(props: UpdateStatusCardProps) {
     return "text-text-secondary";
   };
 
-  const detailLine = () => {
-    const version = appState.packageVersion
-      ? `Version ${appState.packageVersion}`
-      : "Version unknown";
-    return `${version} · ${
-      props.lastChecked ? `checked ${props.lastChecked}` : "never checked"
-    }`;
-  };
+  const installedLine = () =>
+    appState.packageVersion
+      ? `Installed ${appState.packageVersion}`
+      : "Installed version unknown";
+
+  const checkedLine = () =>
+    props.lastChecked ? `Checked ${props.lastChecked}` : "Never checked";
 
   const actionButton = (
     <button
@@ -108,9 +105,10 @@ export default function UpdateStatusCard(props: UpdateStatusCardProps) {
 
   return (
     <div class="flex flex-col gap-3 rounded-xl border border-border bg-bg-surface px-3 py-3">
-      <div class="flex items-center gap-3">
-        <SyncIcon class={`size-6 shrink-0 ${iconClass()}`} />
-        <div class="flex min-w-0 flex-1 flex-col">
+      <div class="flex items-start gap-3">
+        <SyncIcon class={`mt-px size-5 shrink-0 ${iconClass()}`} />
+        {/* One fact per line: long build versions wrap badly when joined into one sentence. */}
+        <div class="flex min-w-0 flex-1 flex-col gap-0.5 text-xs leading-snug text-text-secondary">
           <span
             class={`text-sm font-semibold leading-tight ${
               updateAvailable() ? "text-text-orange" : "text-text-primary"
@@ -118,74 +116,48 @@ export default function UpdateStatusCard(props: UpdateStatusCardProps) {
           >
             {statusText()}
           </span>
-          <Show
-            when={props.installError}
-            fallback={
-              <span class="text-xs leading-snug text-text-secondary">
-                {detailLine()}
+          <span class="break-all">{installedLine()}</span>
+          <Show when={updateAvailable() && props.latestVersion}>
+            {(latest) => (
+              <span class="text-text-orange">
+                <span class="break-all">Available {latest()}</span>
+                <Show when={props.releaseNotes}>
+                  {" · "}
+                  <button
+                    type="button"
+                    class="underline"
+                    onClick={() => push("changelog")}
+                  >
+                    changelog
+                  </button>
+                </Show>
               </span>
-            }
-          >
-            <span
-              class="truncate text-xs text-text-red"
-              title={props.installError ?? undefined}
-            >
-              Update failed — {props.installError}
-            </span>
+            )}
+          </Show>
+          <span>{checkedLine()}</span>
+          <Show when={props.installError}>
+            {(error) => (
+              <span class="break-words text-text-red">
+                Update failed — {error()}
+              </span>
+            )}
           </Show>
         </div>
-        {/* With an update the actions get their own row below; there is no room beside the text. */}
-        <Show when={!updateAvailable()}>{actionButton}</Show>
       </div>
-      <Show when={updateAvailable()}>
-        <div class="flex items-center justify-between gap-2 border-t border-border pt-3">
-          <span class="flex min-w-0 items-center gap-2 text-xs text-text-orange">
-            <span class="truncate">{props.latestVersion}</span>
-            <Show when={props.releaseNotes}>
-              <button
-                type="button"
-                class="shrink-0 underline"
-                onClick={() => setShowChangelog(true)}
-              >
-                changelog
-              </button>
-            </Show>
-          </span>
-          <span class="flex shrink-0 items-center gap-2">
-            <Show when={!busy()}>
-              <button
-                type="button"
-                class="flex size-8 items-center justify-center rounded-md border border-border text-text-secondary transition-colors hover:bg-darken focus:outline-none focus-visible:outline-2 focus-visible:outline-accent"
-                title="Check again"
-                aria-label="Check again"
-                onClick={() => props.onCheck?.()}
-              >
-                <SyncIcon class="size-4" />
-              </button>
-            </Show>
-            {actionButton}
-          </span>
-        </div>
-      </Show>
-      <Modal open={showChangelog()} onClose={() => setShowChangelog(false)}>
-        <div class="flex flex-col gap-4">
-          <div class="text-base font-semibold text-text-primary">
-            What's new in {props.latestVersion}
-          </div>
-          <div class="max-h-64 overflow-y-auto">
-            <div class="pr-[18px]">
-              <Markdown>{props.releaseNotes || ""}</Markdown>
-            </div>
-          </div>
+      <div class="flex items-center justify-end gap-2 border-t border-border pt-3">
+        <Show when={updateAvailable() && !busy()}>
           <button
             type="button"
-            class="h-10 rounded-lg border border-border bg-transparent px-4 text-sm font-bold text-text-primary transition-colors hover:bg-darken"
-            onClick={() => setShowChangelog(false)}
+            class="flex size-8 items-center justify-center rounded-md border border-border text-text-secondary transition-colors hover:bg-darken focus:outline-none focus-visible:outline-2 focus-visible:outline-accent"
+            title="Check again"
+            aria-label="Check again"
+            onClick={() => props.onCheck?.()}
           >
-            Close
+            <SyncIcon class="size-4" />
           </button>
-        </div>
-      </Modal>
+        </Show>
+        {actionButton}
+      </div>
       <HowToUpdateModal
         open={showHowTo()}
         onClose={() => setShowHowTo(false)}

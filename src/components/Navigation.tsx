@@ -63,7 +63,12 @@ function Navigation(props: {
     <>
       <Portal>
         <div class="fixed top-6 right-4 z-60 flex items-center gap-2 justify-center">
-          <Tooltip content="Balance" position="bottom">
+          {/* The popover is the bigger answer to the same question; the hint would sit on top of it. */}
+          <Tooltip
+            content="Balance"
+            position="bottom"
+            disabled={walletAnchor() !== null}
+          >
             <IconButton
               ref={(el) => (walletButtonRef = el)}
               icon={getFundsIcon()}

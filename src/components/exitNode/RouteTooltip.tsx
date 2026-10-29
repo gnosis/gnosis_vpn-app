@@ -106,7 +106,7 @@ export default function RouteTooltip(props: {
           class={loadClass()}
         />
         <Row
-          label="Path"
+          label="Route score"
           value={props.routeHealth ? formatPathValue(props.routeHealth) : null}
           class={pathClass()}
         />

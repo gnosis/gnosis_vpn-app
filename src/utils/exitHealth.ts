@@ -133,20 +133,27 @@ export function getSlotLoadLevel(percent: number): LoadLevel {
 export type ConnectionQuality = "good" | "fair" | "poor";
 
 /**
- * Grades a live connection from the same bands the stats use. Unknown latency
- * counts as medium until the first sample; unknown load (an exit that reports
- * no slots) holds nothing against the connection.
+ * Grades a live connection from the same bands the stats use, capped by the
+ * route: a weak route is at best fair, a lost one poor. Unknown latency counts
+ * as medium until the first sample; unknown load (an exit that reports no
+ * slots) and a route still being checked hold nothing against the connection.
  */
 export function getConnectionQuality(
   latencyMs: number | null,
   loadLevel: LoadLevel | null,
   stall: TunnelStall | null | undefined,
+  route: RouteVerdict | null,
 ): ConnectionQuality {
   const latencyLevel: LoadLevel = latencyMs === null
     ? "medium"
     : getLatencyLevel(latencyMs);
-  if (stall || latencyLevel === "high" || loadLevel === "high") return "poor";
-  if (latencyLevel === "medium" || loadLevel === "medium") return "fair";
+  const routeLost = route === "no-route" || route === "unrecoverable";
+  const isPoor = stall || routeLost || latencyLevel === "high" ||
+    loadLevel === "high";
+  if (isPoor) return "poor";
+  const isFair = route === "weak" || latencyLevel === "medium" ||
+    loadLevel === "medium";
+  if (isFair) return "fair";
   return "good";
 }
 

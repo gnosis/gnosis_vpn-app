@@ -178,17 +178,7 @@ textarea {
   }
 }
 
-/* Status card bars while a verdict is pending */
-.bars-scan {
-  animation: bars-scan 1.2s ease-in-out infinite;
-}
-@keyframes bars-scan {
-  50% {
-    opacity: 0.25;
-  }
-}
-
-/* Picker bars while a location is still being measured */
+/* Signal bars while a location is still being measured */
 .bars-pulse {
   animation: bars-pulse 2.4s ease-in-out infinite;
 }
@@ -308,22 +298,13 @@ textarea {
 
 @media (prefers-reduced-motion: reduce) {
   .status-dot-blink,
-  .bars-scan,
   .bars-pulse,
   .page-enter {
     animation: none;
   }
-  .flag-ramp,
   .explainer-transition {
     transition: none;
   }
-}
-
-/* Hero flag: grey and faded while idle, colouring in as the connect phases advance (vars set per state in Flag.tsx) */
-.flag-ramp {
-  filter: grayscale(var(--flag-gray, 1));
-  opacity: var(--flag-alpha, 0.55);
-  transition: filter 600ms ease-out, opacity 600ms ease-out;
 }
 
 /* Keeps touch/drag scrolling but hides the scrollbar chrome */
