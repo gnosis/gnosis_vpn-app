@@ -18,11 +18,6 @@ globalThis.addEventListener("unhandledrejection", (e) => {
 globalThis.addEventListener("contextmenu", (e) => e.preventDefault());
 globalThis.addEventListener("dragstart", (e) => e.preventDefault());
 
-// One window, one tree: settings, wallet and add funds are pages inside App.
-function screenFromLabel(_label: string) {
-  return <App />;
-}
-
 function applyTheme(theme: string) {
   if (theme === "dark") {
     document.documentElement.classList.add("dark");
@@ -123,6 +118,6 @@ function applyTheme(theme: string) {
       });
     });
 
-    return <>{screenFromLabel(curWindow.label)}</>;
+    return <App />;
   }, root);
 })();

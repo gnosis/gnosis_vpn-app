@@ -62,11 +62,11 @@ export default function SettingsPage() {
   const [exporting, setExporting] = createSignal(false);
   const [savedPath, setSavedPath] = createSignal<string | null>(null);
   const [showUpload, setShowUpload] = createSignal(false);
-  const [logError, setLogError] = createSignal<string | null>(null);
+  const [exportError, setExportError] = createSignal<string | null>(null);
 
   const exportLogs = async () => {
     setExporting(true);
-    setLogError(null);
+    setExportError(null);
     try {
       const dest = await save({
         defaultPath: await join(await downloadDir(), logBundleFileName()),
@@ -78,7 +78,7 @@ export default function SettingsPage() {
       }
       setSavedPath(await VPNService.exportLogs(dest));
     } catch (e) {
-      setLogError(String(e instanceof Error ? e.message : e));
+      setExportError(String(e instanceof Error ? e.message : e));
     } finally {
       setExporting(false);
     }
@@ -175,7 +175,7 @@ export default function SettingsPage() {
       <Section title="Troubleshooting">
         <Row
           label={exporting() ? "Exporting logs…" : "Export logs…"}
-          description={logError() ?? undefined}
+          description={exportError() ?? undefined}
           onClick={() => {
             if (!exporting()) void exportLogs();
           }}
@@ -183,7 +183,7 @@ export default function SettingsPage() {
         <Row
           label="Upload logs…"
           onClick={() => {
-            setLogError(null);
+            setExportError(null);
             setShowUpload(true);
           }}
         />
