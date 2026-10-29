@@ -11,7 +11,12 @@ import type {
   RouteHealthView,
 } from "@src/services/vpnService.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
-import { getExitData } from "@src/utils/destinations.ts";
+import {
+  getExitData,
+  rankContext,
+  type RouteGrade,
+} from "@src/utils/destinations.ts";
+import { pickerGrade } from "@src/utils/pickerVerdict.ts";
 import {
   type ConnectionQuality,
   formatExitHealthStatus,
@@ -37,7 +42,7 @@ import HopsIcon from "../exitNode/HopsIcon.tsx";
 import ChevronIcon from "../common/ChevronIcon.tsx";
 import Tag from "../common/Tag.tsx";
 import Tooltip from "../common/Tooltip.tsx";
-import QualityBars, { type BarTone } from "./QualityBars.tsx";
+import SignalBars from "../exitNode/SignalBars.tsx";
 
 /** Why a weak route is still offered; shown on hover of the verdict that says so. */
 const WEAK_ROUTE =
@@ -56,11 +61,11 @@ const statusColorClass: Record<HealthColor, string> = {
 
 const QUALITY: Record<
   ConnectionQuality,
-  { text: string; bars: number; tone: BarTone; class: string }
+  { text: string; bars: 1 | 2 | 4; class: string }
 > = {
-  good: { text: "Good", bars: 3, tone: "green", class: "text-text-green" },
-  fair: { text: "Fair", bars: 2, tone: "amber", class: "text-text-orange" },
-  poor: { text: "Poor", bars: 1, tone: "red", class: "text-text-red" },
+  good: { text: "Good", bars: 4, class: "text-text-green" },
+  fair: { text: "Fair", bars: 2, class: "text-text-orange" },
+  poor: { text: "Poor", bars: 1, class: "text-text-red" },
 };
 
 const LATENCY_TOOLTIP = (
@@ -222,51 +227,47 @@ export default function StatusCard(
   };
 
   // The collapsed row: what the bars show and what the label says.
-  const row = createMemo(() => {
-    if (isConnected()) {
-      const q = QUALITY[quality()];
-      return {
-        prefix: "Connection quality:",
-        text: q.text,
-        class: q.class,
-        bars: q.bars,
-        tone: q.tone,
-        pulsing: false,
-      };
-    }
-    if (inFlight()) {
+  const row = createMemo(
+    (): { prefix: string; text: string; class: string; grade: RouteGrade } => {
+      if (isConnected()) {
+        const q = QUALITY[quality()];
+        return {
+          prefix: "Connection quality:",
+          text: q.text,
+          class: q.class,
+          grade: { kind: "measured", bars: q.bars },
+        };
+      }
+      if (inFlight()) {
+        return {
+          prefix: "Network status:",
+          text: "Connecting…",
+          class: "text-text-yellow",
+          grade: { kind: "unmeasured" },
+        };
+      }
+      const rh = routeHealth();
+      if (!rh) {
+        return {
+          prefix: "Network status:",
+          text: "Unavailable",
+          class: statusColorClass.gray,
+          grade: { kind: "none" },
+        };
+      }
+      // The picker's grade, so this card and the destination's list row show the same bars.
       return {
         prefix: "Network status:",
-        text: "Connecting…",
-        class: "text-text-yellow",
-        bars: 0,
-        tone: "muted" as BarTone,
-        pulsing: true,
+        text: formatExitHealthStatus(rh, exit()),
+        class: statusColorClass[getExitHealthColor(rh, exit())],
+        grade: pickerGrade(
+          props.destinationState,
+          exit(),
+          rankContext(appState),
+        ),
       };
-    }
-    const rh = routeHealth();
-    if (!rh) {
-      return {
-        prefix: "Network status:",
-        text: "Unavailable",
-        class: statusColorClass.gray,
-        bars: 0,
-        tone: "muted" as BarTone,
-        pulsing: false,
-      };
-    }
-    const verdict = getRouteVerdict(rh, exit());
-    const bars = verdict === "ready" ? 3 : verdict === "weak" ? 1 : 0;
-    const tone: BarTone = verdict === "ready" ? "green" : "amber";
-    return {
-      prefix: "Network status:",
-      text: formatExitHealthStatus(rh, exit()),
-      class: statusColorClass[getExitHealthColor(rh, exit())],
-      bars,
-      tone,
-      pulsing: verdict === "checking",
-    };
-  });
+    },
+  );
 
   // Measured max-height rather than 0fr/1fr: WebKitGTK misrenders the grid collapse.
   let panelRef: HTMLDivElement | undefined;
@@ -303,12 +304,7 @@ export default function StatusCard(
             }}
           >
             <span class="flex min-w-0 items-center gap-2">
-              <QualityBars
-                filled={row().bars}
-                tone={row().tone}
-                pulsing={row().pulsing}
-                label={`${row().prefix} ${row().text}`}
-              />
+              <SignalBars grade={row().grade} />
               <span class="truncate text-text-secondary">
                 {row().prefix}{" "}
                 {/* The verdict is the text itself; a weak route explains itself on hover instead of repeating as a tag. */}

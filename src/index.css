@@ -178,17 +178,7 @@ textarea {
   }
 }
 
-/* Status card bars while a verdict is pending */
-.bars-scan {
-  animation: bars-scan 1.2s ease-in-out infinite;
-}
-@keyframes bars-scan {
-  50% {
-    opacity: 0.25;
-  }
-}
-
-/* Picker bars while a location is still being measured */
+/* Signal bars while a location is still being measured */
 .bars-pulse {
   animation: bars-pulse 2.4s ease-in-out infinite;
 }
@@ -308,7 +298,6 @@ textarea {
 
 @media (prefers-reduced-motion: reduce) {
   .status-dot-blink,
-  .bars-scan,
   .bars-pulse,
   .page-enter {
     animation: none;
