@@ -19,12 +19,6 @@ const sizeClass = {
 export default function Flag(props: {
   code: string;
   size?: keyof typeof sizeClass;
-  /**
-   * How much of its color the flag keeps, 0–1: 0 is the grey, faded flag of
-   * a destination we are not connected to, 1 full color. Unset keeps the
-   * plain look used in lists.
-   */
-  color?: number;
 }) {
   const [settings] = useSettingsStore();
 
@@ -32,10 +26,6 @@ export default function Flag(props: {
   const visible = () =>
     resolvedCode() !== undefined && settings.flagDisplay !== "none";
   const mono = () => settings.flagDisplay === "mono";
-  const ramped = () => props.color !== undefined;
-  // A mono flag stays grey at every step; only its opacity follows the ramp.
-  const gray = () => (mono() ? 1 : 1 - (props.color ?? 1));
-  const alpha = () => 0.55 + 0.45 * (props.color ?? 1);
 
   return (
     <span
@@ -43,12 +33,7 @@ export default function Flag(props: {
         visible()
           ? `ring-1 ring-inset ring-black/15 dark:ring-slate-950 fi fi-${resolvedCode()}`
           : ""
-      }${mono() && !ramped() ? " grayscale" : ""}${
-        ramped() ? " flag-ramp" : ""
-      }`}
-      style={ramped()
-        ? { "--flag-gray": `${gray()}`, "--flag-alpha": `${alpha()}` }
-        : undefined}
+      }${mono() ? " grayscale" : ""}`}
       aria-hidden="true"
     />
   );

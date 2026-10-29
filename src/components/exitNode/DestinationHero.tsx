@@ -2,13 +2,11 @@ import { createMemo, createSignal, Show } from "solid-js";
 import type { DestinationState } from "@src/services/vpnService.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { effectiveActive } from "@src/stores/destinationMode.ts";
-import { connectProgress } from "@src/utils/connectPhase.ts";
 import {
   destinationCountry,
   destinationFlag,
   destinationTitle,
 } from "@src/utils/destinations.ts";
-import { isSwitchingDestination } from "@src/utils/status.ts";
 import Flag from "../Flag.tsx";
 import GlobeIcon from "../icons/GlobeIcon.tsx";
 import Tooltip from "../common/Tooltip.tsx";
@@ -29,17 +27,6 @@ export default function DestinationHero(props: {
     return id ? appState.destinations[id] : undefined;
   });
   const destination = () => activeState()?.destination;
-
-  // How much color the flag has: grey while idle, filling in with the connect phases.
-  const flagColor = (): number => {
-    const status = appState.vpnStatus;
-    if (status === "Connected") return 1;
-    const inFlight = status === "Connecting" || status === "Reconnecting" ||
-      isSwitchingDestination(status, appState.targetDestination);
-    if (!inFlight) return 0;
-    const phase = appState.reconnecting?.phase ?? appState.connecting?.phase;
-    return connectProgress(phase) / 100;
-  };
 
   const auto = () => appState.mode.mode.mode === "auto";
   const pending = () =>
@@ -91,11 +78,7 @@ export default function DestinationHero(props: {
       >
         {(dest) => (
           <>
-            <Flag
-              code={destinationFlag(dest())}
-              size="lg"
-              color={flagColor()}
-            />
+            <Flag code={destinationFlag(dest())} size="lg" />
             <div class="flex flex-col items-center">
               <Show when={auto()}>
                 <span class="flex items-center gap-1.5 text-xs text-text-secondary">

@@ -313,17 +313,9 @@ textarea {
   .page-enter {
     animation: none;
   }
-  .flag-ramp,
   .explainer-transition {
     transition: none;
   }
-}
-
-/* Hero flag: grey and faded while idle, colouring in as the connect phases advance (vars set per state in Flag.tsx) */
-.flag-ramp {
-  filter: grayscale(var(--flag-gray, 1));
-  opacity: var(--flag-alpha, 0.55);
-  transition: filter 600ms ease-out, opacity 600ms ease-out;
 }
 
 /* Keeps touch/drag scrolling but hides the scrollbar chrome */
