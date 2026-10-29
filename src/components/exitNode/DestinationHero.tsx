@@ -81,15 +81,18 @@ export default function DestinationHero(props: {
             <Flag code={destinationFlag(dest())} size="lg" />
             <div class="flex flex-col items-center">
               <Show when={auto()}>
-                <span class="flex items-center gap-1.5 text-xs text-text-secondary">
+                <span class="relative text-xs text-text-secondary">
                   Best location
+                  {/* Hangs off the label's right edge so its arrival never shifts the centred text. */}
                   <Show when={pending()?.countdownEndsAt} keyed>
                     {(endsAt) => (
-                      <Tooltip content={`Switching to ${candidateTitle()}`}>
-                        <span class="inline-block size-4">
-                          <SwitchSpinner endsAt={endsAt} />
-                        </span>
-                      </Tooltip>
+                      <span class="absolute left-full top-1/2 ml-1.5 -translate-y-1/2">
+                        <Tooltip content={`Switching to ${candidateTitle()}`}>
+                          <span class="block size-4">
+                            <SwitchSpinner endsAt={endsAt} />
+                          </span>
+                        </Tooltip>
+                      </span>
                     )}
                   </Show>
                 </span>
