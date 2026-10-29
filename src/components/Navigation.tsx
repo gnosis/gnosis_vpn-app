@@ -87,6 +87,7 @@ function Navigation(props: {
             anchor={anchor()}
             frame={walletFrame()}
             onClose={closeWallet}
+            trigger={walletButtonRef}
             onAddFunds={() => {
               setWalletAnchor(null);
               push("add-funds");

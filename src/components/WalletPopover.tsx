@@ -102,6 +102,8 @@ export default function WalletPopover(props: {
   frame: PickerFrame | null;
   onClose: () => void;
   onAddFunds: () => void;
+  // The opening button; presses on it are left to its own toggle.
+  trigger?: HTMLElement;
 }) {
   const [appState] = useAppStore();
 
@@ -183,6 +185,8 @@ export default function WalletPopover(props: {
   const onPointerDown = (e: PointerEvent) => {
     const target = e.target instanceof Node ? e.target : null;
     if (target && popoverRef?.contains(target)) return;
+    // Closing here would let the same click reopen it.
+    if (target && props.trigger?.contains(target)) return;
     props.onClose();
   };
   onMount(() => {
