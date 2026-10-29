@@ -6,6 +6,7 @@ import {
   endpointPosition,
   graticule,
   HOME,
+  hoprPeerIds,
   type Link,
   linkWidth,
   MAX_LINK_WIDTH,
@@ -149,5 +150,35 @@ describe("easeLinks", () => {
   it("reports idle when nothing changes", () => {
     const links = new Map<string, Link>([["a", { width: 4, target: 4 }]]);
     expect(easeLinks(links, new Map([["a", 4]]), 16)).toBe(false);
+  });
+});
+
+describe("hoprPeerIds", () => {
+  const endpoint = (id: string, hopr_peer: boolean) => ({
+    id,
+    sent: 1,
+    received: 1,
+    hopr_peer,
+  });
+
+  it("keeps only the endpoints marked as HOPR peers", () => {
+    const ids = hoprPeerIds(
+      [endpoint("a", true), endpoint("b", false)],
+      new Set(),
+      new Map(),
+    );
+    expect([...ids]).toEqual(["a"]);
+  });
+
+  it("keeps a peer that left the frame while its dot is still fading", () => {
+    const links = new Map<string, Link>([["a", { width: 3, target: 0 }]]);
+    const ids = hoprPeerIds([], new Set(["a", "gone"]), links);
+    expect([...ids]).toEqual(["a"]);
+  });
+
+  it("follows the frame for endpoints that are still listed", () => {
+    const links = new Map<string, Link>([["a", { width: 3, target: 3 }]]);
+    const ids = hoprPeerIds([endpoint("a", false)], new Set(["a"]), links);
+    expect(ids.size).toBe(0);
   });
 });

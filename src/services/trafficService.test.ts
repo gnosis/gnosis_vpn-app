@@ -22,6 +22,8 @@ describe("TrafficFrameResponseSchema fixtures", () => {
     expect(parsed.data.frame.endpoints[0].id).toBe("9f2c4e81a07b3d56");
     expect(parsed.data.frame.endpoints[0].received).toBe(4_800_000);
     expect(parsed.data.frame.endpoints[4].received).toBe(0);
+    expect(parsed.data.frame.endpoints[0].hopr_peer).toBe(false);
+    expect(parsed.data.frame.endpoints[1].hopr_peer).toBe(true);
     expect(parsed.data.frame.omitted_endpoints).toBe(0);
   });
 
@@ -46,6 +48,14 @@ describe("TrafficFrameResponseSchema fixtures", () => {
     const fractional = JSON.parse(JSON.stringify(frame));
     fractional.frame.endpoints[0].received = 1.5;
     expect(TrafficFrameResponseSchema.safeParse(fractional).success).toBe(
+      false,
+    );
+  });
+
+  it("rejects an endpoint without its HOPR peer flag", () => {
+    const unflagged = JSON.parse(JSON.stringify(frame));
+    delete unflagged.frame.endpoints[0].hopr_peer;
+    expect(TrafficFrameResponseSchema.safeParse(unflagged).success).toBe(
       false,
     );
   });

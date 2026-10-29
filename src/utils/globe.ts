@@ -184,3 +184,25 @@ export function easeLinks(
   }
   return animating;
 }
+
+/**
+ * Ids whose dot is drawn as a HOPR peer: the listed endpoints the daemon marked
+ * as peers, plus earlier peers that left the frame but whose dot is still
+ * fading out.
+ */
+export function hoprPeerIds(
+  endpoints: readonly { id: string; hopr_peer: boolean }[],
+  previous: ReadonlySet<string>,
+  links: ReadonlyMap<string, Link>,
+): Set<string> {
+  const ids = new Set<string>();
+  const listed = new Set<string>();
+  for (const endpoint of endpoints) {
+    listed.add(endpoint.id);
+    if (endpoint.hopr_peer) ids.add(endpoint.id);
+  }
+  for (const id of previous) {
+    if (!listed.has(id) && links.has(id)) ids.add(id);
+  }
+  return ids;
+}

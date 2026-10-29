@@ -6,6 +6,7 @@ import {
   endpointPosition,
   graticule,
   HOME,
+  hoprPeerIds,
   type Link,
   linkWidth,
   MIN_LINK_WIDTH,
@@ -27,6 +28,9 @@ interface Colors {
   grid: string;
   link: string;
   dot: string;
+  hopr: string;
+  hoprEdge: string;
+  hoprLinkEdge: string;
   home: string;
   ring: string;
   label: string;
@@ -40,7 +44,8 @@ const GRATICULE = graticule();
 /**
  * A stylized globe with the host as one fixed point and every remote endpoint
  * as a dot. The line to each dot grows and shrinks with the endpoint's traffic
- * over the rolling window. The plot carries no addresses or endpoint labels.
+ * over the rolling window. Endpoints that are announced HOPR nodes get a HOPR
+ * yellow dot. The plot carries no addresses or endpoint labels.
  */
 export default function TrafficGlobe(props: TrafficGlobeProps) {
   let container!: HTMLDivElement;
@@ -49,6 +54,7 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
   let colors: Colors | null = null;
   const links = new Map<string, Link>();
   let targets = new Map<string, number>();
+  let hoprPeers = new Set<string>();
   let frameRequest: number | undefined;
   let lastTime: number | undefined;
 
@@ -62,6 +68,9 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
       grid: value("--color-globe-grid", "#d9d5f6"),
       link: value("--color-globe-link", "#4335df"),
       dot: value("--color-globe-dot", "#8f88d8"),
+      hopr: value("--color-globe-hopr", "#ffffa0"),
+      hoprEdge: value("--color-globe-hopr-edge", "#12112a"),
+      hoprLinkEdge: value("--color-globe-hopr-link-edge", "#b89200"),
       home: value("--color-globe-home", "#12112a"),
       ring: value("--color-bg-primary", "#f6f6f6"),
       label: value("--color-text-secondary", "#6b7280"),
@@ -131,9 +140,17 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
         if (n === 0) context.moveTo(x, y);
         else context.lineTo(x, y);
       });
-      // A translucent halo with a solid core, like a lit cable.
-      context.strokeStyle = colors.link;
-      context.globalAlpha = 0.4;
+      const hopr = hoprPeers.has(id);
+      if (hopr) {
+        // Darker edges under the pale HOPR yellow so the line reads on a light globe.
+        context.strokeStyle = colors.hoprLinkEdge;
+        context.lineWidth = link.width + 1;
+        context.stroke();
+      }
+      // A translucent halo with a solid core, like a lit cable. A HOPR halo
+      // stays opaque so the edge underneath shows only as a thin outline.
+      context.strokeStyle = hopr ? colors.hopr : colors.link;
+      context.globalAlpha = hopr ? 1 : 0.4;
       context.lineWidth = link.width;
       context.stroke();
       context.globalAlpha = 1;
@@ -155,8 +172,17 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
       context.fill();
       context.beginPath();
       context.arc(x, y, DOT_RADIUS, 0, Math.PI * 2);
-      context.fillStyle = link.target > 0 ? colors.link : colors.dot;
-      context.fill();
+      if (hoprPeers.has(id)) {
+        // An outline keeps the yellow dot apart from its yellow link.
+        context.fillStyle = colors.hopr;
+        context.fill();
+        context.lineWidth = 1;
+        context.strokeStyle = colors.hoprEdge;
+        context.stroke();
+      } else {
+        context.fillStyle = link.target > 0 ? colors.link : colors.dot;
+        context.fill();
+      }
     }
     context.globalAlpha = 1;
 
@@ -232,6 +258,7 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
       );
     }
     targets = next;
+    hoprPeers = hoprPeerIds(props.endpoints, hoprPeers, links);
     startAnimation();
   });
 

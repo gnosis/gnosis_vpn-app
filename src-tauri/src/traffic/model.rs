@@ -28,6 +28,9 @@ pub struct Endpoint {
     pub id: String,
     pub sent: u64,
     pub received: u64,
+    /// The address is one a HOPR node announced. Says what the endpoint is, not
+    /// which process exchanged the traffic.
+    pub hopr_peer: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -47,6 +50,7 @@ pub struct Frame {
 struct Totals {
     sent: u64,
     received: u64,
+    hopr_peer: bool,
 }
 
 #[derive(Default)]
@@ -90,6 +94,7 @@ impl Model {
                 .or_default()
                 .entry(delta.target)
                 .or_default();
+            totals.hopr_peer |= delta.hopr_peer;
             match delta.direction {
                 Direction::Upstream => totals.sent = totals.sent.saturating_add(delta.bytes),
                 Direction::Downstream => {
@@ -131,6 +136,7 @@ impl Model {
                 let total = totals.entry(*target).or_default();
                 total.sent = total.sent.saturating_add(bucket.sent);
                 total.received = total.received.saturating_add(bucket.received);
+                total.hopr_peer |= bucket.hopr_peer;
             }
         }
 
@@ -141,6 +147,7 @@ impl Model {
                 id: self.id(target),
                 sent: total.sent,
                 received: total.received,
+                hopr_peer: total.hopr_peer,
             })
             .collect();
         // Ties fall back to the id so the order is stable between frames.
@@ -176,7 +183,19 @@ mod tests {
             target: target.parse().expect("ip"),
             direction,
             bytes,
+            hopr_peer: false,
         }
+    }
+
+    /// One exchange with an endpoint the daemon marked as a HOPR peer.
+    fn peer_exchange(second: u64, target: &str, bytes: u64) -> Vec<Delta> {
+        exchange(second, target, bytes)
+            .into_iter()
+            .map(|delta| Delta {
+                hopr_peer: true,
+                ..delta
+            })
+            .collect()
     }
 
     /// One exchange: `bytes` in each direction.
@@ -355,6 +374,29 @@ mod tests {
             .ingest(&batch(0, 1000, exchange(0, A, 1)))
             .expect("ingest");
         assert_ne!(other.project().endpoints[0].id, first);
+    }
+
+    #[test]
+    fn endpoints_the_daemon_marked_as_hopr_peers_are_flagged() {
+        let mut model = Model::default();
+        let mut deltas = peer_exchange(0, A, 100);
+        deltas.extend(exchange(0, B, 50));
+        model.ingest(&batch(0, 1000, deltas)).expect("ingest");
+        let frame = model.project();
+        assert_eq!(frame.endpoints.len(), 2);
+        assert_eq!(frame.endpoints[0].sent, 100);
+        assert!(frame.endpoints[0].hopr_peer);
+        assert!(!frame.endpoints[1].hopr_peer);
+    }
+
+    #[test]
+    fn an_endpoint_marked_in_any_second_of_the_window_stays_flagged() {
+        // The daemon's peer snapshot can change while the endpoint is in view.
+        let mut model = Model::default();
+        let mut deltas = peer_exchange(0, A, 10);
+        deltas.extend(exchange(1, A, 10));
+        model.ingest(&batch(0, 2000, deltas)).expect("ingest");
+        assert!(model.project().endpoints[0].hopr_peer);
     }
 
     #[test]

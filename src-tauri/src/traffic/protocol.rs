@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 
 /// Must match the daemon's protocol version.
-pub const PROTOCOL_VERSION: u16 = 3;
+pub const PROTOCOL_VERSION: u16 = 4;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Interface {
@@ -35,6 +35,8 @@ pub struct Delta {
     pub target: IpAddr,
     pub direction: Direction,
     pub bytes: u64,
+    /// The daemon found `target` among the addresses HOPR nodes announced.
+    pub hopr_peer: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
@@ -133,7 +135,7 @@ mod tests {
     #[test]
     fn responses_parse_including_failures_and_denials() {
         let started: Response = serde_json::from_str(
-            r#"{"TrafficStart":{"Ok":{"session_id":1,"interface":{"id":"en0","name":"en0","addresses":["192.0.2.2"],"is_default":true},"protocol":3}}}"#,
+            r#"{"TrafficStart":{"Ok":{"session_id":1,"interface":{"id":"en0","name":"en0","addresses":["192.0.2.2"],"is_default":true},"protocol":4}}}"#,
         )
         .expect("parse start");
         assert!(matches!(
@@ -154,11 +156,12 @@ mod tests {
     #[test]
     fn batches_parse_with_snake_case_tags() {
         let batch: Batch = serde_json::from_str(
-            r#"{"protocol":3,"session_id":1,"sequence":0,"elapsed_ms":1000,"dropped_batches":0,"deltas":[{"second":1,"target":"192.0.2.10","direction":"downstream","bytes":900}]}"#,
+            r#"{"protocol":4,"session_id":1,"sequence":0,"elapsed_ms":1000,"dropped_batches":0,"deltas":[{"second":1,"target":"192.0.2.10","direction":"downstream","bytes":900,"hopr_peer":true}]}"#,
         )
         .expect("parse batch");
         assert_eq!(batch.deltas[0].direction, Direction::Downstream);
         assert_eq!(batch.deltas[0].bytes, 900);
+        assert!(batch.deltas[0].hopr_peer);
         assert_eq!(
             batch.deltas[0].target,
             "192.0.2.10".parse::<IpAddr>().expect("ip")

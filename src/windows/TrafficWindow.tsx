@@ -270,6 +270,20 @@ export default function TrafficWindow() {
               <span class="ml-1 text-text-muted">· {summary()}</span>
             )}
           </Show>
+          <Show when={endpointSummary()}>
+            <span class="ml-3 inline-flex items-center gap-1 text-text-muted">
+              <span
+                class="inline-block h-2 w-2 rounded-full bg-globe-hopr ring-1 ring-globe-hopr-edge"
+                aria-hidden="true"
+              />
+              HOPR node
+              <span
+                class="ml-2 inline-block h-2 w-2 rounded-full bg-globe-link"
+                aria-hidden="true"
+              />
+              Other
+            </span>
+          </Show>
         </span>
         <Show when={gap() && capture()?.active}>
           <span class="text-text-yellow">

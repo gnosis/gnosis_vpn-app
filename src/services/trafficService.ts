@@ -19,6 +19,8 @@ export const TrafficEndpointSchema = z.strictObject({
   id: z.string(),
   sent: z.number().int().nonnegative(),
   received: z.number().int().nonnegative(),
+  // The address is one a HOPR node announced; says nothing about the traffic.
+  hopr_peer: z.boolean(),
 });
 export type TrafficEndpoint = z.infer<typeof TrafficEndpointSchema>;
 
