@@ -62,7 +62,23 @@ export default function ConnectButton() {
         onClick={() => void handleClick()}
         disabled={appState.isLoading || !(isActive() || isTargetSelectable())}
       >
+<<<<<<< HEAD
         {look().label}
+=======
+        <Show
+          when={look().label === "Connect" && targetTitle()}
+          fallback={look().label}
+        >
+          {(title) => (
+            // The trailing spacer mirrors the owl so the label sits on the button's true centre.
+            <span class="flex min-w-0 items-center gap-2">
+              <OwlIcon class="size-[18px] shrink-0" />
+              <span class="truncate">Connect to {title()}</span>
+              <span class="size-[18px] shrink-0" aria-hidden="true" />
+            </span>
+          )}
+        </Show>
+>>>>>>> 2c05a4f (feat(ui): address 626 review follow ups releasehoprdv4 (#627))
       </Button>
     </div>
   );

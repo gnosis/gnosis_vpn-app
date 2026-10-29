@@ -11,9 +11,25 @@ import { StatusIndicator } from "../../components/status/StatusIndicator.tsx";
 import Navigation from "../../components/Navigation.tsx";
 import LocationBanner from "../../components/exitNode/LocationBanner.tsx";
 import ConnectButton from "../../components/ConnectButton.tsx";
+<<<<<<< HEAD
 import StatusHero from "../../components/status/StatusHero.tsx";
 import ConnectionStatus from "../../components/status/ConnectionStatus.tsx";
 import { openSettingsWindow } from "../../utils/settingsWindow.ts";
+=======
+import { createMainShortcuts } from "./mainShortcuts.ts";
+import {
+  back,
+  currentPage,
+  type PageId,
+  push,
+} from "../../stores/pageStack.ts";
+import Page from "../../components/common/Page.tsx";
+import SettingsPage from "./pages/SettingsPage.tsx";
+import SoftwareUpdatePage from "./pages/SoftwareUpdatePage.tsx";
+import AboutPage from "./pages/AboutPage.tsx";
+import AddFundsPage from "./pages/AddFundsPage.tsx";
+import ChangelogPage from "./pages/ChangelogPage.tsx";
+>>>>>>> 2c05a4f (feat(ui): address 626 review follow ups releasehoprdv4 (#627))
 import { isRunningRunMode } from "../../services/vpnService.ts";
 import { deriveOverallStatus, type StatusText } from "../../utils/funding.ts";
 import { endOfLifeMessage } from "../../utils/updateAvailability.ts";
@@ -162,6 +178,43 @@ export function MainScreen() {
       </Show>
     </div>
   );
+<<<<<<< HEAD
+=======
+
+  const pageTitle: Record<PageId, string> = {
+    settings: "Settings",
+    "software-update": "Software update",
+    about: "About Gnosis VPN",
+    "add-funds": "Add funds",
+    changelog: "What's new",
+  };
+
+  return (
+    <Show when={currentPage()} keyed fallback={mainContent()}>
+      {(page) => (
+        <Page title={pageTitle[page]} onBack={() => back()}>
+          <Switch>
+            <Match when={page === "settings"}>
+              <SettingsPage />
+            </Match>
+            <Match when={page === "software-update"}>
+              <SoftwareUpdatePage />
+            </Match>
+            <Match when={page === "about"}>
+              <AboutPage />
+            </Match>
+            <Match when={page === "add-funds"}>
+              <AddFundsPage />
+            </Match>
+            <Match when={page === "changelog"}>
+              <ChangelogPage />
+            </Match>
+          </Switch>
+        </Page>
+      )}
+    </Show>
+  );
+>>>>>>> 2c05a4f (feat(ui): address 626 review follow ups releasehoprdv4 (#627))
 }
 
 export default MainScreen;

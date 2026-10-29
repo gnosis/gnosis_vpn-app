@@ -59,6 +59,7 @@ function Navigation() {
   return (
     <>
       <Portal>
+<<<<<<< HEAD
         <div
           ref={(el) => (containerRef = el)}
           class="fixed top-6 right-4 z-60 flex items-center gap-2 justify-center"
@@ -71,6 +72,22 @@ function Navigation() {
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
           />
+=======
+        <div class="fixed top-6 right-4 z-60 flex items-center gap-2 justify-center">
+          {/* The popover is the bigger answer to the same question; the hint would sit on top of it. */}
+          <Tooltip
+            content="Balance"
+            position="bottom"
+            disabled={walletAnchor() !== null}
+          >
+            <IconButton
+              ref={(el) => (walletButtonRef = el)}
+              icon={getFundsIcon()}
+              alt="Balance"
+              onClick={toggleWallet}
+            />
+          </Tooltip>
+>>>>>>> 2c05a4f (feat(ui): address 626 review follow ups releasehoprdv4 (#627))
           <Tooltip content="Settings" position="bottom">
             <IconButton
               icon={settingsIcon}

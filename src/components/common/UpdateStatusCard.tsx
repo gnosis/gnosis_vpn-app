@@ -1,11 +1,15 @@
 import { createResource, createSignal, Show } from "solid-js";
+<<<<<<< HEAD
 import syncIcon from "@assets/icons/sync.svg";
 import refreshIcon from "@assets/icons/refresh.svg";
 import checkmarkIcon from "@assets/icons/checkmark.svg";
 import { Modal } from "./Modal.tsx";
 import { Markdown } from "./Markdown.tsx";
+=======
+>>>>>>> 2c05a4f (feat(ui): address 626 review follow ups releasehoprdv4 (#627))
 import HowToUpdateModal from "./HowToUpdateModal.tsx";
 import { useAppStore } from "@src/stores/appStore.ts";
+import { push } from "@src/stores/pageStack.ts";
 import { getPlatform } from "@src/utils/platform.ts";
 
 // UI phases of a driven install (macOS): mapped from the updater's
@@ -32,9 +36,12 @@ interface UpdateStatusCardProps {
   installError?: string | null;
 }
 
+<<<<<<< HEAD
+=======
+/** Icon, headline, the installed and available versions, the last check, and the one button that matters now. */
+>>>>>>> 2c05a4f (feat(ui): address 626 review follow ups releasehoprdv4 (#627))
 export default function UpdateStatusCard(props: UpdateStatusCardProps) {
   const [appState] = useAppStore();
-  const [showChangelog, setShowChangelog] = createSignal(false);
   const [showHowTo, setShowHowTo] = createSignal(false);
   const [platform, { refetch: refetchPlatform }] = createResource(getPlatform);
   const installing = () => props.installPhase != null;
@@ -78,6 +85,7 @@ export default function UpdateStatusCard(props: UpdateStatusCardProps) {
     return `You're probably up to date`;
   };
 
+<<<<<<< HEAD
   return (
     <div
       class="flex items-center gap-3 px-4 py-3 rounded-xl bg-bg-surface border border-border"
@@ -185,6 +193,93 @@ export default function UpdateStatusCard(props: UpdateStatusCardProps) {
       >
         {buttonLabel()}
       </button>
+=======
+  const iconClass = () => {
+    if (busy()) return "text-text-secondary animate-spin-smooth";
+    if (updateAvailable()) return "text-text-orange";
+    if (props.isUpToDate === true) return "text-text-green";
+    return "text-text-secondary";
+  };
+
+  const installedLine = () =>
+    appState.packageVersion
+      ? `Installed ${appState.packageVersion}`
+      : "Installed version unknown";
+
+  const checkedLine = () =>
+    props.lastChecked ? `Checked ${props.lastChecked}` : "Never checked";
+
+  const actionButton = (
+    <button
+      type="button"
+      class={`h-8 shrink-0 rounded-md border px-3 text-sm font-semibold transition-colors focus:outline-none focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-50 ${
+        updateAvailable()
+          ? "border-vpn-light-green/40 bg-vpn-light-green/15 text-text-green hover:enabled:bg-vpn-light-green/25"
+          : "border-border bg-transparent text-text-primary hover:enabled:bg-darken"
+      }`}
+      disabled={busy() || (updateAvailable() && platform.loading)}
+      onClick={handleButtonClick}
+    >
+      {buttonLabel()}
+    </button>
+  );
+
+  return (
+    <div class="flex flex-col gap-3 rounded-xl border border-border bg-bg-surface px-3 py-3">
+      <div class="flex items-start gap-3">
+        <SyncIcon class={`mt-px size-5 shrink-0 ${iconClass()}`} />
+        {/* One fact per line: long build versions wrap badly when joined into one sentence. */}
+        <div class="flex min-w-0 flex-1 flex-col gap-0.5 text-xs leading-snug text-text-secondary">
+          <span
+            class={`text-sm font-semibold leading-tight ${
+              updateAvailable() ? "text-text-orange" : "text-text-primary"
+            }`}
+          >
+            {statusText()}
+          </span>
+          <span class="break-all">{installedLine()}</span>
+          <Show when={updateAvailable() && props.latestVersion}>
+            {(latest) => (
+              <span class="text-text-orange">
+                <span class="break-all">Available {latest()}</span>
+                <Show when={props.releaseNotes}>
+                  {" · "}
+                  <button
+                    type="button"
+                    class="underline"
+                    onClick={() => push("changelog")}
+                  >
+                    changelog
+                  </button>
+                </Show>
+              </span>
+            )}
+          </Show>
+          <span>{checkedLine()}</span>
+          <Show when={props.installError}>
+            {(error) => (
+              <span class="break-words text-text-red">
+                Update failed — {error()}
+              </span>
+            )}
+          </Show>
+        </div>
+      </div>
+      <div class="flex items-center justify-end gap-2 border-t border-border pt-3">
+        <Show when={updateAvailable() && !busy()}>
+          <button
+            type="button"
+            class="flex size-8 items-center justify-center rounded-md border border-border text-text-secondary transition-colors hover:bg-darken focus:outline-none focus-visible:outline-2 focus-visible:outline-accent"
+            title="Check again"
+            aria-label="Check again"
+            onClick={() => props.onCheck?.()}
+          >
+            <SyncIcon class="size-4" />
+          </button>
+        </Show>
+        {actionButton}
+      </div>
+>>>>>>> 2c05a4f (feat(ui): address 626 review follow ups releasehoprdv4 (#627))
       <HowToUpdateModal
         open={showHowTo()}
         onClose={() => setShowHowTo(false)}

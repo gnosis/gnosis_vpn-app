@@ -168,6 +168,44 @@ textarea {
   );
 }
 
+<<<<<<< HEAD
+=======
+/* Header dot while a connection is being set up */
+.status-dot-blink {
+  animation: status-dot-blink 1s ease-in-out infinite;
+}
+@keyframes status-dot-blink {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+/* Signal bars while a location is still being measured */
+.bars-pulse {
+  animation: bars-pulse 2.4s ease-in-out infinite;
+}
+@keyframes bars-pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* In-window pages slide in from the right; MainScreen keys them so every push replays it */
+.page-enter {
+  animation: page-enter 200ms ease-out both;
+}
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+>>>>>>> 2c05a4f (feat(ui): address 626 review follow ups releasehoprdv4 (#627))
 /* Button press animation */
 .btn-press {
   animation: btn-press-keyframes 160ms ease-out;
@@ -261,6 +299,7 @@ textarea {
   }
 }
 
+<<<<<<< HEAD
 /* Status owl (StatusHero) */
 .owl-pupil {
   transform-box: fill-box;
@@ -345,6 +384,19 @@ textarea {
   }
 }
 
+=======
+@media (prefers-reduced-motion: reduce) {
+  .status-dot-blink,
+  .bars-pulse,
+  .page-enter {
+    animation: none;
+  }
+  .explainer-transition {
+    transition: none;
+  }
+}
+
+>>>>>>> 2c05a4f (feat(ui): address 626 review follow ups releasehoprdv4 (#627))
 /* Keeps touch/drag scrolling but hides the scrollbar chrome */
 .no-scrollbar {
   scrollbar-width: none;

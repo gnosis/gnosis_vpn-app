@@ -1,7 +1,7 @@
 import { Modal } from "./common/Modal.tsx";
 
 const btn =
-  "grow h-10 px-4 text-sm rounded-lg font-bold hover:bg-darken hover:cursor-pointer transition-colors select-none";
+  "h-10 px-4 whitespace-nowrap text-sm rounded-lg font-bold hover:bg-darken hover:cursor-pointer transition-colors select-none";
 
 export default function InstallUpdateModal(props: {
   open: boolean;
@@ -21,28 +21,30 @@ export default function InstallUpdateModal(props: {
             through Gnosis VPN first for a private download.
           </div>
         </div>
-        <div class="flex flex-row justify-between gap-2">
+        <div class="flex flex-col gap-2">
           <button
             type="button"
-            class={`${btn} bg-vpn-light-green text-white`}
+            class={`${btn} w-full bg-vpn-light-green text-white`}
             onClick={props.onConnectAndInstall}
           >
             Connect and install
           </button>
-          <button
-            type="button"
-            class={`${btn} bg-vpn-red text-white`}
-            onClick={props.onInstallAnyway}
-          >
-            Install anyway
-          </button>
-          <button
-            type="button"
-            class={`${btn} border border-border bg-transparent text-text-primary`}
-            onClick={props.onClose}
-          >
-            Close
-          </button>
+          <div class="flex gap-2">
+            <button
+              type="button"
+              class={`${btn} flex-1 bg-vpn-red text-white`}
+              onClick={props.onInstallAnyway}
+            >
+              Install anyway
+            </button>
+            <button
+              type="button"
+              class={`${btn} flex-1 border border-border bg-transparent text-text-primary`}
+              onClick={props.onClose}
+            >
+              Close
+            </button>
+          </div>
         </div>
       </div>
     </Modal>

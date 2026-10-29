@@ -145,7 +145,8 @@ export default function Updates() {
     }:${pad(d.getMinutes())}`;
   };
 
-  const handleCheck = () => void runCheck(false);
+  // The app's daemon status decides: the update tool's own socket probe reads any failure as "not connected".
+  const handleCheck = () => void runCheck(appState.vpnStatus === "Connected");
 
   // Install progress (macOS): the Rust `install_update` command streams the
   // updater's phases as events; the last one is queryable for re-hydration
@@ -288,7 +289,7 @@ export default function Updates() {
   createEffect(() => {
     if (pendingConnectCheck() && appState.vpnStatus === "Connected") {
       setPendingConnectCheck(false);
-      void runCheck(false);
+      void runCheck(true);
     }
   });
 
