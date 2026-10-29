@@ -34,6 +34,7 @@ import {
   formatWxhopr,
   formatXdai,
   humanWxhopr,
+  humanWxhoprParts,
   humanXdai,
   wxhoprDecimal,
 } from "@src/utils/hopli.ts";
@@ -96,7 +97,6 @@ function TokenRow(props: {
           <span class="select-text font-mono text-base text-text-primary">
             {props.balance}
           </span>
-          <span class="text-xs text-text-secondary">now</span>
           <span
             class={`text-xs font-bold ${
               statusClass[props.status] ?? "text-text-secondary"
@@ -305,7 +305,7 @@ export default function AddFundsPage() {
         <TokenRow
           name={FUNDING_COPY.wxhopr.name}
           purpose={FUNDING_COPY.wxhopr.purpose}
-          balance={formatWxhopr(balances().wxhopr, 2)}
+          balance={humanWxhoprParts(balances().wxhopr).amount}
           status={trafficStatus()}
           hint={wxhoprHint()}
         />
