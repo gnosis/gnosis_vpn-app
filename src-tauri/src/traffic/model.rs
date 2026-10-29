@@ -37,7 +37,7 @@ pub struct Frame {
     /// Completed seconds inside the window. Below `window_seconds` while capture
     /// has run for less than a full window.
     pub observed_seconds: u64,
-    /// Endpoints with traffic in the window, busiest first.
+    /// Endpoints with traffic in both directions in the window, busiest first.
     pub endpoints: Vec<Endpoint>,
     /// Endpoints with traffic in the window that did not fit into `endpoints`.
     pub omitted_endpoints: usize,
@@ -117,6 +117,10 @@ impl Model {
     /// Sums each endpoint's traffic over the last [`WINDOW_SECONDS`] completed
     /// seconds. The second still being captured is left out so totals do not
     /// ramp up within a second.
+    ///
+    /// Only endpoints that exchanged traffic in both directions are listed.
+    /// One-way traffic is not a connection: a server retrying on a socket a VPN
+    /// cut off, an unanswered probe, or an inbound scan.
     pub fn project(&self) -> Frame {
         let now = self.current_second;
         let first = now.saturating_sub(WINDOW_SECONDS);
@@ -132,6 +136,7 @@ impl Model {
 
         let mut endpoints: Vec<Endpoint> = totals
             .iter()
+            .filter(|(_, total)| total.sent > 0 && total.received > 0)
             .map(|(target, total)| Endpoint {
                 id: self.id(target),
                 sent: total.sent,
@@ -172,6 +177,14 @@ mod tests {
             direction,
             bytes,
         }
+    }
+
+    /// One exchange: `bytes` in each direction.
+    fn exchange(second: u64, target: &str, bytes: u64) -> Vec<Delta> {
+        vec![
+            delta(second, target, Direction::Upstream, bytes),
+            delta(second, target, Direction::Downstream, bytes),
+        ]
     }
 
     fn batch(sequence: u64, elapsed_ms: u64, deltas: Vec<Delta>) -> Batch {
@@ -215,6 +228,7 @@ mod tests {
                 vec![
                     delta(0, A, Direction::Upstream, 10),
                     delta(0, B, Direction::Downstream, 500),
+                    delta(0, B, Direction::Upstream, 5),
                     delta(0, A, Direction::Downstream, 20),
                 ],
             ))
@@ -231,7 +245,14 @@ mod tests {
     fn the_second_still_being_captured_is_left_out() {
         let mut model = Model::default();
         model
-            .ingest(&batch(0, 500, vec![delta(0, A, Direction::Upstream, 100)]))
+            .ingest(&batch(
+                0,
+                500,
+                vec![
+                    delta(0, A, Direction::Upstream, 100),
+                    delta(0, A, Direction::Downstream, 40),
+                ],
+            ))
             .expect("ingest");
         let frame = model.project();
         assert_eq!(frame.observed_seconds, 0);
@@ -254,7 +275,9 @@ mod tests {
                 2000,
                 vec![
                     delta(0, A, Direction::Upstream, 100),
+                    delta(0, A, Direction::Downstream, 1),
                     delta(1, B, Direction::Upstream, 200),
+                    delta(1, B, Direction::Downstream, 1),
                 ],
             ))
             .expect("ingest");
@@ -295,9 +318,12 @@ mod tests {
     fn frames_list_at_most_the_busiest_endpoints() {
         let mut model = Model::default();
         let deltas = (0..(MAX_ENDPOINTS as u64 + 3))
-            .map(|n| {
+            .flat_map(|n| {
                 let target = format!("10.0.{}.{}", n / 256, n % 256);
-                delta(0, &target, Direction::Upstream, 100 + n)
+                [
+                    delta(0, &target, Direction::Upstream, 100 + n),
+                    delta(0, &target, Direction::Downstream, 1),
+                ]
             })
             .collect();
         model.ingest(&batch(0, 1000, deltas)).expect("ingest");
@@ -312,7 +338,7 @@ mod tests {
     fn ids_are_stable_and_never_reveal_the_address() {
         let mut model = Model::default();
         model
-            .ingest(&batch(0, 1000, vec![delta(0, A, Direction::Upstream, 1)]))
+            .ingest(&batch(0, 1000, exchange(0, A, 1)))
             .expect("ingest");
         let first = model.project().endpoints[0].id.clone();
         assert!(!first.contains(A), "{first}");
@@ -320,13 +346,13 @@ mod tests {
 
         model.reset();
         model
-            .ingest(&batch(0, 1000, vec![delta(0, A, Direction::Upstream, 1)]))
+            .ingest(&batch(0, 1000, exchange(0, A, 1)))
             .expect("ingest");
         assert_eq!(model.project().endpoints[0].id, first);
 
         let mut other = Model::default();
         other
-            .ingest(&batch(0, 1000, vec![delta(0, A, Direction::Upstream, 1)]))
+            .ingest(&batch(0, 1000, exchange(0, A, 1)))
             .expect("ingest");
         assert_ne!(other.project().endpoints[0].id, first);
     }
@@ -335,10 +361,26 @@ mod tests {
     fn frames_never_serialize_an_address() {
         let mut model = Model::default();
         model
-            .ingest(&batch(0, 1000, vec![delta(0, A, Direction::Upstream, 1)]))
+            .ingest(&batch(0, 1000, exchange(0, A, 1)))
             .expect("ingest");
         let json = serde_json::to_string(&model.project()).expect("serialize");
         assert!(!json.contains(A), "{json}");
+    }
+
+    #[test]
+    fn one_way_traffic_is_not_an_endpoint() {
+        // Unanswered packets, such as a server retrying on a socket a VPN cut off.
+        let mut model = Model::default();
+        let mut deltas = vec![
+            delta(0, A, Direction::Downstream, 300),
+            delta(0, B, Direction::Upstream, 1200),
+        ];
+        deltas.extend(exchange(0, "192.0.2.7", 50));
+        model.ingest(&batch(0, 1000, deltas)).expect("ingest");
+        let frame = model.project();
+        assert_eq!(frame.endpoints.len(), 1, "{:?}", frame.endpoints);
+        assert_eq!(frame.endpoints[0].sent, 50);
+        assert_eq!(frame.omitted_endpoints, 0);
     }
 
     #[test]
