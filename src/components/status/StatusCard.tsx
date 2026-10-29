@@ -295,7 +295,7 @@ export default function StatusCard(
             tabIndex={0}
             aria-expanded={expanded()}
             aria-label={`${row().prefix} ${row().text}. Toggle details`}
-            class="flex w-full items-center justify-between gap-2 px-3.5 py-2.5 transition-colors hover:bg-darken focus:outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
+            class="group flex w-full items-center justify-between gap-2 px-3.5 py-2.5 focus:outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
             onClick={toggle}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.repeat) toggle();
@@ -326,7 +326,8 @@ export default function StatusCard(
                 </Tag>
               </Show>
             </span>
-            <span class="text-text-secondary">
+            {/* Only the chevron answers hover: a tinted full-width row read as a selected list item. */}
+            <span class="-m-1 flex rounded-md p-1 text-text-secondary transition-colors group-hover:bg-darken">
               <ChevronIcon
                 class={`h-2.5 w-3.5 transition-transform duration-200 ${
                   expanded() ? "rotate-180" : ""
