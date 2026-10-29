@@ -107,7 +107,7 @@ export default function UpdateStatusCard(props: UpdateStatusCardProps) {
   return (
     <div class="flex flex-col gap-3 rounded-xl border border-border bg-bg-surface px-3 py-3">
       <div class="flex items-center gap-3">
-        <SyncIcon class={`size-6 shrink-0 ${iconClass()}`} />
+        <SyncIcon class={`size-5 shrink-0 ${iconClass()}`} />
         <div class="flex min-w-0 flex-1 flex-col">
           <span
             class={`text-sm font-semibold leading-tight ${
