@@ -515,6 +515,14 @@ pub fn run() {
             get_toolkit_version,
             get_service_not_running_info,
             start_service,
+<<<<<<< HEAD
+=======
+            traffic::traffic_interfaces,
+            traffic::traffic_start,
+            traffic::traffic_frame,
+            traffic::traffic_stop,
+            traffic::open_traffic_window,
+>>>>>>> 5973d85 (feat: backport #630 to release/hoprdv4 (GPU probe, connectable-exit wait, sync animation) (#631))
             render::get_render_profile
         ])
         .build(tauri::generate_context!())

@@ -225,6 +225,21 @@ textarea {
   --color-toggle-bg: var(--color-toggle-bg);
   --color-toggle-checked: var(--color-toggle-checked);
   --color-toggle-thumb: var(--color-toggle-thumb);
+<<<<<<< HEAD
+=======
+
+  --color-globe-surface: var(--color-globe-surface);
+  --color-globe-edge: var(--color-globe-edge);
+  --color-globe-grid: var(--color-globe-grid);
+  --color-globe-link: var(--color-globe-link);
+  --color-globe-dot: var(--color-globe-dot);
+  --color-globe-home: var(--color-globe-home);
+  --color-globe-hopr: var(--color-globe-hopr);
+  --color-globe-hopr-edge: var(--color-globe-hopr-edge);
+  --color-globe-hopr-link-edge: var(--color-globe-hopr-link-edge);
+  --color-globe-destination: var(--color-globe-destination);
+  --color-globe-destination-dot: var(--color-globe-destination-dot);
+>>>>>>> 5973d85 (feat: backport #630 to release/hoprdv4 (GPU probe, connectable-exit wait, sync animation) (#631))
 }
 
 @theme {

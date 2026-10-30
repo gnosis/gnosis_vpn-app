@@ -120,7 +120,11 @@ export function createScreenSelector(): (
         warmup.last_error,
       ];
     }
+<<<<<<< HEAD
     // Only a running daemon spends the sync screen: the app sees not_running before it starts the worker.
+=======
+    // Only a running daemon spends the sync screen: the app sees NotRunning before it starts the worker.
+>>>>>>> 5973d85 (feat: backport #630 to release/hoprdv4 (GPU probe, connectable-exit wait, sync animation) (#631))
     const moveOn = (): ScreenChoice => {
       syncScreenSpent = isRunningRunMode(runMode);
       return [AppScreen.Main, "Moving on", null];

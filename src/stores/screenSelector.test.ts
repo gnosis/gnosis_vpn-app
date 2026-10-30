@@ -132,7 +132,11 @@ describe("createScreenSelector", () => {
   });
 
   it("still waits for an exit after the app started the worker itself", () => {
+<<<<<<< HEAD
     expect(screenOf(status({ type: "not_running" }))).toBe(AppScreen.Main);
+=======
+    expect(screenOf(status("NotRunning"))).toBe(AppScreen.Main);
+>>>>>>> 5973d85 (feat: backport #630 to release/hoprdv4 (GPU probe, connectable-exit wait, sync animation) (#631))
     expect(screenOf(status(WARMUP))).toBe(AppScreen.Synchronization);
     expect(screenOf(status(RUNNING))).toBe(AppScreen.Synchronization);
     expect(screenOf(status(RUNNING, [destination(noPathRouteHealth())]))).toBe(
