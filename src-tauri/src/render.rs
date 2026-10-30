@@ -84,6 +84,12 @@ const SOFTWARE_RENDERER_MARKERS: [&str; 7] = [
 const MAX_HARDWARE_DRAW_MS: f64 = 4.0;
 
 #[cfg(target_os = "linux")]
+fn is_cpu_rasterizer(renderer: &str) -> bool {
+    let lower = renderer.to_lowercase();
+    SOFTWARE_RENDERER_MARKERS.iter().any(|m| lower.contains(m))
+}
+
+#[cfg(target_os = "linux")]
 fn detect() -> RenderProfile {
     // Anything short of a probe that renders, fast, on a named GPU counts as software.
     let (software_rendering, reason) = match probe_in_child() {
@@ -146,8 +152,7 @@ fn classify(output: &str) -> (bool, String) {
     let Some(renderer) = field("renderer").filter(|r| !r.trim().is_empty()) else {
         return (true, format!("no renderer reported: {:?}", output.trim()));
     };
-    let lower = renderer.to_lowercase();
-    if SOFTWARE_RENDERER_MARKERS.iter().any(|m| lower.contains(m)) {
+    if is_cpu_rasterizer(renderer) {
         return (true, format!("software renderer {renderer:?}"));
     }
     let Some(draw_ms) = field("draw_ms")
@@ -174,6 +179,14 @@ mod tests {
         let (software, _) =
             classify("renderer=SVGA3D; build: RELEASE; LLVM;\nvendor=VMware, Inc.\ndraw_ms=0.12\n");
         assert!(!software);
+    }
+
+    #[test]
+    fn nvidia_reached_through_an_egl_device_is_hardware() {
+        let (software, reason) = classify(
+            "display=device\nrenderer=NVIDIA GeForce RTX 3060/PCIe/SSE2\nvendor=NVIDIA Corporation\ndraw_ms=0.08\n",
+        );
+        assert!(!software, "{reason}");
     }
 
     #[test]
