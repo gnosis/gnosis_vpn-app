@@ -33,8 +33,8 @@ Vite
 - Runtime config: the log uploader URLs and the client socket path come from CLI
   flags / `GNOSISVPN_*` env vars with compiled-in defaults
   (`src-tauri/src/cli.rs`; flag > env > default). `--socket-path` /
-  `GNOSISVPN_SOCKET_PATH` points the app at a client started outside the
-  installed service, e.g. `just run-local` in the client repo; every socket call
+  `GNOSISVPN_SOCKET_PATH` points the app at a root binary started with its own
+  `--socket-path` (`just run-local` uses the default socket); every socket call
   site reads the path through `cli::socket_path()`. Overrides are for
   terminal/dev runs only: Finder, desktop launchers and Windows release builds
   show no clap output and see no shell env vars. Dev run:

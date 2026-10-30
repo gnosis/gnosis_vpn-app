@@ -49,7 +49,7 @@ pub fn init_socket_path(path: PathBuf) {
     let _ = SOCKET_PATH.set(path);
 }
 
-/// Overridable so a dev run can talk to a locally started client (`just run-local`).
+/// Overridable so a dev run can talk to a root binary started with its own `--socket-path`.
 pub fn socket_path() -> PathBuf {
     SOCKET_PATH
         .get()
