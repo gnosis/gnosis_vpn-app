@@ -6,17 +6,16 @@ import type {
 } from "@src/services/trafficService.ts";
 import {
   arcPoints,
+  destinationPosition,
   easeLinks,
-  easePositions,
+  endpointPosition,
   EXIT,
   graticule,
   HOME,
-  layoutSlots,
   type Link,
   linkWidth,
   markedIds,
   MIN_LINK_WIDTH,
-  onSphere,
   type Point,
   type Vec3,
 } from "@src/utils/globe.ts";
@@ -71,7 +70,6 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
   let targets = new Map<string, number>();
   let hoprPeers = new Set<string>();
   let destinations = new Set<string>();
-  const positions = new Map<string, Point>();
   const [exitLabelAt, setExitLabelAt] = createSignal<Point | null>(null);
   let frameRequest: number | undefined;
   let lastTime: number | undefined;
@@ -144,8 +142,11 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
       a[1].width - b[1].width
     );
     const spots = new Map<string, Vec3>();
-    for (const [id, position] of positions) {
-      spots.set(id, onSphere(position.x, position.y));
+    for (const id of links.keys()) {
+      spots.set(
+        id,
+        destinations.has(id) ? destinationPosition(id) : endpointPosition(id),
+      );
     }
     context.lineCap = "round";
     context.lineJoin = "round";
@@ -263,15 +264,7 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
   const animate = (time: number) => {
     const elapsed = lastTime === undefined ? 16 : time - lastTime;
     lastTime = time;
-    const widthsMoving = easeLinks(links, targets, elapsed);
-    const slots = layoutSlots(
-      links.keys(),
-      hoprPeers,
-      destinations,
-      props.exit !== null,
-    );
-    const dotsMoving = easePositions(positions, slots, elapsed);
-    const animating = widthsMoving || dotsMoving;
+    const animating = easeLinks(links, targets, elapsed);
     draw();
     frameRequest = animating ? requestAnimationFrame(animate) : undefined;
     if (!animating) lastTime = undefined;
@@ -326,7 +319,6 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
     startAnimation();
   });
 
-  // Showing or dropping the exit moves the rings.
   createEffect(() => {
     void props.exit;
     startAnimation();

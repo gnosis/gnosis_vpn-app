@@ -2,148 +2,81 @@ import { describe, expect, it } from "vitest";
 
 import {
   arcPoints,
-  DESTINATION_RADIUS,
+  DESTINATION_RING,
+  destinationPosition,
   easeLinks,
-  easePositions,
-  EXIT,
+  endpointPosition,
   graticule,
   HOME,
-  layoutSlots,
   type Link,
   linkWidth,
   markedIds,
   MAX_LINK_WIDTH,
   MIN_LINK_WIDTH,
-  onSphere,
-  type Point,
-  ringSlots,
-  WIRE_RADIUS,
 } from "./globe.ts";
 
-const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
-const spotAt = (angle: number) =>
-  onSphere(0.8 * Math.cos(angle), 0.8 * Math.sin(angle));
+const length = (v: { x: number; y: number; z: number }) =>
+  Math.hypot(v.x, v.y, v.z);
 
-describe("ringSlots", () => {
-  it("spaces ids evenly around a full circle", () => {
-    const slots = [
-      ...ringSlots(["a", "b", "c", "d"], 0.5, 0, 2 * Math.PI)
-        .values(),
-    ];
-    const gaps = slots.map((slot, n) =>
-      distance(slot, slots[(n + 1) % slots.length])
+describe("endpointPosition", () => {
+  it("places the same id on the same spot", () => {
+    expect(endpointPosition("9f2c4e81a07b3d56")).toEqual(
+      endpointPosition("9f2c4e81a07b3d56"),
     );
-    for (const gap of gaps) expect(gap).toBeCloseTo(gaps[0], 9);
-    for (const slot of slots) {
-      expect(Math.hypot(slot.x, slot.y)).toBeCloseTo(0.5, 9);
+  });
+
+  it("places every id on the visible side of the globe", () => {
+    for (let n = 0; n < 500; n++) {
+      const position = endpointPosition(n.toString(16).padStart(16, "0"));
+      expect(length(position)).toBeCloseTo(1, 9);
+      expect(position.z).toBeGreaterThan(0);
+      // Away from the rim, so a dot never sits on the outline.
+      expect(Math.hypot(position.x, position.y)).toBeLessThan(0.9);
     }
   });
 
-  it("puts a lone id at the centre of its arc", () => {
-    const slot = ringSlots(["a"], 0.5, Math.PI / 2, 1).get("a")!;
-    expect(slot.x).toBeCloseTo(0, 9);
-    expect(slot.y).toBeCloseTo(0.5, 9);
-  });
-
-  it("is empty without ids", () => {
-    expect(ringSlots([], 0.5, 0, 1).size).toBe(0);
+  it("spreads ids over the disc instead of clustering them", () => {
+    const quadrants = new Set<string>();
+    for (let n = 0; n < 64; n++) {
+      const position = endpointPosition(`id-${n}`);
+      quadrants.add(`${position.x > 0}:${position.y > 0}`);
+    }
+    expect(quadrants.size).toBe(4);
   });
 });
 
-describe("layoutSlots", () => {
-  it("rings wire endpoints close to the host and destinations by the rim", () => {
-    const slots = layoutSlots(
-      ["relay", "other", "dest"],
-      new Set(["relay"]),
-      new Set(["dest"]),
-      false,
+describe("destinationPosition", () => {
+  it("places the same id on the same spot", () => {
+    expect(destinationPosition("7d2a96c0e1f43b58")).toEqual(
+      destinationPosition("7d2a96c0e1f43b58"),
     );
-    expect(Math.hypot(slots.get("relay")!.x, slots.get("relay")!.y))
-      .toBeCloseTo(WIRE_RADIUS, 9);
-    expect(Math.hypot(slots.get("other")!.x, slots.get("other")!.y))
-      .toBeCloseTo(WIRE_RADIUS, 9);
-    expect(Math.hypot(slots.get("dest")!.x, slots.get("dest")!.y))
-      .toBeCloseTo(DESTINATION_RADIUS, 9);
   });
 
-  it("gives the same ids the same slots whatever order they come in", () => {
-    const relays = new Set(["r1", "r2"]);
-    const first = layoutSlots(["r2", "x", "r1"], relays, new Set(), false);
-    const second = layoutSlots(["x", "r1", "r2"], relays, new Set(), false);
-    expect(second).toEqual(first);
-  });
-
-  it("keeps the relays next to each other on the ring", () => {
-    const relays = new Set(["r1", "r2"]);
-    const slots = layoutSlots(["a", "r1", "b", "r2"], relays, new Set(), false);
-    const ring = ringSlots(
-      ["r1", "r2", "a", "b"],
-      WIRE_RADIUS,
-      Math.PI,
-      2 * Math.PI,
-    );
-    expect(slots).toEqual(ring);
-  });
-});
-
-describe("layoutSlots with an exit", () => {
-  const ids = ["r1", "r2", "r3", "d1", "d2", "d3"];
-  const slots = layoutSlots(
-    ids,
-    new Set(["r1", "r2", "r3"]),
-    new Set(["d1", "d2", "d3"]),
-    true,
-  );
-  const angleFromExit = (slot: Point) => {
-    const angle = Math.atan2(slot.y, slot.x) - Math.atan2(EXIT.y, EXIT.x);
-    return Math.abs(Math.atan2(Math.sin(angle), Math.cos(angle)));
-  };
-
-  it("fans destinations out around the exit", () => {
-    for (const id of ["d1", "d2", "d3"]) {
-      expect(angleFromExit(slots.get(id)!)).toBeLessThan(Math.PI / 3);
+  it("keeps destinations in the ring along the rim, clear of the outline", () => {
+    for (let n = 0; n < 500; n++) {
+      const position = destinationPosition(n.toString(16).padStart(16, "0"));
+      const distance = Math.hypot(position.x, position.y);
+      expect(length(position)).toBeCloseTo(1, 9);
+      expect(position.z).toBeGreaterThan(0);
+      expect(distance).toBeGreaterThanOrEqual(DESTINATION_RING.inner - 1e-9);
+      expect(distance).toBeLessThanOrEqual(DESTINATION_RING.outer + 1e-9);
+      expect(distance).toBeLessThan(0.9);
     }
   });
 
-  it("keeps relays off the line from the host to the exit", () => {
-    for (const id of ["r1", "r2", "r3"]) {
-      expect(angleFromExit(slots.get(id)!)).toBeGreaterThan(Math.PI / 5);
+  it("spreads destinations all around the rim", () => {
+    const quadrants = new Set<string>();
+    for (let n = 0; n < 64; n++) {
+      const position = destinationPosition(`id-${n}`);
+      quadrants.add(`${position.x > 0}:${position.y > 0}`);
     }
-  });
-});
-
-describe("easePositions", () => {
-  it("puts a new dot straight on its slot", () => {
-    const positions = new Map<string, Point>();
-    easePositions(positions, new Map([["a", { x: 0.3, y: 0.1 }]]), 16);
-    expect(positions.get("a")).toEqual({ x: 0.3, y: 0.1 });
-  });
-
-  it("slides a dot toward a moved slot and settles on it", () => {
-    const positions = new Map<string, Point>([["a", { x: 0, y: 0.4 }]]);
-    const slots = new Map([["a", { x: 0.4, y: 0 }]]);
-    expect(easePositions(positions, slots, 100)).toBe(true);
-    const halfway = positions.get("a")!;
-    expect(halfway.x).toBeGreaterThan(0);
-    expect(halfway.x).toBeLessThan(0.4);
-    let moving = true;
-    for (let n = 0; n < 200 && moving; n++) {
-      moving = easePositions(positions, slots, 50);
-    }
-    expect(moving).toBe(false);
-    expect(positions.get("a")).toEqual({ x: 0.4, y: 0 });
-  });
-
-  it("forgets dots without a slot", () => {
-    const positions = new Map<string, Point>([["a", { x: 0, y: 0.4 }]]);
-    easePositions(positions, new Map(), 16);
-    expect(positions.size).toBe(0);
+    expect(quadrants.size).toBe(4);
   });
 });
 
 describe("arcPoints", () => {
   it("starts at the home point and ends at the endpoint", () => {
-    const to = spotAt(1);
+    const to = endpointPosition("41d8be0c6a2f9e13");
     const points = arcPoints(HOME, to, 16);
     expect(points).toHaveLength(17);
     expect(points[0].x).toBeCloseTo(HOME.x, 9);
@@ -153,15 +86,19 @@ describe("arcPoints", () => {
   });
 
   it("bends every arc to the same side, even across the center", () => {
-    const from = spotAt(Math.PI);
     // Left of the chord, seen from the start: a positive cross product.
-    const side = (to: Point, middle: Point) =>
-      (to.x - from.x) * (middle.y - from.y) -
-      (to.y - from.y) * (middle.x - from.x);
-    for (const angle of [0, 0.5, -2]) {
-      const to = spotAt(angle);
-      const middle = arcPoints(from, to, 16)[8];
-      const chord = distance(to, from);
+    const side = (
+      to: { x: number; y: number },
+      middle: { x: number; y: number },
+    ) =>
+      (to.x - HOME.x) * (middle.y - HOME.y) -
+      (to.y - HOME.y) * (middle.x - HOME.x);
+    for (
+      const id of ["9f2c4e81a07b3d56", "41d8be0c6a2f9e13", "c37a10f5e9d24b88"]
+    ) {
+      const to = endpointPosition(id);
+      const middle = arcPoints(HOME, to, 16)[8];
+      const chord = Math.hypot(to.x - HOME.x, to.y - HOME.y);
       // Clearly off the straight line, not a rounding wobble.
       expect(side(to, middle) / chord).toBeGreaterThan(0.05 * chord);
     }
@@ -169,7 +106,7 @@ describe("arcPoints", () => {
 
   it("stays on the globe", () => {
     for (let n = 0; n < 200; n++) {
-      for (const point of arcPoints(spotAt(Math.PI), spotAt(n / 10), 16)) {
+      for (const point of arcPoints(HOME, endpointPosition(`id-${n}`), 16)) {
         expect(Math.hypot(point.x, point.y)).toBeLessThanOrEqual(1);
       }
     }

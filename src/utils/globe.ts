@@ -1,4 +1,4 @@
-/** Unit sphere in view space (x right, y up, z to the viewer); dots sit on rings around the host, not on a map. */
+/** Unit sphere in view space (x right, y up, z to the viewer); positions come from opaque ids, not geography. */
 
 export interface Vec3 {
   x: number;
@@ -32,9 +32,10 @@ export const MAX_LINK_WIDTH = 12;
 const LOW_RATE = 100;
 /** Rates at or above this draw the thickest line. */
 const HIGH_RATE = 10_000_000;
-/** Next hops ring the host closely; tunnel destinations sit out by the rim as the far end of the path. */
-export const WIRE_RADIUS = 0.42;
-export const DESTINATION_RADIUS = 0.82;
+/** Endpoints stay inside this radius so no dot sits on the outline. */
+const PLACEMENT_RADIUS = 0.86;
+/** Tunnel destinations sit in this band along the rim so they read as the far end of the path. */
+export const DESTINATION_RING = { inner: 0.74, outer: PLACEMENT_RADIUS };
 /** How far an arc bends off its chord, relative to the chord length. */
 const ARC_BEND = 0.18;
 /** Arcs stay just inside the outline. */
@@ -43,100 +44,46 @@ const ARC_LIMIT = 0.98;
 const EASE_MS = 250;
 /** Widths closer than this to their target snap to it. */
 const SETTLE_WIDTH = 0.05;
-/** Positions closer than this to their slot snap to it. */
-const SETTLE_DISTANCE = 0.001;
 /** Graticule tilt, so the northern cap shows like on a desk globe. */
 const TILT = (20 * Math.PI) / 180;
 
-export const HOME: Vec3 = onSphere(0, 0);
-/** Right of the host, between the rings, so destinations fan out from it toward the rim. */
-export const EXIT: Vec3 = onSphere(0.62, 0);
-/** Relays leave this gap toward the exit so no relay sits on the tunnel line. */
-const EXIT_GAP = Math.PI / 2;
-/** Destinations fan out within this arc around the exit. */
-const EXIT_FAN = Math.PI * 0.55;
+/** Where the local host sits: lower left, like a viewer's own position on a map. */
+export const HOME: Vec3 = onSphere(-0.48, -0.36);
+/** Mid-globe, so destinations fan out from it toward the rim all around. */
+export const EXIT: Vec3 = onSphere(0.08, 0.1);
 
-export function onSphere(x: number, y: number): Vec3 {
+function onSphere(x: number, y: number): Vec3 {
   return { x, y, z: Math.sqrt(Math.max(0, 1 - x * x - y * y)) };
 }
 
-/** Even spacing over an arc; a lone id sits at its centre. */
-export function ringSlots(
-  ids: readonly string[],
-  radius: number,
-  centerAngle: number,
-  spread: number,
-): Map<string, Point> {
-  const slots = new Map<string, Point>();
-  ids.forEach((id, n) => {
-    const angle = centerAngle + spread * ((n + 0.5) / ids.length - 0.5);
-    slots.set(id, {
-      x: radius * Math.cos(angle),
-      y: radius * Math.sin(angle),
-    });
-  });
-  return slots;
+/** 32-bit FNV-1a, enough to scatter ids evenly. */
+function fnv1a(text: string): number {
+  let hash = 0x811c9dc5;
+  for (let n = 0; n < text.length; n++) {
+    hash ^= text.charCodeAt(n);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return hash >>> 0;
 }
 
-/** Relays first so they sit together; ids are per-session random keys, so the order holds for a session. */
-export function layoutSlots(
-  ids: Iterable<string>,
-  hoprPeers: ReadonlySet<string>,
-  destinations: ReadonlySet<string>,
-  exitShown: boolean,
-): Map<string, Point> {
-  const wire: string[] = [];
-  const tunnel: string[] = [];
-  for (const id of ids) {
-    if (destinations.has(id)) tunnel.push(id);
-    else wire.push(id);
-  }
-  const relaysFirst = (a: string, b: string) => {
-    const aIsRelay = hoprPeers.has(a);
-    const bIsRelay = hoprPeers.has(b);
-    if (aIsRelay !== bIsRelay) return aIsRelay ? -1 : 1;
-    return a < b ? -1 : 1;
-  };
-  wire.sort(relaysFirst);
-  tunnel.sort();
-  const fullCircle = 2 * Math.PI;
-  const exitAngle = Math.atan2(EXIT.y, EXIT.x);
-  const wireSpread = exitShown ? fullCircle - EXIT_GAP : fullCircle;
-  const tunnelSpread = exitShown ? EXIT_FAN : fullCircle;
-  return new Map([
-    ...ringSlots(wire, WIRE_RADIUS, exitAngle + Math.PI, wireSpread),
-    ...ringSlots(tunnel, DESTINATION_RADIUS, exitAngle, tunnelSpread),
-  ]);
+/** Places an endpoint id on the visible hemisphere, the same spot every time. */
+export function endpointPosition(id: string): Vec3 {
+  const u = fnv1a(id) / 2 ** 32;
+  const v = fnv1a(`${id}:angle`) / 2 ** 32;
+  // The square root spreads dots evenly over the disc area.
+  const radius = PLACEMENT_RADIUS * Math.sqrt(u);
+  const angle = 2 * Math.PI * v;
+  return onSphere(radius * Math.cos(angle), radius * Math.sin(angle));
 }
 
-/** New ids start on their slot, others slide so a joining dot doesn't make the ring jump; returns whether any still moves. */
-export function easePositions(
-  positions: Map<string, Point>,
-  slots: ReadonlyMap<string, Point>,
-  elapsedMs: number,
-): boolean {
-  const step = 1 - Math.exp(-Math.max(0, elapsedMs) / EASE_MS);
-  let animating = false;
-  for (const id of positions.keys()) {
-    if (!slots.has(id)) positions.delete(id);
-  }
-  for (const [id, slot] of slots) {
-    const position = positions.get(id);
-    if (!position) {
-      positions.set(id, { ...slot });
-      continue;
-    }
-    position.x += (slot.x - position.x) * step;
-    position.y += (slot.y - position.y) * step;
-    const distance = Math.hypot(slot.x - position.x, slot.y - position.y);
-    if (distance < SETTLE_DISTANCE) {
-      position.x = slot.x;
-      position.y = slot.y;
-    } else {
-      animating = true;
-    }
-  }
-  return animating;
+/** Places a tunnel destination in the rim band, the same spot every time. */
+export function destinationPosition(id: string): Vec3 {
+  const u = fnv1a(id) / 2 ** 32;
+  const v = fnv1a(`${id}:angle`) / 2 ** 32;
+  const { inner, outer } = DESTINATION_RING;
+  const radius = inner + (outer - inner) * u;
+  const angle = 2 * Math.PI * v;
+  return onSphere(radius * Math.cos(angle), radius * Math.sin(angle));
 }
 
 /** Bent left of its chord so every link curves the same way, like a flight path. */
