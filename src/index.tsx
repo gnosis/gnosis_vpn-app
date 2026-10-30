@@ -81,7 +81,7 @@ function applyTheme(theme: string) {
           logWarn(`[theme] matchMedia setup failed: ${e}`);
         }
 
-        // macOS/Windows: keep frontend in sync when Tauri reports a theme change.
+        // macOS: keep frontend in sync when Tauri reports a theme change.
         // Registering on Linux is a harmless no-op: onThemeChanged never fires there.
         try {
           unlistenTauri = await curWindow.onThemeChanged(
@@ -94,7 +94,7 @@ function applyTheme(theme: string) {
         }
 
         // Linux: backend emits "os-theme-changed" via XDG Desktop Portal / gsettings fallback.
-        // Registering on macOS/Windows is a harmless no-op: this event is never emitted there.
+        // Registering on macOS is a harmless no-op: this event is never emitted there.
         try {
           unlistenLinux = await listen<string>(
             "os-theme-changed",
