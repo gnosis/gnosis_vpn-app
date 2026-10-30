@@ -92,6 +92,8 @@ pub(super) fn probe() -> Result<String, String> {
         load!(egl, eglCreateContext: unsafe extern "C" fn(EglDisplay, EglConfig, EglContext, *const i32) -> EglContext);
         load!(egl, eglCreatePbufferSurface: unsafe extern "C" fn(EglDisplay, EglConfig, *const i32) -> EglSurface);
         load!(egl, eglMakeCurrent: unsafe extern "C" fn(EglDisplay, EglSurface, EglSurface, EglContext) -> u32);
+        // Drivers that crash on unload would kill the probe before it prints; the process exits right after anyway.
+        std::mem::forget(egl);
 
         load_gl!(eglGetProcAddress, glGetString: unsafe extern "C" fn(u32) -> *const c_char);
         load_gl!(eglGetProcAddress, glGetError: unsafe extern "C" fn() -> u32);
