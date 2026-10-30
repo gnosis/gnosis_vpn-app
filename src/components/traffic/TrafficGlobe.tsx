@@ -52,6 +52,8 @@ const PADDING = 28;
 const DOT_RADIUS = 4.5;
 const HOME_RADIUS = 7;
 const EXIT_RADIUS = 6;
+// HOPR links are solid edge to edge, so at full width they outweigh the halo-and-core links.
+const HOPR_WIDTH_SCALE = 0.5;
 const GRATICULE = graticule();
 
 /** Where the unit disc lands in a canvas of this size. */
@@ -189,7 +191,8 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
       if (hopr) {
         // Darker edges under the pale HOPR yellow so the line reads on a light globe.
         context.strokeStyle = colors.hoprLinkEdge;
-        context.lineWidth = link.width + 1;
+      const width = hopr ? link.width * HOPR_WIDTH_SCALE : link.width;
+        context.lineWidth = width + 1;
         context.stroke();
       }
       let lineColor = colors.link;
@@ -198,10 +201,10 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
       // Translucent halo, solid core; the HOPR halo stays opaque so its edge shows only as an outline.
       context.strokeStyle = lineColor;
       context.globalAlpha = hopr ? 1 : 0.4;
-      context.lineWidth = link.width;
+      context.lineWidth = width;
       context.stroke();
       context.globalAlpha = 1;
-      context.lineWidth = Math.max(1, link.width * 0.35);
+      context.lineWidth = Math.max(1, width * 0.35);
       context.stroke();
     }
 
