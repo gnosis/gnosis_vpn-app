@@ -313,15 +313,6 @@ pub fn open_traffic_window(app: AppHandle) {
     show(&app);
 }
 
-/// Interface the window should select when it opens: the egress interface, or
-/// the only candidate.
-pub fn preferred_interface(interfaces: &[protocol::Interface]) -> Option<&protocol::Interface> {
-    interfaces
-        .iter()
-        .find(|interface| interface.is_default)
-        .or_else(|| (interfaces.len() == 1).then(|| &interfaces[0]))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -374,40 +365,6 @@ mod tests {
             .await
             .expect_err("missing");
         assert_eq!(error, SERVICE_NOT_RUNNING);
-    }
-
-    fn interface(name: &str, is_default: bool) -> protocol::Interface {
-        protocol::Interface {
-            id: name.to_string(),
-            name: name.to_string(),
-            addresses: Vec::new(),
-            is_default,
-        }
-    }
-
-    #[test]
-    fn the_egress_interface_is_preferred() {
-        let interfaces = [interface("en1", false), interface("en0", true)];
-        assert_eq!(
-            preferred_interface(&interfaces).map(|i| i.id.as_str()),
-            Some("en0")
-        );
-    }
-
-    #[test]
-    fn a_single_candidate_is_preferred() {
-        let interfaces = [interface("wlan0", false)];
-        assert_eq!(
-            preferred_interface(&interfaces).map(|i| i.id.as_str()),
-            Some("wlan0")
-        );
-    }
-
-    #[test]
-    fn an_ambiguous_set_without_egress_prefers_nothing() {
-        let interfaces = [interface("en0", false), interface("en1", false)];
-        assert!(preferred_interface(&interfaces).is_none());
-        assert!(preferred_interface(&[]).is_none());
     }
 
     #[test]
