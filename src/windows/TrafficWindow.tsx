@@ -43,6 +43,9 @@ export default function TrafficWindow() {
     interfaces().find((entry) => entry.id === selectedId()) ?? null
   );
   const endpoints = createMemo(() => frame()?.endpoints ?? []);
+  const relayCount = createMemo(() =>
+    endpoints().filter((endpoint) => endpoint.hopr_peer).length
+  );
   const observedSeconds = createMemo(() => frame()?.observed_seconds ?? 0);
   const rates = createMemo(() => {
     const current = frame();
@@ -303,7 +306,7 @@ export default function TrafficWindow() {
                 class="inline-block h-2 w-2 rounded-full bg-globe-hopr ring-1 ring-globe-hopr-edge"
                 aria-hidden="true"
               />
-              HOPR node
+              {relayCount()} HOPR {relayCount() === 1 ? "relay" : "relays"}
               <span
                 class="ml-2 inline-block h-2 w-2 rounded-full bg-globe-link"
                 aria-hidden="true"
