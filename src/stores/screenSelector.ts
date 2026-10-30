@@ -24,7 +24,7 @@ export type SyncPhaseIndex = 0 | 1 | 2;
 export type ScreenChoice = [AppScreen, string, string | null];
 
 /** How long a stuck startup sync waits for a route before moving on. */
-export const MAXIMUM_DELAY_TIME = 3 * 60 * 1000;
+export const MAXIMUM_DELAY_TIME = 5 * 60 * 1000;
 
 /** Nothing to interact with until one destination is connectable. */
 function findDelayReason(status: StatusResponse): string | null {
