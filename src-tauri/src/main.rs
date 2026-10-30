@@ -15,7 +15,7 @@ fn main() {
             std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
         }
         // SHM frame hand-off avoids DMA-BUF black windows (GNO-421) but keeps GPU compositing
-        if std::env::var_os("WEBKIT_DISABLE_COMPOSITING_MODE").is_none()
+        if !gnosis_vpn_app_lib::render::webkit_flag_on("WEBKIT_DISABLE_COMPOSITING_MODE")
             && std::env::var_os("WEBKIT_DMABUF_RENDERER_FORCE_SHM").is_none()
         {
             std::env::set_var("WEBKIT_DMABUF_RENDERER_FORCE_SHM", "1");

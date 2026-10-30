@@ -34,6 +34,12 @@ pub fn get_render_profile() -> RenderProfile {
     init().clone()
 }
 
+/// WebKitGTK reads its env switches as off when unset or exactly "0".
+#[cfg(target_os = "linux")]
+pub fn webkit_flag_on(name: &str) -> bool {
+    std::env::var_os(name).is_some_and(|v| v != "0")
+}
+
 fn cpu_cores() -> usize {
     std::thread::available_parallelism().map_or(1, |n| n.get())
 }
@@ -91,7 +97,7 @@ fn is_cpu_rasterizer(renderer: &str) -> bool {
 
 #[cfg(target_os = "linux")]
 fn detect() -> RenderProfile {
-    if std::env::var_os("WEBKIT_DISABLE_COMPOSITING_MODE").is_some() {
+    if webkit_flag_on("WEBKIT_DISABLE_COMPOSITING_MODE") {
         return RenderProfile {
             software_rendering: true,
             cpu_cores: cpu_cores(),
