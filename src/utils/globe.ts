@@ -1,4 +1,4 @@
-/** Unit sphere in view space (x right, y up, z to the viewer); positions come from opaque ids, not geography. */
+/** Unit sphere in view space (x right, y up, z to the viewer); dots sit on rings around the host, not on a map. */
 
 export interface Vec3 {
   x: number;
@@ -32,10 +32,9 @@ export const MAX_LINK_WIDTH = 12;
 const LOW_RATE = 100;
 /** Rates at or above this draw the thickest line. */
 const HIGH_RATE = 10_000_000;
-/** Endpoints stay inside this radius so no dot sits on the outline. */
-const PLACEMENT_RADIUS = 0.86;
-/** Tunnel destinations sit in this band along the rim so they read as the far end of the path. */
-export const DESTINATION_RING = { inner: 0.74, outer: PLACEMENT_RADIUS };
+/** Next hops ring the host closely; tunnel destinations sit out by the rim as the far end of the path. */
+export const WIRE_RADIUS = 0.42;
+export const DESTINATION_RADIUS = 0.82;
 /** How far an arc bends off its chord, relative to the chord length. */
 const ARC_BEND = 0.18;
 /** Arcs stay just inside the outline. */
@@ -44,44 +43,90 @@ const ARC_LIMIT = 0.98;
 const EASE_MS = 250;
 /** Widths closer than this to their target snap to it. */
 const SETTLE_WIDTH = 0.05;
+/** Positions closer than this to their slot snap to it. */
+const SETTLE_DISTANCE = 0.001;
 /** Graticule tilt, so the northern cap shows like on a desk globe. */
 const TILT = (20 * Math.PI) / 180;
 
-/** Where the local host sits: lower left, like a viewer's own position on a map. */
-export const HOME: Vec3 = onSphere(-0.48, -0.36);
+export const HOME: Vec3 = onSphere(0, 0);
 
-function onSphere(x: number, y: number): Vec3 {
+export function onSphere(x: number, y: number): Vec3 {
   return { x, y, z: Math.sqrt(Math.max(0, 1 - x * x - y * y)) };
 }
 
-/** 32-bit FNV-1a, enough to scatter ids evenly. */
-function fnv1a(text: string): number {
-  let hash = 0x811c9dc5;
-  for (let n = 0; n < text.length; n++) {
-    hash ^= text.charCodeAt(n);
-    hash = Math.imul(hash, 0x01000193);
+/** Even spacing over an arc; a lone id sits at its centre. */
+export function ringSlots(
+  ids: readonly string[],
+  radius: number,
+  centerAngle: number,
+  spread: number,
+): Map<string, Point> {
+  const slots = new Map<string, Point>();
+  ids.forEach((id, n) => {
+    const angle = centerAngle + spread * ((n + 0.5) / ids.length - 0.5);
+    slots.set(id, {
+      x: radius * Math.cos(angle),
+      y: radius * Math.sin(angle),
+    });
+  });
+  return slots;
+}
+
+/** Relays first so they sit together; ids are per-session random keys, so the order holds for a session. */
+export function layoutSlots(
+  ids: Iterable<string>,
+  hoprPeers: ReadonlySet<string>,
+  destinations: ReadonlySet<string>,
+): Map<string, Point> {
+  const wire: string[] = [];
+  const tunnel: string[] = [];
+  for (const id of ids) {
+    if (destinations.has(id)) tunnel.push(id);
+    else wire.push(id);
   }
-  return hash >>> 0;
+  const relaysFirst = (a: string, b: string) => {
+    const aIsRelay = hoprPeers.has(a);
+    const bIsRelay = hoprPeers.has(b);
+    if (aIsRelay !== bIsRelay) return aIsRelay ? -1 : 1;
+    return a < b ? -1 : 1;
+  };
+  wire.sort(relaysFirst);
+  tunnel.sort();
+  const fullCircle = 2 * Math.PI;
+  return new Map([
+    ...ringSlots(wire, WIRE_RADIUS, Math.PI, fullCircle),
+    ...ringSlots(tunnel, DESTINATION_RADIUS, Math.PI, fullCircle),
+  ]);
 }
 
-/** Places an endpoint id on the visible hemisphere, the same spot every time. */
-export function endpointPosition(id: string): Vec3 {
-  const u = fnv1a(id) / 2 ** 32;
-  const v = fnv1a(`${id}:angle`) / 2 ** 32;
-  // The square root spreads dots evenly over the disc area.
-  const radius = PLACEMENT_RADIUS * Math.sqrt(u);
-  const angle = 2 * Math.PI * v;
-  return onSphere(radius * Math.cos(angle), radius * Math.sin(angle));
-}
-
-/** Places a tunnel destination in the rim band, the same spot every time. */
-export function destinationPosition(id: string): Vec3 {
-  const u = fnv1a(id) / 2 ** 32;
-  const v = fnv1a(`${id}:angle`) / 2 ** 32;
-  const { inner, outer } = DESTINATION_RING;
-  const radius = inner + (outer - inner) * u;
-  const angle = 2 * Math.PI * v;
-  return onSphere(radius * Math.cos(angle), radius * Math.sin(angle));
+/** New ids start on their slot, others slide so a joining dot doesn't make the ring jump; returns whether any still moves. */
+export function easePositions(
+  positions: Map<string, Point>,
+  slots: ReadonlyMap<string, Point>,
+  elapsedMs: number,
+): boolean {
+  const step = 1 - Math.exp(-Math.max(0, elapsedMs) / EASE_MS);
+  let animating = false;
+  for (const id of positions.keys()) {
+    if (!slots.has(id)) positions.delete(id);
+  }
+  for (const [id, slot] of slots) {
+    const position = positions.get(id);
+    if (!position) {
+      positions.set(id, { ...slot });
+      continue;
+    }
+    position.x += (slot.x - position.x) * step;
+    position.y += (slot.y - position.y) * step;
+    const distance = Math.hypot(slot.x - position.x, slot.y - position.y);
+    if (distance < SETTLE_DISTANCE) {
+      position.x = slot.x;
+      position.y = slot.y;
+    } else {
+      animating = true;
+    }
+  }
+  return animating;
 }
 
 /** Bent left of its chord so every link curves the same way, like a flight path. */
@@ -182,9 +227,10 @@ export function easeLinks(
   return animating;
 }
 
-/** Peers in the frame plus departed peers whose dot is still fading out. */
-export function hoprPeerIds(
+/** Endpoints carrying `mark` in the frame, plus departed ones whose dot is still fading out. */
+export function markedIds(
   endpoints: readonly GlobeEndpoint[],
+  mark: "hopr_peer" | "tunnel",
   previous: ReadonlySet<string>,
   links: ReadonlyMap<string, Link>,
 ): Set<string> {
@@ -192,49 +238,10 @@ export function hoprPeerIds(
   const listed = new Set<string>();
   for (const endpoint of endpoints) {
     listed.add(endpoint.id);
-    if (endpoint.hopr_peer) ids.add(endpoint.id);
+    if (endpoint[mark]) ids.add(endpoint.id);
   }
   for (const id of previous) {
     if (!listed.has(id) && links.has(id)) ids.add(id);
   }
   return ids;
-}
-
-/** Falls back to the busiest wire endpoint, a conventional VPN's server; expects busiest first. */
-export function intermediaryIds(
-  endpoints: readonly GlobeEndpoint[],
-): string[] {
-  const wire = endpoints.filter((endpoint) => !endpoint.tunnel);
-  const peers = wire.filter((endpoint) => endpoint.hopr_peer);
-  if (peers.length > 0) return peers.map((endpoint) => endpoint.id);
-  return wire.slice(0, 1).map((endpoint) => endpoint.id);
-}
-
-/** Keeps the current intermediary while it stays on the wire, so destinations don't hop between nodes. */
-export function pickIntermediary(
-  endpoints: readonly GlobeEndpoint[],
-  current: string | null,
-): string | null {
-  const intermediaries = intermediaryIds(endpoints);
-  if (current !== null && intermediaries.includes(current)) return current;
-  return intermediaries[0] ?? null;
-}
-
-/** `null` hangs a destination off the host; departed destinations keep their parent while fading. */
-export function destinationParents(
-  endpoints: readonly GlobeEndpoint[],
-  intermediary: string | null,
-  previous: ReadonlyMap<string, string | null>,
-  links: ReadonlyMap<string, Link>,
-): Map<string, string | null> {
-  const parents = new Map<string, string | null>();
-  const listed = new Set<string>();
-  for (const endpoint of endpoints) {
-    listed.add(endpoint.id);
-    if (endpoint.tunnel) parents.set(endpoint.id, intermediary);
-  }
-  for (const [id, parent] of previous) {
-    if (!listed.has(id) && links.has(id)) parents.set(id, parent);
-  }
-  return parents;
 }

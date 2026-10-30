@@ -2,17 +2,16 @@ import { createEffect, onCleanup, onMount } from "solid-js";
 import type { TrafficEndpoint } from "@src/services/trafficService.ts";
 import {
   arcPoints,
-  destinationParents,
-  destinationPosition,
   easeLinks,
-  endpointPosition,
+  easePositions,
   graticule,
   HOME,
-  hoprPeerIds,
+  layoutSlots,
   type Link,
   linkWidth,
+  markedIds,
   MIN_LINK_WIDTH,
-  pickIntermediary,
+  onSphere,
   type Point,
   type Vec3,
 } from "@src/utils/globe.ts";
@@ -46,7 +45,6 @@ const DOT_RADIUS = 4.5;
 const HOME_RADIUS = 7;
 const GRATICULE = graticule();
 
-/** All destinations share one intermediary, a stable guess: which hop carries them is unobservable. */
 export default function TrafficGlobe(props: TrafficGlobeProps) {
   let container!: HTMLDivElement;
   let canvas!: HTMLCanvasElement;
@@ -55,8 +53,8 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
   const links = new Map<string, Link>();
   let targets = new Map<string, number>();
   let hoprPeers = new Set<string>();
-  let intermediary: string | null = null;
-  let parents = new Map<string, string | null>();
+  let destinations = new Set<string>();
+  const positions = new Map<string, Point>();
   let frameRequest: number | undefined;
   let lastTime: number | undefined;
 
@@ -129,18 +127,16 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
     const ordered = [...links.entries()].sort((a, b) =>
       a[1].width - b[1].width
     );
-    const positions = new Map<string, Vec3>();
+    const spots = new Map<string, Vec3>();
+    for (const [id, position] of positions) {
+      spots.set(id, onSphere(position.x, position.y));
+    }
     context.lineCap = "round";
     context.lineJoin = "round";
     for (const [id, link] of ordered) {
-      const position = parents.has(id)
-        ? destinationPosition(id)
-        : endpointPosition(id);
-      positions.set(id, position);
-      if (link.width <= 0) continue;
-      const parent = parents.get(id);
-      const origin = parent ? endpointPosition(parent) : HOME;
-      const path = arcPoints(origin, position).map(toScreen);
+      const spot = spots.get(id);
+      if (!spot || link.width <= 0) continue;
+      const path = arcPoints(HOME, spot).map(toScreen);
       context.beginPath();
       path.forEach(({ x, y }, n) => {
         if (n === 0) context.moveTo(x, y);
@@ -154,7 +150,7 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
         context.stroke();
       }
       let lineColor = colors.link;
-      if (parents.has(id)) lineColor = colors.destination;
+      if (destinations.has(id)) lineColor = colors.destination;
       if (hopr) lineColor = colors.hopr;
       // Translucent halo, solid core; the HOPR halo stays opaque so its edge shows only as an outline.
       context.strokeStyle = lineColor;
@@ -167,9 +163,9 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
     }
 
     for (const [id, link] of ordered) {
-      const position = positions.get(id);
-      if (!position) continue;
-      const { x, y } = toScreen(position);
+      const spot = spots.get(id);
+      if (!spot) continue;
+      const { x, y } = toScreen(spot);
       // A dot fades out with its link once its traffic leaves the window.
       context.globalAlpha = link.target > 0
         ? 1
@@ -187,7 +183,7 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
         context.lineWidth = 1;
         context.strokeStyle = colors.hoprEdge;
         context.stroke();
-      } else if (parents.has(id)) {
+      } else if (destinations.has(id)) {
         context.fillStyle = link.target > 0
           ? colors.destination
           : colors.destinationDot;
@@ -223,7 +219,10 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
   const animate = (time: number) => {
     const elapsed = lastTime === undefined ? 16 : time - lastTime;
     lastTime = time;
-    const animating = easeLinks(links, targets, elapsed);
+    const widthsMoving = easeLinks(links, targets, elapsed);
+    const slots = layoutSlots(links.keys(), hoprPeers, destinations);
+    const dotsMoving = easePositions(positions, slots, elapsed);
+    const animating = widthsMoving || dotsMoving;
     draw();
     frameRequest = animating ? requestAnimationFrame(animate) : undefined;
     if (!animating) lastTime = undefined;
@@ -271,9 +270,8 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
       );
     }
     targets = next;
-    hoprPeers = hoprPeerIds(props.endpoints, hoprPeers, links);
-    intermediary = pickIntermediary(props.endpoints, intermediary);
-    parents = destinationParents(props.endpoints, intermediary, parents, links);
+    hoprPeers = markedIds(props.endpoints, "hopr_peer", hoprPeers, links);
+    destinations = markedIds(props.endpoints, "tunnel", destinations, links);
     startAnimation();
   });
 
