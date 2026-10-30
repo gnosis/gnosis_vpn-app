@@ -19,6 +19,7 @@ pub fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Erro
     let show_item = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
     let settings_item = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
     let usage_item = MenuItem::with_id(app, "usage", "Usage", true, None::<&str>)?;
+    let traffic_item = MenuItem::with_id(app, "traffic", "Traffic", true, None::<&str>)?;
     let check_update_item =
         MenuItem::with_id(app, "check_update", "Check update", true, None::<&str>)?;
     let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
@@ -32,6 +33,7 @@ pub fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Erro
         .item(&show_item)
         .item(&settings_item)
         .item(&usage_item)
+        .item(&traffic_item)
         .item(&check_update_item)
         .separator()
         .item(&quit_item)

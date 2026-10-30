@@ -16,7 +16,7 @@ use std::time::Duration;
 use tokio::task::spawn_blocking;
 use tokio::time::{self, Instant};
 
-use crate::cli::Cli;
+use crate::cli::{self, Cli};
 use crate::icons::{self, TrayIconState};
 use crate::platform::{SystemInfo, get_system_info};
 use crate::toolkit;
@@ -38,7 +38,7 @@ const MAX_WORKER_LOG_FILES: usize = 7;
 pub(crate) async fn on_socket<T: Send + 'static>(
     call: impl FnOnce(&Path) -> Result<T, CallError> + Send + 'static,
 ) -> Result<T, CallError> {
-    tokio::task::spawn_blocking(move || call(Path::new(ipc::DEFAULT_PATH)))
+    tokio::task::spawn_blocking(move || call(&cli::socket_path()))
         .await
         .unwrap_or_else(|e| Err(CallError::Io(std::io::Error::other(e))))
 }
