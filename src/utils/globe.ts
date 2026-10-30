@@ -19,6 +19,13 @@ export interface Point {
   y: number;
 }
 
+/** What the globe needs to know about an endpoint besides its traffic. */
+export interface GlobeEndpoint {
+  id: string;
+  hopr_peer: boolean;
+  tunnel: boolean;
+}
+
 /** Line width easing toward the width the current traffic asks for. */
 export interface Link {
   width: number;
@@ -34,6 +41,11 @@ const LOW_RATE = 100;
 const HIGH_RATE = 10_000_000;
 /** Endpoints stay inside this radius so no dot sits on the outline. */
 const PLACEMENT_RADIUS = 0.86;
+/**
+ * Destinations seen inside a VPN tunnel sit in this band along the rim, so they
+ * read as the far end of the path, beyond the next hops.
+ */
+export const DESTINATION_RING = { inner: 0.74, outer: PLACEMENT_RADIUS };
 /** How far an arc bends off its chord, relative to the chord length. */
 const ARC_BEND = 0.18;
 /** Arcs stay just inside the outline. */
@@ -68,6 +80,19 @@ export function endpointPosition(id: string): Vec3 {
   const v = fnv1a(`${id}:angle`) / 2 ** 32;
   // The square root spreads dots evenly over the disc area.
   const radius = PLACEMENT_RADIUS * Math.sqrt(u);
+  const angle = 2 * Math.PI * v;
+  return onSphere(radius * Math.cos(angle), radius * Math.sin(angle));
+}
+
+/**
+ * Places a tunnel destination in the ring along the rim, the same spot every
+ * time.
+ */
+export function destinationPosition(id: string): Vec3 {
+  const u = fnv1a(id) / 2 ** 32;
+  const v = fnv1a(`${id}:angle`) / 2 ** 32;
+  const { inner, outer } = DESTINATION_RING;
+  const radius = inner + (outer - inner) * u;
   const angle = 2 * Math.PI * v;
   return onSphere(radius * Math.cos(angle), radius * Math.sin(angle));
 }
@@ -191,7 +216,7 @@ export function easeLinks(
  * fading out.
  */
 export function hoprPeerIds(
-  endpoints: readonly { id: string; hopr_peer: boolean }[],
+  endpoints: readonly GlobeEndpoint[],
   previous: ReadonlySet<string>,
   links: ReadonlyMap<string, Link>,
 ): Set<string> {
@@ -205,4 +230,64 @@ export function hoprPeerIds(
     if (!listed.has(id) && links.has(id)) ids.add(id);
   }
   return ids;
+}
+
+/**
+ * Wire endpoints that tunnel destinations hang off: the HOPR peers when there
+ * are any, otherwise the busiest wire endpoint, which under a conventional VPN
+ * is its server. `endpoints` is busiest first.
+ */
+export function intermediaryIds(
+  endpoints: readonly GlobeEndpoint[],
+): string[] {
+  const wire = endpoints.filter((endpoint) => !endpoint.tunnel);
+  const peers = wire.filter((endpoint) => endpoint.hopr_peer);
+  if (peers.length > 0) return peers.map((endpoint) => endpoint.id);
+  return wire.slice(0, 1).map((endpoint) => endpoint.id);
+}
+
+/**
+ * The intermediary a destination is drawn from. Which hop carries which
+ * destination cannot be observed, so the choice only has to be stable:
+ * highest-random-weight hashing keeps a destination on its intermediary while
+ * other intermediaries come and go.
+ */
+export function parentFor(
+  destination: string,
+  intermediaries: readonly string[],
+): string | undefined {
+  let best: string | undefined;
+  let bestWeight = -1;
+  for (const id of intermediaries) {
+    const weight = fnv1a(`${destination}>${id}`);
+    if (weight > bestWeight || (weight === bestWeight && best && id < best)) {
+      best = id;
+      bestWeight = weight;
+    }
+  }
+  return best;
+}
+
+/**
+ * Parent of every tunnel destination on the globe, or `null` when nothing on
+ * the wire carries it and it hangs off the host. Destinations that left the
+ * frame keep their parent while their link fades out.
+ */
+export function destinationParents(
+  endpoints: readonly GlobeEndpoint[],
+  previous: ReadonlyMap<string, string | null>,
+  links: ReadonlyMap<string, Link>,
+): Map<string, string | null> {
+  const intermediaries = intermediaryIds(endpoints);
+  const parents = new Map<string, string | null>();
+  const listed = new Set<string>();
+  for (const endpoint of endpoints) {
+    listed.add(endpoint.id);
+    if (!endpoint.tunnel) continue;
+    parents.set(endpoint.id, parentFor(endpoint.id, intermediaries) ?? null);
+  }
+  for (const [id, parent] of previous) {
+    if (!listed.has(id) && links.has(id)) parents.set(id, parent);
+  }
+  return parents;
 }

@@ -119,6 +119,9 @@ textarea {
   --color-globe-hopr: #ffffa0;
   --color-globe-hopr-edge: #12112a;
   --color-globe-hopr-link-edge: #b89200;
+  /* Destinations inside a VPN tunnel: teal, apart from the indigo wire endpoints */
+  --color-globe-destination: #0d9488;
+  --color-globe-destination-dot: #5eb8ae;
 }
 
 :root.dark {
@@ -180,6 +183,8 @@ textarea {
   --color-globe-hopr: #ffffa0;
   --color-globe-hopr-edge: #12112a;
   --color-globe-hopr-link-edge: #b89200;
+  --color-globe-destination: #2dd4bf;
+  --color-globe-destination-dot: #2a8c82;
 }
 @utility bg-darken {
   background-image: linear-gradient(rgb(0 0 0 / 0.12), rgb(0 0 0 / 0.12));
@@ -258,6 +263,8 @@ textarea {
   --color-globe-hopr: var(--color-globe-hopr);
   --color-globe-hopr-edge: var(--color-globe-hopr-edge);
   --color-globe-hopr-link-edge: var(--color-globe-hopr-link-edge);
+  --color-globe-destination: var(--color-globe-destination);
+  --color-globe-destination-dot: var(--color-globe-destination-dot);
 }
 
 @keyframes progress-shimmer {

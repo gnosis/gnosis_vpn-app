@@ -2,6 +2,8 @@ import { createEffect, onCleanup, onMount } from "solid-js";
 import type { TrafficEndpoint } from "@src/services/trafficService.ts";
 import {
   arcPoints,
+  destinationParents,
+  destinationPosition,
   easeLinks,
   endpointPosition,
   graticule,
@@ -31,6 +33,8 @@ interface Colors {
   hopr: string;
   hoprEdge: string;
   hoprLinkEdge: string;
+  destination: string;
+  destinationDot: string;
   home: string;
   ring: string;
   label: string;
@@ -45,7 +49,11 @@ const GRATICULE = graticule();
  * A stylized globe with the host as one fixed point and every remote endpoint
  * as a dot. The line to each dot grows and shrinks with the endpoint's traffic
  * over the rolling window. Endpoints that are announced HOPR nodes get a HOPR
- * yellow dot. The plot carries no addresses or endpoint labels.
+ * yellow dot. Destinations seen inside a VPN tunnel sit along the rim and hang
+ * off an intermediary
+ * (a HOPR peer or the VPN server); which intermediary carries which
+ * destination is not observable, so that pairing is only a stable choice. The
+ * plot carries no addresses or endpoint labels.
  */
 export default function TrafficGlobe(props: TrafficGlobeProps) {
   let container!: HTMLDivElement;
@@ -55,6 +63,7 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
   const links = new Map<string, Link>();
   let targets = new Map<string, number>();
   let hoprPeers = new Set<string>();
+  let parents = new Map<string, string | null>();
   let frameRequest: number | undefined;
   let lastTime: number | undefined;
 
@@ -71,6 +80,8 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
       hopr: value("--color-globe-hopr", "#ffffa0"),
       hoprEdge: value("--color-globe-hopr-edge", "#12112a"),
       hoprLinkEdge: value("--color-globe-hopr-link-edge", "#b89200"),
+      destination: value("--color-globe-destination", "#0d9488"),
+      destinationDot: value("--color-globe-destination-dot", "#5eb8ae"),
       home: value("--color-globe-home", "#12112a"),
       ring: value("--color-bg-primary", "#f6f6f6"),
       label: value("--color-text-secondary", "#6b7280"),
@@ -131,10 +142,14 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
     context.lineCap = "round";
     context.lineJoin = "round";
     for (const [id, link] of ordered) {
-      const position = endpointPosition(id);
+      const position = parents.has(id)
+        ? destinationPosition(id)
+        : endpointPosition(id);
       positions.set(id, position);
       if (link.width <= 0) continue;
-      const path = arcPoints(HOME, position).map(toScreen);
+      const parent = parents.get(id);
+      const origin = parent ? endpointPosition(parent) : HOME;
+      const path = arcPoints(origin, position).map(toScreen);
       context.beginPath();
       path.forEach(({ x, y }, n) => {
         if (n === 0) context.moveTo(x, y);
@@ -149,7 +164,11 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
       }
       // A translucent halo with a solid core, like a lit cable. A HOPR halo
       // stays opaque so the edge underneath shows only as a thin outline.
-      context.strokeStyle = hopr ? colors.hopr : colors.link;
+      context.strokeStyle = hopr
+        ? colors.hopr
+        : parents.has(id)
+        ? colors.destination
+        : colors.link;
       context.globalAlpha = hopr ? 1 : 0.4;
       context.lineWidth = link.width;
       context.stroke();
@@ -179,6 +198,11 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
         context.lineWidth = 1;
         context.strokeStyle = colors.hoprEdge;
         context.stroke();
+      } else if (parents.has(id)) {
+        context.fillStyle = link.target > 0
+          ? colors.destination
+          : colors.destinationDot;
+        context.fill();
       } else {
         context.fillStyle = link.target > 0 ? colors.link : colors.dot;
         context.fill();
@@ -259,6 +283,7 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
     }
     targets = next;
     hoprPeers = hoprPeerIds(props.endpoints, hoprPeers, links);
+    parents = destinationParents(props.endpoints, parents, links);
     startAnimation();
   });
 

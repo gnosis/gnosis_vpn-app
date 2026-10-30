@@ -21,6 +21,8 @@ export const TrafficEndpointSchema = z.strictObject({
   received: z.number().int().nonnegative(),
   // The address is one a HOPR node announced; says nothing about the traffic.
   hopr_peer: z.boolean(),
+  // A destination seen inside the VPN tunnel rather than a next hop on the wire.
+  tunnel: z.boolean(),
 });
 export type TrafficEndpoint = z.infer<typeof TrafficEndpointSchema>;
 
@@ -54,7 +56,8 @@ export type TrafficFrameResponse = z.infer<typeof TrafficFrameResponseSchema>;
 
 /**
  * Average sent and received rates over the frame's observed seconds, in bytes
- * per second. Covers only the listed endpoints.
+ * per second. Covers only the listed endpoints on the wire: tunnel destinations
+ * carry the same bytes before encryption and would count the VPN twice.
  */
 export function averageRates(
   frame: TrafficFrame,
@@ -63,6 +66,7 @@ export function averageRates(
   let sent = 0;
   let received = 0;
   for (const endpoint of frame.endpoints) {
+    if (endpoint.tunnel) continue;
     sent += endpoint.sent;
     received += endpoint.received;
   }

@@ -2,15 +2,20 @@ import { describe, expect, it } from "vitest";
 
 import {
   arcPoints,
+  DESTINATION_RING,
+  destinationParents,
+  destinationPosition,
   easeLinks,
   endpointPosition,
   graticule,
   HOME,
   hoprPeerIds,
+  intermediaryIds,
   type Link,
   linkWidth,
   MAX_LINK_WIDTH,
   MIN_LINK_WIDTH,
+  parentFor,
 } from "./globe.ts";
 
 const length = (v: { x: number; y: number; z: number }) =>
@@ -37,6 +42,35 @@ describe("endpointPosition", () => {
     const quadrants = new Set<string>();
     for (let n = 0; n < 64; n++) {
       const position = endpointPosition(`id-${n}`);
+      quadrants.add(`${position.x > 0}:${position.y > 0}`);
+    }
+    expect(quadrants.size).toBe(4);
+  });
+});
+
+describe("destinationPosition", () => {
+  it("places the same id on the same spot", () => {
+    expect(destinationPosition("7d2a96c0e1f43b58")).toEqual(
+      destinationPosition("7d2a96c0e1f43b58"),
+    );
+  });
+
+  it("keeps destinations in the ring along the rim, clear of the outline", () => {
+    for (let n = 0; n < 500; n++) {
+      const position = destinationPosition(n.toString(16).padStart(16, "0"));
+      const distance = Math.hypot(position.x, position.y);
+      expect(length(position)).toBeCloseTo(1, 9);
+      expect(position.z).toBeGreaterThan(0);
+      expect(distance).toBeGreaterThanOrEqual(DESTINATION_RING.inner - 1e-9);
+      expect(distance).toBeLessThanOrEqual(DESTINATION_RING.outer + 1e-9);
+      expect(distance).toBeLessThan(0.9);
+    }
+  });
+
+  it("spreads destinations all around the rim", () => {
+    const quadrants = new Set<string>();
+    for (let n = 0; n < 64; n++) {
+      const position = destinationPosition(`id-${n}`);
       quadrants.add(`${position.x > 0}:${position.y > 0}`);
     }
     expect(quadrants.size).toBe(4);
@@ -159,6 +193,7 @@ describe("hoprPeerIds", () => {
     sent: 1,
     received: 1,
     hopr_peer,
+    tunnel: false,
   });
 
   it("keeps only the endpoints marked as HOPR peers", () => {
@@ -180,5 +215,104 @@ describe("hoprPeerIds", () => {
     const links = new Map<string, Link>([["a", { width: 3, target: 3 }]]);
     const ids = hoprPeerIds([endpoint("a", false)], new Set(["a"]), links);
     expect(ids.size).toBe(0);
+  });
+});
+
+describe("intermediaryIds", () => {
+  const endpoint = (
+    id: string,
+    { hopr_peer = false, tunnel = false } = {},
+  ) => ({ id, sent: 1, received: 1, hopr_peer, tunnel });
+
+  it("uses the HOPR peers on the wire when there are any", () => {
+    const ids = intermediaryIds([
+      endpoint("busy"),
+      endpoint("peer-a", { hopr_peer: true }),
+      endpoint("dest", { tunnel: true }),
+      endpoint("peer-b", { hopr_peer: true }),
+    ]);
+    expect(ids).toEqual(["peer-a", "peer-b"]);
+  });
+
+  it("falls back to the busiest wire endpoint, as with a single VPN server", () => {
+    const ids = intermediaryIds([
+      endpoint("dest", { tunnel: true }),
+      endpoint("server"),
+      endpoint("other"),
+    ]);
+    expect(ids).toEqual(["server"]);
+  });
+
+  it("is empty without wire endpoints", () => {
+    expect(intermediaryIds([endpoint("dest", { tunnel: true })])).toEqual([]);
+  });
+});
+
+describe("parentFor", () => {
+  it("picks one of the intermediaries, the same one every time", () => {
+    const parent = parentFor("dest", ["a", "b", "c"]);
+    expect(["a", "b", "c"]).toContain(parent);
+    expect(parentFor("dest", ["c", "a", "b"])).toBe(parent);
+  });
+
+  it("keeps its parent when another intermediary leaves", () => {
+    const parent = parentFor("dest", ["a", "b", "c"]);
+    const others = ["a", "b", "c"].filter((id) => id !== parent);
+    expect(parentFor("dest", [parent!, others[0]])).toBe(parent);
+  });
+
+  it("spreads destinations over the intermediaries", () => {
+    const parents = new Set(
+      Array.from({ length: 40 }, (_, n) => parentFor(`d${n}`, ["a", "b", "c"])),
+    );
+    expect(parents.size).toBe(3);
+  });
+
+  it("has no parent without intermediaries", () => {
+    expect(parentFor("dest", [])).toBeUndefined();
+  });
+});
+
+describe("destinationParents", () => {
+  const endpoint = (
+    id: string,
+    { hopr_peer = false, tunnel = false } = {},
+  ) => ({ id, sent: 1, received: 1, hopr_peer, tunnel });
+
+  it("links every listed destination to one of the intermediaries", () => {
+    const parents = destinationParents(
+      [
+        endpoint("peer-a", { hopr_peer: true }),
+        endpoint("peer-b", { hopr_peer: true }),
+        endpoint("d1", { tunnel: true }),
+        endpoint("d2", { tunnel: true }),
+      ],
+      new Map(),
+      new Map(),
+    );
+    expect([...parents.keys()].sort()).toEqual(["d1", "d2"]);
+    for (const parent of parents.values()) {
+      expect(["peer-a", "peer-b"]).toContain(parent);
+    }
+  });
+
+  it("links destinations to the host when nothing carries them", () => {
+    const parents = destinationParents(
+      [endpoint("d1", { tunnel: true })],
+      new Map(),
+      new Map(),
+    );
+    expect(parents.get("d1")).toBeNull();
+  });
+
+  it("keeps the parent of a destination that is still fading out", () => {
+    const links = new Map<string, Link>([["d1", { width: 2, target: 0 }]]);
+    const parents = destinationParents(
+      [endpoint("server")],
+      new Map([["d1", "old-server"], ["gone", "old-server"]]),
+      links,
+    );
+    expect(parents.get("d1")).toBe("old-server");
+    expect(parents.has("gone")).toBe(false);
   });
 });

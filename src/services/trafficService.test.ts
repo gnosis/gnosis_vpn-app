@@ -18,12 +18,14 @@ describe("TrafficFrameResponseSchema fixtures", () => {
     expect(parsed.data.capture.interface).toBe("en0");
     expect(parsed.data.frame.window_seconds).toBe(10);
     expect(parsed.data.frame.observed_seconds).toBe(10);
-    expect(parsed.data.frame.endpoints).toHaveLength(5);
+    expect(parsed.data.frame.endpoints).toHaveLength(6);
     expect(parsed.data.frame.endpoints[0].id).toBe("9f2c4e81a07b3d56");
     expect(parsed.data.frame.endpoints[0].received).toBe(4_800_000);
     expect(parsed.data.frame.endpoints[4].received).toBe(0);
     expect(parsed.data.frame.endpoints[0].hopr_peer).toBe(false);
     expect(parsed.data.frame.endpoints[1].hopr_peer).toBe(true);
+    expect(parsed.data.frame.endpoints[0].tunnel).toBe(false);
+    expect(parsed.data.frame.endpoints[5].tunnel).toBe(true);
     expect(parsed.data.frame.omitted_endpoints).toBe(0);
   });
 
@@ -68,7 +70,9 @@ describe("TrafficFrameResponseSchema fixtures", () => {
 });
 
 describe("averageRates", () => {
-  it("averages each direction over the observed seconds", () => {
+  it("averages each direction over the observed seconds, on the wire only", () => {
+    // Tunnel destinations are the same bytes before encryption; counting them
+    // would add the VPN's traffic twice.
     const parsed = TrafficFrameResponseSchema.parse(frame);
     const rates = averageRates(parsed.frame);
     expect(rates.sent).toBe((120_000 + 300_000 + 12_000 + 2_400 + 600) / 10);

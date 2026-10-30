@@ -282,6 +282,13 @@ export default function TrafficWindow() {
                 aria-hidden="true"
               />
               Other
+              <Show when={endpoints().some((endpoint) => endpoint.tunnel)}>
+                <span
+                  class="ml-2 inline-block h-2 w-2 rounded-full bg-globe-destination"
+                  aria-hidden="true"
+                />
+                Destination
+              </Show>
             </span>
           </Show>
         </span>

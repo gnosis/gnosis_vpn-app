@@ -341,7 +341,7 @@ mod tests {
     fn another_protocol_version_names_both_sides() {
         assert!(incompatible_protocol(protocol::PROTOCOL_VERSION).is_none());
         let error = incompatible_protocol(protocol::PROTOCOL_VERSION + 1).expect("mismatch");
-        assert!(error.contains("traffic protocol 5"), "{error}");
-        assert!(error.contains("needs 4"), "{error}");
+        assert!(error.contains("traffic protocol 6"), "{error}");
+        assert!(error.contains("needs 5"), "{error}");
     }
 }

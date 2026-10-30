@@ -17,7 +17,8 @@ use super::protocol::{Batch, Direction, PROTOCOL_VERSION};
 
 /// Completed seconds summed into each endpoint's total.
 pub const WINDOW_SECONDS: u64 = 10;
-/// Busiest endpoints a frame carries; quieter ones are counted, not listed.
+/// Busiest endpoints a frame carries per side (wire and tunnel); quieter ones
+/// are counted, not listed.
 pub const MAX_ENDPOINTS: usize = 48;
 
 /// Bytes exchanged with one remote endpoint over the rolling window.
@@ -31,6 +32,9 @@ pub struct Endpoint {
     /// The address is one a HOPR node announced. Says what the endpoint is, not
     /// which process exchanged the traffic.
     pub hopr_peer: bool,
+    /// A destination seen inside the VPN tunnel, as opposed to a next hop seen
+    /// on the public interface.
+    pub tunnel: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -40,7 +44,8 @@ pub struct Frame {
     /// Completed seconds inside the window. Below `window_seconds` while capture
     /// has run for less than a full window.
     pub observed_seconds: u64,
-    /// Endpoints with traffic in both directions in the window, busiest first.
+    /// Endpoints with traffic in both directions in the window: wire endpoints
+    /// first, then tunnel destinations, each busiest first.
     pub endpoints: Vec<Endpoint>,
     /// Endpoints with traffic in the window that did not fit into `endpoints`.
     pub omitted_endpoints: usize,
@@ -53,10 +58,14 @@ struct Totals {
     hopr_peer: bool,
 }
 
+/// An address on one side of the VPN. The same address can be a next hop on the
+/// wire and a destination inside the tunnel; those are separate endpoints.
+type Key = (IpAddr, bool);
+
 #[derive(Default)]
 pub struct Model {
     /// Per-second totals per endpoint, including the second still being captured.
-    buckets: BTreeMap<u64, HashMap<IpAddr, Totals>>,
+    buckets: BTreeMap<u64, HashMap<Key, Totals>>,
     current_second: u64,
     /// Randomly keyed, so ids differ between app runs and cannot be precomputed.
     ids: RandomState,
@@ -92,7 +101,7 @@ impl Model {
                 .buckets
                 .entry(delta.second)
                 .or_default()
-                .entry(delta.target)
+                .entry((delta.target, delta.tunnel))
                 .or_default();
             totals.hopr_peer |= delta.hopr_peer;
             match delta.direction {
@@ -115,8 +124,8 @@ impl Model {
         self.buckets.retain(|second, _| *second >= oldest);
     }
 
-    fn id(&self, target: &IpAddr) -> String {
-        format!("{:016x}", self.ids.hash_one(target))
+    fn id(&self, key: &Key) -> String {
+        format!("{:016x}", self.ids.hash_one(key))
     }
 
     /// Sums each endpoint's traffic over the last [`WINDOW_SECONDS`] completed
@@ -130,34 +139,42 @@ impl Model {
         let now = self.current_second;
         let first = now.saturating_sub(WINDOW_SECONDS);
 
-        let mut totals: HashMap<IpAddr, Totals> = HashMap::new();
+        let mut totals: HashMap<Key, Totals> = HashMap::new();
         for (_, endpoints) in self.buckets.range(first..now) {
-            for (target, bucket) in endpoints {
-                let total = totals.entry(*target).or_default();
+            for (key, bucket) in endpoints {
+                let total = totals.entry(*key).or_default();
                 total.sent = total.sent.saturating_add(bucket.sent);
                 total.received = total.received.saturating_add(bucket.received);
                 total.hopr_peer |= bucket.hopr_peer;
             }
         }
 
-        let mut endpoints: Vec<Endpoint> = totals
-            .iter()
-            .filter(|(_, total)| total.sent > 0 && total.received > 0)
-            .map(|(target, total)| Endpoint {
-                id: self.id(target),
-                sent: total.sent,
-                received: total.received,
-                hopr_peer: total.hopr_peer,
-            })
-            .collect();
-        // Ties fall back to the id so the order is stable between frames.
-        endpoints.sort_unstable_by(|a, b| {
-            (b.sent + b.received)
-                .cmp(&(a.sent + a.received))
-                .then_with(|| a.id.cmp(&b.id))
-        });
-        let omitted_endpoints = endpoints.len().saturating_sub(MAX_ENDPOINTS);
-        endpoints.truncate(MAX_ENDPOINTS);
+        let mut endpoints = Vec::new();
+        let mut omitted_endpoints = 0;
+        for tunnel in [false, true] {
+            let mut side: Vec<Endpoint> = totals
+                .iter()
+                .filter(|((_, on_tunnel), total)| {
+                    *on_tunnel == tunnel && total.sent > 0 && total.received > 0
+                })
+                .map(|(key, total)| Endpoint {
+                    id: self.id(key),
+                    sent: total.sent,
+                    received: total.received,
+                    hopr_peer: total.hopr_peer,
+                    tunnel,
+                })
+                .collect();
+            // Ties fall back to the id so the order is stable between frames.
+            side.sort_unstable_by(|a, b| {
+                (b.sent + b.received)
+                    .cmp(&(a.sent + a.received))
+                    .then_with(|| a.id.cmp(&b.id))
+            });
+            omitted_endpoints += side.len().saturating_sub(MAX_ENDPOINTS);
+            side.truncate(MAX_ENDPOINTS);
+            endpoints.extend(side);
+        }
 
         Frame {
             window_seconds: WINDOW_SECONDS,
@@ -184,7 +201,19 @@ mod tests {
             direction,
             bytes,
             hopr_peer: false,
+            tunnel: false,
         }
+    }
+
+    /// One exchange with a destination seen inside the VPN tunnel.
+    fn tunnel_exchange(second: u64, target: &str, bytes: u64) -> Vec<Delta> {
+        exchange(second, target, bytes)
+            .into_iter()
+            .map(|delta| Delta {
+                tunnel: true,
+                ..delta
+            })
+            .collect()
     }
 
     /// One exchange with an endpoint the daemon marked as a HOPR peer.
@@ -397,6 +426,39 @@ mod tests {
         deltas.extend(exchange(1, A, 10));
         model.ingest(&batch(0, 2000, deltas)).expect("ingest");
         assert!(model.project().endpoints[0].hopr_peer);
+    }
+
+    #[test]
+    fn tunnel_destinations_are_listed_apart_from_wire_endpoints() {
+        // The same address seen on the wire and inside the tunnel is two dots.
+        let mut model = Model::default();
+        let mut deltas = exchange(0, A, 100);
+        deltas.extend(tunnel_exchange(0, A, 40));
+        model.ingest(&batch(0, 1000, deltas)).expect("ingest");
+        let frame = model.project();
+        assert_eq!(frame.endpoints.len(), 2);
+        let wire = frame.endpoints.iter().find(|e| !e.tunnel).expect("wire");
+        let inside = frame.endpoints.iter().find(|e| e.tunnel).expect("tunnel");
+        assert_eq!(wire.sent, 100);
+        assert_eq!(inside.sent, 40);
+        assert_ne!(wire.id, inside.id);
+    }
+
+    #[test]
+    fn wire_endpoints_and_tunnel_destinations_each_keep_their_own_limit() {
+        let mut model = Model::default();
+        let mut deltas: Vec<Delta> = (0..(MAX_ENDPOINTS as u64 + 3))
+            .flat_map(|n| exchange(0, &format!("10.0.{}.{}", n / 256, n % 256), 100 + n))
+            .collect();
+        deltas.extend(tunnel_exchange(0, B, 1));
+        model.ingest(&batch(0, 1000, deltas)).expect("ingest");
+        let frame = model.project();
+        assert_eq!(
+            frame.endpoints.iter().filter(|e| !e.tunnel).count(),
+            MAX_ENDPOINTS
+        );
+        assert_eq!(frame.endpoints.iter().filter(|e| e.tunnel).count(), 1);
+        assert_eq!(frame.omitted_endpoints, 3);
     }
 
     #[test]
