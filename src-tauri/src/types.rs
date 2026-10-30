@@ -39,7 +39,7 @@ impl From<ipc::Balances> for BalanceResponse {
         BalanceResponse {
             node: b.node,
             safe: b.safe,
-            channels_out: b.channels_out.iter().filter_map(|c| c.balance).sum(),
+            channels_out: b.channels_out.iter().map(|c| c.balance).sum(),
             info: b.info,
             funding_status: b.funding_status,
             ideal_balance: b.ideal_balance,
@@ -136,16 +136,16 @@ mod tests {
     }
 
     #[test]
-    fn channels_out_sums_only_the_known_balances() {
-        let channel = |wei: Option<u128>| ipc::ChannelOut {
+    fn channels_out_sums_every_channel() {
+        let channel = |wei: u128| ipc::ChannelOut {
             address: ipc::Address::new([1; 20]),
-            balance: wei.map(ipc::Balance::from_wei),
+            balance: ipc::Balance::from_wei(wei),
             matched_exit: None,
         };
         let balances = ipc::Balances {
             node: ipc::Balance::zero(),
             safe: ipc::Balance::zero(),
-            channels_out: vec![channel(Some(2)), channel(None), channel(Some(3))],
+            channels_out: vec![channel(2), channel(3)],
             info: ipc::NodeInfo {
                 node_address: ipc::Address::new([2; 20]),
                 node_peer_id: "peer".into(),
