@@ -77,7 +77,7 @@ macro_rules! load_gl {
     };
 }
 
-/// `display=…`, `renderer=…`, `vendor=…` and `draw_ms=…` lines, or why no GL context could render.
+/// `display=…`, `renderer=…`, `vendor=…` and (not for CPU rasterizers) `draw_ms=…` lines, or why no GL context could render.
 #[allow(non_snake_case)]
 pub(super) fn probe() -> Result<String, String> {
     // SAFETY: C entry points of the system EGL library and the GLES2 functions it hands out with their documented signatures, called on one
@@ -253,6 +253,11 @@ pub(super) fn probe() -> Result<String, String> {
             };
             let renderer = gl_string(GL_RENDERER);
             let vendor = gl_string(GL_VENDOR);
+            // classify decides on the name alone; drawing here only eats into PROBE_TIMEOUT before the next candidate.
+            if super::is_cpu_rasterizer(&renderer) {
+                let report = format!("renderer={renderer}\nvendor={vendor}");
+                return Ok((renderer, report));
+            }
 
             let compile = |kind: u32, source: &CStr| -> Result<u32, String> {
                 let shader = glCreateShader(kind);
