@@ -1,5 +1,6 @@
 use gnosis_vpn_app_lib::settings::{FlagDisplay, Settings, SortOrder, UpdateChannel};
 use gnosis_vpn_app_lib::toolkit::{CheckOutcome, CheckResult, EndOfLife, Manifest, ToolkitInfo};
+use gnosis_vpn_app_lib::traffic::{CaptureStatus, Endpoint, Frame, FrameResponse};
 use gnosis_vpn_app_lib::types;
 use gnosis_vpn_app_lib::update_install::InstallStatus;
 use gnosis_vpn_lib::balance::{
@@ -149,6 +150,91 @@ fn write(dir: &Path, name: &str, val: &impl serde::Serialize) {
 fn generate_fixtures() {
     let fixtures_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../src/services/fixtures");
     std::fs::create_dir_all(&fixtures_dir).expect("failed to create fixtures dir");
+
+    write(
+        &fixtures_dir,
+        "traffic_frame.json",
+        &FrameResponse {
+            frame: Frame {
+                window_seconds: 10,
+                current_second: 42,
+                observed_seconds: 10,
+                endpoints: vec![
+                    Endpoint {
+                        id: "9f2c4e81a07b3d56".to_string(),
+                        sent: 120_000,
+                        received: 4_800_000,
+                        hopr_peer: false,
+                        tunnel: false,
+                    },
+                    Endpoint {
+                        id: "41d8be0c6a2f9e13".to_string(),
+                        sent: 300_000,
+                        received: 90_000,
+                        hopr_peer: true,
+                        tunnel: false,
+                    },
+                    Endpoint {
+                        id: "c37a10f5e9d24b88".to_string(),
+                        sent: 12_000,
+                        received: 40_000,
+                        hopr_peer: false,
+                        tunnel: false,
+                    },
+                    Endpoint {
+                        id: "0b6e93d2f1a85c47".to_string(),
+                        sent: 2_400,
+                        received: 6_100,
+                        hopr_peer: false,
+                        tunnel: false,
+                    },
+                    Endpoint {
+                        id: "e5f07a3b28c61d94".to_string(),
+                        sent: 600,
+                        received: 0,
+                        hopr_peer: false,
+                        tunnel: false,
+                    },
+                    Endpoint {
+                        id: "7d2a96c0e1f43b58".to_string(),
+                        sent: 90_000,
+                        received: 2_500_000,
+                        hopr_peer: false,
+                        tunnel: true,
+                    },
+                ],
+                omitted_endpoints: 0,
+            },
+            capture: CaptureStatus {
+                active: true,
+                interface: Some("en0".to_string()),
+                error: None,
+                ended: None,
+            },
+            gap: false,
+        },
+    );
+    // Capture never started: no endpoints, and the reason is host state.
+    write(
+        &fixtures_dir,
+        "traffic_frame_failed.json",
+        &FrameResponse {
+            frame: Frame {
+                window_seconds: 10,
+                current_second: 0,
+                observed_seconds: 0,
+                endpoints: vec![],
+                omitted_endpoints: 0,
+            },
+            capture: CaptureStatus {
+                active: false,
+                interface: None,
+                error: Some("The Gnosis VPN service is not running".to_string()),
+                ended: None,
+            },
+            gap: true,
+        },
+    );
 
     write(
         &fixtures_dir,

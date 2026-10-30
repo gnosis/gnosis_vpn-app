@@ -2,6 +2,8 @@ import IconButton from "./common/IconButton.tsx";
 import WalletPopover from "./WalletPopover.tsx";
 import { Portal } from "solid-js/web";
 import settingsIcon from "../assets/icons/settings.svg";
+import trafficIcon from "../assets/icons/traffic.svg";
+import { openTrafficWindow } from "../utils/trafficWindow.ts";
 import {
   consumeWalletRequest,
   push,
@@ -74,6 +76,13 @@ function Navigation(props: {
               icon={getFundsIcon()}
               alt="Balance"
               onClick={toggleWallet}
+            />
+          </Tooltip>
+          <Tooltip content="Traffic" position="bottom">
+            <IconButton
+              icon={trafficIcon}
+              alt="Traffic"
+              onClick={() => openTrafficWindow()}
             />
           </Tooltip>
           <Tooltip content="Settings" position="bottom">

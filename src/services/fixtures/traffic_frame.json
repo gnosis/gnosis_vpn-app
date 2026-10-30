@@ -1,0 +1,59 @@
+{
+  "frame": {
+    "window_seconds": 10,
+    "current_second": 42,
+    "observed_seconds": 10,
+    "endpoints": [
+      {
+        "id": "9f2c4e81a07b3d56",
+        "sent": 120000,
+        "received": 4800000,
+        "hopr_peer": false,
+        "tunnel": false
+      },
+      {
+        "id": "41d8be0c6a2f9e13",
+        "sent": 300000,
+        "received": 90000,
+        "hopr_peer": true,
+        "tunnel": false
+      },
+      {
+        "id": "c37a10f5e9d24b88",
+        "sent": 12000,
+        "received": 40000,
+        "hopr_peer": false,
+        "tunnel": false
+      },
+      {
+        "id": "0b6e93d2f1a85c47",
+        "sent": 2400,
+        "received": 6100,
+        "hopr_peer": false,
+        "tunnel": false
+      },
+      {
+        "id": "e5f07a3b28c61d94",
+        "sent": 600,
+        "received": 0,
+        "hopr_peer": false,
+        "tunnel": false
+      },
+      {
+        "id": "7d2a96c0e1f43b58",
+        "sent": 90000,
+        "received": 2500000,
+        "hopr_peer": false,
+        "tunnel": true
+      }
+    ],
+    "omitted_endpoints": 0
+  },
+  "capture": {
+    "active": true,
+    "interface": "en0",
+    "error": null,
+    "ended": null
+  },
+  "gap": false
+}

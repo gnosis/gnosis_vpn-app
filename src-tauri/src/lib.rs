@@ -8,7 +8,6 @@ use tokio::sync::Notify;
 use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
 
-use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
@@ -22,6 +21,7 @@ mod service_control;
 pub mod settings;
 mod theme;
 pub mod toolkit;
+pub mod traffic;
 pub mod tray;
 pub mod types;
 pub mod update_install;
@@ -191,6 +191,7 @@ fn install_macos_about_panel_override(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let cli = Cli::from_env();
+    cli::init_socket_path(cli.socket_path.clone());
 
     tauri::Builder::default()
         .manage(cli)
@@ -283,7 +284,7 @@ pub fn run() {
                         tracing::info!(target: "tray", "quit requested, disconnecting");
                         let app_clone = app.clone();
                         tauri::async_runtime::spawn(async move {
-                            let socket = PathBuf::from(root_socket::DEFAULT_PATH);
+                            let socket = cli::socket_path();
                             if let Err(e) =
                                 root_socket::process_cmd(&socket, &command::Command::Disconnect)
                                     .await
@@ -319,6 +320,10 @@ pub fn run() {
                     "usage" => {
                         tracing::info!(target: "tray", "usage requested");
                         show_main_and_navigate(app, "wallet");
+                    }
+                    "traffic" => {
+                        tracing::info!(target: "traffic", "traffic window requested");
+                        traffic::show(app);
                     }
                     "check_update" => {
                         tracing::info!(target: "tray", "update check requested");
@@ -390,7 +395,7 @@ pub fn run() {
                     let pkg: String = match from_toolkit {
                         Some(pkg) => pkg,
                         None => {
-                            let socket = PathBuf::from(root_socket::DEFAULT_PATH);
+                            let socket = cli::socket_path();
                             match root_socket::process_cmd(&socket, &command::Command::Info).await {
                                 Ok(command::Response::Info(info)) => {
                                     // debug: the init loop's "initialized" line already records versions
@@ -439,6 +444,23 @@ pub fn run() {
                 });
             }
 
+            // Closing the traffic window ends capture and releases its history.
+            if let Some(traffic_window) = app.get_webview_window("traffic") {
+                let traffic_handle = app.handle().clone();
+                let traffic_clone = traffic_window.clone();
+                traffic_window.on_window_event(move |event| {
+                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                        tracing::info!(target: "traffic", "traffic window close requested, hiding");
+                        api.prevent_close();
+                        let _ = traffic_clone.hide();
+                        let handle = traffic_handle.clone();
+                        tauri::async_runtime::spawn(async move {
+                            traffic::stop(&handle).await;
+                        });
+                    }
+                });
+            }
+
             // Decide initial window visibility based on settings
             if let Some(window) = app.get_webview_window("main") {
                 let start_minimized = app.state::<SettingsStore>().current().start_minimized;
@@ -477,6 +499,8 @@ pub fn run() {
 
             // last update-install status: re-hydration + concurrent-install guard
             app.manage(UpdateInstallState::default());
+
+            app.manage(traffic::TrafficState::default());
 
             let (status_tx, _) = watch::channel(None);
             let (balance_tx, _) = watch::channel(None);
@@ -517,7 +541,12 @@ pub fn run() {
             get_install_status,
             get_toolkit_version,
             get_service_not_running_info,
-            start_service
+            start_service,
+            traffic::traffic_interfaces,
+            traffic::traffic_start,
+            traffic::traffic_frame,
+            traffic::traffic_stop,
+            traffic::open_traffic_window
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
@@ -564,6 +593,9 @@ pub fn run() {
                     }
                     Err(e) => tracing::warn!(error = %e, "heartbeat lock poisoned at exit"),
                 }
+
+                // release any traffic capture before tearing the client down
+                tauri::async_runtime::block_on(async { traffic::stop(app_handle).await });
 
                 // inform the client about the shutdown
                 if let Err(reason) = tauri::async_runtime::block_on(async { stop_client().await }) {
