@@ -13,7 +13,7 @@ use std::net::IpAddr;
 
 use serde::Serialize;
 
-use gnosis_vpn_lib::traffic::{Batch, Direction, PROTOCOL_VERSION};
+use gnosis_vpn_lib::traffic::{Batch, Direction};
 
 /// Completed seconds summed into each endpoint's total.
 pub const WINDOW_SECONDS: u64 = 10;
@@ -84,11 +84,8 @@ impl Model {
     /// A batch from another protocol version is refused so a daemon/app mismatch
     /// surfaces instead of producing an empty view.
     pub fn ingest(&mut self, batch: &Batch) -> Result<(), String> {
-        if batch.protocol != PROTOCOL_VERSION {
-            return Err(format!(
-                "The Gnosis VPN service speaks traffic protocol {}, this app needs {}. Update the client and app together.",
-                batch.protocol, PROTOCOL_VERSION
-            ));
+        if let Some(reason) = super::incompatible_protocol(batch.protocol) {
+            return Err(reason);
         }
         self.current_second = self.current_second.max(batch.elapsed_ms / 1000);
 
@@ -188,7 +185,7 @@ impl Model {
 
 #[cfg(test)]
 mod tests {
-    use gnosis_vpn_lib::traffic::Delta;
+    use gnosis_vpn_lib::traffic::{Delta, PROTOCOL_VERSION};
     use super::*;
 
     const A: &str = "203.0.113.9";
