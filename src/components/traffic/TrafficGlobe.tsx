@@ -173,11 +173,12 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
       }
       context.setLineDash([]);
     }
-    const destinationOrigin = exitShown ? EXIT : HOME;
-    for (const [id, link] of ordered) {
+    // Destinations hang off the exit, so they leave together with it.
+    const shown = ordered.filter(([id]) => exitShown || !destinations.has(id));
+    for (const [id, link] of shown) {
       const spot = spots.get(id);
       if (!spot || link.width <= 0) continue;
-      const origin = destinations.has(id) ? destinationOrigin : HOME;
+      const origin = destinations.has(id) ? EXIT : HOME;
       const path = arcPoints(origin, spot).map(toScreen);
       context.beginPath();
       path.forEach(({ x, y }, n) => {
@@ -204,7 +205,7 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
       context.stroke();
     }
 
-    for (const [id, link] of ordered) {
+    for (const [id, link] of shown) {
       const spot = spots.get(id);
       if (!spot) continue;
       const { x, y } = toScreen(spot);

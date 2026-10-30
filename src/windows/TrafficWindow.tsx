@@ -42,7 +42,11 @@ export default function TrafficWindow() {
   const selected = createMemo(() =>
     interfaces().find((entry) => entry.id === selectedId()) ?? null
   );
-  const endpoints = createMemo(() => frame()?.endpoints ?? []);
+  const endpoints = createMemo(() => {
+    const all = frame()?.endpoints ?? [];
+    // Tunnel destinations hang off the exit, so they go once it does.
+    return exit() ? all : all.filter((endpoint) => !endpoint.tunnel);
+  });
   const relayCount = createMemo(() =>
     endpoints().filter((endpoint) => endpoint.hopr_peer).length
   );
@@ -214,10 +218,8 @@ export default function TrafficWindow() {
 
   const endpointSummary = () => {
     const current = frame();
-    if (!capture()?.active || !current || current.endpoints.length === 0) {
-      return null;
-    }
-    const listed = current.endpoints.length;
+    const listed = endpoints().length;
+    if (!capture()?.active || !current || listed === 0) return null;
     const omitted = current.omitted_endpoints;
     const noun = listed + omitted === 1 ? "endpoint" : "endpoints";
     return omitted > 0
@@ -307,11 +309,6 @@ export default function TrafficWindow() {
                 aria-hidden="true"
               />
               {relayCount()} HOPR {relayCount() === 1 ? "relay" : "relays"}
-              <span
-                class="ml-2 inline-block h-2 w-2 rounded-full bg-globe-link"
-                aria-hidden="true"
-              />
-              Other
               <Show when={exit()}>
                 <span
                   class="ml-2 inline-block h-2 w-2 rounded-full bg-globe-destination ring-2 ring-bg-primary"
@@ -324,8 +321,13 @@ export default function TrafficWindow() {
                   class="ml-2 inline-block h-2 w-2 rounded-full bg-globe-destination"
                   aria-hidden="true"
                 />
-                Destination
+                Via VPN
               </Show>
+              <span
+                class="ml-2 inline-block h-2 w-2 rounded-full bg-globe-link"
+                aria-hidden="true"
+              />
+              Other
             </span>
           </Show>
         </span>
