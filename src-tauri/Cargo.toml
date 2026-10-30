@@ -46,6 +46,7 @@ zstd = "0.14.3"
 [target.'cfg(target_os = "linux")'.dependencies]
 ashpd = { version = "0.10", default-features = false }
 futures-core = { version = "0.3.34", default-features = false }
+libloading = "0.7"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 cocoa = "0.26.1"

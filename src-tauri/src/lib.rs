@@ -17,6 +17,7 @@ mod icons;
 mod logging;
 mod navigation;
 mod platform;
+pub mod render;
 mod service_control;
 pub mod settings;
 mod theme;
@@ -234,6 +235,15 @@ pub fn run() {
                 },
                 Err(e) => eprintln!("failed to resolve app log dir: {e}"),
             }
+            let render_profile = render::init();
+            tracing::info!(
+                target: "render",
+                software_rendering = render_profile.software_rendering,
+                cpu_cores = render_profile.cpu_cores,
+                reason = %render_profile.reason,
+                compositing_disabled = std::env::var_os("WEBKIT_DISABLE_COMPOSITING_MODE").is_some(),
+                "webview rendering",
+            );
 
             // Load settings (settings.json) before any UI decisions
             let settings_path = app
@@ -546,7 +556,8 @@ pub fn run() {
             traffic::traffic_start,
             traffic::traffic_frame,
             traffic::traffic_stop,
-            traffic::open_traffic_window
+            traffic::open_traffic_window,
+            render::get_render_profile
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

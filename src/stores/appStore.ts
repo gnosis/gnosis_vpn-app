@@ -61,6 +61,7 @@ import {
 import { type EndOfLife, useSettingsStore } from "@src/stores/settingsStore.ts";
 import { deriveVPNStatus } from "@src/utils/status.ts";
 import { shortAddress } from "../utils/shortAddress.ts";
+import { stepTowardsFloor } from "@src/utils/syncProgress.ts";
 import {
   AppScreen,
   createScreenSelector,
@@ -187,6 +188,7 @@ function initialState(): AppState {
 const SYNC_PHASES = [
   { floor: 0, ceiling: 25, durationMs: 60_000 }, // DeployingSafe
   { floor: 25, ceiling: 40, durationMs: 45_000 }, // Warmup
+  // Tied to MAXIMUM_DELAY_TIME: the bar hits 100% when the selector gives up waiting.
   { floor: 40, ceiling: 100, durationMs: MAXIMUM_DELAY_TIME }, // Channels/peers delay
 ] as const;
 
@@ -200,14 +202,15 @@ export function createAppStore(): AppStoreTuple {
   let syncPhaseStartTime = 0;
   let syncPhaseStartProgress = 0;
   let recovering = false;
-  // Taken on the first tick, after any catch-up to the phase floor.
+  // Taken on the first recovering tick; a retry pauses any floor climb.
   let recoveryStart: { at: number; progress: number } | null = null;
   let syncTimer: ReturnType<typeof setInterval> | undefined;
   let catchUpTarget: number | null = null;
+  let floorClimb: { at: number; from: number; floor: number } | null = null;
   let pendingScreenTransition: AppScreen | null = null;
   const selectScreen = createScreenSelector();
 
-  const CATCH_UP_SPEED = 6.6; // % per 100ms tick
+  const CATCH_UP_SPEED = 6.6; // % per 100ms tick, only for the final run to 100
   const TICK_INTERVAL = 100; // ms
   const CEILING_CREEP = 0.01; // % per second at a phase ceiling, so the counter never freezes
 
@@ -236,6 +239,21 @@ export function createAppStore(): AppStoreTuple {
       );
       return;
     }
+    if (floorClimb !== null) {
+      const next = stepTowardsFloor(
+        floorClimb.from,
+        floorClimb.floor,
+        Date.now() - floorClimb.at,
+      );
+      setState("syncProgress", next);
+      if (next >= floorClimb.floor) {
+        // The phase's own budget starts at its floor, or the estimate would leap ahead by the climb's time.
+        syncPhaseStartProgress = floorClimb.floor;
+        syncPhaseStartTime = Date.now();
+        floorClimb = null;
+      }
+      return;
+    }
     const phase = SYNC_PHASES[activeSyncPhase];
     const elapsed = Date.now() - syncPhaseStartTime;
     // A regression (2→1) can start above this phase's ceiling: creep from there at once.
@@ -255,25 +273,20 @@ export function createAppStore(): AppStoreTuple {
     setState("syncProgress", Math.max(current, next));
   };
 
-  // When advancing to a later phase, animate quickly to the phase boundary.
-  // When entering sync for the first time mid-process, animate from 0 to the phase floor.
+  // Below the phase floor (an earlier phase ended early, or sync starts mid-process), climb to it 1% per step.
   const enterSyncPhase = (next: SyncPhaseIndex | null) => {
     if (next === null || activeSyncPhase === next) return;
     logInfo(`Sync phase ${next} entered`);
     // A completed earlier sync left progress at 100.
     if (activeSyncPhase === null) setState("syncProgress", 0);
-    syncPhaseStartProgress = Math.max(
-      SYNC_PHASES[next].floor,
-      state.syncProgress,
-    );
-    if (activeSyncPhase !== null && next > activeSyncPhase) {
-      catchUpTarget = syncPhaseStartProgress;
-    } else if (activeSyncPhase === null && next > 0) {
-      catchUpTarget = syncPhaseStartProgress;
-    }
+    const { floor } = SYNC_PHASES[next];
+    syncPhaseStartProgress = Math.max(floor, state.syncProgress);
+    floorClimb = state.syncProgress < floor
+      ? { at: Date.now(), from: state.syncProgress, floor }
+      : null;
     activeSyncPhase = next;
     syncPhaseStartTime = Date.now();
-    // Recapture after the catch-up, or recovery would rewind to the old phase's progress.
+    // Recapture, or recovery would resume from the old phase's progress.
     recoveryStart = null;
     if (!syncTimer) {
       syncTimer = setInterval(tickSyncProgress, TICK_INTERVAL);
@@ -300,6 +313,7 @@ export function createAppStore(): AppStoreTuple {
     activeSyncPhase = null;
     recovering = false;
     catchUpTarget = null;
+    floorClimb = null;
     pendingScreenTransition = null;
   };
 
@@ -374,6 +388,8 @@ export function createAppStore(): AppStoreTuple {
     } else if (!recoveryReason && recovering) {
       // The retry redoes the phase's work, so its budget restarts from here.
       recovering = false;
+      // A paused climb would jump to the floor; the restarted budget covers that ground.
+      floorClimb = null;
       syncPhaseStartProgress = state.syncProgress;
       syncPhaseStartTime = Date.now();
     }
