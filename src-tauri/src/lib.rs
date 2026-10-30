@@ -191,7 +191,6 @@ fn install_macos_about_panel_override(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let cli = Cli::from_env();
-    // Resolve the client socket once so every call site uses the same path.
     cli::init_socket_path(cli.socket_path.clone());
 
     tauri::Builder::default()
@@ -501,7 +500,6 @@ pub fn run() {
             // last update-install status: re-hydration + concurrent-install guard
             app.manage(UpdateInstallState::default());
 
-            // traffic visualization state (model + capture session)
             app.manage(traffic::TrafficState::default());
 
             let (status_tx, _) = watch::channel(None);

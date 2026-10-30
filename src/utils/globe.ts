@@ -1,11 +1,4 @@
-/**
- * Geometry for the stylized traffic globe.
- *
- * Positions live in view space on the unit sphere: x to the right, y up and z
- * toward the viewer, so the visible hemisphere is z > 0 and a point projects
- * orthographically onto the unit disc as (x, y). Endpoint positions are derived
- * from opaque ids and carry no geographic meaning.
- */
+/** Unit sphere in view space (x right, y up, z to the viewer); positions come from opaque ids, not geography. */
 
 export interface Vec3 {
   x: number;
@@ -41,10 +34,7 @@ const LOW_RATE = 100;
 const HIGH_RATE = 10_000_000;
 /** Endpoints stay inside this radius so no dot sits on the outline. */
 const PLACEMENT_RADIUS = 0.86;
-/**
- * Destinations seen inside a VPN tunnel sit in this band along the rim, so they
- * read as the far end of the path, beyond the next hops.
- */
+/** Tunnel destinations sit in this band along the rim so they read as the far end of the path. */
 export const DESTINATION_RING = { inner: 0.74, outer: PLACEMENT_RADIUS };
 /** How far an arc bends off its chord, relative to the chord length. */
 const ARC_BEND = 0.18;
@@ -84,10 +74,7 @@ export function endpointPosition(id: string): Vec3 {
   return onSphere(radius * Math.cos(angle), radius * Math.sin(angle));
 }
 
-/**
- * Places a tunnel destination in the ring along the rim, the same spot every
- * time.
- */
+/** Places a tunnel destination in the rim band, the same spot every time. */
 export function destinationPosition(id: string): Vec3 {
   const u = fnv1a(id) / 2 ** 32;
   const v = fnv1a(`${id}:angle`) / 2 ** 32;
@@ -97,11 +84,7 @@ export function destinationPosition(id: string): Vec3 {
   return onSphere(radius * Math.cos(angle), radius * Math.sin(angle));
 }
 
-/**
- * Samples the great-circle arc between two visible points, bent to the left of
- * its chord so every link curves the same way, like a flight path. Both ends lie
- * on the visible hemisphere, so the whole arc does too.
- */
+/** Bent left of its chord so every link curves the same way, like a flight path. */
 export function arcPoints(from: Vec3, to: Vec3, segments = 32): Point[] {
   const dot = Math.min(
     1,
@@ -138,10 +121,7 @@ function tilted(latitude: number, longitude: number): Vec3 {
   };
 }
 
-/**
- * Parallels and meridians of a tilted globe, as visible polylines on the unit
- * disc. Purely decorative: endpoint positions do not follow them.
- */
+/** Decorative only: endpoint positions do not follow the graticule. */
 export function graticule(): Point[][] {
   const lines: Point[][] = [];
   const degree = Math.PI / 180;
@@ -167,11 +147,7 @@ export function graticule(): Point[][] {
   return lines;
 }
 
-/**
- * Line width for an endpoint's average rate. Logarithmic, so both a background
- * trickle and a bulk transfer stay readable, and fixed, so the same rate always
- * draws the same width.
- */
+/** Logarithmic so trickles and bulk transfers both read, and fixed so a rate always draws the same width. */
 export function linkWidth(bytesPerSecond: number): number {
   if (!Number.isFinite(bytesPerSecond) || bytesPerSecond <= 0) return 0;
   const share = Math.log10(bytesPerSecond / LOW_RATE) /
@@ -180,11 +156,7 @@ export function linkWidth(bytesPerSecond: number): number {
   return MIN_LINK_WIDTH + (MAX_LINK_WIDTH - MIN_LINK_WIDTH) * clamped;
 }
 
-/**
- * Moves every link's width toward its target. Links missing from `targets`
- * shrink to nothing and are then removed. Returns whether any link is still
- * moving.
- */
+/** Links missing from `targets` shrink and are removed; returns whether any link still moves. */
 export function easeLinks(
   links: Map<string, Link>,
   targets: ReadonlyMap<string, number>,
@@ -210,11 +182,7 @@ export function easeLinks(
   return animating;
 }
 
-/**
- * Ids whose dot is drawn as a HOPR peer: the listed endpoints the daemon marked
- * as peers, plus earlier peers that left the frame but whose dot is still
- * fading out.
- */
+/** Peers in the frame plus departed peers whose dot is still fading out. */
 export function hoprPeerIds(
   endpoints: readonly GlobeEndpoint[],
   previous: ReadonlySet<string>,
@@ -232,11 +200,7 @@ export function hoprPeerIds(
   return ids;
 }
 
-/**
- * Wire endpoints that tunnel destinations hang off: the HOPR peers when there
- * are any, otherwise the busiest wire endpoint, which under a conventional VPN
- * is its server. `endpoints` is busiest first.
- */
+/** Falls back to the busiest wire endpoint, a conventional VPN's server; expects busiest first. */
 export function intermediaryIds(
   endpoints: readonly GlobeEndpoint[],
 ): string[] {
@@ -246,12 +210,7 @@ export function intermediaryIds(
   return wire.slice(0, 1).map((endpoint) => endpoint.id);
 }
 
-/**
- * The intermediary a destination is drawn from. Which hop carries which
- * destination cannot be observed, so the choice only has to be stable:
- * highest-random-weight hashing keeps a destination on its intermediary while
- * other intermediaries come and go.
- */
+/** Highest-random-weight hashing keeps a destination on its intermediary while others come and go. */
 export function parentFor(
   destination: string,
   intermediaries: readonly string[],
@@ -268,11 +227,7 @@ export function parentFor(
   return best;
 }
 
-/**
- * Parent of every tunnel destination on the globe, or `null` when nothing on
- * the wire carries it and it hangs off the host. Destinations that left the
- * frame keep their parent while their link fades out.
- */
+/** `null` hangs a destination off the host; departed destinations keep their parent while fading. */
 export function destinationParents(
   endpoints: readonly GlobeEndpoint[],
   previous: ReadonlyMap<string, string | null>,

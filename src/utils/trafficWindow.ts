@@ -5,8 +5,7 @@ import { logError, logInfo } from "@src/utils/appLog.ts";
 export async function openTrafficWindow() {
   try {
     logInfo("Opening traffic window");
-    // The backend shows and focuses the window, then tells it to start a fresh
-    // session, so the tray and in-app entry points behave the same.
+    // The backend emits traffic:open, so tray and in-app entry points behave the same.
     await invoke("open_traffic_window");
   } catch (e) {
     logError(`Failed to open traffic window: ${e}`);

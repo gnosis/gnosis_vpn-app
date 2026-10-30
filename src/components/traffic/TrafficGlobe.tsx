@@ -45,16 +45,7 @@ const DOT_RADIUS = 4.5;
 const HOME_RADIUS = 7;
 const GRATICULE = graticule();
 
-/**
- * A stylized globe with the host as one fixed point and every remote endpoint
- * as a dot. The line to each dot grows and shrinks with the endpoint's traffic
- * over the rolling window. Endpoints that are announced HOPR nodes get a HOPR
- * yellow dot. Destinations seen inside a VPN tunnel sit along the rim and hang
- * off an intermediary
- * (a HOPR peer or the VPN server); which intermediary carries which
- * destination is not observable, so that pairing is only a stable choice. The
- * plot carries no addresses or endpoint labels.
- */
+/** A destination's intermediary is a stable guess: which hop carries it is unobservable. */
 export default function TrafficGlobe(props: TrafficGlobeProps) {
   let container!: HTMLDivElement;
   let canvas!: HTMLCanvasElement;
@@ -111,7 +102,6 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
       y: cy - point.y * radius,
     });
 
-    // Surface and graticule.
     context.beginPath();
     context.arc(cx, cy, radius, 0, Math.PI * 2);
     context.fillStyle = colors.surface;
@@ -161,13 +151,11 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
         context.lineWidth = link.width + 1;
         context.stroke();
       }
-      // A translucent halo with a solid core, like a lit cable. A HOPR halo
-      // stays opaque so the edge underneath shows only as a thin outline.
-      context.strokeStyle = hopr
-        ? colors.hopr
-        : parents.has(id)
-        ? colors.destination
-        : colors.link;
+      let lineColor = colors.link;
+      if (parents.has(id)) lineColor = colors.destination;
+      if (hopr) lineColor = colors.hopr;
+      // Translucent halo, solid core; the HOPR halo stays opaque so its edge shows only as an outline.
+      context.strokeStyle = lineColor;
       context.globalAlpha = hopr ? 1 : 0.4;
       context.lineWidth = link.width;
       context.stroke();

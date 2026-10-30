@@ -1,9 +1,4 @@
-//! Traffic visualization: daemon source, retained model, projection and window.
-//!
-//! Capture runs in the privileged root daemon. This module only reads per-endpoint
-//! one-second aggregates from it, keeps presentation state and projects what the
-//! window asks for. Nothing here sees a packet, and remote addresses never reach
-//! the webview.
+//! Traffic window backend: capture runs in the root daemon, remote addresses never reach the webview.
 
 mod model;
 
@@ -49,7 +44,6 @@ pub struct TrafficState {
     inner: Mutex<Inner>,
 }
 
-/// Lists the interfaces the daemon is willing to capture on.
 #[tauri::command]
 pub async fn traffic_interfaces() -> Result<Vec<protocol::Interface>, String> {
     match call(Command::TrafficInterfaces).await? {
@@ -58,7 +52,6 @@ pub async fn traffic_interfaces() -> Result<Vec<protocol::Interface>, String> {
     }
 }
 
-/// Starts a capture session, replacing any previous one.
 #[tauri::command]
 pub async fn traffic_start(
     interface_id: String,
@@ -69,8 +62,7 @@ pub async fn traffic_start(
     };
     let result = call(Command::TrafficStart(request)).await;
 
-    // A daemon from another protocol version would answer with shapes this app
-    // cannot read. Refuse the session instead of showing an empty chart.
+    // Another protocol version answers in shapes this app cannot read; refuse instead of an empty globe.
     if let Ok(Response::TrafficStart(Ok(started))) = &result {
         if let Some(reason) = incompatible_protocol(started.protocol) {
             tracing::warn!(target: "traffic", error = %reason, "traffic protocol mismatch");
@@ -130,7 +122,6 @@ pub async fn traffic_start(
     }
 }
 
-/// Reads pending aggregates and projects the rolling window.
 #[tauri::command]
 pub async fn traffic_frame(state: State<'_, TrafficState>) -> Result<FrameResponse, String> {
     let mut inner = state.inner.lock().await;
@@ -192,7 +183,6 @@ pub async fn traffic_frame(state: State<'_, TrafficState>) -> Result<FrameRespon
     Ok(response)
 }
 
-/// Ends the capture session and forgets its history.
 #[tauri::command]
 pub async fn traffic_stop(state: State<'_, TrafficState>) -> Result<(), String> {
     stop_inner(&state.inner).await;
@@ -230,7 +220,6 @@ fn failed(reason: &str) -> CaptureStatus {
     }
 }
 
-/// Names both versions when the daemon speaks another traffic protocol.
 fn incompatible_protocol(version: u16) -> Option<String> {
     (version != protocol::PROTOCOL_VERSION).then(|| {
         format!(
@@ -261,14 +250,13 @@ async fn stop_inner(inner: &Mutex<Inner>) {
     guard.capture = CaptureStatus::default();
 }
 
-/// Stops capture without a command invocation, e.g. when the window closes.
+/// For the window-close and app-exit paths, which have no command `State`.
 pub async fn stop(app: &AppHandle) {
     if let Some(state) = app.try_state::<TrafficState>() {
         stop_inner(&state.inner).await;
     }
 }
 
-/// Shows the traffic window and tells it to start a fresh session.
 pub fn show(app: &AppHandle) {
     let Some(window) = app.get_webview_window("traffic") else {
         tracing::warn!(target: "traffic", "traffic window missing");
@@ -292,7 +280,7 @@ pub fn show(app: &AppHandle) {
     }
 }
 
-/// Opens the traffic window from the frontend, matching the tray entry point.
+/// Same path as the tray entry, so both start a fresh session.
 #[tauri::command]
 pub fn open_traffic_window(app: AppHandle) {
     show(&app);
@@ -357,7 +345,13 @@ mod tests {
         assert!(incompatible_protocol(protocol::PROTOCOL_VERSION).is_none());
         let theirs = protocol::PROTOCOL_VERSION + 1;
         let error = incompatible_protocol(theirs).expect("mismatch");
-        assert!(error.contains(&format!("traffic protocol {theirs}")), "{error}");
-        assert!(error.contains(&format!("needs {}", protocol::PROTOCOL_VERSION)), "{error}");
+        assert!(
+            error.contains(&format!("traffic protocol {theirs}")),
+            "{error}"
+        );
+        assert!(
+            error.contains(&format!("needs {}", protocol::PROTOCOL_VERSION)),
+            "{error}"
+        );
     }
 }

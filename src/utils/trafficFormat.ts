@@ -1,7 +1,6 @@
 /** Decimal byte units, so a rate reads the same way as a network monitor. */
 const UNITS = ["B/s", "kB/s", "MB/s", "GB/s"] as const;
 
-/** Formats a byte rate for a caption or scale label. */
 export function formatRate(bytesPerSecond: number): string {
   if (!Number.isFinite(bytesPerSecond) || bytesPerSecond <= 0) {
     return `0 ${UNITS[0]}`;

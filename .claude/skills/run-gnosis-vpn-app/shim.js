@@ -54,8 +54,7 @@
     { delay: 2500, status: { kind: "Completed", new_version: "9.9.9" } },
   ];
 
-  // Traffic window (windowLabel "traffic"): traffic_frame cycles through
-  // fixture.traffic.frames, so a multi-frame fixture animates the globe.
+  // traffic_frame cycles through fixture.traffic.frames so a multi-frame fixture animates the globe.
   const traffic = fixture.traffic ?? {};
   let trafficFrameIndex = 0;
   const trafficInterface = (traffic.interfaces ?? [])[0] ?? null;

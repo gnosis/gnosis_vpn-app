@@ -54,11 +54,7 @@ export type TrafficFrameResponse = z.infer<typeof TrafficFrameResponseSchema>;
 // Derived Values
 // ==========================================
 
-/**
- * Average sent and received rates over the frame's observed seconds, in bytes
- * per second. Covers only the listed endpoints on the wire: tunnel destinations
- * carry the same bytes before encryption and would count the VPN twice.
- */
+/** Bytes per second, wire only: tunnel destinations carry the same bytes and would count the VPN twice. */
 export function averageRates(
   frame: TrafficFrame,
 ): { sent: number; received: number } {

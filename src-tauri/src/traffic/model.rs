@@ -1,10 +1,4 @@
-//! Retained per-endpoint traffic and rolling-window projection.
-//!
-//! The model owns what the daemon deliberately does not: a short history of
-//! completed seconds per remote endpoint and the rolling window the globe shows.
-//! Remote addresses stay inside this module. A frame names each endpoint only by
-//! an opaque id that is stable for the life of the model and cannot be reversed
-//! into an address.
+//! Per-endpoint history and rolling-window projection; addresses stay in here, frames carry opaque ids.
 
 use std::collections::hash_map::RandomState;
 use std::collections::{BTreeMap, HashMap};
@@ -17,23 +11,19 @@ use gnosis_vpn_lib::traffic::{Batch, Direction};
 
 /// Completed seconds summed into each endpoint's total.
 pub const WINDOW_SECONDS: u64 = 10;
-/// Busiest endpoints a frame carries per side (wire and tunnel); quieter ones
-/// are counted, not listed.
+/// Per side (wire and tunnel); quieter endpoints are counted, not listed.
 pub const MAX_ENDPOINTS: usize = 48;
 
 /// Bytes exchanged with one remote endpoint over the rolling window.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct Endpoint {
-    /// Opaque, stable for the life of the model. Not derived from the address in
-    /// any way the renderer could reverse.
+    /// Keyed hash of the address, irreversible for the renderer.
     pub id: String,
     pub sent: u64,
     pub received: u64,
-    /// The address is one a HOPR node announced. Says what the endpoint is, not
-    /// which process exchanged the traffic.
+    /// Announced by a HOPR node; says nothing about which process exchanged the traffic.
     pub hopr_peer: bool,
-    /// A destination seen inside the VPN tunnel, as opposed to a next hop seen
-    /// on the public interface.
+    /// Destination inside the VPN tunnel rather than a next hop on the wire.
     pub tunnel: bool,
 }
 
@@ -41,11 +31,9 @@ pub struct Endpoint {
 pub struct Frame {
     pub window_seconds: u64,
     pub current_second: u64,
-    /// Completed seconds inside the window. Below `window_seconds` while capture
-    /// has run for less than a full window.
+    /// Below `window_seconds` until capture has run for a full window.
     pub observed_seconds: u64,
-    /// Endpoints with traffic in both directions in the window: wire endpoints
-    /// first, then tunnel destinations, each busiest first.
+    /// Wire endpoints first, then tunnel destinations, each busiest first.
     pub endpoints: Vec<Endpoint>,
     /// Endpoints with traffic in the window that did not fit into `endpoints`.
     pub omitted_endpoints: usize,
@@ -58,8 +46,7 @@ struct Totals {
     hopr_peer: bool,
 }
 
-/// An address on one side of the VPN. The same address can be a next hop on the
-/// wire and a destination inside the tunnel; those are separate endpoints.
+/// The same address as wire next hop and as tunnel destination is two endpoints.
 type Key = (IpAddr, bool);
 
 #[derive(Default)]
@@ -72,17 +59,13 @@ pub struct Model {
 }
 
 impl Model {
-    /// Forgets all traffic. Endpoint ids stay stable so a returning endpoint
-    /// keeps its place on the globe.
+    /// Keeps the id hasher so a returning endpoint keeps its place on the globe.
     pub fn reset(&mut self) {
         self.buckets.clear();
         self.current_second = 0;
     }
 
-    /// Applies one batch.
-    ///
-    /// A batch from another protocol version is refused so a daemon/app mismatch
-    /// surfaces instead of producing an empty view.
+    /// Refuses foreign protocol batches so a daemon/app mismatch surfaces instead of an empty view.
     pub fn ingest(&mut self, batch: &Batch) -> Result<(), String> {
         if let Some(reason) = super::incompatible_protocol(batch.protocol) {
             return Err(reason);
@@ -125,13 +108,7 @@ impl Model {
         format!("{:016x}", self.ids.hash_one(key))
     }
 
-    /// Sums each endpoint's traffic over the last [`WINDOW_SECONDS`] completed
-    /// seconds. The second still being captured is left out so totals do not
-    /// ramp up within a second.
-    ///
-    /// Only endpoints that exchanged traffic in both directions are listed.
-    /// One-way traffic is not a connection: a server retrying on a socket a VPN
-    /// cut off, an unanswered probe, or an inbound scan.
+    /// Leaves out the second still being captured so totals do not ramp up within a second.
     pub fn project(&self) -> Frame {
         let now = self.current_second;
         let first = now.saturating_sub(WINDOW_SECONDS);
@@ -152,7 +129,10 @@ impl Model {
             let mut side: Vec<Endpoint> = totals
                 .iter()
                 .filter(|((_, on_tunnel), total)| {
-                    *on_tunnel == tunnel && total.sent > 0 && total.received > 0
+                    let on_this_side = *on_tunnel == tunnel;
+                    // One-way traffic is no connection: a retry on a socket the VPN cut off, a probe, a scan.
+                    let is_two_way = total.sent > 0 && total.received > 0;
+                    on_this_side && is_two_way
                 })
                 .map(|(key, total)| Endpoint {
                     id: self.id(key),
@@ -185,8 +165,8 @@ impl Model {
 
 #[cfg(test)]
 mod tests {
-    use gnosis_vpn_lib::traffic::{Delta, PROTOCOL_VERSION};
     use super::*;
+    use gnosis_vpn_lib::traffic::{Delta, PROTOCOL_VERSION};
 
     const A: &str = "203.0.113.9";
     const B: &str = "198.51.100.4";
@@ -202,7 +182,6 @@ mod tests {
         }
     }
 
-    /// One exchange with a destination seen inside the VPN tunnel.
     fn tunnel_exchange(second: u64, target: &str, bytes: u64) -> Vec<Delta> {
         exchange(second, target, bytes)
             .into_iter()
@@ -213,7 +192,6 @@ mod tests {
             .collect()
     }
 
-    /// One exchange with an endpoint the daemon marked as a HOPR peer.
     fn peer_exchange(second: u64, target: &str, bytes: u64) -> Vec<Delta> {
         exchange(second, target, bytes)
             .into_iter()

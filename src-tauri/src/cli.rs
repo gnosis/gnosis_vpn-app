@@ -45,14 +45,11 @@ impl Cli {
     }
 }
 
-/// Records the socket path resolved from the command line or environment.
 pub fn init_socket_path(path: PathBuf) {
     let _ = SOCKET_PATH.set(path);
 }
 
-/// Control socket this app talks to: `--socket-path`, else `GNOSISVPN_SOCKET_PATH`,
-/// else the client service default. Pointing this at a locally started client
-/// (`just run-local`) keeps the app off the installed service.
+/// Overridable so a dev run can talk to a locally started client (`just run-local`).
 pub fn socket_path() -> PathBuf {
     SOCKET_PATH
         .get()
