@@ -9,6 +9,19 @@ export const SYNC_SCRIPT: readonly { at: number; text: string }[] = [
   { at: 100, text: "Same exit, a different route each time" },
 ];
 
+/** Timeline position after `elapsedSeconds`: one full play, then only the last cue's stretch on repeat. */
+export function syncAnimationSecondsAt(
+  elapsedSeconds: number,
+  durationSeconds: number,
+): number {
+  if (elapsedSeconds < durationSeconds) return elapsedSeconds;
+  const loopStart = SYNC_SCRIPT[SYNC_SCRIPT.length - 1].at;
+  // A replacement animation shorter than the script just loops whole.
+  if (loopStart >= durationSeconds) return elapsedSeconds % durationSeconds;
+  return loopStart +
+    (elapsedSeconds - durationSeconds) % (durationSeconds - loopStart);
+}
+
 /** Caption for a point on the animation timeline, or null before the first cue. */
 export function syncCaptionAt(animationSeconds: number): string | null {
   let caption: string | null = null;

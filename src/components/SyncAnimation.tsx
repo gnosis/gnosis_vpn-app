@@ -9,7 +9,10 @@ import {
 import type { AnimationItem } from "lottie-web/build/player/lottie_light";
 import lightAnimationUrl from "@assets/animations/gnosisvpn-sync-light.json?url";
 import darkAnimationUrl from "@assets/animations/gnosisvpn-sync-dark.json?url";
-import { syncCaptionAt } from "@src/utils/syncScript.ts";
+import {
+  syncAnimationSecondsAt,
+  syncCaptionAt,
+} from "@src/utils/syncScript.ts";
 import {
   getRenderProfile,
   syncAnimationFps,
@@ -90,8 +93,10 @@ export default function SyncAnimation() {
     const minFrameMs = 1000 / syncAnimationFps(renderProfile());
     if (!animation || now - lastDrawAt < minFrameMs - FRAME_SLACK_MS) return;
     lastDrawAt = now;
-    const loopSeconds = animation.totalFrames / animation.frameRate;
-    const at = ((now - startedAt) / 1000) % loopSeconds;
+    const at = syncAnimationSecondsAt(
+      (now - startedAt) / 1000,
+      animation.totalFrames / animation.frameRate,
+    );
     animation.goToAndStop(at * animation.frameRate, true);
     setSeconds(at);
   });
