@@ -76,6 +76,8 @@
               "LICENSE"
               # Generated; formatting it would diff against every regeneration.
               "src/assets/flags/*"
+              # Designer Lottie exports; replaced wholesale, never edited.
+              "src/assets/animations/*"
             ];
 
             programs.nixfmt = {
