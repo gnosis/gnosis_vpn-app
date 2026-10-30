@@ -69,22 +69,21 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
 
   const readColors = (): Colors => {
     const style = getComputedStyle(document.documentElement);
-    const value = (name: string, fallback: string) =>
-      style.getPropertyValue(name).trim() || fallback;
+    const value = (name: string) => style.getPropertyValue(name).trim();
     return {
-      surface: value("--color-globe-surface", "#f1effc"),
-      edge: value("--color-globe-edge", "#a9a3ea"),
-      grid: value("--color-globe-grid", "#d9d5f6"),
-      link: value("--color-globe-link", "#4335df"),
-      dot: value("--color-globe-dot", "#8f88d8"),
-      hopr: value("--color-globe-hopr", "#ffffa0"),
-      hoprEdge: value("--color-globe-hopr-edge", "#12112a"),
-      hoprLinkEdge: value("--color-globe-hopr-link-edge", "#b89200"),
-      destination: value("--color-globe-destination", "#0d9488"),
-      destinationDot: value("--color-globe-destination-dot", "#5eb8ae"),
-      home: value("--color-globe-home", "#12112a"),
-      ring: value("--color-bg-primary", "#f6f6f6"),
-      label: value("--color-text-secondary", "#6b7280"),
+      surface: value("--color-globe-surface"),
+      edge: value("--color-globe-edge"),
+      grid: value("--color-globe-grid"),
+      link: value("--color-globe-link"),
+      dot: value("--color-globe-dot"),
+      hopr: value("--color-globe-hopr"),
+      hoprEdge: value("--color-globe-hopr-edge"),
+      hoprLinkEdge: value("--color-globe-hopr-link-edge"),
+      destination: value("--color-globe-destination"),
+      destinationDot: value("--color-globe-destination-dot"),
+      home: value("--color-globe-home"),
+      ring: value("--color-bg-primary"),
+      label: value("--color-text-secondary"),
     };
   };
 
