@@ -9,6 +9,7 @@ interface InitializationProps {
   /** The store's canonical package version; `info` stays for service details. */
   packageVersion: string | null;
   error?: string;
+  recoveryReason?: string | null;
 }
 
 const REVEAL_CLICKS = 7;
@@ -49,6 +50,11 @@ export default function Initialization(props: InitializationProps) {
             <div class="flex flex-col items-center">
               <Spinner class="mb-4 h-8 w-8 text-brand-primary" />
               <p class="text-text-secondary">Running startup tasks</p>
+              <Show when={props.recoveryReason}>
+                <p class="text-sm text-text-secondary mt-2 opacity-80">
+                  Oh snap, something seems wrong, waiting for recovery
+                </p>
+              </Show>
             </div>
           )}
 
