@@ -309,13 +309,6 @@ export default function TrafficWindow() {
                 aria-hidden="true"
               />
               {relayCount()} HOPR {relayCount() === 1 ? "relay" : "relays"}
-              <Show when={exit()}>
-                <span
-                  class="ml-2 inline-block h-2 w-2 rounded-full bg-globe-destination ring-2 ring-bg-primary"
-                  aria-hidden="true"
-                />
-                Exit
-              </Show>
               <Show when={endpoints().some((endpoint) => endpoint.tunnel)}>
                 <span
                   class="ml-2 inline-block h-2 w-2 rounded-full bg-globe-destination"
