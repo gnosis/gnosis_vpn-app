@@ -68,7 +68,8 @@ pub fn run_probe() -> i32 {
 }
 
 #[cfg(target_os = "linux")]
-const PROBE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(3);
+/// Slowest finished probe measured: softpipe at half a CPU, 1.43 s; past this the driver is treated as hung.
+const PROBE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(2);
 
 /// Renderer names of CPU rasterizers, also when wrapped (e.g. "virgl (LLVMPIPE …)").
 #[cfg(target_os = "linux")]
