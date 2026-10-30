@@ -187,6 +187,7 @@ function initialState(): AppState {
 const SYNC_PHASES = [
   { floor: 0, ceiling: 25, durationMs: 60_000 }, // DeployingSafe
   { floor: 25, ceiling: 40, durationMs: 45_000 }, // Warmup
+  // Tied to MAXIMUM_DELAY_TIME: the bar hits 100% when the selector gives up waiting.
   { floor: 40, ceiling: 100, durationMs: MAXIMUM_DELAY_TIME }, // Channels/peers delay
 ] as const;
 
