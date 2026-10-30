@@ -1,3 +1,15 @@
+/** How often a phase that ended early climbs 1% towards the next phase's floor. */
+export const FLOOR_STEP_MS = 666;
+
+/** Progress climbing from `from` to `floor` 1% per step, never past the floor. */
+export function stepTowardsFloor(
+  from: number,
+  floor: number,
+  elapsedMs: number,
+): number {
+  return Math.min(floor, from + Math.floor(elapsedMs / FLOOR_STEP_MS));
+}
+
 /** Sync progress as shown: rounded down so it never reads 100 early, to hundredths when `withDecimals`. */
 export function syncProgressDigits(
   progress: number,

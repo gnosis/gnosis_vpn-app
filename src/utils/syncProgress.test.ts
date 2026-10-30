@@ -1,5 +1,25 @@
 import { describe, expect, it } from "vitest";
-import { syncProgressDigits } from "./syncProgress.ts";
+import {
+  FLOOR_STEP_MS,
+  stepTowardsFloor,
+  syncProgressDigits,
+} from "./syncProgress.ts";
+
+describe("stepTowardsFloor", () => {
+  it("holds until the first step is due", () => {
+    expect(stepTowardsFloor(10, 25, FLOOR_STEP_MS - 1)).toBe(10);
+  });
+
+  it("climbs 1% per step", () => {
+    expect(stepTowardsFloor(10, 25, FLOOR_STEP_MS)).toBe(11);
+    expect(stepTowardsFloor(10, 25, 5 * FLOOR_STEP_MS + 300)).toBe(15);
+  });
+
+  it("stops at the floor", () => {
+    expect(stepTowardsFloor(10, 25, 60 * FLOOR_STEP_MS)).toBe(25);
+    expect(stepTowardsFloor(24.5, 25, FLOOR_STEP_MS)).toBe(25);
+  });
+});
 
 describe("syncProgressDigits", () => {
   it("shows whole percents, rounded down", () => {
