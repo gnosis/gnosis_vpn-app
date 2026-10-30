@@ -227,7 +227,7 @@ export default function TrafficWindow() {
             <span class="ml-auto text-xs text-text-secondary">
               {caption()}{" "}
               <span class="text-text-muted">
-                · {frame()?.window_seconds ?? 10} s avg
+                · {observedSeconds()} s avg
               </span>
             </span>
           )}
