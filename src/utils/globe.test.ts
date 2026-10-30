@@ -13,6 +13,9 @@ import {
   markedIds,
   MAX_LINK_WIDTH,
   MIN_LINK_WIDTH,
+  nextRelayPickMs,
+  pickTunnelRelays,
+  RELAY_PICK_MS,
 } from "./globe.ts";
 
 const length = (v: { x: number; y: number; z: number }) =>
@@ -216,5 +219,41 @@ describe("markedIds", () => {
       links,
     );
     expect(ids.size).toBe(0);
+  });
+});
+
+describe("pickTunnelRelays", () => {
+  const sequence = (...values: number[]) => () => values.shift() ?? 0;
+
+  it("picks between one and three distinct relays", () => {
+    for (let n = 0; n < 200; n++) {
+      const picked = pickTunnelRelays(["a", "b", "c", "d", "e"]);
+      expect(picked.length).toBeGreaterThanOrEqual(1);
+      expect(picked.length).toBeLessThanOrEqual(3);
+      expect(new Set(picked).size).toBe(picked.length);
+      for (const id of picked) expect(["a", "b", "c", "d", "e"]).toContain(id);
+    }
+  });
+
+  it("follows the random source", () => {
+    expect(pickTunnelRelays(["a", "b", "c"], sequence(0.99, 0, 0, 0)))
+      .toEqual(["a", "b", "c"]);
+    expect(pickTunnelRelays(["a", "b", "c"], sequence(0, 0.99))).toEqual(["c"]);
+  });
+
+  it("never picks more relays than there are", () => {
+    expect(pickTunnelRelays(["a"], () => 0.99)).toEqual(["a"]);
+  });
+
+  it("picks none without relays", () => {
+    expect(pickTunnelRelays([])).toEqual([]);
+  });
+});
+
+describe("nextRelayPickMs", () => {
+  it("waits between three and six seconds", () => {
+    expect(nextRelayPickMs(() => 0)).toBe(RELAY_PICK_MS.min);
+    expect(nextRelayPickMs(() => 0.999)).toBeLessThan(RELAY_PICK_MS.max);
+    expect(RELAY_PICK_MS).toEqual({ min: 3000, max: 6000 });
   });
 });

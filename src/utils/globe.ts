@@ -44,6 +44,10 @@ const ARC_LIMIT = 0.98;
 const EASE_MS = 250;
 /** Widths closer than this to their target snap to it. */
 const SETTLE_WIDTH = 0.05;
+/** Relays shown carrying the tunnel are drawn anew within this span, like path selection does. */
+export const RELAY_PICK_MS = { min: 3000, max: 6000 };
+/** At most this many relays are shown carrying the tunnel at once. */
+const MAX_TUNNEL_RELAYS = 3;
 /** Graticule tilt, so the northern cap shows like on a desk globe. */
 const TILT = (20 * Math.PI) / 180;
 
@@ -201,4 +205,25 @@ export function markedIds(
     if (!listed.has(id) && links.has(id)) ids.add(id);
   }
   return ids;
+}
+
+/** A random few relays stand in for the paths the tunnel takes, which the capture cannot see. */
+export function pickTunnelRelays(
+  relays: readonly string[],
+  random: () => number = Math.random,
+): string[] {
+  const pool = [...relays];
+  const most = Math.min(MAX_TUNNEL_RELAYS, pool.length);
+  const count = most === 0 ? 0 : 1 + Math.floor(random() * most);
+  const picked: string[] = [];
+  while (picked.length < count) {
+    const [relay] = pool.splice(Math.floor(random() * pool.length), 1);
+    picked.push(relay);
+  }
+  return picked;
+}
+
+export function nextRelayPickMs(random: () => number = Math.random): number {
+  const { min, max } = RELAY_PICK_MS;
+  return min + random() * (max - min);
 }

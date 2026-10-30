@@ -16,6 +16,8 @@ import {
   linkWidth,
   markedIds,
   MIN_LINK_WIDTH,
+  nextRelayPickMs,
+  pickTunnelRelays,
   type Point,
   type Vec3,
 } from "@src/utils/globe.ts";
@@ -70,6 +72,7 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
   let targets = new Map<string, number>();
   let hoprPeers = new Set<string>();
   let destinations = new Set<string>();
+  let tunnelRelays: string[] = [];
   const [exitLabelAt, setExitLabelAt] = createSignal<Point | null>(null);
   let frameRequest: number | undefined;
   let lastTime: number | undefined;
@@ -152,16 +155,22 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
     context.lineJoin = "round";
     const exitShown = props.exit !== null;
     if (exitShown) {
-      // Dashed: the tunnel runs through the relays, its own bytes are never measured.
-      context.beginPath();
-      arcPoints(HOME, EXIT).map(toScreen).forEach(({ x, y }, n) => {
-        if (n === 0) context.moveTo(x, y);
-        else context.lineTo(x, y);
-      });
+      const shownRelays = tunnelRelays.filter((id) => spots.has(id));
+      const tunnelStarts = shownRelays.length > 0
+        ? shownRelays.map((id) => spots.get(id)!)
+        : [HOME];
+      // Dashed: which relays carry the tunnel is a guess, and its bytes are never measured.
       context.setLineDash([4, 5]);
       context.lineWidth = 1.5;
       context.strokeStyle = colors.destination;
-      context.stroke();
+      for (const start of tunnelStarts) {
+        context.beginPath();
+        arcPoints(start, EXIT).map(toScreen).forEach(({ x, y }, n) => {
+          if (n === 0) context.moveTo(x, y);
+          else context.lineTo(x, y);
+        });
+        context.stroke();
+      }
       context.setLineDash([]);
     }
     const destinationOrigin = exitShown ? EXIT : HOME;
@@ -297,9 +306,18 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
       attributeFilter: ["class"],
     });
 
+    let relayTimer: ReturnType<typeof setTimeout>;
+    const repickRelays = () => {
+      tunnelRelays = pickTunnelRelays([...hoprPeers]);
+      startAnimation();
+      relayTimer = setTimeout(repickRelays, nextRelayPickMs());
+    };
+    repickRelays();
+
     onCleanup(() => {
       resize.disconnect();
       theme.disconnect();
+      clearTimeout(relayTimer);
       if (frameRequest !== undefined) cancelAnimationFrame(frameRequest);
     });
   });
@@ -316,6 +334,8 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
     targets = next;
     hoprPeers = markedIds(props.endpoints, "hopr_peer", hoprPeers, links);
     destinations = markedIds(props.endpoints, "tunnel", destinations, links);
+    const pickedRelayLeft = !tunnelRelays.some((id) => hoprPeers.has(id));
+    if (pickedRelayLeft) tunnelRelays = pickTunnelRelays([...hoprPeers]);
     startAnimation();
   });
 
