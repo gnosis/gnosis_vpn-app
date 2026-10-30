@@ -1,5 +1,7 @@
 import { createMemo, createSignal, onCleanup, onMount, Show } from "solid-js";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { listen } from "@tauri-apps/api/event";
+import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import TrafficGlobe from "@src/components/traffic/TrafficGlobe.tsx";
 import { Dropdown } from "@src/components/common/Dropdown.tsx";
 import Spinner from "@src/components/common/Spinner.tsx";
@@ -8,6 +10,9 @@ import { formatRate } from "@src/utils/trafficFormat.ts";
 import {
   averageRates,
   type CaptureStatus,
+  type ConnectedExit,
+  connectedExit,
+  fetchConnectedExit,
   fetchTrafficFrame,
   listTrafficInterfaces,
   startTrafficCapture,
@@ -27,6 +32,8 @@ export default function TrafficWindow() {
   const [busy, setBusy] = createSignal(true);
   const [failure, setFailure] = createSignal<string | null>(null);
   const [gap, setGap] = createSignal(false);
+  const [exit, setExit] = createSignal<ConnectedExit | null>(null);
+  const [, settingsActions] = useSettingsStore();
 
   let disposed = false;
   let polling = false;
@@ -135,6 +142,22 @@ export default function TrafficWindow() {
 
   onMount(() => {
     let unlistenOpen: (() => void) | undefined;
+    let unlistenStatus: (() => void) | undefined;
+
+    // The flag honours the user's flag display setting.
+    void settingsActions.load();
+
+    void (async () => {
+      const unlisten = await listen("status", (event) => {
+        setExit(connectedExit(event.payload));
+      });
+      if (disposed) unlisten();
+      else unlistenStatus = unlisten;
+      const cached = await fetchConnectedExit();
+      if (!disposed) setExit(cached);
+    })().catch((error) => {
+      logWarn(`cannot follow the connection status: ${error}`);
+    });
 
     void (async () => {
       const currentWindow = getCurrentWebviewWindow();
@@ -151,7 +174,10 @@ export default function TrafficWindow() {
       setFailure(String(error));
     });
 
-    onCleanup(() => unlistenOpen?.());
+    onCleanup(() => {
+      unlistenOpen?.();
+      unlistenStatus?.();
+    });
   });
 
   onCleanup(() => {
@@ -259,6 +285,7 @@ export default function TrafficWindow() {
           class="h-full w-full"
           endpoints={endpoints()}
           observedSeconds={observedSeconds()}
+          exit={exit()}
         />
       </div>
 
@@ -282,6 +309,13 @@ export default function TrafficWindow() {
                 aria-hidden="true"
               />
               Other
+              <Show when={exit()}>
+                <span
+                  class="ml-2 inline-block h-2 w-2 rounded-full bg-globe-destination ring-2 ring-bg-primary"
+                  aria-hidden="true"
+                />
+                Exit
+              </Show>
               <Show when={endpoints().some((endpoint) => endpoint.tunnel)}>
                 <span
                   class="ml-2 inline-block h-2 w-2 rounded-full bg-globe-destination"

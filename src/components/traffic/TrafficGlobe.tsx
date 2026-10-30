@@ -1,9 +1,14 @@
-import { createEffect, onCleanup, onMount } from "solid-js";
-import type { TrafficEndpoint } from "@src/services/trafficService.ts";
+import { createEffect, createSignal, onCleanup, onMount, Show } from "solid-js";
+import Flag from "@src/components/Flag.tsx";
+import type {
+  ConnectedExit,
+  TrafficEndpoint,
+} from "@src/services/trafficService.ts";
 import {
   arcPoints,
   easeLinks,
   easePositions,
+  EXIT,
   graticule,
   HOME,
   layoutSlots,
@@ -21,6 +26,8 @@ interface TrafficGlobeProps {
   endpoints: TrafficEndpoint[];
   /** Completed seconds the endpoint totals cover. */
   observedSeconds: number;
+  /** While connected, destinations fan out from this exit instead of the host. */
+  exit: ConnectedExit | null;
   class?: string;
 }
 
@@ -43,7 +50,17 @@ interface Colors {
 const PADDING = 28;
 const DOT_RADIUS = 4.5;
 const HOME_RADIUS = 7;
+const EXIT_RADIUS = 6;
 const GRATICULE = graticule();
+
+/** Where the unit disc lands in a canvas of this size. */
+function discFrame(width: number, height: number) {
+  return {
+    cx: width / 2,
+    cy: height / 2,
+    radius: Math.max(0, Math.min(width, height) / 2 - PADDING),
+  };
+}
 
 export default function TrafficGlobe(props: TrafficGlobeProps) {
   let container!: HTMLDivElement;
@@ -55,6 +72,7 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
   let hoprPeers = new Set<string>();
   let destinations = new Set<string>();
   const positions = new Map<string, Point>();
+  const [exitLabelAt, setExitLabelAt] = createSignal<Point | null>(null);
   let frameRequest: number | undefined;
   let lastTime: number | undefined;
 
@@ -93,10 +111,8 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
     context.clearRect(0, 0, width, height);
     colors ??= readColors();
 
-    const radius = Math.max(0, Math.min(width, height) / 2 - PADDING);
+    const { cx, cy, radius } = discFrame(width, height);
     if (radius <= 0) return;
-    const cx = width / 2;
-    const cy = height / 2;
     const toScreen = (point: Point) => ({
       x: cx + point.x * radius,
       y: cy - point.y * radius,
@@ -133,10 +149,26 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
     }
     context.lineCap = "round";
     context.lineJoin = "round";
+    const exitShown = props.exit !== null;
+    if (exitShown) {
+      // Dashed: the tunnel runs through the relays, its own bytes are never measured.
+      context.beginPath();
+      arcPoints(HOME, EXIT).map(toScreen).forEach(({ x, y }, n) => {
+        if (n === 0) context.moveTo(x, y);
+        else context.lineTo(x, y);
+      });
+      context.setLineDash([4, 5]);
+      context.lineWidth = 1.5;
+      context.strokeStyle = colors.destination;
+      context.stroke();
+      context.setLineDash([]);
+    }
+    const destinationOrigin = exitShown ? EXIT : HOME;
     for (const [id, link] of ordered) {
       const spot = spots.get(id);
       if (!spot || link.width <= 0) continue;
-      const path = arcPoints(HOME, spot).map(toScreen);
+      const origin = destinations.has(id) ? destinationOrigin : HOME;
+      const path = arcPoints(origin, spot).map(toScreen);
       context.beginPath();
       path.forEach(({ x, y }, n) => {
         if (n === 0) context.moveTo(x, y);
@@ -195,6 +227,18 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
     }
     context.globalAlpha = 1;
 
+    if (exitShown) {
+      const exit = toScreen(EXIT);
+      context.beginPath();
+      context.arc(exit.x, exit.y, EXIT_RADIUS + 2, 0, Math.PI * 2);
+      context.fillStyle = colors.ring;
+      context.fill();
+      context.beginPath();
+      context.arc(exit.x, exit.y, EXIT_RADIUS, 0, Math.PI * 2);
+      context.fillStyle = colors.destination;
+      context.fill();
+    }
+
     const home = toScreen(HOME);
     context.beginPath();
     context.arc(home.x, home.y, HOME_RADIUS + 6, 0, Math.PI * 2);
@@ -220,7 +264,12 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
     const elapsed = lastTime === undefined ? 16 : time - lastTime;
     lastTime = time;
     const widthsMoving = easeLinks(links, targets, elapsed);
-    const slots = layoutSlots(links.keys(), hoprPeers, destinations);
+    const slots = layoutSlots(
+      links.keys(),
+      hoprPeers,
+      destinations,
+      props.exit !== null,
+    );
     const dotsMoving = easePositions(positions, slots, elapsed);
     const animating = widthsMoving || dotsMoving;
     draw();
@@ -239,6 +288,8 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
       const rect = entries[0]?.contentRect;
       if (!rect) return;
       size = { width: rect.width, height: rect.height };
+      const { cx, cy, radius } = discFrame(rect.width, rect.height);
+      setExitLabelAt({ x: cx + EXIT.x * radius, y: cy - EXIT.y * radius });
       draw();
     });
     resize.observe(container);
@@ -275,9 +326,36 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
     startAnimation();
   });
 
+  // Showing or dropping the exit moves the rings.
+  createEffect(() => {
+    void props.exit;
+    startAnimation();
+  });
+
   return (
-    <div ref={container} class={`min-h-0 ${props.class ?? "flex-1"}`}>
+    <div
+      ref={container}
+      class={`relative min-h-0 ${props.class ?? "flex-1"}`}
+    >
       <canvas ref={canvas} class="block h-full w-full" aria-hidden="true" />
+      <Show when={exitLabelAt()}>
+        {(at) => (
+          <Show when={props.exit}>
+            {(exit) => (
+              <div
+                class="pointer-events-none absolute flex -translate-x-1/2 items-center gap-1.5 rounded-md bg-bg-primary/80 px-1.5 py-0.5 text-xs text-text-secondary"
+                style={{
+                  left: `${at().x}px`,
+                  top: `${at().y + EXIT_RADIUS + 8}px`,
+                }}
+              >
+                <Flag code={exit().flag} size="sm" />
+                {exit().title}
+              </div>
+            )}
+          </Show>
+        )}
+      </Show>
     </div>
   );
 }

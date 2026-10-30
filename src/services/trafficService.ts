@@ -1,5 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { z } from "zod";
+import { StatusResponseSchema } from "@src/services/vpnService.ts";
+import { destinationFlag, destinationTitle } from "@src/utils/destinations.ts";
 
 // ==========================================
 // Zod Schemas & Inferred Types
@@ -72,6 +74,28 @@ export function averageRates(
   };
 }
 
+export interface ConnectedExit {
+  title: string;
+  flag: string;
+}
+
+/** Reads the exit from a `status` event payload; anything but a parsable Connected answer means no exit. */
+export function connectedExit(payload: unknown): ConnectedExit | null {
+  const answer = z.object({ Ok: z.unknown() }).safeParse(payload);
+  if (!answer.success) return null;
+  const status = StatusResponseSchema.safeParse(answer.data.Ok);
+  if (!status.success || !status.data.connected) return null;
+  const exitId = status.data.connected.destination_id;
+  const exit = status.data.destinations.find((entry) =>
+    entry.destination.id === exitId
+  );
+  if (!exit) return null;
+  return {
+    title: destinationTitle(exit.destination),
+    flag: destinationFlag(exit.destination),
+  };
+}
+
 // ==========================================
 // API Client
 // ==========================================
@@ -95,4 +119,9 @@ export async function fetchTrafficFrame(): Promise<TrafficFrameResponse> {
 
 export async function stopTrafficCapture(): Promise<void> {
   await invoke("traffic_stop");
+}
+
+export async function fetchConnectedExit(): Promise<ConnectedExit | null> {
+  const cached = await invoke<{ status: unknown }>("get_cached_state");
+  return connectedExit(cached.status);
 }

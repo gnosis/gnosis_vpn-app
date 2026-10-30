@@ -5,6 +5,7 @@ import {
   DESTINATION_RADIUS,
   easeLinks,
   easePositions,
+  EXIT,
   graticule,
   HOME,
   layoutSlots,
@@ -55,6 +56,7 @@ describe("layoutSlots", () => {
       ["relay", "other", "dest"],
       new Set(["relay"]),
       new Set(["dest"]),
+      false,
     );
     expect(Math.hypot(slots.get("relay")!.x, slots.get("relay")!.y))
       .toBeCloseTo(WIRE_RADIUS, 9);
@@ -66,14 +68,14 @@ describe("layoutSlots", () => {
 
   it("gives the same ids the same slots whatever order they come in", () => {
     const relays = new Set(["r1", "r2"]);
-    const first = layoutSlots(["r2", "x", "r1"], relays, new Set());
-    const second = layoutSlots(["x", "r1", "r2"], relays, new Set());
+    const first = layoutSlots(["r2", "x", "r1"], relays, new Set(), false);
+    const second = layoutSlots(["x", "r1", "r2"], relays, new Set(), false);
     expect(second).toEqual(first);
   });
 
   it("keeps the relays next to each other on the ring", () => {
     const relays = new Set(["r1", "r2"]);
-    const slots = layoutSlots(["a", "r1", "b", "r2"], relays, new Set());
+    const slots = layoutSlots(["a", "r1", "b", "r2"], relays, new Set(), false);
     const ring = ringSlots(
       ["r1", "r2", "a", "b"],
       WIRE_RADIUS,
@@ -81,6 +83,32 @@ describe("layoutSlots", () => {
       2 * Math.PI,
     );
     expect(slots).toEqual(ring);
+  });
+});
+
+describe("layoutSlots with an exit", () => {
+  const ids = ["r1", "r2", "r3", "d1", "d2", "d3"];
+  const slots = layoutSlots(
+    ids,
+    new Set(["r1", "r2", "r3"]),
+    new Set(["d1", "d2", "d3"]),
+    true,
+  );
+  const angleFromExit = (slot: Point) => {
+    const angle = Math.atan2(slot.y, slot.x) - Math.atan2(EXIT.y, EXIT.x);
+    return Math.abs(Math.atan2(Math.sin(angle), Math.cos(angle)));
+  };
+
+  it("fans destinations out around the exit", () => {
+    for (const id of ["d1", "d2", "d3"]) {
+      expect(angleFromExit(slots.get(id)!)).toBeLessThan(Math.PI / 3);
+    }
+  });
+
+  it("keeps relays off the line from the host to the exit", () => {
+    for (const id of ["r1", "r2", "r3"]) {
+      expect(angleFromExit(slots.get(id)!)).toBeGreaterThan(Math.PI / 5);
+    }
   });
 });
 

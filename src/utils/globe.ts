@@ -49,6 +49,12 @@ const SETTLE_DISTANCE = 0.001;
 const TILT = (20 * Math.PI) / 180;
 
 export const HOME: Vec3 = onSphere(0, 0);
+/** Right of the host, between the rings, so destinations fan out from it toward the rim. */
+export const EXIT: Vec3 = onSphere(0.62, 0);
+/** Relays leave this gap toward the exit so no relay sits on the tunnel line. */
+const EXIT_GAP = Math.PI / 2;
+/** Destinations fan out within this arc around the exit. */
+const EXIT_FAN = Math.PI * 0.55;
 
 export function onSphere(x: number, y: number): Vec3 {
   return { x, y, z: Math.sqrt(Math.max(0, 1 - x * x - y * y)) };
@@ -77,6 +83,7 @@ export function layoutSlots(
   ids: Iterable<string>,
   hoprPeers: ReadonlySet<string>,
   destinations: ReadonlySet<string>,
+  exitShown: boolean,
 ): Map<string, Point> {
   const wire: string[] = [];
   const tunnel: string[] = [];
@@ -93,9 +100,12 @@ export function layoutSlots(
   wire.sort(relaysFirst);
   tunnel.sort();
   const fullCircle = 2 * Math.PI;
+  const exitAngle = Math.atan2(EXIT.y, EXIT.x);
+  const wireSpread = exitShown ? fullCircle - EXIT_GAP : fullCircle;
+  const tunnelSpread = exitShown ? EXIT_FAN : fullCircle;
   return new Map([
-    ...ringSlots(wire, WIRE_RADIUS, Math.PI, fullCircle),
-    ...ringSlots(tunnel, DESTINATION_RADIUS, Math.PI, fullCircle),
+    ...ringSlots(wire, WIRE_RADIUS, exitAngle + Math.PI, wireSpread),
+    ...ringSlots(tunnel, DESTINATION_RADIUS, exitAngle, tunnelSpread),
   ]);
 }
 
