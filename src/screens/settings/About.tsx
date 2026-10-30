@@ -78,7 +78,7 @@ export default function About() {
         <div class="space-y-1">
           <div class="text-text-primary">GPU blocklist</div>
           <div>
-            On Linux, whether the app draws with your GPU is decided with{" "}
+            Whether the app draws with your GPU is decided with{" "}
             <Link
               url={CHROMIUM_BLOCKLIST_URL}
               label="Chromium's GPU blocklist"
