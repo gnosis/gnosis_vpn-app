@@ -22,14 +22,11 @@ import { logWarn } from "@src/utils/appLog.ts";
 const FADE_DURATION = 500;
 // Crops the 600×500 canvas's empty margins so the globe fills the width.
 const ANIMATION_VIEW_BOX = "90 55 420 370";
-// Keeps display-refresh jitter from turning every other 30 fps frame into a skipped one.
-const FRAME_SLACK_MS = 2;
 
 /** Looping network-discovery animation with captions timed to its frames. */
 export default function SyncAnimation() {
   let container!: HTMLDivElement;
   let animation: AnimationItem | undefined;
-  let lastDrawAt = -Infinity;
 
   const [renderProfile] = createResource(getRenderProfile);
   const [isDark, setIsDark] = createSignal(
@@ -78,7 +75,6 @@ export default function SyncAnimation() {
           animationData,
           rendererSettings: { viewBoxSize: ANIMATION_VIEW_BOX },
         });
-        lastDrawAt = -Infinity;
       })
       .catch((e) => logWarn(`[sync] animation failed to load: ${e}`));
     onCleanup(() => {
@@ -86,15 +82,13 @@ export default function SyncAnimation() {
     });
   });
 
-  // Driven by hand to cap the frame rate; the shared clock also carries the loop across theme swaps.
+  // Timer-driven so wakeups match the capped rate; the shared clock also carries the loop across theme swaps.
   const startedAt = performance.now();
-  let frameRequest = requestAnimationFrame(function tick(now) {
-    frameRequest = requestAnimationFrame(tick);
-    const minFrameMs = 1000 / syncAnimationFps(renderProfile());
-    if (!animation || now - lastDrawAt < minFrameMs - FRAME_SLACK_MS) return;
-    lastDrawAt = now;
+  let frameTimer = setTimeout(function tick() {
+    frameTimer = setTimeout(tick, 1000 / syncAnimationFps(renderProfile()));
+    if (!animation) return;
     const at = syncAnimationSecondsAt(
-      (now - startedAt) / 1000,
+      (performance.now() - startedAt) / 1000,
       animation.totalFrames / animation.frameRate,
     );
     animation.goToAndStop(at * animation.frameRate, true);
@@ -102,7 +96,7 @@ export default function SyncAnimation() {
   });
 
   onCleanup(() => {
-    cancelAnimationFrame(frameRequest);
+    clearTimeout(frameTimer);
     observer.disconnect();
     animation?.destroy();
   });
