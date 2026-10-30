@@ -6,6 +6,9 @@ import type {
   Slots,
 } from "@src/services/vpnService.ts";
 import {
+  destinationCountry,
+  destinationFlag,
+  destinationTitle,
   freeSlots,
   getExitData,
   isReady,
@@ -19,11 +22,13 @@ import {
   routeGrade,
   sortAlphaDestinations,
   sortByRouteQuality,
+  sortForPicker,
 } from "./destinations.ts";
 import {
   checkedQuickProbe,
   checkingQuickProbe,
   eligibleRouteHealth,
+  makeDestination,
   noPathRouteHealth,
   probeViewFor,
   quickProbeCheck,
@@ -236,19 +241,22 @@ describe("routeGrade — the score as shown, never as used", () => {
     });
   });
 
-  it("fills bars by score band: latency half, capacity a third, relays a fifth", () => {
-    // OPEN_SLOTS free 6/8 = 0.225, two relays = 0.1; latency decides the band
+  it("fills bars by latency alone: fast under 100 ms one-way, then the stat bands", () => {
     const bars = (rtt: number) =>
       routeGrade(makeMeasured("a", OPEN_SLOTS, rtt), NO_CONTEXT);
-    expect(bars(0), "0.825").toEqual({ kind: "measured", bars: 4 });
-    expect(bars(1_000), "0.575").toEqual({ kind: "measured", bars: 3 });
-    expect(bars(2_000), "0.325").toEqual({ kind: "measured", bars: 2 });
-
-    const nearlyFull: Slots = { total: 8, available: 1, connected: 7 };
+    expect(bars(198), "99 ms").toEqual({ kind: "measured", bars: 4 });
+    expect(bars(200), "100 ms").toEqual({ kind: "measured", bars: 3 });
+    expect(bars(998), "499 ms").toEqual({ kind: "measured", bars: 3 });
+    expect(bars(1_000), "500 ms").toEqual({ kind: "measured", bars: 2 });
+    expect(bars(2_200), "1100 ms").toEqual({ kind: "measured", bars: 2 });
+    expect(bars(2_202), "1101 ms").toEqual({ kind: "measured", bars: 1 });
+    // capacity and relays no longer move the bars
     expect(
-      routeGrade(makeMeasured("a", nearlyFull, 2_000, 1), NO_CONTEXT),
-      "0.0875",
-    ).toEqual({ kind: "measured", bars: 1 });
+      routeGrade(
+        makeMeasured("a", { total: 8, available: 1, connected: 7 }, 198, 1),
+        NO_CONTEXT,
+      ),
+    ).toEqual({ kind: "measured", bars: 4 });
   });
 
   it("keeps its bars through a re-check", () => {
@@ -512,6 +520,28 @@ describe("sortAlphaDestinations", () => {
     expect(sorted[1].id).toBe("bravo");
   });
 
+  it("sorts by city, not by country", () => {
+    const sydney: Destination = {
+      ...BASE_DESTINATION,
+      id: "Australia",
+      meta: { location: "Sydney" },
+    };
+    const amsterdam: Destination = {
+      ...BASE_DESTINATION,
+      id: "Netherlands",
+      meta: { location: "Amsterdam" },
+    };
+    const sorted = sortAlphaDestinations(
+      [sydney, amsterdam],
+      {
+        Australia: makeEligible("Australia"),
+        Netherlands: makeEligible("Netherlands"),
+      },
+      NO_CONTEXT,
+    );
+    expect(sorted.map((d) => d.id)).toEqual(["Netherlands", "Australia"]);
+  });
+
   it("sorts non-ready destinations alphabetically within the tier", () => {
     const zeta: Destination = { ...BASE_DESTINATION, id: "zeta" };
     const mu: Destination = { ...BASE_DESTINATION, id: "mu" };
@@ -525,6 +555,61 @@ describe("sortAlphaDestinations", () => {
     );
     expect(sorted[0].id).toBe("mu");
     expect(sorted[1].id).toBe("zeta");
+  });
+});
+
+describe("sortForPicker", () => {
+  it("puts the fastest pickable exit first, whatever its capacity or relays", () => {
+    expect(
+      sortForPicker({
+        crowded: makeMeasured("crowded", {
+          total: 8,
+          available: 1,
+          connected: 7,
+        }, 100),
+        roomy: makeMeasured(
+          "roomy",
+          { total: 8, available: 6, connected: 2 },
+          300,
+        ),
+        single: makeMeasured("single", OPEN_SLOTS, 50, 1),
+        diverse: makeMeasured("diverse", OPEN_SLOTS, 200, 3),
+      }, NO_CONTEXT),
+    ).toEqual(["single", "crowded", "diverse", "roomy"]);
+  });
+
+  it("ranks a measured weak route by its latency like any other pickable exit", () => {
+    const fastWeak = withRouteHealth("fast-weak", {
+      ...weakRouteHealth(),
+      quick_probe: checkedQuickProbe(OPEN_SLOTS, 40),
+    });
+    expect(
+      sortForPicker({
+        "fast-weak": fastWeak,
+        slow: makeMeasured("slow", OPEN_SLOTS, 1_800),
+        "b-promise": makeEligible("b-promise", 4),
+      }, NO_CONTEXT),
+    ).toEqual(["fast-weak", "slow", "b-promise"]);
+  });
+
+  it("keeps unmeasured pickable exits in auto's order after the measured ones, and the unusable last", () => {
+    expect(
+      sortForPicker({
+        "a-full": makeMeasured("a-full", FULL_SLOTS, 10),
+        "b-promise": makeEligible("b-promise", 4),
+        "c-slow": makeMeasured("c-slow", OPEN_SLOTS, 1_800, 1),
+        "d-weak-unprobed": makeWeak("d-weak-unprobed", 0.5),
+      }, NO_CONTEXT),
+    ).toEqual(["c-slow", "b-promise", "d-weak-unprobed", "a-full"]);
+  });
+
+  it("breaks a latency tie with auto's order", () => {
+    expect(
+      sortForPicker({
+        single: makeMeasured("single", OPEN_SLOTS, 100, 1),
+        diverse: makeMeasured("diverse", OPEN_SLOTS, 100, 3),
+      }, NO_CONTEXT),
+    ).toEqual(["diverse", "single"]);
   });
 });
 
@@ -661,5 +746,25 @@ describe("pickStartupTarget — connect-on-startup pick", () => {
 
     expect(pickStartupTarget(destinations, null, null, NO_CONTEXT)).toBeNull();
     expect(pickStartupTarget({}, null, null, NO_CONTEXT)).toBeNull();
+  });
+});
+
+describe("hero lines on the 0.37 schema", () => {
+  const sydney = makeDestination({
+    id: "Australia",
+    meta: { location: "Sydney", flag: "au" },
+  });
+  const bare = makeDestination({ id: "exit-9", meta: { location: "" } });
+
+  it("shows the location as the title and the id as the country line", () => {
+    expect(destinationTitle(sydney)).toBe("Sydney");
+    expect(destinationCountry(sydney)).toBe("Australia");
+    expect(destinationFlag(sydney)).toBe("au");
+  });
+
+  it("falls back to the id alone when no location is published", () => {
+    expect(destinationTitle(bare)).toBe("exit-9");
+    expect(destinationCountry(bare)).toBe(null);
+    expect(destinationFlag(bare)).toBe("");
   });
 });

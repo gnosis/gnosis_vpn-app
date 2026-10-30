@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   formatConnectionStatus,
   formatExitHealthStatus,
+  getConnectionQuality,
   getExitHealthColor,
   getLatencyLevel,
   getLatencyMs,
@@ -162,6 +163,57 @@ describe("formatExitHealthStatus — one label per route state", () => {
     expect(
       formatExitHealthStatus({ ...eligibleRouteHealth(), walk: null }, null),
     ).toBe("Checking…");
+  });
+});
+
+describe("getConnectionQuality", () => {
+  const STALL = { since: 0, failed_pings: 1, reconnect_at: 3 };
+
+  it("is good when latency and load are both low", () => {
+    expect(getConnectionQuality(100, "low", null, "ready")).toBe("good");
+    expect(getConnectionQuality(499, "low", undefined, "ready")).toBe("good");
+  });
+
+  it("is fair when either latency or load is medium", () => {
+    expect(getConnectionQuality(500, "low", null, "ready")).toBe("fair");
+    expect(getConnectionQuality(1100, "low", null, "ready")).toBe("fair");
+    expect(getConnectionQuality(100, "medium", null, "ready")).toBe("fair");
+  });
+
+  it("is poor when either latency or load is high", () => {
+    expect(getConnectionQuality(1101, "low", null, "ready")).toBe("poor");
+    expect(getConnectionQuality(100, "high", null, "ready")).toBe("poor");
+  });
+
+  it("is poor while the tunnel stalls, whatever the numbers say", () => {
+    expect(getConnectionQuality(100, "low", STALL, "ready")).toBe("poor");
+  });
+
+  it("caps a weak route at fair, however fast the tunnel", () => {
+    expect(getConnectionQuality(100, "low", null, "weak")).toBe("fair");
+    expect(getConnectionQuality(100, "high", null, "weak")).toBe("poor");
+  });
+
+  it("is poor once the route is gone", () => {
+    expect(getConnectionQuality(100, "low", null, "no-route")).toBe("poor");
+    expect(getConnectionQuality(100, "low", null, "unrecoverable")).toBe(
+      "poor",
+    );
+  });
+
+  it("holds nothing against a route still being checked", () => {
+    expect(getConnectionQuality(100, "low", null, "checking")).toBe("good");
+    expect(getConnectionQuality(100, "low", null, null)).toBe("good");
+  });
+
+  it("counts unknown latency as medium until the first sample", () => {
+    expect(getConnectionQuality(null, "low", null, "ready")).toBe("fair");
+    expect(getConnectionQuality(null, "high", null, "ready")).toBe("poor");
+  });
+
+  it("holds unknown load against nothing", () => {
+    expect(getConnectionQuality(100, null, null, "ready")).toBe("good");
+    expect(getConnectionQuality(1200, null, null, "ready")).toBe("poor");
   });
 });
 

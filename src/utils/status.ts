@@ -68,6 +68,8 @@ export function deriveVPNStatus(
   if ("Shutdown" === response.run_mode) return "ServiceUnavailable";
   if ("NotRunning" === response.run_mode) return "ServiceUnavailable";
   if ("Restarting" === response.run_mode) return "WorkerRestarting";
+  // A known state, not an outage: the service is fine, just somebody else's.
+  if ("InUseByOtherUser" === response.run_mode) return "InUseByOtherUser";
   if (isPreparingSafeRunMode(response.run_mode)) return "PreparingSafe";
   if (isDeployingSafeRunMode(response.run_mode)) return "DeployingSafe";
   if (isWarmupRunMode(response.run_mode)) {
@@ -84,6 +86,58 @@ export function deriveVPNStatus(
   }
 
   return "ServiceUnavailable";
+}
+
+/** What the header line says about the connection; the dot's tone and the text are one decision. */
+export type HeaderTone =
+  | "idle"
+  | "connecting"
+  | "connected"
+  | "stalled"
+  | "restarting"
+  | "inUse"
+  | "unavailable";
+
+export interface HeaderStatus {
+  text: string;
+  tone: HeaderTone;
+}
+
+/**
+ * The one text status on the main screen. The destination itself is the hero's
+ * job, so the connected and connecting texts end in "to".
+ */
+export function headerStatus(
+  state: Pick<
+    AppState,
+    "vpnStatus" | "connected" | "targetDestination" | "isLoading"
+  >,
+): HeaderStatus {
+  const status = state.vpnStatus;
+  if (status === "Connected") {
+    return state.connected?.stall
+      ? { text: "Connected to · stalled", tone: "stalled" }
+      : { text: "Connected to", tone: "connected" };
+  }
+  if (
+    status === "Connecting" || status === "Reconnecting" ||
+    isSwitchingDestination(status, state.targetDestination)
+  ) {
+    return { text: "Connecting to", tone: "connecting" };
+  }
+  if (status === "WorkerRestarting") {
+    return { text: "Restarting...", tone: "restarting" };
+  }
+  if (status === "InUseByOtherUser") {
+    return { text: "In use by another user", tone: "inUse" };
+  }
+  if (status === "ServiceUnavailable") {
+    return {
+      text: state.isLoading ? "Loading..." : "Service unavailable",
+      tone: "unavailable",
+    };
+  }
+  return { text: "Not connected", tone: "idle" };
 }
 
 export interface ConnectButtonLook {

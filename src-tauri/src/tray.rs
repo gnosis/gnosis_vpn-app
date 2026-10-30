@@ -56,12 +56,6 @@ pub fn toggle_main_window_visibility(app: &AppHandle) {
             }
             let _ = window.show();
             let _ = window.set_focus();
-            if let Some(settings) = app.get_webview_window("settings") {
-                if settings.is_visible().unwrap_or(false) {
-                    let _ = settings.set_focus();
-                    let _ = window.set_focus();
-                }
-            }
         } else {
             let _ = window.hide();
             #[cfg(target_os = "macos")]
@@ -83,84 +77,70 @@ pub fn handle_tray_event(app: &AppHandle, event: TrayIconEvent) {
     }
 }
 
-pub fn show_settings(app: &AppHandle, target: &str) {
-    let Some(window) = app.get_webview_window("settings") else {
-        tracing::warn!(target: "tray", "settings window missing");
-        return;
+/// Shows and focuses the main window; every tray action lands there now that it is the only window.
+fn show_main_window(app: &AppHandle) -> Option<tauri::WebviewWindow> {
+    let Some(window) = app.get_webview_window("main") else {
+        tracing::warn!(target: "tray", "main window missing");
+        return None;
     };
+    #[cfg(target_os = "macos")]
     {
-        #[cfg(target_os = "macos")]
-        {
-            let main_visible = app
-                .get_webview_window("main")
-                .and_then(|w| w.is_visible().ok())
-                .unwrap_or(false);
-            if !main_visible {
-                let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
-            }
-        }
-        let _ = window.show();
-        let _ = window.set_focus();
-        let handle = window.clone();
-        let target_owned = target.to_string();
-        tauri::async_runtime::spawn(async move {
-            sleep(Duration::from_millis(120)).await;
-            // emit_to: a broadcast would also hit the main window's navigate listener
-            if let Err(e) = handle.emit_to("settings", "navigate", target_owned) {
-                tracing::warn!(target: "tray", error = %e, "cannot emit navigate to settings window");
-            }
-        });
+        let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
     }
+    let _ = window.show();
+    let _ = window.set_focus();
+    Some(window)
 }
 
-pub fn show_settings_and_check(app: &AppHandle) {
-    let Some(window) = app.get_webview_window("settings") else {
-        tracing::warn!(target: "tray", "settings window missing");
+/// Shows the main window and asks it for a page (`settings`, `software-update`, ...) or the wallet popover.
+pub fn show_main_and_navigate(app: &AppHandle, target: &str) {
+    let Some(window) = show_main_window(app) else {
         return;
     };
-    {
-        #[cfg(target_os = "macos")]
-        {
-            let main_visible = app
-                .get_webview_window("main")
-                .and_then(|w| w.is_visible().ok())
-                .unwrap_or(false);
-            if !main_visible {
-                let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
-            }
+    let target_owned = target.to_string();
+    tauri::async_runtime::spawn(async move {
+        // A window that was hidden needs a moment before its listener sees the event.
+        sleep(Duration::from_millis(120)).await;
+        // emit_to: the page stack in App.tsx owns this event
+        if let Err(e) = window.emit_to("main", "navigate", target_owned) {
+            tracing::warn!(target: "tray", error = %e, "cannot emit navigate to main window");
         }
-        let _ = window.show();
-        let _ = window.set_focus();
-        let handle = window.clone();
-        let app_handle = app.clone();
-        tauri::async_runtime::spawn(async move {
-            // Register the ready listener before navigating so we cannot miss
-            // the ack even if the frontend mounts faster than expected.
-            let (tx, rx) = tokio::sync::oneshot::channel::<()>();
-            let tx = std::sync::Arc::new(Mutex::new(Some(tx)));
-            let tx2 = tx.clone();
-            let id = app_handle.listen("updates:ready", move |_| {
-                if let Ok(mut guard) = tx2.lock() {
-                    if let Some(s) = guard.take() {
-                        let _ = s.send(());
-                    }
+    });
+}
+
+/// Shows the Software update page and starts a check once the page says its listener is up.
+pub fn show_main_and_check_update(app: &AppHandle) {
+    let Some(window) = show_main_window(app) else {
+        return;
+    };
+    let app_handle = app.clone();
+    tauri::async_runtime::spawn(async move {
+        // Register the ready listener before navigating so we cannot miss
+        // the ack even if the frontend mounts faster than expected.
+        let (tx, rx) = tokio::sync::oneshot::channel::<()>();
+        let tx = std::sync::Arc::new(Mutex::new(Some(tx)));
+        let tx2 = tx.clone();
+        let id = app_handle.listen("updates:ready", move |_| {
+            if let Ok(mut guard) = tx2.lock() {
+                if let Some(s) = guard.take() {
+                    let _ = s.send(());
                 }
-            });
-            sleep(Duration::from_millis(120)).await;
-            let _ = handle.emit_to("settings", "navigate", "updates");
-            // Ping covers the case where Updates.tsx is already mounted (no
-            // remount, so its onMount-time ready emit won't fire again).
-            sleep(Duration::from_millis(80)).await;
-            let _ = handle.emit_to("settings", "updates:ping", ());
-            // Wait until Updates.tsx signals its listener is attached (5 s fallback).
-            if tokio::time::timeout(Duration::from_secs(5), rx)
-                .await
-                .is_err()
-            {
-                tracing::warn!(target: "tray", "updates-ready handshake timed out, requesting check anyway");
             }
-            app_handle.unlisten(id);
-            let _ = handle.emit_to("settings", "updates:check", ());
         });
-    }
+        sleep(Duration::from_millis(120)).await;
+        let _ = window.emit_to("main", "navigate", "software-update");
+        // Ping covers the case where the page is already mounted (no
+        // remount, so its onMount-time ready emit won't fire again).
+        sleep(Duration::from_millis(80)).await;
+        let _ = window.emit_to("main", "updates:ping", ());
+        // Wait until the page signals its listener is attached (5 s fallback).
+        if tokio::time::timeout(Duration::from_secs(5), rx)
+            .await
+            .is_err()
+        {
+            tracing::warn!(target: "tray", "updates-ready handshake timed out, requesting check anyway");
+        }
+        app_handle.unlisten(id);
+        let _ = window.emit_to("main", "updates:check", ());
+    });
 }

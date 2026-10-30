@@ -15,6 +15,7 @@ export enum AppScreen {
   Main = "main",
   Onboarding = "onboarding",
   Synchronization = "synchronization",
+  ServiceNotRunning = "serviceNotRunning",
 }
 
 export type SyncPhaseIndex = 0 | 1 | 2;
@@ -83,6 +84,9 @@ export function createScreenSelector(): (
     const runMode = status.run_mode;
     if (runMode === "Shutdown") {
       return [AppScreen.Main, "Shutdown", null];
+    }
+    if (runMode === "InUseByOtherUser") {
+      return [AppScreen.Main, "In use by another user", null];
     }
     if (isPreparingSafeRunMode(runMode)) {
       const deployError = retryingSafeDeployment(status);

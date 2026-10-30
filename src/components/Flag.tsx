@@ -10,21 +10,30 @@ export function resolveFlagCode(code: string): string | undefined {
   return KNOWN_FLAG_CODES.has(parentCode) ? parentCode : undefined;
 }
 
-export default function Flag(props: { code: string }) {
+const sizeClass = {
+  sm: "w-6 h-4 rounded-sm",
+  md: "w-7 h-5 rounded-sm",
+  lg: "w-12 h-[34px] rounded-md",
+} as const;
+
+export default function Flag(props: {
+  code: string;
+  size?: keyof typeof sizeClass;
+}) {
   const [settings] = useSettingsStore();
 
   const resolvedCode = () => resolveFlagCode(props.code);
   const visible = () =>
     resolvedCode() !== undefined && settings.flagDisplay !== "none";
-  const grayscale = () => settings.flagDisplay === "mono";
+  const mono = () => settings.flagDisplay === "mono";
 
   return (
     <span
-      class={`w-7 h-5 rounded-sm shrink-0 ${
+      class={`${sizeClass[props.size ?? "md"]} shrink-0 ${
         visible()
           ? `ring-1 ring-inset ring-black/15 dark:ring-slate-950 fi fi-${resolvedCode()}`
           : ""
-      }${grayscale() ? " grayscale" : ""}`}
+      }${mono() ? " grayscale" : ""}`}
       aria-hidden="true"
     />
   );

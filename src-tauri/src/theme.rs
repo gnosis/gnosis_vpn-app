@@ -1,7 +1,7 @@
 //! Theme detection and change handling for app windows.
 //! Provides startup theme detection and OS theme change monitoring on Linux via the XDG Desktop Portal.
 
-#[cfg_attr(not(target_os = "linux"), allow(unused_imports))]
+#[cfg_attr(target_os = "macos", allow(unused_imports))]
 use tauri::{AppHandle, Emitter, Manager, State};
 
 #[cfg(target_os = "linux")]

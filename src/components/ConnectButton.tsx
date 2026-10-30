@@ -1,21 +1,25 @@
-import { createMemo } from "solid-js";
-import Button from "./common/Button.tsx";
+import { createMemo, Show } from "solid-js";
+import Button, { type ButtonProps } from "./common/Button.tsx";
 import { useAppStore } from "../stores/appStore.ts";
 import { effectiveActive } from "../stores/destinationMode.ts";
 import {
-  isSelectable,
-  isVpnActive,
-  rankContext,
-} from "../utils/destinations.ts";
-import { logError } from "../utils/appLog.ts";
-import { connectButtonLook } from "../utils/status.ts";
+  primaryActionEnabled,
+  runPrimaryAction,
+} from "../utils/primaryAction.ts";
+import { type ConnectButtonLook, connectButtonLook } from "../utils/status.ts";
+import { destinationTitle } from "../utils/destinations.ts";
+import OwlIcon from "./icons/OwlIcon.tsx";
+
+// The look's own variant is for the old full-size button; here Cancel is quiet grey, not red.
+const variantOf: Record<ConnectButtonLook["label"], ButtonProps["variant"]> = {
+  Connect: "primary",
+  Cancel: "neutral",
+  Disconnect: "stop",
+};
 
 export default function ConnectButton() {
   const [appState, appActions] = useAppStore();
 
-  const isActive = createMemo(() =>
-    isVpnActive(appState.vpnStatus, appState.targetDestination)
-  );
   const look = createMemo(() =>
     connectButtonLook(
       appState.vpnStatus,
@@ -24,45 +28,37 @@ export default function ConnectButton() {
     )
   );
 
-  const displayedId = createMemo(() =>
-    effectiveActive(appState.mode, Date.now())
-  );
-
   const targetDestinationState = createMemo(() => {
-    const id = displayedId();
+    const id = effectiveActive(appState.mode, Date.now());
     return id ? appState.destinations[id] : undefined;
   });
 
-  // Selectable, not ready: a weak route the user picked deliberately must still connect.
-  const isTargetSelectable = createMemo(() =>
-    isSelectable(targetDestinationState(), rankContext(appState))
-  );
-
-  const handleClick = async () => {
-    try {
-      if (isActive()) {
-        await appActions.disconnect();
-      } else {
-        // Resolved fresh at click time: a memo recomputes on `mode`, not on the clock crossing settleAt.
-        const id = effectiveActive(appState.mode, Date.now());
-        if (id) await appActions.connect(id);
-      }
-    } catch (error) {
-      // safety net — store actions handle their own errors
-      const message = error instanceof Error ? error.message : String(error);
-      logError(`Connect button action failed: ${message}`);
-    }
+  const targetTitle = () => {
+    const dest = targetDestinationState()?.destination;
+    return dest ? destinationTitle(dest) : null;
   };
 
   return (
     <div class="relative z-20 w-full">
       <Button
-        size="lg"
-        variant={look().variant}
-        onClick={() => void handleClick()}
-        disabled={appState.isLoading || !(isActive() || isTargetSelectable())}
+        size="main"
+        variant={variantOf[look().label]}
+        onClick={() => void runPrimaryAction(appState, appActions)}
+        disabled={!primaryActionEnabled(appState)}
       >
-        {look().label}
+        <Show
+          when={look().label === "Connect" && targetTitle()}
+          fallback={look().label}
+        >
+          {(title) => (
+            // The trailing spacer mirrors the owl so the label sits on the button's true centre.
+            <span class="flex min-w-0 items-center gap-2">
+              <OwlIcon class="size-[18px] shrink-0" />
+              <span class="truncate">Connect to {title()}</span>
+              <span class="size-[18px] shrink-0" aria-hidden="true" />
+            </span>
+          )}
+        </Show>
       </Button>
     </div>
   );

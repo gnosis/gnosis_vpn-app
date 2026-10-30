@@ -17,6 +17,7 @@ mod icons;
 mod logging;
 mod navigation;
 mod platform;
+mod service_control;
 pub mod settings;
 mod theme;
 pub mod toolkit;
@@ -28,21 +29,22 @@ pub mod update_install;
 use cli::{get_log_uploader_website_url, Cli};
 use commands::{
     check_update, connect, disconnect, export_logs, get_cached_state, log_from_frontend, probe,
-    quick_probe, run_initialization_loop, set_app_icon, set_status_poll_fast, stop_client,
-    upload_logs,
+    quick_probe, run_initialization_loop, set_app_icon, set_balance_poll_fast,
+    set_status_poll_fast, stop_client, upload_logs,
 };
 use gnosis_vpn_lib::command::InfoResponse;
 use gnosis_vpn_lib::{command, socket::root as root_socket};
-use icons::{determine_tray_icon, start_icon_heartbeat, IconState, TrayIconState};
-use platform::{get_platform, get_system_info, Platform, PlatformInterface};
-use settings::{get_settings, update_settings, SettingsStore};
+use icons::{IconState, TrayIconState, determine_tray_icon, start_icon_heartbeat};
+use platform::{Platform, PlatformInterface, get_platform, get_system_info};
+use service_control::{get_service_not_running_info, start_service};
+use settings::{SettingsStore, get_settings, update_settings};
 #[cfg(target_os = "linux")]
 use theme::spawn_linux_theme_monitor;
 #[cfg_attr(target_os = "macos", allow(unused_imports))]
 use theme::{get_initial_theme, system_theme, InitialTheme};
 use toolkit::get_toolkit_version;
 use tray::{
-    create_tray_menu, handle_tray_event, show_settings, show_settings_and_check,
+    create_tray_menu, handle_tray_event, show_main_and_check_update, show_main_and_navigate,
     toggle_main_window_visibility,
 };
 use types::ConnectionState;
@@ -67,6 +69,10 @@ pub struct StatusPollingHandle {
 pub struct BalancePollingHandle {
     pub cancel: CancellationToken,
     pub handle: Option<tauri::async_runtime::JoinHandle<()>>,
+    /// Wakes the loop so a changed poll cap applies at once.
+    pub trigger: Arc<Notify>,
+    /// Caps the poll interval while the Add funds page waits for a transfer.
+    pub fast: Arc<AtomicBool>,
 }
 
 pub struct AppStateCache {
@@ -188,12 +194,6 @@ pub fn run() {
     // Resolve the client socket once so every call site uses the same path.
     cli::init_socket_path(cli.socket_path.clone());
 
-    // Random black windows on Ubuntu (GNO-421); costs backdrop-filter on Linux.
-    #[cfg(target_os = "linux")]
-    if std::env::var_os("WEBKIT_DISABLE_COMPOSITING_MODE").is_none() {
-        std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
-    }
-
     tauri::Builder::default()
         .manage(cli)
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
@@ -213,7 +213,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             // Logging first so everything below is captured; failure must not block startup.
-            match app.path().app_log_dir() {
+            match logging::log_dir(app) {
                 Ok(dir) => match logging::init(&dir) {
                     Ok(filter) => {
                         let pkg = app.package_info();
@@ -239,8 +239,8 @@ pub fn run() {
             // Load settings (settings.json) before any UI decisions
             let settings_path = app
                 .path()
-                .app_data_dir()
-                .inspect_err(|e| tracing::error!(error = %e, "cannot resolve app data dir"))?
+                .app_config_dir()
+                .inspect_err(|e| tracing::error!(error = %e, "cannot resolve app config dir"))?
                 .join("settings.json");
             let settings_store = SettingsStore::load(settings_path.clone());
             tracing::info!(target: "settings", path = %settings_path.display(), settings = ?settings_store.current(), "loaded");
@@ -297,6 +297,9 @@ pub fn run() {
                                 Ok(command::Response::Unprobe(resp)) => {
                                     tracing::info!(target: "tray", response = ?resp, "unprobe on quit")
                                 }
+                                Ok(command::Response::InUseByOtherUser) => {
+                                    tracing::info!(target: "tray", "worker owned by another user, nothing to unprobe")
+                                }
                                 Ok(other) => {
                                     tracing::warn!(target: "tray", response = ?other, "unexpected unprobe response")
                                 }
@@ -313,11 +316,11 @@ pub fn run() {
                     }
                     "settings" => {
                         tracing::info!(target: "tray", "settings requested");
-                        show_settings(app, "settings");
+                        show_main_and_navigate(app, "settings");
                     }
                     "usage" => {
                         tracing::info!(target: "tray", "usage requested");
-                        show_settings(app, "usage");
+                        show_main_and_navigate(app, "wallet");
                     }
                     "traffic" => {
                         tracing::info!(target: "traffic", "traffic window requested");
@@ -325,7 +328,7 @@ pub fn run() {
                     }
                     "check_update" => {
                         tracing::info!(target: "tray", "update check requested");
-                        show_settings_and_check(app);
+                        show_main_and_check_update(app);
                     }
                     other => tracing::warn!(target: "tray", id = other, "unknown tray menu item"),
                 })
@@ -442,18 +445,6 @@ pub fn run() {
                 });
             }
 
-            // Intercept settings window close to hide instead of destroying the window
-            if let Some(settings_window) = app.get_webview_window("settings") {
-                let settings_clone = settings_window.clone();
-                settings_window.on_window_event(move |event| {
-                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                        tracing::info!(target: "window", "settings window close requested, hiding");
-                        api.prevent_close();
-                        let _ = settings_clone.hide();
-                    }
-                });
-            }
-
             // Closing the traffic window ends capture and releases its history.
             if let Some(traffic_window) = app.get_webview_window("traffic") {
                 let traffic_handle = app.handle().clone();
@@ -503,6 +494,8 @@ pub fn run() {
             app.manage(Mutex::new(BalancePollingHandle {
                 cancel: CancellationToken::new(),
                 handle: None,
+                trigger: Arc::new(Notify::new()),
+                fast: Arc::new(AtomicBool::new(false)),
             }));
 
             // last update-install status: re-hydration + concurrent-install guard
@@ -533,6 +526,7 @@ pub fn run() {
             probe,
             quick_probe,
             set_status_poll_fast,
+            set_balance_poll_fast,
             export_logs,
             upload_logs,
             log_from_frontend,
@@ -548,6 +542,8 @@ pub fn run() {
             install_update,
             get_install_status,
             get_toolkit_version,
+            get_service_not_running_info,
+            start_service,
             traffic::traffic_interfaces,
             traffic::traffic_start,
             traffic::traffic_frame,

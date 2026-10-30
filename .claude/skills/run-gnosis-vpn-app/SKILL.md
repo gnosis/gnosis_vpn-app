@@ -1,6 +1,6 @@
 ---
 name: run-gnosis-vpn-app
-description: Run, screenshot, and drive the Gnosis VPN UI headlessly. Renders any screen (main, settings, usage) in headless Chromium WITHOUT the Rust/Tauri backend, using a fixture-driven Tauri shim. Use to run the app, verify UI changes visually, take screenshots, or click through screens.
+description: Run, screenshot, and drive the Gnosis VPN UI headlessly. Renders any screen or page (main, settings, add funds, wallet) in headless Chromium WITHOUT the Rust/Tauri backend, using a fixture-driven Tauri shim. Use to run the app, verify UI changes visually, take screenshots, or click through screens.
 ---
 
 # Run the Gnosis VPN app (headless, no backend)
@@ -38,7 +38,7 @@ again), waits for the Solid app to mount, then executes the steps in order:
 | `handoff`         | diff the splash logo against the mounted one (see below) |
 
 Flags: `--fixture <path>` (default: the skill's `fixture.json`), `--size WxH`
-(default `360x640` — the main window; settings window is `640x480`).
+(default `360x640`, the app's one window).
 
 ### Checking the splash→Solid handoff
 
@@ -105,6 +105,19 @@ source:
   screenshots matters (mount time varies seconds between runs). Stash payloads
   in a custom fixture key (unknown keys are ignored) and fire them:
   `eval "__GVPN_FIRE_EVENT__('status', __GVPN_FIXTURE__.myStates.connected)"`.
+- `states` — ready-made `status` payloads for `__GVPN_FIRE_EVENT__`:
+  `inUseByOtherUser` (another local user owns the worker: no controls, banner,
+  tray text) and `serviceNotRunning` (the `{Err: "service_not_running"}` tag the
+  init loop emits while the daemon socket is absent, which renders the
+  ServiceNotRunning screen). Fire one after mount, then `wait 1500` for the
+  screen throttle:
+  `eval "__GVPN_FIRE_EVENT__('status', __GVPN_FIXTURE__.states.serviceNotRunning)" wait 1500 shot /tmp/snr.png`.
+- `serviceNotRunningInfo` — overrides for what `get_service_not_running_info`
+  answers (defaults follow `platform`): e.g.
+  `{ "migration_pending": true, "migrate_commands": { "has_own_identity": false, "identity": "sudo gnosis_vpn-migrate identity --user alice", "upload_log": "...", "start_clean": "..." } }`
+  shows the three migration commands and no Start button; `"platform": "macos"`
+  alone shows the _Start service_ button. `startServiceError` makes that button
+  fail with the given text.
 - Opened links: the shim records every `openUrl` target in
   `globalThis.__GVPN_OPENED_URLS__` instead of opening it, so an `eval` step can
   assert where a button points, e.g. `eval "__GVPN_OPENED_URLS__"`.
@@ -147,15 +160,23 @@ source:
 - `exportLogsDest` — path the Export logs save dialog resolves with; omitted, it
   accepts the suggested `/home/user/Downloads/gnosis_vpn-*.log.zst`, and `null`
   cancels. `export_logs` echoes it back, which opens the Logs saved modal.
-- `windowLabel: "settings"` renders the settings window instead (use
-  `--size 640x480`). Switch tabs by clicking the nav buttons, e.g. Usage:
+- Settings, Software update, About and Add funds are pages inside the main
+  window, and the balance is a popover on the wallet icon. Reach them the way
+  the user does: `click 'button:has(img[alt="Settings"])'` opens Settings, then
+  click a row by its text; `click 'button:has(img[alt="Balance"])'` opens the
+  wallet popover and its `Add funds…` button opens that page. The tray's
+  requests arrive as `navigate` events, which the shim can replay:
+  `eval "__GVPN_FIRE_EVENT__('navigate', 'software-update')"` (targets:
+  `settings`, `software-update`, `about`, `add-funds`, `wallet`). Esc goes back
+  a page. The fixture's `windowLabel` only names the window the shim reports;
+  there is no second window any more.
 
 ```bash
-deno run -A .claude/skills/run-gnosis-vpn-app/driver.ts --size 640x480 \
-  --fixture /tmp/fixture-settings.json \
-  eval "[...document.querySelectorAll('button')].find(b => b.textContent.includes('Usage')).click()" \
+deno run -A .claude/skills/run-gnosis-vpn-app/driver.ts \
+  --fixture /tmp/fixture-update-available.json \
+  eval "__GVPN_FIRE_EVENT__('navigate', 'software-update')" \
   wait 500 \
-  shot /tmp/usage.png
+  shot /tmp/software-update.png
 ```
 
 Fixture shapes must satisfy the zod schemas in `src/services/vpnService.ts`

@@ -126,10 +126,10 @@ The daemon walks the HOPR graph for every destination and reports what it found
 under `route_health.walk`. A destination is routable only when the state is
 `Routable` and the best path it found is worth at least `MIN_PATH_VALUE`. A
 `Routable` destination whose best path is weaker is `isSelectable` but not
-ready: the list offers it to the user grayed and tagged "Weak route", since the
-daemon will connect over any `Routable` route, but connecting over it is the
-user's explicit choice, never auto's. Once the exit itself has been measured, a
-full exit is neither ready nor selectable: a connect against it can only fail.
+ready: the list offers it to the user grayed, untagged, since the daemon will
+connect over any `Routable` route, but connecting over it is the user's explicit
+choice, never auto's. Once the exit itself has been measured, a full exit is
+neither ready nor selectable: a connect against it can only fail.
 
 **`best_value` is a product, so the gate is a band, not an equality.** The walk
 starts a path at 1 and multiplies in each edge's score: the edge's probe
@@ -142,6 +142,10 @@ healthy, and the first slow link drops it to 0.85 or below.
 sits in the top latency tier with near-perfect delivery; it is the app's own
 product line, since the daemon's `Routable` only says a path of non-zero value
 exists.
+
+The UI shows `best_value` as "Route score". While connected, the route also caps
+the status card's connection quality: a weak route is at best fair, a lost one
+(no route, unrecoverable) poor, whatever latency and load say.
 
 `Routable` implies `walk.found === "Paths"`: the daemon writes both from the
 same walk result, so `weak(d)` reduces to "routable, with a free slot, below the
@@ -158,7 +162,12 @@ discounted the same way as before; `min(freeSlots, total)` keeps the share in
 [0, 1] when we hold the last slot.
 
 **`sortByRouteQuality` ranks measured exits by score, then the unmeasured by
-resilience, then the rest by closeness to eligible.**
+resilience, then the rest by closeness to eligible.** The location list's "Best"
+order (`sortForPicker`) is different: every pickable destination (ready or weak)
+by latency, the unmeasured pickable ones next in this order, the unusable last.
+It is frozen when the list opens and re-sorted only when the set of destinations
+changes, so rows never jump under the pointer. Auto still picks from
+`sortByRouteQuality`.
 
 ```
 eligible with exit data, ordered by  score desc, label
@@ -173,13 +182,13 @@ the promise is short-lived. The score weights latency half, free capacity a
 third, and relay diversity a fifth; a 1 s one-way latency or worse scores zero
 on latency, and four or more distinct first relays score full on diversity.
 
-**`routeGrade` is the score as shown, never as used.** Every card carries four
-signal bars. A measured ready exit fills them by band: `score >= 0.75` → 4,
-`>= 0.5` → 3, `>= 0.25` → 2, else 1, colored green, green, orange, red. An exit
-no check has ever measured shows four hollow bars until its quick probe answers;
-one being re-checked keeps the bars its last result earned. A weak route shows a
-single red bar beside its "Weak route" tag. Anything else shows no bars. The
-grade feeds neither the sort nor auto.
+**`routeGrade` is display only.** Every row carries four bars. A measured ready
+exit fills them by one-way latency alone: under 100 ms → 4, under 500 ms → 3, up
+to 1100 ms → 2, else 1 (`latencyBars` in `utils/latencyBands.ts`, the same bands
+the latency stat is coloured with). An exit no check has ever measured shows
+four grey bars until its quick probe answers; one being re-checked keeps the
+bars its last result earned. A weak route shows a single amber bar, a dead end a
+single red one. The grade feeds neither the sort nor auto.
 
 **`effectiveActive` is the only reader.** Display and connect target are the
 same function, so the visible card and what Connect targets cannot disagree. The
@@ -277,6 +286,11 @@ The complete input surface. Nothing else reaches the model.
 
 Disconnect is **not** an event — it arrives as a `statusUpdate` with no
 connection.
+
+Since the main-screen redesign (2026-10) the carousel is gone: one hero shows
+`effectiveActive` and the list is the only way to another destination.
+`dragStarted` and `slideCommitted` therefore have no UI source any more; the
+model keeps them unchanged, and the rules below still hold for them.
 
 ## statusUpdate
 
@@ -553,8 +567,8 @@ abandoned by the clock, never by a timer.
   the original deadline. If this becomes the visible defect, the fix is a
   debounce on arming — not a change to the sort.
 - **Auto never proposes an ineligible destination.** A weak route is offered in
-  the list, grayed out, tagged and clickable, for the user to pick deliberately;
-  it is never a candidate.
+  the list, grayed out and clickable, for the user to pick deliberately; it is
+  never a candidate.
 - **Live is inert, and shows nothing but itself.** It never proposes a better
   destination; a live tunnel is never torn down automatically, and no other card
   sits next to it — the list is the only way to another destination.

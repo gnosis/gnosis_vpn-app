@@ -2,7 +2,10 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Capability for the main window",
-  "windows": ["main", "settings", "traffic"],
+  "windows": [
+    "main",
+    "traffic"
+  ],
   "permissions": [
     "core:default",
     "core:path:default",
