@@ -13,13 +13,13 @@ pub mod macos;
 
 // Re-export the appropriate platform implementation
 #[cfg(target_os = "linux")]
-use linux::os_distribution;
-#[cfg(target_os = "linux")]
 pub use linux::LinuxPlatform as Platform;
-#[cfg(target_os = "macos")]
-use macos::os_distribution;
+#[cfg(target_os = "linux")]
+use linux::os_distribution;
 #[cfg(target_os = "macos")]
 pub use macos::MacOSPlatform as Platform;
+#[cfg(target_os = "macos")]
+use macos::os_distribution;
 
 /// OS name for the frontend ("macos", "linux", …) — it has no runtime
 /// platform signal of its own and needs one to branch update-install UX.

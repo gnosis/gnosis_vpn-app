@@ -5,7 +5,7 @@ use std::sync::Mutex;
 use std::time::Duration;
 
 use tauri::image::Image;
-use tauri::{tray::TrayIcon, AppHandle, Manager};
+use tauri::{AppHandle, Manager, tray::TrayIcon};
 
 use tokio::time::sleep;
 

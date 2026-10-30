@@ -2,10 +2,10 @@
 #[macro_use]
 extern crate objc;
 
-use tauri::tray::TrayIconBuilder;
 use tauri::Manager;
-use tokio::sync::watch;
+use tauri::tray::TrayIconBuilder;
 use tokio::sync::Notify;
+use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
 
 use std::sync::atomic::AtomicBool;
@@ -26,7 +26,7 @@ pub mod tray;
 pub mod types;
 pub mod update_install;
 
-use cli::{get_log_uploader_website_url, Cli};
+use cli::{Cli, get_log_uploader_website_url};
 use commands::{
     check_update, connect, disconnect, export_logs, get_cached_state, log_from_frontend, probe,
     quick_probe, run_initialization_loop, set_app_icon, set_balance_poll_fast,
@@ -41,7 +41,7 @@ use settings::{SettingsStore, get_settings, update_settings};
 #[cfg(target_os = "linux")]
 use theme::spawn_linux_theme_monitor;
 #[cfg_attr(target_os = "macos", allow(unused_imports))]
-use theme::{get_initial_theme, system_theme, InitialTheme};
+use theme::{InitialTheme, get_initial_theme, system_theme};
 use toolkit::get_toolkit_version;
 use tray::{
     create_tray_menu, handle_tray_event, show_main_and_check_update, show_main_and_navigate,
@@ -49,7 +49,7 @@ use tray::{
 };
 use types::ConnectionState;
 use types::{BalanceResponse, StatusResponse};
-use update_install::{get_install_status, install_update, UpdateInstallState};
+use update_install::{UpdateInstallState, get_install_status, install_update};
 
 struct HeartbeatHandle(Mutex<Option<tauri::async_runtime::JoinHandle<()>>>);
 
