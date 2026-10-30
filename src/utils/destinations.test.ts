@@ -43,7 +43,7 @@ import {
 const BASE_DESTINATION: Destination = makeDestination({
   id: "a",
   address: "0x1234",
-  geo: { country_code: "de", source: "announced_ip" },
+  geo: { country: "de", source: { type: "announced_ip" } },
 });
 
 function withRouteHealth(
@@ -300,7 +300,7 @@ describe("getExitData — slots and latency measured on the exit", () => {
   it("ignores a reopening probe, whose samples outlived their session", () => {
     const probe = {
       ...probeViewFor("a", FULL_SLOTS, 40),
-      state: { state: "Reopening" as const },
+      state: "reopening" as const,
     };
 
     expect(getExitData(makeMeasured("a", OPEN_SLOTS, 80), probe)?.rtt).toBe(80);
@@ -683,7 +683,7 @@ describe("destinationTitle", () => {
   it("leads with a configured id, the user's own handle, and brackets the published name", () => {
     const dest = makeDestination({
       id: "my-exit",
-      source: "ConfiguredAndDiscovered",
+      source: "configured_and_discovered",
       meta: { name: "Frankfurt-1" },
     });
     expect(destinationTitle(dest)).toBe("my-exit (Frankfurt-1)");
@@ -692,7 +692,7 @@ describe("destinationTitle", () => {
   it("does not repeat a name spelled exactly like the configured id", () => {
     const dest = makeDestination({
       id: "frankfurt-1",
-      source: "ConfiguredAndDiscovered",
+      source: "configured_and_discovered",
       meta: { name: "frankfurt-1" },
     });
     expect(destinationTitle(dest)).toBe("frankfurt-1");
@@ -701,7 +701,7 @@ describe("destinationTitle", () => {
   it("still shows a pinned name spelled like the id, so the override stays visible", () => {
     const dest = makeDestination({
       id: "frankfurt-1",
-      source: "ConfiguredAndDiscovered",
+      source: "configured_and_discovered",
       meta: { name: "frankfurt-1" },
       overrides: { configured_meta: { name: "frankfurt-1" } },
     });
@@ -711,7 +711,7 @@ describe("destinationTitle", () => {
   it("treats a name that sanitizes to nothing as absent", () => {
     const dest = makeDestination({
       id: "0xabc-1234",
-      source: "Discovered",
+      source: "discovered",
       meta: { name: "\u200b\u202e" },
     });
     expect(destinationTitle(dest)).toBe("0xabc-1234");
@@ -720,7 +720,7 @@ describe("destinationTitle", () => {
   it("is the published name alone for a discovered destination, whose id is that name slugged", () => {
     const dest = makeDestination({
       id: "frankfurt-1-a1b2",
-      source: "Discovered",
+      source: "discovered",
       meta: { name: "Frankfurt-1" },
     });
     expect(destinationTitle(dest)).toBe("Frankfurt-1");
@@ -729,9 +729,9 @@ describe("destinationTitle", () => {
   it("puts the derived country after the title in the label", () => {
     const dest = makeDestination({
       id: "frankfurt-1-a1b2",
-      source: "Discovered",
+      source: "discovered",
       meta: { name: "Frankfurt-1" },
-      geo: { country_code: "de", source: "announced_ip" },
+      geo: { country: "de", source: { type: "announced_ip" } },
     });
     expect(destinationLabel(dest)).toBe("Frankfurt-1 - Germany");
   });
@@ -740,7 +740,7 @@ describe("destinationTitle", () => {
 describe("destinationCountry", () => {
   it("names the country the client derived", () => {
     const dest = makeDestination({
-      geo: { country_code: "gb", source: "announced_ip" },
+      geo: { country: "gb", source: { type: "announced_ip" } },
     });
     expect(destinationCountry(dest)).toBe("United Kingdom");
   });
@@ -753,7 +753,7 @@ describe("destinationCountry", () => {
 
   it("is null when the schema dropped a malformed code", () => {
     const dest = makeDestination({
-      geo: { country_code: undefined, source: "announced_ip" },
+      geo: { country: undefined, source: { type: "announced_ip" } },
     });
     expect(destinationCountry(dest)).toBeNull();
   });
@@ -799,7 +799,7 @@ describe("destinationSearchText", () => {
     const dest = makeDestination({
       id: "my-exit",
       meta: { description: "no logs kept" },
-      geo: { country_code: "de", source: "announced_ip" },
+      geo: { country: "de", source: { type: "announced_ip" } },
     });
     expect(destinationSearchText(dest)).toBe("my-exit - Germany no logs kept");
   });
@@ -812,7 +812,7 @@ describe("destinationSearchText", () => {
   it("keeps a configured id searchable beside the published name", () => {
     const dest = makeDestination({
       id: "pinned-exit",
-      source: "ConfiguredAndDiscovered",
+      source: "configured_and_discovered",
       meta: { name: "Frankfurt-1" },
     });
     expect(destinationSearchText(dest)).toContain("pinned-exit");
@@ -821,9 +821,11 @@ describe("destinationSearchText", () => {
 
 describe("isConfigOnly", () => {
   it("is true only for a destination discovery never saw", () => {
-    expect(isConfigOnly(makeDestination({ source: "Configured" }))).toBe(true);
-    expect(isConfigOnly(makeDestination({ source: "Discovered" }))).toBe(false);
-    expect(isConfigOnly(makeDestination({ source: "ConfiguredAndDiscovered" })))
+    expect(isConfigOnly(makeDestination({ source: "configured" }))).toBe(true);
+    expect(isConfigOnly(makeDestination({ source: "discovered" }))).toBe(false);
+    expect(
+      isConfigOnly(makeDestination({ source: "configured_and_discovered" })),
+    )
       .toBe(false);
   });
 });
@@ -834,7 +836,7 @@ describe("isConfigPinned", () => {
 
   it("marks a value configuration set on a configured-and-discovered destination", () => {
     const dest = makeDestination({
-      source: "ConfiguredAndDiscovered",
+      source: "configured_and_discovered",
       meta: { name: "Frankfurt-1" },
       overrides: pinnedName,
     });
@@ -844,7 +846,7 @@ describe("isConfigPinned", () => {
 
   it("marks a pinned description", () => {
     const dest = makeDestination({
-      source: "ConfiguredAndDiscovered",
+      source: "configured_and_discovered",
       meta: { description: "10Gbit uplink" },
       overrides: { configured_meta: { description: "10Gbit uplink" } },
     });
@@ -853,7 +855,7 @@ describe("isConfigPinned", () => {
 
   it("marks nothing on a config-only destination, where every value is config's by definition", () => {
     const dest = makeDestination({
-      source: "Configured",
+      source: "configured",
       meta: { name: "Frankfurt-1" },
       overrides: pinnedName,
     });
@@ -862,7 +864,7 @@ describe("isConfigPinned", () => {
 
   it("marks nothing on a discovered-only destination", () => {
     const dest = makeDestination({
-      source: "Discovered",
+      source: "discovered",
       meta: { name: "Frankfurt-1" },
     });
     expect(isConfigPinned(dest, "name")).toBe(false);

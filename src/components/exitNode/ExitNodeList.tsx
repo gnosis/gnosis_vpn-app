@@ -9,7 +9,10 @@ import {
   Show,
   untrack,
 } from "solid-js";
-import type { DestinationState } from "@src/services/vpnService.ts";
+import {
+  connectionDestination,
+  type DestinationState,
+} from "@src/services/vpnService.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { effectiveActive } from "@src/stores/destinationMode.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
@@ -113,12 +116,11 @@ export default function ExitNodeList(props: {
   onCleanup(() => clearInterval(tick));
 
   const handleCardClick = (id: string) => {
-    if (
-      appState.connected?.destination_id === id ||
-      appState.connecting?.destination_id === id ||
-      appState.reconnecting?.destination_id === id ||
-      appState.disconnecting.some((d) => d.destination_id === id)
-    ) {
+    const isLive = connectionDestination(appState.connection) === id;
+    const isTearingDown = appState.disconnecting.some((d) =>
+      d.destination === id
+    );
+    if (isLive || isTearingDown) {
       logInfo(`Destination ${id} already active, closing list`);
       props.onClose(id);
       return;

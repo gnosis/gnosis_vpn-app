@@ -152,15 +152,15 @@
       probes.push({ command: "probe", id });
       const destination = findDestination(id);
       return destination
-        ? { type: "Probing", destination }
-        : { type: "DestinationNotFound" };
+        ? { type: "probing", destination }
+        : { type: "destination_not_found" };
     },
     quick_probe: ({ id }) => {
       probes.push({ command: "quick_probe", id });
       const destination = findDestination(id);
       return destination
-        ? { type: "Checking", destination }
-        : { type: "DestinationNotFound" };
+        ? { type: "checking", destination }
+        : { type: "destination_not_found" };
     },
     set_status_poll_fast: () => null,
     log_from_frontend: () => null,

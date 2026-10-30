@@ -1,5 +1,4 @@
-use gnosis_vpn_lib::command;
-use gnosis_vpn_lib::socket::root as root_socket;
+use gnosis_vpn_ipc::{self as ipc, CallError, ServiceError};
 
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager, State};
@@ -22,33 +21,26 @@ use crate::icons::{self, TrayIconState};
 use crate::platform::{SystemInfo, get_system_info};
 use crate::toolkit;
 use crate::tray;
-use crate::types::{BalanceResponse, ConnectionState, RunMode, StatusResponse};
+use crate::types::{BalanceResponse, ConnectionState};
 use crate::{AppStateCache, BalancePollingHandle, PollingExit, StatusPollingHandle};
+use gnosis_vpn_ipc::Status;
 
-/// Semver requirements for compatible client versions, e.g. "0.93" (any 0.93.x) — never ">=" or ">", which would match all future versions and disable this check.
-const COMPATIBLE_VERSIONS: &[&str] = &["0.101"];
 /// Poll cap while the destination list is open; mirrors STATUS_POLL_FAST_MS in docs/destinationMode.md.
 const STATUS_POLL_FAST: Duration = Duration::from_millis(500);
 /// Status `Err` payload the frontend routes to its own screen; mirrors SERVICE_NOT_RUNNING_ERROR in vpnService.ts.
 pub const SERVICE_NOT_RUNNING_ERROR: &str = "service_not_running";
-/// Worker-scoped commands share this answer while another local user owns the worker.
-const IN_USE_BY_OTHER_USER_ERROR: &str = "The VPN is in use by another user on this computer";
+/// Status `Err` payload while another local user owns the worker; mirrors IN_USE_BY_OTHER_USER_ERROR in vpnService.ts.
+pub const IN_USE_BY_OTHER_USER_ERROR: &str = "in_use_by_other_user";
 /// Same cap as the app's own rolling logs (logging::MAX_LOG_FILES).
 const MAX_WORKER_LOG_FILES: usize = 7;
 
-fn version_matches(version: &str, requirements: &[&str]) -> bool {
-    let Ok(version) = semver::Version::parse(version.trim()) else {
-        return false;
-    };
-    requirements.iter().any(|req| {
-        semver::VersionReq::parse(req)
-            .map(|req| req.matches(&version))
-            .unwrap_or(false)
-    })
-}
-
-fn is_version_compatible(version: &str) -> bool {
-    version_matches(version, COMPATIBLE_VERSIONS)
+/// The ipc client blocks; socket calls are short, so a blocking-pool thread each is fine.
+pub(crate) async fn on_socket<T: Send + 'static>(
+    call: impl FnOnce(&Path) -> Result<T, CallError> + Send + 'static,
+) -> Result<T, CallError> {
+    tokio::task::spawn_blocking(move || call(Path::new(ipc::DEFAULT_PATH)))
+        .await
+        .unwrap_or_else(|e| Err(CallError::Io(std::io::Error::other(e))))
 }
 
 /// Poll/retry loops repeat the same failure every few seconds; log it only when it changes.
@@ -86,54 +78,25 @@ pub async fn check_update(skip_vpn: bool) -> Result<toolkit::CheckResult, String
     }
 }
 
-/// Only the socket-absent case gets its own screen; everything else is the critical screen.
-#[derive(Debug)]
-enum InfoError {
-    ServiceNotRunning,
-    Other(String),
-}
-
-impl From<root_socket::Error> for InfoError {
-    fn from(e: root_socket::Error) -> Self {
-        match e {
-            root_socket::Error::ServiceNotRunning => InfoError::ServiceNotRunning,
-            other => InfoError::Other(other.to_string()),
-        }
-    }
-}
-
-async fn query_info() -> Result<command::InfoResponse, InfoError> {
-    let p = PathBuf::from(root_socket::DEFAULT_PATH);
-    let resp = root_socket::process_cmd(&p, &command::Command::Info).await?;
-    match resp {
-        command::Response::Info(info) => Ok(info),
-        other => Err(InfoError::Other(format!(
-            "Unexpected info response: {other:?}"
-        ))),
-    }
-}
-
 async fn start_client_worker(keep_alive: Duration) -> Result<(), String> {
-    let p = PathBuf::from(root_socket::DEFAULT_PATH);
-    let resp = root_socket::process_cmd(&p, &command::Command::StartClient(keep_alive))
-        .await
-        .map_err(|e| e.to_string())?;
-    classify_start_client_response(resp)
+    classify_start_client_response(on_socket(move |p| ipc::start_client(p, keep_alive)).await)
 }
 
 /// Ok means "go on to polling": the status loop also shows the in-use state.
-fn classify_start_client_response(resp: command::Response) -> Result<(), String> {
-    use command::StartClientResponse::{AlreadyRunning, SpawnFailed, Started};
+fn classify_start_client_response(
+    resp: Result<ipc::StartClientResponse, CallError>,
+) -> Result<(), String> {
+    use ipc::StartClientResponse::{AlreadyRunning, SpawnFailed, Started};
     match resp {
-        command::Response::StartClient(Started | AlreadyRunning) => Ok(()),
-        command::Response::InUseByOtherUser => Ok(()),
-        command::Response::StartClient(SpawnFailed { reason }) => Err(format!(
+        Ok(Started | AlreadyRunning) => Ok(()),
+        Err(CallError::Service(ServiceError::InUseByOtherUser)) => Ok(()),
+        Ok(SpawnFailed { reason }) => Err(format!(
             "The service could not start the client worker: {reason}"
         )),
-        command::Response::RootCannotOwnWorker => {
+        Err(CallError::Service(ServiceError::RootCannotOwnWorker)) => {
             Err("Running the app as root is not supported".to_string())
         }
-        other => Err(format!("Unexpected start-client response: {other:?}")),
+        Err(e) => Err(e.to_string()),
     }
 }
 
@@ -141,72 +104,45 @@ fn classify_start_client_response(resp: command::Response) -> Result<(), String>
 pub async fn connect(
     id: String,
     polling_state: State<'_, Mutex<StatusPollingHandle>>,
-) -> Result<command::ConnectResponse, String> {
+) -> Result<ipc::ConnectResponse, String> {
     tracing::info!(target: "status", destination = %id, "connect requested");
-    let p = PathBuf::from(root_socket::DEFAULT_PATH);
-    let cmd = command::Command::Connect(id);
-    let resp = root_socket::process_cmd(&p, &cmd).await.map_err(|e| {
-        tracing::warn!(target: "status", error = %e, "connect failed");
-        e.to_string()
-    })?;
-    match resp {
-        command::Response::Connect(resp) => {
-            match polling_state.lock() {
-                Ok(guard) => guard.trigger.notify_one(),
-                Err(e) => {
-                    tracing::warn!(target: "status", error = %e, "cannot trigger status poll after connect")
-                }
-            }
-            Ok(resp)
-        }
-        command::Response::InUseByOtherUser => Err(IN_USE_BY_OTHER_USER_ERROR.to_string()),
-        other => {
-            tracing::warn!(target: "status", response = ?other, "unexpected connect response");
-            Err("Unexpected response type".to_string())
+    let resp = on_socket(move |p| ipc::connect(p, id.into()))
+        .await
+        .map_err(|e| {
+            tracing::warn!(target: "status", error = %e, "connect failed");
+            e.to_string()
+        })?;
+    match polling_state.lock() {
+        Ok(guard) => guard.trigger.notify_one(),
+        Err(e) => {
+            tracing::warn!(target: "status", error = %e, "cannot trigger status poll after connect")
         }
     }
+    Ok(resp)
 }
 
 /// Points the daemon's one probe session at `id`; results arrive through the status poll.
 #[tauri::command]
-pub async fn probe(id: String) -> Result<command::ProbeResponse, String> {
+pub async fn probe(id: String) -> Result<ipc::ProbeResponse, String> {
     tracing::info!(target: "status", destination = %id, "probe requested");
-    let p = PathBuf::from(root_socket::DEFAULT_PATH);
-    let resp = root_socket::process_cmd(&p, &command::Command::Probe(id))
+    on_socket(move |p| ipc::probe(p, id.into()))
         .await
         .map_err(|e| {
             tracing::warn!(target: "status", error = %e, "probe failed");
             e.to_string()
-        })?;
-    match resp {
-        command::Response::Probe(resp) => Ok(resp),
-        command::Response::InUseByOtherUser => Err(IN_USE_BY_OTHER_USER_ERROR.to_string()),
-        other => {
-            tracing::warn!(target: "status", response = ?other, "unexpected probe response");
-            Err("Unexpected response type".to_string())
-        }
-    }
+        })
 }
 
 /// One-shot check of `id`; the daemon answers at once and reports the result under the destination.
 #[tauri::command]
-pub async fn quick_probe(id: String) -> Result<command::QuickProbeResponse, String> {
+pub async fn quick_probe(id: String) -> Result<ipc::QuickProbeResponse, String> {
     tracing::info!(target: "status", destination = %id, "quick probe requested");
-    let p = PathBuf::from(root_socket::DEFAULT_PATH);
-    let resp = root_socket::process_cmd(&p, &command::Command::QuickProbe(id))
+    on_socket(move |p| ipc::quick_probe(p, id.into()))
         .await
         .map_err(|e| {
             tracing::warn!(target: "status", error = %e, "quick probe failed");
             e.to_string()
-        })?;
-    match resp {
-        command::Response::QuickProbe(resp) => Ok(resp),
-        command::Response::InUseByOtherUser => Err(IN_USE_BY_OTHER_USER_ERROR.to_string()),
-        other => {
-            tracing::warn!(target: "status", response = ?other, "unexpected quick probe response");
-            Err("Unexpected response type".to_string())
-        }
-    }
+        })
 }
 
 /// Caps the status poll at STATUS_POLL_FAST while the frontend waits on quick-probe results.
@@ -224,58 +160,38 @@ pub fn set_status_poll_fast(
 #[tauri::command]
 pub async fn disconnect(
     polling_state: State<'_, Mutex<StatusPollingHandle>>,
-) -> Result<command::DisconnectResponse, String> {
+) -> Result<ipc::DisconnectResponse, String> {
     tracing::info!(target: "status", "disconnect requested");
-    let p = PathBuf::from(root_socket::DEFAULT_PATH);
-    let cmd = command::Command::Disconnect;
-    let resp = root_socket::process_cmd(&p, &cmd).await.map_err(|e| {
+    let resp = on_socket(ipc::disconnect).await.map_err(|e| {
         tracing::warn!(target: "status", error = %e, "disconnect failed");
         e.to_string()
     })?;
-    match resp {
-        command::Response::Disconnect(resp) => {
-            match polling_state.lock() {
-                Ok(guard) => guard.trigger.notify_one(),
-                Err(e) => {
-                    tracing::warn!(target: "status", error = %e, "cannot trigger status poll after disconnect")
-                }
-            }
-            Ok(resp)
-        }
-        command::Response::InUseByOtherUser => Err(IN_USE_BY_OTHER_USER_ERROR.to_string()),
-        other => {
-            tracing::warn!(target: "status", response = ?other, "unexpected disconnect response");
-            Err("Unexpected response type".to_string())
+    match polling_state.lock() {
+        Ok(guard) => guard.trigger.notify_one(),
+        Err(e) => {
+            tracing::warn!(target: "status", error = %e, "cannot trigger status poll after disconnect")
         }
     }
+    Ok(resp)
 }
 
 async fn query_balance(
     last_warn: &mut Option<String>,
 ) -> (Duration, Result<Option<BalanceResponse>, String>) {
-    let p = PathBuf::from(root_socket::DEFAULT_PATH);
-    let resp = root_socket::process_cmd(&p, &command::Command::Balance).await;
-    match resp {
-        Ok(command::Response::Balance(Ok(balance_resp))) => {
+    match on_socket(ipc::balance).await {
+        Ok(ipc::BalanceResponse::Available(balances)) => {
             if last_warn.take().is_some() {
                 tracing::info!(target: "balance", "balance query recovered");
             }
-            (Duration::from_secs(60), Ok(Some(balance_resp.into())))
+            (Duration::from_secs(60), Ok(Some((*balances).into())))
         }
-        Ok(command::Response::Balance(Err(e))) => {
-            warn_on_change(last_warn, format!("daemon balance query failed: {e:?}"));
+        Ok(ipc::BalanceResponse::Unavailable { reason }) => {
+            warn_on_change(last_warn, format!("daemon balance query failed: {reason}"));
             (Duration::from_secs(5), Ok(None))
         }
-        // worker up/down and ownership are the status loop's story; stay quiet here
-        Ok(
-            command::Response::WorkerOffline
-            | command::Response::WorkerRestarting
-            | command::Response::InUseByOtherUser,
-        ) => (Duration::from_secs(5), Ok(None)),
-        Ok(unexpected) => {
-            let msg = format!("Unexpected balance response: {unexpected:?}");
-            warn_on_change(last_warn, msg.clone());
-            (Duration::from_secs(5), Err(msg))
+        // worker up/down recovery is the status loop's story; stay quiet here
+        Err(CallError::Service(ServiceError::WorkerOffline | ServiceError::WorkerRestarting)) => {
+            (Duration::from_secs(5), Ok(None))
         }
         Err(e) => {
             warn_on_change(last_warn, format!("balance query failed: {e}"));
@@ -505,7 +421,7 @@ async fn collect_log_sources(app: &AppHandle) -> LogBundleSources {
         .unwrap_or_default();
     // Asked afresh: the cached info predates StartClient, when no worker (and no log dir) existed yet.
     let cached_info = app.state::<AppStateCache>().service_info.borrow().clone();
-    let info = match query_info().await {
+    let info = match on_socket(ipc::info).await {
         Ok(info) => Some(info),
         Err(e) => {
             tracing::warn!(target: "export", error = ?e, "daemon info unavailable, using cached");
@@ -736,23 +652,17 @@ fn parse_upload_response(status: u16, body: &str) -> Result<SignedUpload, String
 }
 
 pub async fn stop_client() -> Result<(), String> {
-    let p = PathBuf::from(root_socket::DEFAULT_PATH);
-    let cmd = command::Command::StopClient;
-    let resp = root_socket::process_cmd(&p, &cmd)
+    on_socket(ipc::stop_client)
         .await
-        .map_err(|e| e.to_string())?;
-    match resp {
-        command::Response::StopClient(_resp) => Ok(()),
-        command::Response::InUseByOtherUser => Err(IN_USE_BY_OTHER_USER_ERROR.to_string()),
-        _ => Err("Unexpected response type".to_string()),
-    }
+        .map(|_| ())
+        .map_err(|e| e.to_string())
 }
 
 #[derive(Serialize)]
 pub struct CachedState {
-    pub status: Result<StatusResponse, String>,
+    pub status: Result<Status, String>,
     pub balance: Result<BalanceResponse, String>,
-    pub service_info: Option<command::InfoResponse>,
+    pub service_info: Option<ipc::InfoResponse>,
 }
 
 fn flatten_cached<T>(v: Option<Result<Option<T>, String>>) -> Result<T, String> {
@@ -773,12 +683,11 @@ pub fn get_cached_state(cache: State<'_, AppStateCache>) -> CachedState {
 }
 
 /// The tray's state for a status answer; `None` leaves the tray as it is.
-fn tray_connection_state(
-    answer: &Result<Option<StatusResponse>, String>,
-) -> Option<ConnectionState> {
+fn tray_connection_state(answer: &Result<Option<Status>, String>) -> Option<ConnectionState> {
     match answer {
         Ok(Some(status)) => Some(status.into()),
         Err(e) if e == SERVICE_NOT_RUNNING_ERROR => Some(ConnectionState::ServiceNotRunning),
+        Err(e) if e == IN_USE_BY_OTHER_USER_ERROR => Some(ConnectionState::InUseByOtherUser),
         _ => None,
     }
 }
@@ -787,7 +696,7 @@ fn tray_connection_state(
 async fn reflect_state_in_tray(
     app: &AppHandle,
     conn_state: &ConnectionState,
-    run_mode: Option<&RunMode>,
+    run_mode: Option<&ipc::RunMode>,
     last_conn_state: &mut Option<String>,
     last_funds_level: &mut Option<icons::FundsLevel>,
 ) {
@@ -990,10 +899,10 @@ pub async fn run_initialization_loop(app: AppHandle) {
     let mut last_conn_state: Option<String> = None;
     let mut last_funds_level: Option<icons::FundsLevel> = None;
     loop {
-        let info = match query_info().await {
+        let info = match on_socket(ipc::info).await {
             Ok(i) => i,
             // Socket absent: installed but not started, which gets its own screen instead of the critical one.
-            Err(InfoError::ServiceNotRunning) => {
+            Err(CallError::ServiceNotRunning) => {
                 warn_on_change(&mut last_warn, "service not running, retrying".to_string());
                 reflect_state_in_tray(
                     &app,
@@ -1005,44 +914,41 @@ pub async fn run_initialization_loop(app: AppHandle) {
                 .await;
                 let _ = app.emit(
                     "status",
-                    Err::<Option<StatusResponse>, String>(SERVICE_NOT_RUNNING_ERROR.to_string()),
+                    Err::<Option<Status>, String>(SERVICE_NOT_RUNNING_ERROR.to_string()),
                 );
                 time::sleep(RETRY_DELAY).await;
                 continue;
             }
-            Err(InfoError::Other(e)) => {
-                warn_on_change(&mut last_warn, format!("daemon unreachable, retrying: {e}"));
+            // A daemon of another protocol version answers every request this way.
+            Err(CallError::Service(ServiceError::ProtocolMismatch { service })) => {
+                warn_on_change(
+                    &mut last_warn,
+                    format!(
+                        "incompatible daemon protocol: {service} (app speaks {})",
+                        ipc::PROTOCOL_VERSION
+                    ),
+                );
                 let _ = app.emit(
                     "status",
-                    Err::<Option<StatusResponse>, String>(format!(
-                        "Failed to get service info: {e}"
+                    Err::<Option<Status>, String>(format!(
+                        "Incompatible service version: protocol {service}, app protocol {}. \
+                         If you just updated, please restart the app.",
+                        ipc::PROTOCOL_VERSION
                     )),
                 );
                 time::sleep(RETRY_DELAY).await;
                 continue;
             }
+            Err(e) => {
+                warn_on_change(&mut last_warn, format!("daemon unreachable, retrying: {e}"));
+                let _ = app.emit(
+                    "status",
+                    Err::<Option<Status>, String>(format!("Failed to get service info: {e}")),
+                );
+                time::sleep(RETRY_DELAY).await;
+                continue;
+            }
         };
-
-        if !is_version_compatible(&info.version) {
-            let supported = COMPATIBLE_VERSIONS.join(", ");
-            warn_on_change(
-                &mut last_warn,
-                format!(
-                    "incompatible daemon version: {} (supported: {supported})",
-                    info.version
-                ),
-            );
-            let _ = app.emit(
-                "status",
-                Err::<Option<StatusResponse>, String>(format!(
-                    "Incompatible service version: {}. Supported versions: {supported}. \
-                     If you just updated, please restart the app.",
-                    info.version
-                )),
-            );
-            time::sleep(RETRY_DELAY).await;
-            continue;
-        }
 
         if let Err(e) = start_client_worker(Duration::from_secs(10)).await {
             warn_on_change(
@@ -1051,9 +957,7 @@ pub async fn run_initialization_loop(app: AppHandle) {
             );
             let _ = app.emit(
                 "status",
-                Err::<Option<StatusResponse>, String>(format!(
-                    "Failed to start client worker: {e}"
-                )),
+                Err::<Option<Status>, String>(format!("Failed to start client worker: {e}")),
             );
             time::sleep(RETRY_DELAY).await;
             continue;
@@ -1063,7 +967,7 @@ pub async fn run_initialization_loop(app: AppHandle) {
             warn_on_change(&mut last_warn, format!("failed to start polling: {e}"));
             let _ = app.emit(
                 "status",
-                Err::<Option<StatusResponse>, String>(format!("Failed to start polling: {e}")),
+                Err::<Option<Status>, String>(format!("Failed to start polling: {e}")),
             );
             time::sleep(RETRY_DELAY).await;
             continue;
@@ -1110,57 +1014,32 @@ struct StatusPoll {
     delay: Duration,
     /// Whether the worker is gone and initialization has to run again.
     needs_reinit: bool,
-    /// What to hand the frontend - `None` while the worker is away and has nothing to report.
-    answer: Option<Result<Option<StatusResponse>, String>>,
+    /// What to hand the frontend - `None` while the worker is bouncing and has nothing to report.
+    answer: Option<Result<Option<Status>, String>>,
 }
 
 async fn query_status() -> StatusPoll {
-    let p = PathBuf::from(root_socket::DEFAULT_PATH);
-    match root_socket::process_cmd(&p, &command::Command::Status).await {
-        Ok(resp) => classify_status_response(resp),
-        // Same screen as at startup: the service stopped underneath a running app.
-        Err(root_socket::Error::ServiceNotRunning) => StatusPoll {
-            delay: Duration::from_secs_f64(2.3),
-            needs_reinit: false,
-            answer: Some(Err(SERVICE_NOT_RUNNING_ERROR.to_string())),
-        },
-        Err(e) => StatusPoll {
-            delay: Duration::from_secs_f64(2.3),
-            needs_reinit: false,
-            answer: Some(Err(e.to_string())),
-        },
-    }
+    classify_status_response(on_socket(ipc::status).await)
 }
 
 /// Decides whether initialization must restart, when to poll next, and what the frontend is told.
-fn classify_status_response(resp: command::Response) -> StatusPoll {
+fn classify_status_response(resp: Result<Status, CallError>) -> StatusPoll {
     match resp {
-        command::Response::Status(status_resp) => {
-            let resp = StatusResponse {
-                run_mode: status_resp.run_mode.into(),
-                destinations: status_resp.destinations,
-                target_destination: status_resp.target_destination,
-                connected: status_resp.connected,
-                connecting: status_resp.connecting,
-                reconnecting: status_resp.reconnecting,
-                disconnecting: status_resp.disconnecting,
-                probe: status_resp.probe,
-            };
-
-            if matches!(resp.run_mode, crate::types::RunMode::NotRunning) {
+        Ok(status) => {
+            if matches!(status.run_mode, ipc::RunMode::NotRunning) {
                 return StatusPoll {
                     delay: Duration::from_secs(5),
                     needs_reinit: true,
-                    answer: Some(Ok(Some(resp))),
+                    answer: Some(Ok(Some(status))),
                 };
             }
 
             // A reconnect with no phase can last indefinitely; only poll fast for real progress.
-            let is_in_transition = resp.connecting.is_some()
-                || resp
-                    .reconnecting
-                    .as_ref()
-                    .is_some_and(|r| r.phase.is_some());
+            let is_in_transition = matches!(
+                status.connection,
+                ipc::Connection::Connecting { .. }
+                    | ipc::Connection::Reconnecting { phase: Some(_), .. }
+            );
             let delay = if is_in_transition {
                 Duration::from_millis(222)
             } else {
@@ -1169,37 +1048,42 @@ fn classify_status_response(resp: command::Response) -> StatusPoll {
             StatusPoll {
                 delay,
                 needs_reinit: false,
-                answer: Some(Ok(Some(resp))),
+                answer: Some(Ok(Some(status))),
             }
         }
         // Restart already under way - reporting it would flash the critical error screen.
-        command::Response::WorkerRestarting => StatusPoll {
+        Err(CallError::Service(ServiceError::WorkerRestarting)) => StatusPoll {
             delay: Duration::from_millis(222),
             needs_reinit: false,
             answer: None,
         },
-        // Worker gone (every owner hand-over passes through here): re-init quietly, no empty event.
-        command::Response::WorkerOffline => StatusPoll {
+        Err(CallError::Service(ServiceError::WorkerOffline)) => StatusPoll {
             delay: Duration::from_secs(5),
             needs_reinit: true,
             answer: None,
         },
-        // A normal status event, so the UI shows a state rather than an error; it clears via WorkerOffline.
-        command::Response::InUseByOtherUser => StatusPoll {
+        // The owner's worker is alive, nothing to restart; the frontend shows its own in-use state.
+        Err(CallError::Service(ServiceError::InUseByOtherUser)) => StatusPoll {
             delay: Duration::from_secs(5),
             needs_reinit: false,
-            answer: Some(Ok(Some(StatusResponse::in_use_by_other_user()))),
+            answer: Some(Err(IN_USE_BY_OTHER_USER_ERROR.to_string())),
         },
-        // Internal response sent by the root process to itself; never forwarded to the app.
-        command::Response::ForceReconnectAcknowledged => StatusPoll {
-            delay: Duration::from_secs(2),
-            needs_reinit: false,
-            answer: Some(Ok(None)),
-        },
-        unexpected => StatusPoll {
+        // Same screen as at startup: the service stopped underneath a running app.
+        Err(CallError::ServiceNotRunning) => StatusPoll {
             delay: Duration::from_secs_f64(2.3),
             needs_reinit: false,
-            answer: Some(Err(format!("Unexpected response type: {unexpected:?}"))),
+            answer: Some(Err(SERVICE_NOT_RUNNING_ERROR.to_string())),
+        },
+        // A daemon swapped for another protocol version needs the version check of initialization.
+        Err(CallError::Service(ServiceError::ProtocolMismatch { .. })) => StatusPoll {
+            delay: Duration::from_secs(5),
+            needs_reinit: true,
+            answer: Some(Ok(None)),
+        },
+        Err(e) => StatusPoll {
+            delay: Duration::from_secs_f64(2.3),
+            needs_reinit: false,
+            answer: Some(Err(e.to_string())),
         },
     }
 }
@@ -1211,7 +1095,8 @@ mod tests {
     // A routine worker bounce must not drop the app onto the critical error screen.
     #[test]
     fn worker_restarting_is_not_reported_as_an_error() {
-        let poll = classify_status_response(command::Response::WorkerRestarting);
+        let poll =
+            classify_status_response(Err(CallError::Service(ServiceError::WorkerRestarting)));
 
         assert!(
             poll.answer.is_none(),
@@ -1227,7 +1112,7 @@ mod tests {
     // Every owner hand-over goes through WorkerOffline; an empty event would flash the critical screen.
     #[test]
     fn worker_offline_restarts_initialization() {
-        let poll = classify_status_response(command::Response::WorkerOffline);
+        let poll = classify_status_response(Err(CallError::Service(ServiceError::WorkerOffline)));
 
         assert!(poll.needs_reinit);
         assert!(
@@ -1238,47 +1123,43 @@ mod tests {
 
     #[test]
     fn genuinely_unexpected_responses_still_surface_as_errors() {
-        let poll = classify_status_response(command::Response::Pong);
+        let poll =
+            classify_status_response(Err(CallError::Service(ServiceError::InvalidRequest {
+                reason: "unknown request".to_string(),
+            })));
 
         assert!(matches!(poll.answer, Some(Err(_))));
     }
 
     #[test]
-    fn in_use_by_other_user_is_a_status_not_an_error() {
-        let poll = classify_status_response(command::Response::InUseByOtherUser);
+    fn in_use_by_other_user_is_its_own_status_answer() {
+        let poll =
+            classify_status_response(Err(CallError::Service(ServiceError::InUseByOtherUser)));
 
         assert!(
             !poll.needs_reinit,
             "the owner's worker is alive, nothing to restart"
         );
-        let Some(Ok(Some(status))) = poll.answer else {
-            panic!("expected a synthesised status, got {:?}", poll.answer);
+        let Some(answer) = poll.answer else {
+            panic!("expected an answer for the frontend");
         };
         assert!(matches!(
-            status.run_mode,
-            crate::types::RunMode::InUseByOtherUser
+            tray_connection_state(&answer),
+            Some(ConnectionState::InUseByOtherUser)
         ));
-        assert!(status.destinations.is_empty());
     }
 
     #[test]
-    fn service_not_running_is_its_own_tray_state_until_a_status_arrives() {
-        let idle_status = StatusResponse {
-            run_mode: RunMode::Shutdown,
-            ..StatusResponse::in_use_by_other_user()
-        };
-        let answers = [
-            Err(SERVICE_NOT_RUNNING_ERROR.to_string()),
-            Ok(Some(idle_status)),
-        ];
-        let states: Vec<Option<ConnectionState>> =
-            answers.iter().map(tray_connection_state).collect();
+    fn service_not_running_is_its_own_tray_state() {
+        let poll = classify_status_response(Err(CallError::ServiceNotRunning));
 
+        let Some(answer) = poll.answer else {
+            panic!("expected an answer for the frontend");
+        };
         assert!(matches!(
-            states[0],
+            tray_connection_state(&answer),
             Some(ConnectionState::ServiceNotRunning)
         ));
-        assert!(matches!(states[1], Some(ConnectionState::Disconnected)));
     }
 
     // Other errors have their own screens; the tray keeps the last known state.
@@ -1290,33 +1171,19 @@ mod tests {
 
     #[test]
     fn spawn_failed_surfaces_reason() {
-        let failed = command::Response::StartClient(command::StartClientResponse::SpawnFailed {
+        let failed = Ok(ipc::StartClientResponse::SpawnFailed {
             reason: "no home directory for uid 1001".to_string(),
         });
         let err = classify_start_client_response(failed).unwrap_err();
         assert!(err.contains("no home directory for uid 1001"), "{err}");
 
-        assert!(classify_start_client_response(command::Response::InUseByOtherUser).is_ok());
+        let in_use = Err(CallError::Service(ServiceError::InUseByOtherUser));
+        assert!(classify_start_client_response(in_use).is_ok());
         assert!(
-            classify_start_client_response(command::Response::StartClient(
-                command::StartClientResponse::AlreadyRunning
-            ))
-            .is_ok()
+            classify_start_client_response(Ok(ipc::StartClientResponse::AlreadyRunning)).is_ok()
         );
-        assert!(classify_start_client_response(command::Response::RootCannotOwnWorker).is_err());
-    }
-
-    #[test]
-    fn service_not_running_is_distinguished_from_io_error() {
-        assert!(matches!(
-            InfoError::from(root_socket::Error::ServiceNotRunning),
-            InfoError::ServiceNotRunning
-        ));
-        let refused = io::Error::from(io::ErrorKind::ConnectionRefused);
-        assert!(matches!(
-            InfoError::from(root_socket::Error::IO(refused)),
-            InfoError::Other(_)
-        ));
+        let as_root = Err(CallError::Service(ServiceError::RootCannotOwnWorker));
+        assert!(classify_start_client_response(as_root).is_err());
     }
 
     #[test]
@@ -1346,24 +1213,13 @@ mod tests {
     // The list is rewritten by the bump-version workflow; a malformed entry
     // would otherwise only surface as a silent runtime mismatch.
     #[test]
-    fn compatible_versions_are_valid_semver_requirements() {
-        for req in COMPATIBLE_VERSIONS {
-            assert!(
-                semver::VersionReq::parse(req).is_ok(),
-                "invalid semver requirement in COMPATIBLE_VERSIONS: {req}"
-            );
-        }
-    }
+    fn a_daemon_of_another_protocol_restarts_initialization() {
+        let poll =
+            classify_status_response(Err(CallError::Service(ServiceError::ProtocolMismatch {
+                service: ipc::PROTOCOL_VERSION + 1,
+            })));
 
-    // ">="/">" would match all future versions, silently disabling this check.
-    #[test]
-    fn compatible_versions_never_use_open_ended_operators() {
-        for req in COMPATIBLE_VERSIONS {
-            assert!(
-                !req.trim_start().starts_with('>'),
-                "open-ended requirement in COMPATIBLE_VERSIONS: {req}"
-            );
-        }
+        assert!(poll.needs_reinit);
     }
 
     #[test]
@@ -1736,17 +1592,5 @@ mod tests {
             Err("File too large.".to_string())
         );
         assert_eq!(requests.iter().count(), 1);
-    }
-
-    #[test]
-    fn plain_requirement_matches_its_minor_series() {
-        let requirements = ["0.94"];
-        assert!(version_matches("0.94.0", &requirements));
-        assert!(version_matches(" 0.94.5 ", &requirements));
-        assert!(!version_matches("0.93.9", &requirements));
-        assert!(!version_matches("0.95.0", &requirements));
-        assert!(!version_matches("0.940.0", &requirements));
-        assert!(!version_matches("not-a-version", &requirements));
-        assert!(!version_matches("", &requirements));
     }
 }

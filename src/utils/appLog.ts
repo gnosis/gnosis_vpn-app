@@ -1,9 +1,9 @@
 import {
   formatWarmupStatus,
   isPreparingSafeRunMode,
-  isWarmupRunMode,
   type StatusResponse,
   VPNService,
+  warmupProgress,
 } from "@src/services/vpnService.ts";
 import {
   destinationLabel,
@@ -60,19 +60,22 @@ function buildLogContent(
   let content: string | undefined;
   const rm = response.run_mode;
   const dests = response.destinations;
-  const { connected, connecting, reconnecting, disconnecting } = response;
+  const { connection, disconnecting } = response;
+  const warmup = warmupProgress(rm);
+  const reconnecting = connection.type === "reconnecting" ? connection : null;
 
   // Session transitions (connect/reconnect/disconnect) are logged by appStore's logStateChange.
-  const inTransition = connected || connecting || reconnecting?.phase ||
+  const isSessionUp = connection.type === "connected" ||
+    connection.type === "connecting";
+  const inTransition = isSessionUp || reconnecting?.phase ||
     disconnecting.length > 0;
   if (inTransition) {
     return undefined;
   }
 
-  if (typeof rm === "object" && "Running" in rm) {
+  if (rm.type === "running") {
     // Reconnect held back by route health: phase-less or parked (target only), not idle.
-    const waitingId = reconnecting?.destination_id ??
-      response.target_destination;
+    const waitingId = reconnecting?.destination ?? response.target;
     if (waitingId !== null) {
       const label = destinationLabelById(
         waitingId,
@@ -93,8 +96,7 @@ function buildLogContent(
       content = `Disconnected. Available:\n${lines.join("\n")}`;
     }
   } else if (isPreparingSafeRunMode(rm)) {
-    const addr = (rm as { PreparingSafe: { node_address: unknown } })
-      .PreparingSafe.node_address;
+    const addr: unknown = rm.node_address;
     let isUnknown = false;
     if (typeof addr === "string") {
       const s = addr.trim().toLowerCase();
@@ -105,10 +107,10 @@ function buildLogContent(
     if (isUnknown) {
       content = "Waiting for node address";
     }
-  } else if (rm === "Shutdown") {
+  } else if (rm.type === "shutdown") {
     content = "Shutdown";
-  } else if (isWarmupRunMode(rm)) {
-    content = `Warmup: ${formatWarmupStatus(rm.Warmup.status)}`;
+  } else if (warmup) {
+    content = `Warmup: ${formatWarmupStatus(warmup.stage)}`;
   } else {
     const destinationCount = response.destinations.length;
     content = `status: Unknown (run_mode: ${

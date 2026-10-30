@@ -27,7 +27,7 @@ function measured(
     loadAvg: { one: 0, five: 0, fifteen: 0, nproc: 1 },
     rtt,
     checkedAt: 0,
-    versions: { versions: ["v1"], latest: "v1" },
+    versions: { api: ["v1"], server: null },
     apiVersion: "v1",
   };
 }
@@ -149,8 +149,11 @@ describe("formatExitHealthStatus — one label per route state", () => {
     const cannotOpen = {
       ...unrecoverableRouteHealth(),
       state: {
-        state: "Unrecoverable" as const,
-        reason: { CannotOpenSession: { error: "surb buffer too small" } },
+        type: "unrecoverable" as const,
+        reason: {
+          type: "cannot_open_session" as const,
+          error: "surb buffer too small",
+        },
       },
     };
     expect(formatExitHealthStatus(cannotOpen, null)).toBe(

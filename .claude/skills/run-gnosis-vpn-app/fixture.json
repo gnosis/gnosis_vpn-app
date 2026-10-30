@@ -5,16 +5,23 @@
     "status": {
       "Ok": {
         "run_mode": {
-          "Running": {
-            "funding_status": {
-              "traffic": "Low",
-              "gas": "Good",
-              "wxhopr_deficit": "500000000000000000",
-              "xdai_deficit": null,
-              "refill_shortfall": null
+          "type": "running",
+          "hopr_status": {
+            "type": "running"
+          },
+          "funding_status": {
+            "traffic": {
+              "type": "low"
             },
-            "hopr_status": "Running",
-            "channel_maintenance": { "type": "Ok" }
+            "gas": {
+              "type": "good"
+            },
+            "wxhopr_deficit": "500000000000000000",
+            "xdai_deficit": null,
+            "refill_shortfall": null
+          },
+          "channel_maintenance": {
+            "type": "ok"
           }
         },
         "destinations": [
@@ -26,20 +33,27 @@
                 "description": null,
                 "other": {}
               },
-              "geo": { "country_code": "DE", "source": "announced_ip" },
+              "geo": {
+                "country": "DE",
+                "source": {
+                  "type": "announced_ip"
+                }
+              },
               "address": "0x1111111111111111111111111111111111111111",
-              "routing": 1,
+              "hops": 1,
               "gnosis_vpn_server": "172.30.0.1:8000",
               "wireguard_server": "172.30.0.1:51820",
-              "source": "Configured"
+              "source": {
+                "type": "configured"
+              }
             },
             "route_health": {
               "state": {
-                "state": "Routable"
+                "type": "routable"
               },
               "last_error": null,
               "walk": {
-                "found": "Paths",
+                "type": "paths",
                 "walked_at": 0,
                 "count": 3,
                 "distinct_first_relays": 3,
@@ -64,20 +78,27 @@
                 "description": null,
                 "other": {}
               },
-              "geo": { "country_code": "CH", "source": "announced_ip" },
+              "geo": {
+                "country": "CH",
+                "source": {
+                  "type": "announced_ip"
+                }
+              },
               "address": "0x2222222222222222222222222222222222222222",
-              "routing": 1,
+              "hops": 1,
               "gnosis_vpn_server": "172.30.0.1:8000",
               "wireguard_server": "172.30.0.1:51820",
-              "source": "Configured"
+              "source": {
+                "type": "configured"
+              }
             },
             "route_health": {
               "state": {
-                "state": "Routable"
+                "type": "routable"
               },
               "last_error": null,
               "walk": {
-                "found": "Paths",
+                "type": "paths",
                 "walked_at": 0,
                 "count": 3,
                 "distinct_first_relays": 2,
@@ -95,10 +116,10 @@
             }
           }
         ],
-        "target_destination": null,
-        "connected": null,
-        "connecting": null,
-        "reconnecting": null,
+        "target": null,
+        "connection": {
+          "type": "disconnected"
+        },
         "disconnecting": [],
         "probe": null
       }
@@ -114,8 +135,12 @@
           "safe_address": "0x4444444444444444444444444444444444444444"
         },
         "funding_status": {
-          "traffic": "Low",
-          "gas": "Good",
+          "traffic": {
+            "type": "low"
+          },
+          "gas": {
+            "type": "good"
+          },
           "wxhopr_deficit": "500000000000000000",
           "xdai_deficit": null,
           "refill_shortfall": null

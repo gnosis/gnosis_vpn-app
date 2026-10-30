@@ -1,23 +1,22 @@
 {
   "run_mode": {
-    "Running": {
-      "funding_status": null,
-      "hopr_status": null,
-      "channel_maintenance": {
-        "type": "Ok"
-      }
+    "type": "running",
+    "hopr_status": null,
+    "funding_status": null,
+    "channel_maintenance": {
+      "type": "ok"
     }
   },
   "destinations": [],
-  "target_destination": null,
-  "connected": null,
-  "connecting": null,
-  "reconnecting": null,
+  "target": null,
+  "connection": {
+    "type": "disconnected"
+  },
   "disconnecting": [],
   "probe": {
-    "destination_id": "test-exit",
+    "destination": "test-exit",
     "state": {
-      "state": "Opening"
+      "type": "opening"
     },
     "session_since": null,
     "versions": null,

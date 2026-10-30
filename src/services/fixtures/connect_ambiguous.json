@@ -1,6 +1,6 @@
 {
-  "type": "DestinationAmbiguous",
-  "connect_ids": [
+  "type": "destination_ambiguous",
+  "candidates": [
     "frankfurt-1",
     "frankfurt-1-a4c2"
   ]

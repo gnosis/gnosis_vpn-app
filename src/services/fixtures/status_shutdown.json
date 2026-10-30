@@ -1,10 +1,12 @@
 {
-  "run_mode": "Shutdown",
+  "run_mode": {
+    "type": "shutdown"
+  },
   "destinations": [],
-  "target_destination": null,
-  "connected": null,
-  "connecting": null,
-  "reconnecting": null,
+  "target": null,
+  "connection": {
+    "type": "disconnected"
+  },
   "disconnecting": [],
   "probe": null
 }

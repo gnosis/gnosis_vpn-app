@@ -1,0 +1,22 @@
+{
+  "run_mode": {
+    "type": "running",
+    "hopr_status": null,
+    "funding_status": null,
+    "channel_maintenance": {
+      "type": "ok"
+    }
+  },
+  "destinations": [],
+  "target": "test-exit",
+  "connection": {
+    "type": "connecting",
+    "destination": "test-exit",
+    "since": 0,
+    "phase": {
+      "type": "register_wg"
+    }
+  },
+  "disconnecting": [],
+  "probe": null
+}

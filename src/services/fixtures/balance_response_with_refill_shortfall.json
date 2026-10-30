@@ -8,8 +8,12 @@
     "safe_address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa"
   },
   "funding_status": {
-    "traffic": "Low",
-    "gas": "Good",
+    "traffic": {
+      "type": "low"
+    },
+    "gas": {
+      "type": "good"
+    },
     "wxhopr_deficit": null,
     "xdai_deficit": null,
     "refill_shortfall": "500000000000000000"

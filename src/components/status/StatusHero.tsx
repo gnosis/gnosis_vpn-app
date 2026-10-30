@@ -7,7 +7,7 @@ import {
 } from "solid-js";
 import type { JSX } from "solid-js";
 import { useAppStore } from "../../stores/appStore.ts";
-import { UpPhaseSchema } from "../../services/vpnService.ts";
+import { CONNECT_PHASES } from "../../services/vpnService.ts";
 import { isSwitchingDestination } from "../../utils/status.ts";
 
 type Mode = "idle" | "connecting" | "connected" | "sleeping";
@@ -66,15 +66,15 @@ export function StatusHero() {
     return "sleeping";
   });
 
-  // Fill level from the 12 ordered UpPhases; 8% floor keeps a sliver visible right away.
+  // Fill level from the ordered connect phases; 8% floor keeps a sliver visible right away.
   const fillPct = () => {
     // Connected clears the phase info; hold 100% so the morphing owl stays green
     if (appState.vpnStatus === "Connected") return 100;
-    const phase = appState.reconnecting?.phase ?? appState.connecting?.phase;
+    const connection = appState.connection;
+    const phase = "phase" in connection ? connection.phase : null;
     if (!phase) return 8;
-    const phases = UpPhaseSchema.options;
-    const idx = phases.indexOf(phase);
-    return Math.max(8, ((idx + 1) / phases.length) * 100);
+    const idx = CONNECT_PHASES.indexOf(phase);
+    return Math.max(8, ((idx + 1) / CONNECT_PHASES.length) * 100);
   };
 
   // Idle blink loop: every 3-5s a random eye blinks briefly.

@@ -5,15 +5,15 @@ description: Bump the pinned gnosis_vpn-client rev in src-tauri/Cargo.toml and f
 
 # Bump the gnosis_vpn-client ref
 
-`src-tauri/Cargo.toml` names the client line to follow
-(`gnosis_vpn-lib = { git = …, branch = "main" }`, see
-`docs/branch-strategy.md`); the exact commit is pinned by
-`src-tauri/Cargo.lock`. There is no automation for doing this locally
-(`renovate.json` explicitly disables auto-bumping this dependency — manual bumps
-are expected); `.github/workflows/bump-version.yaml` does the equivalent in CI,
-and is the ground truth for the exact commands below. This skill is the
-manual/local walkthrough, plus the failure modes that workflow doesn't have to
-handle interactively.
+`src-tauri/Cargo.toml` names the client line to follow for `gnosis_vpn-ipc` (the
+socket protocol crate) and the macOS-only `gnosis_vpn-lib` (for `app_nap`)
+(`{ git = …, branch = "main" }`, see `docs/branch-strategy.md`); the exact
+commit is pinned by `src-tauri/Cargo.lock`. There is no automation for doing
+this locally (`renovate.json` explicitly disables auto-bumping this dependency —
+manual bumps are expected); `.github/workflows/bump-version.yaml` does the
+equivalent in CI, and is the ground truth for the exact commands below. This
+skill is the manual/local walkthrough, plus the failure modes that workflow
+doesn't have to handle interactively.
 
 ## 1. Find the target rev and diff the API
 
@@ -21,38 +21,38 @@ Find the sibling client checkout (usually `../gnosis_vpn-client` next to this
 repo) and the current pinned rev:
 
 ```bash
-grep -A2 'name = "gnosis_vpn-lib"' src-tauri/Cargo.lock   # current rev (after the #)
+grep -A2 'name = "gnosis_vpn-ipc"' src-tauri/Cargo.lock   # current rev (after the #)
 cd ../gnosis_vpn-client && git rev-parse HEAD   # target rev (or whatever ref you were asked to bump to)
 ```
 
-Diff the library crate's public API between the two revs — this tells you
-exactly what needs fixing before you touch anything:
+Diff the protocol crate between the two revs — this tells you exactly what needs
+fixing before you touch anything:
 
 ```bash
-git log --oneline <old-rev>..<new-rev> -- gnosis_vpn-lib
-git diff <old-rev>..<new-rev> -- gnosis_vpn-lib
+git log --oneline <old-rev>..<new-rev> -- gnosis_vpn-ipc
+git diff <old-rev>..<new-rev> -- gnosis_vpn-ipc
 ```
 
+`gnosis_vpn-ipc/tests/wire.rs` holds golden JSON for the wire format; a change
+there is a change the Zod schemas must follow.
+
 Read every hunk that touches a `pub struct`/`pub enum`/`pub fn` signature.
-Ignore private (`fd_passing`, internal `wg_tunnel` plumbing, etc.) — only public
-surface can break the app.
 
 ## 2. Find every place the app touches the changed types
 
 ```bash
-grep -rn "gnosis_vpn_lib" src-tauri/src
+grep -rn "gnosis_vpn_ipc\|gnosis_vpn_lib" src-tauri/src
 ```
 
-As of writing this touches: `commands.rs` (Tauri commands,
-`COMPATIBLE_VERSIONS`), `types.rs` (the sanitized library→UI conversion boundary
-— **the most likely place to need hand-edits** when a lib struct/enum changes
-shape), `settings.rs`, `icons.rs`, `platform/macos.rs`, `lib.rs`. Also check:
+As of writing this touches: `commands.rs` (Tauri commands), `types.rs` (the few
+responses the app reshapes, e.g. `BalanceResponse`), `icons.rs`, `lib.rs`, and
+`platform/macos.rs` (`gnosis_vpn-lib`). Also check:
 
-- `src-tauri/tests/serialize_fixtures.rs` — hand-constructs lib types (may build
+- `src-tauri/tests/serialize_fixtures.rs` — hand-constructs ipc types (may build
   the _same_ type more than once — e.g. once for a `RunMode` fixture, again for
   a `BalanceResponse` fixture; fix every literal, not just the first).
 - `src/services/vpnService.ts` and `src/stores/settingsStore.ts` — Zod schemas
-  that hand-mirror the lib's serde output.
+  that hand-mirror the ipc crate's serde output.
 - `src/utils/*.test.ts` — hand-built fixture objects typed against the
   `vpnService.ts` schemas (TypeScript will flag these with a clear "missing
   properties" error once the schema changes).
@@ -66,14 +66,15 @@ cargo still resolves it as long as the commit is pushed.
 
 ```bash
 cd src-tauri
-nix develop ..# --command cargo update -p gnosis_vpn-lib --precise <new-rev>
+nix develop ..# --command cargo update -p gnosis_vpn-ipc --precise <new-rev>   # moves gnosis_vpn-lib too: one git source
 ```
 
-`cargo update -p gnosis_vpn-lib` without `--precise` floats every `branch` git
-dependency the lib pulls in, and so does `--precise` for the hoprnet crates
-(`branch = "master"`): compare the hoprnet and edge-client revs against the
-client's own lock at that commit and pin them back when they differ, otherwise
-the app builds against a different hoprnet than the daemon it talks to:
+`cargo update -p gnosis_vpn-ipc` without `--precise` floats every `branch` git
+dependency the macOS lib pulls in, and so does `--precise` for the hoprnet
+crates (`branch = "master"`): compare the hoprnet and edge-client revs against
+the client's own lock at that commit and pin them back when they differ,
+otherwise the app builds against a different hoprnet than the daemon it talks
+to:
 
 ```bash
 git -C ../../gnosis_vpn-client show <new-rev>:Cargo.lock | grep -o 'hoprnet?branch=master#[0-9a-f]*' | sort -u
@@ -83,7 +84,7 @@ nix develop ..# --command cargo update -p hopr-lib --precise <client's hoprnet s
 
 When the resolution fails because the new rev transitively needs a newer version
 of something shared (e.g. `tokio`), add `--recursive` — a bare
-`cargo update -p gnosis_vpn-lib` leaves every other already-locked dependency
+`cargo update -p gnosis_vpn-ipc` leaves every other already-locked dependency
 alone, so it can fail instead of bumping it:
 
 ```
@@ -119,11 +120,9 @@ trip the _same_ lint once it grows, since `cargo clippy` runs the same check on
 this crate. Mirror the lib's fix: box the sanitized field too (`Option<T>` →
 `Option<Box<T>>`), not just the lib-facing one.
 
-If a lib struct gained fields and `types.rs` intentionally re-exposes them (not
-just drops them at the sanitization boundary), follow the existing per-field
-convention in that file: balance amounts become raw-hopli integer `String`s via
-`.amount().to_string()` (never the lib's `serde_utils::balance` `"1 wxHOPR"`
-display format — unparseable by JS `BigInt()`), counts stay plain integers.
+If an ipc struct gained fields that `types.rs` re-exposes, keep the ipc value
+types: `ipc::Balance` already serializes as a wei decimal string that JS
+`BigInt()` parses, and counts stay plain integers.
 
 ## 5. Regenerate fixtures and fix the TS side
 
@@ -144,15 +143,12 @@ new/changed fields. Mirror the same convention as step 4: wei amounts as
 `BigIntStringSchema`, counts as `z.number()` (see `CapacitySchema` in
 `vpnService.ts` for precedent).
 
-## 6. Check `COMPATIBLE_VERSIONS`
+## 6. Check the protocol version
 
-`src-tauri/src/commands.rs` gates on the client's reported service version. A
-bare entry like `"0.94.0"` is a **caret requirement** (`^0.94.0` →
-`>=0.94.0, <0.95.0`), not a prefix match — so it silently stops matching once
-the client crosses a minor version boundary. Compare the new client's workspace
-`version` (`gnosis_vpn-client/Cargo.toml`) against `COMPATIBLE_VERSIONS` and
-bump if needed; the repo's own bump-version workflow has an input for this exact
-purpose.
+The app no longer gates on the service's version: every request carries
+`ipc::PROTOCOL_VERSION`, and a service on another protocol answers
+`protocol_mismatch`, which restarts initialization. A bump that raises
+`PROTOCOL_VERSION` only works against services that speak the new protocol.
 
 ## 7. Toolchain: watch for an MSRV bump
 

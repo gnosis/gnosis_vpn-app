@@ -8,7 +8,6 @@ use tokio::sync::Notify;
 use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
 
-use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
@@ -32,8 +31,7 @@ use commands::{
     quick_probe, run_initialization_loop, set_app_icon, set_status_poll_fast, stop_client,
     upload_logs,
 };
-use gnosis_vpn_lib::command::InfoResponse;
-use gnosis_vpn_lib::{command, socket::root as root_socket};
+use gnosis_vpn_ipc::{self as ipc, InfoResponse, Status};
 use icons::{IconState, TrayIconState, determine_tray_icon, start_icon_heartbeat};
 use platform::{Platform, PlatformInterface, get_platform, get_system_info};
 use service_control::{get_service_not_running_info, start_service};
@@ -47,8 +45,8 @@ use tray::{
     create_tray_menu, handle_tray_event, show_settings, show_settings_and_check,
     toggle_main_window_visibility,
 };
+use types::BalanceResponse;
 use types::ConnectionState;
-use types::{BalanceResponse, StatusResponse};
 use update_install::{UpdateInstallState, get_install_status, install_update};
 
 struct HeartbeatHandle(Mutex<Option<tauri::async_runtime::JoinHandle<()>>>);
@@ -72,7 +70,7 @@ pub struct BalancePollingHandle {
 }
 
 pub struct AppStateCache {
-    pub status: watch::Sender<Option<Result<Option<StatusResponse>, String>>>,
+    pub status: watch::Sender<Option<Result<Option<Status>, String>>>,
     pub balance: watch::Sender<Option<Result<Option<BalanceResponse>, String>>>,
     pub service_info: watch::Sender<Option<InfoResponse>>,
 }
@@ -279,23 +277,16 @@ pub fn run() {
                         tracing::info!(target: "tray", "quit requested, disconnecting");
                         let app_clone = app.clone();
                         tauri::async_runtime::spawn(async move {
-                            let socket = PathBuf::from(root_socket::DEFAULT_PATH);
-                            if let Err(e) =
-                                root_socket::process_cmd(&socket, &command::Command::Disconnect)
-                                    .await
-                            {
+                            if let Err(e) = commands::on_socket(ipc::disconnect).await {
                                 tracing::warn!(target: "tray", error = %e, "disconnect on quit failed");
                             }
                             // The probe we hold keeps the worker awake; nobody reads it once we are gone.
-                            match root_socket::process_cmd(&socket, &command::Command::Unprobe).await {
-                                Ok(command::Response::Unprobe(resp)) => {
+                            match commands::on_socket(ipc::unprobe).await {
+                                Ok(resp) => {
                                     tracing::info!(target: "tray", response = ?resp, "unprobe on quit")
                                 }
-                                Ok(command::Response::InUseByOtherUser) => {
+                                Err(ipc::CallError::Service(ipc::ServiceError::InUseByOtherUser)) => {
                                     tracing::info!(target: "tray", "worker owned by another user, nothing to unprobe")
-                                }
-                                Ok(other) => {
-                                    tracing::warn!(target: "tray", response = ?other, "unexpected unprobe response")
                                 }
                                 Err(e) => {
                                     tracing::warn!(target: "tray", error = %e, "unprobe on quit failed")
@@ -386,9 +377,8 @@ pub fn run() {
                     let pkg: String = match from_toolkit {
                         Some(pkg) => pkg,
                         None => {
-                            let socket = PathBuf::from(root_socket::DEFAULT_PATH);
-                            match root_socket::process_cmd(&socket, &command::Command::Info).await {
-                                Ok(command::Response::Info(info)) => {
+                            match commands::on_socket(ipc::info).await {
+                                Ok(info) => {
                                     // debug: the init loop's "initialized" line already records versions
                                     tracing::debug!(
                                         target: "about_panel",
@@ -396,14 +386,6 @@ pub fn run() {
                                         "daemon info"
                                     );
                                     info.package_version.unwrap_or_else(|| fallback.clone())
-                                }
-                                Ok(other) => {
-                                    tracing::warn!(
-                                        target: "about_panel",
-                                        response = ?other,
-                                        "unexpected daemon response"
-                                    );
-                                    fallback.clone()
                                 }
                                 Err(e) => {
                                     tracing::warn!(target: "about_panel", error = %e, "daemon call failed");

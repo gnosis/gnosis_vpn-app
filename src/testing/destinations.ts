@@ -19,10 +19,10 @@ export function makeDestination(
   return {
     id: "dest-1",
     address: "0xexit",
-    routing: 1,
+    hops: 1,
     gnosis_vpn_server: "172.30.0.1:8000",
     wireguard_server: "172.30.0.1:51820",
-    source: "Configured",
+    source: "configured",
     geo: null,
     ...overrides,
     meta: {
@@ -46,10 +46,10 @@ export function eligibleRouteHealth(
   count = relays,
 ): RouteHealthView {
   return {
-    state: { state: "Routable" },
+    state: { type: "routable" },
     last_error: null,
     walk: {
-      found: "Paths",
+      type: "paths",
       walked_at: 0,
       count,
       distinct_first_relays: relays,
@@ -71,7 +71,7 @@ export function weakRouteHealth(bestValue = 0.5): RouteHealthView {
   return {
     ...eligibleRouteHealth(1),
     walk: {
-      found: "Paths",
+      type: "paths",
       walked_at: 0,
       count: 1,
       distinct_first_relays: 1,
@@ -87,16 +87,16 @@ export function weakRouteHealth(bestValue = 0.5): RouteHealthView {
 /** The walk found nothing plannable. */
 export function noPathRouteHealth(): RouteHealthView {
   return {
-    state: { state: "NotRoutable" },
+    state: { type: "not_routable" },
     last_error: null,
-    walk: { found: "NoPath", walked_at: 0, forward_count: 0, return_count: 0 },
+    walk: { type: "no_path", walked_at: 0, forward_count: 0, return_count: 0 },
     quick_probe: null,
   };
 }
 
 export function unrecoverableRouteHealth(): RouteHealthView {
   return {
-    state: { state: "Unrecoverable", reason: "NotAllowed" },
+    state: { type: "unrecoverable", reason: { type: "not_allowed" } },
     last_error: null,
     walk: null,
     quick_probe: null,
@@ -111,7 +111,7 @@ export function quickProbeCheck(
 ): QuickProbeCheck {
   return {
     checked_at: checkedAt,
-    versions: { versions: ["v1"], latest: "v1" },
+    versions: { api: ["v1"], server: null },
     api_version: "v1",
     load: { slots, load_avg: { one: 0.5, five: 0.5, fifteen: 0.5, nproc: 4 } },
     status_rtt: rtt,
@@ -124,7 +124,7 @@ export function checkedQuickProbe(
   rtt = 100,
   checkedAt = 0,
 ): QuickProbeState {
-  return { state: "Checked", ...quickProbeCheck(slots, rtt, checkedAt) };
+  return { type: "checked", ...quickProbeCheck(slots, rtt, checkedAt) };
 }
 
 /** A quick probe in flight, carrying whatever the previous one measured. */
@@ -132,7 +132,7 @@ export function checkingQuickProbe(
   last: QuickProbeCheck | null = null,
   since = 0,
 ): QuickProbeState {
-  return { state: "Checking", since, last };
+  return { type: "checking", since, last };
 }
 
 /** The daemon's probe session on `id`, already reporting slots and a round trip. */
@@ -143,10 +143,10 @@ export function probeViewFor(
   checkedAt = 0,
 ): ProbeView {
   return {
-    destination_id: id,
-    state: { state: "Ready" },
+    destination: id,
+    state: "ready",
     session_since: 0,
-    versions: { versions: ["v1"], latest: "v1" },
+    versions: { api: ["v1"], server: null },
     api_version: "v1",
     ping_rtt: rtt,
     load: { slots, load_avg: { one: 0.5, five: 0.5, fifteen: 0.5, nproc: 4 } },

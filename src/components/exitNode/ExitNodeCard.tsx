@@ -59,11 +59,12 @@ export default function ExitNodeCard(props: {
     getExitData(props.destinationState(), appState.probe)
   );
   // The tunnel's own sample once we are connected through this exit.
-  const tunnelRtt = () =>
-    appState.connected?.destination_id === destId()
-      ? appState.connected.tunnel_ping_rtt
-      : null;
-  const routing = (): number => props.destinationState().destination.routing;
+  const connectedHere = () => {
+    const c = appState.connection;
+    return c.type === "connected" && c.destination === destId() ? c : null;
+  };
+  const tunnelRtt = () => connectedHere()?.tunnel_ping_rtt ?? null;
+  const routing = (): number => props.destinationState().destination.hops;
   const description = () =>
     destinationDescription(props.destinationState().destination);
   const descriptionPinned = () =>
@@ -78,9 +79,7 @@ export default function ExitNodeCard(props: {
   const connectionLabel = createMemo(() =>
     getConnectionState(
       destId(),
-      appState.connected?.destination_id,
-      appState.connecting?.destination_id,
-      appState.reconnecting?.destination_id,
+      appState.connection,
       appState.disconnecting,
     )
   );
@@ -174,7 +173,7 @@ export default function ExitNodeCard(props: {
         <div class="flex items-start justify-between gap-1.5 mb-1">
           <span class="flex items-center gap-1.5 font-semibold text-sm text-text-primary min-w-0">
             <Flag
-              code={props.destinationState().destination.geo?.country_code ??
+              code={props.destinationState().destination.geo?.country ??
                 ""}
             />
             <DestinationLabel

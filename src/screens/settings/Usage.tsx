@@ -2,7 +2,7 @@ import { createMemo, createSignal, Match, Switch } from "solid-js";
 import {
   isPreparingSafeRunMode,
   isRunningRunMode,
-  isWarmupRunMode,
+  warmupProgress,
 } from "../../services/vpnService.ts";
 import {
   computeEffectiveCredit,
@@ -37,14 +37,10 @@ export default function Usage() {
   const [appState] = useAppStore();
 
   const preparingSafe =
-    () => (isPreparingSafeRunMode(appState.runMode)
-      ? appState.runMode.PreparingSafe
-      : null);
+    () => (isPreparingSafeRunMode(appState.runMode) ? appState.runMode : null);
 
   const runModeStatus = createMemo(() =>
-    isRunningRunMode(appState.runMode)
-      ? appState.runMode.Running.funding_status
-      : null
+    isRunningRunMode(appState.runMode) ? appState.runMode.funding_status : null
   );
 
   const effectiveCredit = createMemo(() => {
@@ -111,7 +107,7 @@ export default function Usage() {
             Preparing service
           </Banner>
         </Match>
-        <Match when={isWarmupRunMode(appState.runMode)}>
+        <Match when={warmupProgress(appState.runMode)}>
           <Banner variant="warning" icon={<WarningIcon filled />}>
             Syncing in progress
           </Banner>

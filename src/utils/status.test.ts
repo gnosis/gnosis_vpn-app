@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type {
   BalanceRecommendation,
+  ChannelMaintenance,
+  Connection,
   Destination,
+  Disconnecting,
   PreparingSafe,
   RouteHealthView,
   RunMode,
@@ -25,45 +28,54 @@ import {
 import { makeDestination } from "@src/testing/destinations.ts";
 
 const BASE: StatusResponse = {
-  run_mode: "NotRunning",
+  run_mode: { type: "not_running" },
   destinations: [],
-  target_destination: null,
-  connected: null,
-  connecting: null,
-  reconnecting: null,
+  target: null,
+  connection: { type: "disconnected" },
   disconnecting: [],
   probe: null,
 };
 
-const CONNECTING_INFO = {
-  destination_id: "dest-1",
+const CONNECTING: Connection = {
+  type: "connecting",
+  destination: "dest-1",
   since: 0,
-  phase: "Init" as const,
+  phase: "init",
 };
 
-const DISCONNECTING_INFO = {
-  destination_id: "dest-1",
+const CONNECTED: Connection = {
+  type: "connected",
+  destination: "dest-1",
   since: 0,
-  phase: "Disconnecting" as const,
+  tunnel_ping_rtt: null,
+  stall: null,
+};
+
+const RECONNECTING: Connection = {
+  type: "reconnecting",
+  destination: "dest-1",
+  since: 0,
+  phase: "init",
+};
+
+// What the daemon sends while a reconnect waits on route health.
+const PHASELESS_RECONNECTING: Connection = { ...RECONNECTING, phase: null };
+
+const DISCONNECTING: Disconnecting = {
+  destination: "dest-1",
+  since: 0,
+  phase: "disconnecting",
 };
 
 const RUNNING: RunMode = {
-  Running: {
-    funding_status: null,
-    hopr_status: null,
-    channel_maintenance: { type: "Ok" },
-  },
-};
-
-// What the daemon sends once it reports a reconnect without a phase.
-const PHASELESS_RECONNECTING_INFO = {
-  destination_id: "dest-1",
-  since: 0,
-  phase: null,
+  type: "running",
+  funding_status: null,
+  hopr_status: null,
+  channel_maintenance: { type: "ok" },
 };
 
 const DESTINATION: Destination = makeDestination({
-  geo: { country_code: "br", source: "announced_ip" },
+  geo: { country: "br", source: { type: "announced_ip" } },
 });
 
 const BASE_APP_STATE: AppState = {
@@ -71,9 +83,7 @@ const BASE_APP_STATE: AppState = {
   serviceInfo: null,
   availableDestinations: [],
   destinations: {},
-  connected: null,
-  connecting: null,
-  reconnecting: null,
+  connection: { type: "disconnected" },
   disconnecting: [],
   probe: null,
   isLoading: false,
@@ -110,9 +120,11 @@ const BALANCE_RECOMMENDATION: BalanceRecommendation = {
   fee_to_start: 0n,
   txs_to_start: 0,
   xdai_fee_per_tx: 0n,
+  topup_headroom: 0n,
 };
 
 const PREPARING_SAFE: PreparingSafe = {
+  type: "preparing_safe",
   node_address: "0xnode",
   node_xdai: 0n,
   node_wxhopr: 0n,
@@ -124,21 +136,14 @@ const PREPARING_SAFE: PreparingSafe = {
 function appStateWithPreparingSafe(preparingSafe: PreparingSafe): AppState {
   return {
     ...BASE_APP_STATE,
-    runMode: { PreparingSafe: preparingSafe },
+    runMode: preparingSafe,
   };
 }
 
 describe("isConnected", () => {
   it("returns true when connected info is present", () => {
     expect(
-      isConnected({
-        ...BASE,
-        connected: {
-          destination_id: "dest-1",
-          since: 0,
-          tunnel_ping_rtt: null,
-        },
-      }),
+      isConnected({ ...BASE, connection: CONNECTED }),
     ).toBe(true);
   });
 
@@ -149,7 +154,7 @@ describe("isConnected", () => {
 
 describe("isConnecting", () => {
   it("returns true when connecting info is present", () => {
-    expect(isConnecting({ ...BASE, connecting: CONNECTING_INFO })).toBe(true);
+    expect(isConnecting({ ...BASE, connection: CONNECTING })).toBe(true);
   });
 
   it("returns false when connecting is null", () => {
@@ -160,7 +165,7 @@ describe("isConnecting", () => {
 describe("isDisconnecting", () => {
   it("returns true when disconnecting list is non-empty", () => {
     expect(
-      isDisconnecting({ ...BASE, disconnecting: [DISCONNECTING_INFO] }),
+      isDisconnecting({ ...BASE, disconnecting: [DISCONNECTING] }),
     ).toBe(true);
   });
 
@@ -176,39 +181,28 @@ describe("isDisconnected", () => {
 
   it("returns false when connected", () => {
     expect(
-      isDisconnected({
-        ...BASE,
-        connected: {
-          destination_id: "dest-1",
-          since: 0,
-          tunnel_ping_rtt: null,
-        },
-      }),
+      isDisconnected({ ...BASE, connection: CONNECTED }),
     ).toBe(false);
   });
 
   it("returns false when connecting", () => {
-    expect(isDisconnected({ ...BASE, connecting: CONNECTING_INFO })).toBe(
-      false,
-    );
+    expect(isDisconnected({ ...BASE, connection: CONNECTING })).toBe(false);
   });
 
   it("returns false when disconnecting", () => {
     expect(
-      isDisconnected({ ...BASE, disconnecting: [DISCONNECTING_INFO] }),
+      isDisconnected({ ...BASE, disconnecting: [DISCONNECTING] }),
     ).toBe(false);
   });
 
   it("returns false when reconnecting", () => {
-    expect(isDisconnected({ ...BASE, reconnecting: CONNECTING_INFO })).toBe(
+    expect(isDisconnected({ ...BASE, connection: RECONNECTING })).toBe(
       false,
     );
   });
 
   it("returns false when a parked reconnect target remains", () => {
-    expect(isDisconnected({ ...BASE, target_destination: "dest-1" })).toBe(
-      false,
-    );
+    expect(isDisconnected({ ...BASE, target: "dest-1" })).toBe(false);
   });
 });
 
@@ -311,18 +305,12 @@ function routeHealth(state: RouteHealthView["state"]): RouteHealthView {
 }
 
 describe("deriveVPNStatus", () => {
-  it("reports InUseByOtherUser as its own state, not an outage", () => {
-    expect(deriveVPNStatus({ ...BASE, run_mode: "InUseByOtherUser" })).toBe(
-      "InUseByOtherUser",
-    );
-  });
-
   it("reports Reconnecting when a target is kept with nothing in flight", () => {
     expect(
       deriveVPNStatus({
         ...BASE,
         run_mode: RUNNING,
-        target_destination: "dest-1",
+        target: "dest-1",
       }),
     ).toBe("Reconnecting");
   });
@@ -332,8 +320,8 @@ describe("deriveVPNStatus", () => {
       deriveVPNStatus({
         ...BASE,
         run_mode: RUNNING,
-        target_destination: "dest-1",
-        reconnecting: PHASELESS_RECONNECTING_INFO,
+        target: "dest-1",
+        connection: PHASELESS_RECONNECTING,
       }),
     ).toBe("Reconnecting");
   });
@@ -349,10 +337,9 @@ describe("deriveVPNStatus", () => {
       deriveVPNStatus({
         ...BASE,
         run_mode: RUNNING,
-        target_destination: "dest-1",
-        connected: {
-          destination_id: "dest-1",
-          since: 0,
+        target: "dest-1",
+        connection: {
+          ...CONNECTED,
           tunnel_ping_rtt: 12,
           stall: { since: 0, failed_pings: 2, reconnect_at: 3 },
         },
@@ -365,8 +352,8 @@ describe("deriveVPNStatus", () => {
       deriveVPNStatus({
         ...BASE,
         run_mode: RUNNING,
-        target_destination: "dest-1",
-        disconnecting: [DISCONNECTING_INFO],
+        target: "dest-1",
+        disconnecting: [DISCONNECTING],
       }),
     ).toBe("Disconnecting");
   });
@@ -376,8 +363,8 @@ describe("deriveVPNStatus", () => {
       deriveVPNStatus({
         ...BASE,
         run_mode: RUNNING,
-        target_destination: "dest-1",
-        connecting: CONNECTING_INFO,
+        target: "dest-1",
+        connection: CONNECTING,
       }),
     ).toBe("Connecting");
   });
@@ -387,21 +374,41 @@ describe("deriveVPNStatus", () => {
       deriveVPNStatus({
         ...BASE,
         run_mode: RUNNING,
-        target_destination: "dest-1",
-        connected: {
-          destination_id: "dest-1",
-          since: 0,
-          tunnel_ping_rtt: null,
-        },
+        target: "dest-1",
+        connection: CONNECTED,
       }),
     ).toBe("Connected");
+  });
+
+  it("reports Reconnecting while a reconnect attempt is in flight", () => {
+    expect(
+      deriveVPNStatus({
+        ...BASE,
+        run_mode: RUNNING,
+        target: "dest-1",
+        connection: RECONNECTING,
+      }),
+    ).toBe("Reconnecting");
+  });
+
+  it("reports the warmup stage, and Init as its first one", () => {
+    const warmup: RunMode = {
+      type: "warmup",
+      stage: "waiting_for_funds",
+      last_error: null,
+    };
+    expect(deriveVPNStatus({ ...BASE, run_mode: warmup })).toBe(
+      "waiting_for_funds",
+    );
+    const init: RunMode = { type: "init", last_error: null };
+    expect(deriveVPNStatus({ ...BASE, run_mode: init })).toBe("initializing");
   });
 });
 
 describe("waitingForRouteMessage", () => {
   it("says it is waiting while route health is still recoverable", () => {
     const state = appStateWithRouteHealth(
-      routeHealth({ state: "NotRoutable" }),
+      routeHealth({ type: "not_routable" }),
     );
     expect(waitingForRouteMessage(state, "dest-1")).toBe(
       "Waiting for route to dest-1 - Brazil",
@@ -411,8 +418,8 @@ describe("waitingForRouteMessage", () => {
   it("names the reason once the route is unrecoverable", () => {
     const state = appStateWithRouteHealth(
       routeHealth({
-        state: "Unrecoverable",
-        reason: { IncompatibleApiVersion: { server_versions: ["v9"] } },
+        type: "unrecoverable",
+        reason: { type: "incompatible_api_version", offered: ["v9"] },
       }),
     );
     expect(waitingForRouteMessage(state, "dest-1")).toBe(
@@ -452,24 +459,19 @@ describe("formatStall", () => {
 
 describe("channelMaintenanceWarning", () => {
   const running = (
-    channel_maintenance: { type: "Ok" } | {
-      type: "Unavailable";
-      since: number;
-    },
-  ): RunMode => ({
-    Running: { funding_status: null, hopr_status: null, channel_maintenance },
-  });
+    channel_maintenance: ChannelMaintenance,
+  ): RunMode => ({ ...RUNNING, channel_maintenance });
 
   it("shows the outage age while maintenance is unavailable", () => {
-    const down = running({ type: "Unavailable", since: 0 });
+    const down = running({ type: "unavailable", since: 0 });
     expect(channelMaintenanceWarning(down, 240_000)).toBe(
       "Channel maintenance down for 4 min — tunnel may degrade",
     );
   });
 
   it("is null while maintenance runs or the service is not running", () => {
-    expect(channelMaintenanceWarning(running({ type: "Ok" }), 0)).toBeNull();
-    expect(channelMaintenanceWarning("NotRunning", 0)).toBeNull();
+    expect(channelMaintenanceWarning(running({ type: "ok" }), 0)).toBeNull();
+    expect(channelMaintenanceWarning({ type: "not_running" }, 0)).toBeNull();
     expect(channelMaintenanceWarning(null, 0)).toBeNull();
   });
 });

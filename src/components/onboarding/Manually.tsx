@@ -50,7 +50,7 @@ export default function Manually() {
 
   const balanceRec = createMemo(() => {
     if (!isPreparingSafeRunMode(appState.runMode)) return null;
-    return appState.runMode.PreparingSafe.balance_recommendation;
+    return appState.runMode.balance_recommendation;
   });
 
   return (

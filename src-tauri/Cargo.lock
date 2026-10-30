@@ -3808,7 +3808,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c54e03a951783e8b327515db3f2a2fd0e3bed362a96b066f341ce66ed49b4ead"
 dependencies = [
  "data-encoding",
- "syn 1.0.109",
+ "syn 3.0.6",
 ]
 
 [[package]]
@@ -5221,6 +5221,7 @@ dependencies = [
  "dark-light",
  "dispatch",
  "futures-core",
+ "gnosis_vpn-ipc",
  "gnosis_vpn-lib",
  "liblzma",
  "objc",
@@ -5243,9 +5244,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "gnosis_vpn-ipc"
+version = "0.101.1"
+source = "git+https://github.com/gnosis/gnosis_vpn-client.git?branch=main#02bdce22fa7dc323b6a10bcdfd0e37a2fa7e8606"
+dependencies = [
+ "base64 0.23.1",
+ "humantime",
+ "semver 1.0.28",
+ "serde",
+ "serde_json",
+ "sha3 0.10.9",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "gnosis_vpn-lib"
 version = "0.101.1"
-source = "git+https://github.com/gnosis/gnosis_vpn-client.git?branch=main#c768842c84064d2c9491bf899f9011607bf33a1e"
+source = "git+https://github.com/gnosis/gnosis_vpn-client.git?branch=main#02bdce22fa7dc323b6a10bcdfd0e37a2fa7e8606"
 dependencies = [
  "async-trait",
  "backon",
@@ -5254,6 +5269,7 @@ dependencies = [
  "cfg-if",
  "edgli",
  "futures-util",
+ "gnosis_vpn-ipc",
  "hopr-utils-session",
  "human-bandwidth",
  "humantime",
@@ -5271,6 +5287,7 @@ dependencies = [
  "rand 0.10.3",
  "reqwest",
  "rustix",
+ "semver 1.0.28",
  "serde",
  "serde-saphyr",
  "serde_json",
@@ -9611,7 +9628,7 @@ dependencies = [
  "quinn-udp 0.5.15",
  "rustc-hash",
  "rustls",
- "socket2 0.5.10",
+ "socket2 0.6.5",
  "thiserror 2.0.21",
  "tokio",
  "tracing",
@@ -9651,7 +9668,7 @@ dependencies = [
  "cfg_aliases",
  "libc",
  "once_cell",
- "socket2 0.5.10",
+ "socket2 0.6.5",
  "tracing",
  "windows-sys 0.59.0",
 ]
@@ -9664,7 +9681,7 @@ checksum = "3ca72c3f2792761ab5fa848490694cbc728c7f659669ed4320c4c79c12150966"
 dependencies = [
  "cfg_aliases",
  "libc",
- "socket2 0.5.10",
+ "socket2 0.6.5",
  "windows-sys 0.59.0",
 ]
 
@@ -11717,7 +11734,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.3.4",
+ "getrandom 0.4.3",
  "once_cell",
  "rustix",
  "windows-sys 0.59.0",

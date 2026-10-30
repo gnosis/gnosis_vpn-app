@@ -16,14 +16,13 @@ import {
 import {
   type BalanceResponse,
   BalanceResponseSchema,
-  type ConnectedInfo,
-  type ConnectingInfo,
+  type Connection,
+  connectionDestination,
   type Destination,
   type DestinationState,
-  type DisconnectingInfo,
-  isWarmupRunMode,
+  type Disconnecting,
+  IN_USE_BY_OTHER_USER_ERROR,
   type ProbeView,
-  type ReconnectingInfo,
   type RunMode,
   SERVICE_NOT_RUNNING_ERROR,
   type ServiceInfo,
@@ -31,6 +30,7 @@ import {
   type StatusResponse,
   StatusResponseSchema,
   VPNService,
+  warmupProgress,
 } from "@src/services/vpnService.ts";
 import {
   createDestinationMode,
@@ -88,10 +88,8 @@ export interface AppState {
   serviceInfo: ServiceInfo | null;
   availableDestinations: Destination[];
   destinations: Record<string, DestinationState>;
-  connected: ConnectedInfo | null;
-  connecting: ConnectingInfo | null;
-  reconnecting: ReconnectingInfo | null;
-  disconnecting: DisconnectingInfo[];
+  connection: Connection;
+  disconnecting: Disconnecting[];
   // The daemon's one probe session, which follows the active destination.
   probe: ProbeView | null;
   isLoading: boolean;
@@ -144,9 +142,7 @@ type BalanceEvent = {
 function initialState(): AppState {
   return {
     availableDestinations: [],
-    connected: null,
-    connecting: null,
-    reconnecting: null,
+    connection: { type: "disconnected" },
     currentScreen: AppScreen.Initialization,
     destinations: {},
     disconnecting: [],
@@ -335,6 +331,19 @@ export function createAppStore(): AppStoreTuple {
   const resetToScreen = (screen: AppScreen, message: string) => {
     // status errors repeat every poll tick; log only when the message changes
     if (state.error !== message) logError(message);
+    dropDaemonState(screen);
+    setState("error", message);
+  };
+
+  // Somebody else's worker is a known state, not an error; nothing of theirs stays on screen.
+  const showInUseByOtherUser = () => {
+    if (state.vpnStatus === "InUseByOtherUser") return;
+    logInfo("VPN in use by another user on this computer");
+    dropDaemonState(AppScreen.Main);
+    setState("vpnStatus", "InUseByOtherUser");
+  };
+
+  const dropDaemonState = (screen: AppScreen) => {
     stopSyncProgress();
     const savedServiceInfo = state.serviceInfo;
     // The toolkit probe does not go through the daemon (it reads the version
@@ -346,7 +355,6 @@ export function createAppStore(): AppStoreTuple {
     setState("serviceInfo", savedServiceInfo);
     setState("toolkit", savedToolkit);
     setState("packageVersion", savedPackageVersion);
-    setState("error", message);
     destinationMode?.reset({
       preferredLocation: settings.preferredLocation,
       lastConnectedDestination: settings.lastConnectedDestination,
@@ -356,13 +364,11 @@ export function createAppStore(): AppStoreTuple {
 
   const processStatusResponse = (response: StatusResponse) => {
     const [screen, warmupStatus, recoveryReason] = selectScreen(response);
-    if (isWarmupRunMode(response.run_mode)) {
-      const lastError = response.run_mode.Warmup.last_error;
-      // The daemon retries warmup; only outside the sync screen is that fatal.
-      if (lastError && screen !== AppScreen.Synchronization) {
-        criticalError(lastError);
-        return;
-      }
+    const lastWarmupError = warmupProgress(response.run_mode)?.last_error;
+    // The daemon retries warmup; only outside the sync screen is that fatal.
+    if (lastWarmupError && screen !== AppScreen.Synchronization) {
+      criticalError(lastWarmupError);
+      return;
     }
     if (recoveryReason && state.syncRecoveryReason !== recoveryReason) {
       logError(recoveryReason);
@@ -404,10 +410,8 @@ export function createAppStore(): AppStoreTuple {
     setState("warmupStatus", warmupStatus);
     setState("runMode", reconcile(response.run_mode));
     setState("destinations", reconcile(destinations));
-    setState("targetDestination", response.target_destination);
-    setState("connected", response.connected);
-    setState("connecting", reconcile(response.connecting));
-    setState("reconnecting", reconcile(response.reconnecting));
+    setState("targetDestination", response.target);
+    setState("connection", reconcile(response.connection));
     setState("disconnecting", reconcile(response.disconnecting));
     setState("probe", reconcile(response.probe));
     setState("vpnStatus", deriveVPNStatus(response));
@@ -416,9 +420,7 @@ export function createAppStore(): AppStoreTuple {
     pendingModeAppState = {
       availableDestinations,
       destinations,
-      connected: response.connected,
-      connecting: response.connecting,
-      reconnecting: response.reconnecting,
+      connection: response.connection,
       probe: response.probe,
     };
     destinationMode?.applyStatusUpdate(pendingModeAppState);
@@ -458,7 +460,7 @@ export function createAppStore(): AppStoreTuple {
   /** A status whose probe is elsewhere means the daemon lost or refused ours: ask again. */
   const reconcileProbe = (status: ModeAppState) => {
     const id = probeTarget();
-    if (id === null || status.probe?.destination_id === id) return;
+    if (id === null || status.probe?.destination === id) return;
     ensureProbe(id, Date.now());
   };
 
@@ -475,7 +477,7 @@ export function createAppStore(): AppStoreTuple {
     const id = next.issue;
     VPNService.quickProbe(id)
       .then((response) => {
-        const accepted = response.type === "Checking";
+        const accepted = response.type === "checking";
         quickProbes = quickProbeAnswered(quickProbes, id, accepted);
         if (!accepted) logInfo(`Quick probe ${id}: ${response.type}`);
       })
@@ -493,8 +495,7 @@ export function createAppStore(): AppStoreTuple {
       startupConnectDone = true;
       return;
     }
-    const sessionLive = status.connected !== null ||
-      status.connecting !== null || status.reconnecting !== null;
+    const sessionLive = connectionDestination(status.connection) !== null;
     if (sessionLive) {
       startupConnectDone = true;
       return;
@@ -515,60 +516,47 @@ export function createAppStore(): AppStoreTuple {
     response: StatusResponse,
     destinations: Record<string, DestinationState>,
   ) => {
-    const nextConnecting = response.connecting;
-    const connectingIdChanged =
-      state.connecting?.destination_id !== nextConnecting?.destination_id;
-    const connectingPhaseChanged =
-      state.connecting?.phase !== nextConnecting?.phase;
-    if (nextConnecting && (connectingIdChanged || connectingPhaseChanged)) {
-      const dest = destinations[nextConnecting.destination_id]?.destination;
-      const label = dest
-        ? destinationLabel(dest)
-        : nextConnecting.destination_id;
+    const display = (id: string): string => {
+      const dest = destinations[id]?.destination;
+      const label = dest ? destinationLabel(dest) : id;
       const short = dest ? shortAddress(dest.address) : "";
-      const display = short ? `${label} - ${short}` : label;
-      log(`Connecting: ${display} - ${nextConnecting.phase}`);
+      return short ? `${label} - ${short}` : label;
+    };
+    const prev = state.connection;
+    const next = response.connection;
+    const destinationChanged =
+      connectionDestination(prev) !== connectionDestination(next);
+    const typeChanged = prev.type !== next.type;
+    const prevPhase = "phase" in prev ? prev.phase : null;
+
+    if (next.type === "connecting") {
+      const phaseChanged = typeChanged || prevPhase !== next.phase;
+      if (destinationChanged || phaseChanged) {
+        log(`Connecting: ${display(next.destination)} - ${next.phase}`);
+      }
     }
 
-    const nextReconnecting = response.reconnecting;
-    const reconnectingIdChanged =
-      state.reconnecting?.destination_id !== nextReconnecting?.destination_id;
-    const reconnectingPhaseChanged =
-      state.reconnecting?.phase !== nextReconnecting?.phase;
     // Phase-less reconnects (waiting on route health) are logged by appLog's logStatus.
-    if (
-      nextReconnecting?.phase &&
-      (reconnectingIdChanged || reconnectingPhaseChanged)
-    ) {
-      const dest = destinations[nextReconnecting.destination_id]?.destination;
-      const label = dest
-        ? destinationLabel(dest)
-        : nextReconnecting.destination_id;
-      const short = dest ? shortAddress(dest.address) : "";
-      const display = short ? `${label} - ${short}` : label;
-      log(`Reconnecting: ${display} - ${nextReconnecting.phase}`);
+    if (next.type === "reconnecting" && next.phase) {
+      const phaseChanged = typeChanged || prevPhase !== next.phase;
+      if (destinationChanged || phaseChanged) {
+        log(`Reconnecting: ${display(next.destination)} - ${next.phase}`);
+      }
     }
 
-    const connectedId = response.connected?.destination_id;
-    if (connectedId && connectedId !== state.connected?.destination_id) {
-      const dest = destinations[connectedId]?.destination;
-      const label = dest ? destinationLabel(dest) : connectedId;
-      const short = dest ? shortAddress(dest.address) : "";
-      const display = short ? `${label} - ${short}` : label;
-      log(`Connected: ${display}`);
+    const newlyConnected = next.type === "connected" &&
+      (typeChanged || destinationChanged);
+    if (newlyConnected) {
+      log(`Connected: ${display(next.destination)}`);
     }
 
     const prevDisconnectingMap = new Map(
-      state.disconnecting.map((d) => [d.destination_id, d.phase]),
+      state.disconnecting.map((d) => [d.destination, d.phase]),
     );
     for (const d of response.disconnecting) {
-      const prevPhase = prevDisconnectingMap.get(d.destination_id);
+      const prevPhase = prevDisconnectingMap.get(d.destination);
       if (prevPhase === undefined || prevPhase !== d.phase) {
-        const dest = destinations[d.destination_id]?.destination;
-        const label = dest ? destinationLabel(dest) : d.destination_id;
-        const short = dest ? shortAddress(dest.address) : "";
-        const display = short ? `${label} - ${short}` : label;
-        log(`Disconnecting: ${display} - ${d.phase}`);
+        log(`Disconnecting: ${display(d.destination)} - ${d.phase}`);
       }
     }
   };
@@ -656,6 +644,10 @@ export function createAppStore(): AppStoreTuple {
             AppScreen.ServiceNotRunning,
             "Gnosis VPN service is not running",
           );
+          return;
+        }
+        if (isInUseByOtherUser(event as StatusEvent)) {
+          showInUseByOtherUser();
           return;
         }
         let statusResp: StatusResponse | void;
@@ -890,6 +882,11 @@ export function useAppStore(): AppStoreTuple {
 function isServiceNotRunning(event: StatusEvent): boolean {
   const payload = event.payload;
   return "Err" in payload && payload.Err === SERVICE_NOT_RUNNING_ERROR;
+}
+
+function isInUseByOtherUser(event: StatusEvent): boolean {
+  const payload = event.payload;
+  return "Err" in payload && payload.Err === IN_USE_BY_OTHER_USER_ERROR;
 }
 
 function incomingStatusEvent(event: StatusEvent): StatusResponse | void {

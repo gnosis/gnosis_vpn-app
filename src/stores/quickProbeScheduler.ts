@@ -45,16 +45,16 @@ function isDone(
 ): boolean {
   if (now - inFlight.issuedAt >= QUICK_PROBE_TIMEOUT_MS) return true;
   const probe = status.destinations[inFlight.id]?.route_health?.quick_probe;
-  if (!probe || probe.state === "Checking") return false;
+  if (!probe || probe.type === "checking") return false;
   return probe.checked_at >= inFlight.issuedAt;
 }
 
 /** The daemon refuses unroutable exits and running checks; a fresh result is not worth redoing. */
 function isCandidate(status: ModeAppState, id: string, now: number): boolean {
   const health = status.destinations[id]?.route_health;
-  if (health?.state.state !== "Routable") return false;
+  if (health?.state.type !== "routable") return false;
   const probe = health.quick_probe;
   if (probe === null) return true;
-  if (probe.state === "Checking") return false;
+  if (probe.type === "checking") return false;
   return now - probe.checked_at >= QUICK_PROBE_FRESH_MS;
 }

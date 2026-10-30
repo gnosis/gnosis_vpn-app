@@ -1,25 +1,25 @@
 import {
+  type ConnectPhase,
   type Destination,
-  type DownPhase,
+  type DisconnectPhase,
   isDeployingSafeRunMode,
   isPreparingSafeRunMode,
   isRunningRunMode,
-  isWarmupRunMode,
   type RunMode,
   StatusResponse,
   type TunnelStall,
-  type UpPhase,
+  warmupProgress,
 } from "@src/services/vpnService.ts";
 import type { AppState } from "@src/stores/appStore.ts";
 import { destinationLabel, getExitData } from "@src/utils/destinations.ts";
 import { formatExitHealthStatus } from "@src/utils/exitHealth.ts";
 
 export function isConnected(response: StatusResponse): boolean {
-  return response.connected !== null;
+  return response.connection.type === "connected";
 }
 
 export function isConnecting(response: StatusResponse): boolean {
-  return response.connecting !== null;
+  return response.connection.type === "connecting";
 }
 
 export function isDisconnecting(response: StatusResponse): boolean {
@@ -28,12 +28,10 @@ export function isDisconnecting(response: StatusResponse): boolean {
 
 export function isDisconnected(response: StatusResponse): boolean {
   return (
-    response.connected === null &&
-    response.connecting === null &&
-    response.reconnecting === null &&
+    response.connection.type === "disconnected" &&
     response.disconnecting.length === 0 &&
-    // A parked reconnect target means the daemon still intends to reconnect.
-    response.target_destination === null
+    // A parked target means the daemon still intends to connect.
+    response.target === null
   );
 }
 
@@ -45,47 +43,50 @@ export function isConnectedTo(
   state: AppState,
   destination: Destination,
 ): boolean {
-  return state.connected?.destination_id === destination.id;
+  const c = state.connection;
+  return c.type === "connected" && c.destination === destination.id;
 }
 
 export function isConnectingTo(
   state: AppState,
   destination: Destination,
 ): boolean {
-  return state.connecting?.destination_id === destination.id;
+  const c = state.connection;
+  return c.type === "connecting" && c.destination === destination.id;
 }
 
 export function isDisconnectingFrom(
   state: AppState,
   destination: Destination,
 ): boolean {
-  return state.disconnecting.some((d) => d.destination_id === destination.id);
+  return state.disconnecting.some((d) => d.destination === destination.id);
 }
 
 export function deriveVPNStatus(
   response: StatusResponse,
 ): AppState["vpnStatus"] {
-  if ("Shutdown" === response.run_mode) return "ServiceUnavailable";
-  if ("NotRunning" === response.run_mode) return "ServiceUnavailable";
-  if ("Restarting" === response.run_mode) return "WorkerRestarting";
-  // A known state, not an outage: the service is fine, just somebody else's.
-  if ("InUseByOtherUser" === response.run_mode) return "InUseByOtherUser";
-  if (isPreparingSafeRunMode(response.run_mode)) return "PreparingSafe";
-  if (isDeployingSafeRunMode(response.run_mode)) return "DeployingSafe";
-  if (isWarmupRunMode(response.run_mode)) {
-    return response.run_mode.Warmup.status;
-  }
-  if ("Running" in response.run_mode) {
-    if (response.reconnecting) return "Reconnecting";
-    if (response.connected) return "Connected";
-    if (response.connecting) return "Connecting";
-    if (response.disconnecting.length > 0) return "Disconnecting";
-    // Target kept with nothing in flight: still reconnecting, retried on route health.
-    if (response.target_destination !== null) return "Reconnecting";
-    return "Disconnected";
-  }
+  const runMode = response.run_mode;
+  if (runMode.type === "shutdown") return "ServiceUnavailable";
+  if (runMode.type === "not_running") return "ServiceUnavailable";
+  if (runMode.type === "restarting") return "WorkerRestarting";
+  if (isPreparingSafeRunMode(runMode)) return "PreparingSafe";
+  if (isDeployingSafeRunMode(runMode)) return "DeployingSafe";
+  const warmup = warmupProgress(runMode);
+  if (warmup) return warmup.stage;
+  if (!isRunningRunMode(runMode)) return "ServiceUnavailable";
 
-  return "ServiceUnavailable";
+  switch (response.connection.type) {
+    case "reconnecting":
+      return "Reconnecting";
+    case "connected":
+      return "Connected";
+    case "connecting":
+      return "Connecting";
+  }
+  if (response.disconnecting.length > 0) return "Disconnecting";
+  // Target kept with nothing in flight: a connect waiting on route health.
+  if (response.target !== null) return "Reconnecting";
+  return "Disconnected";
 }
 
 export interface ConnectButtonLook {
@@ -123,7 +124,7 @@ export function isSwitchingDestination(
 
 export function isXDAITransferred(state: AppState): boolean {
   if (!state || !isPreparingSafeRunMode(state.runMode)) return false;
-  const { node_xdai, balance_recommendation } = state.runMode.PreparingSafe;
+  const { node_xdai, balance_recommendation } = state.runMode;
   return (
     balance_recommendation !== null && node_xdai >= balance_recommendation.xdai
   );
@@ -131,7 +132,7 @@ export function isXDAITransferred(state: AppState): boolean {
 
 export function isWxHOPRTransferred(state: AppState): boolean {
   if (!state || !isPreparingSafeRunMode(state.runMode)) return false;
-  const { node_wxhopr, balance_recommendation } = state.runMode.PreparingSafe;
+  const { node_wxhopr, balance_recommendation } = state.runMode;
   return (
     balance_recommendation !== null &&
     node_wxhopr >= balance_recommendation.wxhopr
@@ -142,44 +143,44 @@ export function getPreparingSafeNodeAddress(
   state: AppState,
 ): string | undefined {
   if (isPreparingSafeRunMode(state.runMode)) {
-    return state.runMode.PreparingSafe.node_address;
+    return state.runMode.node_address;
   }
   return undefined;
 }
 
-export function formatConnectionPhase(phase: UpPhase | DownPhase): string {
+export function formatConnectionPhase(
+  phase: ConnectPhase | DisconnectPhase,
+): string {
   switch (phase) {
-    // UpPhase
-    case "Init":
+    // ConnectPhase
+    case "init":
       return "Initializing";
-    case "ResolvingBlokliIps":
-      return "Locating network gateway";
-    case "GeneratingWg":
+    case "generating_wg":
       return "Generating WireGuard public key";
-    case "OpeningBridge":
-      return "Opening bridge session";
-    case "RegisterWg":
+    case "register_wg":
       return "Registering WireGuard public key";
-    case "OpeningPing":
+    case "opening_ping":
       return "Opening ping session";
-    case "GatherPeerIps":
+    case "gather_peer_ips":
       return "Gathering peers";
-    case "KillswitchLockdown":
+    case "killswitch_lockdown":
       return "Activating kill switch";
-    case "EstablishWgTunnel":
+    case "establish_wg_tunnel":
       return "Establishing WireGuard tunnel";
-    case "VerifyPing":
+    case "verify_ping":
       return "Verifying destination ping";
-    case "AdjustToMain":
+    case "adjust_to_main":
       return "Adjusting for traffic throughput";
-    case "ConnectionEstablished":
+    case "connection_established":
       return "Connection established";
-    // DownPhase
-    case "Disconnecting":
+    // DisconnectPhase
+    case "disconnecting":
       return "Disconnecting";
-    case "UnregisterWg":
+    case "opening_bridge":
+      return "Opening bridge session";
+    case "unregister_wg":
       return "Unregistering WireGuard public key";
-    case "ClosingBridge":
+    case "closing_bridge":
       return "Closing bridge session";
   }
 }
@@ -194,7 +195,7 @@ export function waitingForRouteMessage(
     ? destinationLabel(destState.destination)
     : destinationId;
   const health = destState?.route_health;
-  if (destState && health && health.state.state === "Unrecoverable") {
+  if (destState && health && health.state.type === "unrecoverable") {
     const exit = getExitData(destState, state.probe);
     return `Route to ${label}: ${formatExitHealthStatus(health, exit)}`;
   }
@@ -222,8 +223,8 @@ export function channelMaintenanceWarning(
   nowMs: number,
 ): string | null {
   if (!isRunningRunMode(runMode)) return null;
-  const maintenance = runMode.Running.channel_maintenance;
-  if (maintenance.type !== "Unavailable") return null;
+  const maintenance = runMode.channel_maintenance;
+  if (maintenance.type !== "unavailable") return null;
   const sec = Math.max(0, Math.floor((nowMs - maintenance.since) / 1000));
   return `Channel maintenance down for ${
     formatDurationShort(sec)

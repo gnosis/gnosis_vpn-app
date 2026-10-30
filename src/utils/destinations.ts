@@ -1,12 +1,14 @@
-import type {
-  Destination,
-  DestinationState,
-  LoadAvg,
-  ProbeView,
-  QuickProbeCheck,
-  QuickProbeState,
-  Slots,
-  Versions,
+import {
+  type Connection,
+  connectionDestination,
+  type Destination,
+  type DestinationState,
+  type ExitVersions,
+  type LoadAvg,
+  type ProbeView,
+  type QuickProbeCheck,
+  type QuickProbeState,
+  type Slots,
 } from "@src/services/vpnService.ts";
 
 export function getPreferredAvailabilityChangeMessage(
@@ -48,15 +50,11 @@ export const NO_CONTEXT: RankContext = { probe: null, liveId: null };
 
 export function rankContext(status: {
   probe: ProbeView | null;
-  connected: { destination_id: string } | null;
-  connecting: { destination_id: string } | null;
-  reconnecting: { destination_id: string } | null;
+  connection: Connection;
 }): RankContext {
   return {
     probe: status.probe,
-    liveId: status.connected?.destination_id ??
-      status.connecting?.destination_id ??
-      status.reconnecting?.destination_id ?? null,
+    liveId: connectionDestination(status.connection),
   };
 }
 
@@ -66,15 +64,15 @@ export interface ExitData {
   loadAvg: LoadAvg;
   rtt: number;
   checkedAt: number;
-  versions: Versions;
+  versions: ExitVersions;
   apiVersion: string | null;
 }
 
 /** A running check keeps what it refreshes, so a re-check never blanks an exit; `checked_at` still ages. */
 function lastQuickCheck(quick: QuickProbeState | null): QuickProbeCheck | null {
   if (quick === null) return null;
-  if (quick.state === "Checked") return quick;
-  return quick.state === "Checking" ? quick.last : null;
+  if (quick.type === "checked") return quick;
+  return quick.type === "checking" ? quick.last : null;
 }
 
 /** The probe refreshes continuously, so it wins over a quick probe's snapshot where it applies. */
@@ -83,8 +81,8 @@ export function getExitData(
   probe: ProbeView | null,
 ): ExitData | null {
   // A reopening probe still carries the closed session's samples - they are no longer current.
-  const probeIsLive = probe?.destination_id === state.destination.id &&
-    probe.state.state === "Ready";
+  const probeIsLive = probe?.destination === state.destination.id &&
+    probe.state === "ready";
   if (
     probeIsLive && probe.load && probe.ping_rtt !== null &&
     probe.checked_at !== null && probe.versions
@@ -128,8 +126,8 @@ export const MIN_PATH_VALUE = 0.9;
 function isRoutable(state: DestinationState): boolean {
   if (!state.route_health) return false;
   const { state: routeState, walk } = state.route_health;
-  if (routeState.state !== "Routable") return false;
-  return walk?.found === "Paths" && walk.best_value >= MIN_PATH_VALUE;
+  if (routeState.type !== "routable") return false;
+  return walk?.type === "paths" && walk.best_value >= MIN_PATH_VALUE;
 }
 
 /** Not full once the exit has been measured; unmeasured passes on the walk alone. */
@@ -152,7 +150,7 @@ export function isSelectable(
   state: DestinationState | undefined,
   context: RankContext,
 ): boolean {
-  if (state?.route_health?.state.state !== "Routable") return false;
+  if (state?.route_health?.state.type !== "routable") return false;
   return hasFreeSlot(state, context);
 }
 
@@ -182,16 +180,16 @@ const UNRECOVERABLE_VALUE = -2;
 function routeValue(state: DestinationState): number {
   const health = state.route_health;
   if (!health) return UNKNOWN_VALUE;
-  if (health.state.state === "Unrecoverable") return UNRECOVERABLE_VALUE;
+  if (health.state.type === "unrecoverable") return UNRECOVERABLE_VALUE;
   const walk = health.walk;
   if (walk === null) return UNKNOWN_VALUE;
-  return walk.found === "Paths" ? walk.best_value : NO_PATH_VALUE;
+  return walk.type === "paths" ? walk.best_value : NO_PATH_VALUE;
 }
 
 /** Resilience of the best path: more distinct first relays means fewer single points of failure. */
 function pathStats(state: DestinationState): { relays: number; count: number } {
   const walk = state.route_health?.walk;
-  if (walk?.found !== "Paths") return { relays: 0, count: 0 };
+  if (walk?.type !== "paths") return { relays: 0, count: 0 };
   return { relays: walk.distinct_first_relays, count: walk.count };
 }
 
@@ -346,7 +344,7 @@ export function destinationName(d: Destination): string | null {
 /** A discovered id is the name slugged, so the name alone suffices; a configured id is the user's own handle and leads. */
 export function destinationTitle(d: Destination): string {
   const name = destinationName(d);
-  if (d.source === "Discovered") return name ?? d.id;
+  if (d.source === "discovered") return name ?? d.id;
   return name === null ? d.id : `${d.id} (${name})`;
 }
 
@@ -355,7 +353,7 @@ const COUNTRY_NAMES = new Intl.DisplayNames("en", { type: "region" });
 
 /** The exit's country as the client derived it; never the operator's claim. */
 export function destinationCountry(d: Destination): string | null {
-  const code = d.geo?.country_code;
+  const code = d.geo?.country;
   if (code === undefined) return null;
   try {
     return COUNTRY_NAMES.of(code.toUpperCase()) ?? null;
@@ -387,13 +385,13 @@ export type PinnableMeta = "name" | "description";
 
 /** Configuration set this value; only meaningful where config and discovery mix, as on a config-only entry every value is config's. */
 export function isConfigPinned(d: Destination, key: PinnableMeta): boolean {
-  const mixedOrigins = d.source === "ConfiguredAndDiscovered";
+  const mixedOrigins = d.source === "configured_and_discovered";
   return mixedOrigins && key in d.overrides.configured_meta;
 }
 
 /** Every value is config's: nothing was discovered for this destination. */
 export function isConfigOnly(d: Destination): boolean {
-  return d.source === "Configured";
+  return d.source === "configured";
 }
 
 export function destinationLabelById(
