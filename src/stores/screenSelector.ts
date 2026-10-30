@@ -29,7 +29,10 @@ export const MAXIMUM_DELAY_TIME = 3 * 60 * 1000;
 /** Nothing to interact with until one destination is connectable. */
 function findDelayReason(status: StatusResponse): string | null {
   const known = status.destinations.filter((ds) => ds.route_health !== null);
-  if (known.length === 0) return null;
+  if (known.length === 0) {
+    // The worker reports running before discovery has found or checked any exit.
+    return isRunningRunMode(status.run_mode) ? "Looking for exits" : null;
+  }
   const context = rankContext(status);
   if (known.some((ds) => isSelectable(ds, context))) return null;
   const unrecoverable =
@@ -72,10 +75,7 @@ export function detectSyncPhase(
 export function createScreenSelector(): (
   status: StatusResponse,
 ) => ScreenChoice {
-  let initialDelay:
-    | { delayingSince: number }
-    | { neverRan: true }
-    | { alreadyRan: true } = { neverRan: true };
+  let delayingSince: number | null = null;
   // Spent once a running daemon reaches main; the sync screen has no Disconnect button.
   let syncScreenSpent = false;
   let safeDeployStarted = false;
@@ -120,9 +120,8 @@ export function createScreenSelector(): (
         warmup.last_error,
       ];
     }
-    // Only a running daemon counts as reaching main, so a first warmup still syncs.
+    // Only a running daemon spends the sync screen: the app sees not_running before it starts the worker.
     const moveOn = (): ScreenChoice => {
-      initialDelay = { alreadyRan: true };
       syncScreenSpent = isRunningRunMode(runMode);
       return [AppScreen.Main, "Moving on", null];
     };
@@ -130,24 +129,15 @@ export function createScreenSelector(): (
     // delay initial screen as long as no interaction makes sense
     const delay = findDelayReason(status);
     if (!delay) return moveOn();
-    // delay proposed and never ran - start the delay
-    if ("neverRan" in initialDelay) {
-      initialDelay = { delayingSince: Date.now() };
-      return [AppScreen.Synchronization, delay, null];
+    delayingSince ??= Date.now();
+    if (Date.now() - delayingSince > MAXIMUM_DELAY_TIME) {
+      logWarn(
+        `Initial sync still "${delay}" after ${
+          MAXIMUM_DELAY_TIME / 60_000
+        } minutes, moving on`,
+      );
+      return moveOn();
     }
-    // delay proposed and already in delay - continue until the maximum time is reached
-    if ("delayingSince" in initialDelay) {
-      if (Date.now() - initialDelay.delayingSince > MAXIMUM_DELAY_TIME) {
-        logWarn(
-          `Initial sync still "${delay}" after ${
-            MAXIMUM_DELAY_TIME / 60_000
-          } minutes, moving on`,
-        );
-        return moveOn();
-      }
-      return [AppScreen.Synchronization, delay, null];
-    }
-    // delay proposed but already ran
-    return moveOn();
+    return [AppScreen.Synchronization, delay, null];
   };
 }

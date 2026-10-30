@@ -17,7 +17,11 @@ vi.mock("@tauri-apps/api/window", () => ({
   getCurrentWindow: () => ({ label: "main" }),
 }));
 
-import { AppScreen, createScreenSelector } from "./screenSelector.ts";
+import {
+  AppScreen,
+  createScreenSelector,
+  MAXIMUM_DELAY_TIME,
+} from "./screenSelector.ts";
 import {
   checkedQuickProbe,
   eligibleRouteHealth,
@@ -117,6 +121,37 @@ describe("createScreenSelector", () => {
     expect(screenOf(status(RUNNING, [destination(noPathRouteHealth())]))).toBe(
       AppScreen.Synchronization,
     );
+  });
+
+  it("waits for exits while a running daemon has none checked yet", () => {
+    expect(createScreenSelector()(status(RUNNING))).toEqual([
+      AppScreen.Synchronization,
+      "Looking for exits",
+      null,
+    ]);
+  });
+
+  it("still waits for an exit after the app started the worker itself", () => {
+    expect(screenOf(status({ type: "not_running" }))).toBe(AppScreen.Main);
+    expect(screenOf(status(WARMUP))).toBe(AppScreen.Synchronization);
+    expect(screenOf(status(RUNNING))).toBe(AppScreen.Synchronization);
+    expect(screenOf(status(RUNNING, [destination(noPathRouteHealth())]))).toBe(
+      AppScreen.Synchronization,
+    );
+    expect(screenOf(status(RUNNING, [destination(eligibleRouteHealth())])))
+      .toBe(AppScreen.Main);
+  });
+
+  it("gives up waiting for exits after the maximum delay", () => {
+    invokeMock.mockResolvedValue(undefined);
+    vi.useFakeTimers();
+    try {
+      expect(screenOf(status(RUNNING))).toBe(AppScreen.Synchronization);
+      vi.advanceTimersByTime(MAXIMUM_DELAY_TIME + 1);
+      expect(screenOf(status(RUNNING))).toBe(AppScreen.Main);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("reaches main once a weak route is connectable", () => {
