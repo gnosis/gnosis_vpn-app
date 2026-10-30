@@ -5226,6 +5226,7 @@ dependencies = [
  "libloading",
  "liblzma",
  "objc",
+ "regex",
  "reqwest",
  "semver 1.0.28",
  "serde",

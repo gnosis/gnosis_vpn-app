@@ -45,6 +45,13 @@ Vite
 committed -- country art from `flag-icons`. Re-run the script to refresh it;
 never hand-edit the output.
 
+**GPU blocklist**: `src/assets/gpu-blocklist/` is Chromium's
+`software_rendering_list.json` plus its LICENSE, vendored verbatim by
+`scripts/update-gpu-blocklist.py`. The weekly `update-gpu-blocklist.yaml`
+workflow re-runs it and opens a PR when upstream changed.
+`src-tauri/src/render/` ports Chrome's matcher to decide GPU compositing on
+Linux; never hand-edit the list.
+
 ## Code Style & Conventions
 
 - **TypeScript**: Strict mode enabled. Type all functions. Use `@src/*`,

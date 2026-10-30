@@ -1,4 +1,4 @@
-//! Offscreen GL probe: the renderer the driver names, and how fast it really draws.
+//! Offscreen GL probe: the GL strings Chrome's blocklist matches on, and how fast the GPU really draws.
 
 use libloading::Library;
 use std::ffi::{CStr, c_char, c_void};
@@ -27,6 +27,8 @@ const EGL_PLATFORM_SURFACELESS_MESA: u32 = 0x31DD;
 
 const GL_VENDOR: u32 = 0x1F00;
 const GL_RENDERER: u32 = 0x1F01;
+const GL_VERSION: u32 = 0x1F02;
+const GL_EXTENSIONS: u32 = 0x1F03;
 const GL_VERTEX_SHADER: u32 = 0x8B31;
 const GL_FRAGMENT_SHADER: u32 = 0x8B30;
 const GL_COMPILE_STATUS: u32 = 0x8B81;
@@ -74,7 +76,7 @@ macro_rules! load_gl {
     };
 }
 
-/// `renderer=…`, `vendor=…` and `draw_ms=…` lines, or why no GL context could render.
+/// `renderer=…`, `vendor=…`, `version=…`, `extensions=…` and `draw_ms=…` lines, or why no GL context could render.
 #[allow(non_snake_case)]
 pub(super) fn probe() -> Result<String, String> {
     // SAFETY: C entry points of the system EGL library and the GLES2 functions it hands out with their documented signatures, called on one
@@ -201,6 +203,8 @@ pub(super) fn probe() -> Result<String, String> {
         };
         let renderer = gl_string(GL_RENDERER);
         let vendor = gl_string(GL_VENDOR);
+        let version = gl_string(GL_VERSION);
+        let extensions = gl_string(GL_EXTENSIONS);
 
         let compile = |kind: u32, source: &CStr| -> Result<u32, String> {
             let shader = glCreateShader(kind);
@@ -274,7 +278,7 @@ pub(super) fn probe() -> Result<String, String> {
             return Err(format!("GL error {error:#x} while drawing on {renderer:?}"));
         }
         Ok(format!(
-            "renderer={renderer}\nvendor={vendor}\ndraw_ms={draw_ms:.3}"
+            "renderer={renderer}\nvendor={vendor}\nversion={version}\nextensions={extensions}\ndraw_ms={draw_ms:.3}"
         ))
     }
 }
