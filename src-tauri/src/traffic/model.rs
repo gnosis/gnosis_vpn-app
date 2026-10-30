@@ -13,7 +13,7 @@ use std::net::IpAddr;
 
 use serde::Serialize;
 
-use super::protocol::{Batch, Direction, PROTOCOL_VERSION};
+use gnosis_vpn_lib::traffic::{Batch, Direction, PROTOCOL_VERSION};
 
 /// Completed seconds summed into each endpoint's total.
 pub const WINDOW_SECONDS: u64 = 10;
@@ -188,7 +188,7 @@ impl Model {
 
 #[cfg(test)]
 mod tests {
-    use super::super::protocol::Delta;
+    use gnosis_vpn_lib::traffic::Delta;
     use super::*;
 
     const A: &str = "203.0.113.9";

@@ -5,17 +5,18 @@
 //! window asks for. Nothing here sees a packet, and remote addresses never reach
 //! the webview.
 
-mod daemon;
 mod model;
-mod protocol;
 
+use gnosis_vpn_lib::command::{Command, Response};
+use gnosis_vpn_lib::socket::root as root_socket;
+use gnosis_vpn_lib::traffic as protocol;
 use serde::Serialize;
+use std::path::Path;
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager, State};
 use tokio::sync::Mutex;
 
 pub use model::{Endpoint, Frame, MAX_ENDPOINTS, WINDOW_SECONDS};
-pub use protocol::Interface;
 
 /// What the window shows about the capture itself, as opposed to its data.
 #[derive(Clone, Debug, Default, Serialize)]
@@ -61,9 +62,9 @@ impl TrafficState {
 
 /// Lists the interfaces the daemon is willing to capture on.
 #[tauri::command]
-pub async fn traffic_interfaces() -> Result<Vec<Interface>, String> {
-    match daemon::call(&protocol::Request::TrafficInterfaces).await? {
-        protocol::Response::TrafficInterfaces(interfaces) => Ok(interfaces),
+pub async fn traffic_interfaces() -> Result<Vec<protocol::Interface>, String> {
+    match call(Command::TrafficInterfaces).await? {
+        Response::TrafficInterfaces(interfaces) => Ok(interfaces),
         _ => Err("unexpected response from the Gnosis VPN service".to_string()),
     }
 }
@@ -77,17 +78,17 @@ pub async fn traffic_start(
     let request = protocol::StartRequest {
         interface_id: interface_id.clone(),
     };
-    let result = daemon::call(&protocol::Request::TrafficStart(&request)).await;
+    let result = call(Command::TrafficStart(request)).await;
 
     // A daemon from another protocol version would answer with shapes this app
     // cannot read. Refuse the session instead of showing an empty chart.
-    if let Ok(protocol::Response::TrafficStart(Ok(started))) = &result {
+    if let Ok(Response::TrafficStart(Ok(started))) = &result {
         if let Some(reason) = incompatible_protocol(started.protocol) {
             tracing::warn!(target: "traffic", error = %reason, "traffic protocol mismatch");
             let stop = protocol::StopRequest {
                 session_id: started.session_id,
             };
-            if let Err(e) = daemon::call(&protocol::Request::TrafficStop(&stop)).await {
+            if let Err(e) = call(Command::TrafficStop(stop)).await {
                 tracing::warn!(target: "traffic", error = %e, "cannot stop an incompatible traffic session");
             }
             let mut inner = state.inner.lock().await;
@@ -100,7 +101,7 @@ pub async fn traffic_start(
     let mut inner = state.inner.lock().await;
 
     match result {
-        Ok(protocol::Response::TrafficStart(Ok(started))) => {
+        Ok(Response::TrafficStart(Ok(started))) => {
             tracing::info!(
                 target: "traffic",
                 session = started.session_id,
@@ -121,7 +122,7 @@ pub async fn traffic_start(
             };
             Ok(inner.capture.clone())
         }
-        Ok(protocol::Response::TrafficStart(Err(reason))) => {
+        Ok(Response::TrafficStart(Err(reason))) => {
             tracing::warn!(target: "traffic", error = %reason, "traffic capture refused");
             inner.session = None;
             inner.capture = failed(&reason);
@@ -154,8 +155,8 @@ pub async fn traffic_frame(state: State<'_, TrafficState>) -> Result<FrameRespon
             session_id,
             cursor: inner.cursor,
         };
-        match daemon::call(&protocol::Request::TrafficRead(&request)).await {
-            Ok(protocol::Response::TrafficRead(read)) => {
+        match call(Command::TrafficRead(request)).await {
+            Ok(Response::TrafficRead(read)) => {
                 let mut mismatch = None;
                 for batch in &read.batches {
                     if let Err(reason) = inner.model.ingest(batch) {
@@ -197,7 +198,7 @@ pub async fn traffic_frame(state: State<'_, TrafficState>) -> Result<FrameRespon
 
     if let Some(session_id) = stop_session {
         let stop = protocol::StopRequest { session_id };
-        if let Err(e) = daemon::call(&protocol::Request::TrafficStop(&stop)).await {
+        if let Err(e) = call(Command::TrafficStop(stop)).await {
             tracing::warn!(target: "traffic", error = %e, "cannot stop an incompatible traffic session");
         }
     }
@@ -209,6 +210,28 @@ pub async fn traffic_frame(state: State<'_, TrafficState>) -> Result<FrameRespon
 pub async fn traffic_stop(state: State<'_, TrafficState>) -> Result<(), String> {
     stop_inner(&state.inner).await;
     Ok(())
+}
+
+const SERVICE_NOT_RUNNING: &str = "The Gnosis VPN service is not running";
+const SERVICE_IN_USE: &str = "Another user on this computer is using Gnosis VPN";
+const SERVICE_UNSUPPORTED: &str =
+    "This Gnosis VPN version does not support traffic capture; update the client";
+
+async fn call(command: Command) -> Result<Response, String> {
+    call_at(&crate::cli::socket_path(), command).await
+}
+
+async fn call_at(path: &Path, command: Command) -> Result<Response, String> {
+    match root_socket::process_cmd(path, &command).await {
+        Ok(Response::InUseByOtherUser) => Err(SERVICE_IN_USE.to_string()),
+        Ok(response) => Ok(response),
+        Err(root_socket::Error::ServiceNotRunning) => Err(SERVICE_NOT_RUNNING.to_string()),
+        // A daemon without the traffic API closes the connection on a command it cannot parse.
+        Err(root_socket::Error::Deserialization(e)) if e.is_eof() => {
+            Err(SERVICE_UNSUPPORTED.to_string())
+        }
+        Err(e) => Err(format!("Cannot reach the Gnosis VPN service: {e}")),
+    }
 }
 
 fn failed(reason: &str) -> CaptureStatus {
@@ -236,8 +259,8 @@ async fn stop_inner(inner: &Arc<Mutex<Inner>>) {
         let request = protocol::StopRequest {
             session_id: session.id,
         };
-        match daemon::call(&protocol::Request::TrafficStop(&request)).await {
-            Ok(protocol::Response::TrafficStop(stop)) if !stop.stopped => {
+        match call(Command::TrafficStop(request)).await {
+            Ok(Response::TrafficStop(stop)) if !stop.stopped => {
                 tracing::debug!(target: "traffic", session = session.id, "traffic session was already gone");
             }
             Ok(_) => {}
@@ -292,7 +315,7 @@ pub fn open_traffic_window(app: AppHandle) {
 
 /// Interface the window should select when it opens: the egress interface, or
 /// the only candidate.
-pub fn preferred_interface(interfaces: &[Interface]) -> Option<&Interface> {
+pub fn preferred_interface(interfaces: &[protocol::Interface]) -> Option<&protocol::Interface> {
     interfaces
         .iter()
         .find(|interface| interface.is_default)
@@ -302,9 +325,59 @@ pub fn preferred_interface(interfaces: &[Interface]) -> Option<&Interface> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::UnixListener;
 
-    fn interface(name: &str, is_default: bool) -> Interface {
-        Interface {
+    fn socket_path(name: &str) -> std::path::PathBuf {
+        std::env::temp_dir().join(format!("gvpn-traffic-{}-{name}.sock", std::process::id()))
+    }
+
+    async fn answer_once(listener: UnixListener, reply: &'static str) {
+        let (mut stream, _) = listener.accept().await.expect("accept");
+        let mut request = String::new();
+        stream.read_to_string(&mut request).await.expect("read");
+        stream.write_all(reply.as_bytes()).await.expect("write");
+    }
+
+    #[tokio::test]
+    async fn an_empty_answer_means_the_daemon_has_no_traffic_api() {
+        let path = socket_path("empty");
+        let _ = std::fs::remove_file(&path);
+        let server = tokio::spawn(answer_once(UnixListener::bind(&path).expect("bind"), ""));
+        let error = call_at(&path, Command::TrafficInterfaces)
+            .await
+            .expect_err("unsupported");
+        assert_eq!(error, SERVICE_UNSUPPORTED);
+        server.await.expect("server");
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[tokio::test]
+    async fn another_users_worker_is_reported_as_in_use() {
+        let path = socket_path("in-use");
+        let _ = std::fs::remove_file(&path);
+        let server = tokio::spawn(answer_once(
+            UnixListener::bind(&path).expect("bind"),
+            r#""InUseByOtherUser""#,
+        ));
+        let error = call_at(&path, Command::TrafficInterfaces)
+            .await
+            .expect_err("in use");
+        assert_eq!(error, SERVICE_IN_USE);
+        server.await.expect("server");
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[tokio::test]
+    async fn a_missing_socket_reports_the_service_as_down() {
+        let error = call_at(&socket_path("missing"), Command::TrafficInterfaces)
+            .await
+            .expect_err("missing");
+        assert_eq!(error, SERVICE_NOT_RUNNING);
+    }
+
+    fn interface(name: &str, is_default: bool) -> protocol::Interface {
+        protocol::Interface {
             id: name.to_string(),
             name: name.to_string(),
             addresses: Vec::new(),
