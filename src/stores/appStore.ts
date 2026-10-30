@@ -365,8 +365,12 @@ export function createAppStore(): AppStoreTuple {
   const processStatusResponse = (response: StatusResponse) => {
     const [screen, warmupStatus, recoveryReason] = selectScreen(response);
     const lastWarmupError = warmupProgress(response.run_mode)?.last_error;
-    // The daemon retries warmup; only outside the sync screen is that fatal.
-    if (lastWarmupError && screen !== AppScreen.Synchronization) {
+    // The daemon retries warmup and the safe lookup; only past those screens is that fatal.
+    if (
+      lastWarmupError &&
+      screen !== AppScreen.Synchronization &&
+      screen !== AppScreen.Initialization
+    ) {
       criticalError(lastWarmupError);
       return;
     }

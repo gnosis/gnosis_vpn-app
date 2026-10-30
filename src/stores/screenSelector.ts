@@ -99,6 +99,14 @@ export function createScreenSelector(): (
     if (syncScreenSpent) {
       return [AppScreen.Main, "Moving on", null];
     }
+    // Onboarding or sync is unknown until the daemon finds (or misses) a Safe.
+    if (runMode.type === "init") {
+      return [
+        AppScreen.Initialization,
+        "Checking for an existing safe",
+        runMode.last_error,
+      ];
+    }
 
     if (isDeployingSafeRunMode(runMode)) {
       safeDeployStarted = true;

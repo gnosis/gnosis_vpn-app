@@ -41,6 +41,7 @@ const DEPLOYING_SAFE: RunMode = {
   type: "deploying_safe",
   node_address: "0xnode",
 };
+const LOOKING_UP_SAFE: RunMode = { type: "init", last_error: null };
 const PREPARING_SAFE: RunMode = {
   type: "preparing_safe",
   node_address: "0xnode",
@@ -203,15 +204,6 @@ describe("createScreenSelector", () => {
     );
   });
 
-  it("syncs through init as the first warmup stage", () => {
-    const init: RunMode = { type: "init", last_error: null };
-    expect(createScreenSelector()(status(init))).toEqual([
-      AppScreen.Synchronization,
-      "Initializing edge client",
-      null,
-    ]);
-  });
-
   it("reports the warmup error as the recovery reason", () => {
     const select = createScreenSelector();
     const failing: RunMode = {
@@ -221,6 +213,41 @@ describe("createScreenSelector", () => {
     };
     expect(select(status(failing))[2]).toBe("safe 0xabc does not exist");
     expect(select(status(WARMUP))[2]).toBeNull();
+  });
+
+  it("holds the initialization screen while the safe lookup runs", () => {
+    const select = createScreenSelector();
+    expect(select(status(LOOKING_UP_SAFE))).toEqual([
+      AppScreen.Initialization,
+      "Checking for an existing safe",
+      null,
+    ]);
+  });
+
+  it("reports a failing safe lookup as the recovery reason", () => {
+    const select = createScreenSelector();
+    const failing: RunMode = { type: "init", last_error: "blokli unreachable" };
+    expect(select(status(failing))).toEqual([
+      AppScreen.Initialization,
+      "Checking for an existing safe",
+      "blokli unreachable",
+    ]);
+  });
+
+  it("goes straight to onboarding on a first run", () => {
+    expect(screenOf(status(LOOKING_UP_SAFE))).toBe(AppScreen.Initialization);
+    expect(screenOf(status(PREPARING_SAFE))).toBe(AppScreen.Onboarding);
+  });
+
+  it("syncs once the lookup finds a safe", () => {
+    expect(screenOf(status(LOOKING_UP_SAFE))).toBe(AppScreen.Initialization);
+    expect(screenOf(status(WARMUP))).toBe(AppScreen.Synchronization);
+  });
+
+  it("stays on main when the daemon restarts its safe lookup", () => {
+    expect(screenOf(status(RUNNING, [destination(eligibleRouteHealth())])))
+      .toBe(AppScreen.Main);
+    expect(screenOf(status(LOOKING_UP_SAFE))).toBe(AppScreen.Main);
   });
 
   it("gives each app run its own gate", () => {
