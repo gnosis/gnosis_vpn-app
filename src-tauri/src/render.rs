@@ -38,9 +38,9 @@ fn cpu_cores() -> usize {
     std::thread::available_parallelism().map_or(1, |n| n.get())
 }
 
-#[cfg(not(target_os = "linux"))]
+#[cfg(target_os = "macos")]
 fn detect() -> RenderProfile {
-    // WKWebView and WebView2 vet their GPU path themselves.
+    // WKWebView vets its GPU path itself.
     RenderProfile {
         software_rendering: false,
         cpu_cores: cpu_cores(),
@@ -91,6 +91,13 @@ fn is_cpu_rasterizer(renderer: &str) -> bool {
 
 #[cfg(target_os = "linux")]
 fn detect() -> RenderProfile {
+    if std::env::var_os("WEBKIT_DISABLE_COMPOSITING_MODE").is_some() {
+        return RenderProfile {
+            software_rendering: true,
+            cpu_cores: cpu_cores(),
+            reason: "WEBKIT_DISABLE_COMPOSITING_MODE already set".to_string(),
+        };
+    }
     // Anything short of a probe that renders, fast, on a named GPU counts as software.
     let (software_rendering, reason) = match probe_in_child() {
         Ok(output) => classify(&output),
