@@ -53,7 +53,6 @@ zstd = "0.14.3"
 ashpd = { version = "0.10", default-features = false }
 futures-core = { version = "0.3.34", default-features = false }
 libloading = "0.7"
-regex = "1"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 # Only for app_nap until it moves out of the lib (GNO-1045 follow-up).

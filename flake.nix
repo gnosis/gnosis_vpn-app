@@ -78,8 +78,6 @@
               "src/assets/flags/*"
               # Designer Lottie exports; replaced wholesale, never edited.
               "src/assets/animations/*"
-              # Vendored verbatim from Chromium by scripts/update-gpu-blocklist.py.
-              "src/assets/gpu-blocklist/*"
             ];
 
             programs.nixfmt = {
