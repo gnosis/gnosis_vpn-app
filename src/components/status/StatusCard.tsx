@@ -44,10 +44,6 @@ import Tag from "../common/Tag.tsx";
 import Tooltip from "../common/Tooltip.tsx";
 import SignalBars from "../exitNode/SignalBars.tsx";
 
-/** Why a weak route is still offered; shown on hover of the verdict that says so. */
-const WEAK_ROUTE =
-  "The best path found has degraded links. Connecting is your call; auto never picks it.";
-
 // Module scope: the choice survives screen switches and resets on app restart.
 const [expanded, setExpanded] = createSignal(false);
 
@@ -203,6 +199,8 @@ export default function StatusCard(
     return rh ? getRouteVerdict(rh, exit()) : null;
   };
   const isWeak = () => routeVerdict() === "weak";
+  // The weak route label is hidden for now; the bars still show it.
+  const hidesVerdict = () => !isConnected() && !inFlight() && isWeak();
   const quality = () =>
     getConnectionQuality(latencyMs(), loadLevel(), stall(), routeVerdict());
   const hopCount = () =>
@@ -294,7 +292,9 @@ export default function StatusCard(
             role="button"
             tabIndex={0}
             aria-expanded={expanded()}
-            aria-label={`${row().prefix} ${row().text}. Toggle details`}
+            aria-label={hidesVerdict()
+              ? "Toggle details"
+              : `${row().prefix} ${row().text}. Toggle details`}
             class="group flex w-full items-center justify-between gap-2 px-3.5 py-2.5 focus:outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
             onClick={toggle}
             onKeyDown={(e) => {
@@ -307,16 +307,12 @@ export default function StatusCard(
           >
             <span class="flex min-w-0 items-center gap-2">
               <SignalBars grade={row().grade} />
-              <span class="truncate text-text-secondary">
-                {row().prefix}{" "}
-                {/* The verdict is the text itself; a weak route explains itself on hover instead of repeating as a tag. */}
-                <Tooltip
-                  content={<span>{WEAK_ROUTE}</span>}
-                  disabled={isConnected() || !isWeak()}
-                >
+              <Show when={!hidesVerdict()}>
+                <span class="truncate text-text-secondary">
+                  {row().prefix}{" "}
                   <span class={`font-bold ${row().class}`}>{row().text}</span>
-                </Tooltip>
-              </span>
+                </span>
+              </Show>
               <Show when={hopCount() !== 1}>
                 <Tag>
                   <HopsIcon count={hopCount()} hideCount />
