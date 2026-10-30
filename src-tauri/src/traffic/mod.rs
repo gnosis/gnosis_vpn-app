@@ -12,7 +12,6 @@ use gnosis_vpn_lib::socket::root as root_socket;
 use gnosis_vpn_lib::traffic as protocol;
 use serde::Serialize;
 use std::path::Path;
-use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager, State};
 use tokio::sync::Mutex;
 
@@ -36,14 +35,10 @@ pub struct FrameResponse {
     pub gap: bool,
 }
 
-struct Session {
-    id: u64,
-}
-
 #[derive(Default)]
 struct Inner {
     model: model::Model,
-    session: Option<Session>,
+    session_id: Option<u64>,
     cursor: u64,
     gap: bool,
     capture: CaptureStatus,
@@ -51,13 +46,7 @@ struct Inner {
 
 #[derive(Default)]
 pub struct TrafficState {
-    inner: Arc<Mutex<Inner>>,
-}
-
-impl TrafficState {
-    pub fn new() -> Self {
-        Self::default()
-    }
+    inner: Mutex<Inner>,
 }
 
 /// Lists the interfaces the daemon is willing to capture on.
@@ -92,7 +81,7 @@ pub async fn traffic_start(
                 tracing::warn!(target: "traffic", error = %e, "cannot stop an incompatible traffic session");
             }
             let mut inner = state.inner.lock().await;
-            inner.session = None;
+            inner.session_id = None;
             inner.capture = failed(&reason);
             return Err(reason);
         }
@@ -111,9 +100,7 @@ pub async fn traffic_start(
             inner.model.reset();
             inner.cursor = 0;
             inner.gap = false;
-            inner.session = Some(Session {
-                id: started.session_id,
-            });
+            inner.session_id = Some(started.session_id);
             inner.capture = CaptureStatus {
                 active: true,
                 interface: Some(started.interface.name),
@@ -124,19 +111,19 @@ pub async fn traffic_start(
         }
         Ok(Response::TrafficStart(Err(reason))) => {
             tracing::warn!(target: "traffic", error = %reason, "traffic capture refused");
-            inner.session = None;
+            inner.session_id = None;
             inner.capture = failed(&reason);
             Err(reason)
         }
         Ok(_) => {
             let reason = "unexpected response from the Gnosis VPN service".to_string();
-            inner.session = None;
+            inner.session_id = None;
             inner.capture = failed(&reason);
             Err(reason)
         }
         Err(reason) => {
             tracing::warn!(target: "traffic", error = %reason, "traffic capture unavailable");
-            inner.session = None;
+            inner.session_id = None;
             inner.capture = failed(&reason);
             Err(reason)
         }
@@ -147,7 +134,7 @@ pub async fn traffic_start(
 #[tauri::command]
 pub async fn traffic_frame(state: State<'_, TrafficState>) -> Result<FrameResponse, String> {
     let mut inner = state.inner.lock().await;
-    let session_id = inner.session.as_ref().map(|session| session.id);
+    let session_id = inner.session_id;
     let mut stop_session = None;
 
     if let Some(session_id) = session_id {
@@ -170,21 +157,21 @@ pub async fn traffic_frame(state: State<'_, TrafficState>) -> Result<FrameRespon
                 if let Some(reason) = mismatch {
                     tracing::warn!(target: "traffic", reason = %reason, "traffic protocol mismatch");
                     inner.capture = failed(&reason);
-                    inner.session = None;
+                    inner.session_id = None;
                     stop_session = Some(session_id);
                 } else if let Some(reason) = read.ended {
                     tracing::warn!(target: "traffic", reason = %reason, "traffic capture ended");
                     inner.capture.ended = Some(reason);
-                    inner.session = None;
+                    inner.session_id = None;
                 }
             }
             Ok(_) => {
                 inner.capture = failed("unexpected response from the Gnosis VPN service");
-                inner.session = None;
+                inner.session_id = None;
             }
             Err(reason) => {
                 inner.capture = failed(&reason);
-                inner.session = None;
+                inner.session_id = None;
             }
         }
     }
@@ -253,22 +240,20 @@ fn incompatible_protocol(version: u16) -> Option<String> {
     })
 }
 
-async fn stop_inner(inner: &Arc<Mutex<Inner>>) {
+async fn stop_inner(inner: &Mutex<Inner>) {
     let mut guard = inner.lock().await;
-    if let Some(session) = guard.session.take() {
-        let request = protocol::StopRequest {
-            session_id: session.id,
-        };
+    if let Some(session_id) = guard.session_id.take() {
+        let request = protocol::StopRequest { session_id };
         match call(Command::TrafficStop(request)).await {
             Ok(Response::TrafficStop(stop)) if !stop.stopped => {
-                tracing::debug!(target: "traffic", session = session.id, "traffic session was already gone");
+                tracing::debug!(target: "traffic", session = session_id, "traffic session was already gone");
             }
             Ok(_) => {}
             Err(e) => {
                 tracing::warn!(target: "traffic", error = %e, "cannot stop traffic capture");
             }
         }
-        tracing::info!(target: "traffic", session = session.id, "traffic session stopped");
+        tracing::info!(target: "traffic", session = session_id, "traffic session stopped");
     }
     guard.model.reset();
     guard.cursor = 0;

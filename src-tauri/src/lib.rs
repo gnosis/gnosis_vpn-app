@@ -502,7 +502,7 @@ pub fn run() {
             app.manage(UpdateInstallState::default());
 
             // traffic visualization state (model + capture session)
-            app.manage(traffic::TrafficState::new());
+            app.manage(traffic::TrafficState::default());
 
             let (status_tx, _) = watch::channel(None);
             let (balance_tx, _) = watch::channel(None);
