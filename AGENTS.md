@@ -34,10 +34,10 @@ Vite
   flags / `GNOSISVPN_*` env vars with compiled-in defaults
   (`src-tauri/src/cli.rs`; flag > env > default). `--socket-path` /
   `GNOSISVPN_SOCKET_PATH` points the app at a root binary started with its own
-  `--socket-path` (`just run-local` uses the default socket); every socket call
-  site reads the path through `cli::socket_path()`. Overrides are for
-  terminal/dev runs only: Finder, desktop launchers and Windows release builds
-  show no clap output and see no shell env vars. Dev run:
+  `--socket-path`; every socket call site reads the path through
+  `cli::socket_path()`. Overrides are for terminal/dev runs only: Finder,
+  desktop launchers and Windows release builds show no clap output and see no
+  shell env vars. Dev run:
   `deno task tauri dev -- -- --log-upload-api-url https://staging.example/api/upload`
   (`tauri dev -- [runnerArgs] -- [appArgs]`; Deno forwards the whole tail
   verbatim). Env vars need no separators, e.g.
