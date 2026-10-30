@@ -1,0 +1,118 @@
+# Weekly, as Chromium's list changes a few times a year: refreshes src/assets/gpu-blocklist/ and opens a PR when it changed.
+name: Update GPU blocklist
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 5 * * 1"
+concurrency:
+  group: update-gpu-blocklist
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  update:
+    name: Refresh Chromium GPU blocklist
+    runs-on: depot-ubuntu-22.04-4 # Depot Ubuntu 22.04, 4 CPUs, 16 GB RAM
+    permissions:
+      contents: read
+      # Opens the PR with its own GITHUB_TOKEN; the app installation has no pull-requests scope.
+      pull-requests: write
+    env:
+      BRANCH: chore/gpu-blocklist
+    steps:
+      - name: Generate GitHub App token
+        id: bot-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ secrets.GH_APP_GNOSISVPN_CLIENT_ID }}
+          private-key: ${{ secrets.GH_APP_GNOSISVPN_BOT_PRIVATE_KEY }}
+          owner: gnosis
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          token: ${{ steps.bot-token.outputs.token }}
+      - name: Fetch the latest list
+        id: fetch
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python3 -I scripts/update-gpu-blocklist.py --summary "${RUNNER_TEMP}/summary.md"
+          if git diff --quiet -- src/assets/gpu-blocklist; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          # An unmerged PR from an earlier week may carry this revision already; re-pushing would only rerun its CI.
+          elif git fetch --quiet origin "${BRANCH}" 2>/dev/null &&
+            git diff --quiet FETCH_HEAD -- src/assets/gpu-blocklist; then
+            echo "${BRANCH} already carries this revision"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "revision=$(cut -c1-12 src/assets/gpu-blocklist/REVISION)" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Setup Nix
+        if: steps.fetch.outputs.changed == 'true'
+        uses: hoprnet/hopr-workflows/actions/setup-nix@ade4bbd75f7204255c61d19c23f67d3da221e7d2 # setup-nix-v2.0.2
+        with:
+          cachix_cache_name: gnosis-vpn-app
+          cachix_auth_token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      # PR CI runs no Rust tests, so the matcher meets the new list here; a condition it can't evaluate fails the run.
+      - name: Test the matcher against the new list
+        if: steps.fetch.outputs.changed == 'true'
+        shell: bash
+        run: |
+          cd src-tauri
+          nix develop ..# --command cargo test --lib render::
+      - name: Commit and push
+        if: steps.fetch.outputs.changed == 'true'
+        shell: bash
+        env:
+          APP_SLUG: ${{ steps.bot-token.outputs.app-slug }}
+          REVISION: ${{ steps.fetch.outputs.revision }}
+        run: |
+          git config user.name "${APP_SLUG}[bot]"
+          git config user.email "${APP_SLUG}[bot]@users.noreply.github.com"
+          git switch -c "${BRANCH}"
+          git add src/assets/gpu-blocklist
+          git commit -m "chore(render): update Chromium GPU blocklist to ${REVISION}"
+          # Force so a newer upstream revision replaces an unmerged one in the same PR.
+          git push --force origin "HEAD:refs/heads/${BRANCH}"
+      - name: Open pull request
+        if: steps.fetch.outputs.changed == 'true'
+        id: pr
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          REVISION: ${{ steps.fetch.outputs.revision }}
+        run: |
+          title="chore(render): update Chromium GPU blocklist to ${REVISION}"
+          body="${RUNNER_TEMP}/summary.md"
+          pr_url=$(gh pr list --head "${BRANCH}" --base main --state open --json url --jq '.[0].url // empty')
+          if [[ -n "${pr_url}" ]]; then
+            gh pr edit "${pr_url}" --title "${title}" --body-file "${body}"
+            echo "created=false" >> "$GITHUB_OUTPUT"
+          else
+            if ! pr_url=$(gh pr create --base main --head "${BRANCH}" --title "${title}" --body-file "${body}"); then
+              echo "::error::Branch ${BRANCH} is pushed, but the pull request could not be opened. If the error above says GitHub Actions may not create pull requests, enable 'Allow GitHub Actions to create and approve pull requests' under Settings -> Actions -> General, then re-run this workflow."
+              exit 1
+            fi
+            echo "created=true" >> "$GITHUB_OUTPUT"
+          fi
+          {
+            echo "### Chromium GPU blocklist ${REVISION}"
+            echo
+            echo "Pull request: ${pr_url}"
+            echo
+            cat "${body}"
+          } >> "$GITHUB_STEP_SUMMARY"
+      # PRs opened with GITHUB_TOKEN emit no pull_request events, so re-push with the app token to start CI.
+      - name: Trigger CI on the pull request
+        if: steps.pr.outputs.created == 'true'
+        shell: bash
+        run: |
+          sleep 1 # a later committer timestamp guarantees a new commit hash
+          git commit --amend --no-edit
+          git push --force origin "HEAD:refs/heads/${BRANCH}"
