@@ -197,7 +197,7 @@ export function createAppStore(): AppStoreTuple {
   let syncPhaseStartTime = 0;
   let syncPhaseStartProgress = 0;
   let recovering = false;
-  // Taken on the first tick, after any climb to the phase floor.
+  // Taken on the first recovering tick; a retry pauses any floor climb.
   let recoveryStart: { at: number; progress: number } | null = null;
   let syncTimer: ReturnType<typeof setInterval> | undefined;
   let catchUpTarget: number | null = null;
@@ -225,6 +225,15 @@ export function createAppStore(): AppStoreTuple {
       return;
     }
     if (activeSyncPhase === null) return;
+    if (recovering) {
+      recoveryStart ??= { at: Date.now(), progress: current };
+      const creepSeconds = Math.floor((Date.now() - recoveryStart.at) / 1000);
+      setState(
+        "syncProgress",
+        Math.min(100, recoveryStart.progress + creepSeconds * CEILING_CREEP),
+      );
+      return;
+    }
     if (floorClimb !== null) {
       const next = stepTowardsFloor(
         floorClimb.from,
@@ -238,15 +247,6 @@ export function createAppStore(): AppStoreTuple {
         syncPhaseStartTime = Date.now();
         floorClimb = null;
       }
-      return;
-    }
-    if (recovering) {
-      recoveryStart ??= { at: Date.now(), progress: current };
-      const creepSeconds = Math.floor((Date.now() - recoveryStart.at) / 1000);
-      setState(
-        "syncProgress",
-        Math.min(100, recoveryStart.progress + creepSeconds * CEILING_CREEP),
-      );
       return;
     }
     const phase = SYNC_PHASES[activeSyncPhase];
@@ -281,7 +281,7 @@ export function createAppStore(): AppStoreTuple {
       : null;
     activeSyncPhase = next;
     syncPhaseStartTime = Date.now();
-    // Recapture after the climb, or recovery would rewind to the old phase's progress.
+    // Recapture, or recovery would resume from the old phase's progress.
     recoveryStart = null;
     if (!syncTimer) {
       syncTimer = setInterval(tickSyncProgress, TICK_INTERVAL);
@@ -397,6 +397,8 @@ export function createAppStore(): AppStoreTuple {
     } else if (!recoveryReason && recovering) {
       // The retry redoes the phase's work, so its budget restarts from here.
       recovering = false;
+      // A paused climb would jump to the floor; the restarted budget covers that ground.
+      floorClimb = null;
       syncPhaseStartProgress = state.syncProgress;
       syncPhaseStartTime = Date.now();
     }
