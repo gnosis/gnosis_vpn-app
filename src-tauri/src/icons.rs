@@ -34,7 +34,7 @@ pub const APP_ICON_DISCONNECTED_OUT_OF_FUNDS: &str = "app-icon-disconnected-out-
 pub const APP_ICON_IN_USE: &str = "app-icon-in-use.png";
 pub const APP_ICON_SERVICE_DOWN: &str = "app-icon-service-down.png";
 
-// Tray icon constants (macOS/Windows, macOS renders them alpha-only via template mode)
+// Tray icon constants (macOS renders them alpha-only via template mode)
 pub const TRAY_ICON_CONNECTED: &str = "tray-icons/tray-icon-connected.png";
 pub const TRAY_ICON_CONNECTED_LOW_FUNDS: &str = "tray-icons/tray-icon-connected-low-funds.png";
 pub const TRAY_ICON_CONNECTED_OUT_OF_FUNDS: &str =
