@@ -12,6 +12,7 @@ import {
   type Link,
   linkWidth,
   MIN_LINK_WIDTH,
+  pickIntermediary,
   type Point,
   type Vec3,
 } from "@src/utils/globe.ts";
@@ -45,7 +46,7 @@ const DOT_RADIUS = 4.5;
 const HOME_RADIUS = 7;
 const GRATICULE = graticule();
 
-/** A destination's intermediary is a stable guess: which hop carries it is unobservable. */
+/** All destinations share one intermediary, a stable guess: which hop carries them is unobservable. */
 export default function TrafficGlobe(props: TrafficGlobeProps) {
   let container!: HTMLDivElement;
   let canvas!: HTMLCanvasElement;
@@ -54,6 +55,7 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
   const links = new Map<string, Link>();
   let targets = new Map<string, number>();
   let hoprPeers = new Set<string>();
+  let intermediary: string | null = null;
   let parents = new Map<string, string | null>();
   let frameRequest: number | undefined;
   let lastTime: number | undefined;
@@ -270,7 +272,8 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
     }
     targets = next;
     hoprPeers = hoprPeerIds(props.endpoints, hoprPeers, links);
-    parents = destinationParents(props.endpoints, parents, links);
+    intermediary = pickIntermediary(props.endpoints, intermediary);
+    parents = destinationParents(props.endpoints, intermediary, parents, links);
     startAnimation();
   });
 

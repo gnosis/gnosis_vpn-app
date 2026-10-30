@@ -210,36 +210,28 @@ export function intermediaryIds(
   return wire.slice(0, 1).map((endpoint) => endpoint.id);
 }
 
-/** Highest-random-weight hashing keeps a destination on its intermediary while others come and go. */
-export function parentFor(
-  destination: string,
-  intermediaries: readonly string[],
-): string | undefined {
-  let best: string | undefined;
-  let bestWeight = -1;
-  for (const id of intermediaries) {
-    const weight = fnv1a(`${destination}>${id}`);
-    if (weight > bestWeight || (weight === bestWeight && best && id < best)) {
-      best = id;
-      bestWeight = weight;
-    }
-  }
-  return best;
+/** Keeps the current intermediary while it stays on the wire, so destinations don't hop between nodes. */
+export function pickIntermediary(
+  endpoints: readonly GlobeEndpoint[],
+  current: string | null,
+): string | null {
+  const intermediaries = intermediaryIds(endpoints);
+  if (current !== null && intermediaries.includes(current)) return current;
+  return intermediaries[0] ?? null;
 }
 
 /** `null` hangs a destination off the host; departed destinations keep their parent while fading. */
 export function destinationParents(
   endpoints: readonly GlobeEndpoint[],
+  intermediary: string | null,
   previous: ReadonlyMap<string, string | null>,
   links: ReadonlyMap<string, Link>,
 ): Map<string, string | null> {
-  const intermediaries = intermediaryIds(endpoints);
   const parents = new Map<string, string | null>();
   const listed = new Set<string>();
   for (const endpoint of endpoints) {
     listed.add(endpoint.id);
-    if (!endpoint.tunnel) continue;
-    parents.set(endpoint.id, parentFor(endpoint.id, intermediaries) ?? null);
+    if (endpoint.tunnel) parents.set(endpoint.id, intermediary);
   }
   for (const [id, parent] of previous) {
     if (!listed.has(id) && links.has(id)) parents.set(id, parent);

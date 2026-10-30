@@ -15,7 +15,7 @@ import {
   linkWidth,
   MAX_LINK_WIDTH,
   MIN_LINK_WIDTH,
-  parentFor,
+  pickIntermediary,
 } from "./globe.ts";
 
 const length = (v: { x: number; y: number; z: number }) =>
@@ -248,28 +248,45 @@ describe("intermediaryIds", () => {
   });
 });
 
-describe("parentFor", () => {
-  it("picks one of the intermediaries, the same one every time", () => {
-    const parent = parentFor("dest", ["a", "b", "c"]);
-    expect(["a", "b", "c"]).toContain(parent);
-    expect(parentFor("dest", ["c", "a", "b"])).toBe(parent);
-  });
+describe("pickIntermediary", () => {
+  const endpoint = (
+    id: string,
+    { hopr_peer = false, tunnel = false } = {},
+  ) => ({ id, sent: 1, received: 1, hopr_peer, tunnel });
 
-  it("keeps its parent when another intermediary leaves", () => {
-    const parent = parentFor("dest", ["a", "b", "c"]);
-    const others = ["a", "b", "c"].filter((id) => id !== parent);
-    expect(parentFor("dest", [parent!, others[0]])).toBe(parent);
-  });
-
-  it("spreads destinations over the intermediaries", () => {
-    const parents = new Set(
-      Array.from({ length: 40 }, (_, n) => parentFor(`d${n}`, ["a", "b", "c"])),
+  it("starts with the busiest intermediary", () => {
+    const picked = pickIntermediary(
+      [
+        endpoint("peer-a", { hopr_peer: true }),
+        endpoint("peer-b", { hopr_peer: true }),
+      ],
+      null,
     );
-    expect(parents.size).toBe(3);
+    expect(picked).toBe("peer-a");
   });
 
-  it("has no parent without intermediaries", () => {
-    expect(parentFor("dest", [])).toBeUndefined();
+  it("keeps the current intermediary while it is still on the wire", () => {
+    const picked = pickIntermediary(
+      [
+        endpoint("peer-a", { hopr_peer: true }),
+        endpoint("peer-b", { hopr_peer: true }),
+      ],
+      "peer-b",
+    );
+    expect(picked).toBe("peer-b");
+  });
+
+  it("moves on once the current intermediary is gone", () => {
+    const picked = pickIntermediary(
+      [endpoint("peer-a", { hopr_peer: true })],
+      "peer-b",
+    );
+    expect(picked).toBe("peer-a");
+  });
+
+  it("has none without wire endpoints", () => {
+    expect(pickIntermediary([endpoint("d1", { tunnel: true })], "peer-a"))
+      .toBeNull();
   });
 });
 
@@ -279,7 +296,7 @@ describe("destinationParents", () => {
     { hopr_peer = false, tunnel = false } = {},
   ) => ({ id, sent: 1, received: 1, hopr_peer, tunnel });
 
-  it("links every listed destination to one of the intermediaries", () => {
+  it("links every listed destination to the shared intermediary", () => {
     const parents = destinationParents(
       [
         endpoint("peer-a", { hopr_peer: true }),
@@ -287,18 +304,20 @@ describe("destinationParents", () => {
         endpoint("d1", { tunnel: true }),
         endpoint("d2", { tunnel: true }),
       ],
+      "peer-b",
       new Map(),
       new Map(),
     );
-    expect([...parents.keys()].sort()).toEqual(["d1", "d2"]);
-    for (const parent of parents.values()) {
-      expect(["peer-a", "peer-b"]).toContain(parent);
-    }
+    expect([...parents.entries()]).toEqual([["d1", "peer-b"], [
+      "d2",
+      "peer-b",
+    ]]);
   });
 
   it("links destinations to the host when nothing carries them", () => {
     const parents = destinationParents(
       [endpoint("d1", { tunnel: true })],
+      null,
       new Map(),
       new Map(),
     );
@@ -309,6 +328,7 @@ describe("destinationParents", () => {
     const links = new Map<string, Link>([["d1", { width: 2, target: 0 }]]);
     const parents = destinationParents(
       [endpoint("server")],
+      "server",
       new Map([["d1", "old-server"], ["gone", "old-server"]]),
       links,
     );
