@@ -142,10 +142,13 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
     context.strokeStyle = colors.edge;
     context.stroke();
 
-    // Thin links first so busy ones stay on top.
-    const ordered = [...links.entries()].sort((a, b) =>
-      a[1].width - b[1].width
-    );
+    // Via VPN links last so they cross over the relays; within a layer, busy ones stay on top.
+    const ordered = [...links.entries()].sort(([idA, linkA], [idB, linkB]) => {
+      const viaVpnA = destinations.has(idA);
+      const viaVpnB = destinations.has(idB);
+      if (viaVpnA !== viaVpnB) return viaVpnA ? 1 : -1;
+      return linkA.width - linkB.width;
+    });
     const spots = new Map<string, Vec3>();
     for (const id of links.keys()) {
       spots.set(
@@ -188,10 +191,10 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
         else context.lineTo(x, y);
       });
       const hopr = hoprPeers.has(id);
+      const width = hopr ? link.width * HOPR_WIDTH_SCALE : link.width;
       if (hopr) {
         // Darker edges under the pale HOPR yellow so the line reads on a light globe.
         context.strokeStyle = colors.hoprLinkEdge;
-      const width = hopr ? link.width * HOPR_WIDTH_SCALE : link.width;
         context.lineWidth = width + 1;
         context.stroke();
       }
