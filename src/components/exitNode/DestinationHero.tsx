@@ -1,4 +1,4 @@
-import { createMemo, createSignal, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, Show } from "solid-js";
 import type { DestinationState } from "@src/services/vpnService.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { effectiveActive } from "@src/stores/destinationMode.ts";
@@ -31,8 +31,14 @@ export default function DestinationHero(props: {
   const auto = () => appState.mode.mode.mode === "auto";
   const pending = () =>
     appState.mode.mode.mode === "auto" ? appState.mode.mode.pending : null;
+  // Kept after the switch settles so the spinner and its tooltip fade out intact.
+  const [lastPending, setLastPending] = createSignal(pending());
+  createEffect(() => {
+    const current = pending();
+    if (current) setLastPending(current);
+  });
   const candidateTitle = () => {
-    const id = pending()?.candidateId;
+    const id = lastPending()?.candidateId;
     const candidate = id ? appState.destinations[id]?.destination : undefined;
     return candidate ? destinationTitle(candidate) : id ?? "";
   };
@@ -80,23 +86,31 @@ export default function DestinationHero(props: {
           <>
             <Flag code={destinationFlag(dest())} size="lg" />
             <div class="flex flex-col items-center">
-              <Show when={auto()}>
-                <span class="relative text-xs text-text-secondary">
-                  Best location
-                  {/* Hangs off the label's right edge so its arrival never shifts the centred text. */}
-                  <Show when={pending()?.countdownEndsAt} keyed>
+              {/* Always laid out, faded by opacity: mounting it would shift everything below. */}
+              <span
+                class={`relative text-xs text-text-secondary transition-opacity duration-300 ${
+                  auto() ? "opacity-100" : "pointer-events-none opacity-0"
+                }`}
+                aria-hidden={!auto()}
+              >
+                Best location
+                {/* Hangs off the label's right edge so its arrival never shifts the centred text. */}
+                <span
+                  class={`absolute left-full top-1/2 ml-1.5 -translate-y-1/2 transition-opacity duration-300 ${
+                    pending() ? "opacity-100" : "pointer-events-none opacity-0"
+                  }`}
+                >
+                  <Show when={lastPending()?.countdownEndsAt} keyed>
                     {(endsAt) => (
-                      <span class="absolute left-full top-1/2 ml-1.5 -translate-y-1/2">
-                        <Tooltip content={`Switching to ${candidateTitle()}`}>
-                          <span class="block size-4">
-                            <SwitchSpinner endsAt={endsAt} />
-                          </span>
-                        </Tooltip>
-                      </span>
+                      <Tooltip content={`Switching to ${candidateTitle()}`}>
+                        <span class="block size-4">
+                          <SwitchSpinner endsAt={endsAt} />
+                        </span>
+                      </Tooltip>
                     )}
                   </Show>
                 </span>
-              </Show>
+              </span>
               <h1 class="max-w-full truncate text-xl font-bold leading-tight text-text-primary">
                 {destinationTitle(dest())}
               </h1>
