@@ -166,6 +166,30 @@ describe("formatExitHealthStatus — one label per route state", () => {
   });
 });
 
+describe("a weak route still in its grace", () => {
+  it("reads ready to connect, or full on a measured full exit", () => {
+    expect(formatExitHealthStatus(weakRouteHealth(), null, false)).toBe(
+      "Ready to connect",
+    );
+    expect(getExitHealthColor(weakRouteHealth(), null, false)).toBe("green");
+    expect(formatExitHealthStatus(weakRouteHealth(), measured(0, 4), false))
+      .toBe("Full");
+  });
+
+  it("leaves every other verdict alone", () => {
+    expect(formatExitHealthStatus(noPathRouteHealth(), null, false)).toBe(
+      "No route",
+    );
+    expect(
+      formatExitHealthStatus(
+        { ...weakRouteHealth(), walk: null },
+        null,
+        false,
+      ),
+    ).toBe("Checking…");
+  });
+});
+
 describe("getConnectionQuality", () => {
   const STALL = { since: 0, failed_pings: 1, reconnect_at: 3 };
 

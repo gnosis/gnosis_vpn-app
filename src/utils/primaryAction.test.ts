@@ -19,6 +19,7 @@ const BASE_APP_STATE: AppState = {
   serviceInfo: null,
   availableDestinations: [],
   destinations: {},
+  weakRoutes: {},
   connected: null,
   connecting: null,
   reconnecting: null,

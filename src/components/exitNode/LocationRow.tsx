@@ -33,11 +33,19 @@ export default function LocationRow(props: {
   const exit = createMemo(() =>
     getExitData(props.destinationState, appState.probe)
   );
+  const weakSurfaced = () =>
+    appState.weakRoutes[destination().id]?.surfaced ?? false;
   const grade = createMemo(() =>
-    pickerGrade(props.destinationState, exit(), rankContext(appState))
+    pickerGrade(
+      props.destinationState,
+      exit(),
+      rankContext(appState),
+      weakSurfaced(),
+    )
   );
   const routeHealth = () => props.destinationState.route_health ?? null;
-  const verdict = () => pickerVerdict(grade(), routeHealth(), exit());
+  const verdict = () =>
+    pickerVerdict(grade(), routeHealth(), exit(), weakSurfaced());
   const connected = () =>
     appState.connected?.destination_id === destination().id;
   const tunnelRtt = () =>

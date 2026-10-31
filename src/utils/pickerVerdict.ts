@@ -21,12 +21,13 @@ export function pickerGrade(
   state: DestinationState | undefined,
   exit: ExitData | null,
   context: RankContext,
+  weakSurfaced = true,
 ): RouteGrade {
   const rh = state?.route_health;
   if (rh && getRouteVerdict(rh, exit) === "checking") {
     return { kind: "unmeasured" };
   }
-  return routeGrade(state, context);
+  return routeGrade(state, context, weakSurfaced);
 }
 
 export interface PickerVerdict {
@@ -69,6 +70,7 @@ export function pickerVerdict(
   grade: RouteGrade,
   routeHealth: RouteHealthView | null,
   exit: ExitData | null,
+  weakSurfaced = true,
 ): PickerVerdict {
   switch (grade.kind) {
     case "measured":
@@ -81,10 +83,10 @@ export function pickerVerdict(
       if (!routeHealth) {
         return { headline: "Unavailable", context: UNREACHABLE_CONTEXT };
       }
-      const verdict = getRouteVerdict(routeHealth, exit);
+      const verdict = getRouteVerdict(routeHealth, exit, weakSurfaced);
       if (verdict === "checking") return CHECKING;
       return {
-        headline: formatExitHealthStatus(routeHealth, exit),
+        headline: formatExitHealthStatus(routeHealth, exit, weakSurfaced),
         context: verdict === "full" ? FULL_CONTEXT : UNREACHABLE_CONTEXT,
       };
     }

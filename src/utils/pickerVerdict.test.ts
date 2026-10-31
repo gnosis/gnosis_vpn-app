@@ -121,6 +121,9 @@ describe("pickerGrade", () => {
       route_health: weakRouteHealth(),
     };
     expect(pickerGrade(weak, null, NO_CONTEXT)).toEqual({ kind: "weak" });
+    expect(pickerGrade(weak, null, NO_CONTEXT, false)).toEqual({
+      kind: "unmeasured",
+    });
     const dead = {
       destination: makeDestination(),
       route_health: noPathRouteHealth(),
