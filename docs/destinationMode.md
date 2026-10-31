@@ -181,6 +181,37 @@ one being re-checked keeps the bars its last result earned. A weak route shows a
 single red bar beside its "Weak route" tag. Anything else shows no bars. The
 grade feeds neither the sort nor auto.
 
+**A weak route is surfaced only after a grace.** A good route dips below the
+band now and then, and at cold start every route is weak until its edges are
+probed, so showing `weak(d)` at once makes the label flicker. The app keeps one
+latch over the daemon's answer, for display only:
+
+```
+WEAK_GRACE_MS        = 15_000
+belowBand(d)         = d.state.type === "routable"
+                       && walk(d)?.type === "paths" && walk(d).best_value < MIN_PATH_VALUE
+withinBand(d)        = walk(d)?.type === "paths" && walk(d).best_value >= MIN_PATH_VALUE
+
+on each status response at now, per destination d in it:
+  belowBand(d)       ->  weakRoutes[d] = { since: weakRoutes[d]?.since ?? now,
+                                           surfaced: now - since >= WEAK_GRACE_MS }
+  withinBand(d)      ->  delete weakRoutes[d]
+  otherwise          ->  weakRoutes[d] unchanged
+  destinations absent from the response are dropped
+```
+
+Until `surfaced`, a weak route displays as what it would be without the walk's
+verdict: the card drops its "Weak route" tag and gray, shows its score bars or
+the hollow unmeasured ones, and the detail panel says "Ready to connect" (or
+"Full"). An entry goes away only on an answer within the band, judged by the
+walk alone, or when the response no longer carries the destination; the next
+weak sighting then starts a fresh grace. A route that went weak, then worse (no
+route, unrecoverable, not walked), then weak again keeps its first `since`. An
+empty response drops every entry, so a cold start gets a grace for every route.
+Surfacing happens on a status response, never on a clock tick. `isReady`,
+`isSelectable`, the sort and auto read the raw walk, and the status log keeps
+the daemon's verdict.
+
 **`effectiveActive` is the only reader.** Display and connect target are the
 same function, so the visible card and what Connect targets cannot disagree. The
 commit is defined by the clock crossing `settleAt`; the store write merely

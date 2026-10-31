@@ -56,6 +56,8 @@ import {
   getPreferredAvailabilityChangeMessage,
   pickStartupTarget,
   rankContext,
+  trackWeakRoutes,
+  type WeakRoute,
 } from "@src/utils/destinations.ts";
 
 import { type EndOfLife, useSettingsStore } from "@src/stores/settingsStore.ts";
@@ -89,6 +91,8 @@ export interface AppState {
   serviceInfo: ServiceInfo | null;
   availableDestinations: Destination[];
   destinations: Record<string, DestinationState>;
+  // Display-only grace before a weak route is labelled as such.
+  weakRoutes: Record<string, WeakRoute>;
   connection: Connection;
   disconnecting: Disconnecting[];
   // The daemon's one probe session, which follows the active destination.
@@ -146,6 +150,7 @@ function initialState(): AppState {
     connection: { type: "disconnected" },
     currentScreen: AppScreen.Initialization,
     destinations: {},
+    weakRoutes: {},
     disconnecting: [],
     probe: null,
     error: undefined,
@@ -430,6 +435,10 @@ export function createAppStore(): AppStoreTuple {
     setState("warmupStatus", warmupStatus);
     setState("runMode", reconcile(response.run_mode));
     setState("destinations", reconcile(destinations));
+    setState(
+      "weakRoutes",
+      reconcile(trackWeakRoutes(state.weakRoutes, destinations, Date.now())),
+    );
     setState("targetDestination", response.target);
     setState("connection", reconcile(response.connection));
     setState("disconnecting", reconcile(response.disconnecting));
