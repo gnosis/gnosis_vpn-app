@@ -20,8 +20,8 @@ import Tooltip from "../common/Tooltip.tsx";
 import LocationPicker, { type PickerFrame } from "./LocationPicker.tsx";
 import SwitchSpinner from "./SwitchSpinner.tsx";
 
-// Matches the name block's duration-150.
-const SWAP_FADE_MS = 150;
+// Matches the name block's duration-300.
+const SWAP_FADE_MS = 300;
 
 /** The destination Connect targets: flag, name, country, and the way to another one. */
 export default function DestinationHero(props: {
@@ -145,7 +145,7 @@ export default function DestinationHero(props: {
                 </span>
               </span>
               <div
-                class={`flex max-w-full flex-col items-center transition-opacity duration-150 ${
+                class={`flex max-w-full flex-col items-center transition-opacity duration-300 ease-in-out ${
                   swapping() ? "opacity-0" : "opacity-100"
                 }`}
               >
