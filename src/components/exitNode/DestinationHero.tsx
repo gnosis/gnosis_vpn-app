@@ -1,4 +1,11 @@
-import { createEffect, createMemo, createSignal, Show } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  on,
+  onCleanup,
+  Show,
+} from "solid-js";
 import type { DestinationState } from "@src/services/vpnService.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { effectiveActive } from "@src/stores/destinationMode.ts";
@@ -12,6 +19,9 @@ import GlobeIcon from "../icons/GlobeIcon.tsx";
 import Tooltip from "../common/Tooltip.tsx";
 import LocationPicker, { type PickerFrame } from "./LocationPicker.tsx";
 import SwitchSpinner from "./SwitchSpinner.tsx";
+
+// Matches the name block's duration-150.
+const SWAP_FADE_MS = 150;
 
 /** The destination Connect targets: flag, name, country, and the way to another one. */
 export default function DestinationHero(props: {
@@ -27,6 +37,29 @@ export default function DestinationHero(props: {
     return id ? appState.destinations[id] : undefined;
   });
   const destination = () => activeState()?.destination;
+
+  // Lags the active destination by one fade, so the old name fades out before the new one fades in.
+  const [shownDestination, setShownDestination] = createSignal(destination());
+  const [swapping, setSwapping] = createSignal(false);
+  let swapTimer: ReturnType<typeof setTimeout> | undefined;
+  createEffect(
+    on(destination, (next) => {
+      clearTimeout(swapTimer);
+      const shown = shownDestination();
+      const isSameLocation = next?.id === shown?.id;
+      if (isSameLocation || !shown) {
+        setShownDestination(next);
+        setSwapping(false);
+        return;
+      }
+      setSwapping(true);
+      swapTimer = setTimeout(() => {
+        setShownDestination(next);
+        setSwapping(false);
+      }, SWAP_FADE_MS);
+    }),
+  );
+  onCleanup(() => clearTimeout(swapTimer));
 
   const auto = () => appState.mode.mode.mode === "auto";
   const pending = () =>
@@ -111,14 +144,20 @@ export default function DestinationHero(props: {
                   </Show>
                 </span>
               </span>
-              <h1 class="max-w-full truncate text-xl font-bold leading-tight text-text-primary">
-                {destinationTitle(dest())}
-              </h1>
-              <Show when={destinationCountry(dest())}>
-                {(country) => (
-                  <span class="text-xs text-text-secondary">{country()}</span>
-                )}
-              </Show>
+              <div
+                class={`flex max-w-full flex-col items-center transition-opacity duration-150 ${
+                  swapping() ? "opacity-0" : "opacity-100"
+                }`}
+              >
+                <h1 class="max-w-full truncate text-xl font-bold leading-tight text-text-primary">
+                  {destinationTitle(shownDestination() ?? dest())}
+                </h1>
+                <Show when={destinationCountry(shownDestination() ?? dest())}>
+                  {(country) => (
+                    <span class="text-xs text-text-secondary">{country()}</span>
+                  )}
+                </Show>
+              </div>
             </div>
             <button
               ref={(el) => (changeButtonRef = el)}
