@@ -197,10 +197,13 @@ export default function StatusCard(
     }. Lower is better.`;
   };
 
+  const weakSurfaced = () =>
+    appState.weakRoutes[props.destinationState.destination.id]?.surfaced ??
+      false;
   // The walk's own verdict, not isWeakRoute: a destination still being checked is not weak yet.
   const routeVerdict = () => {
     const rh = routeHealth();
-    return rh ? getRouteVerdict(rh, exit()) : null;
+    return rh ? getRouteVerdict(rh, exit(), weakSurfaced()) : null;
   };
   const isWeak = () => routeVerdict() === "weak";
   const quality = () =>
@@ -260,12 +263,13 @@ export default function StatusCard(
       // The picker's grade, so this card and the destination's list row show the same bars.
       return {
         prefix: "Network status:",
-        text: formatExitHealthStatus(rh, exit()),
-        class: statusColorClass[getExitHealthColor(rh, exit())],
+        text: formatExitHealthStatus(rh, exit(), weakSurfaced()),
+        class: statusColorClass[getExitHealthColor(rh, exit(), weakSurfaced())],
         grade: pickerGrade(
           props.destinationState,
           exit(),
           rankContext(appState),
+          weakSurfaced(),
         ),
       };
     },
