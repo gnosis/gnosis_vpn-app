@@ -30,13 +30,17 @@ Vite
 - `src-tauri/` - Rust backend (Tauri commands, system integration)
 - `public/` - Static assets
 - Config: `vite.config.ts`, `tauri.conf.json`, `flake.nix` (Nix dev environment)
-- Runtime config: the log uploader URLs come from CLI flags / `GNOSISVPN_*` env
-  vars with compiled-in defaults (`src-tauri/src/cli.rs`; flag > env > default).
-  Overrides are for terminal/dev runs only: Finder and desktop launchers show no
-  clap output and see no shell env vars. Dev run:
+- Runtime config: the log uploader URLs and the client socket path come from CLI
+  flags / `GNOSISVPN_*` env vars with compiled-in defaults
+  (`src-tauri/src/cli.rs`; flag > env > default). `--socket-path` /
+  `GNOSISVPN_SOCKET_PATH` points the app at a root binary started with its own
+  `--socket-path`; every socket call goes through `commands::on_socket`, which
+  reads `cli::socket_path()`. Overrides are for terminal/dev runs only: Finder
+  and desktop launchers show no clap output and see no shell env vars. Dev run:
   `deno task tauri dev -- -- --log-upload-api-url https://staging.example/api/upload`
   (`tauri dev -- [runnerArgs] -- [appArgs]`; Deno forwards the whole tail
-  verbatim). Env vars need no separators.
+  verbatim). Env vars need no separators, e.g.
+  `GNOSISVPN_SOCKET_PATH=/tmp/gnosisvpn-local/gnosisvpn.sock deno task tauri dev`.
 
 **Key Dependencies**: `@tauri-apps/api`, `solid-js`, `tailwindcss`, `flag-icons`
 (SVG country flags), Deno (task runner)

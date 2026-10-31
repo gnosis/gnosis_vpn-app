@@ -54,6 +54,11 @@
     { delay: 2500, status: { kind: "Completed", new_version: "9.9.9" } },
   ];
 
+  // traffic_frame cycles through fixture.traffic.frames so a multi-frame fixture animates the globe.
+  const traffic = fixture.traffic ?? {};
+  let trafficFrameIndex = 0;
+  const trafficInterface = (traffic.interfaces ?? [])[0] ?? null;
+
   // Every probe/quick_probe issued, in order, for `eval` steps to assert on.
   const probes = [];
   globalThis.__GVPN_PROBES__ = probes;
@@ -64,6 +69,27 @@
     )?.destination ?? null;
 
   const handlers = {
+    traffic_interfaces: () => traffic.interfaces ?? [],
+    traffic_start: () => ({
+      active: true,
+      interface: trafficInterface?.name ?? null,
+      error: null,
+      ended: null,
+    }),
+    traffic_frame: () => {
+      const frames = traffic.frames ?? [];
+      if (frames.length === 0) {
+        return Promise.reject(
+          new Error("tauri-shim: fixture.traffic.frames is empty"),
+        );
+      }
+      const frame = frames[Math.min(trafficFrameIndex, frames.length - 1)];
+      if (traffic.loop) {
+        trafficFrameIndex = (trafficFrameIndex + 1) % frames.length;
+      } else trafficFrameIndex += 1;
+      return frame;
+    },
+    traffic_stop: () => null,
     get_cached_state: () => fixture.cached_state,
     get_initial_theme: () => fixture.theme ?? "dark",
     get_log_uploader_website_url: () =>
@@ -195,6 +221,7 @@
       return null;
     },
     "plugin:event|emit": () => null,
+    "plugin:window|is_visible": () => true,
     "plugin:app|version": () => fixture.appVersion ?? "0.0.0-fixture",
     "plugin:path|resolve_directory": () => "/home/user/Downloads",
     "plugin:path|join": ({ paths }) => paths.join("/"),

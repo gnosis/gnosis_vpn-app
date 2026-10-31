@@ -1,0 +1,16 @@
+{
+  "frame": {
+    "window_seconds": 10,
+    "current_second": 0,
+    "observed_seconds": 0,
+    "endpoints": [],
+    "omitted_endpoints": 0
+  },
+  "capture": {
+    "active": false,
+    "interface": null,
+    "error": "The Gnosis VPN service is not running",
+    "ended": null
+  },
+  "gap": true
+}

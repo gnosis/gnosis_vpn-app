@@ -107,6 +107,21 @@ textarea {
   --color-toggle-bg: #e5e7eb;
   --color-toggle-checked: var(--color-accent);
   --color-toggle-thumb: #ffffff;
+
+  /* Traffic globe: a pale indigo sphere with saturated links */
+  --color-globe-surface: #f1effc;
+  --color-globe-edge: #a9a3ea;
+  --color-globe-grid: #dcd8f5;
+  --color-globe-link: #4335df;
+  --color-globe-dot: #8f88d8;
+  --color-globe-home: #12112a;
+  /* HOPR brand yellow marks announced HOPR nodes; darker edges keep it visible on the pale sphere */
+  --color-globe-hopr: #ffffa0;
+  --color-globe-hopr-edge: #12112a;
+  --color-globe-hopr-link-edge: #b89200;
+  /* Destinations inside a VPN tunnel: teal, apart from the indigo wire endpoints */
+  --color-globe-destination: #0d9488;
+  --color-globe-destination-dot: #5eb8ae;
 }
 
 :root.dark {
@@ -157,6 +172,19 @@ textarea {
   --color-toggle-bg: #374151;
   --color-toggle-checked: var(--color-accent);
   --color-toggle-thumb: #d1d5db;
+
+  /* Traffic globe: lifted hues for the dark background */
+  --color-globe-surface: #1c1d45;
+  --color-globe-edge: #4b47a6;
+  --color-globe-grid: #2c2d5e;
+  --color-globe-link: #a69dff;
+  --color-globe-dot: #6e68b8;
+  --color-globe-home: #f5f3ff;
+  --color-globe-hopr: #ffffa0;
+  --color-globe-hopr-edge: #12112a;
+  --color-globe-hopr-link-edge: #b89200;
+  --color-globe-destination: #2dd4bf;
+  --color-globe-destination-dot: #2a8c82;
 }
 @utility bg-darken {
   background-image: linear-gradient(rgb(0 0 0 / 0.12), rgb(0 0 0 / 0.12));
@@ -225,6 +253,18 @@ textarea {
   --color-toggle-bg: var(--color-toggle-bg);
   --color-toggle-checked: var(--color-toggle-checked);
   --color-toggle-thumb: var(--color-toggle-thumb);
+
+  --color-globe-surface: var(--color-globe-surface);
+  --color-globe-edge: var(--color-globe-edge);
+  --color-globe-grid: var(--color-globe-grid);
+  --color-globe-link: var(--color-globe-link);
+  --color-globe-dot: var(--color-globe-dot);
+  --color-globe-home: var(--color-globe-home);
+  --color-globe-hopr: var(--color-globe-hopr);
+  --color-globe-hopr-edge: var(--color-globe-hopr-edge);
+  --color-globe-hopr-link-edge: var(--color-globe-hopr-link-edge);
+  --color-globe-destination: var(--color-globe-destination);
+  --color-globe-destination-dot: var(--color-globe-destination-dot);
 }
 
 @theme {
