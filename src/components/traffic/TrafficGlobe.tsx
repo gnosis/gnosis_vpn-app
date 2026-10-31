@@ -52,6 +52,8 @@ const PADDING = 28;
 const DOT_RADIUS = 4.5;
 const HOME_RADIUS = 7;
 const EXIT_RADIUS = 6;
+// HOPR links are solid edge to edge, so at full width they outweigh the halo-and-core links.
+const HOPR_WIDTH_SCALE = 0.5;
 const GRATICULE = graticule();
 
 /** Where the unit disc lands in a canvas of this size. */
@@ -140,10 +142,13 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
     context.strokeStyle = colors.edge;
     context.stroke();
 
-    // Thin links first so busy ones stay on top.
-    const ordered = [...links.entries()].sort((a, b) =>
-      a[1].width - b[1].width
-    );
+    // Via VPN links last so they cross over the relays; within a layer, busy ones stay on top.
+    const ordered = [...links.entries()].sort(([idA, linkA], [idB, linkB]) => {
+      const viaVpnA = destinations.has(idA);
+      const viaVpnB = destinations.has(idB);
+      if (viaVpnA !== viaVpnB) return viaVpnA ? 1 : -1;
+      return linkA.width - linkB.width;
+    });
     const spots = new Map<string, Vec3>();
     for (const id of links.keys()) {
       spots.set(
@@ -186,10 +191,11 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
         else context.lineTo(x, y);
       });
       const hopr = hoprPeers.has(id);
+      const width = hopr ? link.width * HOPR_WIDTH_SCALE : link.width;
       if (hopr) {
         // Darker edges under the pale HOPR yellow so the line reads on a light globe.
         context.strokeStyle = colors.hoprLinkEdge;
-        context.lineWidth = link.width + 1;
+        context.lineWidth = width + 1;
         context.stroke();
       }
       let lineColor = colors.link;
@@ -198,10 +204,10 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
       // Translucent halo, solid core; the HOPR halo stays opaque so its edge shows only as an outline.
       context.strokeStyle = lineColor;
       context.globalAlpha = hopr ? 1 : 0.4;
-      context.lineWidth = link.width;
+      context.lineWidth = width;
       context.stroke();
       context.globalAlpha = 1;
-      context.lineWidth = Math.max(1, link.width * 0.35);
+      context.lineWidth = Math.max(1, width * 0.35);
       context.stroke();
     }
 
