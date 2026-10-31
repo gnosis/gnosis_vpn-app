@@ -1,7 +1,14 @@
 import { MainScreen } from "../screens/main/MainScreen.tsx";
 import { Dynamic } from "solid-js/web";
 import { AppScreen, AppState, useAppStore } from "@src/stores/appStore.ts";
-import { createEffect, createSignal, on, onCleanup, onMount } from "solid-js";
+import {
+  createEffect,
+  createSignal,
+  on,
+  onCleanup,
+  onMount,
+  untrack,
+} from "solid-js";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import Onboarding from "../screens/main/Onboarding.tsx";
 import Synchronization from "../screens/main/Synchronization.tsx";
@@ -35,6 +42,8 @@ type NavigatePayload =
   };
 
 const MIN_SCREEN_DISPLAY_TIME = 1333; // ms - ensure screens show for at least this long
+// Matches the screen wrapper's duration-300.
+const SCREEN_FADE_MS = 300;
 
 const isValidScreen = (s: string): s is ValidScreen =>
   (validScreens as readonly string[]).includes(s);
@@ -147,6 +156,25 @@ function App() {
   );
   let lastChangeTime = Date.now();
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const [fadingOut, setFadingOut] = createSignal(false);
+  let fadeTimer: ReturnType<typeof setTimeout> | undefined;
+
+  // Finished sync fades out before main fades in; other swaps stay instant.
+  const showScreen = (nextScreen: ValidScreen) => {
+    const isSyncDone = untrack(displayedScreen) === "synchronization" &&
+      nextScreen === "main";
+    if (!isSyncDone) {
+      setDisplayedScreen(nextScreen);
+      lastChangeTime = Date.now();
+      return;
+    }
+    setFadingOut(true);
+    fadeTimer = setTimeout(() => {
+      setDisplayedScreen(nextScreen);
+      setFadingOut(false);
+      lastChangeTime = Date.now();
+    }, SCREEN_FADE_MS);
+  };
 
   createEffect(() => {
     // This effect tracks the store's currentScreen
@@ -155,6 +183,8 @@ function App() {
     // Clear any pending transition if the store requests a new screen quickly
     clearTimeout(timeoutId);
     timeoutId = undefined;
+    clearTimeout(fadeTimer);
+    setFadingOut(false);
 
     const now = Date.now();
     const elapsed = now - lastChangeTime;
@@ -162,15 +192,11 @@ function App() {
 
     if (elapsed >= minDelay) {
       // If it's been longer than minDelay, change immediately
-      setDisplayedScreen(nextScreen);
-      lastChangeTime = Date.now();
+      showScreen(nextScreen);
     } else {
       // Otherwise, wait for the remaining time to reach minDelay
       const remaining = minDelay - elapsed;
-      timeoutId = setTimeout(() => {
-        setDisplayedScreen(nextScreen);
-        lastChangeTime = Date.now();
-      }, remaining);
+      timeoutId = setTimeout(() => showScreen(nextScreen), remaining);
     }
   });
 
@@ -199,17 +225,24 @@ function App() {
     disposed = true;
     unlistenNavigate?.();
     if (timeoutId) clearTimeout(timeoutId);
+    clearTimeout(fadeTimer);
   });
 
   return (
     <div class="h-screen bg-bg-primary">
-      <Dynamic
-        component={screens[displayedScreen()]}
-        {...mapStoreToScreenProps(
-          displayedScreen(),
-          appState,
-        )}
-      />
+      <div
+        class={`h-full transition-opacity duration-300 ${
+          fadingOut() ? "opacity-0" : "opacity-100"
+        }`}
+      >
+        <Dynamic
+          component={screens[displayedScreen()]}
+          {...mapStoreToScreenProps(
+            displayedScreen(),
+            appState,
+          )}
+        />
+      </div>
     </div>
   );
 }
