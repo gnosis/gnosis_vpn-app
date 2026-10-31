@@ -19,9 +19,11 @@ type RouteVerdict =
   | "no-route"
   | "unrecoverable";
 
+/** `weakSurfaced` false lets a weak route still in its grace read as ready or full. */
 function routeVerdict(
   rhv: RouteHealthView,
   exit: ExitData | null,
+  weakSurfaced: boolean,
 ): RouteVerdict {
   const { state, walk } = rhv;
   if (state.type === "unrecoverable") return "unrecoverable";
@@ -29,7 +31,8 @@ function routeVerdict(
   if (state.type === "not_routable" || walk.type !== "paths") {
     return "no-route";
   }
-  if (walk.best_value < MIN_PATH_VALUE) return "weak";
+  const isWeak = walk.best_value < MIN_PATH_VALUE;
+  if (isWeak && weakSurfaced) return "weak";
   if (exit !== null && exit.slots.available <= 0) return "full";
   return "ready";
 }
@@ -38,8 +41,9 @@ function routeVerdict(
 export function getExitHealthColor(
   rhv: RouteHealthView,
   exit: ExitData | null,
+  weakSurfaced = true,
 ): HealthColor {
-  switch (routeVerdict(rhv, exit)) {
+  switch (routeVerdict(rhv, exit, weakSurfaced)) {
     case "ready":
       return "green";
     case "full":
@@ -57,8 +61,9 @@ export function getExitHealthColor(
 export function formatExitHealthStatus(
   rhv: RouteHealthView,
   exit: ExitData | null,
+  weakSurfaced = true,
 ): string {
-  switch (routeVerdict(rhv, exit)) {
+  switch (routeVerdict(rhv, exit, weakSurfaced)) {
     case "ready":
       return "Ready to connect";
     case "full":

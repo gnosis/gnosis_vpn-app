@@ -83,6 +83,7 @@ const BASE_APP_STATE: AppState = {
   serviceInfo: null,
   availableDestinations: [],
   destinations: {},
+  weakRoutes: {},
   connection: { type: "disconnected" },
   disconnecting: [],
   probe: null,

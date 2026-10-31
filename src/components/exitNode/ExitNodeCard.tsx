@@ -129,10 +129,18 @@ export default function ExitNodeCard(props: {
   const isClickable = () =>
     isLiveHere() ||
     isSelectable(props.destinationState(), rankContext(appState));
+  const weakSurfaced = () =>
+    appState.weakRoutes[props.destinationState().destination.id]?.surfaced ??
+      false;
   const isWeak = () =>
+    weakSurfaced() &&
     isWeakRoute(props.destinationState(), rankContext(appState));
   const grade = () =>
-    routeGrade(props.destinationState(), rankContext(appState));
+    routeGrade(
+      props.destinationState(),
+      rankContext(appState),
+      weakSurfaced(),
+    );
   // Grayed in two steps: a weak route is still the user's to pick, an unusable one is not.
   const usabilityClass = () => {
     if (!isClickable()) return "opacity-40 pointer-events-none";

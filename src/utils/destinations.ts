@@ -162,6 +162,38 @@ export function isWeakRoute(
   return isSelectable(state, context) && !isReady(state, context);
 }
 
+/** How long a route must stay weak before the label shows: good routes dip and cold starts begin weak. */
+export const WEAK_GRACE_MS = 15_000;
+
+/** When the app first saw a destination weak, and whether the grace has run out since. */
+export type WeakRoute = { since: number; surfaced: boolean };
+
+/** Advanced per status response; only a walk within the band or leaving the response clears an entry, so weak-worse-weak earns no fresh grace. */
+export function trackWeakRoutes(
+  previous: Record<string, WeakRoute>,
+  destinations: Record<string, DestinationState>,
+  now: number,
+): Record<string, WeakRoute> {
+  const next: Record<string, WeakRoute> = {};
+  for (const [id, state] of Object.entries(destinations)) {
+    const health = state.route_health;
+    const walk = health?.walk;
+    const hasPaths = walk?.type === "paths";
+    const withinBand = hasPaths && walk.best_value >= MIN_PATH_VALUE;
+    const belowBand = health?.state.type === "routable" && hasPaths &&
+      !withinBand;
+    const seen = previous[id];
+
+    if (belowBand) {
+      const since = seen?.since ?? now;
+      next[id] = { since, surfaced: now - since >= WEAK_GRACE_MS };
+    } else if (!withinBand && seen) {
+      next[id] = seen;
+    }
+  }
+  return next;
+}
+
 /** What the list may present as usable — the destination we are on always qualifies. */
 export function isReadyForDisplay(
   state: DestinationState | undefined,
@@ -227,13 +259,15 @@ export type RouteGrade =
 /** A score at or above a threshold earns that many bars; below the last one it is a single bar. */
 const BAR_THRESHOLDS: [number, 4 | 3 | 2][] = [[0.75, 4], [0.5, 3], [0.25, 2]];
 
-/** The score as shown on a card. Display only: it feeds neither the sort nor auto. */
+/** The score as shown on a card; a weak route in its grace grades as ready. Display only: it feeds neither the sort nor auto. */
 export function routeGrade(
   state: DestinationState | undefined,
   context: RankContext,
+  weakSurfaced = true,
 ): RouteGrade {
   if (!state) return { kind: "none" };
-  if (!isReady(state, context)) {
+  const inGrace = !weakSurfaced && isWeakRoute(state, context);
+  if (!isReady(state, context) && !inGrace) {
     return isSelectable(state, context) ? { kind: "weak" } : { kind: "none" };
   }
   const exit = getExitData(state, context.probe);

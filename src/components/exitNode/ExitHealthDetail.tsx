@@ -82,17 +82,20 @@ export default function ExitHealthDetail(
   const isConnected = () => connectionLabel() === "Connected";
   const isStalled = () => isConnected() && !!connectedHere()?.stall;
 
+  const weakSurfaced = () =>
+    appState.weakRoutes[props.destinationState.destination.id]?.surfaced ??
+      false;
   const color = (): HealthColor => {
     if (isConnected()) return "green";
     const rh = routeHealth();
     if (!rh) return "gray";
-    return getExitHealthColor(rh, exit());
+    return getExitHealthColor(rh, exit(), weakSurfaced());
   };
   const status = () => {
     if (isConnected()) return "Connected";
     const rh = routeHealth();
     if (!rh) return "Unavailable";
-    return formatExitHealthStatus(rh, exit());
+    return formatExitHealthStatus(rh, exit(), weakSurfaced());
   };
   const latency = () => formatLatency(exit(), tunnelRtt());
   // Graded on the same ramp as Load, so the two stats read alike.
@@ -118,6 +121,7 @@ export default function ExitHealthDetail(
     isConnected() || isActionInFlight() ||
     isSelectable(props.destinationState, rankContext(appState));
   const isWeak = () =>
+    weakSurfaced() &&
     isWeakRoute(props.destinationState, rankContext(appState));
 
   // Own clock: this panel mounts separately from ExitNodeList.

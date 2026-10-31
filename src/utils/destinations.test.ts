@@ -27,6 +27,9 @@ import {
   sanitizeMetaText,
   sortAlphaDestinations,
   sortByRouteQuality,
+  trackWeakRoutes,
+  WEAK_GRACE_MS,
+  type WeakRoute,
 } from "./destinations.ts";
 import {
   checkedQuickProbe,
@@ -268,6 +271,142 @@ describe("routeGrade — the score as shown, never as used", () => {
     const lastSlot: Slots = { total: 8, available: 0, connected: 8 };
     const onIt = routeGrade(makeMeasured("a", lastSlot, 0, 4), liveOn("a"));
     expect(onIt.kind).toBe("measured");
+  });
+});
+
+describe("trackWeakRoutes — the grace before a weak route is surfaced", () => {
+  const T0 = 1_000_000;
+  const byId = (...states: DestinationState[]) =>
+    Object.fromEntries(states.map((s) => [s.destination.id, s]));
+  const weakFor = (ms: number): Record<string, WeakRoute> =>
+    trackWeakRoutes(
+      trackWeakRoutes({}, byId(makeWeak("a")), T0),
+      byId(makeWeak("a")),
+      T0 + ms,
+    );
+
+  it("records the first sighting unsurfaced", () => {
+    expect(trackWeakRoutes({}, byId(makeWeak("a")), T0)).toEqual({
+      a: { since: T0, surfaced: false },
+    });
+  });
+
+  it("surfaces on the first response at or past the grace", () => {
+    expect(weakFor(WEAK_GRACE_MS - 100).a).toEqual({
+      since: T0,
+      surfaced: false,
+    });
+    expect(weakFor(WEAK_GRACE_MS).a).toEqual({ since: T0, surfaced: true });
+  });
+
+  it("tracks nothing within the band, without a path or before a walk", () => {
+    const states = byId(
+      makeEligible("ready"),
+      makeWeak("edge", 0.9),
+      withRouteHealth("dead", noPathRouteHealth()),
+      withRouteHealth("gone", unrecoverableRouteHealth()),
+      withRouteHealth("unwalked", { ...weakRouteHealth(), walk: null }),
+      makeUnavailable("none"),
+    );
+    expect(trackWeakRoutes({}, states, T0)).toEqual({});
+  });
+
+  it("restarts the grace after an answer within the band", () => {
+    const seen = trackWeakRoutes({}, byId(makeWeak("a")), T0);
+    const recovered = trackWeakRoutes(
+      seen,
+      byId(makeEligible("a")),
+      T0 + 5_000,
+    );
+    expect(recovered).toEqual({});
+    const again = trackWeakRoutes(
+      recovered,
+      byId(makeWeak("a")),
+      T0 + WEAK_GRACE_MS,
+    );
+    expect(again.a).toEqual({ since: T0 + WEAK_GRACE_MS, surfaced: false });
+  });
+
+  it("keeps the grace's start through a worse answer", () => {
+    const seen = trackWeakRoutes({}, byId(makeWeak("a")), T0);
+    const worse = [
+      withRouteHealth("a", noPathRouteHealth()),
+      withRouteHealth("a", unrecoverableRouteHealth()),
+      withRouteHealth("a", { ...weakRouteHealth(), walk: null }),
+      makeUnavailable("a"),
+    ];
+    for (const state of worse) {
+      const dipped = trackWeakRoutes(seen, byId(state), T0 + 5_000);
+      const back = trackWeakRoutes(
+        dipped,
+        byId(makeWeak("a")),
+        T0 + WEAK_GRACE_MS,
+      );
+      expect(back.a).toEqual({ since: T0, surfaced: true });
+    }
+  });
+
+  it("starts the grace at the first weak sighting, even after a worse start", () => {
+    const worse = trackWeakRoutes(
+      {},
+      byId(withRouteHealth("a", noPathRouteHealth())),
+      T0,
+    );
+    const weak = trackWeakRoutes(
+      worse,
+      byId(makeWeak("a")),
+      T0 + WEAK_GRACE_MS,
+    );
+    expect(weak.a).toEqual({ since: T0 + WEAK_GRACE_MS, surfaced: false });
+  });
+
+  it("drops a destination the response no longer carries", () => {
+    const seen = trackWeakRoutes({}, byId(makeWeak("a")), T0);
+    expect(trackWeakRoutes(seen, {}, T0 + WEAK_GRACE_MS)).toEqual({});
+  });
+
+  it("tracks a full exit below the band: the walk alone decides", () => {
+    const fullWeak = withRouteHealth("a", {
+      ...weakRouteHealth(),
+      quick_probe: checkedQuickProbe(FULL_SLOTS, 10),
+    });
+    expect(trackWeakRoutes({}, byId(fullWeak), T0).a).toEqual({
+      since: T0,
+      surfaced: false,
+    });
+  });
+});
+
+describe("routeGrade — a weak route still in its grace", () => {
+  it("grades as ready: unmeasured, or bars by latency once measured", () => {
+    expect(routeGrade(makeWeak("a"), NO_CONTEXT, false)).toEqual({
+      kind: "unmeasured",
+    });
+    const measuredWeak = withRouteHealth("a", {
+      ...weakRouteHealth(),
+      quick_probe: checkedQuickProbe(OPEN_SLOTS, 10),
+    });
+    expect(routeGrade(measuredWeak, NO_CONTEXT, false)).toEqual({
+      kind: "measured",
+      bars: 4,
+    });
+  });
+
+  it("still grades a full exit as none", () => {
+    const fullWeak = withRouteHealth("a", {
+      ...weakRouteHealth(),
+      quick_probe: checkedQuickProbe(FULL_SLOTS, 10),
+    });
+    expect(routeGrade(fullWeak, NO_CONTEXT, false)).toEqual({ kind: "none" });
+  });
+
+  it("leaves every other grade alone", () => {
+    expect(routeGrade(makeEligible("a"), NO_CONTEXT, false)).toEqual({
+      kind: "unmeasured",
+    });
+    expect(
+      routeGrade(withRouteHealth("a", noPathRouteHealth()), NO_CONTEXT, false),
+    ).toEqual({ kind: "none" });
   });
 });
 
