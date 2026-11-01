@@ -26,7 +26,7 @@ use crate::types::{BalanceResponse, ConnectionState, RunMode, StatusResponse};
 use crate::{AppStateCache, BalancePollingHandle, PollingExit, StatusPollingHandle};
 
 /// Semver requirements for compatible client versions, e.g. "0.93" (any 0.93.x) — never ">=" or ">", which would match all future versions and disable this check.
-const COMPATIBLE_VERSIONS: &[&str] = &["0.97"];
+const COMPATIBLE_VERSIONS: &[&str] = &["0.98"];
 /// Poll cap while the destination list is open; mirrors STATUS_POLL_FAST_MS in docs/destinationMode.md.
 const STATUS_POLL_FAST: Duration = Duration::from_millis(500);
 /// Poll cap while the Add funds page waits for a transfer; the daemon's own cadence is a minute.
