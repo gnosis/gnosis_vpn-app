@@ -98,6 +98,8 @@ export type UserInputEvent =
   | { type: "listOpened" }
   // picked === null is a cancel; an id is the destination chosen from the list
   | { type: "listClosed"; picked: string | null }
+  // the list's Auto row: drop the manual pick and let auto choose again
+  | { type: "autoResumed" }
   | { type: "dragStarted" }
   | { type: "slideCommitted"; id: string }
   | { type: "connectIssued"; id: string };
@@ -203,6 +205,21 @@ function commitDuePending(draft: DestinationMode): void {
   draft.mode = AUTO_IDLE;
 }
 
+/** Auto's pick: preferred outranks the sort head while unspent and ready — it is an input, not a transition. */
+export function autoCandidate(
+  status: ModeAppState,
+  preferredLocation: string | null,
+): string | null {
+  const context = rankContext(status);
+  if (
+    preferredLocation !== null &&
+    isReady(status.destinations[preferredLocation], context)
+  ) {
+    return preferredLocation;
+  }
+  return sortByRouteQuality(status.destinations, context)[0] ?? null;
+}
+
 export function createDestinationMode(
   settings: DestinationModeSettings,
 ): DestinationModeHandle {
@@ -273,18 +290,6 @@ export function createDestinationMode(
     commit(draft);
   }
 
-  /** Preferred outranks the sort head while unspent and ready — it is an input, not a transition. */
-  function effectiveCandidate(status: ModeAppState, draft: DestinationMode) {
-    const preferred = draft.preferredLocation;
-    const context = rankContext(status);
-    if (
-      preferred !== null && isReady(status.destinations[preferred], context)
-    ) {
-      return preferred;
-    }
-    return sortByRouteQuality(status.destinations, context)[0] ?? null;
-  }
-
   /** No countdown: there is nothing to switch away from until something is active. */
   function coldStart(
     draft: DestinationMode,
@@ -310,7 +315,7 @@ export function createDestinationMode(
     const pending = draft.mode.mode === "auto" ? draft.mode.pending : null;
     draft.mode = { mode: "auto", pending };
 
-    const candidate = effectiveCandidate(status, draft);
+    const candidate = autoCandidate(status, draft.preferredLocation);
 
     if (draft.active === null) {
       // a countdown switches away from something; cold start has nothing to switch away from
@@ -433,6 +438,11 @@ export function createDestinationMode(
         } else if (draft.mode.mode === "selected") {
           draft.mode = selectedMode();
         }
+        break;
+      case "autoResumed":
+        draft.listOpen = false;
+        // a live tunnel is the user's; auto only chooses while disconnected
+        if (draft.mode.mode === "selected") draft.mode = AUTO_IDLE;
         break;
       case "dragStarted":
         draft.dragging = true;

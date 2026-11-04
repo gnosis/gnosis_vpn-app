@@ -26,7 +26,7 @@ export function getPreferredAvailabilityChangeMessage(
     : `Preferred location ${preferredId} currently unavailable.`;
 }
 
-/** Sort: eligible first (A–Z within tier), all others after (A–Z). */
+/** Sort: eligible first, all others after; each A–Z by the name the list shows, then by full label. */
 export function sortAlphaDestinations(
   available: Destination[],
   destinations: Record<string, DestinationState>,
@@ -36,7 +36,8 @@ export function sortAlphaDestinations(
     const aReady = isReadyForDisplay(destinations[a.id], context);
     const bReady = isReadyForDisplay(destinations[b.id], context);
     if (aReady !== bReady) return aReady ? -1 : 1;
-    return destinationLabel(a).localeCompare(destinationLabel(b));
+    return exitDisplayName(a).localeCompare(exitDisplayName(b)) ||
+      destinationLabel(a).localeCompare(destinationLabel(b));
   });
 }
 
@@ -275,6 +276,68 @@ export function routeGrade(
   const value = score(state, exit, context);
   const reached = BAR_THRESHOLDS.find(([min]) => value >= min);
   return { kind: "measured", bars: reached ? reached[1] : 1 };
+}
+
+const GRADE_WORDS = { 1: "Poor", 2: "Fair", 3: "Good", 4: "Excellent" };
+
+/** The grade in words, as the exit list shows it beside the bars. */
+export function routeGradeLabel(grade: RouteGrade): string {
+  switch (grade.kind) {
+    case "measured":
+      return GRADE_WORDS[grade.bars];
+    case "weak":
+      return "Weak route";
+    case "unmeasured":
+      return "Not measured yet";
+    case "none":
+      return "";
+  }
+}
+
+/** How many exits the Recent tab remembers, as in the Stage 2 mock. */
+export const RECENT_LIMIT = 6;
+
+/** The Recent history after connecting to `id`: it moves to the front, the oldest falls off. */
+export function withRecentDestination(recent: string[], id: string): string[] {
+  return [id, ...recent.filter((r) => r !== id)].slice(0, RECENT_LIMIT);
+}
+
+/** The exit list's name for an exit: its country, or its title when the client found none. */
+export function exitDisplayName(d: Destination): string {
+  return destinationCountry(d) ?? destinationTitle(d);
+}
+
+/** The last five characters of the exit's address: tells apart exits that share a country. */
+export function exitShortId(address: string): string {
+  return address.slice(-5);
+}
+
+/** The list's rows: usable exits other than `excludeId` that match `query`, the first `limit` unless searching. */
+export function pickerRows(
+  sorted: Destination[],
+  options: {
+    query: string;
+    excludeId: string | null;
+    isUsable: (id: string) => boolean;
+    limit: number | null;
+  },
+): { rows: Destination[]; more: boolean } {
+  const q = options.query.trim().toLowerCase();
+  const usable = sorted.filter((d) =>
+    d.id !== options.excludeId && options.isUsable(d.id)
+  );
+  if (q) {
+    return {
+      rows: usable.filter((d) =>
+        destinationSearchText(d).toLowerCase().includes(q)
+      ),
+      more: false,
+    };
+  }
+  if (options.limit === null || usable.length <= options.limit) {
+    return { rows: usable, more: false };
+  }
+  return { rows: usable.slice(0, options.limit), more: true };
 }
 
 /** Measured eligible first (by score), then unmeasured eligible (by resilience), then the rest (by closeness). */

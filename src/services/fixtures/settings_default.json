@@ -1,6 +1,7 @@
 {
   "preferredLocation": null,
   "lastConnectedDestination": null,
+  "recentDestinations": [],
   "connectOnStartup": false,
   "startMinimized": false,
   "updateCheck": true,

@@ -14,6 +14,8 @@ use std::sync::{Mutex, MutexGuard};
 pub struct Settings {
     pub preferred_location: Option<String>,
     pub last_connected_destination: Option<String>,
+    /// Destinations connected to, newest first, for the exit list's Recent tab.
+    pub recent_destinations: Vec<String>,
     pub connect_on_startup: bool,
     pub start_minimized: bool,
     pub update_check: bool,
@@ -34,6 +36,7 @@ impl Default for Settings {
         Self {
             preferred_location: None,
             last_connected_destination: None,
+            recent_destinations: Vec::new(),
             connect_on_startup: false,
             start_minimized: false,
             update_check: true,
@@ -57,6 +60,7 @@ impl Default for Settings {
 pub enum SortOrder {
     #[default]
     Best,
+    Recent,
     Alpha,
 }
 
@@ -95,6 +99,8 @@ pub struct SettingsPatch {
     #[serde(default, deserialize_with = "double_option")]
     pub last_connected_destination: Option<Option<String>>,
     #[serde(default)]
+    pub recent_destinations: Option<Vec<String>>,
+    #[serde(default)]
     pub connect_on_startup: Option<bool>,
     #[serde(default)]
     pub start_minimized: Option<bool>,
@@ -129,6 +135,9 @@ impl SettingsPatch {
         }
         if self.last_connected_destination.is_some() {
             keys.push("last_connected_destination");
+        }
+        if self.recent_destinations.is_some() {
+            keys.push("recent_destinations");
         }
         if self.connect_on_startup.is_some() {
             keys.push("connect_on_startup");
@@ -185,6 +194,9 @@ impl Settings {
         }
         if let Some(v) = patch.last_connected_destination {
             self.last_connected_destination = v;
+        }
+        if let Some(v) = patch.recent_destinations {
+            self.recent_destinations = v;
         }
         if let Some(v) = patch.connect_on_startup {
             self.connect_on_startup = v;
@@ -473,6 +485,22 @@ mod tests {
             .update(patch(json!({ "lastConnectedDestination": null })))
             .expect("update should succeed");
         assert_eq!(store.current().last_connected_destination, None);
+    }
+
+    #[test]
+    fn recent_destinations_and_recent_sort_persist_and_reload() {
+        let path = temp_settings_path();
+        let store = SettingsStore::load(path.clone());
+        store
+            .update(patch(json!({
+                "recentDestinations": ["exit-2", "exit-1"],
+                "exitNodeSortOrder": "recent",
+            })))
+            .expect("update should succeed");
+
+        let reloaded = SettingsStore::load(path).current();
+        assert_eq!(reloaded.recent_destinations, vec!["exit-2", "exit-1"]);
+        assert_eq!(reloaded.exit_node_sort_order, SortOrder::Recent);
     }
 
     #[test]

@@ -12,7 +12,7 @@ export default function DetailCard(props: {
   title: string;
   fadeTitle: boolean;
   switchEndsAt?: number | null;
-  onOpenList: (originY: number) => void;
+  onOpenList: () => void;
 }) {
   return (
     <div class="w-full bg-bg-card-outer rounded-2xl p-1.5">
