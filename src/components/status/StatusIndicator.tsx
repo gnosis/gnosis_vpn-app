@@ -53,7 +53,10 @@ export function StatusIndicator(
   return (
     <Show when={!whenOfflineOnly || isOffline()}>
       <div class="flex flex-row gap-2 items-center h-7.5 text-xs text-text-subtle">
-        <div class={`w-2.25 h-2.25 shrink-0 rounded-full ${status().dot}`} />
+        {/* -translate-y-px: Unica77 at 12px puts the cap-height centre 1px above the line-box centre */}
+        <div
+          class={`w-2.25 h-2.25 shrink-0 rounded-full -translate-y-px ${status().dot}`}
+        />
         <p>{status().text}</p>
       </div>
     </Show>
