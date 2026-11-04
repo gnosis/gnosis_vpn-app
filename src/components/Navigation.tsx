@@ -106,7 +106,9 @@ function Navigation() {
           </Tooltip>
           <IconButton
             ref={(el) => (buttonRef = el)}
-            label="Funds"
+            label={credit() === null
+              ? "Funds"
+              : `Funds, ${formatCreditCompact(credit()!)}`}
             onClick={() => openSettingsWindow("usage")}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
