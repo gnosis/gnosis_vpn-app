@@ -29,7 +29,7 @@ import {
   hasHealthContent,
 } from "@src/utils/exitHealth.ts";
 import DestinationLabel from "./DestinationLabel.tsx";
-import HopsIcon from "./HopsIcon.tsx";
+import HopsIcon from "../icons/HopsIcon.tsx";
 import { levelValueClass } from "./levelColor.ts";
 import SlotLoadStat from "./SlotLoadStat.tsx";
 import Stat from "./Stat.tsx";

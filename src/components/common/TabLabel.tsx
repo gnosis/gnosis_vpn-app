@@ -1,7 +1,7 @@
-import settingsIcon from "@assets/icons/tab-settings.svg";
-import usageIcon from "@assets/icons/tab-wallet.svg";
-import updatesIcon from "@assets/icons/tab-updates.svg";
-import aboutIcon from "@assets/icons/tab-about.svg";
+import settingsIcon from "@src/components/icons/tab-settings.svg";
+import usageIcon from "@src/components/icons/tab-wallet.svg";
+import updatesIcon from "@src/components/icons/tab-updates.svg";
+import aboutIcon from "@src/components/icons/tab-about.svg";
 
 export default function TabLabel(props: { label: string }) {
   const getIcon = () => {

@@ -1,5 +1,5 @@
 import { onMount } from "solid-js";
-import warningIcon from "@assets/icons/warning.svg";
+import warningIcon from "@src/components/icons/warning.svg";
 import Button from "../common/Button.tsx";
 
 export default function UnreachableDialog(props: { onClose: () => void }) {
