@@ -135,7 +135,7 @@ export function StatusHero() {
       return "In use by another user on this computer";
     }
     const labels: Record<Mode, string> = {
-      idle: "Disconnected",
+      idle: "Not connected",
       connecting: "Connecting",
       connected: "Connected",
       sleeping: "Service unavailable",

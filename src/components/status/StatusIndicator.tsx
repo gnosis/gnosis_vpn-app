@@ -44,7 +44,7 @@ export function StatusIndicator(
       };
     } else {
       return {
-        text: "Disconnected",
+        text: "Not connected",
         dot: "bg-status-idle",
       };
     }
