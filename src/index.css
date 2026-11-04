@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "./assets/flags/flags.css" layer(components);
+@import "@fontsource/jetbrains-mono/latin-600.css";
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* Local fonts */
@@ -90,6 +91,8 @@ textarea {
   --color-control-bg: #ececee;
   --color-control-bg-hover: #e3e3e6;
   --color-control-tint: #646794;
+  --color-bg-popover: #ffffff;
+  --popover-shadow: 0 0 0 1px #dddde3, 0 16px 34px rgb(30 20 90 / 0.16);
 
   /* Border colors */
   --color-border: #e5e7eb;
@@ -164,6 +167,8 @@ textarea {
   --color-control-bg: #262433;
   --color-control-bg-hover: #302d40;
   --color-control-tint: #a8a8ca;
+  --color-bg-popover: #1d1c28;
+  --popover-shadow: 0 0 0 1px #34324a, 0 16px 34px rgb(0 0 0 / 0.55);
 
   /* Border colors */
   --color-border: #374151;
@@ -261,6 +266,8 @@ textarea {
   --color-control-bg: var(--color-control-bg);
   --color-control-bg-hover: var(--color-control-bg-hover);
   --color-control-tint: var(--color-control-tint);
+  --color-bg-popover: var(--color-bg-popover);
+  --shadow-popover: var(--popover-shadow);
 
   --color-border: var(--color-border);
 
@@ -295,6 +302,9 @@ textarea {
 }
 
 @theme {
+  /* Balance figures, as in the Stage 2 mock; only the SemiBold face ships */
+  --font-figures: "JetBrains Mono", ui-monospace, monospace;
+
   /* smooth continuous spining animation */
   --animate-spin-smooth: spin-smooth 2.5s linear infinite;
 

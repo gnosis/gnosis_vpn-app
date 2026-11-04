@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   computeEffectiveCredit,
+  exitsCovered,
   formatCredit,
   formatCreditCompact,
   sumCapacityStake,
@@ -162,5 +163,14 @@ describe("formatCreditCompact", () => {
 
   it("shows an empty balance as whole MB", () => {
     expect(formatCreditCompact(0n)).toBe("0 MB");
+  });
+});
+
+describe("exitsCovered", () => {
+  it("counts whole 600 MB exits, rounding down", () => {
+    expect(exitsCovered(BYTES_PER_MB * 4800n)).toBe(8n);
+    expect(exitsCovered(BYTES_PER_MB * 1199n)).toBe(1n);
+    expect(exitsCovered(BYTES_PER_MB * 599n)).toBe(0n);
+    expect(exitsCovered(0n)).toBe(0n);
   });
 });

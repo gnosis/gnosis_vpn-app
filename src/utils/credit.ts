@@ -56,6 +56,14 @@ export function formatCreditCompact(creditBytes: bigint): string {
     formatCreditUnit(creditBytes, BYTES_PER_TB, 0, "TB");
 }
 
+/** The Stage 2 design's per-exit allotment; the client does not set it aside yet. */
+export const MB_PER_EXIT = 600n;
+
+/** Whole exits the credit covers at MB_PER_EXIT each. */
+export function exitsCovered(creditBytes: bigint): bigint {
+  return creditBytes / (BYTES_PER_MB * MB_PER_EXIT);
+}
+
 /** Sum byte_capacity across all capacity allocations
  * (open channels + Safe + node EOA). */
 export function computeEffectiveCredit(balance: BalanceResponse): bigint {

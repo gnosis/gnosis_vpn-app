@@ -26,8 +26,7 @@ function Navigation() {
   let containerRef: HTMLDivElement | undefined;
   let hoverTimeout: ReturnType<typeof globalThis.setTimeout> | undefined;
 
-  // Bar reflects the worst of traffic and gas status, matching the two
-  // status dots in the balance popup.
+  // Bar reflects the worst of traffic and gas status.
   const fundsBarClass = () => {
     if (!isRunningRunMode(appState.runMode)) return "bg-status-bad";
     const status = deriveOverallStatus(
@@ -44,14 +43,21 @@ function Navigation() {
       ? computeEffectiveCredit(appState.balance)
       : null;
 
-  const handleMouseLeave = () => {
+  const hidePopup = () => {
     clearTimeout(hoverTimeout);
     hoverTimeout = undefined;
     setShowPopup(false);
   };
 
+  // Grace period so the pointer can cross the gap from the button into the popup.
+  const handleMouseLeave = () => {
+    clearTimeout(hoverTimeout);
+    hoverTimeout = setTimeout(hidePopup, 220);
+  };
+
   const handleMouseEnter = gateOnWindowFocus(() => {
     clearTimeout(hoverTimeout);
+    if (showPopup()) return;
     hoverTimeout = setTimeout(() => {
       if (buttonRef && containerRef) {
         setButtonRect(buttonRef.getBoundingClientRect());
@@ -59,7 +65,7 @@ function Navigation() {
       }
       setShowPopup(true);
     }, 500);
-  }, handleMouseLeave);
+  }, hidePopup);
 
   onCleanup(() => {
     clearTimeout(hoverTimeout);
@@ -130,6 +136,7 @@ function Navigation() {
 
       <BalancePopup
         show={showPopup()}
+        credit={credit()}
         buttonRect={buttonRect()}
         containerRect={containerRect()}
         onMouseEnter={handleMouseEnter}
