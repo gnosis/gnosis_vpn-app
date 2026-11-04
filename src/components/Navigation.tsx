@@ -6,9 +6,13 @@ import { openSettingsWindow } from "../utils/settingsWindow.ts";
 import TrafficIcon from "./icons/TrafficIcon.tsx";
 import { openTrafficWindow } from "../utils/trafficWindow.ts";
 import { isRunningRunMode } from "../services/vpnService.ts";
-import WalletIcon from "./icons/WalletIcon.tsx";
+import LockIcon from "./icons/LockIcon.tsx";
 import { deriveOverallStatus } from "../utils/funding.ts";
-import { createSignal, onCleanup } from "solid-js";
+import {
+  computeEffectiveCredit,
+  formatCreditCompact,
+} from "../utils/credit.ts";
+import { createSignal, onCleanup, Show } from "solid-js";
 import { gateOnWindowFocus } from "../utils/windowFocus.ts";
 import { useAppStore } from "../stores/appStore.ts";
 import Tooltip from "./common/Tooltip.tsx";
@@ -22,18 +26,23 @@ function Navigation() {
   let containerRef: HTMLDivElement | undefined;
   let hoverTimeout: ReturnType<typeof globalThis.setTimeout> | undefined;
 
-  // Icon reflects the worst of traffic and gas status, matching the two
+  // Bar reflects the worst of traffic and gas status, matching the two
   // status dots in the balance popup.
-  const fundsBillsClass = () => {
-    if (!isRunningRunMode(appState.runMode)) return "text-status-bad";
+  const fundsBarClass = () => {
+    if (!isRunningRunMode(appState.runMode)) return "bg-status-bad";
     const status = deriveOverallStatus(
       appState.balance,
       appState.runMode.funding_status,
     );
-    if (status === "Empty") return "text-status-bad";
-    if (status === "Low") return "text-status-warn";
-    return undefined;
+    if (status === "Empty") return "bg-status-bad";
+    if (status === "Low") return "bg-status-warn";
+    return "bg-control-tint";
   };
+  const credit = () =>
+    // A non-owner sees no funds, even ones lingering from before the hand-over.
+    appState.balance && appState.vpnStatus !== "InUseByOtherUser"
+      ? computeEffectiveCredit(appState.balance)
+      : null;
 
   const handleMouseLeave = () => {
     clearTimeout(hoverTimeout);
@@ -63,6 +72,29 @@ function Navigation() {
           ref={(el) => (containerRef = el)}
           class="fixed top-6 right-4 z-60 flex items-center gap-1.5 justify-center"
         >
+          {/* The client has no lockdown yet (the kill switch only lives with a connection), so it always reads off */}
+          <Tooltip
+            content={
+              <>
+                <div class="font-bold">Feature coming</div>
+                <div>Lockdown off · click to turn on</div>
+              </>
+            }
+            position="bottom"
+          >
+            <div
+              role="img"
+              aria-label="Lockdown off"
+              class="w-7.5 h-7.5 rounded-lg flex items-center justify-center bg-control-bg text-text-subtle"
+            >
+              <LockIcon open />
+            </div>
+          </Tooltip>
+          <Tooltip content="Traffic" position="bottom">
+            <IconButton label="Traffic" onClick={() => openTrafficWindow()}>
+              <TrafficIcon />
+            </IconButton>
+          </Tooltip>
           <IconButton
             ref={(el) => (buttonRef = el)}
             label="Funds"
@@ -70,13 +102,21 @@ function Navigation() {
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
           >
-            <WalletIcon billsClass={fundsBillsClass()} />
+            {/* w-10.5: the widest compact label, "44.4 MB" in Unica77 Bold 11px, is 42px */}
+            <span class="flex w-10.5 flex-col gap-0.75 text-[11px] leading-3.5 font-bold text-center">
+              {/* Explicit null check: credit can be 0n, which Show treats as falsy */}
+              <Show when={credit() !== null} fallback={<span>—</span>}>
+                <span class="whitespace-nowrap">
+                  {formatCreditCompact(credit()!)}
+                </span>
+              </Show>
+              <span
+                class={`h-0.75 rounded-xs ${
+                  credit() === null ? "bg-control-bg-hover" : fundsBarClass()
+                }`}
+              />
+            </span>
           </IconButton>
-          <Tooltip content="Traffic" position="bottom">
-            <IconButton label="Traffic" onClick={() => openTrafficWindow()}>
-              <TrafficIcon />
-            </IconButton>
-          </Tooltip>
           <Tooltip content="Settings" position="bottom">
             <IconButton
               label="Settings"

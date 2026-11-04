@@ -89,6 +89,7 @@ textarea {
   --color-status-bad: #d6303a;
   --color-control-bg: #ececee;
   --color-control-bg-hover: #e3e3e6;
+  --color-control-tint: #646794;
 
   /* Border colors */
   --color-border: #e5e7eb;
@@ -162,6 +163,7 @@ textarea {
   --color-status-bad: #e5484d;
   --color-control-bg: #262433;
   --color-control-bg-hover: #302d40;
+  --color-control-tint: #a8a8ca;
 
   /* Border colors */
   --color-border: #374151;
@@ -258,6 +260,7 @@ textarea {
   --color-status-bad: var(--color-status-bad);
   --color-control-bg: var(--color-control-bg);
   --color-control-bg-hover: var(--color-control-bg-hover);
+  --color-control-tint: var(--color-control-tint);
 
   --color-border: var(--color-border);
 
