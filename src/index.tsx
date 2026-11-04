@@ -3,7 +3,6 @@ import "@src/index.css";
 import { render } from "solid-js/web";
 import App from "./windows/App.tsx";
 import SettingsWindow from "./windows/SettingsWindow.tsx";
-import TrafficWindow from "./windows/TrafficWindow.tsx";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -23,9 +22,6 @@ globalThis.addEventListener("dragstart", (e) => e.preventDefault());
 function screenFromLabel(label: string) {
   if (label === "settings") {
     return <SettingsWindow />;
-  }
-  if (label === "traffic") {
-    return <TrafficWindow />;
   }
   return <App />;
 }

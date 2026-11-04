@@ -8,6 +8,7 @@ import {
   untrack,
 } from "solid-js";
 import { Portal } from "solid-js/web";
+import { overlayMount } from "@src/utils/mainColumn.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
 import {
   cardPhaseFor,
@@ -573,7 +574,7 @@ export default function LocationBanner() {
         <div class="w-[10px] shrink-0" aria-hidden="true" />
       </div>
 
-      <Portal>
+      <Portal mount={overlayMount()}>
         <Show when={showList()}>
           <ExitNodeList
             originY={listOriginY()}

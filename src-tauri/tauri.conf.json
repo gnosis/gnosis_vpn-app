@@ -14,7 +14,7 @@
         "label": "main",
         "title": "Gnosis VPN",
         "width": 360,
-        "height": 640,
+        "height": 612,
         "resizable": false,
         "visible": false,
         "backgroundColor": "#111827",
@@ -27,19 +27,6 @@
         "width": 640,
         "height": 480,
         "visible": false,
-        "backgroundColor": "#111827",
-        "allowLinkPreview": false
-      },
-      {
-        "label": "traffic",
-        "title": "Gnosis VPN Traffic",
-        "width": 1100,
-        "height": 720,
-        "minWidth": 760,
-        "minHeight": 520,
-        "resizable": true,
-        "visible": false,
-        "center": true,
         "backgroundColor": "#111827",
         "allowLinkPreview": false
       }

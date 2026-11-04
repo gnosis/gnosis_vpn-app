@@ -3,6 +3,8 @@ import { createSignal, onCleanup } from "solid-js";
 export default function IconButton(props: {
   icon: string;
   alt: string;
+  /** Pressed look for a button that toggles a view. */
+  active?: boolean;
   onClick: () => void;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
@@ -27,7 +29,11 @@ export default function IconButton(props: {
     <button
       ref={props.ref}
       class="p-2 rounded-2xl bg-accent hover:bg-accent-hover hover:cursor-pointer w-10 h-10 flex items-center justify-center transition-transform duration-150 ease-out select-none"
-      classList={{ "btn-press": pressed() }}
+      classList={{
+        "btn-press": pressed(),
+        "ring-1 ring-inset ring-traffic-gt": props.active,
+      }}
+      aria-pressed={props.active}
       onPointerDown={() => playPressAnimation()}
       onClick={props.onClick}
       onMouseEnter={props.onMouseEnter}

@@ -8,7 +8,7 @@
 //
 // Flags:
 //   --fixture <path>   fixture JSON (default: fixture.json next to this file)
-//   --size <WxH>       viewport, default 360x640 (settings window: 640x480)
+//   --size <WxH>       viewport, default 360x612 (settings window: 640x480)
 //
 // Steps (executed in order, after navigation and app mount):
 //   shot <file.png>    capture screenshot
@@ -37,7 +37,7 @@ function repoPath(rel: string): string {
 // first use, which is enough for an agent-driven tool with a documented CLI.
 const args = [...Deno.args];
 let fixturePath = new URL("fixture.json", skillDir).pathname;
-let width = 360, height = 640;
+let width = 360, height = 612;
 const steps: string[][] = [];
 while (args.length) {
   const a = args.shift()!;

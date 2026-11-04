@@ -93,8 +93,10 @@ describe("connectedExit", () => {
 
   it("names the exit the service is connected to", () => {
     expect(connectedExit({ Ok: status })).toEqual({
+      id: "test-exit",
       title: "test-exit",
       flag: "de",
+      country: "Germany",
     });
   });
 

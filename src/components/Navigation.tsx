@@ -4,7 +4,12 @@ import { Portal } from "solid-js/web";
 import settingsIcon from "../assets/icons/settings.svg";
 import { openSettingsWindow } from "../utils/settingsWindow.ts";
 import trafficIcon from "../assets/icons/traffic.svg";
-import { openTrafficWindow } from "../utils/trafficWindow.ts";
+import {
+  balanceHoverBlocked,
+  toggleTrafficPane,
+  trafficPaneOpen,
+} from "../utils/trafficPane.ts";
+import { overlayMount } from "../utils/mainColumn.ts";
 import { isRunningRunMode } from "../services/vpnService.ts";
 import fundsFullIcon from "../assets/icons/funds-full.svg";
 import fundsOutIcon from "../assets/icons/funds-out.svg";
@@ -44,6 +49,7 @@ function Navigation() {
   };
 
   const handleMouseEnter = gateOnWindowFocus(() => {
+    if (balanceHoverBlocked()) return;
     clearTimeout(hoverTimeout);
     hoverTimeout = setTimeout(() => {
       if (buttonRef && containerRef) {
@@ -60,7 +66,7 @@ function Navigation() {
 
   return (
     <>
-      <Portal>
+      <Portal mount={overlayMount()}>
         <div
           ref={(el) => (containerRef = el)}
           class="fixed top-6 right-4 z-60 flex items-center gap-2 justify-center"
@@ -73,11 +79,15 @@ function Navigation() {
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
           />
-          <Tooltip content="Traffic" position="bottom">
+          <Tooltip content="Live traffic" position="bottom">
             <IconButton
               icon={trafficIcon}
-              alt="Traffic"
-              onClick={() => openTrafficWindow()}
+              alt="Live traffic"
+              active={trafficPaneOpen()}
+              onClick={() => {
+                handleMouseLeave();
+                void toggleTrafficPane();
+              }}
             />
           </Tooltip>
           <Tooltip content="Settings" position="bottom">

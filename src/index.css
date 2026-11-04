@@ -108,20 +108,15 @@ textarea {
   --color-toggle-checked: var(--color-accent);
   --color-toggle-thumb: #ffffff;
 
-  /* Traffic globe: a pale indigo sphere with saturated links */
-  --color-globe-surface: #f1effc;
-  --color-globe-edge: #a9a3ea;
-  --color-globe-grid: #dcd8f5;
-  --color-globe-link: #4335df;
-  --color-globe-dot: #8f88d8;
-  --color-globe-home: #12112a;
-  /* HOPR brand yellow marks announced HOPR nodes; darker edges keep it visible on the pale sphere */
-  --color-globe-hopr: #ffffa0;
-  --color-globe-hopr-edge: #12112a;
-  --color-globe-hopr-link-edge: #b89200;
-  /* Destinations inside a VPN tunnel: teal, apart from the indigo wire endpoints */
-  --color-globe-destination: #0d9488;
-  --color-globe-destination-dot: #5eb8ae;
+  /* Live traffic: navy wireframe, grey relays, one hot pink for the route in use */
+  --color-traffic-sync: #cc356d;
+  --color-traffic-sync-hi: #a32a61;
+  --color-traffic-line: rgba(26, 23, 81, 0.13);
+  --color-traffic-glow: #1a1751;
+  --color-traffic-gt: #646794;
+  --color-traffic-warn: #e8860c;
+  --color-traffic-track: #ececee;
+  --color-traffic-cell: #ffffff;
 }
 
 :root.dark {
@@ -173,18 +168,14 @@ textarea {
   --color-toggle-checked: var(--color-accent);
   --color-toggle-thumb: #d1d5db;
 
-  /* Traffic globe: lifted hues for the dark background */
-  --color-globe-surface: #1c1d45;
-  --color-globe-edge: #4b47a6;
-  --color-globe-grid: #2c2d5e;
-  --color-globe-link: #a69dff;
-  --color-globe-dot: #6e68b8;
-  --color-globe-home: #f5f3ff;
-  --color-globe-hopr: #ffffa0;
-  --color-globe-hopr-edge: #12112a;
-  --color-globe-hopr-link-edge: #b89200;
-  --color-globe-destination: #2dd4bf;
-  --color-globe-destination-dot: #2a8c82;
+  --color-traffic-sync: #ff4288;
+  --color-traffic-sync-hi: #ff8eb5;
+  --color-traffic-line: rgba(230, 228, 255, 0.13);
+  --color-traffic-glow: #a8a8ca;
+  --color-traffic-gt: #a8a8ca;
+  --color-traffic-warn: #f29a2e;
+  --color-traffic-track: #1f2937;
+  --color-traffic-cell: #1a2233;
 }
 @utility bg-darken {
   background-image: linear-gradient(rgb(0 0 0 / 0.12), rgb(0 0 0 / 0.12));
@@ -254,17 +245,14 @@ textarea {
   --color-toggle-checked: var(--color-toggle-checked);
   --color-toggle-thumb: var(--color-toggle-thumb);
 
-  --color-globe-surface: var(--color-globe-surface);
-  --color-globe-edge: var(--color-globe-edge);
-  --color-globe-grid: var(--color-globe-grid);
-  --color-globe-link: var(--color-globe-link);
-  --color-globe-dot: var(--color-globe-dot);
-  --color-globe-home: var(--color-globe-home);
-  --color-globe-hopr: var(--color-globe-hopr);
-  --color-globe-hopr-edge: var(--color-globe-hopr-edge);
-  --color-globe-hopr-link-edge: var(--color-globe-hopr-link-edge);
-  --color-globe-destination: var(--color-globe-destination);
-  --color-globe-destination-dot: var(--color-globe-destination-dot);
+  --color-traffic-sync: var(--color-traffic-sync);
+  --color-traffic-sync-hi: var(--color-traffic-sync-hi);
+  --color-traffic-line: var(--color-traffic-line);
+  --color-traffic-glow: var(--color-traffic-glow);
+  --color-traffic-gt: var(--color-traffic-gt);
+  --color-traffic-warn: var(--color-traffic-warn);
+  --color-traffic-track: var(--color-traffic-track);
+  --color-traffic-cell: var(--color-traffic-cell);
 }
 
 @theme {
