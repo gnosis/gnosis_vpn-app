@@ -37,7 +37,7 @@ function repoPath(rel: string): string {
 // first use, which is enough for an agent-driven tool with a documented CLI.
 const args = [...Deno.args];
 let fixturePath = new URL("fixture.json", skillDir).pathname;
-let width = 360, height = 640;
+let width = 360, height = 612;
 const steps: string[][] = [];
 while (args.length) {
   const a = args.shift()!;

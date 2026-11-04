@@ -38,7 +38,7 @@ again), waits for the Solid app to mount, then executes the steps in order:
 | `handoff`         | diff the splash logo against the mounted one (see below) |
 
 Flags: `--fixture <path>` (default: the skill's `fixture.json`), `--size WxH`
-(default `360x640` — the main window; settings window is `640x480`).
+(default `360x612` — the main window; settings window is `640x480`).
 
 ### Checking the splash→Solid handoff
 
