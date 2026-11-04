@@ -141,7 +141,7 @@ export default function Manually() {
         when={isServiceAvailable()}
         fallback={
           <div class="flex flex-row w-full justify-center fade-in-up">
-            <StatusIndicator size="sm" whenOfflineOnly />
+            <StatusIndicator whenOfflineOnly />
           </div>
         }
       >

@@ -1,14 +1,12 @@
 import IconButton from "./common/IconButton.tsx";
 import BalancePopup from "./BalancePopup.tsx";
 import { Portal } from "solid-js/web";
-import settingsIcon from "../assets/icons/settings.svg";
+import SettingsIcon from "./icons/SettingsIcon.tsx";
 import { openSettingsWindow } from "../utils/settingsWindow.ts";
-import trafficIcon from "../assets/icons/traffic.svg";
+import TrafficIcon from "./icons/TrafficIcon.tsx";
 import { openTrafficWindow } from "../utils/trafficWindow.ts";
 import { isRunningRunMode } from "../services/vpnService.ts";
-import fundsFullIcon from "../assets/icons/funds-full.svg";
-import fundsOutIcon from "../assets/icons/funds-out.svg";
-import fundsEmptyIcon from "../assets/icons/funds-empty.svg";
+import WalletIcon from "./icons/WalletIcon.tsx";
 import { deriveOverallStatus } from "../utils/funding.ts";
 import { createSignal, onCleanup } from "solid-js";
 import { gateOnWindowFocus } from "../utils/windowFocus.ts";
@@ -26,15 +24,15 @@ function Navigation() {
 
   // Icon reflects the worst of traffic and gas status, matching the two
   // status dots in the balance popup.
-  const getFundsIcon = () => {
-    if (!isRunningRunMode(appState.runMode)) return fundsEmptyIcon;
+  const fundsBillsClass = () => {
+    if (!isRunningRunMode(appState.runMode)) return "text-status-bad";
     const status = deriveOverallStatus(
       appState.balance,
       appState.runMode.funding_status,
     );
-    if (status === "Empty") return fundsEmptyIcon;
-    if (status === "Low") return fundsOutIcon;
-    return fundsFullIcon;
+    if (status === "Empty") return "text-status-bad";
+    if (status === "Low") return "text-status-warn";
+    return undefined;
   };
 
   const handleMouseLeave = () => {
@@ -63,29 +61,29 @@ function Navigation() {
       <Portal>
         <div
           ref={(el) => (containerRef = el)}
-          class="fixed top-6 right-4 z-60 flex items-center gap-2 justify-center"
+          class="fixed top-6 right-4 z-60 flex items-center gap-1.5 justify-center"
         >
           <IconButton
             ref={(el) => (buttonRef = el)}
-            icon={getFundsIcon()}
-            alt="Funds"
+            label="Funds"
             onClick={() => openSettingsWindow("usage")}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
-          />
+          >
+            <WalletIcon billsClass={fundsBillsClass()} />
+          </IconButton>
           <Tooltip content="Traffic" position="bottom">
-            <IconButton
-              icon={trafficIcon}
-              alt="Traffic"
-              onClick={() => openTrafficWindow()}
-            />
+            <IconButton label="Traffic" onClick={() => openTrafficWindow()}>
+              <TrafficIcon />
+            </IconButton>
           </Tooltip>
           <Tooltip content="Settings" position="bottom">
             <IconButton
-              icon={settingsIcon}
-              alt="Settings"
+              label="Settings"
               onClick={() => openSettingsWindow("settings")}
-            />
+            >
+              <SettingsIcon />
+            </IconButton>
           </Tooltip>
         </div>
       </Portal>
