@@ -26,16 +26,16 @@ function Navigation() {
   let containerRef: HTMLDivElement | undefined;
   let hoverTimeout: ReturnType<typeof globalThis.setTimeout> | undefined;
 
-  // Bar reflects the worst of traffic and gas status.
+  // Bar reflects the worst of traffic and gas status; widths are fixed per level, not a measured fraction.
   const fundsBarClass = () => {
-    if (!isRunningRunMode(appState.runMode)) return "bg-status-bad";
+    if (!isRunningRunMode(appState.runMode)) return "bg-status-bad w-[10%]";
     const status = deriveOverallStatus(
       appState.balance,
       appState.runMode.funding_status,
     );
-    if (status === "Empty") return "bg-status-bad";
-    if (status === "Low") return "bg-status-warn";
-    return "bg-control-tint";
+    if (status === "Empty") return "bg-status-bad w-[10%]";
+    if (status === "Low") return "bg-status-warn w-[45%]";
+    return "bg-control-tint w-full";
   };
   const credit = () =>
     // A non-owner sees no funds, even ones lingering from before the hand-over.
@@ -116,11 +116,11 @@ function Navigation() {
                   {formatCreditCompact(credit()!)}
                 </span>
               </Show>
-              <span
-                class={`h-0.75 rounded-xs ${
-                  credit() === null ? "bg-control-bg-hover" : fundsBarClass()
-                }`}
-              />
+              <span class="h-0.75 rounded-xs bg-control-bg-hover">
+                <Show when={credit() !== null}>
+                  <span class={`block h-full rounded-xs ${fundsBarClass()}`} />
+                </Show>
+              </span>
             </span>
           </IconButton>
           <Tooltip content="Settings" position="bottom">
