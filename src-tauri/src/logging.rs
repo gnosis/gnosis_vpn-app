@@ -61,6 +61,18 @@ pub fn init(log_dir: &Path) -> Result<String, String> {
             .set(guard)
             .map_err(|_| "logging already initialized".to_string())?;
     }
+    // Panics otherwise reach only stderr, which no launcher keeps.
+    let default_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        tracing::error!(
+            target: "panic",
+            backtrace = %std::backtrace::Backtrace::force_capture(),
+            "{info}"
+        );
+        // The file writer runs on its own thread; an abort may follow this hook.
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        default_hook(info);
+    }));
     Ok(filter_desc)
 }
 
