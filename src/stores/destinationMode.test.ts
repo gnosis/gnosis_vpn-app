@@ -5,6 +5,7 @@ import type {
   DestinationState,
 } from "@src/services/vpnService.ts";
 import {
+  autoCandidate,
   cardPhaseFor,
   createDestinationMode,
   type DestinationMode,
@@ -1296,6 +1297,44 @@ describe("listClosed — cancelled", () => {
     input(handle, { type: "listClosed", picked: null });
 
     expect(handle.model.mode).toEqual({ mode: "live" });
+  });
+});
+
+describe("autoResumed", () => {
+  it("drops a manual pick, closes the list and lets auto choose again", () => {
+    const handle = setup();
+    stripWithHistory(handle);
+    input(handle, { type: "slideCommitted", id: "uk" });
+    input(handle, { type: "listOpened" });
+
+    input(handle, { type: "autoResumed" });
+
+    expect(handle.model.listOpen).toBe(false);
+    expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
+
+    step(handle, statusFor(UK_USA));
+    expect(handle.model.mode).toMatchObject({
+      pending: { candidateId: "usa" },
+    });
+  });
+
+  it("leaves live alone", () => {
+    const handle = setup();
+    step(handle, connectedTo("uk", { uk: makeEligible("uk", 50) }));
+    input(handle, { type: "listOpened" });
+
+    input(handle, { type: "autoResumed" });
+
+    expect(handle.model.listOpen).toBe(false);
+    expect(handle.model.mode).toEqual({ mode: "live" });
+  });
+});
+
+describe("autoCandidate", () => {
+  it("takes the preferred location while it is ready, else the sort head", () => {
+    expect(autoCandidate(statusFor(UK_USA), null)).toBe("usa");
+    expect(autoCandidate(statusFor(UK_USA), "uk")).toBe("uk");
+    expect(autoCandidate(statusFor(UK_USA), "gone")).toBe("usa");
   });
 });
 

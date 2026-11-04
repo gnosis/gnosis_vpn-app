@@ -11,6 +11,8 @@ import {
   destinationLabel,
   destinationSearchText,
   destinationTitle,
+  exitDisplayName,
+  exitShortId,
   freeSlots,
   getExitData,
   isConfigOnly,
@@ -21,15 +23,19 @@ import {
   isVpnActive,
   isWeakRoute,
   NO_CONTEXT,
+  pickerRows,
   pickStartupTarget,
   type RankContext,
+  RECENT_LIMIT,
   routeGrade,
+  routeGradeLabel,
   sanitizeMetaText,
   sortAlphaDestinations,
   sortByRouteQuality,
   trackWeakRoutes,
   WEAK_GRACE_MS,
   type WeakRoute,
+  withRecentDestination,
 } from "./destinations.ts";
 import {
   checkedQuickProbe,
@@ -673,6 +679,38 @@ describe("sortAlphaDestinations", () => {
     expect(sorted[0].id).toBe("mu");
     expect(sorted[1].id).toBe("zeta");
   });
+
+  it("orders by the country the list shows, then by label within a country", () => {
+    const at = (country: string) => ({
+      country,
+      source: { type: "announced_ip" as const },
+    });
+    const swiss: Destination = {
+      ...BASE_DESTINATION,
+      id: "a-ch",
+      geo: at("CH"),
+    };
+    const french: Destination = {
+      ...BASE_DESTINATION,
+      id: "z-fr",
+      geo: at("FR"),
+    };
+    const french2: Destination = {
+      ...BASE_DESTINATION,
+      id: "y-fr",
+      geo: at("FR"),
+    };
+    const sorted = sortAlphaDestinations(
+      [swiss, french, french2],
+      {
+        "a-ch": makeEligible("a-ch"),
+        "z-fr": makeEligible("z-fr"),
+        "y-fr": makeEligible("y-fr"),
+      },
+      NO_CONTEXT,
+    );
+    expect(sorted.map((d) => d.id)).toEqual(["y-fr", "z-fr", "a-ch"]);
+  });
 });
 
 describe("sortByRouteQuality", () => {
@@ -1007,5 +1045,114 @@ describe("isConfigPinned", () => {
       meta: { name: "Frankfurt-1" },
     });
     expect(isConfigPinned(dest, "name")).toBe(false);
+  });
+});
+
+describe("routeGradeLabel", () => {
+  it("names each measured band and the unmeasured and weak states", () => {
+    expect(routeGradeLabel({ kind: "measured", bars: 4 })).toBe("Excellent");
+    expect(routeGradeLabel({ kind: "measured", bars: 3 })).toBe("Good");
+    expect(routeGradeLabel({ kind: "measured", bars: 2 })).toBe("Fair");
+    expect(routeGradeLabel({ kind: "measured", bars: 1 })).toBe("Poor");
+    expect(routeGradeLabel({ kind: "weak" })).toBe("Weak route");
+    expect(routeGradeLabel({ kind: "unmeasured" })).toBe("Not measured yet");
+    expect(routeGradeLabel({ kind: "none" })).toBe("");
+  });
+});
+
+describe("exitDisplayName", () => {
+  it("names the country, else falls back to the title", () => {
+    const geo = { country: "DE", source: { type: "announced_ip" as const } };
+    expect(exitDisplayName(makeDestination({ id: "dest-berlin", geo })))
+      .toBe("Germany");
+    expect(exitDisplayName(makeDestination({ id: "dest-berlin", geo: null })))
+      .toBe("dest-berlin");
+  });
+});
+
+describe("withRecentDestination", () => {
+  it("puts the newest first without duplicating it", () => {
+    expect(withRecentDestination(["a", "b", "c"], "b")).toEqual([
+      "b",
+      "a",
+      "c",
+    ]);
+    expect(withRecentDestination([], "a")).toEqual(["a"]);
+  });
+
+  it("forgets the oldest past the limit", () => {
+    const full = Array.from({ length: RECENT_LIMIT }, (_, i) => `e${i}`);
+    const next = withRecentDestination(full, "new");
+    expect(next).toHaveLength(RECENT_LIMIT);
+    expect(next[0]).toBe("new");
+    expect(next).not.toContain(`e${RECENT_LIMIT - 1}`);
+  });
+});
+
+describe("exitShortId", () => {
+  it("takes the address's last five characters as written", () => {
+    expect(exitShortId("0x6a3B9f1c0D2e4F5a6b7C8d9E0f1A2b3C4d5469Da")).toBe(
+      "469Da",
+    );
+  });
+});
+
+describe("pickerRows", () => {
+  const dests = ["a", "b", "c", "d", "e", "f", "g"].map((id) =>
+    makeDestination({ id, meta: { name: `Exit ${id}` } })
+  );
+  const usableExcept = (...unusable: string[]) => (id: string) =>
+    !unusable.includes(id);
+
+  it("drops the excluded and unusable exits, keeping the order", () => {
+    const { rows } = pickerRows(dests, {
+      query: "",
+      excludeId: "a",
+      isUsable: usableExcept("c"),
+      limit: null,
+    });
+    expect(rows.map((d) => d.id)).toEqual(["b", "d", "e", "f", "g"]);
+  });
+
+  it("caps the list and says there is more", () => {
+    const { rows, more } = pickerRows(dests, {
+      query: "",
+      excludeId: null,
+      isUsable: usableExcept(),
+      limit: 5,
+    });
+    expect(rows.map((d) => d.id)).toEqual(["a", "b", "c", "d", "e"]);
+    expect(more).toBe(true);
+  });
+
+  it("does not offer more when everything already fits", () => {
+    const { more } = pickerRows(dests.slice(0, 5), {
+      query: "",
+      excludeId: null,
+      isUsable: usableExcept(),
+      limit: 5,
+    });
+    expect(more).toBe(false);
+  });
+
+  it("searches every usable exit past the cap", () => {
+    const { rows, more } = pickerRows(dests, {
+      query: "  EXIT G ",
+      excludeId: null,
+      isUsable: usableExcept(),
+      limit: 5,
+    });
+    expect(rows.map((d) => d.id)).toEqual(["g"]);
+    expect(more).toBe(false);
+  });
+
+  it("never finds an unusable exit", () => {
+    const { rows } = pickerRows(dests, {
+      query: "exit c",
+      excludeId: null,
+      isUsable: usableExcept("c"),
+      limit: 5,
+    });
+    expect(rows).toEqual([]);
   });
 });
