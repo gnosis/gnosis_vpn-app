@@ -43,6 +43,9 @@ function Navigation() {
       ? computeEffectiveCredit(appState.balance)
       : null;
 
+  // Set while a checked update is not installed, even after its banner is dismissed.
+  const updateWaiting = () => appState.availableVersion !== null;
+
   const hidePopup = () => {
     clearTimeout(hoverTimeout);
     hoverTimeout = undefined;
@@ -125,7 +128,10 @@ function Navigation() {
           </IconButton>
           <Tooltip content="Settings" position="bottom">
             <IconButton
-              label="Settings"
+              label={updateWaiting()
+                ? "Settings, update available"
+                : "Settings"}
+              badge={updateWaiting()}
               onClick={() => openSettingsWindow("settings")}
             >
               <SettingsIcon />

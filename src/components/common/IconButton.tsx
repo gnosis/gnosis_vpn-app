@@ -1,8 +1,10 @@
-import { createSignal, type JSX, onCleanup } from "solid-js";
+import { createSignal, type JSX, onCleanup, Show } from "solid-js";
 
 export default function IconButton(props: {
   label: string;
   children: JSX.Element;
+  /** Violet dot in the top-right corner. */
+  badge?: boolean;
   onClick: () => void;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
@@ -26,7 +28,7 @@ export default function IconButton(props: {
   return (
     <button
       ref={props.ref}
-      class="rounded-lg bg-control-bg hover:bg-control-bg-hover text-text-primary hover:cursor-pointer h-7.5 min-w-7.5 px-1.75 flex items-center justify-center transition-transform duration-150 ease-out select-none"
+      class="relative rounded-lg bg-control-bg hover:bg-control-bg-hover text-text-primary hover:cursor-pointer h-7.5 min-w-7.5 px-1.75 flex items-center justify-center transition-transform duration-150 ease-out select-none"
       classList={{ "btn-press": pressed() }}
       onPointerDown={() => playPressAnimation()}
       onClick={props.onClick}
@@ -36,6 +38,9 @@ export default function IconButton(props: {
       type="button"
     >
       {props.children}
+      <Show when={props.badge}>
+        <span class="absolute top-1 right-1 size-1.75 rounded-full bg-update-dot" />
+      </Show>
     </button>
   );
 }
