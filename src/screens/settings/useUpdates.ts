@@ -21,7 +21,7 @@ import {
   installUpdate,
   UPDATE_INSTALL_STATUS_EVENT,
 } from "@src/services/updateInstall.ts";
-import { detectChannel } from "@src/utils/version.ts";
+import { effectiveChannel } from "@src/utils/version.ts";
 import {
   resolveUpdateBlocker,
   resolveUpdateDecision,
@@ -95,14 +95,8 @@ export function useUpdates() {
     check();
   });
 
-  const installedChannel = createMemo<UpdateChannel | null>(() => {
-    const ver = appState.packageVersion;
-    return ver ? detectChannel(ver) : null;
-  });
-
-  // Installed package is authoritative; preference fills in until daemon reports a version.
   const channel = createMemo<UpdateChannel>(() =>
-    installedChannel() ?? settings.channel ?? "stable"
+    effectiveChannel(appState.packageVersion, settings.channel)
   );
 
   const decision = createMemo(() =>
