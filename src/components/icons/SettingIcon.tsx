@@ -63,10 +63,11 @@ const PATHS = {
 export type SettingIconName = keyof typeof PATHS;
 
 export default function SettingIcon(props: { name: SettingIconName }) {
+  // even, so the glyph lands on the 28px tile's pixel grid
   return (
     <svg
-      width="15"
-      height="15"
+      width="16"
+      height="16"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
