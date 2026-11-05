@@ -7,6 +7,7 @@ import {
   on,
   onCleanup,
   onMount,
+  Show,
   untrack,
 } from "solid-js";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
@@ -14,6 +15,7 @@ import Onboarding from "../screens/main/Onboarding.tsx";
 import Synchronization from "../screens/main/Synchronization.tsx";
 import Initialization from "../screens/main/Initialization.tsx";
 import ServiceNotRunning from "../screens/main/ServiceNotRunning.tsx";
+import { invoke } from "@tauri-apps/api/core";
 import { emit } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import {
@@ -24,6 +26,12 @@ import {
 } from "@src/utils/updateChecker.ts";
 import { isStaleOutcome } from "@src/utils/updateAvailability.ts";
 import { logError, logWarn } from "@src/utils/appLog.ts";
+import {
+  isSettingsTarget,
+  openSettings,
+  settingsTab,
+} from "@src/utils/settingsPage.ts";
+import SettingsPage from "../screens/settings/SettingsPage.tsx";
 
 const validScreens = [
   "main",
@@ -47,6 +55,18 @@ const SCREEN_FADE_MS = 300;
 
 const isValidScreen = (s: string): s is ValidScreen =>
   (validScreens as readonly string[]).includes(s);
+
+// Rust holds what the tray asked for, so a request made before the listener existed is not lost.
+async function takeSettingsTarget(): Promise<void> {
+  try {
+    const target = await invoke<unknown>("take_settings_target");
+    if (target === null) return;
+    if (isSettingsTarget(target)) openSettings(target);
+    else logWarn(`Ignoring settings:open with invalid target: ${target}`);
+  } catch (e) {
+    logError(`Cannot take the tray's settings target: ${e}`);
+  }
+}
 
 function handleNavigate(
   payload: NavigatePayload,
@@ -102,6 +122,7 @@ function App() {
   const [appState, appActions] = useAppStore();
   const [settings, settingsActions] = useSettingsStore();
   let unlistenNavigate: (() => void) | undefined;
+  let unlistenSettings: (() => void) | undefined;
   let disposed = false;
 
   // Auto-update scheduling lives here so it stays active regardless of which tab is open.
@@ -200,12 +221,32 @@ function App() {
     }
   });
 
+  // Settings cover the location list, so it closes rather than waiting underneath.
+  createEffect(on(settingsTab, (tab) => {
+    if (tab && untrack(() => appState.mode.listOpen)) {
+      appActions.destinationListClosed(null);
+    }
+  }));
+
   onMount(() => {
+    // Before the awaits below: the tray can ask for settings while the app still initializes.
+    void getCurrentWebviewWindow().listen(
+      "settings:open",
+      () => void takeSettingsTarget(),
+    ).then((unlisten) => {
+      if (disposed) {
+        unlisten();
+        return;
+      }
+      unlistenSettings = unlisten;
+      void takeSettingsTarget();
+    }).catch((e) => logError(`Cannot listen for settings:open: ${e}`));
+
     void (async () => {
       await settingsActions.load();
       await appActions.initializeApp();
 
-      // window-scoped listen: a target-Any listener would also get emits aimed at the settings window
+      // window-scoped listen: a target-Any listener would also get emits aimed at other windows
       const unlisten = await getCurrentWebviewWindow().listen<NavigatePayload>(
         "navigate",
         ({ payload }) =>
@@ -224,6 +265,7 @@ function App() {
   onCleanup(() => {
     disposed = true;
     unlistenNavigate?.();
+    unlistenSettings?.();
     if (timeoutId) clearTimeout(timeoutId);
     clearTimeout(fadeTimer);
   });
@@ -243,6 +285,9 @@ function App() {
           )}
         />
       </div>
+      <Show when={settingsTab()}>
+        <SettingsPage />
+      </Show>
     </div>
   );
 }

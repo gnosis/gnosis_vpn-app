@@ -13,7 +13,7 @@ import LocationBanner from "../../components/exitNode/LocationBanner.tsx";
 import ConnectButton from "../../components/ConnectButton.tsx";
 import StatusHero from "../../components/status/StatusHero.tsx";
 import ConnectionStatus from "../../components/status/ConnectionStatus.tsx";
-import { openSettingsWindow } from "../../utils/settingsWindow.ts";
+import { openSettings } from "../../utils/settingsPage.ts";
 import { isRunningRunMode } from "../../services/vpnService.ts";
 import { deriveOverallStatus, type StatusText } from "../../utils/funding.ts";
 import { endOfLifeMessage } from "../../utils/updateAvailability.ts";
@@ -81,7 +81,7 @@ export function MainScreen() {
                 <Banner
                   variant="danger"
                   icon={<WarningIcon />}
-                  onClick={() => openSettingsWindow("updates")}
+                  onClick={() => openSettings("update")}
                 >
                   {endOfLifeMessage(endOfLife(), now())}
                 </Banner>
@@ -92,7 +92,7 @@ export function MainScreen() {
             <Banner
               variant="update"
               icon={<UpdateIcon />}
-              onClick={() => openSettingsWindow("updates")}
+              onClick={() => openSettings("update")}
               onDismiss={() =>
                 void settingsActions.setDismissedUpdateVersion(
                   appState.availableVersion,
@@ -108,7 +108,7 @@ export function MainScreen() {
               variant="warning"
               onDismiss={() => setDismissedBalanceStatus(balanceStatus())}
               dismissAriaLabel="Dismiss balance notification"
-              onClick={() => openSettingsWindow("usage")}
+              onClick={() => openSettings("usage")}
             >
               {balanceBannerText()}
             </Banner>

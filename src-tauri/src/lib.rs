@@ -44,7 +44,7 @@ use theme::spawn_linux_theme_monitor;
 use theme::{InitialTheme, get_initial_theme, system_theme};
 use toolkit::get_toolkit_version;
 use tray::{
-    create_tray_menu, handle_tray_event, show_settings, show_settings_and_check,
+    PendingSettings, create_tray_menu, handle_tray_event, show_settings, take_settings_target,
     toggle_main_window_visibility,
 };
 use types::BalanceResponse;
@@ -255,6 +255,8 @@ pub fn run() {
             tracing::info!(target: "theme", theme = ?theme, "initial os theme");
             app.manage(InitialTheme(theme));
 
+            app.manage(PendingSettings::default());
+
             // Create tray menu
             let menu = create_tray_menu(app.handle())
                 .inspect_err(|e| tracing::error!(error = %e, "cannot create tray menu"))?;
@@ -313,7 +315,7 @@ pub fn run() {
                     }
                     "settings" => {
                         tracing::info!(target: "tray", "settings requested");
-                        show_settings(app, "settings");
+                        show_settings(app, "general");
                     }
                     "usage" => {
                         tracing::info!(target: "tray", "usage requested");
@@ -325,7 +327,7 @@ pub fn run() {
                     }
                     "check_update" => {
                         tracing::info!(target: "tray", "update check requested");
-                        show_settings_and_check(app);
+                        show_settings(app, "check-update");
                     }
                     other => tracing::warn!(target: "tray", id = other, "unknown tray menu item"),
                 })
@@ -433,18 +435,6 @@ pub fn run() {
                 });
             }
 
-            // Intercept settings window close to hide instead of destroying the window
-            if let Some(settings_window) = app.get_webview_window("settings") {
-                let settings_clone = settings_window.clone();
-                settings_window.on_window_event(move |event| {
-                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                        tracing::info!(target: "window", "settings window close requested, hiding");
-                        api.prevent_close();
-                        let _ = settings_clone.hide();
-                    }
-                });
-            }
-
             // Closing the traffic window ends capture and releases its history.
             if let Some(traffic_window) = app.get_webview_window("traffic") {
                 let traffic_handle = app.handle().clone();
@@ -537,6 +527,7 @@ pub fn run() {
             get_system_info,
             install_update,
             get_install_status,
+            take_settings_target,
             get_toolkit_version,
             get_service_not_running_info,
             start_service,

@@ -2,7 +2,7 @@ import IconButton from "./common/IconButton.tsx";
 import BalancePopup from "./BalancePopup.tsx";
 import { Portal } from "solid-js/web";
 import SettingsIcon from "./icons/SettingsIcon.tsx";
-import { openSettingsWindow } from "../utils/settingsWindow.ts";
+import { openSettings, settingsTab } from "../utils/settingsPage.ts";
 import TrafficIcon from "./icons/TrafficIcon.tsx";
 import { openTrafficWindow } from "../utils/trafficWindow.ts";
 import { isRunningRunMode } from "../services/vpnService.ts";
@@ -109,12 +109,15 @@ function Navigation() {
             label={credit() === null
               ? "Funds"
               : `Funds, ${formatCreditCompact(credit()!)}`}
-            onClick={() => openSettingsWindow("usage")}
+            onClick={() => {
+              hidePopup();
+              openSettings("usage");
+            }}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
           >
-            {/* w-10.5: the widest compact label, "44.4 MB" in Unica77 Bold 11px, is 42px */}
-            <span class="flex w-10.5 flex-col gap-0.75 text-[11px] leading-3.5 font-bold text-center">
+            {/* min-w-10.5: "44.4 MB" is 42px in Unica77 Bold 11px; past 999 TB the label grows */}
+            <span class="flex min-w-10.5 flex-col gap-0.75 text-[11px] leading-3.5 font-bold text-center">
               {/* Explicit null check: credit can be 0n, which Show treats as falsy */}
               <Show when={credit() !== null} fallback={<span>—</span>}>
                 <span class="whitespace-nowrap">
@@ -128,13 +131,18 @@ function Navigation() {
               </span>
             </span>
           </IconButton>
-          <Tooltip content="Settings" position="bottom">
+          {/* The page covers the gear without a mouseleave, so the open page hides the tooltip. */}
+          <Tooltip
+            content="Settings"
+            position="bottom"
+            disabled={settingsTab() !== null}
+          >
             <IconButton
               label={updateWaiting()
                 ? "Settings, update available"
                 : "Settings"}
               badge={updateWaiting()}
-              onClick={() => openSettingsWindow("settings")}
+              onClick={() => openSettings("general")}
             >
               <SettingsIcon />
             </IconButton>
@@ -149,6 +157,7 @@ function Navigation() {
         containerRect={containerRect()}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
+        onNavigate={hidePopup}
       />
     </>
   );

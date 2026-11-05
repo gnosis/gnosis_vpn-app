@@ -77,24 +77,3 @@ export function deriveRefillShortfall(
   if (!status || status.wxhopr_deficit !== null) return null;
   return status.refill_shortfall;
 }
-
-const LEVEL_SEVERITY = { empty: 2, low: 1, good: 0 } as const;
-
-// Daemon only hands back the two pooled levels, so the message is per-resource.
-export function describeCriticalIssue(
-  balance: BalanceResponse | null,
-  runModeStatus: FundingStatus | null,
-): string | null {
-  const status = resolveFundingStatus(balance, runModeStatus);
-  if (!status) return null;
-
-  const trafficIsWorse =
-    LEVEL_SEVERITY[status.traffic] >= LEVEL_SEVERITY[status.gas];
-  const worstLevel = trafficIsWorse ? status.traffic : status.gas;
-  if (worstLevel === "good") return null;
-
-  const urgency = worstLevel;
-  return trafficIsWorse
-    ? `Traffic funds are ${urgency} — top up wxHOPR`
-    : `Gas is ${urgency} — top up xDAI`;
-}

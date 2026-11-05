@@ -5,7 +5,7 @@ import {
   formatCreditCompact,
   MB_PER_EXIT,
 } from "@src/utils/credit.ts";
-import { openSettingsWindow } from "@src/utils/settingsWindow.ts";
+import { openSettings, type SettingsTarget } from "@src/utils/settingsPage.ts";
 
 type Props = {
   show: boolean;
@@ -15,6 +15,8 @@ type Props = {
   containerRect: DOMRect | null;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
+  /** The popover is left behind for the Settings page. */
+  onNavigate: () => void;
 };
 
 function enoughFor(creditBytes: bigint): string {
@@ -25,6 +27,11 @@ function enoughFor(creditBytes: bigint): string {
 }
 
 export default function BalancePopup(props: Props) {
+  const go = (target: SettingsTarget) => {
+    props.onNavigate();
+    openSettings(target);
+  };
+
   return (
     <Show when={props.show && props.buttonRect && props.containerRect}>
       <Portal>
@@ -54,14 +61,14 @@ export default function BalancePopup(props: Props) {
           <button
             type="button"
             class="h-8.5 w-full rounded-[9px] bg-control-bg hover:bg-control-bg-hover text-[12.5px] font-bold hover:cursor-pointer"
-            onClick={() => openSettingsWindow("add-funds")}
+            onClick={() => go("add-funds")}
           >
             Add data
           </button>
           <button
             type="button"
             class="self-center py-0.5 text-xs text-text-subtle hover:text-text-primary hover:cursor-pointer"
-            onClick={() => openSettingsWindow("usage")}
+            onClick={() => go("usage")}
           >
             Usage details
           </button>

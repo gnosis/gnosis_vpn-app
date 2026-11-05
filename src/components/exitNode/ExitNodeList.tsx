@@ -31,6 +31,7 @@ import {
   sortAlphaDestinations,
   sortByRouteQuality,
 } from "@src/utils/destinations.ts";
+import PageHeader from "../common/PageHeader.tsx";
 import LocationRow, { ACTION_BUTTON, ShortId } from "./LocationRow.tsx";
 
 const ROW_LIMIT = 5;
@@ -234,28 +235,8 @@ export default function ExitNodeList(props: {
   ];
 
   return (
-    <div class="fixed inset-0 z-100 bg-bg-primary text-text-primary flex flex-col outline-none list-slide-in">
-      <div class="flex shrink-0 items-center gap-2 px-3 pt-3 pb-1.5">
-        <button
-          type="button"
-          class="flex size-7 items-center justify-center rounded-lg bg-control-bg hover:bg-control-bg-hover hover:cursor-pointer"
-          aria-label="Back"
-          onClick={() => props.onClose(null)}
-        >
-          <svg width="8" height="13" viewBox="0 0 8 13" aria-hidden="true">
-            <polyline
-              points="7,1 1,6.5 7,12"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.8"
-              stroke-linecap="round"
-            />
-          </svg>
-        </button>
-        <h1 class="text-base font-bold tracking-[-0.025em]">
-          Choose location
-        </h1>
-      </div>
+    <div class="fixed inset-0 z-100 bg-bg-primary text-text-primary flex flex-col outline-none transition-transform duration-220 ease-[cubic-bezier(0.2,0.8,0.2,1)] starting:translate-x-full motion-reduce:transition-none">
+      <PageHeader title="Choose location" onBack={() => props.onClose(null)} />
 
       <div class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3.5 pt-1 pb-4">
         <div class="relative shrink-0">

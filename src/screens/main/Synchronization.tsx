@@ -19,7 +19,7 @@ export default function Synchronization(props: SynchronizationProps) {
     <div class="h-full w-full flex flex-col p-6 bg-bg-primary text-text-primary overflow-y-auto">
       <h1 class="text-4xl font-bold text-center">Discovering the network</h1>
 
-      <div class="flex flex-col items-center pt-12">
+      <div class="flex flex-col items-center pt-8">
         <span class="text-xs font-bold uppercase tracking-widest text-text-secondary">
           Progress
         </span>

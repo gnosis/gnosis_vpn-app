@@ -1,7 +1,7 @@
 //! Streams the bundled updater's progress to the frontend as
 //! `update-install-status` events.
 //!
-//! The last status is kept in managed state so the settings Updates tab can
+//! The last status is kept in managed state so the Settings page can
 //! re-hydrate mid-install after a remount (`get_install_status`), and doubles
 //! as the guard against concurrent installs.
 

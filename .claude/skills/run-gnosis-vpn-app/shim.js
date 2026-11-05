@@ -28,7 +28,11 @@
     ...(fixture.settings ?? {}),
   };
 
+  // Rust holds the tray's Settings target until take_settings_target, so settings:open does too.
+  let pendingSettingsTarget = null;
+
   const fireEvent = (event, payload) => {
+    if (event === "settings:open") pendingSettingsTarget = payload;
     for (const id of eventListeners.get(event) ?? []) {
       callbacks.get(id)?.({ event, id, payload });
     }
@@ -106,6 +110,11 @@
     get_render_profile: () =>
       fixture.renderProfile ?? { softwareRendering: false, cpuCores: 8 },
     get_install_status: () => fixture.installStatus ?? null,
+    take_settings_target: () => {
+      const target = pendingSettingsTarget;
+      pendingSettingsTarget = null;
+      return target;
+    },
     // The "service not running" screen's content; fixture.serviceNotRunningInfo overrides any key.
     get_service_not_running_info: () => {
       const platform = fixture.platform ?? "linux";

@@ -224,14 +224,3 @@ export function humanWxhopr(
   const { amount, unit } = humanWxhoprParts(hopli, rounding);
   return amount === NO_VALUE ? amount : `${amount} ${unit}`;
 }
-
-/**
- * Format an xDAI amount (18-decimal base unit) as a compact value, mirroring
- * the wxHOPR display: floored to 2 decimals above 0.1, significant figures
- * below it, and subscript-zero notation below 0.0001. Returns the number only —
- * callers render the "xDAI" unit separately.
- */
-export function humanXdai(value: string | bigint | null | undefined): string {
-  const raw = toBigIntSafe(value);
-  return raw === null ? NO_VALUE : formatCompactAmount(raw, 10n ** 17n);
-}
