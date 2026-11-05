@@ -780,6 +780,14 @@ pub fn get_cached_state(cache: State<'_, AppStateCache>) -> CachedState {
     }
 }
 
+// A window opening later hydrates from the cache, so it must hold every answer the event carried.
+fn publish_status(app: &AppHandle, answer: Result<Option<Status>, String>) {
+    app.state::<AppStateCache>()
+        .status
+        .send_replace(Some(answer.clone()));
+    let _ = app.emit("status", answer);
+}
+
 /// The tray's state for a status answer; `None` leaves the tray as it is.
 fn tray_connection_state(
     answer: &Result<Option<StatusResponse>, String>,
@@ -938,8 +946,7 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
                         if let Some(conn_state) = tray_connection_state(&result) {
                             reflect_state_in_tray(&app, &conn_state, run_mode, &mut last_conn_state, &mut last_funds_level).await;
                         }
-                        app.state::<AppStateCache>().status.send_replace(Some(result.clone()));
-                        let _ = app.emit("status", result);
+                        publish_status(&app, result);
                     }
                     if needs_reinit {
                         tracing::warn!(target: "status", "daemon worker offline, restarting initialization");
@@ -1023,6 +1030,7 @@ pub async fn run_initialization_loop(app: AppHandle) {
                     &mut last_funds_level,
                 )
                 .await;
+<<<<<<< HEAD
                 let _ = app.emit(
                     "status",
                     Err::<Option<StatusResponse>, String>(SERVICE_NOT_RUNNING_ERROR.to_string()),
@@ -1036,11 +1044,41 @@ pub async fn run_initialization_loop(app: AppHandle) {
                     "status",
                     Err::<Option<StatusResponse>, String>(format!(
                         "Failed to get service info: {e}"
+=======
+                publish_status(&app, Err(SERVICE_NOT_RUNNING_ERROR.to_string()));
+                time::sleep(RETRY_DELAY).await;
+                continue;
+            }
+            // A daemon of another protocol version answers every request this way.
+            Err(CallError::Service(ServiceError::ProtocolMismatch { service })) => {
+                warn_on_change(
+                    &mut last_warn,
+                    format!(
+                        "incompatible daemon protocol: {service} (app speaks {})",
+                        ipc::PROTOCOL_VERSION
+                    ),
+                );
+                publish_status(
+                    &app,
+                    Err(format!(
+                        "Incompatible service version: protocol {service}, app protocol {}. \
+                         If you just updated, please restart the app.",
+                        ipc::PROTOCOL_VERSION
+>>>>>>> bd38fe8 (fix(app): cache init-loop status so a late window skips the critical error (#647))
                     )),
                 );
                 time::sleep(RETRY_DELAY).await;
                 continue;
             }
+<<<<<<< HEAD
+=======
+            Err(e) => {
+                warn_on_change(&mut last_warn, format!("daemon unreachable, retrying: {e}"));
+                publish_status(&app, Err(format!("Failed to get service info: {e}")));
+                time::sleep(RETRY_DELAY).await;
+                continue;
+            }
+>>>>>>> bd38fe8 (fix(app): cache init-loop status so a late window skips the critical error (#647))
         };
 
         if !is_version_compatible(&info.version) {
@@ -1069,22 +1107,30 @@ pub async fn run_initialization_loop(app: AppHandle) {
                 &mut last_warn,
                 format!("failed to start client worker: {e}"),
             );
+<<<<<<< HEAD
             let _ = app.emit(
                 "status",
                 Err::<Option<StatusResponse>, String>(format!(
                     "Failed to start client worker: {e}"
                 )),
             );
+=======
+            publish_status(&app, Err(format!("Failed to start client worker: {e}")));
+>>>>>>> bd38fe8 (fix(app): cache init-loop status so a late window skips the critical error (#647))
             time::sleep(RETRY_DELAY).await;
             continue;
         }
 
         if let Err(e) = spawn_polling_tasks(app.clone()).await {
             warn_on_change(&mut last_warn, format!("failed to start polling: {e}"));
+<<<<<<< HEAD
             let _ = app.emit(
                 "status",
                 Err::<Option<StatusResponse>, String>(format!("Failed to start polling: {e}")),
             );
+=======
+            publish_status(&app, Err(format!("Failed to start polling: {e}")));
+>>>>>>> bd38fe8 (fix(app): cache init-loop status so a late window skips the critical error (#647))
             time::sleep(RETRY_DELAY).await;
             continue;
         }
