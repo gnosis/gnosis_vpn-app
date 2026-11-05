@@ -129,7 +129,7 @@ export default function GeneralTab(
     <>
       <SettingsHeading>Protection</SettingsHeading>
       <SettingsCard label="Protection">
-        <SettingsRow icon="power" title="Connect when the app starts">
+        <SettingsRow title="Connect when the app starts">
           <Switch
             label="Connect when the app starts"
             checked={settings.connectOnStartup}
@@ -182,14 +182,14 @@ export default function GeneralTab(
             onChange={(on) => void settingsActions.setShowDetailedMetrics(on)}
           />
         </SettingsRow>
-        <SettingsRow icon="window" title="Start minimized">
+        <SettingsRow title="Start minimized">
           <Switch
             label="Start minimized"
             checked={settings.startMinimized}
             onChange={(on) => void settingsActions.setStartMinimized(on)}
           />
         </SettingsRow>
-        <SettingsRow icon="flag" title="Exit icons">
+        <SettingsRow title="Exit icons">
           <div
             role="group"
             aria-label="Exit icons"
@@ -237,7 +237,6 @@ export default function GeneralTab(
       <SettingsHeading>Logs, for support</SettingsHeading>
       <SettingsCard label="Logs, for support">
         <SettingsRow
-          icon="file"
           title="Export logs"
           description={
             <Show when={exportError()} fallback="Saved on this computer.">

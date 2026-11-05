@@ -10,7 +10,7 @@ export const ROW_BUTTON =
 
 /** Icon tile, title with an optional line below it, and a control at the end; a button when given `onClick`. */
 export default function SettingsRow(props: {
-  icon: SettingIconName;
+  icon?: SettingIconName;
   title: JSX.Element;
   description?: JSX.Element;
   children?: JSX.Element;
@@ -27,10 +27,18 @@ export default function SettingsRow(props: {
       }`}
       onClick={props.onClick}
     >
-      <span class="flex size-7 shrink-0 items-center justify-center rounded-lg bg-control-bg text-text-soft">
-        <SettingIcon name={props.icon} />
+      {/* an empty slot without an icon keeps titles on one edge */}
+      <span class="flex size-7 shrink-0 items-center justify-center">
+        <Show when={props.icon}>
+          {(icon) => (
+            <span class="flex size-full items-center justify-center rounded-lg bg-control-bg text-text-soft">
+              <SettingIcon name={icon()} />
+            </span>
+          )}
+        </Show>
       </span>
-      <span class="block min-w-0 flex-1 text-[13px] leading-4.5">
+      {/* Unica77's ascent leaves its caps 1.5px above the line centre */}
+      <span class="block min-w-0 flex-1 translate-y-px text-[13px] leading-4.5">
         {props.title}
         <Show when={description()}>
           <small class="mt-0.5 block text-xs leading-normal text-text-subtle">

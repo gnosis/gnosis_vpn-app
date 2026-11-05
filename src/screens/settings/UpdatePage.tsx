@@ -112,29 +112,29 @@ export default function UpdatePage(props: { onBack: () => void }) {
             onChange={(on) => void settingsActions.setUpdateCheck(on)}
           />
         </SettingsRow>
-        <SettingsRow icon="layers" title="Update channel">
+        <SettingsRow title="Update channel">
           <span class="shrink-0 text-xs text-text-subtle">
             {CHANNEL_LABELS[updates.channel()]}
           </span>
         </SettingsRow>
         <div classList={{ "select-text": showVersionDetails() }}>
           <div onClick={handleVersionClick}>
-            <SettingsRow icon="tag" title="Version">
+            <SettingsRow title="Version">
               <span class={VERSION_VALUE}>
                 {appState.packageVersion ?? "Unknown"}
               </span>
             </SettingsRow>
           </div>
           <Show when={showVersionDetails()}>
-            <SettingsRow icon="server" title="Service version">
+            <SettingsRow title="Service version">
               <span class={VERSION_VALUE}>
                 {appState.serviceInfo?.version ?? "—"}
               </span>
             </SettingsRow>
-            <SettingsRow icon="window" title="App version">
+            <SettingsRow title="App version">
               <span class={VERSION_VALUE}>{appVersion() ?? "—"}</span>
             </SettingsRow>
-            <SettingsRow icon="wrench" title="Toolkit version">
+            <SettingsRow title="Toolkit version">
               <span class={VERSION_VALUE}>
                 {appState.toolkit.version ?? "—"}
               </span>
