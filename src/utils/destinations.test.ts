@@ -978,12 +978,14 @@ describe("destinationSearchText", () => {
       meta: { description: "no logs kept" },
       geo: { country: "de", source: { type: "announced_ip" } },
     });
-    expect(destinationSearchText(dest)).toBe("my-exit - Germany no logs kept");
+    expect(destinationSearchText(dest)).toBe(
+      "my-exit - Germany no logs kept #xexit",
+    );
   });
 
-  it("is just the label when no description was published", () => {
+  it("is the label and short id when no description was published", () => {
     const dest = makeDestination({ id: "my-exit" });
-    expect(destinationSearchText(dest)).toBe("my-exit");
+    expect(destinationSearchText(dest)).toBe("my-exit #xexit");
   });
 
   it("keeps a configured id searchable beside the published name", () => {
@@ -1144,6 +1146,26 @@ describe("pickerRows", () => {
     });
     expect(rows.map((d) => d.id)).toEqual(["g"]);
     expect(more).toBe(false);
+  });
+
+  it("finds an exit by the short id its row shows", () => {
+    const germany = {
+      country: "de",
+      source: { type: "announced_ip" },
+    } as const;
+    const twins = [
+      makeDestination({ id: "x", address: "0x6a3B9f469Da", geo: germany }),
+      makeDestination({ id: "y", address: "0x0c1D2e7Fb10", geo: germany }),
+    ];
+    for (const query of ["469da", "#469Da"]) {
+      const { rows } = pickerRows(twins, {
+        query,
+        excludeId: null,
+        isUsable: usableExcept(),
+        limit: 5,
+      });
+      expect(rows.map((d) => d.id)).toEqual(["x"]);
+    }
   });
 
   it("never finds an unusable exit", () => {

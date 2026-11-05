@@ -20,6 +20,8 @@ import { logInfo } from "@src/utils/appLog.ts";
 import {
   exitDisplayName,
   exitShortId,
+  isReady,
+  isReadyForDisplay,
   isSelectable,
   isVpnActive,
   pickerRows,
@@ -35,7 +37,9 @@ const ROW_LIMIT = 5;
 
 /** Everything the list shows that a status update can change. */
 interface ListView {
-  rows: { destination: Destination; grade: RouteGrade }[];
+  // ids, so <For> keeps a row, and a focused button, when only its grade changes
+  rows: string[];
+  exits: Record<string, { destination: Destination; grade: RouteGrade }>;
   more: boolean;
   autoPick: Destination | null;
   autoOn: boolean;
@@ -123,7 +127,11 @@ export default function ExitNodeList(props: {
 
   const liveAutoPick = () => {
     const id = autoCandidate(appState, appState.mode.preferredLocation);
-    return id === null ? null : appState.destinations[id]?.destination ?? null;
+    const state = id === null ? undefined : appState.destinations[id];
+    // with nothing ready the candidate is only the sort head, a cold-start card's fallback
+    return state && isReadyForDisplay(state, rankContext(appState))
+      ? state.destination
+      : null;
   };
 
   const liveView = createMemo((): ListView => {
@@ -137,15 +145,20 @@ export default function ExitNodeList(props: {
     });
     const context = rankContext(appState);
     const autoPick = liveAutoPick();
-    return {
-      rows: rows.map((destination) => ({
+    const exits: ListView["exits"] = {};
+    for (const destination of rows) {
+      exits[destination.id] = {
         destination,
         grade: routeGrade(
           appState.destinations[destination.id],
           context,
           appState.weakRoutes[destination.id]?.surfaced ?? false,
         ),
-      })),
+      };
+    }
+    return {
+      rows: rows.map((destination) => destination.id),
+      exits,
       more,
       autoPick,
       // Nothing records whether a tunnel was auto's choice, so connected it is "On" while it is auto's pick right now.
@@ -185,20 +198,33 @@ export default function ExitNodeList(props: {
       appState.disconnecting.some((d) => d.destination === id);
     // its tunnel exists or is going away; picking it only brings its card back
     if (!liveOrLeaving) {
+      // the view holds still under the pointer, so the exit may have gone or filled since it was drawn
+      if (!isUsable(id)) return;
       logInfo(`Connecting from the list: ${id}`);
       void appActions.connect(id);
     }
     props.onClose(id);
   };
 
+  const isConnected = () => connectionDestination(appState.connection) !== null;
+
+  // the pick on screen, while the live status still has it ready
+  const autoTarget = () => {
+    const pick = view().autoPick;
+    return pick &&
+        isReady(appState.destinations[pick.id], rankContext(appState))
+      ? pick.id
+      : null;
+  };
+
   // connected, Use switches to the pick on screen, as the mock does; disconnected, it hands back to auto
   const useAuto = () => {
-    const pick = view().autoPick;
-    if (connectionDestination(appState.connection) !== null && pick) {
-      handleConnect(pick.id);
-    } else {
+    if (!isConnected()) {
       appActions.autoResumed();
+      return;
     }
+    const target = autoTarget();
+    if (target !== null) handleConnect(target);
   };
 
   const sortOptions = [
@@ -326,6 +352,7 @@ export default function ExitNodeList(props: {
                         type="button"
                         class={ACTION_BUTTON}
                         aria-label="Use automatic location"
+                        disabled={isConnected() && autoTarget() === null}
                         onClick={useAuto}
                       >
                         Use
@@ -340,13 +367,13 @@ export default function ExitNodeList(props: {
               </Show>
 
               <For each={view().rows}>
-                {(row) => (
+                {(id) => (
                   <LocationRow
-                    destination={row.destination}
-                    grade={row.grade}
+                    destination={view().exits[id].destination}
+                    grade={view().exits[id].grade}
                     actionLabel={view().connected ? "Switch" : "Connect"}
-                    disabled={appState.isLoading}
-                    onAction={() => handleConnect(row.destination.id)}
+                    disabled={appState.isLoading || !isUsable(id)}
+                    onAction={() => handleConnect(id)}
                   />
                 )}
               </For>

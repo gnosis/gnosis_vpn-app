@@ -471,11 +471,12 @@ export function destinationLabel(d: Destination): string {
   return country ? `${title} - ${country}` : title;
 }
 
-/** Label plus description, so the list's search reaches operator blurbs too. */
+/** Label, description and the row's #short id, so a search tells apart exits that share a country. */
 export function destinationSearchText(d: Destination): string {
-  const label = destinationLabel(d);
   const description = destinationDescription(d);
-  return description ? `${label} ${description}` : label;
+  return [destinationLabel(d), description, `#${exitShortId(d.address)}`]
+    .filter((part) => part)
+    .join(" ");
 }
 
 export type PinnableMeta = "name" | "description";
