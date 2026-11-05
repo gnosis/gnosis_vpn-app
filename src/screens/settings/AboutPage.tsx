@@ -2,7 +2,9 @@ import { createResource, createSignal, type JSX, Show } from "solid-js";
 import { getVersion } from "@tauri-apps/api/app";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useAppStore } from "@src/stores/appStore.ts";
+import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import { logWarn } from "@src/utils/appLog.ts";
+import { CHANNEL_LABELS, effectiveChannel } from "@src/utils/version.ts";
 import PageHeader from "@src/components/common/PageHeader.tsx";
 import {
   SettingsCard,
@@ -12,6 +14,8 @@ import {
 const SOURCE_URL = "https://github.com/gnosis/gnosis_vpn-app";
 const IPINFO_URL = "https://ipinfo.io";
 const FLAG_ICONS_URL = "https://github.com/lipis/flag-icons";
+const LINETO_URL = "https://lineto.com";
+const JETBRAINS_MONO_URL = "https://www.jetbrains.com/lp/mono/";
 
 const REVEAL_CLICKS = 7;
 const REVEAL_WINDOW_MS = 2000;
@@ -48,6 +52,7 @@ function Notes(props: { children: JSX.Element }) {
 
 export default function AboutPage(props: { onBack: () => void }) {
   const [appState] = useAppStore();
+  const [settings] = useSettingsStore();
   const [appVersion] = createResource(() => getVersion());
   const [showVersionDetails, setShowVersionDetails] = createSignal(false);
   let versionClickCount = 0;
@@ -80,6 +85,14 @@ export default function AboutPage(props: { onBack: () => void }) {
             Version{" "}
             <span class="font-figures text-text-primary">
               {appState.packageVersion ?? "unknown"}
+            </span>
+          </div>
+          <div>
+            Channel{" "}
+            <span class="text-text-primary">
+              {CHANNEL_LABELS[
+                effectiveChannel(appState.packageVersion, settings.channel)
+              ]}
             </span>
           </div>
           <Show when={showVersionDetails()}>
@@ -116,6 +129,16 @@ export default function AboutPage(props: { onBack: () => void }) {
             Flags from{" "}
             <Link url={FLAG_ICONS_URL} label="flag-icons" />, licensed under
             MIT.
+          </div>
+        </Notes>
+        <Notes>
+          <span class="text-[13px] leading-4.5 text-text-primary">Fonts</span>
+          <div>
+            Unica77 by <Link url={LINETO_URL} label="Lineto" />.
+          </div>
+          <div>
+            <Link url={JETBRAINS_MONO_URL} label="JetBrains Mono" />, licensed
+            under the SIL Open Font License 1.1.
           </div>
         </Notes>
       </div>

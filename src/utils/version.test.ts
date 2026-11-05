@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { detectChannel } from "./version.ts";
+import { detectChannel, effectiveChannel } from "./version.ts";
 
 describe("experimental channel", () => {
   const EXP = "2026.09.20+build.144124.experimental";
@@ -35,5 +35,19 @@ describe("detectChannel", () => {
 
   it("returns snapshot when version contains both hyphen and plus", () => {
     expect(detectChannel("1.0.0-alpha+build.1")).toBe("snapshot");
+  });
+});
+
+describe("effectiveChannel", () => {
+  it("follows the installed package over the stored preference", () => {
+    expect(effectiveChannel("2026.09.20+build.144124", "stable")).toBe(
+      "snapshot",
+    );
+    expect(effectiveChannel("1.0.0", "snapshot")).toBe("stable");
+  });
+
+  it("falls back to the preference, then stable, while the version is unknown", () => {
+    expect(effectiveChannel(null, "snapshot")).toBe("snapshot");
+    expect(effectiveChannel(null, null)).toBe("stable");
   });
 });

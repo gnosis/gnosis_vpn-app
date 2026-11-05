@@ -2,10 +2,7 @@ import { createSignal, For, Show } from "solid-js";
 import { save } from "@tauri-apps/plugin-dialog";
 import { downloadDir, join } from "@tauri-apps/api/path";
 import { useAppStore } from "@src/stores/appStore.ts";
-import {
-  type UpdateChannel,
-  useSettingsStore,
-} from "@src/stores/settingsStore.ts";
+import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import { VPNService } from "@src/services/vpnService.ts";
 import {
   destinationLabel,
@@ -15,6 +12,7 @@ import { endOfLifeMessage } from "@src/utils/updateAvailability.ts";
 import { createDeadlineClock } from "@src/utils/deadlineClock.ts";
 import { logBundleFileName } from "@src/utils/logBundle.ts";
 import { logInfo } from "@src/utils/appLog.ts";
+import { CHANNEL_LABELS } from "@src/utils/version.ts";
 import { Dropdown } from "@src/components/common/Dropdown.tsx";
 import { Modal } from "@src/components/common/Modal.tsx";
 import { Markdown } from "@src/components/common/Markdown.tsx";
@@ -38,12 +36,6 @@ import Switch from "@src/components/settings/Switch.tsx";
 import { INSTALL_LABELS, useUpdates } from "./useUpdates.ts";
 
 const AUTO_LOCATION = { id: null as string | null, label: "Auto · best" };
-
-const CHANNEL_LABELS: Record<UpdateChannel, string> = {
-  stable: "Stable",
-  snapshot: "Snapshot",
-  experimental: "Experimental",
-};
 
 const SEGMENT =
   "rounded-md px-2 py-1 text-[11px] leading-3.5 font-bold whitespace-nowrap";
