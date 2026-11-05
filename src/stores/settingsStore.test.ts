@@ -151,15 +151,18 @@ describe("settingsStore", () => {
     expect(state.connectOnStartup).toBe(true);
   });
 
-  it("setLastConnectedDestination sends a patch and never touches state directly", async () => {
+  it("rememberConnectedDestination sends one patch and never touches state directly", async () => {
     mockBackend(settingsDefault);
     const [state, actions] = await freshStore();
     await actions.load();
 
-    await actions.setLastConnectedDestination("exit-2");
+    await actions.rememberConnectedDestination("exit-2");
 
     expect(invokeMock).toHaveBeenCalledWith("update_settings", {
-      patch: { lastConnectedDestination: "exit-2" },
+      patch: {
+        lastConnectedDestination: "exit-2",
+        recentDestinations: ["exit-2"],
+      },
     });
     expect(state.lastConnectedDestination).toBe(null);
     fireChange({ ...settingsDefault, lastConnectedDestination: "exit-2" });

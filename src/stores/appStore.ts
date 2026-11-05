@@ -127,6 +127,7 @@ type AppActions = {
   dragStarted: () => void;
   destinationListOpened: () => void;
   destinationListClosed: (picked: string | null) => void;
+  autoResumed: () => void;
   refreshToolkit: () => Promise<void>;
 };
 
@@ -807,7 +808,7 @@ export function createAppStore(): AppStoreTuple {
 
       // best-effort — losing this only affects which destination auto-reconnect tries next
       try {
-        await settingsActions.setLastConnectedDestination(targetId);
+        await settingsActions.rememberConnectedDestination(targetId);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         logWarn(`Failed to persist last connected destination: ${message}`);
@@ -837,6 +838,15 @@ export function createAppStore(): AppStoreTuple {
     },
     destinationListClosed: (picked: string | null) => {
       destinationMode?.applyUserInput({ type: "listClosed", picked });
+      VPNService.setStatusPollFast(false).catch((error) => logWarn(`${error}`));
+      quickProbes = IDLE_SCHEDULE;
+    },
+    // Closes the list like destinationListClosed; the last status lets auto choose now, not at the next poll.
+    autoResumed: () => {
+      destinationMode?.applyUserInput({ type: "autoResumed" });
+      if (pendingModeAppState) {
+        destinationMode?.applyStatusUpdate(pendingModeAppState);
+      }
       VPNService.setStatusPollFast(false).catch((error) => logWarn(`${error}`));
       quickProbes = IDLE_SCHEDULE;
     },

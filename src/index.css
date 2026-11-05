@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "./assets/flags/flags.css" layer(components);
+@import "@fontsource/jetbrains-mono/latin-500.css";
 @import "@fontsource/jetbrains-mono/latin-600.css";
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -92,6 +93,13 @@ textarea {
   --color-control-bg-hover: #e3e3e6;
   --color-control-tint: #646794;
   --color-update-dot: #5a49d6;
+
+  /* Exit list (Stage 2.1 "Choose location") */
+  --color-bg-list: #ffffff;
+  --color-bar-off: #d9d9dd;
+  --color-text-link: #3f2acd;
+  --color-auto-mark: #ececee;
+  --color-row-hover: rgb(0 0 0 / 0.04);
   --color-bg-popover: #ffffff;
   --popover-shadow: 0 0 0 1px #dddde3, 0 16px 34px rgb(30 20 90 / 0.16);
 
@@ -169,6 +177,13 @@ textarea {
   --color-control-bg-hover: #302d40;
   --color-control-tint: #a8a8ca;
   --color-update-dot: #b0a6ff;
+
+  /* Exit list */
+  --color-bg-list: #1b1a26;
+  --color-bar-off: #363447;
+  --color-text-link: #b0a6ff;
+  --color-auto-mark: #28234a;
+  --color-row-hover: rgb(176 166 255 / 0.08);
   --color-bg-popover: #1d1c28;
   --popover-shadow: 0 0 0 1px #34324a, 0 16px 34px rgb(0 0 0 / 0.55);
 
@@ -269,6 +284,11 @@ textarea {
   --color-control-bg-hover: var(--color-control-bg-hover);
   --color-control-tint: var(--color-control-tint);
   --color-update-dot: var(--color-update-dot);
+  --color-bg-list: var(--color-bg-list);
+  --color-bar-off: var(--color-bar-off);
+  --color-text-link: var(--color-text-link);
+  --color-auto-mark: var(--color-auto-mark);
+  --color-row-hover: var(--color-row-hover);
   --color-bg-popover: var(--color-bg-popover);
   --shadow-popover: var(--popover-shadow);
 
@@ -305,7 +325,7 @@ textarea {
 }
 
 @theme {
-  /* Balance figures, as in the Stage 2 mock; only the SemiBold face ships */
+  /* Figures and exit ids, as in the Stage 2 mock; only the Medium and SemiBold faces ship */
   --font-figures: "JetBrains Mono", ui-monospace, monospace;
 
   /* smooth continuous spining animation */
@@ -401,7 +421,7 @@ textarea {
   .owl-blink,
   .check-draw,
   .check-pop-entry,
-  .list-expand-in {
+  .list-slide-in {
     animation: none;
   }
   .owl-fill-layer {
@@ -437,19 +457,14 @@ textarea {
   }
 }
 
-/* Expands from the opening button (origin inlined); keyframed transform because WebKitGTK won't animate standalone `scale` from @starting-style. */
-.list-expand-in {
-  animation: list-expand-in 300ms ease-out both;
+/* The exit list slides in from the right, as the Stage 2 mock's pages do; it closes without animation. */
+.list-slide-in {
+  animation: list-slide-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
-@keyframes list-expand-in {
+@keyframes list-slide-in {
   from {
-    opacity: 0;
-    transform: scaleY(0);
-  }
-  to {
-    opacity: 1;
-    transform: scaleY(1);
+    transform: translateX(100%);
   }
 }
 

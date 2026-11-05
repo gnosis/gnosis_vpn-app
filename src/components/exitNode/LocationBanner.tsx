@@ -164,8 +164,6 @@ export default function LocationBanner() {
   const [appState, appActions] = useAppStore();
   // The model can close the list itself — an unsolicited connection, or a prune taking the active card.
   const showList = () => appState.mode.listOpen;
-  // Viewport Y of the button that opened the list — the expand animation's origin.
-  const [listOriginY, setListOriginY] = createSignal(0);
 
   let containerRef: HTMLDivElement | undefined;
   let mounted = true;
@@ -560,10 +558,7 @@ export default function LocationBanner() {
                         appState.mode.mode.mode === "auto"
                       ? appState.mode.mode.pending?.countdownEndsAt ?? null
                       : null}
-                    onOpenList={(originY) => {
-                      setListOriginY(originY);
-                      appActions.destinationListOpened();
-                    }}
+                    onOpenList={() => appActions.destinationListOpened()}
                   />
                 </div>
               )}
@@ -576,7 +571,6 @@ export default function LocationBanner() {
       <Portal>
         <Show when={showList()}>
           <ExitNodeList
-            originY={listOriginY()}
             onClose={(picked) => appActions.destinationListClosed(picked)}
           />
         </Show>

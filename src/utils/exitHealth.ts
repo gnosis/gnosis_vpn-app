@@ -199,11 +199,6 @@ export function formatSecondsAgo(diffSec: number): string {
   return `${hours} h ago`;
 }
 
-/** Whether the card has route stats to show: anything the walk found. */
-export function hasHealthContent(rhv: RouteHealthView | null): boolean {
-  return rhv?.walk?.type === "paths";
-}
-
 /** Get the raw hop count. */
 export function getHopCount(hops: number): number {
   return hops;
