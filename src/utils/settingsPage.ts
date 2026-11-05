@@ -14,7 +14,10 @@ const TARGET_TAB: Record<SettingsTarget, SettingsTab> = {
   "check-update": "general",
 };
 
-const [settingsTab, setSettingsTab] = createSignal<SettingsTab | null>(null);
+// equals: false, so reopening the shown tab still notifies and closes a subpage over it
+const [settingsTab, setSettingsTab] = createSignal<SettingsTab | null>(null, {
+  equals: false,
+});
 const [settingsRequest, setSettingsRequest] = createSignal<
   SettingsRequest | null
 >(null);

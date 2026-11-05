@@ -8,9 +8,7 @@ import HowToUpdateModal from "./HowToUpdateModal.tsx";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { getPlatform } from "@src/utils/platform.ts";
 
-// UI phases of a driven install (macOS): mapped from the updater's
-// update-install-status events by Updates.tsx. "installing" holds through
-// Completed — the installer restarts the app itself.
+// A driven install's phases (macOS), mapped by useUpdates.ts; "installing" holds through Completed as the installer restarts the app.
 export type InstallPhase = "downloading" | "installing";
 
 const INSTALL_LABELS: Record<InstallPhase, string> = {

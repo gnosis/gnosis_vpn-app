@@ -4,7 +4,6 @@ import {
   exitsCovered,
   formatCredit,
   formatCreditCompact,
-  sumCapacityStake,
 } from "./credit.ts";
 import type {
   BalanceResponse,
@@ -96,32 +95,6 @@ describe("computeEffectiveCredit", () => {
       node: makeCapacity(500_000),
     });
     expect(computeEffectiveCredit(makeBalance(allocations))).toBe(1_500_000n);
-  });
-});
-
-describe("sumCapacityStake", () => {
-  it("returns 0 for all-zero allocations", () => {
-    expect(sumCapacityStake(makeBalance(makeAllocations({})))).toBe(0n);
-  });
-
-  it("sums stake across safe and peer allocations", () => {
-    const allocations = makeAllocations({
-      safe: makeCapacity(0, 1_000_000_000_000_000_000n),
-      peer_allocations: { "0xabc": makeCapacity(0, 500_000_000_000_000_000n) },
-    });
-    expect(sumCapacityStake(makeBalance(allocations))).toBe(
-      1_500_000_000_000_000_000n,
-    );
-  });
-
-  it("includes the node EOA stake", () => {
-    const allocations = makeAllocations({
-      safe: makeCapacity(0, 1_000_000_000_000_000_000n),
-      node: makeCapacity(0, 500_000_000_000_000_000n),
-    });
-    expect(sumCapacityStake(makeBalance(allocations))).toBe(
-      1_500_000_000_000_000_000n,
-    );
   });
 });
 

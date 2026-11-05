@@ -1,4 +1,4 @@
-import { createSignal, For, Show } from "solid-js";
+import { createMemo, createSignal, For, onCleanup, Show } from "solid-js";
 import { save } from "@tauri-apps/plugin-dialog";
 import { downloadDir, join } from "@tauri-apps/api/path";
 import { useAppStore } from "@src/stores/appStore.ts";
@@ -20,6 +20,7 @@ import SettingsRow, {
   ROW_BUTTON,
 } from "@src/components/settings/SettingsRow.tsx";
 import Switch from "@src/components/settings/Switch.tsx";
+import { segmentStateClass } from "@src/components/settings/segment.ts";
 
 // One width for Export and Upload, wide enough for "Exporting…".
 const LOG_BUTTON = `${ROW_BUTTON} w-20`;
@@ -65,11 +66,36 @@ function ExitOptionLabel(props: { option: ExitOption; inList?: boolean }) {
 const SEGMENT =
   "rounded-md px-2 py-1 text-[11px] leading-3.5 font-bold whitespace-nowrap";
 const segmentClass = (pressed: boolean) =>
-  `${SEGMENT} ${
-    pressed
-      ? "bg-bg-list shadow-[0_1px_2px_rgb(0_0_0/0.12)]"
-      : "text-text-subtle hover:text-text-primary hover:cursor-pointer"
-  }`;
+  `${SEGMENT} ${segmentStateClass(pressed)}`;
+
+// Module-level, so an export still running when the tab unmounts reports once it is back.
+const [exporting, setExporting] = createSignal(false);
+const [exportError, setExportError] = createSignal<string | null>(null);
+const [savedPath, setSavedPath] = createSignal<string | null>(null);
+
+async function exportLogs() {
+  setExporting(true);
+  setExportError(null);
+  setSavedPath(null);
+  try {
+    const downloadsPath = await downloadDir();
+    const defaultPath = await join(downloadsPath, logBundleFileName());
+    const dest = await save({
+      defaultPath,
+      filters: [{ name: "Zstandard archive", extensions: ["zst"] }],
+    });
+    if (!dest) {
+      logInfo("Log export canceled in save dialog");
+      setExportError("Export canceled");
+      return;
+    }
+    setSavedPath(await VPNService.exportLogs(dest));
+  } catch (e) {
+    setExportError(String(e instanceof Error ? e.message : e));
+  } finally {
+    setExporting(false);
+  }
+}
 
 export default function GeneralTab(
   props: { onUpdate: () => void; onAbout: () => void },
@@ -90,34 +116,14 @@ export default function GeneralTab(
   // Flags covers the colored and the old monochrome look, which stays until changed.
   const flagsShown = () => settings.flagDisplay !== "none";
 
-  const [exporting, setExporting] = createSignal(false);
-  const [exportError, setExportError] = createSignal<string | null>(null);
-  const [savedPath, setSavedPath] = createSignal<string | null>(null);
   const [showUpload, setShowUpload] = createSignal(false);
+  // an error seen here stays here; one from an export still running shows on return
+  onCleanup(() => setExportError(null));
 
-  async function exportLogs() {
-    setExporting(true);
-    setExportError(null);
-    setSavedPath(null);
-    try {
-      const downloadsPath = await downloadDir();
-      const defaultPath = await join(downloadsPath, logBundleFileName());
-      const dest = await save({
-        defaultPath,
-        filters: [{ name: "Zstandard archive", extensions: ["zst"] }],
-      });
-      if (!dest) {
-        logInfo("Log export canceled in save dialog");
-        setExportError("Export canceled");
-        return;
-      }
-      setSavedPath(await VPNService.exportLogs(dest));
-    } catch (e) {
-      setExportError(String(e instanceof Error ? e.message : e));
-    } finally {
-      setExporting(false);
-    }
-  }
+  const exitOptions = createMemo(() => [
+    AUTO_LOCATION,
+    ...appState.availableDestinations.map(exitOption),
+  ]);
 
   return (
     <>
@@ -156,10 +162,7 @@ export default function GeneralTab(
               size="quiet"
               ariaLabel="Preferred exit"
               class="max-w-36"
-              options={[
-                AUTO_LOCATION,
-                ...appState.availableDestinations.map(exitOption),
-              ]}
+              options={exitOptions()}
               value={preferredExit()}
               onChange={(o) => void settingsActions.setPreferredLocation(o.id)}
               itemToString={exitOptionText}

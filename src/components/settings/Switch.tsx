@@ -12,7 +12,7 @@ export default function Switch(props: {
       aria-label={props.label}
       disabled={props.disabled}
       class={`relative h-4.75 w-8 shrink-0 rounded-full transition-colors hover:cursor-pointer disabled:cursor-default disabled:opacity-50 ${
-        props.checked ? "bg-control-tint" : "bg-control-bg"
+        props.checked ? "bg-control-tint" : "bg-switch-off"
       }`}
       onClick={() => props.onChange?.(!props.checked)}
     >

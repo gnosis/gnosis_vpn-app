@@ -1,10 +1,4 @@
-import {
-  createEffect,
-  createMemo,
-  createSignal,
-  onCleanup,
-  onMount,
-} from "solid-js";
+import { createEffect, createMemo, createRoot, createSignal } from "solid-js";
 import { listen } from "@tauri-apps/api/event";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { effectiveActive } from "@src/stores/destinationMode.ts";
@@ -27,10 +21,6 @@ import {
   type UpdateBlocker,
 } from "@src/utils/updateAvailability.ts";
 import { logInfo, logWarn } from "@src/utils/appLog.ts";
-import {
-  clearSettingsRequest,
-  settingsRequest,
-} from "@src/utils/settingsPage.ts";
 import type { InstallPhase } from "@src/components/common/UpdateStatusCard.tsx";
 
 function formatCheckedAt(epoch: number): string {
@@ -41,8 +31,7 @@ function formatCheckedAt(epoch: number): string {
   }:${pad(d.getMinutes())}`;
 }
 
-/** Update check and install state for the Settings page; call from a component. */
-export function useUpdates() {
+function createUpdates() {
   const [appState, appActions] = useAppStore();
   const [settings, settingsActions] = useSettingsStore();
   const [showCheckModal, setShowCheckModal] = createSignal(false);
@@ -76,18 +65,21 @@ export function useUpdates() {
       setChecking(false);
     }
   };
+
+  const blocker = createMemo<UpdateBlocker | null>(() =>
+    resolveUpdateBlocker({
+      toolkitStatus: appState.toolkit.status,
+      packageVersion: appState.packageVersion,
+    })
+  );
+
   // Not connected, the toolkit would refuse; ask first rather than spin through its run.
   const check = () => {
+    // blocked, the page shows why and how to fix it instead
+    if (blocker()) return;
     if (appState.vpnStatus === "Connected") void runCheck(false);
     else setShowCheckModal(true);
   };
-
-  // The tray's "Check update" lands here.
-  createEffect(() => {
-    if (settingsRequest() !== "check-update") return;
-    clearSettingsRequest();
-    check();
-  });
 
   const channel = createMemo<UpdateChannel>(() =>
     effectiveChannel(appState.packageVersion, settings.channel)
@@ -107,9 +99,7 @@ export function useUpdates() {
       ? null
       : formatCheckedAt(settings.lastCheckedAt);
 
-  // Install progress (macOS): the Rust `install_update` command streams the
-  // updater's phases as events; the last one is queryable for re-hydration
-  // after a remount mid-install.
+  // macOS: install_update streams the updater's phases as events; getInstallStatus replays the last one.
   let completedFallback: ReturnType<typeof setTimeout> | undefined;
 
   const applyInstallStatus = (s: InstallStatus) => {
@@ -125,10 +115,7 @@ export function useUpdates() {
         setInstallPhase("installing");
         break;
       case "Completed":
-        // The installer restarts the app, so keep "Installing…" to the end.
-        // Safety nets in case the restart never happens: the effect below
-        // clears the phase once the new version leaves no pending update, and
-        // this fallback re-enables the button for a retry.
+        // the installer restarts the app; the effect below and this timeout re-enable Install if it never does
         setInstallPhase("installing");
         clearTimeout(completedFallback);
         completedFallback = setTimeout(() => setInstallPhase(null), 60_000);
@@ -168,45 +155,23 @@ export function useUpdates() {
     }
   };
 
-  let unlistenInstall: (() => void) | undefined;
-  let disposed = false;
-
-  onMount(() => {
-    // Live events first, then catch up on a possibly running install. A
-    // hydration reply can be staler than an event that raced past it, so it
-    // only applies when no live event has arrived yet.
-    let sawLiveInstallEvent = false;
-    void listen(UPDATE_INSTALL_STATUS_EVENT, (event) => {
-      const parsed = InstallStatusSchema.safeParse(event.payload);
-      if (parsed.success) {
-        sawLiveInstallEvent = true;
-        applyInstallStatus(parsed.data);
-      } else {
-        logWarn(
-          `Install status event schema mismatch: ${
-            JSON.stringify(event.payload)
-          }`,
-        );
-      }
-    }).then((unlisten) => {
-      if (disposed) {
-        unlisten();
-        return;
-      }
-      unlistenInstall = unlisten;
-      void getInstallStatus().then((status) => {
-        if (!disposed && !sawLiveInstallEvent && status) {
-          applyInstallStatus(status);
-        }
-      });
-    });
-  });
-
-  onCleanup(() => {
-    disposed = true;
-    unlistenInstall?.();
-    clearTimeout(completedFallback);
-  });
+  // Live events first; the status query can be staler than an event that raced it, so it yields to one.
+  let sawLiveInstallEvent = false;
+  void listen(UPDATE_INSTALL_STATUS_EVENT, (event) => {
+    const parsed = InstallStatusSchema.safeParse(event.payload);
+    if (parsed.success) {
+      sawLiveInstallEvent = true;
+      applyInstallStatus(parsed.data);
+    } else {
+      logWarn(
+        `Install status event schema mismatch: ${
+          JSON.stringify(event.payload)
+        }`,
+      );
+    }
+  }).then(() => getInstallStatus()).then((status) => {
+    if (!sawLiveInstallEvent && status) applyInstallStatus(status);
+  }).catch((e) => logWarn(`Cannot follow the update install: ${e}`));
 
   const connectActive = (): boolean => {
     const id = effectiveActive(appState.mode, Date.now());
@@ -248,13 +213,6 @@ export function useUpdates() {
       startInstall(false);
     }
   });
-
-  const blocker = createMemo<UpdateBlocker | null>(() =>
-    resolveUpdateBlocker({
-      toolkitStatus: appState.toolkit.status,
-      packageVersion: appState.packageVersion,
-    })
-  );
 
   // The screen a user describes in a bug report should be readable in their log.
   createEffect((previous: string | undefined) => {
@@ -298,4 +256,11 @@ export function useUpdates() {
     showHowTo,
     setShowHowTo,
   };
+}
+
+let updates: ReturnType<typeof createUpdates> | undefined;
+
+/** Update check and install state for the Settings pages; one instance, so a "Connect and check" outlives the page. */
+export function useUpdates(): ReturnType<typeof createUpdates> {
+  return updates ??= createRoot(createUpdates);
 }

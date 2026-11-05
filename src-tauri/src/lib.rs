@@ -43,7 +43,10 @@ use theme::spawn_linux_theme_monitor;
 #[cfg_attr(target_os = "macos", allow(unused_imports))]
 use theme::{InitialTheme, get_initial_theme, system_theme};
 use toolkit::get_toolkit_version;
-use tray::{create_tray_menu, handle_tray_event, show_settings, toggle_main_window_visibility};
+use tray::{
+    PendingSettings, create_tray_menu, handle_tray_event, show_settings, take_settings_target,
+    toggle_main_window_visibility,
+};
 use types::BalanceResponse;
 use types::ConnectionState;
 use update_install::{UpdateInstallState, get_install_status, install_update};
@@ -251,6 +254,8 @@ pub fn run() {
             let theme = system_theme();
             tracing::info!(target: "theme", theme = ?theme, "initial os theme");
             app.manage(InitialTheme(theme));
+
+            app.manage(PendingSettings::default());
 
             // Create tray menu
             let menu = create_tray_menu(app.handle())
@@ -522,6 +527,7 @@ pub fn run() {
             get_system_info,
             install_update,
             get_install_status,
+            take_settings_target,
             get_toolkit_version,
             get_service_not_running_info,
             start_service,

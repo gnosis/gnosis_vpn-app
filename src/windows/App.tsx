@@ -15,6 +15,7 @@ import Onboarding from "../screens/main/Onboarding.tsx";
 import Synchronization from "../screens/main/Synchronization.tsx";
 import Initialization from "../screens/main/Initialization.tsx";
 import ServiceNotRunning from "../screens/main/ServiceNotRunning.tsx";
+import { invoke } from "@tauri-apps/api/core";
 import { emit } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import {
@@ -54,6 +55,18 @@ const SCREEN_FADE_MS = 300;
 
 const isValidScreen = (s: string): s is ValidScreen =>
   (validScreens as readonly string[]).includes(s);
+
+// Rust holds what the tray asked for, so a request made before the listener existed is not lost.
+async function takeSettingsTarget(): Promise<void> {
+  try {
+    const target = await invoke<unknown>("take_settings_target");
+    if (target === null) return;
+    if (isSettingsTarget(target)) openSettings(target);
+    else logWarn(`Ignoring settings:open with invalid target: ${target}`);
+  } catch (e) {
+    logError(`Cannot take the tray's settings target: ${e}`);
+  }
+}
 
 function handleNavigate(
   payload: NavigatePayload,
@@ -217,15 +230,16 @@ function App() {
 
   onMount(() => {
     // Before the awaits below: the tray can ask for settings while the app still initializes.
-    void getCurrentWebviewWindow().listen<unknown>(
+    void getCurrentWebviewWindow().listen(
       "settings:open",
-      ({ payload }) => {
-        if (isSettingsTarget(payload)) openSettings(payload);
-        else logWarn(`Ignoring settings:open with invalid target: ${payload}`);
-      },
+      () => void takeSettingsTarget(),
     ).then((unlisten) => {
-      if (disposed) unlisten();
-      else unlistenSettings = unlisten;
+      if (disposed) {
+        unlisten();
+        return;
+      }
+      unlistenSettings = unlisten;
+      void takeSettingsTarget();
     }).catch((e) => logError(`Cannot listen for settings:open: ${e}`));
 
     void (async () => {

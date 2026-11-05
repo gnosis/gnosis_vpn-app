@@ -13,7 +13,8 @@ type ModalProps = {
 
 export function Modal(props: ModalProps) {
   const onKey = (e: KeyboardEvent) => {
-    if (e.key === "Escape") props.onClose();
+    // mounted closed too, so only an open one answers
+    if (e.key === "Escape" && props.open) props.onClose();
   };
 
   onMount(() => document.addEventListener("keydown", onKey));

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createEffect, createRoot, on } from "solid-js";
 
 vi.mock("@src/utils/appLog.ts", () => ({ logInfo: vi.fn() }));
 
@@ -48,6 +49,19 @@ describe("settingsPage", () => {
     clearSettingsRequest();
     expect(settingsRequest()).toBeNull();
     expect(settingsTab()).toBe("general");
+  });
+
+  it("notifies on reopening the tab already shown", () => {
+    openSettings("general");
+    const { opens, dispose } = createRoot((dispose) => {
+      let opens = 0;
+      createEffect(on(settingsTab, () => opens++, { defer: true }));
+      return { opens: () => opens, dispose };
+    });
+    openSettings("general");
+    openSettings("general");
+    expect(opens()).toBe(2);
+    dispose();
   });
 
   it("closing clears the tab and the request", () => {

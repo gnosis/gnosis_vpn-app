@@ -1,4 +1,4 @@
-import { type JSX, Show } from "solid-js";
+import { children, type JSX, Show } from "solid-js";
 import { Dynamic } from "solid-js/web";
 import SettingIcon, {
   type SettingIconName,
@@ -16,6 +16,8 @@ export default function SettingsRow(props: {
   children?: JSX.Element;
   onClick?: () => void;
 }) {
+  // resolved once: a JSX description would otherwise render for the check and again for display
+  const description = children(() => props.description);
   return (
     <Dynamic
       component={props.onClick ? "button" : "div"}
@@ -30,9 +32,9 @@ export default function SettingsRow(props: {
       </span>
       <span class="block min-w-0 flex-1 text-[13px] leading-4.5">
         {props.title}
-        <Show when={props.description}>
+        <Show when={description()}>
           <small class="mt-0.5 block text-xs leading-normal text-text-subtle">
-            {props.description}
+            {description()}
           </small>
         </Show>
       </span>

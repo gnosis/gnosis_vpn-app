@@ -5,6 +5,7 @@ import {
   Match,
   Show,
   Switch,
+  untrack,
 } from "solid-js";
 import {
   isPreparingSafeRunMode,
@@ -49,15 +50,44 @@ export default function UsageTab() {
   const [appState] = useAppStore();
   const [isAddFundsOpen, setIsAddFundsOpen] = createSignal(false);
 
-  // The balance popover's "Add data" lands here.
+  const preparingSafe =
+    () => (isPreparingSafeRunMode(appState.runMode) ? appState.runMode : null);
+  // What stands in for the balance card while the service cannot report one.
+  const standIn = createMemo(
+    (): { tone: "warn" | "bad"; text: string } | null => {
+      switch (appState.vpnStatus) {
+        case "WorkerRestarting":
+          return { tone: "warn", text: "Service restarting" };
+        case "ServiceUnavailable":
+          return { tone: "bad", text: "Service unavailable" };
+        case "InUseByOtherUser":
+          return {
+            tone: "warn",
+            text: "In use by another user on this computer",
+          };
+        case "DeployingSafe":
+          return { tone: "warn", text: "Preparing service" };
+      }
+      return warmupProgress(appState.runMode)
+        ? { tone: "warn", text: "Syncing in progress" }
+        : null;
+    },
+  );
+  // The Add funds modal sits in the balance card, so it can only open while the card shows.
+  const balanceShown = () =>
+    standIn() === null &&
+    (isRunningRunMode(appState.runMode) || preparingSafe() !== null);
+
+  // The balance popover's "Add data" lands here; before the card shows it only opens the tab.
   createEffect(() => {
     if (settingsRequest() !== "add-funds") return;
     clearSettingsRequest();
-    setIsAddFundsOpen(true);
+    if (untrack(balanceShown)) setIsAddFundsOpen(true);
   });
-
-  const preparingSafe =
-    () => (isPreparingSafeRunMode(appState.runMode) ? appState.runMode : null);
+  // Closed with the card, so it cannot pop up by itself when the card comes back.
+  createEffect(() => {
+    if (!balanceShown()) setIsAddFundsOpen(false);
+  });
   const runModeStatus = createMemo(() =>
     isRunningRunMode(appState.runMode) ? appState.runMode.funding_status : null
   );
@@ -78,82 +108,68 @@ export default function UsageTab() {
 
   return (
     <>
-      <Switch>
-        <Match when={appState.vpnStatus === "WorkerRestarting"}>
-          <Notice tone="warn">Service restarting</Notice>
-        </Match>
-        <Match when={appState.vpnStatus === "ServiceUnavailable"}>
-          <Notice tone="bad">Service unavailable</Notice>
-        </Match>
-        <Match when={appState.vpnStatus === "InUseByOtherUser"}>
-          <Notice tone="warn">In use by another user on this computer</Notice>
-        </Match>
-        <Match when={appState.vpnStatus === "DeployingSafe"}>
-          <Notice tone="warn">Preparing service</Notice>
-        </Match>
-        <Match when={warmupProgress(appState.runMode)}>
-          <Notice tone="warn">Syncing in progress</Notice>
-        </Match>
-        <Match when={isRunningRunMode(appState.runMode) || preparingSafe()}>
-          <div class="relative flex shrink-0 flex-col gap-2 rounded-xl bg-bg-list px-3.5 pt-4 pb-3.5">
-            <span class="text-xs leading-4 text-text-subtle">
-              Available balance
+      <Show when={standIn()}>
+        {(notice) => <Notice tone={notice().tone}>{notice().text}</Notice>}
+      </Show>
+      <Show when={balanceShown()}>
+        <div class="relative flex shrink-0 flex-col gap-2 rounded-xl bg-bg-list px-3.5 pt-4 pb-3.5">
+          <span class="text-xs leading-4 text-text-subtle">
+            Available balance
+          </span>
+          <div class="flex items-baseline gap-2.5">
+            <span class="font-figures text-[34px] leading-none font-semibold tracking-[-0.04em]">
+              {/* Explicit null check: credit can be 0n, which is falsy */}
+              {credit() === null ? "—" : formatCredit(credit()!)}
             </span>
-            <div class="flex items-baseline gap-2.5">
-              <span class="font-figures text-[34px] leading-none font-semibold tracking-[-0.04em]">
-                {/* Explicit null check: credit can be 0n, which is falsy */}
-                {credit() === null ? "—" : formatCredit(credit()!)}
+            <Show when={credit() !== null}>
+              <span class="shrink-0 rounded-full bg-control-bg px-2 py-0.5 text-[11px] leading-4 font-bold text-text-soft">
+                {renewals(renewalsLeft())}
               </span>
-              <Show when={credit() !== null}>
-                <span class="shrink-0 rounded-full bg-control-bg px-2 py-0.5 text-[11px] leading-4 font-bold text-text-soft">
-                  {renewals(renewalsLeft())}
-                </span>
-              </Show>
-            </div>
-            <button
-              type="button"
-              class={`${ROW_BUTTON} absolute top-3.5 right-3.5`}
-              onClick={() => setIsAddFundsOpen(true)}
-            >
-              Add data
-            </button>
+            </Show>
           </div>
-          <Switch>
-            <Match when={trafficStatus() === "Empty"}>
-              <Notice tone={emptyTone()}>
-                Balance empty: no renewals left.
-              </Notice>
-            </Match>
-            <Match when={trafficStatus() === "Low"}>
-              <Notice tone="warn">
-                Balance running low: {renewals(renewalsLeft())} left.
-              </Notice>
-            </Match>
-          </Switch>
-          <Switch>
-            <Match when={gasStatus() === "Empty"}>
-              <Notice tone={emptyTone()}>Gas is empty — top up xDAI.</Notice>
-            </Match>
-            <Match when={gasStatus() === "Low"}>
-              <Notice tone="warn">Gas is low — top up xDAI.</Notice>
-            </Match>
-          </Switch>
-          <Show when={preparingSafe()}>
-            <Notice tone="warn">Waiting for incoming funds</Notice>
-          </Show>
-          <AddFundsModal
-            open={isAddFundsOpen()}
-            onClose={() => setIsAddFundsOpen(false)}
-            nodeAddress={preparingSafe()?.node_address ??
-              appState.balance?.info.node_address ?? ""}
-            wxhoprDeficit={deriveWxhoprDeficit(
-              appState.balance,
-              runModeStatus(),
-            ) ?? deriveRefillShortfall(appState.balance, runModeStatus())}
-            xdaiDeficit={deriveXdaiDeficit(appState.balance, runModeStatus())}
-          />
-        </Match>
-      </Switch>
+          <button
+            type="button"
+            class={`${ROW_BUTTON} absolute top-3.5 right-3.5`}
+            onClick={() => setIsAddFundsOpen(true)}
+          >
+            Add data
+          </button>
+        </div>
+        <Switch>
+          <Match when={trafficStatus() === "Empty"}>
+            <Notice tone={emptyTone()}>
+              Balance empty: add data to keep connecting.
+            </Notice>
+          </Match>
+          <Match when={trafficStatus() === "Low"}>
+            <Notice tone="warn">
+              Balance running low: {renewals(renewalsLeft())} left.
+            </Notice>
+          </Match>
+        </Switch>
+        <Switch>
+          <Match when={gasStatus() === "Empty"}>
+            <Notice tone={emptyTone()}>Gas is empty — top up xDAI.</Notice>
+          </Match>
+          <Match when={gasStatus() === "Low"}>
+            <Notice tone="warn">Gas is low — top up xDAI.</Notice>
+          </Match>
+        </Switch>
+        <Show when={preparingSafe()}>
+          <Notice tone="warn">Waiting for incoming funds</Notice>
+        </Show>
+        <AddFundsModal
+          open={isAddFundsOpen()}
+          onClose={() => setIsAddFundsOpen(false)}
+          nodeAddress={preparingSafe()?.node_address ??
+            appState.balance?.info.node_address ?? ""}
+          wxhoprDeficit={deriveWxhoprDeficit(
+            appState.balance,
+            runModeStatus(),
+          ) ?? deriveRefillShortfall(appState.balance, runModeStatus())}
+          xdaiDeficit={deriveXdaiDeficit(appState.balance, runModeStatus())}
+        />
+      </Show>
 
       <SettingsHeading>Renewing</SettingsHeading>
       <SettingsCard label="Renewing">

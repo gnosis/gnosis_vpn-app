@@ -75,7 +75,7 @@ import {
 export { AppScreen };
 
 /** Whether the toolkit could be used. `unknown` is "not probed yet" and nothing
- * else: a probe that ran and failed is `failed`, which Settings → General explains. */
+ * else: a probe that ran and failed is `failed`, which the Update page explains. */
 export type ToolkitStatus = "unknown" | "ok" | "missing" | "tooOld" | "failed";
 
 export interface ToolkitState {

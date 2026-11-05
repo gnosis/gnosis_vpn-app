@@ -7,8 +7,11 @@ import {
   onCleanup,
   onMount,
   Switch,
+  untrack,
 } from "solid-js";
 import PageHeader from "@src/components/common/PageHeader.tsx";
+import PageLayer from "@src/components/common/PageLayer.tsx";
+import { segmentStateClass } from "@src/components/settings/segment.ts";
 import {
   clearSettingsRequest,
   closeSettings,
@@ -21,6 +24,7 @@ import GeneralTab from "./GeneralTab.tsx";
 import UsageTab from "./UsageTab.tsx";
 import UpdatePage from "./UpdatePage.tsx";
 import AboutPage from "./AboutPage.tsx";
+import { useUpdates } from "./useUpdates.ts";
 
 const TABS: { id: SettingsTab; label: string }[] = [
   { id: "general", label: "General" },
@@ -30,18 +34,16 @@ const TABS: { id: SettingsTab; label: string }[] = [
 /** The main window's Settings page (Stage 2.1 mock): General and Usage tabs, Update and About behind rows. */
 export default function SettingsPage() {
   const [subpage, setSubpage] = createSignal<"update" | "about" | null>(null);
+  const updates = useUpdates();
 
   // The tabs sit under an open subpage, so a tab change comes from outside (tray, top bar) and shows that tab.
   createEffect(on(settingsTab, () => setSubpage(null), { defer: true }));
   createEffect(() => {
     const request = settingsRequest();
-    if (request === "update") {
-      clearSettingsRequest();
-      setSubpage("update");
-    } else if (request === "check-update") {
-      // the Update page takes the request and runs the check
-      setSubpage("update");
-    }
+    if (request !== "update" && request !== "check-update") return;
+    clearSettingsRequest();
+    setSubpage("update");
+    if (request === "check-update") untrack(updates.check);
   });
 
   function handleKeyDown(e: KeyboardEvent) {
@@ -61,7 +63,7 @@ export default function SettingsPage() {
 
   return (
     <>
-      <div class="fixed inset-0 z-100 flex flex-col bg-bg-primary text-text-primary page-slide-in">
+      <PageLayer label="Settings">
         <PageHeader title="Settings" onBack={closeSettings} />
         <div
           role="group"
@@ -74,9 +76,7 @@ export default function SettingsPage() {
                 type="button"
                 aria-pressed={settingsTab() === tab.id}
                 class={`flex-1 rounded-md p-2 text-xs leading-4 font-bold ${
-                  settingsTab() === tab.id
-                    ? "bg-bg-list shadow-[0_1px_2px_rgb(0_0_0/0.12)]"
-                    : "text-text-subtle hover:text-text-primary hover:cursor-pointer"
+                  segmentStateClass(settingsTab() === tab.id)
                 }`}
                 onClick={() => showSettingsTab(tab.id)}
               >
@@ -98,7 +98,7 @@ export default function SettingsPage() {
             </Match>
           </Switch>
         </div>
-      </div>
+      </PageLayer>
       <Switch>
         <Match when={subpage() === "update"}>
           <UpdatePage onBack={() => setSubpage(null)} />
