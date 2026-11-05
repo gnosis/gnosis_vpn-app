@@ -10,7 +10,7 @@ import {
   Show,
 } from "solid-js";
 import { Portal } from "solid-js/web";
-import arrowDownIcon from "@assets/icons/arrow-down.svg";
+import arrowDownIcon from "@src/components/icons/arrow-down.svg";
 
 export type DropdownProps<T> = {
   options: T[];

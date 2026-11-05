@@ -1,4 +1,10 @@
-import { createMemo, createSignal, Match, Switch } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  Match,
+  Switch,
+} from "solid-js";
 import {
   isPreparingSafeRunMode,
   isRunningRunMode,
@@ -32,9 +38,18 @@ import Button from "../../components/common/Button.tsx";
 import { useAppStore } from "../../stores/appStore.ts";
 import AddFundsModal from "@src/components/AddFundsModal.tsx";
 
-export default function Usage() {
+export default function Usage(
+  props: { addFundsRequested?: boolean; onAddFundsShown?: () => void },
+) {
   const [isAddFundsOpen, setIsAddFundsOpen] = createSignal(false);
   const [appState] = useAppStore();
+
+  // Consumed once so switching back to this tab later does not reopen it.
+  createEffect(() => {
+    if (!props.addFundsRequested) return;
+    setIsAddFundsOpen(true);
+    props.onAddFundsShown?.();
+  });
 
   const preparingSafe =
     () => (isPreparingSafeRunMode(appState.runMode) ? appState.runMode : null);

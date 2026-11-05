@@ -9,7 +9,7 @@ import {
 } from "solid-js";
 import { getVersion } from "@tauri-apps/api/app";
 import { emit, listen } from "@tauri-apps/api/event";
-import brokenDeviceIcon from "@assets/icons/broken-device.svg";
+import brokenDeviceIcon from "@src/components/icons/broken-device.svg";
 import Toggle from "@src/components/common/Toggle.tsx";
 import Banner from "@src/components/common/Banner.tsx";
 import WarningIcon from "@src/components/icons/WarningIcon.tsx";

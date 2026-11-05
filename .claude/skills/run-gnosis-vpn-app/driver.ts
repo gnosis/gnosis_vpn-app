@@ -410,14 +410,13 @@ try {
     } catch { /* already gone */ }
   }
   if (devServer) {
+    // deno task orphans vite; `pkill -f vite` would also kill the user's tauri dev
+    await new Deno.Command("pkill", { args: ["-P", String(devServer.pid)] })
+      .output().catch(() => {});
     try {
       devServer.kill();
       await devServer.status;
     } catch { /* already gone */ }
-    // deno task may leave the vite child running; sweep it — best-effort, a
-    // rejection here would mask the real error
-    await new Deno.Command("pkill", { args: ["-f", "vite"] }).output()
-      .catch(() => {});
   }
   if (profileDir) {
     await Deno.remove(profileDir, { recursive: true }).catch(() => {});

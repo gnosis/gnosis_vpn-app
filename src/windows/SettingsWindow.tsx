@@ -13,6 +13,7 @@ type GlobalTab = "settings" | "usage" | "updates" | "about";
 
 export default function SettingsWindow() {
   const [tab, setTab] = createSignal<GlobalTab>("settings");
+  const [addFundsRequested, setAddFundsRequested] = createSignal(false);
   let unlistenNavigate: (() => void) | undefined;
   const [, settingsActions] = useSettingsStore();
   const [, appActions] = useAppStore();
@@ -29,6 +30,9 @@ export default function SettingsWindow() {
           const next = event.payload;
           if (next === "settings" || next === "usage" || next === "updates") {
             setTab(next);
+          } else if (next === "add-funds") {
+            setTab("usage");
+            setAddFundsRequested(true);
           } else {
             logWarn(`Ignoring navigate event with invalid tab: ${next}`);
           }
@@ -68,7 +72,10 @@ export default function SettingsWindow() {
           <Settings />
         </Match>
         <Match when={tab() === "usage"}>
-          <Usage />
+          <Usage
+            addFundsRequested={addFundsRequested()}
+            onAddFundsShown={() => setAddFundsRequested(false)}
+          />
         </Match>
         <Match when={tab() === "updates"}>
           <Updates />

@@ -34,11 +34,11 @@ import {
   type HealthColor,
 } from "@src/utils/exitHealth.ts";
 import { levelValueClass } from "./levelColor.ts";
-import HopsIcon from "./HopsIcon.tsx";
+import HopsIcon from "../icons/HopsIcon.tsx";
 import SlotLoadStat from "./SlotLoadStat.tsx";
 import Stat from "./Stat.tsx";
 import Tag from "../common/Tag.tsx";
-import ChevronIcon from "../common/ChevronIcon.tsx";
+import ChevronIcon from "../icons/ChevronIcon.tsx";
 import Tooltip from "../common/Tooltip.tsx";
 
 const statusColorClass: Record<HealthColor, string> = {

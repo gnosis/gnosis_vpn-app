@@ -35,6 +35,35 @@ export function formatCredit(creditBytes: bigint): string {
   return formatCreditUnit(creditBytes, BYTES_PER_MB, 0, "MB");
 }
 
+/** One decimal below 100, whole up to 999; null when it would take four digits. */
+function threeDigits(
+  creditBytes: bigint,
+  unitBytes: bigint,
+  suffix: string,
+): string | null {
+  const tenths = (creditBytes * 10n + unitBytes / 2n) / unitBytes;
+  if (tenths < 1000n) return `${tenths / 10n}.${tenths % 10n} ${suffix}`;
+  const whole = (creditBytes + unitBytes / 2n) / unitBytes;
+  return whole < 1000n ? `${whole} ${suffix}` : null;
+}
+
+/** At most three digits, e.g. 999 GB, 99.9 GB, 999 MB, 99.9 MB; sized for the top bar. */
+export function formatCreditCompact(creditBytes: bigint): string {
+  if (creditBytes === 0n) return "0 MB";
+  return threeDigits(creditBytes, BYTES_PER_MB, "MB") ??
+    threeDigits(creditBytes, BYTES_PER_GB, "GB") ??
+    threeDigits(creditBytes, BYTES_PER_TB, "TB") ??
+    formatCreditUnit(creditBytes, BYTES_PER_TB, 0, "TB");
+}
+
+/** The Stage 2 design's per-exit allotment; the client does not set it aside yet. */
+export const MB_PER_EXIT = 600n;
+
+/** Whole exits the credit covers at MB_PER_EXIT each. */
+export function exitsCovered(creditBytes: bigint): bigint {
+  return creditBytes / (BYTES_PER_MB * MB_PER_EXIT);
+}
+
 /** Sum byte_capacity across all capacity allocations
  * (open channels + Safe + node EOA). */
 export function computeEffectiveCredit(balance: BalanceResponse): bigint {

@@ -10,10 +10,10 @@ import { explorerUrl } from "../../utils/explorerUrl.ts";
 import { shortAddress } from "../../utils/shortAddress.ts";
 import QrCode from "./QrCode.tsx";
 import QRCodeGenerator from "qrcode";
-import linkIcon from "@assets/icons/link.svg";
-import copyIcon from "@assets/icons/copy.svg";
-import qrIcon from "@assets/icons/qr.png";
-import checkIcon from "@assets/icons/checked-box.svg";
+import linkIcon from "@src/components/icons/link.svg";
+import copyIcon from "@src/components/icons/copy.svg";
+import qrIcon from "@src/components/icons/qr.png";
+import checkIcon from "@src/components/icons/checked-box.svg";
 import * as opener from "@tauri-apps/plugin-opener";
 import Tooltip from "../common/Tooltip.tsx";
 

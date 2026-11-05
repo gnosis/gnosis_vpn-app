@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   computeEffectiveCredit,
+  exitsCovered,
   formatCredit,
+  formatCreditCompact,
   sumCapacityStake,
 } from "./credit.ts";
 import type {
@@ -11,7 +13,8 @@ import type {
 } from "@src/services/vpnService.ts";
 
 const BYTES_PER_MB = 1_048_576n;
-const BYTES_PER_TB = BYTES_PER_MB * 1024n * 1024n;
+const BYTES_PER_GB = BYTES_PER_MB * 1024n;
+const BYTES_PER_TB = BYTES_PER_GB * 1024n;
 
 function makeCapacity(byte_capacity: number, stake = 0n): Capacity {
   return {
@@ -132,5 +135,42 @@ describe("formatCredit", () => {
     const formattedCredit = formatCredit(creditBytes);
     expect(formattedCredit).toMatch(/ TB$/);
     expect(formattedCredit).not.toContain("Infinity");
+  });
+});
+
+describe("formatCreditCompact", () => {
+  const tenthsOf = (unit: bigint, tenths: bigint) => unit * tenths / 10n;
+
+  it("keeps whole numbers from 100 up to 999", () => {
+    expect(formatCreditCompact(BYTES_PER_GB * 999n)).toBe("999 GB");
+    expect(formatCreditCompact(BYTES_PER_GB * 100n)).toBe("100 GB");
+    expect(formatCreditCompact(BYTES_PER_MB * 999n)).toBe("999 MB");
+  });
+
+  it("adds one decimal below 100, never more", () => {
+    expect(formatCreditCompact(BYTES_PER_GB * 987n / 100n)).toBe("9.9 GB");
+    expect(formatCreditCompact(tenthsOf(BYTES_PER_GB, 999n))).toBe("99.9 GB");
+    expect(formatCreditCompact(tenthsOf(BYTES_PER_GB, 48n))).toBe("4.8 GB");
+    expect(formatCreditCompact(tenthsOf(BYTES_PER_MB, 999n))).toBe("99.9 MB");
+    expect(formatCreditCompact(tenthsOf(BYTES_PER_MB, 5n))).toBe("0.5 MB");
+  });
+
+  it("rounds up into the next format instead of growing a digit", () => {
+    expect(formatCreditCompact(BYTES_PER_MB * 9996n / 100n)).toBe("100 MB");
+    expect(formatCreditCompact(tenthsOf(BYTES_PER_MB, 9996n))).toBe("1.0 GB");
+    expect(formatCreditCompact(BYTES_PER_GB * 1000n)).toBe("1.0 TB");
+  });
+
+  it("shows an empty balance as whole MB", () => {
+    expect(formatCreditCompact(0n)).toBe("0 MB");
+  });
+});
+
+describe("exitsCovered", () => {
+  it("counts whole 600 MB exits, rounding down", () => {
+    expect(exitsCovered(BYTES_PER_MB * 4800n)).toBe(8n);
+    expect(exitsCovered(BYTES_PER_MB * 1199n)).toBe(1n);
+    expect(exitsCovered(BYTES_PER_MB * 599n)).toBe(0n);
+    expect(exitsCovered(0n)).toBe(0n);
   });
 });

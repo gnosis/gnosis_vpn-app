@@ -1,6 +1,6 @@
 import { JSX, splitProps } from "solid-js";
-import checkedIconUrl from "@assets/icons/checked-box.svg";
-import uncheckedIconUrl from "@assets/icons/unchecked-box.svg";
+import checkedIconUrl from "@src/components/icons/checked-box.svg";
+import uncheckedIconUrl from "@src/components/icons/unchecked-box.svg";
 
 export type CheckboxProps =
   & {

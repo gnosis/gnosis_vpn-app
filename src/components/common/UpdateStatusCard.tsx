@@ -1,7 +1,7 @@
 import { createResource, createSignal, Show } from "solid-js";
-import syncIcon from "@assets/icons/sync.svg";
-import refreshIcon from "@assets/icons/refresh.svg";
-import checkmarkIcon from "@assets/icons/checkmark.svg";
+import syncIcon from "@src/components/icons/sync.svg";
+import refreshIcon from "@src/components/icons/refresh.svg";
+import checkmarkIcon from "@src/components/icons/checkmark.svg";
 import { Modal } from "./Modal.tsx";
 import { Markdown } from "./Markdown.tsx";
 import HowToUpdateModal from "./HowToUpdateModal.tsx";

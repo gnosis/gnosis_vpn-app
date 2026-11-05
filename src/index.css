@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "./assets/flags/flags.css" layer(components);
+@import "@fontsource/jetbrains-mono/latin-600.css";
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* Local fonts */
@@ -62,7 +63,7 @@ textarea {
   --golden-content-y: calc(38.2% + 4.854rem);
 
   /* Background colors */
-  --color-bg-primary: #f6f6f6;
+  --color-bg-primary: #f4f4f6;
   --color-bg-surface: #ffffff;
   --color-bg-surface-alt: #f0f0f0;
   --color-bg-overlay: rgba(0, 0, 0, 0.5);
@@ -82,10 +83,22 @@ textarea {
   --color-text-red: #b91c1c;
   --color-text-yellow: #b45309; /* only used on bg-primary; 4.25 on the tray */
 
+  /* Top bar: status line and icon buttons */
+  --color-text-subtle: #6b6b70;
+  --color-status-idle: #a3a3a8;
+  --color-status-warn: #e8860c;
+  --color-status-bad: #d6303a;
+  --color-control-bg: #ececee;
+  --color-control-bg-hover: #e3e3e6;
+  --color-control-tint: #646794;
+  --color-update-dot: #5a49d6;
+  --color-bg-popover: #ffffff;
+  --popover-shadow: 0 0 0 1px #dddde3, 0 16px 34px rgb(30 20 90 / 0.16);
+
   /* Border colors */
   --color-border: #e5e7eb;
 
-  /* Accent color - used for buttons, icon buttons, popups, and dropdown highlights */
+  /* Accent color - used for buttons, popups, and dropdown highlights */
   --color-accent: #1b2534;
   --color-accent-text: #ffffff;
   --color-accent-hover: #141b26;
@@ -126,7 +139,7 @@ textarea {
 
 :root.dark {
   /* Background colors */
-  --color-bg-primary: #111827;
+  --color-bg-primary: #121219;
   --color-bg-surface: #1f2937;
   --color-bg-surface-alt: #1a2233;
   --color-bg-overlay: rgba(0, 0, 0, 0.7);
@@ -146,6 +159,18 @@ textarea {
   --color-text-orange: var(--color-vpn-orange);
   --color-text-red: var(--color-vpn-red);
   --color-text-yellow: var(--color-vpn-yellow);
+
+  /* Top bar */
+  --color-text-subtle: #9a98aa;
+  --color-status-idle: #6a687c;
+  --color-status-warn: #f29a2e;
+  --color-status-bad: #e5484d;
+  --color-control-bg: #262433;
+  --color-control-bg-hover: #302d40;
+  --color-control-tint: #a8a8ca;
+  --color-update-dot: #b0a6ff;
+  --color-bg-popover: #1d1c28;
+  --popover-shadow: 0 0 0 1px #34324a, 0 16px 34px rgb(0 0 0 / 0.55);
 
   /* Border colors */
   --color-border: #374151;
@@ -219,6 +244,7 @@ textarea {
   --color-vpn-dark-green: #083d1c;
   --color-vpn-light-green: #16a34a;
   --color-vpn-red: #ff7272;
+  --color-status-ok: #8dc60c;
 
   --color-bg-primary: var(--color-bg-primary);
   --color-bg-surface: var(--color-bg-surface);
@@ -234,6 +260,17 @@ textarea {
   --color-text-orange: var(--color-text-orange);
   --color-text-red: var(--color-text-red);
   --color-text-yellow: var(--color-text-yellow);
+  --color-text-subtle: var(--color-text-subtle);
+
+  --color-status-idle: var(--color-status-idle);
+  --color-status-warn: var(--color-status-warn);
+  --color-status-bad: var(--color-status-bad);
+  --color-control-bg: var(--color-control-bg);
+  --color-control-bg-hover: var(--color-control-bg-hover);
+  --color-control-tint: var(--color-control-tint);
+  --color-update-dot: var(--color-update-dot);
+  --color-bg-popover: var(--color-bg-popover);
+  --shadow-popover: var(--popover-shadow);
 
   --color-border: var(--color-border);
 
@@ -268,6 +305,9 @@ textarea {
 }
 
 @theme {
+  /* Balance figures, as in the Stage 2 mock; only the SemiBold face ships */
+  --font-figures: "JetBrains Mono", ui-monospace, monospace;
+
   /* smooth continuous spining animation */
   --animate-spin-smooth: spin-smooth 2.5s linear infinite;
 
@@ -277,6 +317,14 @@ textarea {
     }
     to {
       transform: rotate(360deg);
+    }
+  }
+
+  --animate-status-blink: status-blink 1s infinite;
+
+  @keyframes status-blink {
+    50% {
+      opacity: 0.25;
     }
   }
 }

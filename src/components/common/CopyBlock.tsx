@@ -1,7 +1,7 @@
 import { createSignal, onCleanup } from "solid-js";
 import { logWarn } from "@src/utils/appLog.ts";
-import copyIcon from "@assets/icons/copy.svg";
-import checkmarkIcon from "@assets/icons/checkmark.svg";
+import copyIcon from "@src/components/icons/copy.svg";
+import checkmarkIcon from "@src/components/icons/checkmark.svg";
 
 /** Monospace block with a copy-to-clipboard button. */
 export default function CopyBlock(props: { text: string; label?: string }) {

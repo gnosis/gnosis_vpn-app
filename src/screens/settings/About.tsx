@@ -4,6 +4,7 @@ import { logWarn } from "@src/utils/appLog.ts";
 const SOURCE_URL = "https://github.com/gnosis/gnosis_vpn-app";
 const IPINFO_URL = "https://ipinfo.io";
 const FLAG_ICONS_URL = "https://github.com/lipis/flag-icons";
+const JETBRAINS_MONO_URL = "https://github.com/JetBrains/JetBrainsMono";
 
 async function open(url: string) {
   try {
@@ -60,6 +61,14 @@ export default function About() {
             Flags from{" "}
             <Link url={FLAG_ICONS_URL} label="flag-icons" />, licensed under
             MIT.
+          </div>
+        </div>
+
+        <div class="space-y-1">
+          <div class="text-text-primary">Font</div>
+          <div>
+            <Link url={JETBRAINS_MONO_URL} label="JetBrains Mono" />, licensed
+            under OFL-1.1.
           </div>
         </div>
       </div>
