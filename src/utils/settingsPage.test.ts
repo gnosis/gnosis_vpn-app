@@ -26,6 +26,10 @@ describe("settingsPage", () => {
     expect(settingsTab()).toBe("usage");
     expect(settingsRequest()).toBe("add-funds");
 
+    openSettings("update");
+    expect(settingsTab()).toBe("general");
+    expect(settingsRequest()).toBe("update");
+
     openSettings("check-update");
     expect(settingsTab()).toBe("general");
     expect(settingsRequest()).toBe("check-update");
@@ -55,6 +59,7 @@ describe("settingsPage", () => {
 
   it("accepts only known targets from the tray", () => {
     expect(isSettingsTarget("check-update")).toBe(true);
+    expect(isSettingsTarget("update")).toBe(true);
     expect(isSettingsTarget("settings")).toBe(false);
     expect(isSettingsTarget("toString")).toBe(false);
     expect(isSettingsTarget(undefined)).toBe(false);

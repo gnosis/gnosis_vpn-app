@@ -524,6 +524,10 @@ textarea {
   background-color: var(--color-bg-primary);
 }
 
+:root.dark .tab-icon {
+  filter: brightness(0) invert(1);
+}
+
 .md-content {
   color: var(--color-text-secondary);
   font-size: 0.875rem;

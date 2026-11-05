@@ -21,7 +21,7 @@ export default function SettingsRow(props: {
       component={props.onClick ? "button" : "div"}
       type={props.onClick ? "button" : undefined}
       class={`flex min-h-12.5 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left ${
-        props.onClick ? "hover:bg-row-hover hover:cursor-pointer" : ""
+        props.onClick ? "hover:bg-control-bg-hover hover:cursor-pointer" : ""
       }`}
       onClick={props.onClick}
     >

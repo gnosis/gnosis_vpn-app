@@ -1,7 +1,6 @@
 import {
   createEffect,
   createMemo,
-  createResource,
   createSignal,
   onCleanup,
   onMount,
@@ -27,20 +26,12 @@ import {
   resolveUpdateDecision,
   type UpdateBlocker,
 } from "@src/utils/updateAvailability.ts";
-import { getPlatform } from "@src/utils/platform.ts";
 import { logInfo, logWarn } from "@src/utils/appLog.ts";
 import {
   clearSettingsRequest,
   settingsRequest,
 } from "@src/utils/settingsPage.ts";
-
-/** UI phases of a driven install (macOS); "installing" holds through Completed, as the installer restarts the app. */
-export type InstallPhase = "downloading" | "installing";
-
-export const INSTALL_LABELS: Record<InstallPhase, string> = {
-  downloading: "Downloading…",
-  installing: "Installing…",
-};
+import type { InstallPhase } from "@src/components/common/UpdateStatusCard.tsx";
 
 function formatCheckedAt(epoch: number): string {
   const d = new Date(epoch);
@@ -64,7 +55,6 @@ export function useUpdates() {
   const [installError, setInstallError] = createSignal<string | null>(null);
   const [showHowTo, setShowHowTo] = createSignal(false);
   const [pendingConnectInstall, setPendingConnectInstall] = createSignal(false);
-  const [platform, { refetch: refetchPlatform }] = createResource(getPlatform);
 
   const runCheck = async (skipVpn: boolean) => {
     setChecking(true);
@@ -86,7 +76,11 @@ export function useUpdates() {
       setChecking(false);
     }
   };
-  const check = () => void runCheck(false);
+  // Not connected, the toolkit would refuse; ask first rather than spin through its run.
+  const check = () => {
+    if (appState.vpnStatus === "Connected") void runCheck(false);
+    else setShowCheckModal(true);
+  };
 
   // The tray's "Check update" lands here.
   createEffect(() => {
@@ -165,19 +159,8 @@ export function useUpdates() {
     });
   };
 
-  const install = async () => {
-    // Don't pick an install path before the platform is known — clicking
-    // right after mount must not open the Linux how-to on macOS.
-    if (platform.loading) return;
-    // A failed probe resolves to "unknown"; retry on click so a transient
-    // failure can't pin macOS on the manual path for the mount's lifetime.
-    const os = platform() === "unknown" ? await refetchPlatform() : platform();
-    if (os !== "macos") {
-      // Elsewhere updating is manual; show the instructions.
-      setShowHowTo(true);
-      return;
-    }
-    // macOS ships /usr/local/bin/gnosis_vpn-update; the app drives it.
+  // macOS only: UpdateStatusCard shows the how-to elsewhere.
+  const install = () => {
     if (appState.vpnStatus === "Connected") {
       startInstall(false);
     } else {
@@ -298,10 +281,9 @@ export function useUpdates() {
     channel,
     checking,
     check,
-    install: () => void install(),
+    install,
     installPhase,
     installError,
-    isMacos: () => platform() === "macos",
     blocker,
     retrying,
     retryToolkit: () => void retryToolkit(),

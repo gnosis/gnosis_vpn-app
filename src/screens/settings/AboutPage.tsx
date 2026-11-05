@@ -1,24 +1,20 @@
-import { createResource, createSignal, type JSX, Show } from "solid-js";
-import { getVersion } from "@tauri-apps/api/app";
+import type { JSX } from "solid-js";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import { logWarn } from "@src/utils/appLog.ts";
 import { CHANNEL_LABELS, effectiveChannel } from "@src/utils/version.ts";
-import PageHeader from "@src/components/common/PageHeader.tsx";
 import {
   SettingsCard,
   SettingsHeading,
 } from "@src/components/settings/SettingsGroup.tsx";
+import SettingsSubpage from "./SettingsSubpage.tsx";
 
 const SOURCE_URL = "https://github.com/gnosis/gnosis_vpn-app";
 const IPINFO_URL = "https://ipinfo.io";
 const FLAG_ICONS_URL = "https://github.com/lipis/flag-icons";
 const LINETO_URL = "https://lineto.com";
 const JETBRAINS_MONO_URL = "https://www.jetbrains.com/lp/mono/";
-
-const REVEAL_CLICKS = 7;
-const REVEAL_WINDOW_MS = 2000;
 
 async function open(url: string) {
   try {
@@ -53,95 +49,64 @@ function Notes(props: { children: JSX.Element }) {
 export default function AboutPage(props: { onBack: () => void }) {
   const [appState] = useAppStore();
   const [settings] = useSettingsStore();
-  const [appVersion] = createResource(() => getVersion());
-  const [showVersionDetails, setShowVersionDetails] = createSignal(false);
-  let versionClickCount = 0;
-  let lastVersionClickAt = 0;
-
-  const handleVersionClick = () => {
-    const now = Date.now();
-    versionClickCount = now - lastVersionClickAt > REVEAL_WINDOW_MS
-      ? 1
-      : versionClickCount + 1;
-    lastVersionClickAt = now;
-    if (versionClickCount >= REVEAL_CLICKS) {
-      setShowVersionDetails(true);
-      versionClickCount = 0;
-    }
-  };
 
   return (
-    <div class="fixed inset-0 z-100 flex flex-col bg-bg-primary text-text-primary page-slide-in">
-      <PageHeader title="About" onBack={props.onBack} />
-      <div class="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3 pt-1 pb-4.5">
-        <Notes>
-          <span class="text-[13px] leading-4.5 font-bold text-text-primary">
-            Gnosis VPN
+    <SettingsSubpage title="About" onBack={props.onBack}>
+      <Notes>
+        <span class="text-[13px] leading-4.5 font-bold text-text-primary">
+          Gnosis VPN
+        </span>
+        <div>
+          Version{" "}
+          <span class="font-figures text-text-primary">
+            {appState.packageVersion ?? "unknown"}
           </span>
-          <div
-            onClick={handleVersionClick}
-            classList={{ "select-text": showVersionDetails() }}
-          >
-            Version{" "}
-            <span class="font-figures text-text-primary">
-              {appState.packageVersion ?? "unknown"}
-            </span>
-          </div>
-          <div>
-            Channel{" "}
-            <span class="text-text-primary">
-              {CHANNEL_LABELS[
-                effectiveChannel(appState.packageVersion, settings.channel)
-              ]}
-            </span>
-          </div>
-          <Show when={showVersionDetails()}>
-            <div class="select-text">
-              Service {appState.serviceInfo?.version ?? "—"} · App{" "}
-              {appVersion() ?? "—"} · Toolkit {appState.toolkit.version ?? "—"}
-            </div>
-          </Show>
-          <div>
-            Licensed under GPL-3.0 ·{" "}
-            <Link url={SOURCE_URL} label="Source code" />
-          </div>
-        </Notes>
+        </div>
+        <div>
+          Channel{" "}
+          <span class="text-text-primary">
+            {CHANNEL_LABELS[
+              effectiveChannel(appState.packageVersion, settings.channel)
+            ]}
+          </span>
+        </div>
+        <div>
+          Licensed under GPL-3.0 · <Link url={SOURCE_URL} label="Source code" />
+        </div>
+      </Notes>
 
-        <SettingsHeading>Third-party notices</SettingsHeading>
-        {/* CC BY-SA 4.0 attribution; the offline note keeps users from assuming their IP goes to IPinfo. */}
-        <Notes>
-          <span class="text-[13px] leading-4.5 text-text-primary">IPinfo</span>
-          <div>
-            Exit countries come from an offline database on this device. Nothing
-            is sent to IPinfo.
-          </div>
-          <div>
-            IP address data is powered by{" "}
-            <Link url={IPINFO_URL} label="IPinfo" />, licensed under CC BY-SA
-            4.0.
-          </div>
-        </Notes>
-        <Notes>
-          <span class="text-[13px] leading-4.5 text-text-primary">
-            Flag art
-          </span>
-          <div>
-            Flags from{" "}
-            <Link url={FLAG_ICONS_URL} label="flag-icons" />, licensed under
-            MIT.
-          </div>
-        </Notes>
-        <Notes>
-          <span class="text-[13px] leading-4.5 text-text-primary">Fonts</span>
-          <div>
-            Unica77 by <Link url={LINETO_URL} label="Lineto" />.
-          </div>
-          <div>
-            <Link url={JETBRAINS_MONO_URL} label="JetBrains Mono" />, licensed
-            under the SIL Open Font License 1.1.
-          </div>
-        </Notes>
-      </div>
-    </div>
+      <SettingsHeading>Third-party notices</SettingsHeading>
+      {/* CC BY-SA 4.0 attribution; the offline note keeps users from assuming their IP goes to IPinfo. */}
+      <Notes>
+        <span class="text-[13px] leading-4.5 text-text-primary">IPinfo</span>
+        <div>
+          Exit countries come from an offline database on this device. Nothing
+          is sent to IPinfo.
+        </div>
+        <div>
+          IP address data is powered by{" "}
+          <Link url={IPINFO_URL} label="IPinfo" />, licensed under CC BY-SA 4.0.
+        </div>
+      </Notes>
+      <Notes>
+        <span class="text-[13px] leading-4.5 text-text-primary">
+          Flag art
+        </span>
+        <div>
+          Flags from{" "}
+          <Link url={FLAG_ICONS_URL} label="flag-icons" />, licensed under MIT.
+        </div>
+      </Notes>
+      <Notes>
+        <span class="text-[13px] leading-4.5 text-text-primary">Fonts</span>
+        <div>
+          Unica77 by <Link url={LINETO_URL} label="Lineto" />.
+        </div>
+        <div>
+          <Link url={JETBRAINS_MONO_URL} label="JetBrains Mono" />, licensed
+          under the SIL Open Font License 1.1.
+        </div>
+      </Notes>
+    </SettingsSubpage>
   );
 }
