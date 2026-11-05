@@ -11,7 +11,8 @@ export default function TrafficIcon() {
       stroke-linejoin="round"
       aria-hidden="true"
     >
-      <path d="M4.5 5h4.5M11.5 5h2.5M4.5 9h7M14 9h5.5M4.5 12.5h2M15.5 12.5h4M8 16h4M14.5 16h5M4.5 19.5h1M17 19.5h2.5" />
+      <path d="M7 20V4m-4 4 4-4 4 4" />
+      <path d="M17 4v16m-4-4 4 4 4-4" />
     </svg>
   );
 }
