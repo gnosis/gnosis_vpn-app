@@ -426,22 +426,10 @@ textarea {
   animation: check-pop 400ms ease-out 750ms both;
 }
 
-/* Pages (exit list, settings) slide in from the right, as the Stage 2 mock's do; they close without animation. */
-.page-slide-in {
-  animation: page-slide-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
-}
-
-@keyframes page-slide-in {
-  from {
-    transform: translateX(100%);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .owl-blink,
   .check-draw,
-  .check-pop-entry,
-  .page-slide-in {
+  .check-pop-entry {
     animation: none;
   }
   .owl-fill-layer {

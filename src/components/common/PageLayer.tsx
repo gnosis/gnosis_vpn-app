@@ -38,7 +38,7 @@ export default function PageLayer(
         ref={page}
         aria-label={props.label}
         tabindex="-1"
-        class="fixed inset-0 z-100 flex flex-col bg-bg-primary text-text-primary outline-none page-slide-in"
+        class="fixed inset-0 z-100 flex flex-col bg-bg-primary text-text-primary outline-none transition-transform duration-220 ease-[cubic-bezier(0.2,0.8,0.2,1)] starting:translate-x-full motion-reduce:transition-none"
       >
         {props.children}
       </section>
