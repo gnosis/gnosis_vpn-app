@@ -1,54 +1,15 @@
 // The Stage 2.1 mock's settings row icons; factories, since Solid JSX is a real DOM node.
 const PATHS = {
-  update: () => (
-    <>
-      <path d="M12 4v11" />
-      <path d="m7 10 5 5 5-5" />
-      <path d="M5 20h14" />
-    </>
-  ),
   lock: () => (
     <>
       <rect x="5" y="11" width="14" height="10" rx="2" />
       <path d="M8 11V8a4 4 0 0 1 8 0v3" />
     </>
   ),
-  renew: () => (
-    <>
-      <path d="M21 12a9 9 0 1 1-3-6.7L21 8" />
-      <path d="M21 3v5h-5" />
-    </>
-  ),
-  eye: () => (
-    <>
-      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
-      <circle cx="12" cy="12" r="3" />
-    </>
-  ),
-  globe: () => (
-    <>
-      <circle cx="12" cy="12" r="9" />
-      <path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" />
-    </>
-  ),
   upload: () => (
     <>
       <path d="M12 16V4M6 10l6-6 6 6" />
       <path d="M4 20h16" />
-    </>
-  ),
-  sync: () => (
-    <>
-      <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
-      <path d="M21 3v5h-5" />
-      <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
-      <path d="M3 21v-5h5" />
-    </>
-  ),
-  clock: () => (
-    <>
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 7v5l3 2" />
     </>
   ),
   info: () => (

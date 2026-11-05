@@ -175,7 +175,6 @@ export default function UsageTab() {
       <SettingsCard label="Renewing">
         <FeatureComing class="w-full">
           <SettingsRow
-            icon="renew"
             title="Auto-renew and allocation"
             description="Sets aside 600 MB by itself when you connect, switch exits, or an exit runs low. Off: you’re asked each time."
           >

@@ -102,7 +102,6 @@ export default function UpdatePage(props: { onBack: () => void }) {
       </Show>
       <SettingsCard label="Update">
         <SettingsRow
-          icon="clock"
           title="Check automatically"
           description="Only while connected through Gnosis VPN."
         >

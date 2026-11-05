@@ -149,7 +149,7 @@ export default function GeneralTab(
 
       <SettingsHeading>App Settings</SettingsHeading>
       <SettingsCard label="App Settings">
-        <SettingsRow icon="globe" title="Preferred exit">
+        <SettingsRow title="Preferred exit">
           <Show
             when={appState.availableDestinations.length > 0}
             fallback={
@@ -172,7 +172,6 @@ export default function GeneralTab(
           </Show>
         </SettingsRow>
         <SettingsRow
-          icon="eye"
           title="Detailed metrics"
           description="Last check, load, path and relays under the exit on the main screen."
         >
@@ -274,7 +273,6 @@ export default function GeneralTab(
       <SettingsHeading>Gnosis VPN</SettingsHeading>
       <SettingsCard label="Gnosis VPN">
         <SettingsRow
-          icon="update"
           title="Update"
           description={updateWaiting()
             ? `Version ${appState.availableVersion} available`
