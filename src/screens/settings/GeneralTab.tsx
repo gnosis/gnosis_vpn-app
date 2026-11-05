@@ -3,28 +3,15 @@ import { save } from "@tauri-apps/plugin-dialog";
 import { downloadDir, join } from "@tauri-apps/api/path";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
-import { VPNService } from "@src/services/vpnService.ts";
-import {
-  destinationLabel,
-  destinationLabelById,
-} from "@src/utils/destinations.ts";
-import { endOfLifeMessage } from "@src/utils/updateAvailability.ts";
-import { createDeadlineClock } from "@src/utils/deadlineClock.ts";
+import { type Destination, VPNService } from "@src/services/vpnService.ts";
+import { exitDisplayName, exitShortId } from "@src/utils/destinations.ts";
 import { logBundleFileName } from "@src/utils/logBundle.ts";
 import { logInfo } from "@src/utils/appLog.ts";
-import { CHANNEL_LABELS } from "@src/utils/version.ts";
 import { Dropdown } from "@src/components/common/Dropdown.tsx";
-import { Modal } from "@src/components/common/Modal.tsx";
-import { Markdown } from "@src/components/common/Markdown.tsx";
-import HowToUpdateModal from "@src/components/common/HowToUpdateModal.tsx";
-import CheckUpdateModal from "@src/components/CheckUpdateModal.tsx";
-import InstallUpdateModal from "@src/components/InstallUpdateModal.tsx";
 import ExportLogsModal from "@src/components/ExportLogsModal.tsx";
 import UploadLogsModal from "@src/components/UploadLogsModal.tsx";
 import BackIcon from "@src/components/icons/BackIcon.tsx";
-import { ACTION_BUTTON } from "@src/components/exitNode/LocationRow.tsx";
 import FeatureComing from "@src/components/settings/FeatureComing.tsx";
-import Notice from "@src/components/settings/Notice.tsx";
 import {
   SettingsCard,
   SettingsHeading,
@@ -33,9 +20,47 @@ import SettingsRow, {
   ROW_BUTTON,
 } from "@src/components/settings/SettingsRow.tsx";
 import Switch from "@src/components/settings/Switch.tsx";
-import { INSTALL_LABELS, useUpdates } from "./useUpdates.ts";
 
-const AUTO_LOCATION = { id: null as string | null, label: "Auto · best" };
+// One width for Export and Upload, wide enough for "Exporting…".
+const LOG_BUTTON = `${ROW_BUTTON} w-20`;
+
+/** An exit as the location list names it: country, then the end of its address. */
+type ExitOption = { id: string | null; name: string; shortId: string | null };
+
+const AUTO_LOCATION: ExitOption = {
+  id: null,
+  name: "Auto · best",
+  shortId: null,
+};
+
+const exitOption = (d: Destination): ExitOption => ({
+  id: d.id,
+  name: exitDisplayName(d),
+  shortId: exitShortId(d.address),
+});
+
+const exitOptionText = (o: ExitOption) =>
+  o.shortId ? `${o.name} #${o.shortId}` : o.name;
+
+/** In the list the id sits at the row's right edge; in the closed dropdown it follows the name. */
+function ExitOptionLabel(props: { option: ExitOption; inList?: boolean }) {
+  return (
+    <span
+      class={props.inList ? "flex items-baseline justify-between gap-3" : ""}
+    >
+      {props.option.name}
+      <Show when={props.option.shortId}>
+        <span
+          class={`font-figures text-[10px] font-medium ${
+            props.inList ? "shrink-0" : "ml-[0.35em]"
+          }`}
+        >
+          #{props.option.shortId}
+        </span>
+      </Show>
+    </span>
+  );
+}
 
 const SEGMENT =
   "rounded-md px-2 py-1 text-[11px] leading-3.5 font-bold whitespace-nowrap";
@@ -46,24 +71,21 @@ const segmentClass = (pressed: boolean) =>
       : "text-text-subtle hover:text-text-primary hover:cursor-pointer"
   }`;
 
-export default function GeneralTab(props: { onAbout: () => void }) {
+export default function GeneralTab(
+  props: { onUpdate: () => void; onAbout: () => void },
+) {
   const [appState] = useAppStore();
   const [settings, settingsActions] = useSettingsStore();
-  const updates = useUpdates();
-  const [showChangelog, setShowChangelog] = createSignal(false);
-
-  const release = () =>
-    updates.isUpToDate() === false ? updates.decision().release : undefined;
-
-  const checkDescription = () => {
-    const checked = updates.lastChecked();
-    const latest = release();
-    if (latest) return `Version ${latest.version} available`;
-    if (updates.isUpToDate()) {
-      return checked ? `Up to date · checked ${checked}` : "Up to date";
-    }
-    return checked ? `Checked ${checked}` : "Never checked";
+  const preferredExit = (): ExitOption => {
+    const id = settings.preferredLocation;
+    if (id === null) return AUTO_LOCATION;
+    const d = appState.availableDestinations.find((d) => d.id === id) ??
+      appState.destinations[id]?.destination;
+    return d ? exitOption(d) : { id, name: "Unavailable exit", shortId: null };
   };
+
+  // Set while a checked update is not installed, as on the top bar's gear.
+  const updateWaiting = () => appState.availableVersion !== null;
 
   // Flags covers the colored and the old monochrome look, which stays until changed.
   const flagsShown = () => settings.flagDisplay !== "none";
@@ -119,97 +141,8 @@ export default function GeneralTab(props: { onAbout: () => void }) {
         </FeatureComing>
       </SettingsCard>
 
-      <SettingsHeading>App</SettingsHeading>
-      {/* No dismiss: an end of life cannot be waved away. */}
-      <Show when={appState.endOfLife}>
-        {(endOfLife) => {
-          const now = createDeadlineClock(() =>
-            Date.parse(endOfLife().ends_at)
-          );
-          return (
-            <Notice tone="bad">
-              {endOfLifeMessage(endOfLife(), now())}
-              <Show when={endOfLife().reason.trim()}>
-                {(reason) => <span class="block">{reason()}</span>}
-              </Show>
-            </Notice>
-          );
-        }}
-      </Show>
-      <Show when={updates.blocker()}>
-        {(blocker) => (
-          <Notice tone="bad">
-            {blocker().message}
-            <span class="mt-1 flex gap-3 font-bold">
-              <Show when={blocker().retryable}>
-                <button
-                  type="button"
-                  class="underline hover:cursor-pointer disabled:opacity-50"
-                  disabled={updates.retrying()}
-                  onClick={updates.retryToolkit}
-                >
-                  {updates.retrying() ? "Trying…" : "Try again"}
-                </button>
-              </Show>
-              <button
-                type="button"
-                class="underline hover:cursor-pointer"
-                onClick={() => updates.setShowHowTo(true)}
-              >
-                How to update
-              </button>
-            </span>
-          </Notice>
-        )}
-      </Show>
-      <Show when={!updates.blocker() && release()}>
-        {(latest) => (
-          <SettingsCard label="Update">
-            <SettingsRow
-              icon="update"
-              title={`Update to ${latest().version}`}
-              description={
-                <>
-                  <Show
-                    when={updates.installError()}
-                    fallback={updates.isMacos()
-                      ? "Downloads, installs and restarts the app."
-                      : "Shows how to update on this computer."}
-                  >
-                    {(error) => (
-                      <span class="text-bad-ink">
-                        Update failed — {error()}
-                      </span>
-                    )}
-                  </Show>
-                  <Show when={latest().release_notes}>
-                    {" "}
-                    <button
-                      type="button"
-                      class="font-bold text-text-link hover:cursor-pointer"
-                      onClick={() => setShowChangelog(true)}
-                    >
-                      What’s new
-                    </button>
-                  </Show>
-                </>
-              }
-            >
-              <button
-                type="button"
-                class={ACTION_BUTTON}
-                disabled={updates.installPhase() !== null}
-                onClick={updates.install}
-              >
-                {updates.installPhase()
-                  ? INSTALL_LABELS[updates.installPhase()!]
-                  : "Update"}
-              </button>
-            </SettingsRow>
-          </SettingsCard>
-        )}
-      </Show>
-      <SettingsCard label="App">
+      <SettingsHeading>App Settings</SettingsHeading>
+      <SettingsCard label="App Settings">
         <SettingsRow icon="globe" title="Preferred exit">
           <Show
             when={appState.availableDestinations.length > 0}
@@ -225,22 +158,13 @@ export default function GeneralTab(props: { onAbout: () => void }) {
               class="max-w-36"
               options={[
                 AUTO_LOCATION,
-                ...appState.availableDestinations.map((d) => ({
-                  id: d.id as string | null,
-                  label: destinationLabel(d),
-                })),
+                ...appState.availableDestinations.map(exitOption),
               ]}
-              value={settings.preferredLocation
-                ? {
-                  id: settings.preferredLocation,
-                  label: destinationLabelById(
-                    settings.preferredLocation,
-                    appState.availableDestinations,
-                  ),
-                }
-                : AUTO_LOCATION}
+              value={preferredExit()}
               onChange={(o) => void settingsActions.setPreferredLocation(o.id)}
-              itemToString={(o) => o.label}
+              itemToString={exitOptionText}
+              renderValue={(o) => <ExitOptionLabel option={o} />}
+              renderOption={(o) => <ExitOptionLabel option={o} inList />}
             />
           </Show>
         </SettingsRow>
@@ -305,40 +229,6 @@ export default function GeneralTab(props: { onAbout: () => void }) {
             </For>
           </div>
         </SettingsRow>
-        <Show when={!updates.blocker()}>
-          <SettingsRow
-            icon="sync"
-            title="Check for updates"
-            description={checkDescription()}
-          >
-            <button
-              type="button"
-              class={ROW_BUTTON}
-              disabled={updates.checking() || updates.installPhase() !== null}
-              onClick={updates.check}
-            >
-              {updates.checking() ? "Checking…" : "Check"}
-            </button>
-          </SettingsRow>
-        </Show>
-        <SettingsRow
-          icon="clock"
-          title="Check automatically"
-          description="Only while connected through Gnosis VPN."
-        >
-          <Switch
-            label="Check for updates automatically"
-            checked={settings.updateCheck}
-            onChange={(on) => void settingsActions.setUpdateCheck(on)}
-          />
-        </SettingsRow>
-        <FeatureComing class="w-full">
-          <SettingsRow icon="layers" title="Update channel">
-            <span class="shrink-0 text-xs text-text-subtle">
-              {CHANNEL_LABELS[updates.channel()]}
-            </span>
-          </SettingsRow>
-        </FeatureComing>
       </SettingsCard>
 
       <SettingsHeading>Logs, for support</SettingsHeading>
@@ -354,7 +244,7 @@ export default function GeneralTab(props: { onAbout: () => void }) {
         >
           <button
             type="button"
-            class={ROW_BUTTON}
+            class={LOG_BUTTON}
             disabled={exporting()}
             onClick={() => void exportLogs()}
           >
@@ -368,7 +258,7 @@ export default function GeneralTab(props: { onAbout: () => void }) {
         >
           <button
             type="button"
-            class={ROW_BUTTON}
+            class={LOG_BUTTON}
             onClick={() => {
               setExportError(null);
               setShowUpload(true);
@@ -379,49 +269,29 @@ export default function GeneralTab(props: { onAbout: () => void }) {
         </SettingsRow>
       </SettingsCard>
 
-      <div class="mt-3 shrink-0">
-        <SettingsCard>
-          <SettingsRow icon="info" title="About" onClick={props.onAbout}>
-            <BackIcon class="rotate-180 text-text-subtle" />
-          </SettingsRow>
-        </SettingsCard>
-      </div>
+      <SettingsHeading>Gnosis VPN</SettingsHeading>
+      <SettingsCard label="Gnosis VPN">
+        <SettingsRow
+          icon="update"
+          title="Update"
+          description={updateWaiting()
+            ? `Version ${appState.availableVersion} available`
+            : undefined}
+          onClick={props.onUpdate}
+        >
+          <Show when={updateWaiting()}>
+            <span
+              class="size-1.75 shrink-0 rounded-full bg-update-dot"
+              aria-hidden="true"
+            />
+          </Show>
+          <BackIcon class="rotate-180 text-text-subtle" />
+        </SettingsRow>
+        <SettingsRow icon="info" title="About" onClick={props.onAbout}>
+          <BackIcon class="rotate-180 text-text-subtle" />
+        </SettingsRow>
+      </SettingsCard>
 
-      <CheckUpdateModal
-        open={updates.showCheckModal()}
-        onClose={updates.closeCheckModal}
-        onCheckAnyway={updates.checkAnyway}
-        onConnectAndCheck={updates.connectAndCheck}
-      />
-      <InstallUpdateModal
-        open={updates.showInstallModal()}
-        onClose={updates.closeInstallModal}
-        onInstallAnyway={updates.installAnyway}
-        onConnectAndInstall={updates.connectAndInstall}
-      />
-      <HowToUpdateModal
-        open={updates.showHowTo()}
-        onClose={() => updates.setShowHowTo(false)}
-      />
-      <Modal open={showChangelog()} onClose={() => setShowChangelog(false)}>
-        <div class="flex flex-col gap-4">
-          <div class="text-base font-semibold text-text-primary">
-            What’s new in {release()?.version}
-          </div>
-          <div class="max-h-64 overflow-y-auto">
-            <div class="pr-4.5">
-              <Markdown>{release()?.release_notes ?? ""}</Markdown>
-            </div>
-          </div>
-          <button
-            type="button"
-            class="h-10 px-4 text-sm rounded-lg font-bold border border-border bg-transparent text-text-primary hover:bg-darken hover:cursor-pointer transition-colors"
-            onClick={() => setShowChangelog(false)}
-          >
-            Close
-          </button>
-        </div>
-      </Modal>
       <ExportLogsModal path={savedPath()} onClose={() => setSavedPath(null)} />
       <UploadLogsModal
         open={showUpload()}

@@ -81,7 +81,7 @@ export function MainScreen() {
                 <Banner
                   variant="danger"
                   icon={<WarningIcon />}
-                  onClick={() => openSettings("general")}
+                  onClick={() => openSettings("update")}
                 >
                   {endOfLifeMessage(endOfLife(), now())}
                 </Banner>
@@ -92,7 +92,7 @@ export function MainScreen() {
             <Banner
               variant="update"
               icon={<UpdateIcon />}
-              onClick={() => openSettings("general")}
+              onClick={() => openSettings("update")}
               onDismiss={() =>
                 void settingsActions.setDismissedUpdateVersion(
                   appState.availableVersion,

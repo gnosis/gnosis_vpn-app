@@ -81,6 +81,24 @@ const PATHS = {
       <path d="m3 13 9 5 9-5" />
     </>
   ),
+  tag: () => (
+    <>
+      <path d="M3 12V4h8l10 10-8 8z" />
+      <circle cx="7.5" cy="7.5" r="1.5" />
+    </>
+  ),
+  server: () => (
+    <>
+      <rect x="3" y="4" width="18" height="7" rx="2" />
+      <rect x="3" y="13" width="18" height="7" rx="2" />
+      <path d="M7 7.5h.01M7 16.5h.01" />
+    </>
+  ),
+  wrench: () => (
+    <>
+      <path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z" />
+    </>
+  ),
   info: () => (
     <>
       <circle cx="12" cy="12" r="9" />

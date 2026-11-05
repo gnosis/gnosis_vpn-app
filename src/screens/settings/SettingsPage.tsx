@@ -1,21 +1,25 @@
 import {
+  createEffect,
   createSignal,
   For,
   Match,
+  on,
   onCleanup,
   onMount,
-  Show,
   Switch,
 } from "solid-js";
 import PageHeader from "@src/components/common/PageHeader.tsx";
 import {
+  clearSettingsRequest,
   closeSettings,
+  settingsRequest,
   type SettingsTab,
   settingsTab,
   showSettingsTab,
 } from "@src/utils/settingsPage.ts";
 import GeneralTab from "./GeneralTab.tsx";
 import UsageTab from "./UsageTab.tsx";
+import UpdatePage from "./UpdatePage.tsx";
 import AboutPage from "./AboutPage.tsx";
 
 const TABS: { id: SettingsTab; label: string }[] = [
@@ -23,9 +27,22 @@ const TABS: { id: SettingsTab; label: string }[] = [
   { id: "usage", label: "Usage" },
 ];
 
-/** The main window's Settings page (Stage 2.1 mock): General and Usage tabs, About behind a row. */
+/** The main window's Settings page (Stage 2.1 mock): General and Usage tabs, Update and About behind rows. */
 export default function SettingsPage() {
-  const [aboutOpen, setAboutOpen] = createSignal(false);
+  const [subpage, setSubpage] = createSignal<"update" | "about" | null>(null);
+
+  // The tabs sit under an open subpage, so a tab change comes from outside (tray, top bar) and shows that tab.
+  createEffect(on(settingsTab, () => setSubpage(null), { defer: true }));
+  createEffect(() => {
+    const request = settingsRequest();
+    if (request === "update") {
+      clearSettingsRequest();
+      setSubpage("update");
+    } else if (request === "check-update") {
+      // the Update page takes the request and runs the check
+      setSubpage("update");
+    }
+  });
 
   function handleKeyDown(e: KeyboardEvent) {
     // an open dialog or dropdown closes on its own Escape
@@ -35,7 +52,7 @@ export default function SettingsPage() {
     ) {
       return;
     }
-    if (aboutOpen()) setAboutOpen(false);
+    if (subpage()) setSubpage(null);
     else closeSettings();
   }
 
@@ -71,7 +88,10 @@ export default function SettingsPage() {
         <div class="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3 pt-1 pb-4.5">
           <Switch>
             <Match when={settingsTab() === "general"}>
-              <GeneralTab onAbout={() => setAboutOpen(true)} />
+              <GeneralTab
+                onUpdate={() => setSubpage("update")}
+                onAbout={() => setSubpage("about")}
+              />
             </Match>
             <Match when={settingsTab() === "usage"}>
               <UsageTab />
@@ -79,9 +99,14 @@ export default function SettingsPage() {
           </Switch>
         </div>
       </div>
-      <Show when={aboutOpen()}>
-        <AboutPage onBack={() => setAboutOpen(false)} />
-      </Show>
+      <Switch>
+        <Match when={subpage() === "update"}>
+          <UpdatePage onBack={() => setSubpage(null)} />
+        </Match>
+        <Match when={subpage() === "about"}>
+          <AboutPage onBack={() => setSubpage(null)} />
+        </Match>
+      </Switch>
     </>
   );
 }

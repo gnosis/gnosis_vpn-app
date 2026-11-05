@@ -86,7 +86,7 @@ source:
   Unset keys fall back to the app's defaults; `update_settings` merges the patch
   in-memory and fires `settings-changed`, so toggles behave realistically.
 - `platform` — value returned by `get_platform` (default `"linux"`); set
-  `"macos"` to enable the driven install-update flow on Settings → General.
+  `"macos"` to enable the driven install-update flow on Settings → Update.
 - `arch` / `osDistribution` — `get_system_info`'s `arch` (default `"x86_64"`)
   and `distribution` (default `"Ubuntu 24.04.3 LTS"`; `null` = unknown); its
   `os` is `platform`. Shown in the Upload logs modal's pre-filled GitHub
@@ -132,7 +132,7 @@ source:
   `"packageVersion": null` means the toolkit found no version file, which drives
   the "package version not found" card. Set `"toolkitVersion": null` to simulate
   a machine without the binary, or `"toolkitStatus": "tooOld"` for one that
-  predates the current contract — both replace the update rows with the "please
+  predates the current contract — both replace the status card with the "please
   reinstall" card. `"toolkitStatus": "failed"` rejects with `toolkitError`
   (default `"ToolkitTimedOut"`) for a probe that ran and failed, which drives
   the "couldn't reach the update tool" card and its Try again button; flip the
@@ -166,8 +166,8 @@ source:
 - Settings is a page inside the main window: click the gear
   (`button[aria-label^="Settings"]`), or fire what the tray sends,
   `eval "__GVPN_FIRE_EVENT__('settings:open', 'usage')"` (`general`, `usage`,
-  `add-funds`, `check-update`). Switch tabs by clicking the tab buttons, e.g.
-  Usage:
+  `add-funds`, `update`, `check-update`). Switch tabs by clicking the tab
+  buttons, e.g. Usage:
 
 ```bash
 deno run -A .claude/skills/run-gnosis-vpn-app/driver.ts \

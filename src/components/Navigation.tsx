@@ -2,7 +2,7 @@ import IconButton from "./common/IconButton.tsx";
 import BalancePopup from "./BalancePopup.tsx";
 import { Portal } from "solid-js/web";
 import SettingsIcon from "./icons/SettingsIcon.tsx";
-import { openSettings } from "../utils/settingsPage.ts";
+import { openSettings, settingsTab } from "../utils/settingsPage.ts";
 import TrafficIcon from "./icons/TrafficIcon.tsx";
 import { openTrafficWindow } from "../utils/trafficWindow.ts";
 import { isRunningRunMode } from "../services/vpnService.ts";
@@ -131,7 +131,12 @@ function Navigation() {
               </span>
             </span>
           </IconButton>
-          <Tooltip content="Settings" position="bottom">
+          {/* The page covers the gear without a mouseleave, so the open page hides the tooltip. */}
+          <Tooltip
+            content="Settings"
+            position="bottom"
+            disabled={settingsTab() !== null}
+          >
             <IconButton
               label={updateWaiting()
                 ? "Settings, update available"
