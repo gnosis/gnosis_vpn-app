@@ -2,7 +2,7 @@ import IconButton from "./common/IconButton.tsx";
 import BalancePopup from "./BalancePopup.tsx";
 import { Portal } from "solid-js/web";
 import SettingsIcon from "./icons/SettingsIcon.tsx";
-import { openSettingsWindow } from "../utils/settingsWindow.ts";
+import { openSettings } from "../utils/settingsPage.ts";
 import TrafficIcon from "./icons/TrafficIcon.tsx";
 import { openTrafficWindow } from "../utils/trafficWindow.ts";
 import { isRunningRunMode } from "../services/vpnService.ts";
@@ -109,7 +109,10 @@ function Navigation() {
             label={credit() === null
               ? "Funds"
               : `Funds, ${formatCreditCompact(credit()!)}`}
-            onClick={() => openSettingsWindow("usage")}
+            onClick={() => {
+              hidePopup();
+              openSettings("usage");
+            }}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
           >
@@ -134,7 +137,7 @@ function Navigation() {
                 ? "Settings, update available"
                 : "Settings"}
               badge={updateWaiting()}
-              onClick={() => openSettingsWindow("settings")}
+              onClick={() => openSettings("general")}
             >
               <SettingsIcon />
             </IconButton>
@@ -149,6 +152,7 @@ function Navigation() {
         containerRect={containerRect()}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
+        onNavigate={hidePopup}
       />
     </>
   );

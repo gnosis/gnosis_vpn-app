@@ -7,6 +7,7 @@ import {
   on,
   onCleanup,
   onMount,
+  Show,
   untrack,
 } from "solid-js";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
@@ -24,6 +25,12 @@ import {
 } from "@src/utils/updateChecker.ts";
 import { isStaleOutcome } from "@src/utils/updateAvailability.ts";
 import { logError, logWarn } from "@src/utils/appLog.ts";
+import {
+  isSettingsTarget,
+  openSettings,
+  settingsTab,
+} from "@src/utils/settingsPage.ts";
+import SettingsPage from "../screens/settings/SettingsPage.tsx";
 
 const validScreens = [
   "main",
@@ -102,6 +109,7 @@ function App() {
   const [appState, appActions] = useAppStore();
   const [settings, settingsActions] = useSettingsStore();
   let unlistenNavigate: (() => void) | undefined;
+  let unlistenSettings: (() => void) | undefined;
   let disposed = false;
 
   // Auto-update scheduling lives here so it stays active regardless of which tab is open.
@@ -200,12 +208,31 @@ function App() {
     }
   });
 
+  // Settings cover the location list, so it closes rather than waiting underneath.
+  createEffect(on(settingsTab, (tab) => {
+    if (tab && untrack(() => appState.mode.listOpen)) {
+      appActions.destinationListClosed(null);
+    }
+  }));
+
   onMount(() => {
+    // Before the awaits below: the tray can ask for settings while the app still initializes.
+    void getCurrentWebviewWindow().listen<unknown>(
+      "settings:open",
+      ({ payload }) => {
+        if (isSettingsTarget(payload)) openSettings(payload);
+        else logWarn(`Ignoring settings:open with invalid target: ${payload}`);
+      },
+    ).then((unlisten) => {
+      if (disposed) unlisten();
+      else unlistenSettings = unlisten;
+    }).catch((e) => logError(`Cannot listen for settings:open: ${e}`));
+
     void (async () => {
       await settingsActions.load();
       await appActions.initializeApp();
 
-      // window-scoped listen: a target-Any listener would also get emits aimed at the settings window
+      // window-scoped listen: a target-Any listener would also get emits aimed at other windows
       const unlisten = await getCurrentWebviewWindow().listen<NavigatePayload>(
         "navigate",
         ({ payload }) =>
@@ -224,6 +251,7 @@ function App() {
   onCleanup(() => {
     disposed = true;
     unlistenNavigate?.();
+    unlistenSettings?.();
     if (timeoutId) clearTimeout(timeoutId);
     clearTimeout(fadeTimer);
   });
@@ -243,6 +271,9 @@ function App() {
           )}
         />
       </div>
+      <Show when={settingsTab()}>
+        <SettingsPage />
+      </Show>
     </div>
   );
 }

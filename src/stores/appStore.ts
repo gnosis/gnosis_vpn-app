@@ -75,7 +75,7 @@ import {
 export { AppScreen };
 
 /** Whether the toolkit could be used. `unknown` is "not probed yet" and nothing
- * else: a probe that ran and failed is `failed`, which the Updates tab explains. */
+ * else: a probe that ran and failed is `failed`, which Settings → General explains. */
 export type ToolkitStatus = "unknown" | "ok" | "missing" | "tooOld" | "failed";
 
 export interface ToolkitState {
@@ -601,7 +601,7 @@ export function createAppStore(): AppStoreTuple {
   };
 
   // Asks the toolkit for its version and the package's. Failing is a state the
-  // Updates tab explains, never an error screen. One probe at a time.
+  // Settings page explains, never an error screen. One probe at a time.
   let toolkitProbe: Promise<void> | undefined;
   const refreshToolkit = (): Promise<void> => {
     if (toolkitProbe) return toolkitProbe;

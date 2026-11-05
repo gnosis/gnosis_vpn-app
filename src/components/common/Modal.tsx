@@ -23,13 +23,13 @@ export function Modal(props: ModalProps) {
     <Show when={props.open}>
       <Portal>
         <div
-          class="fixed inset-0 z-40 bg-bg-overlay backdrop-blur-[1px]"
+          class="fixed inset-0 z-110 bg-bg-overlay backdrop-blur-[1px]"
           onClick={() => props.onClose()}
           aria-hidden="true"
         />
 
         <div
-          class="fixed inset-0 z-50 flex items-center justify-center p-4"
+          class="fixed inset-0 z-120 flex items-center justify-center p-4"
           onClick={(e) => e.stopPropagation()}
         >
           <div

@@ -43,10 +43,7 @@ use theme::spawn_linux_theme_monitor;
 #[cfg_attr(target_os = "macos", allow(unused_imports))]
 use theme::{InitialTheme, get_initial_theme, system_theme};
 use toolkit::get_toolkit_version;
-use tray::{
-    create_tray_menu, handle_tray_event, show_settings, show_settings_and_check,
-    toggle_main_window_visibility,
-};
+use tray::{create_tray_menu, handle_tray_event, show_settings, toggle_main_window_visibility};
 use types::BalanceResponse;
 use types::ConnectionState;
 use update_install::{UpdateInstallState, get_install_status, install_update};
@@ -313,7 +310,7 @@ pub fn run() {
                     }
                     "settings" => {
                         tracing::info!(target: "tray", "settings requested");
-                        show_settings(app, "settings");
+                        show_settings(app, "general");
                     }
                     "usage" => {
                         tracing::info!(target: "tray", "usage requested");
@@ -325,7 +322,7 @@ pub fn run() {
                     }
                     "check_update" => {
                         tracing::info!(target: "tray", "update check requested");
-                        show_settings_and_check(app);
+                        show_settings(app, "check-update");
                     }
                     other => tracing::warn!(target: "tray", id = other, "unknown tray menu item"),
                 })
@@ -429,18 +426,6 @@ pub fn run() {
                             let _ = app_handle
                                 .set_activation_policy(tauri::ActivationPolicy::Accessory);
                         }
-                    }
-                });
-            }
-
-            // Intercept settings window close to hide instead of destroying the window
-            if let Some(settings_window) = app.get_webview_window("settings") {
-                let settings_clone = settings_window.clone();
-                settings_window.on_window_event(move |event| {
-                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                        tracing::info!(target: "window", "settings window close requested, hiding");
-                        api.prevent_close();
-                        let _ = settings_clone.hide();
                     }
                 });
             }

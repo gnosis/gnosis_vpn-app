@@ -21,16 +21,6 @@
         "allowLinkPreview": false
       },
       {
-        "label": "settings",
-        "title": "Gnosis VPN Settings",
-        "minWidth": 430,
-        "width": 640,
-        "height": 480,
-        "visible": false,
-        "backgroundColor": "#121219",
-        "allowLinkPreview": false
-      },
-      {
         "label": "traffic",
         "title": "Gnosis VPN Traffic",
         "width": 1100,

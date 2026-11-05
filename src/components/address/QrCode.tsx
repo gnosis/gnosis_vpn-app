@@ -42,7 +42,7 @@ export default function QrCode(props: QrCodeProps) {
     <Show when={props.open}>
       <Portal>
         <div
-          class="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay"
+          class="fixed inset-0 z-140 flex items-center justify-center bg-bg-overlay"
           onClick={props.onClose}
         >
           <div
