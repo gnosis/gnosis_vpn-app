@@ -103,6 +103,13 @@ textarea {
   --color-bg-popover: #ffffff;
   --popover-shadow: 0 0 0 1px #dddde3, 0 16px 34px rgb(30 20 90 / 0.16);
 
+  /* Settings page (Stage 2.1): icon tiles and warning lines */
+  --color-text-soft: #34343a;
+  --color-warn-bg: #fcf0dc;
+  --color-warn-ink: #a85d02;
+  --color-bad-bg: #fbe5e6;
+  --color-bad-ink: #b4232c;
+
   /* Border colors */
   --color-border: #e5e7eb;
 
@@ -123,11 +130,6 @@ textarea {
   --color-btn-stop-bg: #b45353;
   --color-btn-stop-text: #ffffff;
   --color-btn-stop-hover: #9b4444;
-
-  /* Toggle colors */
-  --color-toggle-bg: #e5e7eb;
-  --color-toggle-checked: var(--color-accent);
-  --color-toggle-thumb: #ffffff;
 
   /* Traffic globe: a pale indigo sphere with saturated links */
   --color-globe-surface: #f1effc;
@@ -187,6 +189,13 @@ textarea {
   --color-bg-popover: #1d1c28;
   --popover-shadow: 0 0 0 1px #34324a, 0 16px 34px rgb(0 0 0 / 0.55);
 
+  /* Settings page */
+  --color-text-soft: #c9c7d6;
+  --color-warn-bg: #33250f;
+  --color-warn-ink: #f6b866;
+  --color-bad-bg: #3a171a;
+  --color-bad-ink: #ff8f93;
+
   /* Border colors */
   --color-border: #374151;
 
@@ -207,11 +216,6 @@ textarea {
   --color-btn-stop-bg: #b45353;
   --color-btn-stop-text: #ffffff;
   --color-btn-stop-hover: #9b4444;
-
-  /* Toggle colors */
-  --color-toggle-bg: #374151;
-  --color-toggle-checked: var(--color-accent);
-  --color-toggle-thumb: #d1d5db;
 
   /* Traffic globe: lifted hues for the dark background */
   --color-globe-surface: #1c1d45;
@@ -291,6 +295,11 @@ textarea {
   --color-row-hover: var(--color-row-hover);
   --color-bg-popover: var(--color-bg-popover);
   --shadow-popover: var(--popover-shadow);
+  --color-text-soft: var(--color-text-soft);
+  --color-warn-bg: var(--color-warn-bg);
+  --color-warn-ink: var(--color-warn-ink);
+  --color-bad-bg: var(--color-bad-bg);
+  --color-bad-ink: var(--color-bad-ink);
 
   --color-border: var(--color-border);
 
@@ -306,10 +315,6 @@ textarea {
   --color-btn-stop-bg: var(--color-btn-stop-bg);
   --color-btn-stop-text: var(--color-btn-stop-text);
   --color-btn-stop-hover: var(--color-btn-stop-hover);
-
-  --color-toggle-bg: var(--color-toggle-bg);
-  --color-toggle-checked: var(--color-toggle-checked);
-  --color-toggle-thumb: var(--color-toggle-thumb);
 
   --color-globe-surface: var(--color-globe-surface);
   --color-globe-edge: var(--color-globe-edge);
@@ -421,7 +426,7 @@ textarea {
   .owl-blink,
   .check-draw,
   .check-pop-entry,
-  .list-slide-in {
+  .page-slide-in {
     animation: none;
   }
   .owl-fill-layer {
@@ -457,12 +462,12 @@ textarea {
   }
 }
 
-/* The exit list slides in from the right, as the Stage 2 mock's pages do; it closes without animation. */
-.list-slide-in {
-  animation: list-slide-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+/* Pages (exit list, settings) slide in from the right, as the Stage 2 mock's do; they close without animation. */
+.page-slide-in {
+  animation: page-slide-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
-@keyframes list-slide-in {
+@keyframes page-slide-in {
   from {
     transform: translateX(100%);
   }
@@ -517,10 +522,6 @@ textarea {
 
 .system-window {
   background-color: var(--color-bg-primary);
-}
-
-:root.dark .tab-icon {
-  filter: brightness(0) invert(1);
 }
 
 .md-content {

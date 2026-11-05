@@ -1,6 +1,6 @@
 ---
 name: run-gnosis-vpn-app
-description: Run, screenshot, and drive the Gnosis VPN UI headlessly. Renders any screen (main, settings, usage) in headless Chromium WITHOUT the Rust/Tauri backend, using a fixture-driven Tauri shim. Use to run the app, verify UI changes visually, take screenshots, or click through screens.
+description: Run, screenshot, and drive the Gnosis VPN UI headlessly. Renders any screen (main, the Settings page, the exit list) in headless Chromium WITHOUT the Rust/Tauri backend, using a fixture-driven Tauri shim. Use to run the app, verify UI changes visually, take screenshots, or click through screens.
 ---
 
 # Run the Gnosis VPN app (headless, no backend)
@@ -38,7 +38,7 @@ again), waits for the Solid app to mount, then executes the steps in order:
 | `handoff`         | diff the splash logo against the mounted one (see below) |
 
 Flags: `--fixture <path>` (default: the skill's `fixture.json`), `--size WxH`
-(default `360x612` — the main window; settings window is `640x480`).
+(default `360x612` — the main window).
 
 ### Checking the splash→Solid handoff
 
@@ -86,7 +86,7 @@ source:
   Unset keys fall back to the app's defaults; `update_settings` merges the patch
   in-memory and fires `settings-changed`, so toggles behave realistically.
 - `platform` — value returned by `get_platform` (default `"linux"`); set
-  `"macos"` to enable the driven install-update flow on the Updates tab.
+  `"macos"` to enable the driven install-update flow on Settings → General.
 - `arch` / `osDistribution` — `get_system_info`'s `arch` (default `"x86_64"`)
   and `distribution` (default `"Ubuntu 24.04.3 LTS"`; `null` = unknown); its
   `os` is `platform`. Shown in the Upload logs modal's pre-filled GitHub
@@ -127,12 +127,12 @@ source:
 - `toolkitVersion` / `packageVersion` — the `gnosis_vpn-update` binary's own
   version and the installed package version it reports, both from
   `get_toolkit_version`. The app reads the package version from here rather than
-  from the daemon, so `packageVersion` is what the Updates tab shows. Omitting
+  from the daemon, so `packageVersion` is what Settings and About show. Omitting
   the key falls back to `cached_state.service_info.package_version`; an explicit
   `"packageVersion": null` means the toolkit found no version file, which drives
   the "package version not found" card. Set `"toolkitVersion": null` to simulate
   a machine without the binary, or `"toolkitStatus": "tooOld"` for one that
-  predates the current contract — both replace the tab with the "please
+  predates the current contract — both replace the update rows with the "please
   reinstall" card. `"toolkitStatus": "failed"` rejects with `toolkitError`
   (default `"ToolkitTimedOut"`) for a probe that ran and failed, which drives
   the "couldn't reach the update tool" card and its Try again button; flip the
@@ -152,24 +152,28 @@ source:
   connect-first modal. `checkUpdateDelayMs` (default 2000) keeps the "Checking…"
   state observable.
 - `uploadLogsUuid` — reference ID that `upload_logs` resolves with after ~800ms
-  (defaults to a fixed UUID), shown once the Settings tab's Upload logs modal is
-  acknowledged and submitted. `uploadLogsError` rejects instead; the modal then
-  shows the fixed `Upload logs error.` whatever the rejection says. The last
-  `upload_logs` args are kept in `globalThis.__GVPN_UPLOAD_ARGS__` for `eval`
-  assertions.
+  (defaults to a fixed UUID), shown once Settings → General's Upload logs modal
+  is acknowledged and submitted. `uploadLogsError` rejects instead; the modal
+  then shows the fixed `Upload logs error.` whatever the rejection says. The
+  last `upload_logs` args are kept in `globalThis.__GVPN_UPLOAD_ARGS__` for
+  `eval` assertions.
 - `logUploaderWebsiteUrl` — link shown in the Logs saved modal (defaults to
   `https://log-uploader.gnosisvpn.com/`); the real app serves it from the
   `get_log_uploader_website_url` command.
 - `exportLogsDest` — path the Export logs save dialog resolves with; omitted, it
   accepts the suggested `/home/user/Downloads/gnosis_vpn-*.log.zst`, and `null`
   cancels. `export_logs` echoes it back, which opens the Logs saved modal.
-- `windowLabel: "settings"` renders the settings window instead (use
-  `--size 640x480`). Switch tabs by clicking the nav buttons, e.g. Usage:
+- Settings is a page inside the main window: click the gear
+  (`button[aria-label^="Settings"]`), or fire what the tray sends,
+  `eval "__GVPN_FIRE_EVENT__('settings:open', 'usage')"` (`general`, `usage`,
+  `add-funds`, `check-update`). Switch tabs by clicking the tab buttons, e.g.
+  Usage:
 
 ```bash
-deno run -A .claude/skills/run-gnosis-vpn-app/driver.ts --size 640x480 \
-  --fixture /tmp/fixture-settings.json \
-  eval "[...document.querySelectorAll('button')].find(b => b.textContent.includes('Usage')).click()" \
+deno run -A .claude/skills/run-gnosis-vpn-app/driver.ts \
+  click 'button[aria-label^="Settings"]' \
+  wait 600 \
+  eval "[...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Usage').click()" \
   wait 500 \
   shot /tmp/usage.png
 ```
@@ -207,6 +211,13 @@ nix fmt
   backend theme with `prefers-color-scheme`, and headless Chromium follows the
   host OS's setting. `shim.js` patches `matchMedia` to answer with the fixture's
   theme (both directions) — answering `get_initial_theme` alone is not enough.
+- **Tooltips need a focused window.** Headless Chromium never focuses the page,
+  so `gateOnWindowFocus` blocks every tooltip (the "Feature coming" ones too).
+  Fire `window.dispatchEvent(new Event('focus'))` in an `eval` before a
+  synthetic `mouseenter` on the trigger.
+- **Synthetic Escape must be `cancelable: true`.** Dropdowns mark their Escape
+  with `preventDefault` so the page underneath stays open; a non-cancelable
+  event can't carry that and closes the page too.
 - **`settingsStore.load()` must succeed.** `App.tsx` awaits it before
   `initializeApp()` with no try/catch; if `get_settings` rejects, no status is
   hydrated and no screen ever changes.

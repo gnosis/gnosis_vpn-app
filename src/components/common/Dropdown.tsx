@@ -11,6 +11,11 @@ import {
 } from "solid-js";
 import { Portal } from "solid-js/web";
 import arrowDownIcon from "@src/components/icons/arrow-down.svg";
+import ChevronIcon from "@src/components/icons/ChevronIcon.tsx";
+
+// The quiet trigger is narrow, so its list is wider and hangs from its right edge.
+const QUIET_LIST_MIN_WIDTH = 220;
+const LIST_MARGIN = 8;
 
 export type DropdownProps<T> = {
   options: T[];
@@ -24,7 +29,9 @@ export type DropdownProps<T> = {
   renderOption?: (v: T) => JSX.Element;
   isOptionDisabled?: (v: T) => boolean;
   class?: string;
-  size?: "sm" | "lg";
+  /** "quiet": muted text with a chevron, for a value at the end of a settings row. */
+  size?: "sm" | "lg" | "quiet";
+  ariaLabel?: string;
   header?: () => JSX.Element;
   onOpen?: () => void;
   onClose?: () => void;
@@ -60,6 +67,19 @@ export function Dropdown<T>(props: DropdownProps<T>) {
   const updatePosition = () => {
     if (!root) return;
     const rect = root.getBoundingClientRect();
+    if (props.size === "quiet") {
+      const width = Math.max(rect.width, QUIET_LIST_MIN_WIDTH);
+      const left = Math.min(
+        Math.max(rect.right - width, LIST_MARGIN),
+        globalThis.innerWidth - width - LIST_MARGIN,
+      );
+      setListPos({
+        top: Math.round(rect.bottom + 4),
+        left: Math.round(left),
+        width: Math.round(width),
+      });
+      return;
+    }
     setListPos({
       top: Math.round(rect.bottom),
       left: Math.round(rect.left),
@@ -188,10 +208,12 @@ export function Dropdown<T>(props: DropdownProps<T>) {
         class={`relative text-left ${
           props.size === "sm"
             ? "bg-accent text-accent-text hover:bg-accent-hover pr-0 pl-4 py-2 rounded-full min-w-48 hover:cursor-pointer"
+            : props.size === "quiet"
+            ? "min-w-0 text-xs text-text-subtle hover:text-text-primary"
             : "w-full"
         } flex flex-row gap-2 items-center ${props.class ?? ""}`}
       >
-        <div class="flex flex-col grow">
+        <div class="flex min-w-0 flex-col grow">
           <Show when={props.label}>
             <div class="mb-1 text-xs text-text-secondary">{props.label}</div>
           </Show>
@@ -200,6 +222,8 @@ export function Dropdown<T>(props: DropdownProps<T>) {
             class={`${
               props.size === "sm"
                 ? "text-accent-text"
+                : props.size === "quiet"
+                ? "truncate"
                 : "font-bold text-text-primary"
             }`}
           >
@@ -210,19 +234,29 @@ export function Dropdown<T>(props: DropdownProps<T>) {
               : (props.placeholder ?? "Select…")}
           </span>
         </div>
+        <Show when={props.size === "quiet"}>
+          <ChevronIcon
+            class={`w-2 transition-transform duration-200 ${
+              open() ? "rotate-180" : ""
+            }`}
+          />
+        </Show>
         <button
           ref={btn}
           type="button"
           disabled={props.disabled}
           aria-haspopup="listbox"
           aria-expanded={open()}
-          class={`inline-flex items-center justify-center rounded-2xl px-4 py-2
+          aria-label={props.ariaLabel}
+          class={props.size === "quiet"
+            ? "absolute inset-0 rounded-md hover:cursor-pointer disabled:opacity-50"
+            : `inline-flex items-center justify-center rounded-2xl px-4 py-2
                text-accent-text disabled:opacity-50 hover:cursor-pointer outline-none
                transition-transform duration-150 ease-out select-none ${
-            props.size === "sm"
-              ? "bg-transparent h-6 w-10 hover:bg-transparent"
-              : "bg-accent h-10 w-16 hover:bg-accent-hover"
-          }`}
+              props.size === "sm"
+                ? "bg-transparent h-6 w-10 hover:bg-transparent"
+                : "bg-accent h-10 w-16 hover:bg-accent-hover"
+            }`}
           classList={{ "btn-press": pressed() }}
           onPointerDown={() => playPressAnimation()}
           onClick={() => !props.disabled && setOpen(!open())}
@@ -236,14 +270,18 @@ export function Dropdown<T>(props: DropdownProps<T>) {
             }
           }}
         >
-          <img
-            src={arrowDownIcon}
-            class={`opacity-90 ${
-              props.size === "sm" ? "w-4 h-4" : "w-5 h-5"
-            } transition-transform duration-200 ${open() ? "rotate-180" : ""}`}
-            alt="dropdown"
-            aria-hidden="true"
-          />
+          <Show when={props.size !== "quiet"}>
+            <img
+              src={arrowDownIcon}
+              class={`opacity-90 ${
+                props.size === "sm" ? "w-4 h-4" : "w-5 h-5"
+              } transition-transform duration-200 ${
+                open() ? "rotate-180" : ""
+              }`}
+              alt="dropdown"
+              aria-hidden="true"
+            />
+          </Show>
         </button>
       </div>
 
@@ -253,11 +291,13 @@ export function Dropdown<T>(props: DropdownProps<T>) {
             ref={listContainer}
             onKeyDown={(e) => {
               if (e.key === "Escape") {
+                // Solid delegates keydown to document, so the page underneath sees this Escape too
+                e.preventDefault();
                 setOpen(false);
                 btn?.focus();
               }
             }}
-            class={`fixed z-50 rounded-xl bg-bg-surface shadow-lg ring-1 ring-black/10 outline-none
+            class={`fixed z-130 rounded-xl bg-bg-surface shadow-lg ring-1 ring-black/10 outline-none
                      transition-all duration-200 ease-out origin-top
                      starting:opacity-0 starting:-translate-y-2 starting:pointer-events-none
                      ${

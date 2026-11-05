@@ -91,7 +91,7 @@ export function resolveChannelResync(input: {
   return input.channel === installed ? undefined : installed;
 }
 
-/** Why the Updates tab cannot run checks, if it cannot. `unknown` is the probe
+/** Why Settings cannot run update checks, if it cannot. `unknown` is the probe
  * still being in flight, so it yields nothing rather than a premature verdict. */
 export function resolveUpdateBlocker(input: {
   toolkitStatus: ToolkitStatus;
