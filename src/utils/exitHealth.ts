@@ -1,14 +1,5 @@
-import {
-  type Connection,
-  connectionDestination,
-  type Destination,
-  type Disconnecting,
-  type RouteHealthView,
-} from "@src/services/vpnService.ts";
+import type { Destination, RouteHealthView } from "@src/services/vpnService.ts";
 import { type ExitData, MIN_PATH_VALUE } from "@src/utils/destinations.ts";
-
-/** Visual health color for a destination; "default" renders as plain text. */
-export type HealthColor = "green" | "yellow" | "red" | "gray" | "default";
 
 /** The walk's verdict on this destination, with exit data tightening a route within the band. */
 type RouteVerdict =
@@ -35,26 +26,6 @@ function routeVerdict(
   if (isWeak && weakSurfaced) return "weak";
   if (exit !== null && exit.slots.available <= 0) return "full";
   return "ready";
-}
-
-/** Green is connectable, red is a dead end, yellow needs a look; the rest is routine. */
-export function getExitHealthColor(
-  rhv: RouteHealthView,
-  exit: ExitData | null,
-  weakSurfaced = true,
-): HealthColor {
-  switch (routeVerdict(rhv, exit, weakSurfaced)) {
-    case "ready":
-      return "green";
-    case "full":
-    case "unrecoverable":
-      return "red";
-    case "weak":
-      return "yellow";
-    case "checking":
-    case "no-route":
-      return "default";
-  }
 }
 
 /** Single status label for the route health state. */
@@ -204,44 +175,14 @@ export function getHopCount(hops: number): number {
   return hops;
 }
 
-/** Format hops as e.g. "1-hop" */
+/** Format hops as e.g. "1 hop" */
 export function formatRouting(hops: number): string {
   const n = getHopCount(hops);
-  return n === 1 ? "1-hop" : `${n}-hops`;
+  return n === 1 ? "1 hop" : `${n} hops`;
 }
 
 /** Largest hop count across all available destinations, minimum 1. */
 export function getMaxHopCount(destinations: Destination[]): number {
   if (destinations.length === 0) return 1;
   return Math.max(1, ...destinations.map((d) => getHopCount(d.hops)));
-}
-
-export type ConnectionState =
-  | "Connected"
-  | "Connecting"
-  | "Reconnecting"
-  | "Disconnecting"
-  | "None";
-
-/** User-facing connection status for the detail panel's Status stat. */
-export function formatConnectionStatus(state: ConnectionState): string {
-  if (state === "Connected") return "Connected";
-  if (state === "Connecting" || state === "Reconnecting") return "Connecting";
-  // Treat disconnecting as already disconnected to match ExitHealthDetail.
-  return "Disconnected";
-}
-
-export function getConnectionState(
-  destId: string,
-  connection: Connection,
-  disconnecting: Disconnecting[],
-): ConnectionState {
-  const isLiveHere = connectionDestination(connection) === destId;
-  if (isLiveHere && connection.type === "connected") return "Connected";
-  if (isLiveHere && connection.type === "connecting") return "Connecting";
-  if (isLiveHere && connection.type === "reconnecting") return "Reconnecting";
-  if (disconnecting.some((d) => d.destination === destId)) {
-    return "Disconnecting";
-  }
-  return "None";
 }

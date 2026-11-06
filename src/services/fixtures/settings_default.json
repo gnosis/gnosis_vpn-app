@@ -13,5 +13,6 @@
   "dismissedUpdateVersion": null,
   "installedVersion": null,
   "showDetailedMetrics": false,
-  "flagDisplay": "color"
+  "flagDisplay": "color",
+  "showExitCost": true
 }

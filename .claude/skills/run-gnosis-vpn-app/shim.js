@@ -25,6 +25,7 @@
     installedVersion: null,
     showDetailedMetrics: false,
     flagDisplay: "color",
+    showExitCost: true,
     ...(fixture.settings ?? {}),
   };
 

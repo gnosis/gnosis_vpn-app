@@ -1,9 +1,10 @@
 # destinationMode — model specification
 
 Authoritative rules for `src/stores/destinationMode.ts`. The store owns which
-destination the carousel shows, which card is "the one Connect will use", and
-when an unattended switch happens. It holds no DOM knowledge and performs no
-side effects: every input is one of six events, every output is store state.
+destination the main screen's card shows — the one Connect targets — and when an
+unattended switch happens: only while auto is on. It holds no DOM knowledge and
+performs no side effects: every input is one of seven events, every output is
+store state.
 
 When this document and the code disagree, the document is right and the code is
 a bug. When this document and reality disagree, change the document first, then
@@ -13,65 +14,48 @@ a test, then the code.
 
 | term          | meaning                                                                      |
 | ------------- | ---------------------------------------------------------------------------- |
-| **entry**     | a card in the carousel, keyed by destination id                              |
-| **sequence**  | the entries' left-to-right order; oldest first, unique                       |
-| **active**    | the entry the UI centres and the one Connect targets                         |
-| **candidate** | a destination auto intends to switch to, mid-countdown                       |
+| **active**    | the destination the card shows and the one Connect targets                   |
+| **candidate** | the destination auto will switch to when its countdown ends                  |
+| **selection** | the user's own pick; it holds until they pick again or choose Auto           |
 | **live**      | the backend reports a connection: connected, connecting, or reconnecting     |
 | **exit data** | slots, load and latency measured on the exit itself, by probe or quick probe |
 
 ## State
 
 ```ts
-interface Entry {
-  key: number; // render identity; monotonic, never reused
-  wasActive: boolean; // set once when the entry becomes active, never unset
-}
-
 interface AutoPending {
   candidateId: string;
   countdownEndsAt: number; // armedAt + SWITCH_COUNTDOWN_MS
-  settleAt: number; // countdownEndsAt + SWITCH_CROSSOVER_MS
 }
 
 type Mode =
   | { mode: "auto"; pending: AutoPending | null }
-  | { mode: "selected"; autoRevertAt: number | null } // null while suspended
-  | { mode: "live" };
+  | { mode: "selected" } // never expires
+  | { mode: "live"; auto: boolean }; // auto was on for this tunnel
 
 interface DestinationMode {
-  entries: Record<string, Entry>;
-  sequence: string[];
   active: string | null;
   mode: Mode;
-  nextKey: number;
   listOpen: boolean;
-  dragging: boolean;
+  confirming: boolean; // Connect waits on the exit cost view
   preferredLocation: string | null; // one shot, spent when it becomes active
   lastConnectedDestination: string | null; // dropped at the first cold start
-  connectOnStartup: boolean; // a connect is coming as soon as anything is ready
 }
 ```
 
-`listOpen` and `dragging` live in the store rather than in a component: both
+`listOpen` and `confirming` live in the store rather than in a component: they
 gate whether auto may act, and a gate the store cannot see is a gate the tests
 cannot cover.
 
-`wasActive` is the sole justification for an entry outliving its usefulness —
-see [the sweep](#the-sweep).
-
 ## Timing
 
-| constant                  | value | owner                                     |
-| ------------------------- | ----- | ----------------------------------------- |
-| `SWITCH_COUNTDOWN_MS`     | 5000  | model — visible countdown before a switch |
-| `SWITCH_CROSSOVER_MS`     | 666   | model — countdown end to commit           |
-| `SWITCH_ANIMATE_MS`       | 1000  | view — total slide duration               |
-| `SELECTED_AUTO_REVERT_MS` | 10000 | model — a selection's lifetime            |
-| `STATUS_POLL_MS`          | ~2300 | service (`src-tauri/src/commands.rs`)     |
-| `STATUS_POLL_FAST_MS`     | 500   | service — cap while the list is open      |
-| `QUICK_PROBE_FRESH_MS`    | 10000 | probing — a result younger is not redone  |
-| `QUICK_PROBE_TIMEOUT_MS`  | 35000 | probing — daemon budget is 30 s           |
+| constant                 | value | owner                                         |
+| ------------------------ | ----- | --------------------------------------------- |
+| `SWITCH_COUNTDOWN_MS`    | 5000  | model — the card's visible countdown (a ring) |
+| `STATUS_POLL_MS`         | ~2300 | service (`src-tauri/src/commands.rs`)         |
+| `STATUS_POLL_FAST_MS`    | 500   | service — cap while the list is open          |
+| `QUICK_PROBE_FRESH_MS`   | 10000 | probing — a result younger is not redone      |
+| `QUICK_PROBE_TIMEOUT_MS` | 35000 | probing — daemon budget is 30 s               |
 
 **Deadlines are truth; timers are an optimisation.** Every deadline is an
 absolute timestamp re-checked on each `statusUpdate`. A timer that is throttled,
@@ -112,12 +96,12 @@ score(d)             = 0.5 * (1 - min(oneWayMs(d), 1000) / 1000)
 sortHead             = sortByRouteQuality(destinations)[0]   // may be unready
 effectiveCandidate   = isUnspentAndReady(preferred) ? preferred : sortHead
 
-effectiveActive(now) = pending && now >= pending.settleAt && !isStale(pending, now)
+effectiveActive(now) = pending && now >= pending.countdownEndsAt && !isStale(pending, now)
                          ? pending.candidateId
                          : active
-isStale(p, now)      = now - p.settleAt > STATUS_POLL_MS
+isStale(p, now)      = now - p.countdownEndsAt > STATUS_POLL_MS
 
-suspended            = listOpen || dragging
+suspended            = listOpen || confirming
 liveId               = connection.type === "disconnected" ? null : connection.destination
 ```
 
@@ -173,13 +157,13 @@ the promise is short-lived. The score weights latency half, free capacity a
 third, and relay diversity a fifth; a 1 s one-way latency or worse scores zero
 on latency, and four or more distinct first relays score full on diversity.
 
-**`routeGrade` is the score as shown, never as used.** Every card carries four
-signal bars. A measured ready exit fills them by band: `score >= 0.75` → 4,
-`>= 0.5` → 3, `>= 0.25` → 2, else 1, colored green, green, orange, red. An exit
-no check has ever measured shows four hollow bars until its quick probe answers;
-one being re-checked keeps the bars its last result earned. A weak route shows a
-single red bar beside its "Weak route" tag. Anything else shows no bars. The
-grade feeds neither the sort nor auto.
+**`routeGrade` is the score as shown, never as used.** Every exit, in the list
+and on the card, carries four signal bars. A measured ready exit fills them by
+band: `score >= 0.75` → 4, `>= 0.5` → 3, `>= 0.25` → 2, else 1, colored green,
+green, orange, red. An exit no check has ever measured shows four hollow bars
+until its quick probe answers; one being re-checked keeps the bars its last
+result earned. A weak route shows a single red bar beside its "Weak route" tag.
+Anything else shows no bars. The grade feeds neither the sort nor auto.
 
 **A weak route is surfaced only after a grace.** A good route dips below the
 band now and then, and at cold start every route is weak until its edges are
@@ -201,110 +185,55 @@ on each status response at now, per destination d in it:
 ```
 
 Until `surfaced`, a weak route displays as what it would be without the walk's
-verdict: the card drops its "Weak route" tag and gray, shows its score bars or
-the hollow unmeasured ones, and the detail panel says "Ready to connect" (or
-"Full"). An entry goes away only on an answer within the band, judged by the
-walk alone, or when the response no longer carries the destination; the next
-weak sighting then starts a fresh grace. A route that went weak, then worse (no
-route, unrecoverable, not walked), then weak again keeps its first `since`. An
-empty response drops every entry, so a cold start gets a grace for every route.
-Surfacing happens on a status response, never on a clock tick. `isReady`,
-`isSelectable`, the sort and auto read the raw walk, and the status log keeps
-the daemon's verdict.
+verdict: it drops its "Weak route" tag and gray, and shows its score bars or the
+hollow unmeasured ones. An entry goes away only on an answer within the band,
+judged by the walk alone, or when the response no longer carries the
+destination; the next weak sighting then starts a fresh grace. A route that went
+weak, then worse (no route, unrecoverable, not walked), then weak again keeps
+its first `since`. An empty response drops every entry, so a cold start gets a
+grace for every route. Surfacing happens on a status response, never on a clock
+tick. `isReady`, `isSelectable`, the sort and auto read the raw walk, and the
+status log keeps the daemon's verdict.
 
 **`effectiveActive` is the only reader.** Display and connect target are the
 same function, so the visible card and what Connect targets cannot disagree. The
-commit is defined by the clock crossing `settleAt`; the store write merely
-re-renders it. The `isStale` guard keeps a slept-through pending — one the next
-`statusUpdate` will discard — from being reported as active in the meantime.
-
-## The sweep
-
-> Every entry is either ever-active history, the current pending candidate, or —
-> while a drag is in progress — the candidate the drag interrupted. Nothing else
-> may exist. While `live`, only the active entry exists.
-
-Run at the end of every transition:
-
-```
-live:            drop each id !== active
-unless dragging: drop each id where !entries[id].wasActive && id !== pending?.candidateId
-sequence = sequence.filter(id => id in entries)
-```
-
-The live clause is not spared by dragging. A live tunnel proposes nothing and
-history is not offered next to it — the list is the way to another destination —
-and the backend's connection state is never frozen by a finger (step 2 outranks
-suspension), so the strip snaps to the live card under it and the drag settles
-on the only card left.
-
-This replaces per-path removal bookkeeping. A card minted for a candidate
-disappears when that candidate is abandoned, however it was abandoned; a card
-that was once active stays as history. No transition needs to remember which of
-the two it is dealing with.
-
-While dragging, the sweep spares everything but the live clause: the strip must
-not change under the user's finger. This is safe because nothing can mint a
-stray entry mid-drag — invariant 8 forbids arming, and every other path marks
-what it touches `wasActive` — so the only orphan that can exist is the candidate
-the drag interrupted. Whatever ends the drag runs the next sweep, which collects
-it unless the user settled on it. A never-active candidate was appended when
-minted and nothing appends behind it, so this orphan is always the last card;
-collecting it never shifts the others.
-
-## Taking the outgoing slot
-
-> Only auto lengthens the strip. Every other way of becoming active either lands
-> on a card that already exists or takes the outgoing `active`'s slot.
-
-```
-drop the outgoing entry, remove any other occurrence of id,
-put id where the outgoing sat, mint a fresh key, active = id (wasActive)
-```
-
-A fresh key so the card mounts rather than slides — a swap is not a move. With
-no `active` yet the rule degenerates to a plain mint, which is the only place it
-appends.
-
-Used by [`listClosed(picked)`](#listclosedpicked-id) only: a connection, ours or
-the backend's, does not swap cards but [collapses the strip](#the-sweep).
-`sequence` is therefore appended to only by auto's arm and retarget, by cold
-start, by this rule when there is no outgoing card to take, and by a live id
-that had no card — which the sweep then leaves alone on the strip.
+commit is defined by the clock crossing `countdownEndsAt`; the store write
+merely re-renders it. The `isStale` guard keeps a slept-through pending — one
+the next `statusUpdate` will discard — from being reported as active in the
+meantime.
 
 ## Invariants
 
 Asserted after every transition, and in every test:
 
-1. `sequence` has no duplicates
-2. `set(sequence) === set(keys(entries))`
-3. `active === null || active in entries`
-4. `pending !== null` ⇒ its candidate is in `entries` and is not `active`
-5. `mode === "selected"` ⇒ `active !== null`
-6. every entry satisfies `wasActive || id === pending?.candidateId || dragging`
-7. keys are unique and never reused; `nextKey` is strictly monotonic
-8. `pending !== null` ⇒ `!suspended`
-9. `pending !== null` ⇒ `active !== null`
-10. `mode === "live"` ⇒ `active !== null` and `sequence` equals `[active]`
+1. `pending !== null` ⇒ its candidate is not `active`
+2. `mode === "selected"` ⇒ `active !== null`
+3. `pending !== null` ⇒ `!suspended`
+4. `pending !== null` ⇒ `active !== null`
+5. `mode === "live"` ⇒ `active !== null`
 
-Invariant 9 is the one that pins cold start down. A countdown is a switch _away
-from_ something, so there is nothing to arm until an entry is active — cold
-start promotes first, and auto only ever arms afterwards. Invariant 4 does not
+Invariant 4 is the one that pins cold start down. A countdown is a switch _away
+from_ something, so there is nothing to arm until a destination is active — cold
+start promotes first, and auto only ever arms afterwards. Invariant 1 does not
 cover this: it compares the candidate against `active`, which passes vacuously
 when `active` is null.
+
+After every `statusUpdate`, additionally: a non-null `active` is offered or is
+the live destination, and a pending candidate is offered — see
+[the baseline](#statusupdate).
 
 ## Events
 
 The complete input surface. Nothing else reaches the model.
 
-| event                                             | source                                                     |
-| ------------------------------------------------- | ---------------------------------------------------------- |
-| `statusUpdate(status)`                            | one per backend status response                            |
-| `listOpened`                                      | the destination selector button                            |
-| `listClosed(canceled)` \| `listClosed(picked id)` | the exit-node list                                         |
-| `dragStarted`                                     | first pointer movement on the carousel                     |
-| `slideCommitted(id)`                              | the carousel settling on a card, or a tap on a peeking one |
-| `connectIssued(id)`                               | a connect command being sent                               |
+| event                                             | source                                  |
+| ------------------------------------------------- | --------------------------------------- |
+| `statusUpdate(status)`                            | one per backend status response         |
+| `listOpened`                                      | the card's exit row or "More locations" |
+| `listClosed(canceled)` \| `listClosed(picked id)` | the exit-node list                      |
+| `autoResumed(status)`                             | the list's Auto row                     |
+| `connectIssued(id, auto?)`                        | a connect command being sent            |
+| `confirmOpened` \| `confirmClosed`                | the exit cost view, before a connect    |
 
 Disconnect is **not** an event — it arrives as a `statusUpdate` with no
 connection.
@@ -321,78 +250,70 @@ either way.
 
 Applied in this order:
 
-**1. Baseline.** Prune `entries`, `sequence` and `active` to
-`availableDestinations`. No exemption for the live destination: the service
-always offers what we are connected to.
+**1. Baseline.** Prune `active` to `availableDestinations`, and disarm a pending
+whose candidate is no longer offered — its successor, if any, counts down afresh
+rather than inheriting the vanished one's deadline. No exemption for the live
+destination: the service always offers what we are connected to.
 
-**2. Live.** `liveId !== null` → `active = liveId` (`wasActive`), pending
-cleared, mode `live`, sweep — which leaves the strip at `[liveId]`. A `liveId`
-that already has a card keeps its key, so the card stays mounted while its
-neighbours unmount; one with no card — the prune removed it, or the connection
-was started outside the app — is minted fresh. Either way invariant 3 survives
-and invariant 10 holds. If `listOpen` and we were not already live, close the
-list — a connection we did not initiate should not leave the list covering it. A
-list opened over a live connection stays open, polls included: the user opened
-it deliberately, and picking from it issues a new connect (see
-`listClosed(picked)`).
+**2. Live.** `liveId !== null` → `active = liveId`, pending cleared, mode `live`
+— even when the prune removed it or the connection was started outside the app,
+so invariant 5 holds. Entering live records whether auto was on: `auto` →
+`live.auto = true`, `selected` → `false`; already live keeps it. If `listOpen`
+and we were not already live, close the list — a connection we did not initiate
+should not leave the list covering it. `confirming = false`: a tunnel is what
+the cost view was waiting for. A list opened over a live connection stays open,
+polls included: the user opened it deliberately, and picking from it issues a
+new connect (see `listClosed(picked)`).
 
-**3. Leaving live.** `mode === "live" && liveId === null` → `selected` on the
-destination we were connected to, with a fresh `SELECTED_AUTO_REVERT_MS`, then
-auto. Holding the card keeps auto from sliding you off it seconds after you
-disconnected. The strip is `[active]` at this point; only auto's own arm
-lengthens it again. Does not close the list.
+**3. Leaving live.** `mode === "live" && liveId === null` → back to what the
+tunnel came from, on the destination we were connected to: `auto` when
+`live.auto` (or nothing is active), else `selected`. A tunnel the user picked
+stays picked; one auto chose hands back to auto, which may then move on. Does
+not close the list.
 
 Steps 2 and 3 outrank suspension: the backend's own connection state is never
-frozen by an open list or a drag.
+frozen by an open list.
 
 **4. Suspended.** Write the baseline only; leave the mode alone. If the baseline
-nulled `active`, end the suspension (close the list, end the drag) and fall
+nulled `active`, end the suspension (close the list, end `confirming`) and fall
 through to cold start — a selection whose target no longer exists cannot be
 preserved.
 
-**5. selected.** `autoRevertAt !== null && now >= autoRevertAt` → auto.
-Otherwise hold, regardless of readiness: only the flat deadline or a vanished
-destination ends a selection.
+**5. selected.** Hold, regardless of readiness or of anything better: only the
+user (a pick, Auto) or a vanished destination ends a selection.
 
 **6. auto.** In order:
 
-- pending and `now >= settleAt` → stale by more than one poll interval? discard
-  the pending and re-derive. Otherwise commit: `active = candidateId`
-  (`wasActive`), pending null.
+- pending and `now >= countdownEndsAt` → stale by more than one poll interval?
+  discard the pending and re-derive. Otherwise commit: `active = candidateId`,
+  pending null.
 - `effectiveCandidate === null` → disarm.
 - `active === null` → [cold start](#cold-start).
 - `!isReady(effectiveCandidate)` → disarm. Steady-state arming requires an
   eligible candidate.
-- `effectiveCandidate === active` → disarm: clear the pending and let the sweep
-  drop its card unless it is history.
-- `pending === null` → arm: mint the entry if new, append to `sequence`, set
-  `countdownEndsAt = now + SWITCH_COUNTDOWN_MS` and
-  `settleAt = countdownEndsAt +
-  SWITCH_CROSSOVER_MS`.
-- candidate changed, `now < countdownEndsAt` → retarget the pending, **keeping
-  both deadlines**. A swap must not restart the countdown, or a flapping best
-  destination would never commit at all.
-- candidate changed, `now >= countdownEndsAt` → **freeze**. Inside the crossover
-  the view is already sliding toward a specific card; the in-flight switch wins
-  and the new candidate is considered on the next poll.
+- `effectiveCandidate === active` → disarm.
+- `pending === null` → arm: `countdownEndsAt = now + SWITCH_COUNTDOWN_MS`.
+- candidate changed → retarget the pending, **keeping its deadline**. A swap
+  must not restart the countdown, or a flapping best destination would never
+  commit at all.
 
-Arming appends the candidate to `sequence` only when its entry is new. A
-candidate that is already history keeps its slot, which means **a candidate is
-not necessarily the last card** — readers must not assume it is.
+The commit is checked first, so a retarget only ever lands before the deadline:
+a candidate that changes at the deadline commits the old one, and the new one
+gets a countdown of its own.
 
 ### Cold start
 
 `active === null`: at launch, or mid-session after a prune or a service restart.
 Any armed pending is discarded first — a countdown is a switch away from
 something, and there is nothing to switch away from. Then direct promotion, no
-countdown, entry minted with `wasActive: true`:
+countdown:
 
 1. `lastConnectedDestination` if it matches an offered destination — no
    readiness or capacity check, it is simply where the last session left off.
    Then drop the field unconditionally; it is consulted once per app launch and
    never again.
 2. otherwise `effectiveCandidate`, so an unspent ready preferred location lands
-   immediately with no startup animation, and a plain start lands on the best
+   immediately with no countdown, and a plain start lands on the best
    destination.
 
 Precedence: `lastConnected > preferred > sortHead`. Promotion is unconditional:
@@ -400,31 +321,22 @@ as long as the backend offers anything at all, a status update leaves `active`
 set. `active` is null only when there are no destinations, and then there is no
 candidate to arm either.
 
-**The promotion is a selection when the user made it.** `selected` with a fresh
-`SELECTED_AUTO_REVERT_MS` if the promoted id is `lastConnectedDestination`, or
-if `connectOnStartup` is armed; otherwise `auto`, as before. Where the last
-session left off is the user's choice, not auto's proposal, so auto may not
-slide you off it seconds after launch — the same reason
-[leaving live](#statusupdate) holds its card. And with a connect coming, holding
-keeps auto from arming toward the first destination to become ready in the very
-poll that the connect targets it, which would mint a card the connect then has
-to leave behind.
+**The promotion is a selection when the user made it.** `selected` if the
+promoted id is `lastConnectedDestination`, otherwise `auto`. Where the last
+session left off is the user's choice, not auto's proposal, so it holds like any
+selection until the user picks again or chooses Auto.
 
 A promotion onto `preferred` or the sort head stays in `auto`: the preferred
 location is an [input to the candidate](#the-preferred-location), never a
-selection of its own.
-
-The hold is the ordinary lease, so a backend that takes longer than
-`SELECTED_AUTO_REVERT_MS` to make anything ready hands back to auto before the
-startup connect fires. Accepted: after ten seconds of sitting there, an armed
-countdown is honest.
+selection of its own. A startup connect needs no hold of its own: if auto arms
+toward something in the meantime, the connect makes us live and clears it.
 
 ### The preferred location
 
 One shot, and only an input to which destination is the best candidate — never a
 transition of its own. While unspent and `isReady`, it _is_
-`effectiveCandidate`, and the ordinary arm/retarget/freeze rules then apply
-unchanged: no separate hijack, no fresh countdown.
+`effectiveCandidate`, and the ordinary arm/retarget rules then apply unchanged:
+no separate hijack, no fresh countdown.
 
 It is spent when it becomes `active`, by any path. If it stops being ready
 before that, the shot survives and it may become active later. A user choosing
@@ -434,93 +346,74 @@ created, so a change in Settings applies at the next launch or after a
 
 ## listOpened
 
-Stop both timers, drop the pending, sweep, `listOpen = true`. In `selected`, set
-`autoRevertAt = null`.
+Stop the switch timer, drop the pending, `listOpen = true`. A selection is left
+as it is.
 
-Dropping the pending honours the clock: past `settleAt` and not stale, the
-switch has already happened — `effectiveActive` reports the candidate — so it is
-committed (`active = candidateId`, `wasActive`), not discarded. Discarding would
-snap the reported active back to the outgoing card, and whether the switch
-happened would depend on whether the settle timer beat the click. Stale, it is
-discarded exactly as `statusUpdate` would. The sweep still collects the
-candidate's card here: the list covers the carousel, so nothing vanishes in
-view.
+Dropping the pending honours the clock: past `countdownEndsAt` and not stale,
+the switch has already happened — `effectiveActive` reports the candidate — so
+it is committed (`active = candidateId`), not discarded. Discarding would snap
+the reported active back to the outgoing destination, and whether the switch
+happened would depend on whether the switch timer beat the click. Stale, it is
+discarded exactly as `statusUpdate` would.
 
 The mode is otherwise untouched, and needs no saved copy: `auto`-with-pending
 becomes `auto`-without, which is still `auto`, so the mode is its own memory of
 what to resume.
 
+## confirmOpened / confirmClosed
+
+The exit cost view opening on Connect, and closing however it closes: Cancel,
+its own Connect, or the card moving away. While it shows, the location is
+chosen, so auto holds off exactly as for an open list: `confirmOpened` commits a
+due pending (the exit Connect resolved), drops any other, and sets
+`confirming = true`; `confirmClosed` clears it, and auto resumes on the next
+poll. `connectIssued` clears it too.
+
 ## listClosed(canceled)
 
-`listOpen = false`, resume the mode as it stands. A resumed `selected` gets a
-fresh `SELECTED_AUTO_REVERT_MS`.
+`listOpen = false`, resume the mode as it stands.
 
 ## listClosed(picked id)
 
-[Take the outgoing slot](#taking-the-outgoing-slot).
+`active = id`, whether or not anything was active before.
 
-```
-sequence [a, b, c], active b, pick c  ->  sequence [a, c], active c
-```
+Mode is `selected`. Disconnected, both a click on the row and the row's Connect
+button pick: the exit lands on the card, and Connect — after the exit cost view,
+when the user still wants it — goes there. With a tunnel up or on its way, the
+row's Switch closes the list with `listClosed(canceled)` instead, so the card
+keeps the tunnel until the switch is confirmed; the confirmed connect then
+carries `auto = false` (see `connectIssued`). Should a pick still arrive while
+live, it is the user's: `live.auto = false`. A pick whose tunnel is already up
+or going away only brings it back to the card. Picking the destination that is
+already active selects it, taking it from auto.
 
-The strip therefore shortens when the pick is already in it, and a pick with no
-`active` yet mints the entry and becomes active.
+## autoResumed(status)
 
-Mode is `selected` with a fresh deadline — **except when the pick also
-connects.** While connected, the list fires `connect` → `onClose`, so
-`connectIssued` has already collapsed the strip to `id` and entered `live` by
-the time this event arrives. `active` is then already `id`, so the sequence edit
-finds nothing to do and the mode write is skipped; the event is inert. Picking
-the destination that is already active is equivalent to cancelling, plus a fresh
-deadline.
+`listOpen = false`. A live tunnel is never switched: `live.auto = true`, so auto
+resumes once it ends. Connected, the Auto row fires it only when the tunnel is
+already on auto's pick; a switch to another exit goes through the cost view and
+a connect carrying `auto = true` instead. Otherwise `auto` with no pending, and
+`effectiveCandidate` over `status` — the last status `appStore.ts` saw — becomes
+`active` at once when it is ready. The user asked for auto's pick, so there is
+no countdown to it, and the card reads "Current Best Location" straight away.
+With nothing ready, `active` stays; auto arms on a later poll as usual.
 
-## dragStarted
+## connectIssued(id, auto?)
 
-`selected` with `autoRevertAt = null`, `dragging = true`; drop the pending —
-committing it first when it is past `settleAt`, exactly as in `listOpened` — and
-stop the timers. Touching the strip is a selection from its first movement, and
-the deadline does not run while the finger is down.
-
-`entries` and `sequence` are untouched: the interrupted candidate's card
-survives the drag ([the sweep](#the-sweep) spares it while `dragging`), so the
-strip never changes under the finger and the user may settle on the very card
-the countdown was pointing at. Settling elsewhere lets the drag-ending sweep
-collect it.
-
-## slideCommitted(id)
-
-`active = id` (`wasActive`), `dragging = false`, `selected` with a fresh
-deadline. An automatic commit is the different case: it stays in `auto`.
-
-A settle never connects, live or not. Connects come from the list
-(`listClosed(picked)`) and the Connect button only. While `live` the model holds
-a single card (invariant 10); the only other cards the view can still show are
-ones fading out after the collapse, and settling on one is inert — the strip
-snaps back to the live card once the ghost unmounts.
-
-An id absent from `entries` cannot normally arrive: a prune removes the card
-from `sequence`, the view re-renders, and the scroller can only settle on a
-survivor. The model guards anyway so a store-write race cannot violate invariant
-3 — end the drag, leave `active` untouched, resume with a fresh deadline.
-
-**The view must guarantee that every `dragStarted` is followed by a
-`slideCommitted`.** Otherwise the model holds a suspended `selected` forever.
-
-## connectIssued(id)
-
-`active = id` (`wasActive`), pending cleared, mode `live` optimistically — we
-are ahead of the service, and the next status response is expected to confirm.
-Because live is inert, nothing can arm a countdown during the attempt.
-
-The sweep leaves the strip at `[id]`. An `id` that already has a card keeps its
-key — the card the user pressed Connect on stays mounted — and one with no card
-is minted, which is how a connect that disagrees with the promotion —
-connect-on-startup landing on the first ready destination rather than the
-unready one we promoted — still ends as a single card.
+`active = id`, pending cleared, `confirming = false`, mode `live` optimistically
+— we are ahead of the service, and the next status response is expected to
+confirm. `live.auto` is `auto` when given: a switch confirmed while connected
+says whose pick it is — a listed exit's Switch `false`, the Auto row's `true` —
+since nothing about the old tunnel says so. Otherwise it is recorded as in
+[step 2](#statusupdate): from `auto` `true`, from `selected` `false`, from
+`live` kept. Because live is inert, nothing can arm a countdown during the
+attempt. A connect that disagrees with the promotion — connect-on-startup
+landing on the first ready destination rather than the unready one we promoted —
+simply moves `active`.
 
 A failed connect needs no special handling: the next status response reports no
-connection, and _leaving live_ parks us in `selected` on the destination we
-tried.
+connection, and _leaving live_ returns to what the attempt came from — the
+selection on the destination we tried, or auto.
 
 ## Probing
 
@@ -538,7 +431,7 @@ closed only when the app quits: the tray's quit handler disconnects, then issues
 runs the probe keeps the worker awake, which is accepted for now.
 
 **A re-check keeps what it refreshes.** The daemon carries the previous result
-in `quick_probe.Checking.last`, so re-measuring an exit never blanks its card;
+in `quick_probe.Checking.last`, so re-measuring an exit never blanks its data;
 the unchanged `checked_at` is what says how stale the value is. Only an exit
 nothing has measured yet has no exit data.
 
@@ -575,25 +468,21 @@ abandoned by the clock, never by a timer.
 
 ## Deliberate non-rules
 
+- **A selection never expires.** Only the user ends it (a pick, Auto) or its
+  exit disappearing; nothing better, however long it waits, moves it.
 - **Auto never switches away from an unready `active`.** It reacts to the
   candidate only, so if the active goes unready and nothing ready is better, we
   stay on it.
 - **No hysteresis on arming.** "Better" is bare inequality against the sort
-  head, so a head that flaps between two destinations mints and fades a
-  candidate card on each poll. The commit stays bounded because a retarget keeps
-  the original deadline. If this becomes the visible defect, the fix is a
-  debounce on arming — not a change to the sort.
+  head, so a head that flaps between two destinations retargets the pending on
+  each poll. The commit stays bounded because a retarget keeps the original
+  deadline. If this becomes the visible defect, the fix is a debounce on arming
+  — not a change to the sort.
 - **Auto never proposes an ineligible destination.** A weak route is offered in
   the list, grayed out, tagged and clickable, for the user to pick deliberately;
   it is never a candidate.
-- **Live is inert, and shows nothing but itself.** It never proposes a better
-  destination; a live tunnel is never torn down automatically, and no other card
-  sits next to it — the list is the only way to another destination.
-- **Only auto lengthens the strip.** A card next to the active one means auto
-  proposed or committed a switch, so nothing else may append one — see
-  [taking the outgoing slot](#taking-the-outgoing-slot). A user's pick replaces;
-  a connection, whether we issued it or the backend reports it, collapses the
-  strip to itself.
+- **Live is inert.** It never proposes a better destination, and a live tunnel
+  is never torn down automatically — the list is the only way to another
+  destination.
 - **The model owns no animation.** It publishes state and deadlines; the view
-  decides how to move. In particular the view may not assume a pending candidate
-  is the last card.
+  decides how to show them — the card's ring reads `countdownEndsAt`.

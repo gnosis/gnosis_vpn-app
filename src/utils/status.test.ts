@@ -101,16 +101,12 @@ const BASE_APP_STATE: AppState = {
   packageVersion: null,
   toolkit: { status: "unknown", version: null, packageVersion: null },
   mode: {
-    entries: {},
-    sequence: [],
     active: null,
     mode: { mode: "auto", pending: null },
     listOpen: false,
-    dragging: false,
-    nextKey: 0,
+    confirming: false,
     preferredLocation: null,
     lastConnectedDestination: null,
-    connectOnStartup: false,
   },
 };
 
@@ -412,7 +408,7 @@ describe("waitingForRouteMessage", () => {
       routeHealth({ type: "not_routable" }),
     );
     expect(waitingForRouteMessage(state, "dest-1")).toBe(
-      "Waiting for route to dest-1 - Brazil",
+      "Waiting for route to Brazil",
     );
   });
 
@@ -424,14 +420,14 @@ describe("waitingForRouteMessage", () => {
       }),
     );
     expect(waitingForRouteMessage(state, "dest-1")).toBe(
-      "Route to dest-1 - Brazil: Incompatible server version",
+      "Route to Brazil: Incompatible server version",
     );
   });
 
   it("waits when there is no route health at all", () => {
     expect(waitingForRouteMessage(appStateWithRouteHealth(null), "dest-1"))
       .toBe(
-        "Waiting for route to dest-1 - Brazil",
+        "Waiting for route to Brazil",
       );
   });
 
@@ -484,7 +480,7 @@ describe("connectButtonLook", () => {
   it("offers Connect while disconnected", () => {
     expect(connectButtonLook("Disconnected", null, false)).toEqual({
       label: "Connect",
-      variant: "primary",
+      variant: "connect",
     });
   });
 

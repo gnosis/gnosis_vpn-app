@@ -7,8 +7,8 @@ import {
 } from "solid-js";
 
 export interface ButtonProps {
-  variant?: "primary" | "secondary" | "outline" | "stop";
-  size?: "sm" | "md" | "lg";
+  variant?: "primary" | "secondary" | "outline" | "connect" | "stop";
+  size?: "sm" | "md" | "lg" | "xl";
   fullWidth?: boolean;
   disabled?: boolean;
   class?: string;
@@ -27,6 +27,8 @@ const variantClasses: Record<NonNullable<ButtonProps["variant"]>, string> = {
     "border border-transparent bg-btn-secondary-bg text-btn-secondary-text focus:outline-none enabled:hover:bg-btn-secondary-hover",
   outline:
     "border border-border bg-transparent text-text-primary focus:outline-none enabled:hover:bg-darken",
+  connect:
+    "border border-transparent bg-btn-connect-bg text-btn-connect-text focus:outline-none enabled:hover:bg-btn-connect-hover",
   stop:
     "border border-transparent bg-btn-stop-bg text-btn-stop-text focus:outline-none enabled:hover:bg-btn-stop-hover",
 };
@@ -35,6 +37,7 @@ const sizeClasses: Record<NonNullable<ButtonProps["size"]>, string> = {
   sm: "h-8 px-3 text-sm rounded-md",
   md: "h-10 px-4 text-sm rounded-lg",
   lg: "h-14 px-6 text-base rounded-2xl",
+  xl: "h-12 px-6 text-[15px] rounded-[10px]",
 };
 
 export default function Button(allProps: ButtonProps): JSX.Element {
