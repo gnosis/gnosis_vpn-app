@@ -154,17 +154,15 @@ export default function ExitCost(
             stroke-linejoin="round"
           />
           {/* The balance as it stands, centred on the battery: the exit's share is not spent yet */}
-          <Show when={credit()}>
-            {(c) => (
-              <text
-                x={X0 + W / 2}
-                y="70"
-                text-anchor="middle"
-                fill="var(--color-text-subtle)"
-              >
-                {`${formatCreditCompact(c())} left`}
-              </text>
-            )}
+          <Show when={credit() !== null}>
+            <text
+              x={X0 + W / 2}
+              y="70"
+              text-anchor="middle"
+              fill="var(--color-text-subtle)"
+            >
+              {`${formatCreditCompact(credit()!)} left`}
+            </text>
           </Show>
         </svg>
         {/* The exit's flag where the mock draws its icon: left 288, top 24, 38×28 of the 330×74 stage */}

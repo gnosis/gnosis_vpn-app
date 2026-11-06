@@ -98,7 +98,9 @@ export function tween(
   return from + (to - from) * easeInOut(p);
 }
 
-/** `text` cut to `max` characters, the last an ellipsis when cut. */
+/** `text` cut to `max` characters, the last an ellipsis when cut; counts code points so no surrogate pair splits. */
 export function clampLabel(text: string, max: number): string {
-  return text.length <= max ? text : `${text.slice(0, max - 1).trimEnd()}…`;
+  const chars = Array.from(text);
+  if (chars.length <= max) return text;
+  return `${chars.slice(0, max - 1).join("").trimEnd()}…`;
 }

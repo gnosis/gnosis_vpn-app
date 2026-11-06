@@ -112,4 +112,9 @@ describe("clampLabel", () => {
   it("drops a space left before the ellipsis", () => {
     expect(clampLabel("Costa Rica", 7)).toBe("Costa…");
   });
+
+  it("counts an emoji as one character and never splits it", () => {
+    expect(clampLabel("Amsterdam😀 exit", 11)).toBe("Amsterdam😀…");
+    expect(clampLabel("Amsterdam😀", 10)).toBe("Amsterdam😀");
+  });
 });
