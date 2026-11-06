@@ -46,8 +46,10 @@ export type Mode = AutoMode | SelectedMode | LiveMode;
 export interface DestinationMode {
   active: string | null;
   mode: Mode;
-  // Suspends auto; in the store rather than the view so tests can reach it.
+  // Both suspend auto; in the store rather than the view so tests can reach them.
   listOpen: boolean;
+  // Connect waits on the exit's cost: the location is chosen, so auto holds off.
+  confirming: boolean;
   // From DestinationModeSettings, fixed at creation, then consumed during status updates
   preferredLocation: string | null;
   lastConnectedDestination: string | null;
@@ -68,11 +70,15 @@ export interface DestinationModeSettings {
 
 export type UserInputEvent =
   | { type: "listOpened" }
+  // the exit cost view opening on Connect, and closing however it closes
+  | { type: "confirmOpened" }
+  | { type: "confirmClosed" }
   // picked === null is a cancel; an id is the destination chosen from the list
   | { type: "listClosed"; picked: string | null }
   // the list's Auto row: drop the manual pick; the last status lets auto's pick land at once
   | { type: "autoResumed"; status: ModeAppState | null }
-  | { type: "connectIssued"; id: string };
+  // `auto` says whose pick a switch is; without it the mode it comes from decides
+  | { type: "connectIssued"; id: string; auto?: boolean };
 
 export interface DestinationModeHandle {
   model: SolidStore<DestinationMode>;
@@ -89,6 +95,7 @@ function initialModel(settings: DestinationModeSettings): DestinationMode {
     active: null,
     mode: { mode: "auto", pending: null },
     listOpen: false,
+    confirming: false,
     preferredLocation: settings.preferredLocation,
     lastConnectedDestination: settings.lastConnectedDestination,
   };
@@ -257,6 +264,7 @@ export function createDestinationMode(
       draft.mode = liveFrom(draft.mode);
       // only a connection that surprises us closes the list; one opened over live stays
       if (enteringLive) draft.listOpen = false;
+      draft.confirming = false;
       commit(draft);
       return;
     }
@@ -280,13 +288,14 @@ export function createDestinationMode(
       draft.mode = AUTO_IDLE;
     }
 
-    if (draft.listOpen) {
+    if (draft.listOpen || draft.confirming) {
       if (draft.active !== null) {
         commit(draft);
         return;
       }
       // nothing left to suspend over
       draft.listOpen = false;
+      draft.confirming = false;
     }
 
     // only auto switches; a selection holds
@@ -306,6 +315,14 @@ export function createDestinationMode(
         draft.listOpen = true;
         commitDuePending(draft);
         if (draft.mode.mode === "auto") draft.mode = AUTO_IDLE;
+        break;
+      case "confirmOpened":
+        draft.confirming = true;
+        commitDuePending(draft);
+        if (draft.mode.mode === "auto") draft.mode = AUTO_IDLE;
+        break;
+      case "confirmClosed":
+        draft.confirming = false;
         break;
       case "listClosed":
         draft.listOpen = false;
@@ -339,7 +356,10 @@ export function createDestinationMode(
       }
       case "connectIssued":
         // we are ahead of the service; the next status response is expected to confirm
-        draft.mode = liveFrom(draft.mode);
+        draft.confirming = false;
+        draft.mode = event.auto === undefined
+          ? liveFrom(draft.mode)
+          : { mode: "live", auto: event.auto };
         makeActive(draft, event.id);
         break;
     }

@@ -29,6 +29,8 @@ pub struct Settings {
     pub installed_version: Option<String>,
     pub show_detailed_metrics: bool,
     pub flag_display: FlagDisplay,
+    /// Whether Connect first shows the data an exit sets aside.
+    pub show_exit_cost: bool,
 }
 
 impl Default for Settings {
@@ -49,6 +51,7 @@ impl Default for Settings {
             installed_version: None,
             show_detailed_metrics: false,
             flag_display: FlagDisplay::default(),
+            show_exit_cost: true,
         }
     }
 }
@@ -124,6 +127,8 @@ pub struct SettingsPatch {
     pub show_detailed_metrics: Option<bool>,
     #[serde(default)]
     pub flag_display: Option<FlagDisplay>,
+    #[serde(default)]
+    pub show_exit_cost: Option<bool>,
 }
 
 impl SettingsPatch {
@@ -174,6 +179,9 @@ impl SettingsPatch {
         }
         if self.flag_display.is_some() {
             keys.push("flag_display");
+        }
+        if self.show_exit_cost.is_some() {
+            keys.push("show_exit_cost");
         }
         keys
     }
@@ -233,6 +241,9 @@ impl Settings {
         }
         if let Some(v) = patch.flag_display {
             self.flag_display = v;
+        }
+        if let Some(v) = patch.show_exit_cost {
+            self.show_exit_cost = v;
         }
     }
 }
@@ -501,6 +512,19 @@ mod tests {
         let reloaded = SettingsStore::load(path).current();
         assert_eq!(reloaded.recent_destinations, vec!["exit-2", "exit-1"]);
         assert_eq!(reloaded.exit_node_sort_order, SortOrder::Recent);
+    }
+
+    #[test]
+    fn show_exit_cost_defaults_on_and_persists_off() {
+        let path = temp_settings_path();
+        let store = SettingsStore::load(path.clone());
+        assert!(store.current().show_exit_cost);
+
+        store
+            .update(patch(json!({ "showExitCost": false })))
+            .expect("update should succeed");
+
+        assert!(!SettingsStore::load(path).current().show_exit_cost);
     }
 
     #[test]

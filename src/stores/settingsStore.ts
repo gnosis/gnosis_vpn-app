@@ -95,6 +95,8 @@ export const SettingsSchema = z.object({
   // (chevron toggle) is expanded at all, not just its extra stat rows.
   showDetailedMetrics: z.boolean(),
   flagDisplay: FlagDisplaySchema,
+  // Connect first shows the data an exit sets aside
+  showExitCost: z.boolean(),
 });
 export type SettingsState = z.infer<typeof SettingsSchema>;
 
@@ -115,6 +117,7 @@ const DEFAULT_SETTINGS: SettingsState = {
   installedVersion: null,
   showDetailedMetrics: false,
   flagDisplay: "color",
+  showExitCost: true,
 };
 
 type SettingsActions = {
@@ -143,6 +146,7 @@ type SettingsActions = {
   setDismissedUpdateVersion: (version: string | null) => Promise<void>;
   setShowDetailedMetrics: (show: boolean) => Promise<void>;
   setFlagDisplay: (display: FlagDisplay) => Promise<void>;
+  setShowExitCost: (show: boolean) => Promise<void>;
 };
 
 type SettingsStoreTuple = readonly [
@@ -242,6 +246,7 @@ export function createSettingsStore(): SettingsStoreTuple {
       patch({ dismissedUpdateVersion: version }),
     setShowDetailedMetrics: (show) => patch({ showDetailedMetrics: show }),
     setFlagDisplay: (display) => patch({ flagDisplay: display }),
+    setShowExitCost: (show) => patch({ showExitCost: show }),
   } as const;
 
   const dispose = () => {

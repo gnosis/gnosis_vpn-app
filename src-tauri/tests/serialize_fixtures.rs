@@ -991,5 +991,6 @@ fn full_settings() -> Settings {
         installed_version: Some("0.28.5".to_string()),
         show_detailed_metrics: true,
         flag_display: FlagDisplay::Mono,
+        show_exit_cost: false,
     }
 }

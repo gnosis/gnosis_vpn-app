@@ -104,6 +104,7 @@ const BASE_APP_STATE: AppState = {
     active: null,
     mode: { mode: "auto", pending: null },
     listOpen: false,
+    confirming: false,
     preferredLocation: null,
     lastConnectedDestination: null,
   },

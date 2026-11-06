@@ -117,6 +117,7 @@ function expectInvariants(model: DestinationMode): void {
   }
   if (pending !== null) {
     expect(model.listOpen, "3: no pending while suspended").toBe(false);
+    expect(model.confirming, "3: no pending while suspended").toBe(false);
     expect(active, "4: nothing to switch away from without an active one")
       .not.toBeNull();
   }
@@ -917,6 +918,74 @@ describe("listOpened", () => {
   });
 });
 
+describe("confirmOpened and confirmClosed — the exit cost view", () => {
+  it("drops an armed pending and holds auto while the cost shows", () => {
+    const handle = setup();
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
+    step(handle, statusFor(UK_USA));
+
+    input(handle, { type: "confirmOpened" });
+
+    expect(handle.model.confirming).toBe(true);
+    expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
+    for (let poll = 0; poll < 5; poll++) {
+      vi.advanceTimersByTime(SWITCH_COUNTDOWN_MS);
+      step(handle, statusFor(UK_USA));
+    }
+    expect(handle.model.active).toBe("uk");
+    expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
+  });
+
+  it("commits a due pending first, the exit Connect already resolved", () => {
+    const handle = setup();
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
+    step(handle, statusFor(UK_USA));
+    vi.setSystemTime(Date.now() + SWITCH_COUNTDOWN_MS);
+
+    input(handle, { type: "confirmOpened" });
+
+    expect(handle.model.active).toBe("usa");
+    expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
+  });
+
+  it("lets auto choose again once it closes", () => {
+    const handle = setup();
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
+    input(handle, { type: "confirmOpened" });
+    step(handle, statusFor(UK_USA));
+
+    input(handle, { type: "confirmClosed" });
+    step(handle, statusFor(UK_USA));
+
+    expect(handle.model.confirming).toBe(false);
+    expect(handle.model.mode).toMatchObject({
+      pending: { candidateId: "usa" },
+    });
+  });
+
+  it("ends with the connect it was waiting for", () => {
+    const handle = setup();
+    step(handle, statusFor(UK_USA));
+    input(handle, { type: "confirmOpened" });
+
+    input(handle, { type: "connectIssued", id: "usa" });
+
+    expect(handle.model.confirming).toBe(false);
+    expect(handle.model.mode).toEqual({ mode: "live", auto: true });
+  });
+
+  it("ends when its destination disappears", () => {
+    const handle = setup();
+    step(handle, statusFor(UK_USA));
+    input(handle, { type: "confirmOpened" });
+
+    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
+
+    expect(handle.model.confirming).toBe(false);
+    expect(handle.model.active).toBe("uk");
+  });
+});
+
 describe("listClosed — cancelled", () => {
   it("resumes auto from a clean slate", () => {
     const handle = setup();
@@ -1110,6 +1179,32 @@ describe("a due pending is committed, not discarded", () => {
     input(handle, { type: "listOpened" });
 
     expect(handle.model.active).toBe("uk");
+    expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
+  });
+});
+
+describe("connectIssued — a switch says whose pick it is", () => {
+  it("marks a confirmed switch to a listed exit as the user's", () => {
+    const handle = setup();
+    step(handle, connectedTo("usa", UK_USA));
+    expect(handle.model.mode).toEqual({ mode: "live", auto: true });
+
+    input(handle, { type: "connectIssued", id: "uk", auto: false });
+
+    expect(handle.model.active).toBe("uk");
+    expect(handle.model.mode).toEqual({ mode: "live", auto: false });
+  });
+
+  it("marks a confirmed switch to auto's pick as auto's", () => {
+    const handle = setup();
+    step(handle, statusFor(UK_USA));
+    pick(handle, "uk");
+    step(handle, connectedTo("uk", UK_USA));
+
+    input(handle, { type: "connectIssued", id: "usa", auto: true });
+
+    expect(handle.model.mode).toEqual({ mode: "live", auto: true });
+    step(handle, statusFor(UK_USA));
     expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
   });
 });
@@ -1347,6 +1442,10 @@ describe("invariants hold under randomized traffic", () => {
             type: "connectIssued",
             id: IDS[Math.floor(random() * IDS.length)],
           });
+        } else if (action < 0.35) {
+          input(handle, { type: "confirmOpened" });
+        } else if (action < 0.4) {
+          input(handle, { type: "confirmClosed" });
         }
 
         if (

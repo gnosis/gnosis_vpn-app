@@ -121,11 +121,14 @@ export interface AppState {
 type AppActions = {
   initializeApp: () => Promise<void>;
   setScreen: (screen: AppScreen) => void;
-  connect: (targetId: string) => Promise<void>;
+  // `auto`: whose pick the tunnel is, for a switch confirmed while connected
+  connect: (targetId: string, auto?: boolean) => Promise<void>;
   disconnect: () => Promise<void>;
   destinationListOpened: () => void;
   destinationListClosed: (picked: string | null) => void;
   autoResumed: () => void;
+  exitCostOpened: () => void;
+  exitCostClosed: () => void;
   refreshToolkit: () => Promise<void>;
 };
 
@@ -171,6 +174,7 @@ function initialState(): AppState {
       active: null,
       mode: { mode: "auto", pending: null },
       listOpen: false,
+      confirming: false,
       preferredLocation: null,
       lastConnectedDestination: null,
     },
@@ -771,7 +775,7 @@ export function createAppStore(): AppStoreTuple {
 
     setScreen: (screen: AppScreen) => setState("currentScreen", screen),
 
-    connect: async (targetId: string) => {
+    connect: async (targetId: string, auto?: boolean) => {
       setState("isLoading", true);
       // only for the log line — connecting to an unknown destination is a service-wide no-op
       const selected = state.availableDestinations.find(
@@ -783,7 +787,11 @@ export function createAppStore(): AppStoreTuple {
         log(`Connecting to ${name} - ${short}`);
       }
 
-      destinationMode?.applyUserInput({ type: "connectIssued", id: targetId });
+      destinationMode?.applyUserInput({
+        type: "connectIssued",
+        id: targetId,
+        auto,
+      });
       try {
         await VPNService.connect(targetId);
       } catch (error) {
@@ -836,6 +844,11 @@ export function createAppStore(): AppStoreTuple {
       VPNService.setStatusPollFast(false).catch((error) => logWarn(`${error}`));
       quickProbes = IDLE_SCHEDULE;
     },
+    // The cost view holds auto off the card it shows, like the list does.
+    exitCostOpened: () =>
+      destinationMode?.applyUserInput({ type: "confirmOpened" }),
+    exitCostClosed: () =>
+      destinationMode?.applyUserInput({ type: "confirmClosed" }),
     refreshToolkit,
   } as const;
 

@@ -30,16 +30,8 @@ import {
   settingsRequest,
 } from "@src/utils/settingsPage.ts";
 import AddFundsModal from "@src/components/AddFundsModal.tsx";
-import FeatureComing from "@src/components/settings/FeatureComing.tsx";
 import Notice from "@src/components/settings/Notice.tsx";
-import {
-  SettingsCard,
-  SettingsHeading,
-} from "@src/components/settings/SettingsGroup.tsx";
-import SettingsRow, {
-  ROW_BUTTON,
-} from "@src/components/settings/SettingsRow.tsx";
-import SettingSwitch from "@src/components/settings/Switch.tsx";
+import { ROW_BUTTON } from "@src/components/settings/SettingsRow.tsx";
 
 function renewals(count: bigint): string {
   if (count === 0n) return "no renewals";
@@ -170,22 +162,6 @@ export default function UsageTab() {
           xdaiDeficit={deriveXdaiDeficit(appState.balance, runModeStatus())}
         />
       </Show>
-
-      <SettingsHeading>Renewing</SettingsHeading>
-      <SettingsCard label="Renewing">
-        <FeatureComing class="w-full">
-          <SettingsRow
-            title="Auto-renew and allocation"
-            description="Sets aside 600 MB by itself when you connect, switch exits, or an exit runs low. Off: you’re asked each time."
-          >
-            <SettingSwitch
-              label="Auto-renew and allocation"
-              checked={false}
-              disabled
-            />
-          </SettingsRow>
-        </FeatureComing>
-      </SettingsCard>
     </>
   );
 }

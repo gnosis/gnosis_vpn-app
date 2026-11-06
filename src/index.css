@@ -24,7 +24,7 @@
   cursor: default;
 }
 
-input,
+input:not([type="checkbox"], [type="radio"]),
 textarea,
 select {
   cursor: text;
@@ -378,6 +378,27 @@ textarea {
   @keyframes swap-in {
     from {
       transform: translateX(40px);
+      opacity: 0;
+    }
+  }
+
+  /* The exit's share sliding from the balance to the exit (Stage 2.1 quota view); --dx set per layout */
+  --animate-exit-cost: exit-cost-slide 2.2s ease-in-out infinite;
+
+  @keyframes exit-cost-slide {
+    0% {
+      transform: translateX(0);
+      opacity: 0;
+    }
+    15% {
+      opacity: 1;
+    }
+    75% {
+      transform: translateX(var(--dx));
+      opacity: 1;
+    }
+    100% {
+      transform: translateX(var(--dx));
       opacity: 0;
     }
   }

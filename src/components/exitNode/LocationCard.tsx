@@ -12,6 +12,7 @@ import {
 } from "@src/services/vpnService.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { cardPhase } from "@src/stores/destinationMode.ts";
+import { exitCost } from "@src/stores/exitCost.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import { MB_PER_EXIT } from "@src/utils/credit.ts";
 import {
@@ -35,6 +36,7 @@ import Tooltip from "../common/Tooltip.tsx";
 import ChevronIcon from "../icons/ChevronIcon.tsx";
 import ConfigPill, { CONFIG_ONLY_DESTINATION } from "./ConfigPill.tsx";
 import ConnectStage from "./ConnectStage.tsx";
+import ExitCost from "./ExitCost.tsx";
 import ExitDiagnostics from "./ExitDiagnostics.tsx";
 import { ShortId } from "./LocationRow.tsx";
 import SignalBars from "./SignalBars.tsx";
@@ -135,6 +137,13 @@ export default function LocationCard(props: {
     reconnecting() ? null : getLatencyMs(exit(), tunnelRtt());
 
   const openList = () => appActions.destinationListOpened();
+  const costShown = () => {
+    const request = exitCost();
+    if (request === null) return null;
+    return (request.switching ? liveHere() : request.id === id())
+      ? request
+      : null;
+  };
   const toggleDetails = () =>
     void settingsActions.setShowDetailedMetrics(!settings.showDetailedMetrics);
 
@@ -241,56 +250,75 @@ export default function LocationCard(props: {
           </Show>
         </div>
       </div>
-      <button
-        type="button"
-        class="flex w-full cursor-pointer items-center gap-4.5 border-t border-dashed border-line-dash px-3 py-2.25 text-left hover:bg-row-hover"
-        aria-expanded={settings.showDetailedMetrics}
-        aria-label={settings.showDetailedMetrics
-          ? "Hide details"
-          : "Show details"}
-        onClick={toggleDetails}
-      >
-        {/* Hover only: a focus stop would sit inside the row's button */}
-        <Tooltip content={<div class="font-bold">Feature coming</div>}>
-          <span class="flex flex-col gap-0.5">
-            <span class="text-xs text-text-subtle">
-              {appState.vpnStatus === "Disconnected"
-                ? "Sets aside"
-                : "Data left"}
-            </span>
-            <span class="font-figures text-[13px] leading-4 font-medium text-text-primary">
-              {`${MB_PER_EXIT} MB`}
-              <span class="sr-only">, feature coming</span>
-            </span>
-          </span>
-        </Tooltip>
-        <ChevronIcon
-          class={`ml-auto h-3 w-5.5 text-control-tint transition-transform duration-200 ${
-            settings.showDetailedMetrics ? "rotate-180" : ""
-          }`}
-        />
-      </button>
-      <Show when={attemptInFlight() || showDiagnostics()}>
-        <div class="border-t border-dashed border-line-dash transition-opacity duration-200 starting:opacity-0">
-          <Show
-            when={attemptInFlight()}
-            fallback={
-              <ExitDiagnostics
-                destinationState={props.destinationState}
-                latencyMs={latencyMs()}
-                showUsage={liveHere()}
+      {/* A connect waiting on this exit, or a switch away from its tunnel, shows the cost in place of the stats */}
+      <Show
+        when={costShown()}
+        fallback={
+          <>
+            <button
+              type="button"
+              class="flex w-full cursor-pointer items-center gap-4.5 border-t border-dashed border-line-dash px-3 py-2.25 text-left hover:bg-row-hover"
+              aria-expanded={settings.showDetailedMetrics}
+              aria-label={settings.showDetailedMetrics
+                ? "Hide details"
+                : "Show details"}
+              onClick={toggleDetails}
+            >
+              {/* Hover only: a focus stop would sit inside the row's button */}
+              <Tooltip content={<div class="font-bold">Feature coming</div>}>
+                <span class="flex flex-col gap-0.5">
+                  <span class="text-xs text-text-subtle">
+                    {appState.vpnStatus === "Disconnected"
+                      ? "Sets aside"
+                      : "Data left"}
+                  </span>
+                  <span class="font-figures text-[13px] leading-4 font-medium text-text-primary">
+                    {`${MB_PER_EXIT} MB`}
+                    <span class="sr-only">, feature coming</span>
+                  </span>
+                </span>
+              </Tooltip>
+              <ChevronIcon
+                class={`ml-auto h-3 w-5.5 text-control-tint transition-transform duration-200 ${
+                  settings.showDetailedMetrics ? "rotate-180" : ""
+                }`}
               />
-            }
-          >
-            <ConnectStage
-              phase={connectPhase()}
-              seed={connectSince()}
-              exitName={name()}
-              relays={relaysFound()}
-              caption={waitingCaption()}
-            />
+            </button>
+            <Show when={attemptInFlight() || showDiagnostics()}>
+              <div class="border-t border-dashed border-line-dash transition-opacity duration-200 starting:opacity-0">
+                <Show
+                  when={attemptInFlight()}
+                  fallback={
+                    <ExitDiagnostics
+                      destinationState={props.destinationState}
+                      latencyMs={latencyMs()}
+                      showUsage={liveHere()}
+                    />
+                  }
+                >
+                  <ConnectStage
+                    phase={connectPhase()}
+                    seed={connectSince()}
+                    exitName={name()}
+                    relays={relaysFound()}
+                    caption={waitingCaption()}
+                  />
+                </Show>
+              </div>
+            </Show>
+          </>
+        }
+      >
+        {(request) => (
+          <Show when={appState.destinations[request().id]}>
+            {(target) => (
+              <ExitCost
+                destination={target().destination}
+                switching={request().switching}
+              />
+            )}
           </Show>
-        </div>
+        )}
       </Show>
     </div>
   );

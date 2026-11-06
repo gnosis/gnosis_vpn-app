@@ -2,6 +2,7 @@ import { createMemo } from "solid-js";
 import Button from "./common/Button.tsx";
 import { useAppStore } from "../stores/appStore.ts";
 import { effectiveActive } from "../stores/destinationMode.ts";
+import { requestConnect } from "../stores/exitCost.ts";
 import {
   isSelectable,
   isVpnActive,
@@ -45,7 +46,7 @@ export default function ConnectButton() {
       } else {
         // Resolved fresh at click time: a memo recomputes on `mode`, not on the clock crossing the countdown.
         const id = effectiveActive(appState.mode, Date.now());
-        if (id) await appActions.connect(id);
+        if (id) requestConnect(id);
       }
     } catch (error) {
       // safety net — store actions handle their own errors

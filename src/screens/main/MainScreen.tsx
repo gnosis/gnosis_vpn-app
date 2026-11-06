@@ -8,6 +8,12 @@ import {
 import { Portal } from "solid-js/web";
 import { useAppStore } from "../../stores/appStore.ts";
 import { effectiveActive } from "../../stores/destinationMode.ts";
+import {
+  cancelExitCost,
+  exitCost,
+  exitCostFor,
+} from "../../stores/exitCost.ts";
+import { isVpnActive } from "../../utils/destinations.ts";
 import { useSettingsStore } from "../../stores/settingsStore.ts";
 import { StatusIndicator } from "../../components/status/StatusIndicator.tsx";
 import Navigation from "../../components/Navigation.tsx";
@@ -70,6 +76,18 @@ export function MainScreen() {
     const id = effectiveActive(appState.mode, Date.now());
     return id ? appState.destinations[id] : undefined;
   });
+
+  // A cost waits on what it was asked over: a connect on the card's exit, a switch on a live tunnel.
+  createEffect(() => {
+    const request = exitCost();
+    if (request === null) return;
+    const active = isVpnActive(appState.vpnStatus, appState.targetDestination);
+    const stale = request.switching
+      ? !active || !appState.destinations[request.id]
+      : active || shownDestination()?.destination.id !== request.id;
+    if (stale || appState.mode.listOpen) cancelExitCost();
+  });
+  onCleanup(cancelExitCost);
 
   return (
     <div class="flex w-full flex-col h-full py-6 px-4">
@@ -156,15 +174,17 @@ export function MainScreen() {
         </Show>
       </div>
 
-      <Show when={!inUseByOtherUser()}>
+      {/* The cost view carries its own Cancel and Connect */}
+      <Show when={!inUseByOtherUser() && exitCostFor() === null}>
         <div class="flex flex-none flex-col gap-2.5 pt-2.5">
           <button
             type="button"
             class="flex h-10.5 w-full cursor-pointer items-center justify-center gap-2.25 rounded-[9px] bg-bg-list text-[13px] font-bold shadow-[inset_0_0_0_1px_var(--color-control-ring)] hover:bg-control-bg"
             onClick={() => appActions.destinationListOpened()}
           >
-            More locations
-            <ListIcon class="h-3 w-4.75 text-control-tint" />
+            {/* Unica77 draws its glyphs high in the line box: 1px each way centres both on the button */}
+            <span class="translate-y-px">More locations</span>
+            <ListIcon class="h-3 w-4.75 -translate-y-px text-control-tint" />
           </button>
           <ConnectButton />
         </div>

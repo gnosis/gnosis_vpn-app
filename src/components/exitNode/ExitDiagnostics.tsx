@@ -30,19 +30,6 @@ function Explained(props: { tip: () => JSX.Element; children: JSX.Element }) {
 
 const say = (text: string): () => JSX.Element => () => <span>{text}</span>;
 
-/** The mock's circled "i"; its parent supplies the tooltip. */
-function InfoDot(props: { label: string }) {
-  return (
-    <span
-      class="flex size-3.75 cursor-help items-center justify-center rounded-full border border-status-idle text-[9.5px] font-bold text-text-subtle"
-      aria-label={props.label}
-      role="img"
-    >
-      i
-    </span>
-  );
-}
-
 function Row(
   props: { label: string; tip: () => JSX.Element; value: string | null },
 ) {
@@ -207,25 +194,23 @@ export default function ExitDiagnostics(props: {
         />
       </div>
       <Show when={props.showUsage}>
-        <div class="flex flex-col gap-2 border-t border-line pt-2.5">
-          <div class="flex items-center justify-between gap-2">
-            <span class="flex items-center gap-1.5 text-[13px] leading-5 text-text-soft">
-              Usage
-              <FeatureComing>
-                <InfoDot label="Usage per exit: feature coming" />
-              </FeatureComing>
-            </span>
-            <span class="text-[13px] leading-5 text-text-subtle">
-              <span class="font-figures text-[15px] leading-5 font-semibold text-text-primary">
-                {`${MB_PER_EXIT} MB`}
-              </span>{" "}
-              left
-            </span>
+        <FeatureComing class="w-full">
+          <div class="flex w-full flex-col gap-2 border-t border-line pt-2.5 opacity-50">
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-[13px] leading-5 text-text-soft">Usage</span>
+              <span class="text-[13px] leading-5 text-text-subtle">
+                <span class="font-figures text-[15px] leading-5 font-semibold text-text-primary">
+                  {`${MB_PER_EXIT} MB`}
+                </span>{" "}
+                left
+                <span class="sr-only">, feature coming</span>
+              </span>
+            </div>
+            <div class="h-2 overflow-hidden rounded bg-control-bg">
+              <div class="h-full w-full rounded bg-control-tint" />
+            </div>
           </div>
-          <div class="h-2 overflow-hidden rounded bg-control-bg">
-            <div class="h-full w-full rounded bg-control-tint" />
-          </div>
-        </div>
+        </FeatureComing>
       </Show>
     </div>
   );

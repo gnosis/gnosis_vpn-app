@@ -3,7 +3,7 @@
 Authoritative rules for `src/stores/destinationMode.ts`. The store owns which
 destination the main screen's card shows — the one Connect targets — and when an
 unattended switch happens: only while auto is on. It holds no DOM knowledge and
-performs no side effects: every input is one of five events, every output is
+performs no side effects: every input is one of seven events, every output is
 store state.
 
 When this document and the code disagree, the document is right and the code is
@@ -37,13 +37,15 @@ interface DestinationMode {
   active: string | null;
   mode: Mode;
   listOpen: boolean;
+  confirming: boolean; // Connect waits on the exit cost view
   preferredLocation: string | null; // one shot, spent when it becomes active
   lastConnectedDestination: string | null; // dropped at the first cold start
 }
 ```
 
-`listOpen` lives in the store rather than in a component: it gates whether auto
-may act, and a gate the store cannot see is a gate the tests cannot cover.
+`listOpen` and `confirming` live in the store rather than in a component: they
+gate whether auto may act, and a gate the store cannot see is a gate the tests
+cannot cover.
 
 ## Timing
 
@@ -99,7 +101,7 @@ effectiveActive(now) = pending && now >= pending.countdownEndsAt && !isStale(pen
                          : active
 isStale(p, now)      = now - p.countdownEndsAt > STATUS_POLL_MS
 
-suspended            = listOpen
+suspended            = listOpen || confirming
 liveId               = connection.type === "disconnected" ? null : connection.destination
 ```
 
@@ -230,7 +232,8 @@ The complete input surface. Nothing else reaches the model.
 | `listOpened`                                      | the card's exit row or "More locations" |
 | `listClosed(canceled)` \| `listClosed(picked id)` | the exit-node list                      |
 | `autoResumed(status)`                             | the list's Auto row                     |
-| `connectIssued(id)`                               | a connect command being sent            |
+| `connectIssued(id, auto?)`                        | a connect command being sent            |
+| `confirmOpened` \| `confirmClosed`                | the exit cost view, before a connect    |
 
 Disconnect is **not** an event — it arrives as a `statusUpdate` with no
 connection.
@@ -257,9 +260,10 @@ destination: the service always offers what we are connected to.
 so invariant 5 holds. Entering live records whether auto was on: `auto` →
 `live.auto = true`, `selected` → `false`; already live keeps it. If `listOpen`
 and we were not already live, close the list — a connection we did not initiate
-should not leave the list covering it. A list opened over a live connection
-stays open, polls included: the user opened it deliberately, and picking from it
-issues a new connect (see `listClosed(picked)`).
+should not leave the list covering it. `confirming = false`: a tunnel is what
+the cost view was waiting for. A list opened over a live connection stays open,
+polls included: the user opened it deliberately, and picking from it issues a
+new connect (see `listClosed(picked)`).
 
 **3. Leaving live.** `mode === "live" && liveId === null` → back to what the
 tunnel came from, on the destination we were connected to: `auto` when
@@ -271,8 +275,9 @@ Steps 2 and 3 outrank suspension: the backend's own connection state is never
 frozen by an open list.
 
 **4. Suspended.** Write the baseline only; leave the mode alone. If the baseline
-nulled `active`, end the suspension (close the list) and fall through to cold
-start — a selection whose target no longer exists cannot be preserved.
+nulled `active`, end the suspension (close the list, end `confirming`) and fall
+through to cold start — a selection whose target no longer exists cannot be
+preserved.
 
 **5. selected.** Hold, regardless of readiness or of anything better: only the
 user (a pick, Auto) or a vanished destination ends a selection.
@@ -355,6 +360,15 @@ The mode is otherwise untouched, and needs no saved copy: `auto`-with-pending
 becomes `auto`-without, which is still `auto`, so the mode is its own memory of
 what to resume.
 
+## confirmOpened / confirmClosed
+
+The exit cost view opening on Connect, and closing however it closes: Cancel,
+its own Connect, or the card moving away. While it shows, the location is
+chosen, so auto holds off exactly as for an open list: `confirmOpened` commits a
+due pending (the exit Connect resolved), drops any other, and sets
+`confirming = true`; `confirmClosed` clears it, and auto resumes on the next
+poll. `connectIssued` clears it too.
+
 ## listClosed(canceled)
 
 `listOpen = false`, resume the mode as it stands.
@@ -363,36 +377,39 @@ what to resume.
 
 `active = id`, whether or not anything was active before.
 
-Mode is `selected` — **except when the pick also connects.** Disconnected, a
-click on the row only selects, and the main screen's Connect goes there later.
-The row's Connect button — Switch with a tunnel up or on its way — fires
-`connect` before `onClose`, so `connectIssued` has already made `id` active and
-entered `live` by the time this event arrives; the mode stays `live`, now with
-`auto = false` — the user chose this exit, so leaving the tunnel keeps it. A
-pick whose tunnel is already up or going away closes the list without
-connecting. Picking the destination that is already active selects it, taking it
-from auto.
+Mode is `selected`. Disconnected, both a click on the row and the row's Connect
+button pick: the exit lands on the card, and Connect — after the exit cost view,
+when the user still wants it — goes there. With a tunnel up or on its way, the
+row's Switch closes the list with `listClosed(canceled)` instead, so the card
+keeps the tunnel until the switch is confirmed; the confirmed connect then
+carries `auto = false` (see `connectIssued`). Should a pick still arrive while
+live, it is the user's: `live.auto = false`. A pick whose tunnel is already up
+or going away only brings it back to the card. Picking the destination that is
+already active selects it, taking it from auto.
 
 ## autoResumed(status)
 
 `listOpen = false`. A live tunnel is never switched: `live.auto = true`, so auto
-resumes once it ends. The list's Auto row, connected, connects to auto's pick
-and then fires this instead of `listClosed(picked)`. Otherwise `auto` with no
-pending, and `effectiveCandidate` over `status` — the last status `appStore.ts`
-saw — becomes `active` at once when it is ready. The user asked for auto's pick,
-so there is no countdown to it, and the card reads "Current Best Location"
-straight away. With nothing ready, `active` stays; auto arms on a later poll as
-usual.
+resumes once it ends. Connected, the Auto row fires it only when the tunnel is
+already on auto's pick; a switch to another exit goes through the cost view and
+a connect carrying `auto = true` instead. Otherwise `auto` with no pending, and
+`effectiveCandidate` over `status` — the last status `appStore.ts` saw — becomes
+`active` at once when it is ready. The user asked for auto's pick, so there is
+no countdown to it, and the card reads "Current Best Location" straight away.
+With nothing ready, `active` stays; auto arms on a later poll as usual.
 
-## connectIssued(id)
+## connectIssued(id, auto?)
 
-`active = id`, pending cleared, mode `live` optimistically — we are ahead of the
-service, and the next status response is expected to confirm. `live.auto` is
-recorded as in [step 2](#statusupdate): from `auto` it is `true`, from
-`selected` `false`, from `live` kept. Because live is inert, nothing can arm a
-countdown during the attempt. A connect that disagrees with the promotion —
-connect-on-startup landing on the first ready destination rather than the
-unready one we promoted — simply moves `active`.
+`active = id`, pending cleared, `confirming = false`, mode `live` optimistically
+— we are ahead of the service, and the next status response is expected to
+confirm. `live.auto` is `auto` when given: a switch confirmed while connected
+says whose pick it is — a listed exit's Switch `false`, the Auto row's `true` —
+since nothing about the old tunnel says so. Otherwise it is recorded as in
+[step 2](#statusupdate): from `auto` `true`, from `selected` `false`, from
+`live` kept. Because live is inert, nothing can arm a countdown during the
+attempt. A connect that disagrees with the promotion — connect-on-startup
+landing on the first ready destination rather than the unready one we promoted —
+simply moves `active`.
 
 A failed connect needs no special handling: the next status response reports no
 connection, and _leaving live_ returns to what the attempt came from — the

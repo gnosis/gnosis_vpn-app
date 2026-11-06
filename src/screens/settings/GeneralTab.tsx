@@ -172,11 +172,26 @@ export default function GeneralTab(
           </Show>
         </SettingsRow>
         <SettingsRow
-          title="Detailed metrics"
-          description="Latency, server load and diagnostics under the exit on the main screen; its chevron opens them."
+          title="Hide data use before connecting"
+          description="Connect goes straight ahead instead of first showing the 600 MB an exit takes."
         >
           <Switch
-            label="Detailed metrics"
+            label="Hide data use before connecting"
+            checked={!settings.showExitCost}
+            onChange={(hide) => void settingsActions.setShowExitCost(!hide)}
+          />
+        </SettingsRow>
+        <FeatureComing class="w-full">
+          <SettingsRow
+            title="Auto-renew"
+            description="Adds the next 600 MB by itself when an exit runs low, without asking."
+          >
+            <Switch label="Auto-renew" checked={false} disabled />
+          </SettingsRow>
+        </FeatureComing>
+        <SettingsRow title="Advanced view">
+          <Switch
+            label="Advanced view"
             checked={settings.showDetailedMetrics}
             disabled
           />

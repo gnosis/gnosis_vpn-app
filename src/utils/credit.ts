@@ -1,6 +1,6 @@
 import type { BalanceResponse } from "@src/services/vpnService.ts";
 
-const BYTES_PER_MB = 1_048_576n;
+export const BYTES_PER_MB = 1_048_576n;
 export const BYTES_PER_GB = BYTES_PER_MB * 1024n;
 const BYTES_PER_TB = BYTES_PER_GB * 1024n;
 
