@@ -91,7 +91,7 @@ export default function ExitCost(
   const slideX = () => chunkX() + chunkWidth() - MIN_CHUNK;
 
   return (
-    <div class="flex flex-col gap-1.5 border-t border-dashed border-line-dash px-3 pt-3.5 pb-3">
+    <div class="flex flex-col gap-1.5 px-3 pt-3.5 pb-3">
       <div class="relative aspect-[330/74] w-full" aria-hidden="true">
         <svg
           viewBox="0 0 330 74"
@@ -153,17 +153,16 @@ export default function ExitCost(
             stroke-linecap="round"
             stroke-linejoin="round"
           />
-          <Show when={left()}>
-            {(l) => (
-              <text
-                x={X0 + leftWidth() / 2}
-                y="70"
-                text-anchor="middle"
-                fill="var(--color-text-subtle)"
-              >
-                {`${formatCreditCompact(l())} left`}
-              </text>
-            )}
+          {/* The balance as it stands, centred on the battery: the exit's share is not spent yet */}
+          <Show when={credit() !== null}>
+            <text
+              x={X0 + W / 2}
+              y="70"
+              text-anchor="middle"
+              fill="var(--color-text-subtle)"
+            >
+              {`${formatCreditCompact(credit()!)} left`}
+            </text>
           </Show>
         </svg>
         {/* The exit's flag where the mock draws its icon: left 288, top 24, 38×28 of the 330×74 stage */}
@@ -188,7 +187,7 @@ export default function ExitCost(
         <FeatureComing>
           <label class="flex items-center gap-2 opacity-50">
             <Checkbox checked disabled />
-            Turn on Auto-renew
+            Turn on Auto-renew sessions
           </label>
         </FeatureComing>
         <label class="flex items-center gap-2">

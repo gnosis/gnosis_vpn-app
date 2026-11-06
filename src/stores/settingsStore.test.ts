@@ -85,6 +85,7 @@ describe("settingsStore", () => {
     expect(state.channel).toBe("snapshot");
     expect(state.lastCheckOutcome?.kind).toBe("Available");
     expect(state.lastEndOfLife?.version).toBe("0.28.5");
+    expect(state.advancedView).toBe(true);
   });
 
   it("stores the outcome and its end of life in one patch", async () => {
@@ -149,6 +150,13 @@ describe("settingsStore", () => {
     expect(state.connectOnStartup).toBe(false);
     fireChange({ ...settingsDefault, connectOnStartup: true });
     expect(state.connectOnStartup).toBe(true);
+
+    await actions.setAdvancedView(true);
+
+    expect(invokeMock).toHaveBeenCalledWith("update_settings", {
+      patch: { advancedView: true },
+    });
+    expect(state.advancedView).toBe(false);
   });
 
   it("rememberConnectedDestination sends one patch and never touches state directly", async () => {

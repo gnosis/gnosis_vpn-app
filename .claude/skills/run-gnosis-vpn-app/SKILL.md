@@ -82,9 +82,12 @@ source:
   the flag.
 - `settings` — seeds the shim's `get_settings` snapshot (camelCase keys as in
   `SettingsSchema` in `src/stores/settingsStore.ts`), e.g.
-  `"settings": { "exitNodeSortOrder": "alpha", "showDetailedMetrics": true, "flagDisplay": "color" }`.
-  Unset keys fall back to the app's defaults; `update_settings` merges the patch
-  in-memory and fires `settings-changed`, so toggles behave realistically.
+  `"settings": { "exitNodeSortOrder": "alpha", "advancedView": true, "showDetailedMetrics": true, "flagDisplay": "color" }`.
+  The main screen defaults to the simple view; `"advancedView": true` renders
+  the location card instead, and `showDetailedMetrics` (its details panel) only
+  matters then. Unset keys fall back to the app's defaults; `update_settings`
+  merges the patch in-memory and fires `settings-changed`, so toggles behave
+  realistically.
 - `platform` — value returned by `get_platform` (default `"linux"`); set
   `"macos"` to enable the driven install-update flow on Settings → Update.
 - `arch` / `osDistribution` — `get_system_info`'s `arch` (default `"x86_64"`)

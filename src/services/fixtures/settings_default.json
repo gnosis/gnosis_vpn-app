@@ -14,5 +14,6 @@
   "installedVersion": null,
   "showDetailedMetrics": false,
   "flagDisplay": "color",
-  "showExitCost": true
+  "showExitCost": true,
+  "advancedView": false
 }

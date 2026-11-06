@@ -31,6 +31,8 @@ pub struct Settings {
     pub flag_display: FlagDisplay,
     /// Whether Connect first shows the data an exit sets aside.
     pub show_exit_cost: bool,
+    /// Whether the main screen shows the location card instead of the simple view.
+    pub advanced_view: bool,
 }
 
 impl Default for Settings {
@@ -52,6 +54,7 @@ impl Default for Settings {
             show_detailed_metrics: false,
             flag_display: FlagDisplay::default(),
             show_exit_cost: true,
+            advanced_view: false,
         }
     }
 }
@@ -129,6 +132,8 @@ pub struct SettingsPatch {
     pub flag_display: Option<FlagDisplay>,
     #[serde(default)]
     pub show_exit_cost: Option<bool>,
+    #[serde(default)]
+    pub advanced_view: Option<bool>,
 }
 
 impl SettingsPatch {
@@ -182,6 +187,9 @@ impl SettingsPatch {
         }
         if self.show_exit_cost.is_some() {
             keys.push("show_exit_cost");
+        }
+        if self.advanced_view.is_some() {
+            keys.push("advanced_view");
         }
         keys
     }
@@ -244,6 +252,9 @@ impl Settings {
         }
         if let Some(v) = patch.show_exit_cost {
             self.show_exit_cost = v;
+        }
+        if let Some(v) = patch.advanced_view {
+            self.advanced_view = v;
         }
     }
 }
@@ -525,6 +536,19 @@ mod tests {
             .expect("update should succeed");
 
         assert!(!SettingsStore::load(path).current().show_exit_cost);
+    }
+
+    #[test]
+    fn advanced_view_defaults_off_and_persists_on() {
+        let path = temp_settings_path();
+        let store = SettingsStore::load(path.clone());
+        assert!(!store.current().advanced_view);
+
+        store
+            .update(patch(json!({ "advancedView": true })))
+            .expect("update should succeed");
+
+        assert!(SettingsStore::load(path).current().advanced_view);
     }
 
     #[test]

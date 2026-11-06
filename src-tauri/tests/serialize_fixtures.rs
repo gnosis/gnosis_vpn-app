@@ -992,5 +992,6 @@ fn full_settings() -> Settings {
         show_detailed_metrics: true,
         flag_display: FlagDisplay::Mono,
         show_exit_cost: false,
+        advanced_view: true,
     }
 }

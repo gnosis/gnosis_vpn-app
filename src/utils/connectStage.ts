@@ -97,3 +97,10 @@ export function tween(
   const p = span > 0 ? Math.min(1, (progress - begin) / span) : 1;
   return from + (to - from) * easeInOut(p);
 }
+
+/** `text` cut to `max` characters, the last an ellipsis when cut; counts code points so no surrogate pair splits. */
+export function clampLabel(text: string, max: number): string {
+  const chars = Array.from(text);
+  if (chars.length <= max) return text;
+  return `${chars.slice(0, max - 1).join("").trimEnd()}…`;
+}
