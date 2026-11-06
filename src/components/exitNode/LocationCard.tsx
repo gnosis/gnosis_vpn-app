@@ -16,12 +16,10 @@ import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import { MB_PER_EXIT } from "@src/utils/credit.ts";
 import {
   cardTitle,
-  destinationDescription,
   exitDisplayName,
   exitShortId,
   getExitData,
   isConfigOnly,
-  isConfigPinned,
   rankContext,
   routeGrade,
   routeGradeLabel,
@@ -33,13 +31,9 @@ import {
   waitingForRouteMessage,
 } from "@src/utils/status.ts";
 import Flag from "../Flag.tsx";
-import InfoTooltip from "../common/InfoTooltip.tsx";
 import Tooltip from "../common/Tooltip.tsx";
 import ChevronIcon from "../icons/ChevronIcon.tsx";
-import ConfigPill, {
-  CONFIG_ONLY_DESTINATION,
-  OVERRIDDEN_VALUE,
-} from "./ConfigPill.tsx";
+import ConfigPill, { CONFIG_ONLY_DESTINATION } from "./ConfigPill.tsx";
 import ConnectStage from "./ConnectStage.tsx";
 import ExitDiagnostics from "./ExitDiagnostics.tsx";
 import { ShortId } from "./LocationRow.tsx";
@@ -140,7 +134,6 @@ export default function LocationCard(props: {
   const latencyMs = () =>
     reconnecting() ? null : getLatencyMs(exit(), tunnelRtt());
 
-  const descriptionPinned = () => isConfigPinned(destination(), "description");
   const openList = () => appActions.destinationListOpened();
   const toggleDetails = () =>
     void settingsActions.setShowDetailedMetrics(!settings.showDetailedMetrics);
@@ -150,12 +143,28 @@ export default function LocationCard(props: {
 
   return (
     <div class="overflow-hidden rounded-[10px] bg-bg-location-card">
-      <div class="flex flex-col gap-2.25 px-3 pt-2.75 pb-2.5">
-        <div class="flex min-h-5 items-center justify-between gap-2">
+      <div
+        role="button"
+        tabIndex={0}
+        aria-label={`Choose location, now ${name()} #${
+          exitShortId(destination().address)
+        }`}
+        class="flex cursor-pointer flex-col gap-2.25 px-3 pt-2.75 pb-2.5 hover:bg-row-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-control-tint"
+        onClick={openList}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.repeat) openList();
+          if (e.key === " ") e.preventDefault();
+        }}
+        onKeyUp={(e) => {
+          if (e.key === " ") openList();
+        }}
+      >
+        {/* Fixed height: the pill, the caption and "Switching to …" swap without moving the exit */}
+        <div class="flex h-5 items-center justify-between gap-2">
           {/* A pending switch is auto's doing, so no "Selected Location" beside it */}
           <Show when={!pending() && phase()} keyed>
             {(current) => (
-              <span class="whitespace-nowrap transition-opacity duration-300 starting:opacity-0">
+              <span class="flex whitespace-nowrap transition-opacity duration-300 starting:opacity-0">
                 <Switch>
                   <Match when={current === "auto"}>
                     <span class={`${PILL} bg-pill-auto text-ok-ink`}>
@@ -194,22 +203,7 @@ export default function LocationCard(props: {
             )}
           </Show>
         </div>
-        <div
-          role="button"
-          tabIndex={0}
-          aria-label={`Choose location, now ${name()} #${
-            exitShortId(destination().address)
-          }`}
-          class="flex w-full min-w-0 cursor-pointer items-center rounded-[10px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-control-tint"
-          onClick={openList}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.repeat) openList();
-            if (e.key === " ") e.preventDefault();
-          }}
-          onKeyUp={(e) => {
-            if (e.key === " ") openList();
-          }}
-        >
+        <div class="flex w-full min-w-0 items-center">
           <Show when={id()} keyed>
             {(_id: string) => {
               const swapped = shownOnce;
@@ -235,34 +229,9 @@ export default function LocationCard(props: {
                           class="size-2.5"
                         />
                       </Show>
-                      <Show when={destinationDescription(destination())}>
-                        {(description) => (
-                          <InfoTooltip
-                            class="text-text-subtle"
-                            content={
-                              <div class="space-y-1">
-                                {/* The pill look inline: a tooltip cannot nest another tooltip. */}
-                                <p
-                                  classList={{
-                                    "rounded bg-vpn-orange px-1 text-slate-900":
-                                      descriptionPinned(),
-                                  }}
-                                >
-                                  {description()}
-                                </p>
-                                <Show when={descriptionPinned()}>
-                                  <p class="text-text-muted">
-                                    {OVERRIDDEN_VALUE}
-                                  </p>
-                                </Show>
-                              </div>
-                            }
-                          />
-                        )}
-                      </Show>
                     </span>
                     <span class="ml-auto flex shrink-0 items-center gap-1.5 text-xs text-text-subtle">
-                      <SignalBars grade={grade()} />
+                      <SignalBars grade={grade()} bare />
                       {verdict() ?? routeGradeLabel(grade())}
                     </span>
                   </span>
@@ -309,6 +278,7 @@ export default function LocationCard(props: {
               <ExitDiagnostics
                 destinationState={props.destinationState}
                 latencyMs={latencyMs()}
+                showUsage={liveHere()}
               />
             }
           >

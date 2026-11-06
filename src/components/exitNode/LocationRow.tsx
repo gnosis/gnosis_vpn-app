@@ -18,6 +18,8 @@ export default function LocationRow(props: {
   actionLabel: "Connect" | "Switch";
   disabled: boolean;
   onAction: () => void;
+  // a click elsewhere on the row; the button stays the keyboard path
+  onRowClick?: () => void;
 }) {
   const destination = () => props.destination;
   const name = () => exitDisplayName(destination());
@@ -25,7 +27,15 @@ export default function LocationRow(props: {
   const grade = () => props.grade;
 
   return (
-    <div class="flex min-h-14.5 items-center gap-3 rounded-[10px] p-2.5 hover:bg-row-hover">
+    <div
+      class="flex min-h-14.5 items-center gap-3 rounded-[10px] p-2.5 hover:bg-row-hover"
+      onClick={(e) => {
+        if (!props.onRowClick || props.disabled) return;
+        // the button's own click already acted
+        if ((e.target as Element).closest("button")) return;
+        props.onRowClick();
+      }}
+    >
       <Flag
         code={destination().geo?.country ?? ""}
         sizeClass="w-7.5 h-5.25 rounded"

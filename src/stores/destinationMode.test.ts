@@ -14,7 +14,6 @@ import {
   type DestinationModeSettings,
   effectiveActive,
   type ModeAppState,
-  SELECTED_AUTO_REVERT_MS,
   STATUS_POLL_MS,
   SWITCH_COUNTDOWN_MS,
   type UserInputEvent,
@@ -101,7 +100,6 @@ function setup(settings: Partial<DestinationModeSettings> = {}) {
   return createDestinationMode({
     preferredLocation: null,
     lastConnectedDestination: null,
-    connectOnStartup: false,
     ...settings,
   });
 }
@@ -248,10 +246,10 @@ describe("statusUpdate — live", () => {
     step(handle, connectingTo("uk", UK_USA));
 
     expect(handle.model.active).toBe("uk");
-    expect(handle.model.mode).toEqual({ mode: "live" });
+    expect(handle.model.mode).toEqual({ mode: "live", auto: true });
 
     await vi.advanceTimersByTimeAsync(SWITCH_COUNTDOWN_MS);
-    expect(handle.model.mode).toEqual({ mode: "live" });
+    expect(handle.model.mode).toEqual({ mode: "live", auto: true });
     expect(handle.model.active, "the candidate never committed").toBe("uk");
   });
 
@@ -261,7 +259,17 @@ describe("statusUpdate — live", () => {
     step(handle, connectedTo("gone", { uk: makeEligible("uk", 50) }));
 
     expect(handle.model.active).toBe("gone");
-    expect(handle.model.mode).toEqual({ mode: "live" });
+    expect(handle.model.mode).toEqual({ mode: "live", auto: true });
+  });
+
+  it("remembers that a connection reported over a selection is the user's", () => {
+    const handle = setup();
+    step(handle, statusFor(UK_USA));
+    pick(handle, "uk");
+
+    step(handle, connectedTo("uk", UK_USA));
+
+    expect(handle.model.mode).toEqual({ mode: "live", auto: false });
   });
 
   it("closes an open list, since we did not start this connection from it", () => {
@@ -322,39 +330,40 @@ describe("statusUpdate — live", () => {
     step(handle, connectedTo("usa", UK_USA));
 
     expect(handle.model.active).toBe("usa");
-    expect(handle.model.mode).toEqual({ mode: "live" });
+    expect(handle.model.mode, "already live, so auto is kept")
+      .toEqual({ mode: "live", auto: true });
   });
 });
 
 describe("statusUpdate — leaving live", () => {
-  it("parks on the destination we were connected to, then reverts to auto", async () => {
+  it("hands back to auto when auto was on for the tunnel", () => {
     const handle = setup();
     step(handle, connectedTo("uk", UK_USA));
 
     step(handle, statusFor(UK_USA));
 
-    expect(handle.model.active).toBe("uk");
-    expect(handle.model.mode).toMatchObject({ mode: "selected" });
+    expect(handle.model.active, "it starts from where we were").toBe("uk");
+    expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
 
-    await vi.advanceTimersByTimeAsync(SELECTED_AUTO_REVERT_MS);
     step(handle, statusFor(UK_USA));
-    expect(handle.model.mode.mode).toBe("auto");
+    expect(handle.model.mode, "and auto may move on from there")
+      .toMatchObject({ pending: { candidateId: "usa" } });
   });
 
-  it("lets auto propose again only once the hold runs out", async () => {
+  it("parks on the user's own pick, and the selection holds", async () => {
     const handle = setup();
+    step(handle, statusFor(UK_USA));
+    pick(handle, "uk");
+    input(handle, { type: "connectIssued", id: "uk" });
     step(handle, connectedTo("uk", UK_USA));
 
     step(handle, statusFor(UK_USA));
-    expect(handle.model.mode, "the hold keeps auto from arming")
-      .toMatchObject({ mode: "selected" });
+    expect(handle.model.mode).toEqual({ mode: "selected" });
 
-    await vi.advanceTimersByTimeAsync(SELECTED_AUTO_REVERT_MS);
+    await vi.advanceTimersByTimeAsync(60_000);
     step(handle, statusFor(UK_USA));
-
-    expect(handle.model.mode).toMatchObject({
-      pending: { candidateId: "usa" },
-    });
+    expect(handle.model.active).toBe("uk");
+    expect(handle.model.mode).toEqual({ mode: "selected" });
   });
 
   it("does not close the list", () => {
@@ -413,23 +422,30 @@ describe("statusUpdate — selected", () => {
     expect(handle.model.mode).toMatchObject({ mode: "selected" });
   });
 
-  it("reverts on the deadline via the status update, not the timer", () => {
+  it("never expires, however long a better destination waits", async () => {
     const handle = setup();
     step(handle, statusFor(UK_USA));
     pick(handle, "uk");
-    expect(
-      handle.model.mode,
-      "the selection must land for the revert to mean anything",
-    )
-      .toMatchObject({ mode: "selected" });
 
-    // the clock passes the deadline without the revert timer being allowed to run
-    vi.setSystemTime(Date.now() + SELECTED_AUTO_REVERT_MS + 1);
+    for (let poll = 0; poll < 10; poll++) {
+      await vi.advanceTimersByTimeAsync(10_000);
+      step(handle, statusFor(UK_USA));
+    }
+
+    expect(handle.model.active).toBe("uk");
+    expect(handle.model.mode).toEqual({ mode: "selected" });
+    expect(effectiveActive(handle.model, Date.now())).toBe("uk");
+  });
+
+  it("ends only when its destination disappears", () => {
+    const handle = setup();
     step(handle, statusFor(UK_USA));
+    pick(handle, "uk");
 
-    expect(handle.model.mode.mode).toBe("auto");
-    expect(handle.model.mode, "and auto is proposing again")
-      .toMatchObject({ pending: { candidateId: "usa" } });
+    step(handle, statusFor({ usa: makeEligible("usa", 90) }));
+
+    expect(handle.model.active).toBe("usa");
+    expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
   });
 });
 
@@ -621,21 +637,19 @@ describe("cold start", () => {
 
     expect(handle.model.active).toBe("uk");
     // where the last session left off is the user's choice, not auto's proposal
-    expect(handle.model.mode).toEqual({
-      mode: "selected",
-      autoRevertAt: Date.now() + SELECTED_AUTO_REVERT_MS,
-    });
+    expect(handle.model.mode).toEqual({ mode: "selected" });
     expect(handle.model.lastConnectedDestination).toBeNull();
   });
 
-  it("hands the lastConnected hold back to auto on the ordinary lease", () => {
+  it("holds lastConnected like any selection, past any number of polls", async () => {
     const handle = setup({ lastConnectedDestination: "uk" });
-    step(handle, statusFor({ uk: makeUnavailable("uk") }));
+    step(handle, statusFor(UK_USA));
 
-    vi.advanceTimersByTime(SELECTED_AUTO_REVERT_MS);
-    expectInvariants(handle.model);
+    await vi.advanceTimersByTimeAsync(60_000);
+    step(handle, statusFor(UK_USA));
 
-    expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
+    expect(handle.model.active).toBe("uk");
+    expect(handle.model.mode).toEqual({ mode: "selected" });
   });
 
   it("stays in auto when the promotion is merely the best destination", () => {
@@ -657,39 +671,6 @@ describe("cold start", () => {
     expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
   });
 
-  it("holds the promotion when a startup connect is coming", () => {
-    const handle = setup({ connectOnStartup: true });
-
-    step(handle, statusFor({ uk: makeUnavailable("uk") }));
-
-    expect(handle.model.mode).toMatchObject({ mode: "selected" });
-  });
-
-  it("keeps auto from arming before the startup connect lands", () => {
-    const handle = setup({ connectOnStartup: true });
-    // nothing ready yet, so the promotion is the unready sort head
-    step(
-      handle,
-      statusFor({ uk: makeUnavailable("uk"), usa: makeUnavailable("usa") }),
-    );
-    expect(handle.model.active).toBe("uk");
-
-    // usa becomes ready: the hold keeps auto from arming toward it in this poll
-    step(
-      handle,
-      statusFor({
-        uk: makeUnavailable("uk"),
-        usa: makeEligible("usa", 90),
-      }),
-    );
-    expect(handle.model.mode, "the connect, not auto, moves us")
-      .toMatchObject({ mode: "selected" });
-
-    input(handle, { type: "connectIssued", id: "usa" });
-
-    expect(handle.model.active).toBe("usa");
-  });
-
   it("outranks a ready preferred location", () => {
     const handle = setup({
       lastConnectedDestination: "uk",
@@ -707,7 +688,7 @@ describe("cold start", () => {
     expect(handle.model.active).toBe("uk");
     expect(
       handle.model.preferredLocation,
-      "unspent, so it arrives by countdown",
+      "unspent: auto's input once auto is on again",
     )
       .toBe("fr");
   });
@@ -925,14 +906,14 @@ describe("listOpened", () => {
     expect(handle.model.listOpen).toBe(true);
   });
 
-  it("stops the selected deadline rather than letting it run out", () => {
+  it("leaves a selection as it is", () => {
     const handle = setup();
     step(handle, statusFor(UK_USA));
     pick(handle, "uk");
 
     input(handle, { type: "listOpened" });
 
-    expect(handle.model.mode).toEqual({ mode: "selected", autoRevertAt: null });
+    expect(handle.model.mode).toEqual({ mode: "selected" });
   });
 });
 
@@ -954,19 +935,17 @@ describe("listClosed — cancelled", () => {
     });
   });
 
-  it("restores a selection with a fresh deadline", () => {
+  it("leaves a selection as it is", () => {
     const handle = setup();
     step(handle, statusFor(UK_USA));
     pick(handle, "uk");
     input(handle, { type: "listOpened" });
 
-    vi.setSystemTime(Date.now() + SELECTED_AUTO_REVERT_MS * 2);
+    vi.setSystemTime(Date.now() + 60_000);
     input(handle, { type: "listClosed", picked: null });
 
-    expect(handle.model.mode).toEqual({
-      mode: "selected",
-      autoRevertAt: Date.now() + SELECTED_AUTO_REVERT_MS,
-    });
+    expect(handle.model.active).toBe("uk");
+    expect(handle.model.mode).toEqual({ mode: "selected" });
   });
 
   it("leaves live alone", () => {
@@ -977,37 +956,69 @@ describe("listClosed — cancelled", () => {
 
     input(handle, { type: "listClosed", picked: null });
 
-    expect(handle.model.mode).toEqual({ mode: "live" });
+    expect(handle.model.mode).toEqual({ mode: "live", auto: true });
   });
 });
 
 describe("autoResumed", () => {
-  it("drops a manual pick, closes the list and lets auto choose again", () => {
+  it("drops a manual pick, closes the list and lands on auto's pick at once", () => {
     const handle = setup();
     step(handle, statusFor(UK_USA));
     pick(handle, "uk");
     input(handle, { type: "listOpened" });
 
-    input(handle, { type: "autoResumed" });
+    input(handle, { type: "autoResumed", status: statusFor(UK_USA) });
 
     expect(handle.model.listOpen).toBe(false);
+    expect(handle.model.active).toBe("usa");
     expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
+    expect(cardPhase(handle.model)).toBe("auto");
 
     step(handle, statusFor(UK_USA));
-    expect(handle.model.mode).toMatchObject({
-      pending: { candidateId: "usa" },
-    });
+    expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
   });
 
-  it("leaves live alone", () => {
+  it("keeps the active destination when nothing is ready", () => {
     const handle = setup();
-    step(handle, connectedTo("uk", { uk: makeEligible("uk", 50) }));
+    step(handle, statusFor({ uk: makeWeak("uk") }));
+    pick(handle, "uk");
+
+    input(handle, {
+      type: "autoResumed",
+      status: statusFor({ uk: makeWeak("uk"), usa: makeWeak("usa") }),
+    });
+
+    expect(handle.model.active).toBe("uk");
+    expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
+  });
+
+  it("without a status, only hands back to auto", () => {
+    const handle = setup();
+    step(handle, statusFor(UK_USA));
+    pick(handle, "uk");
+
+    input(handle, { type: "autoResumed", status: null });
+
+    expect(handle.model.active).toBe("uk");
+    expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
+  });
+
+  it("never switches a live tunnel, but resumes auto once it ends", () => {
+    const handle = setup();
+    step(handle, statusFor(UK_USA));
+    pick(handle, "uk");
+    input(handle, { type: "connectIssued", id: "uk" });
+    step(handle, connectedTo("uk", UK_USA));
     input(handle, { type: "listOpened" });
 
-    input(handle, { type: "autoResumed" });
+    input(handle, { type: "autoResumed", status: connectedTo("uk", UK_USA) });
 
     expect(handle.model.listOpen).toBe(false);
-    expect(handle.model.mode).toEqual({ mode: "live" });
+    expect(handle.model.active).toBe("uk");
+    expect(handle.model.mode).toEqual({ mode: "live", auto: true });
+
+    step(handle, statusFor(UK_USA));
+    expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
   });
 });
 
@@ -1020,7 +1031,7 @@ describe("autoCandidate", () => {
 });
 
 describe("listClosed — picked", () => {
-  it("makes the pick active with a fresh deadline", () => {
+  it("makes the pick active and selected", () => {
     const handle = setup();
     step(handle, statusFor(UK_USA));
     expect(handle.model.active).toBe("usa");
@@ -1029,13 +1040,10 @@ describe("listClosed — picked", () => {
 
     expect(handle.model.active).toBe("uk");
     expect(handle.model.listOpen).toBe(false);
-    expect(handle.model.mode).toEqual({
-      mode: "selected",
-      autoRevertAt: Date.now() + SELECTED_AUTO_REVERT_MS,
-    });
+    expect(handle.model.mode).toEqual({ mode: "selected" });
   });
 
-  it("stays live when the pick connected on the way out", () => {
+  it("stays live when the pick connected on the way out, now as the user's pick", () => {
     const handle = setup();
     // cold start lands on the faster usa, so uk is the pick that actually moves
     step(handle, statusFor(UK_USA));
@@ -1045,21 +1053,24 @@ describe("listClosed — picked", () => {
     input(handle, { type: "connectIssued", id: "uk" });
     input(handle, { type: "listClosed", picked: "uk" });
 
-    expect(handle.model.mode).toEqual({ mode: "live" });
+    expect(handle.model.mode).toEqual({ mode: "live", auto: false });
     expect(handle.model.active).toBe("uk");
+
+    // the tunnel ends on the exit the user switched to, and stays there
+    step(handle, connectedTo("uk", UK_USA));
+    step(handle, statusFor(UK_USA));
+    expect(handle.model.active).toBe("uk");
+    expect(handle.model.mode).toEqual({ mode: "selected" });
   });
 
-  it("treats picking the already-active destination as a cancel with a fresh deadline", () => {
+  it("selects the already-active destination, taking it from auto", () => {
     const handle = setup();
     step(handle, statusFor({ uk: makeEligible("uk", 50) }));
 
     pick(handle, "uk");
 
     expect(handle.model.active).toBe("uk");
-    expect(handle.model.mode).toEqual({
-      mode: "selected",
-      autoRevertAt: Date.now() + SELECTED_AUTO_REVERT_MS,
-    });
+    expect(handle.model.mode).toEqual({ mode: "selected" });
   });
 
   it("activates a pick made before anything is active", () => {
@@ -1111,7 +1122,26 @@ describe("connectIssued", () => {
     input(handle, { type: "connectIssued", id: "uk" });
 
     expect(handle.model.active).toBe("uk");
-    expect(handle.model.mode).toEqual({ mode: "live" });
+    expect(handle.model.mode).toEqual({ mode: "live", auto: true });
+  });
+
+  it("records a connect on a selection as the user's tunnel", () => {
+    const handle = setup();
+    step(handle, statusFor(UK_USA));
+    pick(handle, "uk");
+
+    input(handle, { type: "connectIssued", id: "uk" });
+
+    expect(handle.model.mode).toEqual({ mode: "live", auto: false });
+  });
+
+  it("keeps the tunnel's auto flag across a connect issued while live", () => {
+    const handle = setup();
+    step(handle, connectedTo("usa", UK_USA));
+
+    input(handle, { type: "connectIssued", id: "uk" });
+
+    expect(handle.model.mode).toEqual({ mode: "live", auto: true });
   });
 
   it("clears an armed pending, so nothing counts down during the attempt", () => {
@@ -1124,7 +1154,7 @@ describe("connectIssued", () => {
 
     input(handle, { type: "connectIssued", id: "uk" });
 
-    expect(handle.model.mode).toEqual({ mode: "live" });
+    expect(handle.model.mode).toEqual({ mode: "live", auto: true });
     expect(
       effectiveActive(handle.model, Date.now() + SWITCH_COUNTDOWN_MS),
       "the candidate never commits",
@@ -1143,19 +1173,35 @@ describe("connectIssued", () => {
     input(handle, { type: "connectIssued", id: "usa" });
 
     expect(handle.model.active).toBe("usa");
-    expect(handle.model.mode).toEqual({ mode: "live" });
+    expect(
+      handle.model.mode,
+      "it left a selection, so the tunnel is the user's",
+    )
+      .toEqual({ mode: "live", auto: false });
   });
 
-  it("leaves a failed attempt parked on the destination we tried", () => {
+  it("leaves a failed attempt on a selection parked there", () => {
     const handle = setup();
     step(handle, statusFor(UK_USA));
+    pick(handle, "uk");
     input(handle, { type: "connectIssued", id: "uk" });
 
     // the connect failed: the next status carries no connection at all
     step(handle, statusFor(UK_USA));
 
     expect(handle.model.active).toBe("uk");
-    expect(handle.model.mode).toMatchObject({ mode: "selected" });
+    expect(handle.model.mode).toEqual({ mode: "selected" });
+  });
+
+  it("hands a failed attempt made under auto back to auto", () => {
+    const handle = setup();
+    step(handle, statusFor(UK_USA));
+    input(handle, { type: "connectIssued", id: "usa" });
+
+    step(handle, statusFor(UK_USA));
+
+    expect(handle.model.active).toBe("usa");
+    expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
   });
 });
 
@@ -1204,7 +1250,6 @@ describe("reset", () => {
     handle.reset({
       preferredLocation: null,
       lastConnectedDestination: null,
-      connectOnStartup: false,
     });
 
     expect(handle.model.listOpen).toBe(false);
@@ -1224,6 +1269,22 @@ describe("invariants hold under randomized traffic", () => {
   };
 
   const IDS = ["a", "b", "c", "d"];
+
+  /** A selection outlives everything but its destination disappearing. */
+  function expectSelectionKept(
+    before: DestinationMode,
+    after: DestinationMode,
+    what: string,
+    offered: string[] | null = null,
+  ): void {
+    if (before.mode.mode !== "selected" || after.mode.mode === "live") return;
+    if (offered !== null && !offered.includes(before.active!)) return;
+    expect(after.active, `${what} moved a selection off its exit`)
+      .toBe(before.active);
+    expect(after.mode, `${what} ended a selection`).toEqual({
+      mode: "selected",
+    });
+  }
 
   it.each(Array.from({ length: 25 }, (_, i) => i + 1))(
     "survives sequence seed %i",
@@ -1253,20 +1314,34 @@ describe("invariants hold under randomized traffic", () => {
           ? connectingTo(liveId, destinations)
           : statusFor(destinations);
 
+        const beforeStatus = { ...handle.model };
         step(handle, status);
+        expectSelectionKept(
+          beforeStatus,
+          handle.model,
+          "a status update",
+          offered,
+        );
+        if (
+          handle.model.mode.mode === "selected" &&
+          beforeStatus.mode.mode !== "selected"
+        ) {
+          // the one way a status update selects: ending the user's own tunnel
+          expect(beforeStatus.mode).toEqual({ mode: "live", auto: false });
+        }
 
         const action = random();
+        const beforeInput = { ...handle.model };
+        let picked: string | null = null;
         if (action < 0.1) {
           input(handle, { type: "listOpened" });
         } else if (action < 0.2) {
-          input(handle, {
-            type: "listClosed",
-            picked: random() < 0.5
-              ? null
-              : IDS[Math.floor(random() * IDS.length)],
-          });
+          picked = random() < 0.5
+            ? null
+            : IDS[Math.floor(random() * IDS.length)];
+          input(handle, { type: "listClosed", picked });
         } else if (action < 0.25) {
-          input(handle, { type: "autoResumed" });
+          input(handle, { type: "autoResumed", status });
         } else if (action < 0.3) {
           input(handle, {
             type: "connectIssued",
@@ -1274,8 +1349,20 @@ describe("invariants hold under randomized traffic", () => {
           });
         }
 
+        if (
+          handle.model.mode.mode === "selected" &&
+          beforeInput.mode.mode !== "selected"
+        ) {
+          expect(picked, "only a pick from the list selects").not.toBeNull();
+        }
+        if (picked === null && action >= 0.1 && action < 0.2) {
+          expectSelectionKept(beforeInput, handle.model, "a cancelled list");
+        }
+
+        const beforeTimers = { ...handle.model };
         vi.advanceTimersByTime(Math.floor(random() * 4_000));
         expectInvariants(handle.model);
+        expectSelectionKept(beforeTimers, handle.model, "the clock");
       }
     },
   );

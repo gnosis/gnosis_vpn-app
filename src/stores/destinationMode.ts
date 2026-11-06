@@ -17,8 +17,6 @@ import {
 
 // Countdown before auto switches the card to a better destination
 export const SWITCH_COUNTDOWN_MS = 5_000;
-// Flat, unconditional deadline for a selected destination to fall back to auto.
-export const SELECTED_AUTO_REVERT_MS = 10_000;
 // Service poll cadence (src-tauri/src/commands.rs); bounds how late a deadline may be honoured.
 export const STATUS_POLL_MS = 2_300;
 
@@ -33,14 +31,15 @@ export type AutoMode = {
   pending: AutoPending | null;
 };
 
+// The user's own pick: it holds until they pick again or choose Auto.
 export type SelectedMode = {
   mode: "selected";
-  // null while suspended — an open list stops the clock
-  autoRevertAt: number | null;
 };
 
 export type LiveMode = {
   mode: "live";
+  // auto was on for this tunnel, so leaving it hands back to auto
+  auto: boolean;
 };
 export type Mode = AutoMode | SelectedMode | LiveMode;
 
@@ -52,8 +51,6 @@ export interface DestinationMode {
   // From DestinationModeSettings, fixed at creation, then consumed during status updates
   preferredLocation: string | null;
   lastConnectedDestination: string | null;
-  // a connect is coming as soon as anything is ready, so auto must stay out of its way
-  connectOnStartup: boolean;
 }
 
 /** The slice of AppState a status update carries. */
@@ -67,15 +64,14 @@ export interface ModeAppState {
 export interface DestinationModeSettings {
   preferredLocation: string | null;
   lastConnectedDestination: string | null;
-  connectOnStartup: boolean;
 }
 
 export type UserInputEvent =
   | { type: "listOpened" }
   // picked === null is a cancel; an id is the destination chosen from the list
   | { type: "listClosed"; picked: string | null }
-  // the list's Auto row: drop the manual pick and let auto choose again
-  | { type: "autoResumed" }
+  // the list's Auto row: drop the manual pick; the last status lets auto's pick land at once
+  | { type: "autoResumed"; status: ModeAppState | null }
   | { type: "connectIssued"; id: string };
 
 export interface DestinationModeHandle {
@@ -95,7 +91,6 @@ function initialModel(settings: DestinationModeSettings): DestinationMode {
     listOpen: false,
     preferredLocation: settings.preferredLocation,
     lastConnectedDestination: settings.lastConnectedDestination,
-    connectOnStartup: settings.connectOnStartup,
   };
 }
 
@@ -109,14 +104,16 @@ function makeActive(draft: DestinationMode, id: string): void {
   if (draft.preferredLocation === id) draft.preferredLocation = null;
 }
 
-function selectedMode(): SelectedMode {
+const SELECTED: SelectedMode = { mode: "selected" };
+const AUTO_IDLE: AutoMode = { mode: "auto", pending: null };
+
+/** A tunnel coming up keeps whether auto was on, so leaving it can resume that. */
+function liveFrom(mode: Mode): LiveMode {
   return {
-    mode: "selected",
-    autoRevertAt: Date.now() + SELECTED_AUTO_REVERT_MS,
+    mode: "live",
+    auto: mode.mode === "live" ? mode.auto : mode.mode === "auto",
   };
 }
-
-const AUTO_IDLE: AutoMode = { mode: "auto", pending: null };
 
 /** Deadlines are truth: a pending past its deadline has already switched, so dropping it must commit it. */
 function commitDuePending(draft: DestinationMode): void {
@@ -152,7 +149,6 @@ export function createDestinationMode(
   );
 
   let pendingTimer: ReturnType<typeof setTimeout> | undefined;
-  let revertTimer: ReturnType<typeof setTimeout> | undefined;
 
   // A working copy every transition mutates; `mode` is replaced, never edited in place.
   function draftOf(): DestinationMode {
@@ -167,19 +163,12 @@ export function createDestinationMode(
   // Timers are derived from the deadlines rather than set alongside them, so no path can forget one.
   function syncTimers(): void {
     clearTimeout(pendingTimer);
-    clearTimeout(revertTimer);
     pendingTimer = undefined;
-    revertTimer = undefined;
 
     const mode = model.mode;
     if (mode.mode === "auto" && mode.pending !== null) {
       const delay = Math.max(0, mode.pending.countdownEndsAt - Date.now());
       pendingTimer = setTimeout(onSwitchDeadline, delay);
-      return;
-    }
-    if (mode.mode === "selected" && mode.autoRevertAt !== null) {
-      const delay = Math.max(0, mode.autoRevertAt - Date.now());
-      revertTimer = setTimeout(onRevertDeadline, delay);
     }
   }
 
@@ -193,19 +182,6 @@ export function createDestinationMode(
     }
     // the same clock rules as every other path: a slept-through pending is discarded, not committed
     commitDuePending(draft);
-    commit(draft);
-  }
-
-  function onRevertDeadline(): void {
-    const draft = draftOf();
-    if (draft.mode.mode !== "selected" || draft.mode.autoRevertAt === null) {
-      return;
-    }
-    if (Date.now() < draft.mode.autoRevertAt) {
-      syncTimers();
-      return;
-    }
-    draft.mode = AUTO_IDLE;
     commit(draft);
   }
 
@@ -223,8 +199,8 @@ export function createDestinationMode(
     const promoted = offered ? last : candidate;
     if (promoted === null) return;
     makeActive(draft, promoted);
-    // where we left off is the user's choice, and a coming connect must not race auto's arming
-    if (offered || draft.connectOnStartup) draft.mode = selectedMode();
+    // where we left off is the user's last choice, so auto may not switch it away
+    if (offered) draft.mode = SELECTED;
   }
 
   function applyAuto(draft: DestinationMode, status: ModeAppState): void {
@@ -278,7 +254,7 @@ export function createDestinationMode(
     if (liveId !== null) {
       const enteringLive = draft.mode.mode !== "live";
       makeActive(draft, liveId);
-      draft.mode = { mode: "live" };
+      draft.mode = liveFrom(draft.mode);
       // only a connection that surprises us closes the list; one opened over live stays
       if (enteringLive) draft.listOpen = false;
       commit(draft);
@@ -286,7 +262,9 @@ export function createDestinationMode(
     }
 
     if (draft.mode.mode === "live") {
-      draft.mode = draft.active === null ? AUTO_IDLE : selectedMode();
+      draft.mode = draft.active === null || draft.mode.auto
+        ? AUTO_IDLE
+        : SELECTED;
       commit(draft);
       return;
     }
@@ -311,13 +289,10 @@ export function createDestinationMode(
       draft.listOpen = false;
     }
 
+    // only auto switches; a selection holds
     if (draft.mode.mode === "selected") {
-      const { autoRevertAt } = draft.mode;
-      if (autoRevertAt === null || Date.now() < autoRevertAt) {
-        commit(draft);
-        return;
-      }
-      draft.mode = AUTO_IDLE;
+      commit(draft);
+      return;
     }
 
     applyAuto(draft, status);
@@ -331,29 +306,41 @@ export function createDestinationMode(
         draft.listOpen = true;
         commitDuePending(draft);
         if (draft.mode.mode === "auto") draft.mode = AUTO_IDLE;
-        if (draft.mode.mode === "selected") {
-          draft.mode = { mode: "selected", autoRevertAt: null };
-        }
         break;
       case "listClosed":
         draft.listOpen = false;
         if (event.picked !== null) {
           makeActive(draft, event.picked);
-          // a connect issued on the way out outranks the list
-          if (draft.mode.mode !== "live") draft.mode = selectedMode();
-        } else if (draft.mode.mode === "selected") {
-          draft.mode = selectedMode();
+          // a connect issued on the way out stays live, now as the user's pick
+          draft.mode = draft.mode.mode === "live"
+            ? { mode: "live", auto: false }
+            : SELECTED;
         }
         break;
-      case "autoResumed":
+      case "autoResumed": {
         draft.listOpen = false;
-        // a live tunnel is the user's; auto only chooses while disconnected
-        if (draft.mode.mode === "selected") draft.mode = AUTO_IDLE;
+        // a live tunnel is never switched; it only resumes auto once it ends
+        if (draft.mode.mode === "live") {
+          draft.mode = { mode: "live", auto: true };
+          break;
+        }
+        draft.mode = AUTO_IDLE;
+        // the user asked for auto's pick, so it needs no countdown
+        const status = event.status;
+        const candidate = status &&
+          autoCandidate(status, draft.preferredLocation);
+        if (
+          candidate &&
+          isReady(status.destinations[candidate], rankContext(status))
+        ) {
+          makeActive(draft, candidate);
+        }
         break;
+      }
       case "connectIssued":
         // we are ahead of the service; the next status response is expected to confirm
+        draft.mode = liveFrom(draft.mode);
         makeActive(draft, event.id);
-        draft.mode = { mode: "live" };
         break;
     }
     commit(draft);

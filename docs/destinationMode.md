@@ -2,8 +2,9 @@
 
 Authoritative rules for `src/stores/destinationMode.ts`. The store owns which
 destination the main screen's card shows — the one Connect targets — and when an
-unattended switch happens. It holds no DOM knowledge and performs no side
-effects: every input is one of five events, every output is store state.
+unattended switch happens: only while auto is on. It holds no DOM knowledge and
+performs no side effects: every input is one of five events, every output is
+store state.
 
 When this document and the code disagree, the document is right and the code is
 a bug. When this document and reality disagree, change the document first, then
@@ -15,6 +16,7 @@ a test, then the code.
 | ------------- | ---------------------------------------------------------------------------- |
 | **active**    | the destination the card shows and the one Connect targets                   |
 | **candidate** | the destination auto will switch to when its countdown ends                  |
+| **selection** | the user's own pick; it holds until they pick again or choose Auto           |
 | **live**      | the backend reports a connection: connected, connecting, or reconnecting     |
 | **exit data** | slots, load and latency measured on the exit itself, by probe or quick probe |
 
@@ -28,8 +30,8 @@ interface AutoPending {
 
 type Mode =
   | { mode: "auto"; pending: AutoPending | null }
-  | { mode: "selected"; autoRevertAt: number | null } // null while suspended
-  | { mode: "live" };
+  | { mode: "selected" } // never expires
+  | { mode: "live"; auto: boolean }; // auto was on for this tunnel
 
 interface DestinationMode {
   active: string | null;
@@ -37,7 +39,6 @@ interface DestinationMode {
   listOpen: boolean;
   preferredLocation: string | null; // one shot, spent when it becomes active
   lastConnectedDestination: string | null; // dropped at the first cold start
-  connectOnStartup: boolean; // a connect is coming as soon as anything is ready
 }
 ```
 
@@ -46,14 +47,13 @@ may act, and a gate the store cannot see is a gate the tests cannot cover.
 
 ## Timing
 
-| constant                  | value | owner                                         |
-| ------------------------- | ----- | --------------------------------------------- |
-| `SWITCH_COUNTDOWN_MS`     | 5000  | model — the card's visible countdown (a ring) |
-| `SELECTED_AUTO_REVERT_MS` | 10000 | model — a selection's lifetime                |
-| `STATUS_POLL_MS`          | ~2300 | service (`src-tauri/src/commands.rs`)         |
-| `STATUS_POLL_FAST_MS`     | 500   | service — cap while the list is open          |
-| `QUICK_PROBE_FRESH_MS`    | 10000 | probing — a result younger is not redone      |
-| `QUICK_PROBE_TIMEOUT_MS`  | 35000 | probing — daemon budget is 30 s               |
+| constant                 | value | owner                                         |
+| ------------------------ | ----- | --------------------------------------------- |
+| `SWITCH_COUNTDOWN_MS`    | 5000  | model — the card's visible countdown (a ring) |
+| `STATUS_POLL_MS`         | ~2300 | service (`src-tauri/src/commands.rs`)         |
+| `STATUS_POLL_FAST_MS`    | 500   | service — cap while the list is open          |
+| `QUICK_PROBE_FRESH_MS`   | 10000 | probing — a result younger is not redone      |
+| `QUICK_PROBE_TIMEOUT_MS` | 35000 | probing — daemon budget is 30 s               |
 
 **Deadlines are truth; timers are an optimisation.** Every deadline is an
 absolute timestamp re-checked on each `statusUpdate`. A timer that is throttled,
@@ -229,7 +229,7 @@ The complete input surface. Nothing else reaches the model.
 | `statusUpdate(status)`                            | one per backend status response         |
 | `listOpened`                                      | the card's exit row or "More locations" |
 | `listClosed(canceled)` \| `listClosed(picked id)` | the exit-node list                      |
-| `autoResumed`                                     | the list's Auto row, while disconnected |
+| `autoResumed(status)`                             | the list's Auto row                     |
 | `connectIssued(id)`                               | a connect command being sent            |
 
 Disconnect is **not** an event — it arrives as a `statusUpdate` with no
@@ -254,16 +254,18 @@ destination: the service always offers what we are connected to.
 
 **2. Live.** `liveId !== null` → `active = liveId`, pending cleared, mode `live`
 — even when the prune removed it or the connection was started outside the app,
-so invariant 5 holds. If `listOpen` and we were not already live, close the list
-— a connection we did not initiate should not leave the list covering it. A list
-opened over a live connection stays open, polls included: the user opened it
-deliberately, and picking from it issues a new connect (see
-`listClosed(picked)`).
+so invariant 5 holds. Entering live records whether auto was on: `auto` →
+`live.auto = true`, `selected` → `false`; already live keeps it. If `listOpen`
+and we were not already live, close the list — a connection we did not initiate
+should not leave the list covering it. A list opened over a live connection
+stays open, polls included: the user opened it deliberately, and picking from it
+issues a new connect (see `listClosed(picked)`).
 
-**3. Leaving live.** `mode === "live" && liveId === null` → `selected` on the
-destination we were connected to, with a fresh `SELECTED_AUTO_REVERT_MS`, then
-auto. Holding it keeps auto from switching you off it seconds after you
-disconnected. Does not close the list.
+**3. Leaving live.** `mode === "live" && liveId === null` → back to what the
+tunnel came from, on the destination we were connected to: `auto` when
+`live.auto` (or nothing is active), else `selected`. A tunnel the user picked
+stays picked; one auto chose hands back to auto, which may then move on. Does
+not close the list.
 
 Steps 2 and 3 outrank suspension: the backend's own connection state is never
 frozen by an open list.
@@ -272,9 +274,8 @@ frozen by an open list.
 nulled `active`, end the suspension (close the list) and fall through to cold
 start — a selection whose target no longer exists cannot be preserved.
 
-**5. selected.** `autoRevertAt !== null && now >= autoRevertAt` → auto.
-Otherwise hold, regardless of readiness: only the flat deadline or a vanished
-destination ends a selection.
+**5. selected.** Hold, regardless of readiness or of anything better: only the
+user (a pick, Auto) or a vanished destination ends a selection.
 
 **6. auto.** In order:
 
@@ -315,24 +316,15 @@ as long as the backend offers anything at all, a status update leaves `active`
 set. `active` is null only when there are no destinations, and then there is no
 candidate to arm either.
 
-**The promotion is a selection when the user made it.** `selected` with a fresh
-`SELECTED_AUTO_REVERT_MS` if the promoted id is `lastConnectedDestination`, or
-if `connectOnStartup` is armed; otherwise `auto`, as before. Where the last
-session left off is the user's choice, not auto's proposal, so auto may not
-switch you off it seconds after launch — the same reason
-[leaving live](#statusupdate) holds. And with a connect coming, holding keeps
-auto from arming toward the first destination to become ready in the very poll
-that the connect targets it, which would show a countdown the connect then cuts
-short.
+**The promotion is a selection when the user made it.** `selected` if the
+promoted id is `lastConnectedDestination`, otherwise `auto`. Where the last
+session left off is the user's choice, not auto's proposal, so it holds like any
+selection until the user picks again or chooses Auto.
 
 A promotion onto `preferred` or the sort head stays in `auto`: the preferred
 location is an [input to the candidate](#the-preferred-location), never a
-selection of its own.
-
-The hold is the ordinary lease, so a backend that takes longer than
-`SELECTED_AUTO_REVERT_MS` to make anything ready hands back to auto before the
-startup connect fires. Accepted: after ten seconds of sitting there, an armed
-countdown is honest.
+selection of its own. A startup connect needs no hold of its own: if auto arms
+toward something in the meantime, the connect makes us live and clears it.
 
 ### The preferred location
 
@@ -349,8 +341,8 @@ created, so a change in Settings applies at the next launch or after a
 
 ## listOpened
 
-Stop both timers, drop the pending, `listOpen = true`. In `selected`, set
-`autoRevertAt = null`.
+Stop the switch timer, drop the pending, `listOpen = true`. A selection is left
+as it is.
 
 Dropping the pending honours the clock: past `countdownEndsAt` and not stale,
 the switch has already happened — `effectiveActive` reports the candidate — so
@@ -365,39 +357,46 @@ what to resume.
 
 ## listClosed(canceled)
 
-`listOpen = false`, resume the mode as it stands. A resumed `selected` gets a
-fresh `SELECTED_AUTO_REVERT_MS`.
+`listOpen = false`, resume the mode as it stands.
 
 ## listClosed(picked id)
 
 `active = id`, whether or not anything was active before.
 
-Mode is `selected` with a fresh deadline — **except when the pick also
-connects.** The list fires `connect` before `onClose`, so `connectIssued` has
-already made `id` active and entered `live` by the time this event arrives; the
-mode write is skipped and the event is inert. Only a pick whose tunnel is
-already up or going away closes the list without connecting. Picking the
-destination that is already active is equivalent to cancelling, plus a fresh
-deadline.
+Mode is `selected` — **except when the pick also connects.** Disconnected, a
+click on the row only selects, and the main screen's Connect goes there later.
+The row's Connect button — Switch with a tunnel up or on its way — fires
+`connect` before `onClose`, so `connectIssued` has already made `id` active and
+entered `live` by the time this event arrives; the mode stays `live`, now with
+`auto = false` — the user chose this exit, so leaving the tunnel keeps it. A
+pick whose tunnel is already up or going away closes the list without
+connecting. Picking the destination that is already active selects it, taking it
+from auto.
 
-## autoResumed
+## autoResumed(status)
 
-`listOpen = false`; in `selected`, back to `auto` with no pending. Live is left
-alone: a live tunnel is the user's, and auto only chooses while disconnected.
-`appStore.ts` replays the last status right after, so auto chooses now rather
-than at the next poll.
+`listOpen = false`. A live tunnel is never switched: `live.auto = true`, so auto
+resumes once it ends. The list's Auto row, connected, connects to auto's pick
+and then fires this instead of `listClosed(picked)`. Otherwise `auto` with no
+pending, and `effectiveCandidate` over `status` — the last status `appStore.ts`
+saw — becomes `active` at once when it is ready. The user asked for auto's pick,
+so there is no countdown to it, and the card reads "Current Best Location"
+straight away. With nothing ready, `active` stays; auto arms on a later poll as
+usual.
 
 ## connectIssued(id)
 
 `active = id`, pending cleared, mode `live` optimistically — we are ahead of the
-service, and the next status response is expected to confirm. Because live is
-inert, nothing can arm a countdown during the attempt. A connect that disagrees
-with the promotion — connect-on-startup landing on the first ready destination
-rather than the unready one we promoted — simply moves `active`.
+service, and the next status response is expected to confirm. `live.auto` is
+recorded as in [step 2](#statusupdate): from `auto` it is `true`, from
+`selected` `false`, from `live` kept. Because live is inert, nothing can arm a
+countdown during the attempt. A connect that disagrees with the promotion —
+connect-on-startup landing on the first ready destination rather than the
+unready one we promoted — simply moves `active`.
 
 A failed connect needs no special handling: the next status response reports no
-connection, and _leaving live_ parks us in `selected` on the destination we
-tried.
+connection, and _leaving live_ returns to what the attempt came from — the
+selection on the destination we tried, or auto.
 
 ## Probing
 
@@ -452,6 +451,8 @@ abandoned by the clock, never by a timer.
 
 ## Deliberate non-rules
 
+- **A selection never expires.** Only the user ends it (a pick, Auto) or its
+  exit disappearing; nothing better, however long it waits, moves it.
 - **Auto never switches away from an unready `active`.** It reacts to the
   candidate only, so if the active goes unready and nothing ready is better, we
   stay on it.

@@ -173,7 +173,6 @@ function initialState(): AppState {
       listOpen: false,
       preferredLocation: null,
       lastConnectedDestination: null,
-      connectOnStartup: false,
     },
   };
 }
@@ -327,7 +326,6 @@ export function createAppStore(): AppStoreTuple {
       destinationMode = createDestinationMode({
         preferredLocation: settings.preferredLocation,
         lastConnectedDestination: settings.lastConnectedDestination,
-        connectOnStartup: settings.connectOnStartup,
       });
       if (pendingModeAppState) {
         destinationMode.applyStatusUpdate(pendingModeAppState);
@@ -370,7 +368,6 @@ export function createAppStore(): AppStoreTuple {
     destinationMode?.reset({
       preferredLocation: settings.preferredLocation,
       lastConnectedDestination: settings.lastConnectedDestination,
-      connectOnStartup: settings.connectOnStartup,
     });
   };
 
@@ -832,10 +829,10 @@ export function createAppStore(): AppStoreTuple {
     },
     // Closes the list like destinationListClosed; the last status lets auto choose now, not at the next poll.
     autoResumed: () => {
-      destinationMode?.applyUserInput({ type: "autoResumed" });
-      if (pendingModeAppState) {
-        destinationMode?.applyStatusUpdate(pendingModeAppState);
-      }
+      destinationMode?.applyUserInput({
+        type: "autoResumed",
+        status: pendingModeAppState ?? null,
+      });
       VPNService.setStatusPollFast(false).catch((error) => logWarn(`${error}`));
       quickProbes = IDLE_SCHEDULE;
     },

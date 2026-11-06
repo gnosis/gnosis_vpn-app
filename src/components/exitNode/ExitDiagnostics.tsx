@@ -1,4 +1,4 @@
-import { createMemo, createSignal, onCleanup, Show } from "solid-js";
+import { createMemo, createSignal, type JSX, onCleanup, Show } from "solid-js";
 import type { DestinationState } from "@src/services/vpnService.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { MB_PER_EXIT } from "@src/utils/credit.ts";
@@ -23,18 +23,12 @@ import FeatureComing from "../settings/FeatureComing.tsx";
 
 const RELIABILITY = ["Less reliable", "Less reliable", "Reliable"];
 
-/** The label in a diagnostics row, with its explanation on hover. */
-function Label(props: { text: string; tip?: string }) {
-  return (
-    <Show when={props.tip} fallback={<span>{props.text}</span>}>
-      {(tip) => (
-        <Tooltip content={<span>{tip()}</span>}>
-          <span class="cursor-help">{props.text}</span>
-        </Tooltip>
-      )}
-    </Show>
-  );
+/** Hovering a metric's name or its value explains it; `tip` builds fresh nodes for each tooltip. */
+function Explained(props: { tip: () => JSX.Element; children: JSX.Element }) {
+  return <Tooltip content={props.tip()}>{props.children}</Tooltip>;
 }
+
+const say = (text: string): () => JSX.Element => () => <span>{text}</span>;
 
 /** The mock's circled "i"; its parent supplies the tooltip. */
 function InfoDot(props: { label: string }) {
@@ -49,13 +43,19 @@ function InfoDot(props: { label: string }) {
   );
 }
 
-function Row(props: { label: string; tip?: string; value: string | null }) {
+function Row(
+  props: { label: string; tip: () => JSX.Element; value: string | null },
+) {
   return (
     <div class="flex justify-between gap-2 py-0.75 text-xs text-text-subtle">
-      <Label text={props.label} tip={props.tip} />
-      <span class="font-figures font-medium text-text-primary">
-        {props.value ?? "—"}
-      </span>
+      <Explained tip={props.tip}>
+        <span>{props.label}</span>
+      </Explained>
+      <Explained tip={props.tip}>
+        <span class="font-figures font-medium text-text-primary">
+          {props.value ?? "—"}
+        </span>
+      </Explained>
     </div>
   );
 }
@@ -64,6 +64,8 @@ function Row(props: { label: string; tip?: string; value: string | null }) {
 export default function ExitDiagnostics(props: {
   destinationState: DestinationState;
   latencyMs: number | null;
+  // the allotment is spent only on a tunnel
+  showUsage: boolean;
 }) {
   const [appState] = useAppStore();
   const exit = createMemo(() =>
@@ -112,8 +114,11 @@ export default function ExitDiagnostics(props: {
           </p>
         )}
       </Show>
-      <p>Lower is better.</p>
+      <p>Green up to 50%, orange up to 75%, red above.</p>
     </div>
+  );
+  const latencyTip = say(
+    "One way through the relay to the exit. Green under 500 ms, orange up to 1,100 ms, red above.",
   );
   const pathValue = () => {
     const rh = routeHealth();
@@ -138,73 +143,90 @@ export default function ExitDiagnostics(props: {
     <div class="flex flex-col gap-2.5 p-3">
       <div class="grid grid-cols-2 border-b border-line pb-2">
         <div class="flex items-baseline justify-between gap-2 pr-3.5 text-xs text-text-subtle">
-          <Label
-            text="Latency"
-            tip="One way through the relay to the exit. Expected ~200 ms; lower is better."
-          />
-          <span
-            class={`font-figures text-[17px] leading-5 font-semibold tracking-[-0.02em] ${latencyColor()}`}
-          >
-            {latency() ?? "—"}
-          </span>
+          <Explained tip={latencyTip}>
+            <span>Latency</span>
+          </Explained>
+          <Explained tip={latencyTip}>
+            <span
+              class={`font-figures text-[17px] leading-5 font-semibold tracking-[-0.02em] ${latencyColor()}`}
+            >
+              {latency() ?? "—"}
+            </span>
+          </Explained>
         </div>
         <div class="flex items-baseline justify-between gap-2 border-l border-line pl-3.5 text-xs text-text-subtle">
-          <span class="flex items-center gap-1.5">
-            Server load
-            <Tooltip content={loadTip()} tabIndex={0}>
-              <InfoDot label="How server load is calculated" />
-            </Tooltip>
-          </span>
-          <span
-            class={`font-figures text-[17px] leading-5 font-semibold tracking-[-0.02em] ${loadColor()}`}
-          >
-            {load() ? `${load()!.percent}%` : "—"}
-          </span>
+          <Explained tip={loadTip}>
+            <span>Server load</span>
+          </Explained>
+          <Explained tip={loadTip}>
+            <span
+              class={`font-figures text-[17px] leading-5 font-semibold tracking-[-0.02em] ${loadColor()}`}
+            >
+              {load() ? `${load()!.percent}%` : "—"}
+            </span>
+          </Explained>
         </div>
       </div>
       <div class="flex flex-col">
         <span class="mb-1 text-xs text-text-subtle">Diagnostics</span>
         <Row
           label="Last checked"
-          tip="When this exit was last measured."
+          tip={say("When this exit was last measured.")}
           value={lastChecked()}
         />
         <Row
           label="Path"
-          tip="Value of the best path found; below 90% counts as a weak route."
+          tip={say(
+            "Value of the best path found; below 90% counts as a weak route.",
+          )}
           value={pathValue()}
         />
         <Row
           label="Relays"
-          tip="Distinct first relays over the paths found; more means fewer single points of failure."
+          tip={say(
+            "Distinct first relays over the paths found; more means fewer single points of failure.",
+          )}
           value={relays()}
         />
         <Row
           label="Route"
+          tip={say("Relays between you and the exit.")}
           value={formatRouting(props.destinationState.destination.hops)}
         />
-        <Row label="Open spots" value={openSpots()} />
-        <Row label="Reliability" value={reliability()} />
+        <Row
+          label="Open spots"
+          tip={say("Whether the exit has a free connection slot for you.")}
+          value={openSpots()}
+        />
+        <Row
+          label="Reliability"
+          tip={say(
+            "From the distinct first relays: 3 or more very reliable, 2 reliable, fewer less reliable.",
+          )}
+          value={reliability()}
+        />
       </div>
-      <div class="flex flex-col gap-2 border-t border-line pt-2.5">
-        <div class="flex items-center justify-between gap-2">
-          <span class="flex items-center gap-1.5 text-[13px] leading-5 text-text-soft">
-            Usage
-            <FeatureComing>
-              <InfoDot label="Usage per exit: feature coming" />
-            </FeatureComing>
-          </span>
-          <span class="text-[13px] leading-5 text-text-subtle">
-            <span class="font-figures text-[15px] leading-5 font-semibold text-text-primary">
-              {`${MB_PER_EXIT} MB`}
-            </span>{" "}
-            left
-          </span>
+      <Show when={props.showUsage}>
+        <div class="flex flex-col gap-2 border-t border-line pt-2.5">
+          <div class="flex items-center justify-between gap-2">
+            <span class="flex items-center gap-1.5 text-[13px] leading-5 text-text-soft">
+              Usage
+              <FeatureComing>
+                <InfoDot label="Usage per exit: feature coming" />
+              </FeatureComing>
+            </span>
+            <span class="text-[13px] leading-5 text-text-subtle">
+              <span class="font-figures text-[15px] leading-5 font-semibold text-text-primary">
+                {`${MB_PER_EXIT} MB`}
+              </span>{" "}
+              left
+            </span>
+          </div>
+          <div class="h-2 overflow-hidden rounded bg-control-bg">
+            <div class="h-full w-full rounded bg-control-tint" />
+          </div>
         </div>
-        <div class="h-2 overflow-hidden rounded bg-control-bg">
-          <div class="h-full w-full rounded bg-control-tint" />
-        </div>
-      </div>
+      </Show>
     </div>
   );
 }

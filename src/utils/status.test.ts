@@ -106,7 +106,6 @@ const BASE_APP_STATE: AppState = {
     listOpen: false,
     preferredLocation: null,
     lastConnectedDestination: null,
-    connectOnStartup: false,
   },
 };
 

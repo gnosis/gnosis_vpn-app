@@ -162,10 +162,10 @@ export default function ExitNodeList(props: {
       exits,
       more,
       autoPick,
-      // Nothing records whether a tunnel was auto's choice, so connected it is "On" while it is auto's pick right now.
+      // connected, "On" means auto was on when this tunnel came up
       autoOn: connectedId === null
         ? appState.mode.mode.mode === "auto"
-        : connectedId === autoPick?.id,
+        : appState.mode.mode.mode === "live" && appState.mode.mode.auto,
       connected: isVpnActive(appState.vpnStatus, appState.targetDestination),
     };
   });
@@ -194,20 +194,29 @@ export default function ExitNodeList(props: {
       ? "No exits used yet. They show up here once you connect."
       : "No other exits are available right now.";
 
-  const handleConnect = (id: string) => {
+  /** Connects to `id` when asked to; false when it can no longer be picked. */
+  const goTo = (id: string, connect: boolean): boolean => {
     const liveOrLeaving = connectionDestination(appState.connection) === id ||
       appState.disconnecting.some((d) => d.destination === id);
     // its tunnel exists or is going away; picking it only brings its card back
-    if (!liveOrLeaving) {
-      // the view holds still under the pointer, so the exit may have gone or filled since it was drawn
-      if (!isUsable(id)) return;
+    if (liveOrLeaving) return true;
+    // the view holds still under the pointer, so the exit may have gone or filled since it was drawn
+    if (!isUsable(id)) return false;
+    if (connect) {
       logInfo(`Connecting from the list: ${id}`);
       void appActions.connect(id);
     }
-    props.onClose(id);
+    return true;
   };
 
-  const isConnected = () => connectionDestination(appState.connection) !== null;
+  // the row's Connect / Switch button
+  const connectTo = (id: string) => {
+    if (goTo(id, true)) props.onClose(id);
+  };
+  // a click on the row while disconnected: the main screen's Connect goes there later
+  const select = (id: string) => {
+    if (goTo(id, false)) props.onClose(id);
+  };
 
   // the pick on screen, while the live status still has it ready
   const autoTarget = () => {
@@ -218,14 +227,10 @@ export default function ExitNodeList(props: {
       : null;
   };
 
-  // connected, Use switches to the pick on screen, as the mock does; disconnected, it hands back to auto
-  const useAuto = () => {
-    if (!isConnected()) {
-      appActions.autoResumed();
-      return;
-    }
+  // connects to the pick on screen; the tunnel is auto's, so it hands back to auto once it ends
+  const connectAuto = () => {
     const target = autoTarget();
-    if (target !== null) handleConnect(target);
+    if (target !== null && goTo(target, true)) appActions.autoResumed();
   };
 
   const sortOptions = [
@@ -307,7 +312,15 @@ export default function ExitNodeList(props: {
               class="flex flex-col gap-0.5 rounded-xl bg-bg-list p-1.5"
             >
               <Show when={showAuto()}>
-                <div class="flex min-h-14.5 items-center gap-3 rounded-[10px] p-2.5 hover:bg-row-hover">
+                <div
+                  class="flex min-h-14.5 items-center gap-3 rounded-[10px] p-2.5 hover:bg-row-hover"
+                  onClick={(e) => {
+                    // like the exit rows: disconnected, the whole row selects
+                    if (view().connected || view().autoOn) return;
+                    if ((e.target as Element).closest("button")) return;
+                    appActions.autoResumed();
+                  }}
+                >
                   <span
                     class="h-5.25 w-7.5 shrink-0 rounded bg-auto-mark"
                     aria-hidden="true"
@@ -332,11 +345,13 @@ export default function ExitNodeList(props: {
                       <button
                         type="button"
                         class={ACTION_BUTTON}
-                        aria-label="Use automatic location"
-                        disabled={isConnected() && autoTarget() === null}
-                        onClick={useAuto}
+                        aria-label={`${
+                          view().connected ? "Switch" : "Connect"
+                        } to automatic location`}
+                        disabled={appState.isLoading || autoTarget() === null}
+                        onClick={connectAuto}
                       >
-                        Use
+                        {view().connected ? "Switch" : "Connect"}
                       </button>
                     }
                   >
@@ -354,7 +369,8 @@ export default function ExitNodeList(props: {
                     grade={view().exits[id].grade}
                     actionLabel={view().connected ? "Switch" : "Connect"}
                     disabled={appState.isLoading || !isUsable(id)}
-                    onAction={() => handleConnect(id)}
+                    onAction={() => connectTo(id)}
+                    onRowClick={view().connected ? undefined : () => select(id)}
                   />
                 )}
               </For>
