@@ -153,15 +153,16 @@ export default function ExitCost(
             stroke-linecap="round"
             stroke-linejoin="round"
           />
-          <Show when={left()}>
-            {(l) => (
+          {/* The balance as it stands, centred on the battery: the exit's share is not spent yet */}
+          <Show when={credit()}>
+            {(c) => (
               <text
-                x={X0 + leftWidth() / 2}
+                x={X0 + W / 2}
                 y="70"
                 text-anchor="middle"
                 fill="var(--color-text-subtle)"
               >
-                {`${formatCreditCompact(l())} left`}
+                {`${formatCreditCompact(c())} left`}
               </text>
             )}
           </Show>
@@ -188,7 +189,7 @@ export default function ExitCost(
         <FeatureComing>
           <label class="flex items-center gap-2 opacity-50">
             <Checkbox checked disabled />
-            Turn on Auto-renew
+            Turn on Auto-renew sessions
           </label>
         </FeatureComing>
         <label class="flex items-center gap-2">

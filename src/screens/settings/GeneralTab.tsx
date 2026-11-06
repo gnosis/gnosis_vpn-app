@@ -183,10 +183,10 @@ export default function GeneralTab(
         </SettingsRow>
         <FeatureComing class="w-full">
           <SettingsRow
-            title="Auto-renew"
+            title="Auto-renew sessions"
             description="Adds the next 600 MB by itself when an exit runs low, without asking."
           >
-            <Switch label="Auto-renew" checked={false} disabled />
+            <Switch label="Auto-renew sessions" checked={false} disabled />
           </SettingsRow>
         </FeatureComing>
         <SettingsRow title="Advanced view">
