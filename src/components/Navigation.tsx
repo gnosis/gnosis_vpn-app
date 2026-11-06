@@ -100,7 +100,7 @@ function Navigation(props: { gearOnly?: boolean }) {
                 <LockIcon open />
               </div>
             </Tooltip>
-            <Tooltip content="Traffic" position="bottom">
+            <Tooltip content="Live traffic" position="bottom">
               <IconButton label="Traffic" onClick={() => openTrafficWindow()}>
                 <TrafficIcon />
               </IconButton>
