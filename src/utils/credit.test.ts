@@ -132,6 +132,18 @@ describe("formatCreditCompact", () => {
     expect(formatCreditCompact(BYTES_PER_MB * 9996n / 100n)).toBe("100 MB");
     expect(formatCreditCompact(tenthsOf(BYTES_PER_MB, 9996n))).toBe("1.0 GB");
     expect(formatCreditCompact(BYTES_PER_GB * 1000n)).toBe("1.0 TB");
+    expect(formatCreditCompact(BYTES_PER_TB * 1001n)).toBe("1.0 PB");
+  });
+
+  it("keeps three digits for the largest balances", () => {
+    expect(formatCreditCompact(BYTES_PER_TB * 999n)).toBe("999 TB");
+    expect(formatCreditCompact(2n ** 64n - 1n)).toBe("16.0 EB");
+    expect(formatCreditCompact(BYTES_PER_TB * 1024n ** 4n * 999n)).toBe(
+      "999 YB",
+    );
+    expect(formatCreditCompact(BYTES_PER_TB * 1024n ** 4n * 1000n)).toBe(
+      "999+ YB",
+    );
   });
 
   it("shows an empty balance as whole MB", () => {

@@ -47,13 +47,19 @@ function threeDigits(
   return whole < 1000n ? `${whole} ${suffix}` : null;
 }
 
+const COMPACT_SUFFIXES = ["MB", "GB", "TB", "PB", "EB", "ZB", "YB"] as const;
+
 /** At most three digits, e.g. 999 GB, 99.9 GB, 999 MB, 99.9 MB; sized for the top bar. */
 export function formatCreditCompact(creditBytes: bigint): string {
   if (creditBytes === 0n) return "0 MB";
-  return threeDigits(creditBytes, BYTES_PER_MB, "MB") ??
-    threeDigits(creditBytes, BYTES_PER_GB, "GB") ??
-    threeDigits(creditBytes, BYTES_PER_TB, "TB") ??
-    formatCreditUnit(creditBytes, BYTES_PER_TB, 0, "TB");
+  let unitBytes = BYTES_PER_MB;
+  for (const suffix of COMPACT_SUFFIXES) {
+    const label = threeDigits(creditBytes, unitBytes, suffix);
+    if (label !== null) return label;
+    unitBytes *= 1024n;
+  }
+  // Summed u64 allocations stay far below this.
+  return "999+ YB";
 }
 
 /** The Stage 2 design's per-exit allotment; the client does not set it aside yet. */
