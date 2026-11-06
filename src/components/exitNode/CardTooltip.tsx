@@ -23,7 +23,6 @@ export default function CardTooltip(
     >
       <span
         class={`inline-flex cursor-help ${props.class ?? ""}`}
-        data-info-icon
         aria-describedby={descriptionId}
         tabIndex={0}
         onClick={(e) => e.stopPropagation()}

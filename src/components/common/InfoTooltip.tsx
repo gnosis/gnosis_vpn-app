@@ -3,7 +3,7 @@ import Tooltip from "./Tooltip.tsx";
 
 const ACTIVATION_KEYS = new Set(["Enter", " "]);
 
-/** The ⓘ hover/focus target, exempted from LocationBanner's press-replay by `data-info-icon`. */
+/** The ⓘ hover/focus target; inside a role="button" row its clicks and Enter/Space never reach the row. */
 export default function InfoTooltip(
   props: { content: JSX.Element; class?: string },
 ) {
@@ -22,7 +22,6 @@ export default function InfoTooltip(
         class={`cursor-help transition-colors hover:text-text-primary ${
           props.class ?? "text-text-muted"
         }`}
-        data-info-icon
         role="img"
         aria-label="More information"
         aria-describedby={descriptionId}

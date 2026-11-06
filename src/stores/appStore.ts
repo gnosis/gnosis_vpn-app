@@ -114,7 +114,7 @@ export interface AppState {
   // read of the version file, falling back to the daemon's for older installs.
   packageVersion: string | null;
   toolkit: ToolkitState;
-  // The carousel's cards and active pointer — see docs/destinationMode.md
+  // The destination the card shows and Connect targets — see docs/destinationMode.md
   mode: DestinationMode;
 }
 
@@ -123,8 +123,6 @@ type AppActions = {
   setScreen: (screen: AppScreen) => void;
   connect: (targetId: string) => Promise<void>;
   disconnect: () => Promise<void>;
-  slideCommitted: (id: string) => void;
-  dragStarted: () => void;
   destinationListOpened: () => void;
   destinationListClosed: (picked: string | null) => void;
   autoResumed: () => void;
@@ -170,13 +168,9 @@ function initialState(): AppState {
     packageVersion: null,
     toolkit: { status: "unknown", version: null, packageVersion: null },
     mode: {
-      entries: {},
-      sequence: [],
       active: null,
       mode: { mode: "auto", pending: null },
-      nextKey: 0,
       listOpen: false,
-      dragging: false,
       preferredLocation: null,
       lastConnectedDestination: null,
       connectOnStartup: false,
@@ -339,9 +333,7 @@ export function createAppStore(): AppStoreTuple {
         destinationMode.applyStatusUpdate(pendingModeAppState);
       }
     }
-    batch(() =>
-      setState("mode", reconcile({ ...destinationMode!.model }, { key: "key" }))
-    );
+    batch(() => setState("mode", reconcile({ ...destinationMode!.model })));
   });
 
   const criticalError = (message: string) =>
@@ -481,7 +473,7 @@ export function createAppStore(): AppStoreTuple {
   };
 
   createEffect(() => {
-    // Tracks the mirrored mode so a slide, a pick or an auto commit re-points the probe.
+    // Tracks the mirrored mode so a pick or an auto commit re-points the probe.
     effectiveActive(state.mode, Date.now());
     const id = probeTarget();
     if (id !== null) ensureProbe(id, Date.now());
@@ -828,9 +820,6 @@ export function createAppStore(): AppStoreTuple {
       }
     },
 
-    slideCommitted: (id: string) =>
-      destinationMode?.applyUserInput({ type: "slideCommitted", id }),
-    dragStarted: () => destinationMode?.applyUserInput({ type: "dragStarted" }),
     destinationListOpened: () => {
       destinationMode?.applyUserInput({ type: "listOpened" });
       VPNService.setStatusPollFast(true).catch((error) => logWarn(`${error}`));

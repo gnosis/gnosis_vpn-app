@@ -173,12 +173,12 @@ export default function GeneralTab(
         </SettingsRow>
         <SettingsRow
           title="Detailed metrics"
-          description="Last check, load, path and relays under the exit on the main screen."
+          description="Latency, server load and diagnostics under the exit on the main screen; its chevron opens them."
         >
           <Switch
             label="Detailed metrics"
             checked={settings.showDetailedMetrics}
-            onChange={(on) => void settingsActions.setShowDetailedMetrics(on)}
+            disabled
           />
         </SettingsRow>
         <SettingsRow title="Start minimized">

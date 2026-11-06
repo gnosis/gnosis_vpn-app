@@ -12,7 +12,7 @@ function unitVariant<const T extends readonly [string, ...string[]]>(
   return z.object({ type: z.enum(values) }).transform((v) => v.type);
 }
 
-// In attempt order; StatusHero reads the order as progress.
+// In attempt order; ConnectStage reads the order as progress.
 export const CONNECT_PHASES = [
   "init",
   "gather_peer_ips",

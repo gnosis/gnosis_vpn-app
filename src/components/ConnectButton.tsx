@@ -43,7 +43,7 @@ export default function ConnectButton() {
       if (isActive()) {
         await appActions.disconnect();
       } else {
-        // Resolved fresh at click time: a memo recomputes on `mode`, not on the clock crossing settleAt.
+        // Resolved fresh at click time: a memo recomputes on `mode`, not on the clock crossing the countdown.
         const id = effectiveActive(appState.mode, Date.now());
         if (id) await appActions.connect(id);
       }
@@ -55,15 +55,13 @@ export default function ConnectButton() {
   };
 
   return (
-    <div class="relative z-20 w-full">
-      <Button
-        size="lg"
-        variant={look().variant}
-        onClick={() => void handleClick()}
-        disabled={appState.isLoading || !(isActive() || isTargetSelectable())}
-      >
-        {look().label}
-      </Button>
-    </div>
+    <Button
+      size="xl"
+      variant={look().variant}
+      onClick={() => void handleClick()}
+      disabled={appState.isLoading || !(isActive() || isTargetSelectable())}
+    >
+      {look().label}
+    </Button>
   );
 }

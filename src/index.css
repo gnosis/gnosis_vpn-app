@@ -69,9 +69,14 @@ textarea {
   --color-bg-surface-alt: #f0f0f0;
   --color-bg-overlay: rgba(0, 0, 0, 0.5);
 
-  /* Location carousel: the destination card sits raised inside its tray */
-  --color-bg-card: #ffffff;
-  --color-bg-card-outer: #ececec;
+  /* Main screen location card (Stage 2.1) */
+  --color-bg-location-card: #ffffff;
+  --color-line: #d0d1da;
+  --color-line-dash: #c6c3e2;
+  --color-ok-ink: #0a6638;
+  --color-pill-auto: color-mix(in srgb, #0f8a4e 20%, #ffffff);
+  --color-pill-selected: #efedfc;
+  --color-control-ring: #adafc0;
 
   /* Text colors */
   --color-text-primary: #0f0f0f;
@@ -120,18 +125,18 @@ textarea {
   --color-accent-text: #ffffff;
   --color-accent-hover: #141b26;
 
-  /* Status owl (StatusHero) - brand mark, tracked apart from body text */
-  --color-owl: #1b2534;
-
   /* Secondary button colors */
   --color-btn-secondary-bg: #374151;
   --color-btn-secondary-text: #ffffff;
   --color-btn-secondary-hover: #4b5563;
 
-  /* Cancel and Disconnect button colors: muted red */
-  --color-btn-stop-bg: #b45353;
-  --color-btn-stop-text: #ffffff;
-  --color-btn-stop-hover: #9b4444;
+  /* Connect, and Cancel/Disconnect: the Stage 2.1 soft green and red */
+  --color-btn-connect-bg: color-mix(in srgb, #0f8a4e 30%, #ffffff);
+  --color-btn-connect-text: #075a30;
+  --color-btn-connect-hover: color-mix(in srgb, #0f8a4e 38%, #ffffff);
+  --color-btn-stop-bg: color-mix(in srgb, #d9475a 28%, #ffffff);
+  --color-btn-stop-text: #8a1b29;
+  --color-btn-stop-hover: color-mix(in srgb, #d9475a 36%, #ffffff);
 
   /* Traffic globe: a pale indigo sphere with saturated links */
   --color-globe-surface: #f1effc;
@@ -156,10 +161,14 @@ textarea {
   --color-bg-surface-alt: #1a2233;
   --color-bg-overlay: rgba(0, 0, 0, 0.7);
 
-  /* Location carousel — Tailwind v4's slate-700/slate-800 as sRGB, the
-     literals these two surfaces used before they became themeable. */
-  --color-bg-card: #314158;
-  --color-bg-card-outer: #1d293d;
+  /* Main screen location card */
+  --color-bg-location-card: #24232f;
+  --color-line: #2a2838;
+  --color-line-dash: #353150;
+  --color-ok-ink: #62dfa2;
+  --color-pill-auto: color-mix(in srgb, #3ccf85 20%, #1b1a26);
+  --color-pill-selected: #28234a;
+  --color-control-ring: #3a3849;
 
   /* Text colors */
   --color-text-primary: #f9fafb;
@@ -207,18 +216,18 @@ textarea {
   --color-accent-text: #f9fafb;
   --color-accent-hover: #2c20ab;
 
-  /* Status owl - the accent is barely legible on a dark surface, so it stays near-white */
-  --color-owl: var(--color-text-primary);
-
   /* Secondary button colors */
   --color-btn-secondary-bg: #4b5563;
   --color-btn-secondary-text: #f9fafb;
   --color-btn-secondary-hover: #6b7280;
 
-  /* Cancel and Disconnect button colors: muted red */
-  --color-btn-stop-bg: #b45353;
-  --color-btn-stop-text: #ffffff;
-  --color-btn-stop-hover: #9b4444;
+  /* Connect, and Cancel/Disconnect */
+  --color-btn-connect-bg: color-mix(in srgb, #3ccf85 14%, #1b1a26);
+  --color-btn-connect-text: #62dfa2;
+  --color-btn-connect-hover: color-mix(in srgb, #3ccf85 22%, #1b1a26);
+  --color-btn-stop-bg: color-mix(in srgb, #ef6b78 14%, #1b1a26);
+  --color-btn-stop-text: #ff9aa3;
+  --color-btn-stop-hover: color-mix(in srgb, #ef6b78 22%, #1b1a26);
 
   /* Traffic globe: lifted hues for the dark background */
   --color-globe-surface: #1c1d45;
@@ -272,8 +281,13 @@ textarea {
   --color-bg-surface: var(--color-bg-surface);
   --color-bg-surface-alt: var(--color-bg-surface-alt);
   --color-bg-overlay: var(--color-bg-overlay);
-  --color-bg-card: var(--color-bg-card);
-  --color-bg-card-outer: var(--color-bg-card-outer);
+  --color-bg-location-card: var(--color-bg-location-card);
+  --color-line: var(--color-line);
+  --color-line-dash: var(--color-line-dash);
+  --color-ok-ink: var(--color-ok-ink);
+  --color-pill-auto: var(--color-pill-auto);
+  --color-pill-selected: var(--color-pill-selected);
+  --color-control-ring: var(--color-control-ring);
 
   --color-text-primary: var(--color-text-primary);
   --color-text-secondary: var(--color-text-secondary);
@@ -311,11 +325,12 @@ textarea {
   --color-accent-text: var(--color-accent-text);
   --color-accent-hover: var(--color-accent-hover);
 
-  --color-owl: var(--color-owl);
-
   --color-btn-secondary-bg: var(--color-btn-secondary-bg);
   --color-btn-secondary-text: var(--color-btn-secondary-text);
   --color-btn-secondary-hover: var(--color-btn-secondary-hover);
+  --color-btn-connect-bg: var(--color-btn-connect-bg);
+  --color-btn-connect-text: var(--color-btn-connect-text);
+  --color-btn-connect-hover: var(--color-btn-connect-hover);
   --color-btn-stop-bg: var(--color-btn-stop-bg);
   --color-btn-stop-text: var(--color-btn-stop-text);
   --color-btn-stop-hover: var(--color-btn-stop-hover);
@@ -356,98 +371,16 @@ textarea {
       opacity: 0.25;
     }
   }
-}
 
-/* Status owl (StatusHero) */
-.owl-pupil {
-  transform-box: fill-box;
-  transform-origin: center;
-  /* Smooth eye close when falling asleep */
-  transition: transform 200ms ease;
-}
-.owl-blink {
-  animation: owl-blink 240ms ease-in-out;
-}
-@keyframes owl-blink {
-  50% {
-    transform: scaleY(0.05);
-  }
-}
-.owl-asleep .owl-pupil {
-  transform: scaleY(0.05);
-}
+  /* The location card's exit sliding in after a switch, as in the Stage 2.1 mock */
+  --animate-swap-in: swap-in 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
 
-/* Green owl duplicate revealed bottom-up; --owl-inset set inline per connect phase */
-.owl-fill-layer {
-  position: absolute;
-  inset: 0;
-  color: var(--color-vpn-light-green);
-  /* -webkit- prefix required for WebKit-based Tauri webviews (macOS/iOS) */
-  -webkit-clip-path: inset(var(--owl-inset, 100%) 0 0 0);
-  clip-path: inset(var(--owl-inset, 100%) 0 0 0);
-  transition: clip-path 700ms ease-out, -webkit-clip-path 700ms ease-out;
-  /* Signs of life during long phases */
-  animation: owl-fill-pulse 2.4s ease-in-out infinite;
-  @starting-style {
-    -webkit-clip-path: inset(100% 0 0 0);
-    clip-path: inset(100% 0 0 0);
+  @keyframes swap-in {
+    from {
+      transform: translateX(40px);
+      opacity: 0;
+    }
   }
-}
-@keyframes owl-fill-pulse {
-  50% {
-    opacity: 0.82;
-  }
-}
-
-/* One-shot connecting -> connected morph */
-.owl-morph-out {
-  animation: owl-morph-out 350ms ease-in forwards;
-}
-@keyframes owl-morph-out {
-  to {
-    transform: scale(0.6);
-    opacity: 0;
-  }
-}
-/* Base dashoffset stays 0 so reduced-motion still shows a full check */
-.check-draw {
-  stroke-dasharray: 100;
-  animation: check-draw 500ms ease-out 200ms both;
-}
-@keyframes check-draw {
-  from {
-    stroke-dashoffset: 100;
-  }
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-.check-pop-entry {
-  animation: check-pop 400ms ease-out 750ms both;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .owl-blink,
-  .check-draw,
-  .check-pop-entry {
-    animation: none;
-  }
-  .owl-fill-layer {
-    transition: none;
-    animation: none;
-  }
-  .owl-morph-out {
-    display: none;
-  }
-}
-
-/* Keeps touch/drag scrolling but hides the scrollbar chrome */
-.no-scrollbar {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
 }
 
 .fade-in-up {
@@ -493,23 +426,6 @@ textarea {
   to {
     stroke-dashoffset: var(--countdown-circumference);
   }
-}
-
-/* Signals "this card is about to change" right before it slides out. */
-@keyframes banner-card-pulse {
-  0% {
-    transform: scale(1);
-  }
-  40% {
-    transform: scale(0.8);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-
-.banner-card-pulse {
-  animation: banner-card-pulse 600ms ease-in-out;
 }
 
 .system-window {

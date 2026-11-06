@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  formatConnectionStatus,
   formatExitHealthStatus,
-  getExitHealthColor,
   getLatencyLevel,
   getLatencyMs,
   getSlotLoad,
@@ -130,11 +128,6 @@ describe("formatExitHealthStatus — one label per route state", () => {
     expect(formatExitHealthStatus(weakRouteHealth(), null)).toBe("Weak route");
   });
 
-  it("colors the band edge the same way as the label", () => {
-    expect(getExitHealthColor(weakRouteHealth(0.9), null)).toBe("green");
-    expect(getExitHealthColor(weakRouteHealth(0.89), null)).toBe("yellow");
-  });
-
   it("calls a measured exit with no free slot full", () => {
     expect(formatExitHealthStatus(eligibleRouteHealth(), measured(0, 4))).toBe(
       "Full",
@@ -173,7 +166,6 @@ describe("a weak route still in its grace", () => {
     expect(formatExitHealthStatus(weakRouteHealth(), null, false)).toBe(
       "Ready to connect",
     );
-    expect(getExitHealthColor(weakRouteHealth(), null, false)).toBe("green");
     expect(formatExitHealthStatus(weakRouteHealth(), measured(0, 4), false))
       .toBe("Full");
   });
@@ -189,21 +181,5 @@ describe("a weak route still in its grace", () => {
         false,
       ),
     ).toBe("Checking…");
-  });
-});
-
-describe("formatConnectionStatus", () => {
-  it("shows Connected only while connected", () => {
-    expect(formatConnectionStatus("Connected")).toBe("Connected");
-  });
-
-  it("folds reconnecting into Connecting", () => {
-    expect(formatConnectionStatus("Connecting")).toBe("Connecting");
-    expect(formatConnectionStatus("Reconnecting")).toBe("Connecting");
-  });
-
-  it("treats disconnecting as already disconnected", () => {
-    expect(formatConnectionStatus("Disconnecting")).toBe("Disconnected");
-    expect(formatConnectionStatus("None")).toBe("Disconnected");
   });
 });

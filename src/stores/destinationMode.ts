@@ -15,36 +15,17 @@ import {
   sortByRouteQuality,
 } from "@src/utils/destinations.ts";
 
-// Countdown timeout before starting switch animation
+// Countdown before auto switches the card to a better destination
 export const SWITCH_COUNTDOWN_MS = 5_000;
-// Switch animation will take 333ms shrink/growth and 666ms slide left
-// so after half of the slide animation the new one is considered active
-export const SWITCH_CROSSOVER_MS = 666;
-// Total duration of the (UI-owned) slide animation once a switch starts.
-export const SWITCH_ANIMATE_MS = 1_000;
 // Flat, unconditional deadline for a selected destination to fall back to auto.
 export const SELECTED_AUTO_REVERT_MS = 10_000;
 // Service poll cadence (src-tauri/src/commands.rs); bounds how late a deadline may be honoured.
 export const STATUS_POLL_MS = 2_300;
 
-export interface Entry {
-  // Render/reconcile identity, distinct from `id` — lets a re-pick mount fresh.
-  key: number;
-  // The sweep's justification for an entry: history stays, a bare candidate does not.
-  wasActive: boolean;
-}
-
-// Flat, view-friendly shape — hides the entries-Record + sequence-array split below.
-export interface DestinationEntry extends Entry {
-  id: string;
-}
-
 export interface AutoPending {
   candidateId: string;
-  // when the countdown expires
+  // when the countdown expires and the candidate becomes active
   countdownEndsAt: number;
-  // countdownEndsAt + SWITCH_CROSSOVER_MS
-  settleAt: number;
 }
 
 export type AutoMode = {
@@ -54,7 +35,7 @@ export type AutoMode = {
 
 export type SelectedMode = {
   mode: "selected";
-  // null while suspended — an open list or a finger on the strip stops the clock
+  // null while suspended — an open list stops the clock
   autoRevertAt: number | null;
 };
 
@@ -64,15 +45,10 @@ export type LiveMode = {
 export type Mode = AutoMode | SelectedMode | LiveMode;
 
 export interface DestinationMode {
-  entries: Record<string, Entry>;
-  sequence: string[];
   active: string | null;
   mode: Mode;
-  // Monotonic, never reused — avoids a re-added id colliding with a stale render key.
-  nextKey: number;
-  // Both suspend auto; in the store rather than the view so tests can reach them.
+  // Suspends auto; in the store rather than the view so tests can reach it.
   listOpen: boolean;
-  dragging: boolean;
   // From DestinationModeSettings, fixed at creation, then consumed during status updates
   preferredLocation: string | null;
   lastConnectedDestination: string | null;
@@ -100,15 +76,13 @@ export type UserInputEvent =
   | { type: "listClosed"; picked: string | null }
   // the list's Auto row: drop the manual pick and let auto choose again
   | { type: "autoResumed" }
-  | { type: "dragStarted" }
-  | { type: "slideCommitted"; id: string }
   | { type: "connectIssued"; id: string };
 
 export interface DestinationModeHandle {
   model: SolidStore<DestinationMode>;
   // Called once per new backend status — see appStore.ts's processStatusResponse.
   applyStatusUpdate: (status: ModeAppState) => void;
-  // Called once per user action (pick from list, scroll/settle on a card, ...).
+  // Called once per user action (pick from list, connect, ...).
   applyUserInput: (event: UserInputEvent) => void;
   // Clears pending timers and reinitializes the model in place — e.g. after a critical error.
   reset: (settings: DestinationModeSettings) => void;
@@ -116,13 +90,9 @@ export interface DestinationModeHandle {
 
 function initialModel(settings: DestinationModeSettings): DestinationMode {
   return {
-    entries: {},
-    sequence: [],
     active: null,
     mode: { mode: "auto", pending: null },
-    nextKey: 0,
     listOpen: false,
-    dragging: false,
     preferredLocation: settings.preferredLocation,
     lastConnectedDestination: settings.lastConnectedDestination,
     connectOnStartup: settings.connectOnStartup,
@@ -133,35 +103,10 @@ function liveIdOf(status: ModeAppState): string | null {
   return connectionDestination(status.connection);
 }
 
-/** Mints the entry if it is new; appends so history reads oldest to newest. */
-function ensureEntry(draft: DestinationMode, id: string): void {
-  if (id in draft.entries) return;
-  draft.entries[id] = { key: draft.nextKey++, wasActive: false };
-  draft.sequence.push(id);
-}
-
-/** The only way an entry becomes active, so `wasActive` and the preferred shot can never be missed. */
+/** The only way a destination becomes active, so the preferred shot can never be missed. */
 function makeActive(draft: DestinationMode, id: string): void {
-  ensureEntry(draft, id);
-  draft.entries[id] = { ...draft.entries[id], wasActive: true };
   draft.active = id;
   if (draft.preferredLocation === id) draft.preferredLocation = null;
-}
-
-/** A list pick swaps cards in place; a connection collapses the strip instead (see sweep). */
-function takeOutgoingSlot(draft: DestinationMode, id: string): void {
-  const outgoing = draft.active;
-  if (outgoing === null || outgoing === id) {
-    makeActive(draft, id);
-    return;
-  }
-  delete draft.entries[outgoing];
-  draft.sequence = draft.sequence
-    .filter((entryId) => entryId !== id)
-    .map((entryId) => (entryId === outgoing ? id : entryId));
-  // a fresh key mounts the card instead of sliding the old one into place
-  draft.entries[id] = { key: draft.nextKey++, wasActive: false };
-  makeActive(draft, id);
 }
 
 function selectedMode(): SelectedMode {
@@ -173,34 +118,13 @@ function selectedMode(): SelectedMode {
 
 const AUTO_IDLE: AutoMode = { mode: "auto", pending: null };
 
-/** Every entry is either history, the current candidate, or drag-held — anything else is dropped. Live keeps only itself. */
-function sweep(draft: DestinationMode): void {
-  if (draft.mode.mode === "live") {
-    // a live tunnel proposes nothing, and the connection state is never frozen by a finger
-    for (const id of Object.keys(draft.entries)) {
-      if (id !== draft.active) delete draft.entries[id];
-    }
-    draft.sequence = draft.sequence.filter((id) => id in draft.entries);
-    return;
-  }
-  const candidateId = draft.mode.mode === "auto"
-    ? draft.mode.pending?.candidateId ?? null
-    : null;
-  for (const [id, entry] of Object.entries(draft.entries)) {
-    // dragging holds every card in place; whatever ends the drag collects the orphan
-    if (draft.dragging || entry.wasActive || id === candidateId) continue;
-    delete draft.entries[id];
-  }
-  draft.sequence = draft.sequence.filter((id) => id in draft.entries);
-}
-
-/** Deadlines are truth: a pending past settleAt has already switched, so dropping it must commit it. */
+/** Deadlines are truth: a pending past its deadline has already switched, so dropping it must commit it. */
 function commitDuePending(draft: DestinationMode): void {
   if (draft.mode.mode !== "auto" || draft.mode.pending === null) return;
-  const { candidateId, settleAt } = draft.mode.pending;
+  const { candidateId, countdownEndsAt } = draft.mode.pending;
   const now = Date.now();
-  if (now < settleAt) return;
-  const sleptThrough = now - settleAt > STATUS_POLL_MS;
+  if (now < countdownEndsAt) return;
+  const sleptThrough = now - countdownEndsAt > STATUS_POLL_MS;
   if (!sleptThrough) makeActive(draft, candidateId);
   draft.mode = AUTO_IDLE;
 }
@@ -230,17 +154,12 @@ export function createDestinationMode(
   let pendingTimer: ReturnType<typeof setTimeout> | undefined;
   let revertTimer: ReturnType<typeof setTimeout> | undefined;
 
-  // A working copy every transition mutates; `mode` and each Entry are replaced, never edited in place.
+  // A working copy every transition mutates; `mode` is replaced, never edited in place.
   function draftOf(): DestinationMode {
-    return {
-      ...model,
-      entries: { ...model.entries },
-      sequence: [...model.sequence],
-    };
+    return { ...model };
   }
 
   function commit(draft: DestinationMode): void {
-    sweep(draft);
     setModel(draft);
     syncTimers();
   }
@@ -254,8 +173,8 @@ export function createDestinationMode(
 
     const mode = model.mode;
     if (mode.mode === "auto" && mode.pending !== null) {
-      const delay = Math.max(0, mode.pending.settleAt - Date.now());
-      pendingTimer = setTimeout(onSettleDeadline, delay);
+      const delay = Math.max(0, mode.pending.countdownEndsAt - Date.now());
+      pendingTimer = setTimeout(onSwitchDeadline, delay);
       return;
     }
     if (mode.mode === "selected" && mode.autoRevertAt !== null) {
@@ -264,11 +183,11 @@ export function createDestinationMode(
     }
   }
 
-  function onSettleDeadline(): void {
+  function onSwitchDeadline(): void {
     const draft = draftOf();
     if (draft.mode.mode !== "auto" || draft.mode.pending === null) return;
     // an early wake-up is not the deadline, so re-arm instead of letting it pass silently
-    if (Date.now() < draft.mode.pending.settleAt) {
+    if (Date.now() < draft.mode.pending.countdownEndsAt) {
       syncTimers();
       return;
     }
@@ -309,7 +228,6 @@ export function createDestinationMode(
   }
 
   function applyAuto(draft: DestinationMode, status: ModeAppState): void {
-    const now = Date.now();
     // the clock decides the commit, not the timer that may never have run
     commitDuePending(draft);
     const pending = draft.mode.mode === "auto" ? draft.mode.pending : null;
@@ -331,22 +249,17 @@ export function createDestinationMode(
       return;
     }
     if (pending === null) {
-      ensureEntry(draft, candidate);
-      const countdownEndsAt = now + SWITCH_COUNTDOWN_MS;
       draft.mode = {
         mode: "auto",
         pending: {
           candidateId: candidate,
-          countdownEndsAt,
-          settleAt: countdownEndsAt + SWITCH_CROSSOVER_MS,
+          countdownEndsAt: Date.now() + SWITCH_COUNTDOWN_MS,
         },
       };
       return;
     }
     if (pending.candidateId === candidate) return;
-    // inside the crossover the view is already sliding somewhere specific
-    if (now >= pending.countdownEndsAt) return;
-    ensureEntry(draft, candidate);
+    // a retarget keeps the deadline, or a flapping best destination would never commit
     draft.mode = {
       mode: "auto",
       pending: { ...pending, candidateId: candidate },
@@ -355,21 +268,15 @@ export function createDestinationMode(
 
   function applyStatusUpdate(status: ModeAppState): void {
     const draft = draftOf();
-    const availableIds = new Set(status.availableDestinations.map((d) => d.id));
+    const offered = new Set(status.availableDestinations.map((d) => d.id));
 
-    for (const id of Object.keys(draft.entries)) {
-      if (availableIds.has(id)) continue;
-      delete draft.entries[id];
-    }
-    draft.sequence = draft.sequence.filter((id) => id in draft.entries);
-    if (draft.active !== null && !(draft.active in draft.entries)) {
+    if (draft.active !== null && !offered.has(draft.active)) {
       draft.active = null;
     }
 
     const liveId = liveIdOf(status);
     if (liveId !== null) {
       const enteringLive = draft.mode.mode !== "live";
-      // an existing card keeps its key so it stays mounted; the sweep drops everything else
       makeActive(draft, liveId);
       draft.mode = { mode: "live" };
       // only a connection that surprises us closes the list; one opened over live stays
@@ -390,19 +297,18 @@ export function createDestinationMode(
     }
     if (
       draft.mode.mode === "auto" && draft.mode.pending !== null &&
-      !(draft.mode.pending.candidateId in draft.entries)
+      !offered.has(draft.mode.pending.candidateId)
     ) {
       draft.mode = AUTO_IDLE;
     }
 
-    if (draft.listOpen || draft.dragging) {
+    if (draft.listOpen) {
       if (draft.active !== null) {
         commit(draft);
         return;
       }
       // nothing left to suspend over
       draft.listOpen = false;
-      draft.dragging = false;
     }
 
     if (draft.mode.mode === "selected") {
@@ -432,7 +338,7 @@ export function createDestinationMode(
       case "listClosed":
         draft.listOpen = false;
         if (event.picked !== null) {
-          takeOutgoingSlot(draft, event.picked);
+          makeActive(draft, event.picked);
           // a connect issued on the way out outranks the list
           if (draft.mode.mode !== "live") draft.mode = selectedMode();
         } else if (draft.mode.mode === "selected") {
@@ -443,25 +349,6 @@ export function createDestinationMode(
         draft.listOpen = false;
         // a live tunnel is the user's; auto only chooses while disconnected
         if (draft.mode.mode === "selected") draft.mode = AUTO_IDLE;
-        break;
-      case "dragStarted":
-        draft.dragging = true;
-        commitDuePending(draft);
-        if (draft.mode.mode === "auto") draft.mode = AUTO_IDLE;
-        // touching the strip is a selection from the first movement, with the clock stopped
-        if (draft.active !== null) {
-          draft.mode = { mode: "selected", autoRevertAt: null };
-        }
-        break;
-      case "slideCommitted":
-        draft.dragging = false;
-        if (!(event.id in draft.entries)) {
-          // the card went away mid-drag; resume rather than point at nothing
-          if (draft.mode.mode === "selected") draft.mode = selectedMode();
-          break;
-        }
-        makeActive(draft, event.id);
-        draft.mode = selectedMode();
         break;
       case "connectIssued":
         // we are ahead of the service; the next status response is expected to confirm
@@ -485,12 +372,7 @@ export function createDestinationMode(
   };
 }
 
-/** `entries`/`sequence` as a flat, ordered list — the shape the view wants. */
-export function orderedEntries(model: DestinationMode): DestinationEntry[] {
-  return model.sequence.map((id) => ({ id, ...model.entries[id] }));
-}
-
-/** The one reader of what we are on: past settleAt the candidate has won, unless it is stale enough that the next status update will discard it. */
+/** The one reader of what we are on: past the deadline the candidate has won, unless it is stale enough that the next status update will discard it. */
 export function effectiveActive(
   model: DestinationMode,
   now: number,
@@ -498,19 +380,18 @@ export function effectiveActive(
   if (model.mode.mode !== "auto" || model.mode.pending === null) {
     return model.active;
   }
-  const { candidateId, settleAt } = model.mode.pending;
-  if (now < settleAt || now - settleAt > STATUS_POLL_MS) return model.active;
+  const { candidateId, countdownEndsAt } = model.mode.pending;
+  if (now < countdownEndsAt || now - countdownEndsAt > STATUS_POLL_MS) {
+    return model.active;
+  }
   return candidateId;
 }
 
-/** Which label a card wears — "Best Location" is auto's own word, so a selection never wears it. */
-export function cardPhaseFor(model: DestinationMode, id: string): CardPhase {
-  const pending = model.mode.mode === "auto" ? model.mode.pending : null;
-  // a candidate previews auto's label while it is still only peeking
-  if (id !== model.active) {
-    return pending?.candidateId === id ? "auto" : "selected";
-  }
+/** Which label the card wears — "Current Best Location" is auto's own word, so a selection never wears it. */
+export function cardPhase(model: DestinationMode): CardPhase {
   if (model.mode.mode === "live") return "connecting";
-  // a candidate means even the active card is no longer provably best
-  return model.mode.mode === "auto" && pending === null ? "auto" : "selected";
+  // a candidate means the active destination is no longer provably best
+  return model.mode.mode === "auto" && model.mode.pending === null
+    ? "auto"
+    : "selected";
 }
