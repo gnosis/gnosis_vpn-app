@@ -95,7 +95,7 @@ export function MainScreen() {
     <div class="flex w-full flex-col h-full py-6 px-4">
       <div class="flex flex-row justify-between z-60">
         <StatusIndicator />
-        <Navigation />
+        <Navigation gearOnly={!settings.advancedView} />
       </div>
 
       <main class="mt-3.5 flex min-h-0 flex-1 flex-col overflow-y-auto">

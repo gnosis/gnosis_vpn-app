@@ -17,7 +17,7 @@ import { gateOnWindowFocus } from "../utils/windowFocus.ts";
 import { useAppStore } from "../stores/appStore.ts";
 import Tooltip from "./common/Tooltip.tsx";
 
-function Navigation() {
+function Navigation(props: { gearOnly?: boolean }) {
   const [appState] = useAppStore();
   const [showPopup, setShowPopup] = createSignal(false);
   const [buttonRect, setButtonRect] = createSignal<DOMRect | null>(null);
@@ -81,56 +81,60 @@ function Navigation() {
           ref={(el) => (containerRef = el)}
           class="fixed top-6 right-4 z-60 flex items-center gap-1.5 justify-center"
         >
-          {/* The client has no lockdown yet (the kill switch only lives with a connection), so it always reads off */}
-          <Tooltip
-            content={
-              <>
-                <div class="font-bold">Feature coming</div>
-                <div>Lockdown off · click to turn on</div>
-              </>
-            }
-            position="bottom"
-          >
-            <div
-              role="img"
-              aria-label="Lockdown off"
-              class="w-7.5 h-7.5 rounded-lg flex items-center justify-center bg-control-bg text-text-subtle"
+          <Show when={!props.gearOnly}>
+            {/* The client has no lockdown yet (the kill switch only lives with a connection), so it always reads off */}
+            <Tooltip
+              content={
+                <>
+                  <div class="font-bold">Feature coming</div>
+                  <div>Lockdown off · click to turn on</div>
+                </>
+              }
+              position="bottom"
             >
-              <LockIcon open />
-            </div>
-          </Tooltip>
-          <Tooltip content="Traffic" position="bottom">
-            <IconButton label="Traffic" onClick={() => openTrafficWindow()}>
-              <TrafficIcon />
-            </IconButton>
-          </Tooltip>
-          <IconButton
-            ref={(el) => (buttonRef = el)}
-            label={credit() === null
-              ? "Funds"
-              : `Funds, ${formatCreditCompact(credit()!)}`}
-            onClick={() => {
-              hidePopup();
-              openSettings("usage");
-            }}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-          >
-            {/* min-w-10.5: "44.4 MB" is 42px in Unica77 Bold 11px; past 999 TB the label grows */}
-            <span class="flex min-w-10.5 flex-col gap-0.75 text-[11px] leading-3.5 font-bold text-center">
-              {/* Explicit null check: credit can be 0n, which Show treats as falsy */}
-              <Show when={credit() !== null} fallback={<span>—</span>}>
-                <span class="whitespace-nowrap">
-                  {formatCreditCompact(credit()!)}
-                </span>
-              </Show>
-              <span class="h-0.75 rounded-xs bg-control-bg-hover">
-                <Show when={credit() !== null}>
-                  <span class={`block h-full rounded-xs ${fundsBarClass()}`} />
+              <div
+                role="img"
+                aria-label="Lockdown off"
+                class="w-7.5 h-7.5 rounded-lg flex items-center justify-center bg-control-bg text-text-subtle"
+              >
+                <LockIcon open />
+              </div>
+            </Tooltip>
+            <Tooltip content="Traffic" position="bottom">
+              <IconButton label="Traffic" onClick={() => openTrafficWindow()}>
+                <TrafficIcon />
+              </IconButton>
+            </Tooltip>
+            <IconButton
+              ref={(el) => (buttonRef = el)}
+              label={credit() === null
+                ? "Funds"
+                : `Funds, ${formatCreditCompact(credit()!)}`}
+              onClick={() => {
+                hidePopup();
+                openSettings("usage");
+              }}
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+            >
+              {/* min-w-10.5: "44.4 MB" is 42px in Unica77 Bold 11px; past 999 TB the label grows */}
+              <span class="flex min-w-10.5 flex-col gap-0.75 text-[11px] leading-3.5 font-bold text-center">
+                {/* Explicit null check: credit can be 0n, which Show treats as falsy */}
+                <Show when={credit() !== null} fallback={<span>—</span>}>
+                  <span class="whitespace-nowrap">
+                    {formatCreditCompact(credit()!)}
+                  </span>
                 </Show>
+                <span class="h-0.75 rounded-xs bg-control-bg-hover">
+                  <Show when={credit() !== null}>
+                    <span
+                      class={`block h-full rounded-xs ${fundsBarClass()}`}
+                    />
+                  </Show>
+                </span>
               </span>
-            </span>
-          </IconButton>
+            </IconButton>
+          </Show>
           {/* The page covers the gear without a mouseleave, so the open page hides the tooltip. */}
           <Tooltip
             content="Settings"
