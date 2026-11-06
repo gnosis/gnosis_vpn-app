@@ -7,6 +7,7 @@ import {
   Switch,
   untrack,
 } from "solid-js";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   isPreparingSafeRunMode,
   isRunningRunMode,
@@ -25,13 +26,27 @@ import {
   deriveWxhoprDeficit,
   deriveXdaiDeficit,
 } from "@src/utils/funding.ts";
+import { logWarn } from "@src/utils/appLog.ts";
 import {
   clearSettingsRequest,
   settingsRequest,
 } from "@src/utils/settingsPage.ts";
 import AddFundsModal from "@src/components/AddFundsModal.tsx";
+import BackIcon from "@src/components/icons/BackIcon.tsx";
 import Notice from "@src/components/settings/Notice.tsx";
-import { ROW_BUTTON } from "@src/components/settings/SettingsRow.tsx";
+import { SettingsCard } from "@src/components/settings/SettingsGroup.tsx";
+import SettingsRow from "@src/components/settings/SettingsRow.tsx";
+
+const FUNDING_SITE_URL = "https://funding.vpn.gnosis.eth.limo/";
+
+async function openFundingSite(address: string) {
+  const url = `${FUNDING_SITE_URL}?address=${encodeURIComponent(address)}`;
+  try {
+    await openUrl(url);
+  } catch (e) {
+    logWarn(`Failed to open ${url}: ${e}`);
+  }
+}
 
 function renewals(count: bigint): string {
   if (count === 0n) return "no renewals";
@@ -65,7 +80,7 @@ export default function UsageTab() {
         : null;
     },
   );
-  // The Add funds modal sits in the balance card, so it can only open while the card shows.
+  // The Add funds modal renders with the balance card, so it can only open while the card shows.
   const balanceShown = () =>
     standIn() === null &&
     (isRunningRunMode(appState.runMode) || preparingSafe() !== null);
@@ -83,6 +98,8 @@ export default function UsageTab() {
   const runModeStatus = createMemo(() =>
     isRunningRunMode(appState.runMode) ? appState.runMode.funding_status : null
   );
+  const nodeAddress = () =>
+    preparingSafe()?.node_address ?? appState.balance?.info.node_address ?? "";
 
   const credit = createMemo(() =>
     appState.balance ? computeEffectiveCredit(appState.balance) : null
@@ -104,7 +121,7 @@ export default function UsageTab() {
         {(notice) => <Notice tone={notice().tone}>{notice().text}</Notice>}
       </Show>
       <Show when={balanceShown()}>
-        <div class="relative flex shrink-0 flex-col gap-2 rounded-xl bg-bg-list px-3.5 pt-4 pb-3.5">
+        <div class="flex shrink-0 flex-col gap-2 rounded-xl bg-bg-list px-3.5 pt-4 pb-3.5">
           <span class="text-xs leading-4 text-text-subtle">
             Available balance
           </span>
@@ -114,18 +131,11 @@ export default function UsageTab() {
               {credit() === null ? "—" : formatCredit(credit()!)}
             </span>
             <Show when={credit() !== null}>
-              <span class="shrink-0 rounded-full bg-control-bg px-2 py-0.5 text-[11px] leading-4 font-bold text-text-soft">
+              <span class="ml-auto shrink-0 rounded-full bg-control-bg px-2 py-0.5 text-[11px] leading-4 font-bold text-text-soft">
                 {renewals(renewalsLeft())}
               </span>
             </Show>
           </div>
-          <button
-            type="button"
-            class={`${ROW_BUTTON} absolute top-3.5 right-3.5`}
-            onClick={() => setIsAddFundsOpen(true)}
-          >
-            Add data
-          </button>
         </div>
         <Switch>
           <Match when={trafficStatus() === "Empty"}>
@@ -150,11 +160,30 @@ export default function UsageTab() {
         <Show when={preparingSafe()}>
           <Notice tone="warn">Waiting for incoming funds</Notice>
         </Show>
+        <SettingsCard label="Funding">
+          <SettingsRow
+            icon="add"
+            title="Add funds directly"
+            onClick={() => setIsAddFundsOpen(true)}
+          >
+            <BackIcon class="rotate-180 text-text-subtle" />
+          </SettingsRow>
+          <Show when={nodeAddress()}>
+            {(address) => (
+              <SettingsRow
+                icon="external"
+                title="Open funding site"
+                onClick={() => void openFundingSite(address())}
+              >
+                <BackIcon class="rotate-180 text-text-subtle" />
+              </SettingsRow>
+            )}
+          </Show>
+        </SettingsCard>
         <AddFundsModal
           open={isAddFundsOpen()}
           onClose={() => setIsAddFundsOpen(false)}
-          nodeAddress={preparingSafe()?.node_address ??
-            appState.balance?.info.node_address ?? ""}
+          nodeAddress={nodeAddress()}
           wxhoprDeficit={deriveWxhoprDeficit(
             appState.balance,
             runModeStatus(),

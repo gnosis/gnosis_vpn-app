@@ -100,7 +100,7 @@ function Navigation(props: { gearOnly?: boolean }) {
                 <LockIcon open />
               </div>
             </Tooltip>
-            <Tooltip content="Traffic" position="bottom">
+            <Tooltip content="Live traffic" position="bottom">
               <IconButton label="Traffic" onClick={() => openTrafficWindow()}>
                 <TrafficIcon />
               </IconButton>
@@ -117,8 +117,8 @@ function Navigation(props: { gearOnly?: boolean }) {
               onMouseEnter={handleMouseEnter}
               onMouseLeave={handleMouseLeave}
             >
-              {/* min-w-10.5: "44.4 MB" is 42px in Unica77 Bold 11px; past 999 TB the label grows */}
-              <span class="flex min-w-10.5 flex-col gap-0.75 text-[11px] leading-3.5 font-bold text-center">
+              {/* w-10.5: "44.4 MB", the widest label formatCreditCompact can return, is 42px in Unica77 Bold 11px */}
+              <span class="flex w-10.5 flex-col gap-0.75 text-[11px] leading-3.5 font-bold text-center">
                 {/* Explicit null check: credit can be 0n, which Show treats as falsy */}
                 <Show when={credit() !== null} fallback={<span>—</span>}>
                   <span class="whitespace-nowrap">
