@@ -1,4 +1,5 @@
 import { createSignal } from "solid-js";
+import { isSelectable, rankContext } from "../utils/destinations.ts";
 import { useAppStore } from "./appStore.ts";
 import { useSettingsStore } from "./settingsStore.ts";
 
@@ -37,10 +38,18 @@ export function requestConnect(
   void useAppStore()[1].connect(id, options.auto);
 }
 
+/** Whether the exit a request waits on still takes a connection; it can fill or lose its route while the view shows. */
+export function exitCostUsable(): boolean {
+  const request = exitCost();
+  if (request === null) return false;
+  const [appState] = useAppStore();
+  return isSelectable(appState.destinations[request.id], rankContext(appState));
+}
+
 /** The cost view's Connect or Switch. */
 export function confirmExitCost(): void {
   const request = exitCost();
-  if (request === null) return;
+  if (request === null || !exitCostUsable()) return;
   setExitCost(null);
   useAppStore()[1].exitCostClosed();
   void useAppStore()[1].connect(request.id, request.auto);

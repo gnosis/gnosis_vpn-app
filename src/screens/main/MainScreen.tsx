@@ -82,8 +82,9 @@ export function MainScreen() {
     const request = exitCost();
     if (request === null) return;
     const active = isVpnActive(appState.vpnStatus, appState.targetDestination);
+    // with no card to show it on, its Cancel and Switch would be gone too
     const stale = request.switching
-      ? !active || !appState.destinations[request.id]
+      ? !active || !appState.destinations[request.id] || !shownDestination()
       : active || shownDestination()?.destination.id !== request.id;
     if (stale || appState.mode.listOpen) cancelExitCost();
   });

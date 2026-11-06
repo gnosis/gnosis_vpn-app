@@ -32,7 +32,11 @@ import {
   sortByRouteQuality,
 } from "@src/utils/destinations.ts";
 import PageHeader from "../common/PageHeader.tsx";
-import LocationRow, { ACTION_BUTTON, ShortId } from "./LocationRow.tsx";
+import LocationRow, {
+  ACTION_BUTTON,
+  ListRow,
+  ShortId,
+} from "./LocationRow.tsx";
 
 const ROW_LIMIT = 5;
 
@@ -199,6 +203,10 @@ export default function ExitNodeList(props: {
     connectionDestination(appState.connection) === id ||
     appState.disconnecting.some((d) => d.destination === id);
 
+  // not view().connected: a tunnel that ended under the pointer would turn a connect into a switch MainScreen drops
+  const connectedNow = () =>
+    isVpnActive(appState.vpnStatus, appState.targetDestination);
+
   // the row's Connect / Switch button; both may first show the exit's cost on the card
   const connectTo = (id: string) => {
     if (liveOrLeaving(id)) {
@@ -207,7 +215,7 @@ export default function ExitNodeList(props: {
     }
     // the view holds still under the pointer, so the exit may have gone or filled since it was drawn
     if (!isUsable(id)) return;
-    if (view().connected) {
+    if (connectedNow()) {
       // the card keeps the tunnel's exit until the switch is confirmed
       props.onClose(null);
       requestConnect(id, { switching: true, auto: false });
@@ -240,13 +248,15 @@ export default function ExitNodeList(props: {
       return;
     }
     if (!isUsable(target)) return;
-    if (view().connected) {
+    if (connectedNow()) {
       props.onClose(null);
       requestConnect(target, { switching: true, auto: true });
       return;
     }
     appActions.autoResumed();
-    requestConnect(target);
+    // auto picks from the latest status, which may rank past the row frozen under the pointer
+    const picked = appState.mode.active;
+    if (picked !== null && isUsable(picked)) requestConnect(picked);
   };
 
   const sortOptions = [
@@ -328,20 +338,37 @@ export default function ExitNodeList(props: {
               class="flex flex-col gap-0.5 rounded-xl bg-bg-list p-1.5"
             >
               <Show when={showAuto()}>
-                <div
-                  class="flex min-h-14.5 items-center gap-3 rounded-[10px] p-2.5 hover:bg-row-hover"
-                  onClick={(e) => {
-                    // like the exit rows: disconnected, the whole row selects
-                    if (view().connected || view().autoOn) return;
-                    if ((e.target as Element).closest("button")) return;
-                    appActions.autoResumed();
-                  }}
+                <ListRow
+                  selectLabel="Use automatic location"
+                  // like the exit rows: disconnected, the row's body selects
+                  onSelect={view().connected || view().autoOn
+                    ? undefined
+                    : () => appActions.autoResumed()}
+                  action={
+                    // Disconnected, Auto keeps its Connect even while it is the choice; a tunnel already auto's needs no Switch
+
+
+                      <Show when={!(view().autoOn && view().connected)}>
+                        <button
+                          type="button"
+                          class={ACTION_BUTTON}
+                          aria-label={`${
+                            view().connected ? "Switch" : "Connect"
+                          } to automatic location`}
+                          disabled={appState.isLoading || autoTarget() === null}
+                          onClick={connectAuto}
+                        >
+                          {view().connected ? "Switch" : "Connect"}
+                        </button>
+                      </Show>
+
+                  }
                 >
                   <span
                     class="h-5.25 w-7.5 shrink-0 rounded bg-auto-mark"
                     aria-hidden="true"
                   />
-                  <div class="flex min-w-0 flex-1 flex-col gap-1">
+                  <span class="flex min-w-0 flex-1 flex-col gap-1">
                     <span class="text-sm leading-[1.2] font-bold">Auto</span>
                     <span class="text-xs text-text-subtle">
                       Picks the best for you
@@ -354,27 +381,13 @@ export default function ExitNodeList(props: {
                         </span>
                       )}
                     </Show>
-                  </div>
+                  </span>
                   <Show when={view().autoOn}>
                     <span class="shrink-0 rounded-full bg-control-bg px-1.75 py-0.5 text-[10px] leading-3 font-bold">
                       On
                     </span>
                   </Show>
-                  {/* Disconnected, Auto keeps its Connect even while it is the choice; a tunnel already auto's needs no Switch */}
-                  <Show when={!(view().autoOn && view().connected)}>
-                    <button
-                      type="button"
-                      class={ACTION_BUTTON}
-                      aria-label={`${
-                        view().connected ? "Switch" : "Connect"
-                      } to automatic location`}
-                      disabled={appState.isLoading || autoTarget() === null}
-                      onClick={connectAuto}
-                    >
-                      {view().connected ? "Switch" : "Connect"}
-                    </button>
-                  </Show>
-                </div>
+                </ListRow>
               </Show>
 
               <For each={view().rows}>
@@ -385,7 +398,7 @@ export default function ExitNodeList(props: {
                     actionLabel={view().connected ? "Switch" : "Connect"}
                     disabled={appState.isLoading || !isUsable(id)}
                     onAction={() => connectTo(id)}
-                    onRowClick={view().connected ? undefined : () => select(id)}
+                    onSelect={view().connected ? undefined : () => select(id)}
                   />
                 )}
               </For>

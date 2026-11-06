@@ -137,10 +137,10 @@ export default function LocationCard(props: {
     reconnecting() ? null : getLatencyMs(exit(), tunnelRtt());
 
   const openList = () => appActions.destinationListOpened();
+  // a switch shows on whatever card a tunnel being torn down or reconnecting has; MainScreen drops it once none does
   const costShown = () => {
     const request = exitCost();
-    if (request === null) return null;
-    return (request.switching ? liveHere() : request.id === id())
+    return request && (request.switching || request.id === id())
       ? request
       : null;
   };

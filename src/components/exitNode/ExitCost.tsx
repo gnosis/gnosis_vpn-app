@@ -1,7 +1,11 @@
 import { Show } from "solid-js";
 import type { Destination } from "@src/services/vpnService.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
-import { cancelExitCost, confirmExitCost } from "@src/stores/exitCost.ts";
+import {
+  cancelExitCost,
+  confirmExitCost,
+  exitCostUsable,
+} from "@src/stores/exitCost.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import {
   BYTES_PER_MB,
@@ -18,6 +22,7 @@ import { ShortId } from "./LocationRow.tsx";
 const W = 244;
 const X0 = 6;
 const EXIT_X = 288;
+const MIN_CHUNK = 36;
 const COST = MB_PER_EXIT * BYTES_PER_MB;
 
 const FAINT = "var(--color-status-idle)";
@@ -70,16 +75,20 @@ export default function ExitCost(
     if (c === null) return null;
     return c > COST ? c - COST : 0n;
   };
+  // never below the cost, so the exit's share fits the battery even when the balance cannot cover it
   const total = () => {
     const c = credit();
-    return c === null || c === 0n ? COST : c;
+    return c === null || c < COST ? COST : c;
   };
   const leftWidth = () => {
     const l = left();
     return l === null ? W : (Number(l) / Number(total())) * W;
   };
-  const chunkWidth = () => Math.max(36, (Number(COST) / Number(total())) * W);
+  const chunkWidth = () =>
+    Math.max(MIN_CHUNK, (Number(COST) / Number(total())) * W);
   const chunkX = () => Math.min(X0 + leftWidth(), W + 6 - chunkWidth());
+  // the moving copy leaves from the chunk's right end, no wider than the flag it lands on
+  const slideX = () => chunkX() + chunkWidth() - MIN_CHUNK;
 
   return (
     <div class="flex flex-col gap-1.5 border-t border-dashed border-line-dash px-3 pt-3.5 pb-3">
@@ -118,14 +127,14 @@ export default function ExitCost(
           />
           {/* The distance to the exit is set per layout, which no utility class can express */}
           <rect
-            x={chunkX()}
+            x={slideX()}
             y="26"
-            width={chunkWidth()}
+            width={MIN_CHUNK}
             height="24"
             rx="4"
             fill={TINT}
             class="motion-safe:animate-exit-cost"
-            style={{ "--dx": `${EXIT_X + 2 - chunkX()}px` }}
+            style={{ "--dx": `${EXIT_X + 2 - slideX()}px` }}
           />
           <text
             x={chunkX() + chunkWidth() / 2}
@@ -169,6 +178,11 @@ export default function ExitCost(
         <ShortId id={exitShortId(props.destination.address)} /> gets{" "}
         {MB_PER_EXIT.toString()} MB
       </p>
+      <Show when={!exitCostUsable()}>
+        <p role="status" class="text-center text-xs text-text-subtle">
+          This exit is full or has no route right now.
+        </p>
+      </Show>
 
       <div class="mt-1 flex flex-col gap-1.5 self-center text-xs text-text-soft">
         <FeatureComing>
@@ -197,7 +211,8 @@ export default function ExitCost(
         </button>
         <button
           type="button"
-          class="h-11 flex-1 rounded-[10px] bg-btn-connect-bg text-[15px] font-bold text-btn-connect-text hover:bg-btn-connect-hover"
+          class="h-11 flex-1 rounded-[10px] bg-btn-connect-bg text-[15px] font-bold text-btn-connect-text enabled:hover:bg-btn-connect-hover disabled:opacity-50"
+          disabled={!exitCostUsable()}
           onClick={confirmExitCost}
         >
           {props.switching ? "Switch" : "Connect"}

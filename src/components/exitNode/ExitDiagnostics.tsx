@@ -1,4 +1,11 @@
-import { createMemo, createSignal, type JSX, onCleanup, Show } from "solid-js";
+import {
+  createMemo,
+  createSignal,
+  createUniqueId,
+  type JSX,
+  onCleanup,
+  Show,
+} from "solid-js";
 import type { DestinationState } from "@src/services/vpnService.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { MB_PER_EXIT } from "@src/utils/credit.ts";
@@ -28,6 +35,20 @@ function Explained(props: { tip: () => JSX.Element; children: JSX.Element }) {
   return <Tooltip content={props.tip()}>{props.children}</Tooltip>;
 }
 
+/** A metric's name: the focus stop for its explanation, which screen readers get as its description. */
+function Label(props: { tip: () => JSX.Element; children: JSX.Element }) {
+  const descriptionId = createUniqueId();
+  return (
+    <Explained tip={props.tip}>
+      <span tabIndex={0} aria-describedby={descriptionId}>
+        {props.children}
+      </span>
+      {/* Always in the DOM so the description resolves on focus; the portalled bubble mounts too late for that. */}
+      <div id={descriptionId} class="sr-only">{props.tip()}</div>
+    </Explained>
+  );
+}
+
 const say = (text: string): () => JSX.Element => () => <span>{text}</span>;
 
 function Row(
@@ -35,9 +56,7 @@ function Row(
 ) {
   return (
     <div class="flex justify-between gap-2 py-0.75 text-xs text-text-subtle">
-      <Explained tip={props.tip}>
-        <span>{props.label}</span>
-      </Explained>
+      <Label tip={props.tip}>{props.label}</Label>
       <Explained tip={props.tip}>
         <span class="font-figures font-medium text-text-primary">
           {props.value ?? "—"}
@@ -130,9 +149,7 @@ export default function ExitDiagnostics(props: {
     <div class="flex flex-col gap-2.5 p-3">
       <div class="grid grid-cols-2 border-b border-line pb-2">
         <div class="flex items-baseline justify-between gap-2 pr-3.5 text-xs text-text-subtle">
-          <Explained tip={latencyTip}>
-            <span>Latency</span>
-          </Explained>
+          <Label tip={latencyTip}>Latency</Label>
           <Explained tip={latencyTip}>
             <span
               class={`font-figures text-[17px] leading-5 font-semibold tracking-[-0.02em] ${latencyColor()}`}
@@ -142,9 +159,7 @@ export default function ExitDiagnostics(props: {
           </Explained>
         </div>
         <div class="flex items-baseline justify-between gap-2 border-l border-line pl-3.5 text-xs text-text-subtle">
-          <Explained tip={loadTip}>
-            <span>Server load</span>
-          </Explained>
+          <Label tip={loadTip}>Server load</Label>
           <Explained tip={loadTip}>
             <span
               class={`font-figures text-[17px] leading-5 font-semibold tracking-[-0.02em] ${loadColor()}`}
