@@ -8,7 +8,6 @@ import {
 } from "solid-js";
 import type { DestinationState } from "@src/services/vpnService.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
-import { MB_PER_EXIT } from "@src/utils/credit.ts";
 import {
   freeSlots,
   getExitData,
@@ -26,7 +25,7 @@ import {
 } from "@src/utils/exitHealth.ts";
 import { levelColorClass } from "./levelColor.ts";
 import Tooltip from "../common/Tooltip.tsx";
-import FeatureComing from "../settings/FeatureComing.tsx";
+import UsageMeter from "./UsageMeter.tsx";
 
 const RELIABILITY = ["Less reliable", "Less reliable", "Reliable"];
 
@@ -209,23 +208,7 @@ export default function ExitDiagnostics(props: {
         />
       </div>
       <Show when={props.showUsage}>
-        <FeatureComing class="w-full">
-          <div class="flex w-full flex-col gap-2 border-t border-line pt-2.5 opacity-50">
-            <div class="flex items-center justify-between gap-2">
-              <span class="text-[13px] leading-5 text-text-soft">Usage</span>
-              <span class="text-[13px] leading-5 text-text-subtle">
-                <span class="font-figures text-[15px] leading-5 font-semibold text-text-primary">
-                  {`${MB_PER_EXIT} MB`}
-                </span>{" "}
-                left
-                <span class="sr-only">, feature coming</span>
-              </span>
-            </div>
-            <div class="h-2 overflow-hidden rounded bg-control-bg">
-              <div class="h-full w-full rounded bg-control-tint" />
-            </div>
-          </div>
-        </FeatureComing>
+        <UsageMeter class="border-t border-line pt-2.5" />
       </Show>
     </div>
   );

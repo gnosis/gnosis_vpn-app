@@ -91,12 +91,13 @@ export const SettingsSchema = z.object({
   channel: UpdateChannelSchema.nullable(),
   dismissedUpdateVersion: z.string().nullable(),
   installedVersion: z.string().nullable(),
-  // Name is legacy — now drives whether the exit-health details panel
-  // (chevron toggle) is expanded at all, not just its extra stat rows.
+  // Name is legacy: whether the advanced view's card has its details open (chevron).
   showDetailedMetrics: z.boolean(),
   flagDisplay: FlagDisplaySchema,
   // Connect first shows the data an exit sets aside
   showExitCost: z.boolean(),
+  // the main screen shows the location card instead of the simple view
+  advancedView: z.boolean(),
 });
 export type SettingsState = z.infer<typeof SettingsSchema>;
 
@@ -118,6 +119,7 @@ const DEFAULT_SETTINGS: SettingsState = {
   showDetailedMetrics: false,
   flagDisplay: "color",
   showExitCost: true,
+  advancedView: false,
 };
 
 type SettingsActions = {
@@ -147,6 +149,7 @@ type SettingsActions = {
   setShowDetailedMetrics: (show: boolean) => Promise<void>;
   setFlagDisplay: (display: FlagDisplay) => Promise<void>;
   setShowExitCost: (show: boolean) => Promise<void>;
+  setAdvancedView: (on: boolean) => Promise<void>;
 };
 
 type SettingsStoreTuple = readonly [
@@ -247,6 +250,7 @@ export function createSettingsStore(): SettingsStoreTuple {
     setShowDetailedMetrics: (show) => patch({ showDetailedMetrics: show }),
     setFlagDisplay: (display) => patch({ flagDisplay: display }),
     setShowExitCost: (show) => patch({ showExitCost: show }),
+    setAdvancedView: (on) => patch({ advancedView: on }),
   } as const;
 
   const dispose = () => {

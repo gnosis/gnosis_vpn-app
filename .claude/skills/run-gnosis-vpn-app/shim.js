@@ -26,6 +26,7 @@
     showDetailedMetrics: false,
     flagDisplay: "color",
     showExitCost: true,
+    advancedView: false,
     ...(fixture.settings ?? {}),
   };
 

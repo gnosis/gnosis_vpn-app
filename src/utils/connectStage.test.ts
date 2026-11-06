@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { CONNECT_PHASES } from "@src/services/vpnService.ts";
 import {
   advanceProgress,
+  clampLabel,
   easeInOut,
   phaseCap,
   phaseStart,
@@ -94,5 +95,21 @@ describe("easeInOut", () => {
     expect(easeInOut(0)).toBe(0);
     expect(easeInOut(0.5)).toBe(0.5);
     expect(easeInOut(1)).toBe(1);
+  });
+});
+
+describe("clampLabel", () => {
+  it("keeps a label that fits", () => {
+    expect(clampLabel("Germany", 11)).toBe("Germany");
+    expect(clampLabel("Netherlands", 11)).toBe("Netherlands");
+  });
+
+  it("cuts a longer one to the limit, ending in an ellipsis", () => {
+    expect(clampLabel("United States", 11)).toBe("United Sta…");
+    expect(clampLabel("United States", 11)).toHaveLength(11);
+  });
+
+  it("drops a space left before the ellipsis", () => {
+    expect(clampLabel("Costa Rica", 7)).toBe("Costa…");
   });
 });

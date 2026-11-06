@@ -91,7 +91,7 @@ export default function ExitCost(
   const slideX = () => chunkX() + chunkWidth() - MIN_CHUNK;
 
   return (
-    <div class="flex flex-col gap-1.5 border-t border-dashed border-line-dash px-3 pt-3.5 pb-3">
+    <div class="flex flex-col gap-1.5 px-3 pt-3.5 pb-3">
       <div class="relative aspect-[330/74] w-full" aria-hidden="true">
         <svg
           viewBox="0 0 330 74"

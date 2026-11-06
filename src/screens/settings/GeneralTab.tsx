@@ -189,11 +189,14 @@ export default function GeneralTab(
             <Switch label="Auto-renew sessions" checked={false} disabled />
           </SettingsRow>
         </FeatureComing>
-        <SettingsRow title="Advanced view">
+        <SettingsRow
+          title="Advanced view"
+          description="The main screen shows the exit's latency, load and route details."
+        >
           <Switch
             label="Advanced view"
-            checked={settings.showDetailedMetrics}
-            disabled
+            checked={settings.advancedView}
+            onChange={(on) => void settingsActions.setAdvancedView(on)}
           />
         </SettingsRow>
         <SettingsRow title="Start minimized">

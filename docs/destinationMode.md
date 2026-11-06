@@ -12,13 +12,14 @@ a test, then the code.
 
 ## Vocabulary
 
-| term          | meaning                                                                      |
-| ------------- | ---------------------------------------------------------------------------- |
-| **active**    | the destination the card shows and the one Connect targets                   |
-| **candidate** | the destination auto will switch to when its countdown ends                  |
-| **selection** | the user's own pick; it holds until they pick again or choose Auto           |
-| **live**      | the backend reports a connection: connected, connecting, or reconnecting     |
-| **exit data** | slots, load and latency measured on the exit itself, by probe or quick probe |
+| term          | meaning                                                                           |
+| ------------- | --------------------------------------------------------------------------------- |
+| **card**      | the main screen's exit: the location card, or the centred exit in the simple view |
+| **active**    | the destination the card shows and the one Connect targets                        |
+| **candidate** | the destination auto will switch to when its countdown ends                       |
+| **selection** | the user's own pick; it holds until they pick again or choose Auto                |
+| **live**      | the backend reports a connection: connected, connecting, or reconnecting          |
+| **exit data** | slots, load and latency measured on the exit itself, by probe or quick probe      |
 
 ## State
 

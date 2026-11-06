@@ -20,6 +20,7 @@ import Navigation from "../../components/Navigation.tsx";
 import ConnectButton from "../../components/ConnectButton.tsx";
 import ExitNodeList from "../../components/exitNode/ExitNodeList.tsx";
 import LocationCard from "../../components/exitNode/LocationCard.tsx";
+import LocationHero from "../../components/exitNode/LocationHero.tsx";
 import LocationNotice from "../../components/exitNode/LocationNotice.tsx";
 import { openSettings } from "../../utils/settingsPage.ts";
 import { isRunningRunMode } from "../../services/vpnService.ts";
@@ -39,7 +40,7 @@ const [dismissedBalanceStatus, setDismissedBalanceStatus] = createSignal<
 
 export function MainScreen() {
   const [appState, appActions] = useAppStore();
-  const [, settingsActions] = useSettingsStore();
+  const [settings, settingsActions] = useSettingsStore();
 
   const runModeStatus = createMemo(() =>
     isRunningRunMode(appState.runMode) ? appState.runMode.funding_status : null
@@ -116,7 +117,14 @@ export function MainScreen() {
             }
           >
             {(destinationState) => (
-              <LocationCard destinationState={destinationState()} />
+              <Show
+                when={settings.advancedView}
+                fallback={
+                  <LocationHero destinationState={destinationState()} />
+                }
+              >
+                <LocationCard destinationState={destinationState()} />
+              </Show>
             )}
           </Show>
         </Show>
@@ -145,10 +153,9 @@ export function MainScreen() {
             variant="update"
             icon={<UpdateIcon />}
             onClick={() => openSettings("update")}
-            onDismiss={() =>
-              void settingsActions.setDismissedUpdateVersion(
-                appState.availableVersion,
-              )}
+            onDismiss={() => void settingsActions.setDismissedUpdateVersion(
+              appState.availableVersion,
+            )}
             dismissAriaLabel="Dismiss update notification"
           >
             Update available

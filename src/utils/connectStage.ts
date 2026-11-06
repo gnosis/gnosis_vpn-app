@@ -97,3 +97,8 @@ export function tween(
   const p = span > 0 ? Math.min(1, (progress - begin) / span) : 1;
   return from + (to - from) * easeInOut(p);
 }
+
+/** `text` cut to `max` characters, the last an ellipsis when cut. */
+export function clampLabel(text: string, max: number): string {
+  return text.length <= max ? text : `${text.slice(0, max - 1).trimEnd()}…`;
+}

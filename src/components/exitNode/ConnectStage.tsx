@@ -10,6 +10,7 @@ import {
 import type { ConnectPhase } from "@src/services/vpnService.ts";
 import {
   advanceProgress,
+  clampLabel,
   phaseStart,
   STAGE_STEP_COUNT,
   stageStep,
@@ -56,6 +57,14 @@ const EXIT_AT = 0.72;
 const DRAW = 0.1;
 const FADE = 0.05;
 const POP = 0.04;
+
+// The svg is width-bound, so the hero crops to the globe and its labels to draw it larger.
+const VIEW = {
+  card: { box: "0 0 300 92", height: "h-23" },
+  hero: { box: "40 0 220 92", height: "h-31.5" },
+};
+// what fits right of the exit inside the hero's crop
+const HERO_LABEL_CHARS = 11;
 
 const SYNC = "var(--color-control-tint)";
 const SYNC_HI = "var(--color-text-primary)";
@@ -112,12 +121,18 @@ export default function ConnectStage(props: {
   relays: number | null;
   // replaces the step text, e.g. while a reconnect waits on its route
   caption?: string | null;
+  size?: "card" | "hero";
 }) {
   const still = reducedMotion();
   const progress = still
     ? () => phaseStart(props.phase)
     : animatedProgress(() => props.phase);
   const glowId = createUniqueId();
+  const view = () => VIEW[props.size ?? "card"];
+  const exitLabel = () =>
+    props.size === "hero"
+      ? clampLabel(props.exitName, HERO_LABEL_CHARS)
+      : props.exitName;
 
   const hops = () => HOP_SETS[Math.abs(Math.floor(props.seed)) % 4];
   const peers = () => {
@@ -149,8 +164,8 @@ export default function ConnectStage(props: {
   return (
     <div class="flex flex-col gap-1.5 px-3 pt-1.5 pb-2.5">
       <svg
-        viewBox="0 0 300 92"
-        class="block h-23 w-full overflow-visible font-figures text-[9px]"
+        viewBox={view().box}
+        class={`block ${view().height} w-full overflow-visible font-figures text-[9px]`}
         role="img"
         aria-label={`Connecting: opening channels to relays, then routing through one relay to the exit in ${props.exitName}`}
       >
@@ -338,7 +353,7 @@ export default function ConnectStage(props: {
           font-weight="600"
           fill="var(--color-text-soft)"
         >
-          {props.exitName}
+          {exitLabel()}
         </text>
         <text
           x={EXIT[0] + 13}
