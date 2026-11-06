@@ -187,7 +187,7 @@ export default function ExitCost(
       <div class="mt-1 flex flex-col gap-1.5 self-center text-xs text-text-soft">
         <FeatureComing>
           <label class="flex items-center gap-2 opacity-50">
-            <Checkbox checked={false} disabled />
+            <Checkbox checked disabled />
             Turn on Auto-renew
           </label>
         </FeatureComing>
