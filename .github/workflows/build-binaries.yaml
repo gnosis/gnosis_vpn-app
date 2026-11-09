@@ -33,7 +33,7 @@ jobs:
     steps:
       - name: Harden Runner
         if: startsWith(inputs.runner, 'depot-ubuntu')
-        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
         with:
           disable-sudo: false
           egress-policy: audit
@@ -89,7 +89,7 @@ jobs:
         with:
           targets: ${{ steps.vars.outputs.rust_toolchain_target }}
       - name: Rust cache
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           # Bumped to drop the 61 GB two-profile cache; the key is otherwise stable and would restore it forever.
           prefix-key: v1-rust
@@ -98,7 +98,7 @@ jobs:
       - name: Setup Deno
         uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
-          deno-version: v2.9.7
+          deno-version: v2.9.8
       - name: install ubuntu dependencies
         if: ${{ endsWith(inputs.architecture, '-linux') }}
         run: |
