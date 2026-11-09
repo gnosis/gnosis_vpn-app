@@ -17,7 +17,8 @@ import { useAppStore } from "@src/stores/appStore.ts";
 import {
   computeEffectiveCredit,
   exitsCovered,
-  formatCredit,
+  formatCountCompact,
+  formatCreditCompact,
 } from "@src/utils/credit.ts";
 import {
   deriveNodeStatus,
@@ -50,7 +51,9 @@ async function openFundingSite(address: string) {
 
 function renewals(count: bigint): string {
   if (count === 0n) return "no renewals";
-  return `${count} ${count === 1n ? "renewal" : "renewals"}`;
+  return `${formatCountCompact(count)} ${
+    count === 1n ? "renewal" : "renewals"
+  }`;
 }
 
 export default function UsageTab() {
@@ -128,7 +131,7 @@ export default function UsageTab() {
           <div class="flex items-baseline gap-2.5">
             <span class="font-figures text-[34px] leading-none font-semibold tracking-[-0.04em]">
               {/* Explicit null check: credit can be 0n, which is falsy */}
-              {credit() === null ? "—" : formatCredit(credit()!)}
+              {credit() === null ? "—" : formatCreditCompact(credit()!)}
             </span>
             <Show when={credit() !== null}>
               <span class="ml-auto shrink-0 rounded-full bg-control-bg px-2 py-0.5 text-[11px] leading-4 font-bold text-text-soft">

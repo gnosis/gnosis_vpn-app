@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   computeEffectiveCredit,
   exitsCovered,
-  formatCredit,
+  formatCountCompact,
   formatCreditCompact,
 } from "./credit.ts";
 import type {
@@ -98,19 +98,6 @@ describe("computeEffectiveCredit", () => {
   });
 });
 
-describe("formatCredit", () => {
-  it("formats MB without fractional digits", () => {
-    expect(formatCredit(BYTES_PER_MB)).toMatch(/^1 MB$/);
-  });
-
-  it("formats large values without Number precision loss", () => {
-    const creditBytes = BYTES_PER_TB * 3n + BYTES_PER_TB / 2n;
-    const formattedCredit = formatCredit(creditBytes);
-    expect(formattedCredit).toMatch(/ TB$/);
-    expect(formattedCredit).not.toContain("Infinity");
-  });
-});
-
 describe("formatCreditCompact", () => {
   const tenthsOf = (unit: bigint, tenths: bigint) => unit * tenths / 10n;
 
@@ -148,6 +135,39 @@ describe("formatCreditCompact", () => {
 
   it("shows an empty balance as whole MB", () => {
     expect(formatCreditCompact(0n)).toBe("0 MB");
+  });
+});
+
+describe("formatCountCompact", () => {
+  it("shows counts below 1000 as they are", () => {
+    expect(formatCountCompact(0n)).toBe("0");
+    expect(formatCountCompact(7n)).toBe("7");
+    expect(formatCountCompact(999n)).toBe("999");
+  });
+
+  it("adds one decimal below 100 of a unit, never more", () => {
+    expect(formatCountCompact(1000n)).toBe("1.0k");
+    expect(formatCountCompact(1234n)).toBe("1.2k");
+    expect(formatCountCompact(99_949n)).toBe("99.9k");
+    expect(formatCountCompact(4_850_000n)).toBe("4.9M");
+  });
+
+  it("keeps whole numbers from 100 up to 999 of a unit", () => {
+    expect(formatCountCompact(100_000n)).toBe("100k");
+    expect(formatCountCompact(999_499n)).toBe("999k");
+    expect(formatCountCompact(999_000_000_000n)).toBe("999B");
+  });
+
+  it("rounds up into the next unit instead of growing a digit", () => {
+    expect(formatCountCompact(99_950n)).toBe("100k");
+    expect(formatCountCompact(999_500n)).toBe("1.0M");
+    expect(formatCountCompact(999_500_000n)).toBe("1.0B");
+  });
+
+  it("keeps three digits for the largest counts", () => {
+    expect(formatCountCompact(exitsCovered(2n ** 64n - 1n))).toBe("29.3B");
+    expect(formatCountCompact(999n * 10n ** 12n)).toBe("999T");
+    expect(formatCountCompact(10n ** 15n)).toBe("999+T");
   });
 });
 
