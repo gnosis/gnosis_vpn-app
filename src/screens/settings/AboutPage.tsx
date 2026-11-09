@@ -1,4 +1,4 @@
-import type { JSX } from "solid-js";
+import { For, type JSX } from "solid-js";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
@@ -36,6 +36,20 @@ function Link(props: { url: string; label: string }) {
   );
 }
 
+/** Lets a long version wrap after "+", which, unlike "-", is no break opportunity. */
+function WrappingVersion(props: { version: string }) {
+  return (
+    <For each={props.version.split(/(?<=\+)/)}>
+      {(part) => (
+        <>
+          {part}
+          <wbr />
+        </>
+      )}
+    </For>
+  );
+}
+
 function Notes(props: { children: JSX.Element }) {
   return (
     <SettingsCard>
@@ -58,8 +72,8 @@ export default function AboutPage(props: { onBack: () => void }) {
         </span>
         <div>
           Version{" "}
-          <span class="font-figures text-text-primary">
-            {appState.packageVersion ?? "unknown"}
+          <span class="font-figures text-text-primary wrap-anywhere">
+            <WrappingVersion version={appState.packageVersion ?? "unknown"} />
           </span>
         </div>
         <div>

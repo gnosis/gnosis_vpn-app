@@ -2,49 +2,13 @@ import type { BalanceResponse } from "@src/services/vpnService.ts";
 
 export const BYTES_PER_MB = 1_048_576n;
 export const BYTES_PER_GB = BYTES_PER_MB * 1024n;
-const BYTES_PER_TB = BYTES_PER_GB * 1024n;
-
-function withThousandsSep(intStr: string): string {
-  return intStr.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-}
-
-function formatCreditUnit(
-  creditBytes: bigint,
-  unitBytes: bigint,
-  decimals: number,
-  suffix: string,
-): string {
-  if (decimals === 0) {
-    const rounded = (creditBytes + unitBytes / 2n) / unitBytes;
-    return `${withThousandsSep(rounded.toString())} ${suffix}`;
-  }
-  const scale = 10n ** BigInt(decimals);
-  const scaled = (creditBytes * scale + unitBytes / 2n) / unitBytes;
-  const whole = scaled / scale;
-  const fraction = (scaled % scale).toString().padStart(decimals, "0");
-  return `${withThousandsSep(whole.toString())}.${fraction} ${suffix}`;
-}
-
-export function formatCredit(creditBytes: bigint): string {
-  if (creditBytes >= BYTES_PER_TB) {
-    return formatCreditUnit(creditBytes, BYTES_PER_TB, 2, "TB");
-  }
-  if (creditBytes >= BYTES_PER_GB) {
-    return formatCreditUnit(creditBytes, BYTES_PER_GB, 2, "GB");
-  }
-  return formatCreditUnit(creditBytes, BYTES_PER_MB, 0, "MB");
-}
 
 /** One decimal below 100, whole up to 999; null when it would take four digits. */
-function threeDigits(
-  creditBytes: bigint,
-  unitBytes: bigint,
-  suffix: string,
-): string | null {
-  const tenths = (creditBytes * 10n + unitBytes / 2n) / unitBytes;
-  if (tenths < 1000n) return `${tenths / 10n}.${tenths % 10n} ${suffix}`;
-  const whole = (creditBytes + unitBytes / 2n) / unitBytes;
-  return whole < 1000n ? `${whole} ${suffix}` : null;
+function threeDigits(value: bigint, unit: bigint): string | null {
+  const tenths = (value * 10n + unit / 2n) / unit;
+  if (tenths < 1000n) return `${tenths / 10n}.${tenths % 10n}`;
+  const whole = (value + unit / 2n) / unit;
+  return whole < 1000n ? `${whole}` : null;
 }
 
 const COMPACT_SUFFIXES = ["MB", "GB", "TB", "PB", "EB", "ZB", "YB"] as const;
@@ -54,12 +18,27 @@ export function formatCreditCompact(creditBytes: bigint): string {
   if (creditBytes === 0n) return "0 MB";
   let unitBytes = BYTES_PER_MB;
   for (const suffix of COMPACT_SUFFIXES) {
-    const label = threeDigits(creditBytes, unitBytes, suffix);
-    if (label !== null) return label;
+    const label = threeDigits(creditBytes, unitBytes);
+    if (label !== null) return `${label} ${suffix}`;
     unitBytes *= 1024n;
   }
   // Summed u64 allocations stay far below this.
   return "999+ YB";
+}
+
+const COUNT_SUFFIXES = ["k", "M", "B", "T"] as const;
+
+/** At most three digits, e.g. 999, 1.0k, 99.9k, 999k, 1.2M. */
+export function formatCountCompact(count: bigint): string {
+  if (count < 1000n) return `${count}`;
+  let unit = 1000n;
+  for (const suffix of COUNT_SUFFIXES) {
+    const label = threeDigits(count, unit);
+    if (label !== null) return `${label}${suffix}`;
+    unit *= 1000n;
+  }
+  // Renewals from summed u64 allocations stay far below this.
+  return "999+T";
 }
 
 /** The Stage 2 design's per-exit allotment; the client does not set it aside yet. */
