@@ -107,24 +107,10 @@ function StartSteps(props: { details: ServiceNotRunningInfo }) {
 
 /** No Start button: starting before these succeed mints a fresh identity. Identity first, it must land before the move. */
 function RecoverySteps(props: { details: ServiceNotRunningInfo }) {
-  const recovery = () => props.details.recovery;
   return (
     <>
       <Show when={props.details.migration_pending}>
-        <Show
-          when={recovery().identity.length > 0}
-          fallback={<OwnIdentitySteps details={props.details} />}
-        >
-          <p class="text-sm text-text-secondary">
-            The previous identity has not been migrated yet. Run one of these in
-            a terminal:
-          </p>
-          <For each={recovery().identity}>
-            {(command) => (
-              <CopyBlock text={command} label="identity migration command" />
-            )}
-          </For>
-        </Show>
+        <OwnIdentitySteps details={props.details} />
       </Show>
       <Show when={props.details.switch_pending}>
         <p class="text-sm text-text-secondary">
@@ -132,27 +118,18 @@ function RecoverySteps(props: { details: ServiceNotRunningInfo }) {
             ? "Then move your node address to the new network:"
             : "Move your node address to the new network after fixing the cause:"}
         </p>
-        <Show
-          when={recovery().switch.length > 0}
-          fallback={
-            <p class="text-sm text-text-secondary">
-              This installer version names no retry command; the next update
-              retries the move.
-            </p>
-          }
-        >
-          <For each={recovery().switch}>
-            {(command) => <CopyBlock text={command} label="move command" />}
-          </For>
-        </Show>
+        <For each={props.details.switch_commands}>
+          {(command) => <CopyBlock text={command} label="move command" />}
+        </For>
       </Show>
       <p class="text-sm text-text-secondary">
         Stuck? Send the migration log to support. This only shares diagnostics
         and fixes nothing:
       </p>
-      <For each={recovery().support}>
-        {(command) => <CopyBlock text={command} label="upload log command" />}
-      </For>
+      <CopyBlock
+        text={props.details.upload_log_command}
+        label="upload log command"
+      />
       <p class="text-sm text-text-secondary">
         Start the service only after these steps succeeded:
       </p>
@@ -161,7 +138,6 @@ function RecoverySteps(props: { details: ServiceNotRunningInfo }) {
   );
 }
 
-/** Installers before the recovery file name no identity commands; the app's own stand in. */
 function OwnIdentitySteps(props: { details: ServiceNotRunningInfo }) {
   return (
     <Show when={props.details.migrate_commands}>

@@ -22,12 +22,6 @@ const PENDING_SWITCH_FILE: &str = "/Library/Application Support/GnosisVPN/networ
 #[cfg(target_os = "linux")]
 const PENDING_SWITCH_FILE: &str = "/var/lib/gnosisvpn/network-switch-pending";
 
-/// The installer's ways forward after a failed migration, one `<step>: <command>` per line.
-#[cfg(target_os = "macos")]
-const RECOVERY_FILE: &str = "/Library/Application Support/GnosisVPN/migration-recovery";
-#[cfg(target_os = "linux")]
-const RECOVERY_FILE: &str = "/var/lib/gnosisvpn/migration-recovery";
-
 #[cfg(target_os = "macos")]
 const MIGRATE_LOG_PATHS: &[&str] = &["/Library/Logs/GnosisVPN/installer/migrate.log"];
 #[cfg(target_os = "linux")]
@@ -56,23 +50,17 @@ pub struct ServiceNotRunningInfo {
     pub start_command: String,
     /// Starting now would mint a fresh identity and turn a migration retry into a conflict.
     pub migration_pending: bool,
-    /// The app's own identity commands, only while the migration is pending and the installer named none.
+    /// Only while the migration is pending.
     pub migrate_commands: Option<MigrateCommands>,
     /// Starting now would mint a fresh identity on the new network and strand the old one.
     pub switch_pending: bool,
     /// The networks being left, oldest first.
     pub switch_from: Vec<String>,
-    /// The installer's commands, each step's only while that step is unfinished.
-    pub recovery: RecoverySteps,
+    /// One per network being left, newest first, run after the identity migration.
+    pub switch_commands: Vec<String>,
+    pub upload_log_command: &'static str,
     /// macOS only, and never while the migration or a network move is pending.
     pub can_start_from_app: bool,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Serialize)]
-pub struct RecoverySteps {
-    pub identity: Vec<String>,
-    pub switch: Vec<String>,
-    pub support: Vec<String>,
 }
 
 /// Separate fields so each gets its own copy button; pasting them together would run start-clean after a good migration.
@@ -106,29 +94,6 @@ fn is_network_name(name: &str) -> bool {
         .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
 }
 
-fn recovery_steps(path: &Path) -> RecoverySteps {
-    let mut steps = RecoverySteps::default();
-    let Some(content) = read_regular_file(path) else {
-        return steps;
-    };
-    for line in content.lines() {
-        let Some((step, command)) = line.split_once(':') else {
-            continue;
-        };
-        let command = command.trim().to_string();
-        if command.is_empty() {
-            continue;
-        }
-        match step.trim() {
-            "identity" => steps.identity.push(command),
-            "switch" => steps.switch.push(command),
-            "support" => steps.support.push(command),
-            _ => {}
-        }
-    }
-    steps
-}
-
 /// The installer writes these as plain files in a root-only dir; anything else was not written by it.
 fn read_regular_file(path: &Path) -> Option<String> {
     let metadata = std::fs::symlink_metadata(path).ok()?;
@@ -138,25 +103,13 @@ fn read_regular_file(path: &Path) -> Option<String> {
     std::fs::read_to_string(path).ok()
 }
 
-/// A stale file must not offer a step that already succeeded, so each step shows only while its state says unfinished.
-fn unfinished_steps(
-    all: RecoverySteps,
-    migration_pending: bool,
-    switch_pending: bool,
-) -> RecoverySteps {
-    RecoverySteps {
-        identity: if migration_pending {
-            all.identity
-        } else {
-            Vec::new()
-        },
-        switch: if switch_pending {
-            all.switch
-        } else {
-            Vec::new()
-        },
-        support: all.support,
-    }
+/// Newest first like the installer's `switch_steps`: a user's most recent identity wins; `--to` defaults to the config link's network.
+fn switch_commands(networks: &[String]) -> Vec<String> {
+    networks
+        .iter()
+        .rev()
+        .map(|network| format!("sudo gnosis_vpn-migrate switch-network --from {network}"))
+        .collect()
 }
 
 fn own_data_dir() -> Option<PathBuf> {
@@ -173,23 +126,35 @@ fn has_own_identity(data_dir: &Path) -> bool {
         .any(|network| network.path().join(IDENTITY_FILE).is_file())
 }
 
-fn migrate_commands(data_dir: Option<&Path>) -> MigrateCommands {
+/// `legacy_network`: the oldest network being left, where the installer files the legacy identity next to its safe.
+fn migrate_commands(data_dir: Option<&Path>, legacy_network: Option<&str>) -> MigrateCommands {
     let user = std::env::var("USER")
         .ok()
         .filter(|u| !u.is_empty())
         .unwrap_or_else(|| "<your username>".to_string());
     let has_own_identity = data_dir.is_some_and(has_own_identity);
+    let network_flag = legacy_network
+        .map(|network| format!(" --network {network}"))
+        .unwrap_or_default();
+    let identity = format!("sudo gnosis_vpn-migrate identity --user {user}{network_flag}");
+    let legacy_only = "sudo gnosis_vpn-migrate start-clean".to_string();
     if has_own_identity {
         return MigrateCommands {
             has_own_identity,
-            identity: format!("sudo gnosis_vpn-migrate identity --user {user} --replace"),
-            start_clean: "sudo gnosis_vpn-migrate start-clean".to_string(),
+            identity: format!("{identity} --replace"),
+            start_clean: legacy_only,
         };
     }
+    // `start-clean --user` resets the config link's network, which is not the one `--network` migrates.
+    let start_clean = if legacy_network.is_some() {
+        legacy_only
+    } else {
+        format!("sudo gnosis_vpn-migrate start-clean --user {user}")
+    };
     MigrateCommands {
         has_own_identity,
-        identity: format!("sudo gnosis_vpn-migrate identity --user {user}"),
-        start_clean: format!("sudo gnosis_vpn-migrate start-clean --user {user}"),
+        identity,
+        start_clean,
     }
 }
 
@@ -198,20 +163,13 @@ pub fn get_service_not_running_info() -> ServiceNotRunningInfo {
     let migration_pending = migration_pending();
     let switch_from = pending_switch_networks(Path::new(PENDING_SWITCH_FILE));
     let switch_pending = !switch_from.is_empty();
-    let mut recovery = unfinished_steps(
-        recovery_steps(Path::new(RECOVERY_FILE)),
-        migration_pending,
-        switch_pending,
-    );
     let anything_pending = migration_pending || switch_pending;
-    if anything_pending && recovery.support.is_empty() {
-        recovery
-            .support
-            .push("sudo gnosis_vpn-migrate upload-log".to_string());
-    }
-    // Installers before the recovery file name no identity commands; the app's own stand in.
-    let needs_own_commands = migration_pending && recovery.identity.is_empty();
-    let migrate_commands = needs_own_commands.then(|| migrate_commands(own_data_dir().as_deref()));
+    let migrate_commands = migration_pending.then(|| {
+        migrate_commands(
+            own_data_dir().as_deref(),
+            switch_from.first().map(String::as_str),
+        )
+    });
     ServiceNotRunningInfo {
         platform: std::env::consts::OS,
         migrate_log_paths: MIGRATE_LOG_PATHS.to_vec(),
@@ -219,8 +177,9 @@ pub fn get_service_not_running_info() -> ServiceNotRunningInfo {
         migration_pending,
         migrate_commands,
         switch_pending,
+        switch_commands: switch_commands(&switch_from),
         switch_from,
-        recovery,
+        upload_log_command: "sudo gnosis_vpn-migrate upload-log",
         can_start_from_app: cfg!(target_os = "macos") && !anything_pending,
     }
 }
@@ -298,7 +257,7 @@ mod tests {
         assert!(!info.migration_pending);
         assert!(info.migrate_commands.is_none());
         assert!(!info.switch_pending);
-        assert_eq!(info.recovery, RecoverySteps::default());
+        assert!(info.switch_commands.is_empty());
         assert_eq!(info.can_start_from_app, cfg!(target_os = "macos"));
     }
 
@@ -354,7 +313,7 @@ mod tests {
     fn without_own_identity_the_commands_target_the_current_user() {
         let user = std::env::var("USER").unwrap_or_default();
         let data_dir = temp_data_dir("fresh");
-        let commands = migrate_commands(Some(&data_dir));
+        let commands = migrate_commands(Some(&data_dir), None);
         std::fs::remove_dir_all(&data_dir).expect("cleanup");
 
         assert!(!commands.has_own_identity);
@@ -378,7 +337,7 @@ mod tests {
         let data_dir = temp_data_dir("conflict");
         std::fs::write(data_dir.join("networks/rotsee").join(IDENTITY_FILE), "{}")
             .expect("write identity");
-        let commands = migrate_commands(Some(&data_dir));
+        let commands = migrate_commands(Some(&data_dir), None);
         std::fs::remove_dir_all(&data_dir).expect("cleanup");
 
         assert!(commands.has_own_identity);
@@ -388,7 +347,7 @@ mod tests {
 
     #[test]
     fn migrate_commands_serialize_with_the_keys_the_frontend_parses() {
-        let json = serde_json::to_value(migrate_commands(None)).expect("serialize");
+        let json = serde_json::to_value(migrate_commands(None, None)).expect("serialize");
         let mut keys: Vec<&str> = json
             .as_object()
             .expect("object")
@@ -401,7 +360,7 @@ mod tests {
 
     #[test]
     fn missing_data_dir_counts_as_no_identity() {
-        assert!(!migrate_commands(None).has_own_identity);
+        assert!(!migrate_commands(None, None).has_own_identity);
         assert!(!has_own_identity(Path::new("/nonexistent/gnosisvpn")));
     }
 
@@ -480,70 +439,42 @@ mod tests {
     }
 
     #[test]
-    fn recovery_file_sorts_commands_by_step() {
-        let content = "identity: sudo gnosis_vpn-migrate identity --user alice --replace  # keep the legacy identity\n\
-                       \n\
-                       switch: sudo gnosis_vpn-migrate switch-network --from jura-prod --to piz-palu-prod\n\
-                       later: something unknown\n\
-                       support:\n\
-                       support: sudo gnosis_vpn-migrate upload-log\n";
-        let path = temp_file("recovery", content);
-        let steps = recovery_steps(&path);
-        cleanup(&path);
+    fn switch_commands_run_the_newest_network_first() {
+        let networks = ["jura-dev".to_string(), "jura-prod".to_string()];
         assert_eq!(
-            steps,
-            RecoverySteps {
-                identity: vec![
-                    "sudo gnosis_vpn-migrate identity --user alice --replace  # keep the legacy identity"
-                        .to_string()
-                ],
-                switch: vec![
-                    "sudo gnosis_vpn-migrate switch-network --from jura-prod --to piz-palu-prod"
-                        .to_string()
-                ],
-                support: vec!["sudo gnosis_vpn-migrate upload-log".to_string()],
-            }
+            switch_commands(&networks),
+            [
+                "sudo gnosis_vpn-migrate switch-network --from jura-prod",
+                "sudo gnosis_vpn-migrate switch-network --from jura-dev",
+            ]
         );
     }
 
     #[test]
-    fn missing_recovery_file_names_no_commands() {
-        assert_eq!(
-            recovery_steps(Path::new("/nonexistent/migration-recovery")),
-            RecoverySteps::default()
-        );
-    }
+    fn with_a_move_pending_the_identity_lands_on_the_old_network() {
+        let data_dir = temp_data_dir("move-fresh");
+        let commands = migrate_commands(Some(&data_dir), Some("jura-prod"));
+        std::fs::remove_dir_all(&data_dir).expect("cleanup");
 
-    #[cfg(unix)]
-    #[test]
-    fn linked_recovery_file_is_ignored() {
-        let target = temp_file(
-            "recovery-link",
-            "support: sudo gnosis_vpn-migrate upload-log\n",
-        );
-        let link = target.with_file_name("link");
-        std::os::unix::fs::symlink(&target, &link).expect("symlink");
-        let steps = recovery_steps(&link);
-        cleanup(&target);
-        assert_eq!(steps, RecoverySteps::default());
+        assert!(!commands.has_own_identity);
+        assert!(commands.identity.ends_with(" --network jura-prod"));
+        assert_eq!(commands.start_clean, "sudo gnosis_vpn-migrate start-clean");
     }
 
     #[test]
-    fn finished_steps_drop_out_of_a_stale_recovery_file() {
-        let all = RecoverySteps {
-            identity: vec!["identity".to_string()],
-            switch: vec!["switch".to_string()],
-            support: vec!["upload-log".to_string()],
-        };
-        let identity_done = unfinished_steps(all.clone(), false, true);
-        assert!(identity_done.identity.is_empty());
-        assert_eq!(identity_done.switch, ["switch"]);
-        assert_eq!(identity_done.support, ["upload-log"]);
+    fn with_a_move_pending_and_own_identity_the_replace_keeps_the_network() {
+        let data_dir = temp_data_dir("move-conflict");
+        std::fs::write(data_dir.join("networks/rotsee").join(IDENTITY_FILE), "{}")
+            .expect("write identity");
+        let commands = migrate_commands(Some(&data_dir), Some("jura-prod"));
+        std::fs::remove_dir_all(&data_dir).expect("cleanup");
 
-        let switch_done = unfinished_steps(all.clone(), true, false);
-        assert_eq!(switch_done.identity, ["identity"]);
-        assert!(switch_done.switch.is_empty());
-
-        assert_eq!(unfinished_steps(all.clone(), true, true), all);
+        assert!(commands.has_own_identity);
+        assert!(
+            commands
+                .identity
+                .ends_with(" --network jura-prod --replace")
+        );
+        assert_eq!(commands.start_clean, "sudo gnosis_vpn-migrate start-clean");
     }
 }

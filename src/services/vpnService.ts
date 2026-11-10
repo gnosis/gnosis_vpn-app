@@ -562,11 +562,8 @@ export const ServiceNotRunningInfoSchema = z.object({
   }).nullable(),
   switch_pending: z.boolean(),
   switch_from: z.array(z.string()),
-  recovery: z.object({
-    identity: z.array(z.string()),
-    switch: z.array(z.string()),
-    support: z.array(z.string()),
-  }),
+  switch_commands: z.array(z.string()),
+  upload_log_command: z.string(),
   can_start_from_app: z.boolean(),
 });
 export type ServiceNotRunningInfo = z.infer<typeof ServiceNotRunningInfoSchema>;
