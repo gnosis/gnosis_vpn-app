@@ -1,5 +1,8 @@
 import { createResource, createSignal, For, Show } from "solid-js";
-import { VPNService } from "@src/services/vpnService.ts";
+import {
+  type ServiceNotRunningInfo,
+  VPNService,
+} from "@src/services/vpnService.ts";
 import { logError, logInfo } from "@src/utils/appLog.ts";
 import Button from "@src/components/common/Button.tsx";
 import CopyBlock from "@src/components/common/CopyBlock.tsx";
@@ -8,6 +11,58 @@ import GnosisVpnLogo from "@src/components/common/GnosisVpnLogo.tsx";
 /** Daemon socket absent (installed, not started); the init loop keeps retrying, so this leaves by itself. */
 export default function ServiceNotRunning() {
   const [info] = createResource(() => VPNService.serviceNotRunningInfo());
+
+  return (
+    <div class="h-full w-full flex flex-col p-6 gap-4 overflow-y-auto text-text-primary">
+      <GnosisVpnLogo class="w-2/3 self-center text-text-primary" />
+      <h1 class="text-2xl font-bold">Gnosis VPN service is not running</h1>
+      <Show when={info()}>
+        {(details) => {
+          const anythingPending = () =>
+            details().migration_pending || details().switch_pending;
+          return (
+            <>
+              <Show
+                when={details().switch_pending}
+                fallback={
+                  <p class="text-sm text-text-secondary">
+                    If this follows an upgrade, the installer may have stopped
+                    the service after a failed identity migration; see the
+                    installer log.
+                  </p>
+                }
+              >
+                <p class="text-sm text-text-secondary">
+                  The update could not move your node address off{" "}
+                  {details().switch_from.join(", ")}{" "}
+                  to the new network. There is no Start button: starting now
+                  would create a new node address and leave your current one
+                  behind.
+                </p>
+              </Show>
+              <ul class="text-xs font-mono text-text-secondary break-all">
+                <For each={details().migrate_log_paths}>
+                  {(path) => <li>{path}</li>}
+                </For>
+              </ul>
+              <Show
+                when={anythingPending()}
+                fallback={<StartSteps details={details()} />}
+              >
+                <RecoverySteps details={details()} />
+              </Show>
+            </>
+          );
+        }}
+      </Show>
+      <p class="mt-auto text-center text-xs text-text-secondary">
+        Checking again every few seconds
+      </p>
+    </div>
+  );
+}
+
+function StartSteps(props: { details: ServiceNotRunningInfo }) {
   const [starting, setStarting] = createSignal(false);
   const [startError, setStartError] = createSignal<string | null>(null);
 
@@ -27,123 +82,111 @@ export default function ServiceNotRunning() {
   };
 
   return (
-    <div class="h-full w-full flex flex-col p-6 gap-4 overflow-y-auto text-text-primary">
-      <GnosisVpnLogo class="w-2/3 self-center text-text-primary" />
-      <h1 class="text-2xl font-bold">Gnosis VPN service is not running</h1>
-      <p class="text-sm text-text-secondary">
-        If this follows an upgrade, the installer may have stopped the service
-        after a failed identity migration; see the installer log.
-      </p>
-      <Show when={info()}>
-        {(details) => (
-          <>
-            <ul class="text-xs font-mono text-text-secondary break-all">
-              <For each={details().migrate_log_paths}>
-                {(path) => <li>{path}</li>}
-              </For>
-            </ul>
-            <Show
-              when={details().migrate_commands}
-              fallback={
-                <>
-                  <Show when={details().can_start_from_app}>
-                    <Button
-                      size="lg"
-                      onClick={() => void startService()}
-                      loading={starting()}
-                    >
-                      Start service
-                    </Button>
-                    <Show when={startError()}>
-                      {(message) => (
-                        <p class="text-sm text-vpn-red">{message()}</p>
-                      )}
-                    </Show>
-                  </Show>
-                  <p class="text-sm text-text-secondary">
-                    {details().can_start_from_app
-                      ? "Or run this in Terminal:"
-                      : "Start it from a terminal:"}
-                  </p>
-                  <CopyBlock
-                    text={details().start_command}
-                    label="start command"
-                  />
-                </>
-              }
-            >
-              {(commands) => (
-                <>
-                  {/* No Start button: starting now would mint a fresh identity and turn the retry into a conflict. */}
-                  <p class="text-sm text-text-secondary">
-                    The previous identity has not been migrated yet. Run one of
-                    these in a terminal.
-                  </p>
-                  <Show
-                    when={commands().has_own_identity}
-                    fallback={
-                      <>
-                        <p class="text-sm text-text-secondary">
-                          Migrate the previous identity (recommended):
-                        </p>
-                        <CopyBlock
-                          text={commands().identity}
-                          label="identity migration command"
-                        />
-                        <p class="text-sm text-text-secondary">
-                          Or set the previous identity aside and start with a
-                          new one:
-                        </p>
-                        <CopyBlock
-                          text={commands().start_clean}
-                          label="start-clean command"
-                        />
-                      </>
-                    }
-                  >
-                    {/* Exit-75 case: start-clean --user would park the account's own, possibly funded identity. */}
-                    <p class="text-sm text-text-secondary">
-                      Your account already has its own identity. Keep the
-                      previous identity, which replaces your current one:
-                    </p>
-                    <CopyBlock
-                      text={commands().identity}
-                      label="identity migration command"
-                    />
-                    <p class="text-sm text-text-secondary">
-                      Or keep your current identity and set the previous one
-                      aside:
-                    </p>
-                    <CopyBlock
-                      text={commands().start_clean}
-                      label="start-clean command"
-                    />
-                  </Show>
-                  <p class="text-sm text-text-secondary">
-                    Stuck? Send the migration log to support. This only shares
-                    diagnostics and fixes nothing:
-                  </p>
-                  <CopyBlock
-                    text={commands().upload_log}
-                    label="upload log command"
-                  />
-                  <p class="text-sm text-text-secondary">
-                    Start the service only after the migration succeeded or you
-                    chose a new identity:
-                  </p>
-                  <CopyBlock
-                    text={details().start_command}
-                    label="start command"
-                  />
-                </>
-              )}
-            </Show>
-          </>
-        )}
+    <>
+      <Show when={props.details.can_start_from_app}>
+        <Button
+          size="lg"
+          onClick={() => void startService()}
+          loading={starting()}
+        >
+          Start service
+        </Button>
+        <Show when={startError()}>
+          {(message) => <p class="text-sm text-vpn-red">{message()}</p>}
+        </Show>
       </Show>
-      <p class="mt-auto text-center text-xs text-text-secondary">
-        Checking again every few seconds
+      <p class="text-sm text-text-secondary">
+        {props.details.can_start_from_app
+          ? "Or run this in Terminal:"
+          : "Start it from a terminal:"}
       </p>
-    </div>
+      <CopyBlock text={props.details.start_command} label="start command" />
+    </>
+  );
+}
+
+/** No Start button: starting before these succeed mints a fresh identity. Identity first, it must land before the move. */
+function RecoverySteps(props: { details: ServiceNotRunningInfo }) {
+  return (
+    <>
+      <Show when={props.details.migration_pending}>
+        <OwnIdentitySteps details={props.details} />
+      </Show>
+      <Show when={props.details.switch_pending}>
+        <p class="text-sm text-text-secondary">
+          {props.details.migration_pending
+            ? "Then move your node address to the new network:"
+            : "Move your node address to the new network after fixing the cause:"}
+        </p>
+        <For each={props.details.switch_commands}>
+          {(command) => <CopyBlock text={command} label="move command" />}
+        </For>
+      </Show>
+      <p class="text-sm text-text-secondary">
+        Stuck? Send the migration log to support. This only shares diagnostics
+        and fixes nothing:
+      </p>
+      <CopyBlock
+        text={props.details.upload_log_command}
+        label="upload log command"
+      />
+      <p class="text-sm text-text-secondary">
+        Start the service only after these steps succeeded:
+      </p>
+      <CopyBlock text={props.details.start_command} label="start command" />
+    </>
+  );
+}
+
+function OwnIdentitySteps(props: { details: ServiceNotRunningInfo }) {
+  return (
+    <Show when={props.details.migrate_commands}>
+      {(commands) => (
+        <>
+          <p class="text-sm text-text-secondary">
+            The previous identity has not been migrated yet. Run one of these in
+            a terminal.
+          </p>
+          <Show
+            when={commands().has_own_identity}
+            fallback={
+              <>
+                <p class="text-sm text-text-secondary">
+                  Migrate the previous identity (recommended):
+                </p>
+                <CopyBlock
+                  text={commands().identity}
+                  label="identity migration command"
+                />
+                <p class="text-sm text-text-secondary">
+                  Or set the previous identity aside and start with a new one:
+                </p>
+                <CopyBlock
+                  text={commands().start_clean}
+                  label="start-clean command"
+                />
+              </>
+            }
+          >
+            {/* Exit-75 case: start-clean --user would park the account's own, possibly funded identity. */}
+            <p class="text-sm text-text-secondary">
+              Your account already has its own identity. Keep the previous
+              identity, which replaces your current one:
+            </p>
+            <CopyBlock
+              text={commands().identity}
+              label="identity migration command"
+            />
+            <p class="text-sm text-text-secondary">
+              Or keep your current identity and set the previous one aside:
+            </p>
+            <CopyBlock
+              text={commands().start_clean}
+              label="start-clean command"
+            />
+          </Show>
+        </>
+      )}
+    </Show>
   );
 }

@@ -131,6 +131,10 @@
           : "sudo systemctl enable --now gnosisvpn",
         migration_pending: false,
         migrate_commands: null,
+        switch_pending: false,
+        switch_from: [],
+        switch_commands: [],
+        upload_log_command: "sudo gnosis_vpn-migrate upload-log",
         can_start_from_app: macos,
         ...(fixture.serviceNotRunningInfo ?? {}),
       };
