@@ -26,5 +26,6 @@
     "checked_at": null,
     "consecutive_failures": 2,
     "last_error": "timeout"
-  }
+  },
+  "pix_chunk_bytes": null
 }

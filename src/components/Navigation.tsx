@@ -4,7 +4,12 @@ import { Portal } from "solid-js/web";
 import SettingsIcon from "./icons/SettingsIcon.tsx";
 import { openSettings, settingsTab } from "../utils/settingsPage.ts";
 import TrafficIcon from "./icons/TrafficIcon.tsx";
-import { openTrafficWindow } from "../utils/trafficWindow.ts";
+import {
+  balanceHoverBlocked,
+  toggleTrafficPane,
+  trafficPaneOpen,
+} from "../utils/trafficPane.ts";
+import { overlayMount } from "../utils/mainColumn.ts";
 import { isRunningRunMode } from "../services/vpnService.ts";
 import LockIcon from "./icons/LockIcon.tsx";
 import { deriveOverallStatus } from "../utils/funding.ts";
@@ -59,6 +64,7 @@ function Navigation(props: { gearOnly?: boolean }) {
   };
 
   const handleMouseEnter = gateOnWindowFocus(() => {
+    if (balanceHoverBlocked()) return;
     clearTimeout(hoverTimeout);
     if (showPopup()) return;
     hoverTimeout = setTimeout(() => {
@@ -76,7 +82,7 @@ function Navigation(props: { gearOnly?: boolean }) {
 
   return (
     <>
-      <Portal>
+      <Portal mount={overlayMount()}>
         <div
           ref={(el) => (containerRef = el)}
           class="fixed top-6 right-4 z-60 flex items-center gap-1.5 justify-center"
@@ -101,7 +107,14 @@ function Navigation(props: { gearOnly?: boolean }) {
               </div>
             </Tooltip>
             <Tooltip content="Live traffic" position="bottom">
-              <IconButton label="Traffic" onClick={() => openTrafficWindow()}>
+              <IconButton
+                label="Live traffic"
+                active={trafficPaneOpen()}
+                onClick={() => {
+                  hidePopup();
+                  void toggleTrafficPane();
+                }}
+              >
                 <TrafficIcon />
               </IconButton>
             </Tooltip>
@@ -157,6 +170,9 @@ function Navigation(props: { gearOnly?: boolean }) {
       <BalancePopup
         show={showPopup()}
         credit={credit()}
+        chunkBytes={appState.pixChunkBytes === null
+          ? null
+          : BigInt(appState.pixChunkBytes)}
         buttonRect={buttonRect()}
         containerRect={containerRect()}
         onMouseEnter={handleMouseEnter}

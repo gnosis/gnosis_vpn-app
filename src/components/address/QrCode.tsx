@@ -1,5 +1,6 @@
 import { createEffect, createSignal, onCleanup, onMount, Show } from "solid-js";
 import { Portal } from "solid-js/web";
+import { overlayMount } from "@src/utils/mainColumn.ts";
 import QRCode from "qrcode";
 import { logWarn } from "../../utils/appLog.ts";
 import { shortAddress } from "../../utils/shortAddress.ts";
@@ -46,7 +47,7 @@ export default function QrCode(props: QrCodeProps) {
 
   return (
     <Show when={props.open}>
-      <Portal>
+      <Portal mount={overlayMount()}>
         <div
           class="fixed inset-0 z-140 flex items-center justify-center bg-bg-overlay"
           onClick={props.onClose}

@@ -34,6 +34,7 @@ const BASE: StatusResponse = {
   connection: { type: "disconnected" },
   disconnecting: [],
   probe: null,
+  pix_chunk_bytes: null,
 };
 
 const CONNECTING: Connection = {
@@ -41,6 +42,7 @@ const CONNECTING: Connection = {
   destination: "dest-1",
   since: 0,
   phase: "init",
+  pix: null,
 };
 
 const CONNECTED: Connection = {
@@ -49,6 +51,7 @@ const CONNECTED: Connection = {
   since: 0,
   tunnel_ping_rtt: null,
   stall: null,
+  pix: null,
 };
 
 const RECONNECTING: Connection = {
@@ -97,6 +100,7 @@ const BASE_APP_STATE: AppState = {
   availableVersion: null,
   endOfLife: null,
   targetDestination: null,
+  pixChunkBytes: null,
   balance: null,
   packageVersion: null,
   toolkit: { status: "unknown", version: null, packageVersion: null },

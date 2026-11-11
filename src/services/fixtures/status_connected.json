@@ -14,7 +14,22 @@
     "destination": "test-exit",
     "since": 0,
     "tunnel_ping_rtt": 12,
-    "stall": null
+    "stall": null,
+    "pix": {
+      "phase": {
+        "type": "funded"
+      },
+      "chunks_committed": 2,
+      "chunks_paid": 2,
+      "chunks_failed": 0,
+      "chunk_bytes": 951644160,
+      "bytes_bought": 1903288320,
+      "cost": "1903288320000000",
+      "bytes_spent": 475822080,
+      "bytes_left": 1427466240,
+      "bytes_received": 317214720,
+      "empty_in": 5400000
+    }
   },
   "disconnecting": [
     {
@@ -55,5 +70,6 @@
     "checked_at": 0,
     "consecutive_failures": 0,
     "last_error": null
-  }
+  },
+  "pix_chunk_bytes": 951644160
 }

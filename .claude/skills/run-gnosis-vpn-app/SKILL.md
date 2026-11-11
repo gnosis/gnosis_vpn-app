@@ -40,6 +40,11 @@ again), waits for the Solid app to mount, then executes the steps in order:
 Flags: `--fixture <path>` (default: the skill's `fixture.json`), `--size WxH`
 (default `360x612` — the main window).
 
+The live traffic pane widens the real window to the left by 460 px; the shim's
+`traffic_pane` is a no-op, so pass `--size 820x612` and
+`click 'button[aria-label="Live traffic"]'` to see it. Frames come from
+`fixture.traffic` (`interfaces`, `frames` of `traffic_frame` responses, `loop`).
+
 ### Checking the splash→Solid handoff
 
 ```bash

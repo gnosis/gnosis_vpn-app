@@ -77,6 +77,7 @@ function connectedTo(
       since: 0,
       tunnel_ping_rtt: null,
       stall: null,
+      pix: null,
     },
   };
 }
@@ -92,6 +93,7 @@ function connectingTo(
       destination: id,
       since: 0,
       phase: "init",
+      pix: null,
     },
   };
 }

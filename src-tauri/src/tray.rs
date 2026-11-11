@@ -53,11 +53,7 @@ pub fn toggle_main_window_visibility(app: &AppHandle) {
     if !is_visible || !is_focused {
         show_main_window(app);
     } else {
-        let _ = window.hide();
-        #[cfg(target_os = "macos")]
-        {
-            let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
-        }
+        crate::hide_main_window(app, &window);
     }
 }
 

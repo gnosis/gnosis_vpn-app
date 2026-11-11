@@ -15,8 +15,10 @@
     "since": 0,
     "phase": {
       "type": "register_wg"
-    }
+    },
+    "pix": null
   },
   "disconnecting": [],
-  "probe": null
+  "probe": null,
+  "pix_chunk_bytes": 951644160
 }

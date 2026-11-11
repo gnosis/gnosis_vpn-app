@@ -1,17 +1,39 @@
-/** Decimal byte units, so a rate reads the same way as a network monitor. */
-const UNITS = ["B/s", "kB/s", "MB/s", "GB/s"] as const;
+/** Bits or bytes; the click on the readout switches between them. */
+export type RateFamily = "bits" | "bytes";
 
-export function formatRate(bytesPerSecond: number): string {
-  if (!Number.isFinite(bytesPerSecond) || bytesPerSecond <= 0) {
-    return `0 ${UNITS[0]}`;
-  }
-  let value = bytesPerSecond;
-  let unit = 0;
-  while (value >= 1000 && unit < UNITS.length - 1) {
-    value /= 1000;
-    unit += 1;
-  }
-  const digits = value >= 100 ? 0 : 1;
-  const text = value.toFixed(digits).replace(/\.0$/, "");
-  return `${text} ${UNITS[unit]}`;
+export interface RateScale {
+  unit: string;
+  bytesPerUnit: number;
+}
+
+const SCALES: Record<RateFamily, [RateScale, RateScale]> = {
+  bits: [
+    { unit: "Mbit/s", bytesPerUnit: 1e6 / 8 },
+    { unit: "Gbit/s", bytesPerUnit: 1e9 / 8 },
+  ],
+  bytes: [
+    { unit: "MB/s", bytesPerUnit: 1e6 },
+    { unit: "GB/s", bytesPerUnit: 1e9 },
+  ],
+};
+
+const usable = (bytesPerSecond: number) =>
+  Number.isFinite(bytesPerSecond) && bytesPerSecond > 0 ? bytesPerSecond : 0;
+
+/** Mega until the figure would round to a thousand, giga after, so it never outgrows its cell. */
+export function rateScale(
+  bytesPerSecond: number,
+  family: RateFamily,
+): RateScale {
+  const [mega, giga] = SCALES[family];
+  return usable(bytesPerSecond) / mega.bytesPerUnit >= 999.5 ? giga : mega;
+}
+
+/** At most five characters with a decimal comma, as the live traffic readout shows them ("3,8"). */
+export function formatRate(bytesPerSecond: number, scale: RateScale): string {
+  const value = usable(bytesPerSecond) / scale.bytesPerUnit;
+  // Rounding decides: 99.999 would print as "100,00", a digit too wide.
+  const roundsToHundred = Number(value.toFixed(2)) >= 100;
+  const digits = scale.unit === "Mbit/s" || roundsToHundred ? 1 : 2;
+  return value.toFixed(digits).replace(".", ",");
 }

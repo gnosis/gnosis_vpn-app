@@ -1,4 +1,7 @@
-import type { BalanceResponse } from "@src/services/vpnService.ts";
+import type {
+  BalanceResponse,
+  PixChunkStats,
+} from "@src/services/vpnService.ts";
 
 export const BYTES_PER_MB = 1_048_576n;
 export const BYTES_PER_GB = BYTES_PER_MB * 1024n;
@@ -41,12 +44,24 @@ export function formatCountCompact(count: bigint): string {
   return "999+T";
 }
 
-/** The Stage 2 design's per-exit allotment; the client does not set it aside yet. */
-export const MB_PER_EXIT = 600n;
+/** Whole exits the credit covers at one PIX chunk each. */
+export function exitsCovered(creditBytes: bigint, chunkBytes: bigint): bigint {
+  if (chunkBytes === 0n) return 0n;
+  return creditBytes / chunkBytes;
+}
 
-/** Whole exits the credit covers at MB_PER_EXIT each. */
-export function exitsCovered(creditBytes: bigint): bigint {
-  return creditBytes / (BYTES_PER_MB * MB_PER_EXIT);
+/** The live tunnel's data left: "Free" before the exit asks for a chunk, "—" while unmeasured. */
+export function formatDataLeft(pix: PixChunkStats): string {
+  if (pix.phase === "free") return "Free";
+  if (pix.bytes_left === null) return "—";
+  return formatCreditCompact(BigInt(pix.bytes_left));
+}
+
+/** Unspent share of the chunks bought; full while nothing is bought or measured yet. */
+export function dataLeftFraction(pix: PixChunkStats): number {
+  const unmeasured = pix.bytes_left === null || pix.bytes_bought === 0;
+  if (unmeasured) return 1;
+  return Math.min(1, pix.bytes_left! / pix.bytes_bought);
 }
 
 /** Sum byte_capacity across all capacity allocations

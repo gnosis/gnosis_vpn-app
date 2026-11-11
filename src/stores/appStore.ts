@@ -109,6 +109,8 @@ export interface AppState {
   // Set only while the stored verdict covers the installed package.
   endOfLife: EndOfLife | null;
   targetDestination: string | null;
+  // Data an exit sets aside per connection; null until the node runs.
+  pixChunkBytes: number | null;
   balance: BalanceResponse | null;
   // The installed package version everything update-facing keys off: the toolkit's
   // read of the version file, falling back to the daemon's for older installs.
@@ -167,6 +169,7 @@ function initialState(): AppState {
     availableVersion: null,
     endOfLife: null,
     targetDestination: null,
+    pixChunkBytes: null,
     balance: null,
     packageVersion: null,
     toolkit: { status: "unknown", version: null, packageVersion: null },
@@ -434,6 +437,7 @@ export function createAppStore(): AppStoreTuple {
       reconcile(trackWeakRoutes(state.weakRoutes, destinations, Date.now())),
     );
     setState("targetDestination", response.target);
+    setState("pixChunkBytes", response.pix_chunk_bytes);
     setState("connection", reconcile(response.connection));
     setState("disconnecting", reconcile(response.disconnecting));
     setState("probe", reconcile(response.probe));

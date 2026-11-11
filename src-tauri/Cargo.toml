@@ -51,6 +51,8 @@ zstd = "0.14.3"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 ashpd = { version = "0.10", default-features = false }
+# Same version tauri uses; window gravity for the traffic pane has no tauri API.
+gtk = "0.18"
 futures-core = { version = "0.3.34", default-features = false }
 libloading = "0.7"
 

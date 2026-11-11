@@ -25,7 +25,15 @@ import {
   setPendingCheckAfterConnect,
 } from "@src/utils/updateChecker.ts";
 import { isStaleOutcome } from "@src/utils/updateAvailability.ts";
-import { logError, logWarn } from "@src/utils/appLog.ts";
+import { logError, logInfo, logWarn } from "@src/utils/appLog.ts";
+import TrafficPane from "@src/components/traffic/TrafficPane.tsx";
+import { MAIN_COLUMN_ID } from "@src/utils/mainColumn.ts";
+import {
+  setTrafficPane,
+  trafficPaneCollapsed,
+  trafficPaneMounted,
+  trafficPaneOpen,
+} from "@src/utils/trafficPane.ts";
 import {
   isSettingsTarget,
   openSettings,
@@ -122,6 +130,7 @@ function App() {
   const [appState, appActions] = useAppStore();
   const [settings, settingsActions] = useSettingsStore();
   let unlistenNavigate: (() => void) | undefined;
+  let unlistenTraffic: (() => void)[] = [];
   let unlistenSettings: (() => void) | undefined;
   let disposed = false;
 
@@ -221,6 +230,14 @@ function App() {
     }
   });
 
+  // The pane belongs to the main screen: the others have no top bar to close it from, and settings span the whole window.
+  const paneAllowed = () => displayedScreen() === "main" && !settingsTab();
+  createEffect(() => {
+    if (!paneAllowed() && trafficPaneOpen()) {
+      void setTrafficPane(false);
+    }
+  });
+
   // Settings cover the location list, so it closes rather than waiting underneath.
   createEffect(on(settingsTab, (tab) => {
     if (tab && untrack(() => appState.mode.listOpen)) {
@@ -241,6 +258,20 @@ function App() {
       unlistenSettings = unlisten;
       void takeSettingsTarget();
     }).catch((e) => logError(`Cannot listen for settings:open: ${e}`));
+
+    void (async () => {
+      const current = getCurrentWebviewWindow();
+      const listeners = await Promise.all([
+        // From the tray entry, which has already brought the window up.
+        current.listen("traffic:open", () => {
+          if (untrack(paneAllowed)) void setTrafficPane(true);
+          else logInfo("traffic pane requested off the main screen, ignored");
+        }),
+        current.listen("traffic:closed", () => trafficPaneCollapsed()),
+      ]);
+      if (disposed) listeners.forEach((unlisten) => unlisten());
+      else unlistenTraffic = listeners;
+    })().catch((e) => logError(`Cannot follow traffic pane requests: ${e}`));
 
     void (async () => {
       await settingsActions.load();
@@ -265,25 +296,47 @@ function App() {
   onCleanup(() => {
     disposed = true;
     unlistenNavigate?.();
+    unlistenTraffic.forEach((unlisten) => unlisten());
     unlistenSettings?.();
     if (timeoutId) clearTimeout(timeoutId);
     clearTimeout(fadeTimer);
   });
 
   return (
-    <div class="h-screen bg-bg-primary">
+    <div class="flex h-screen overflow-hidden bg-bg-primary">
+      {/* Empty at the closed width; the window widens into it in one step and the glide is the pane's own. */}
+      <div class="relative h-full min-w-0 flex-1 overflow-hidden">
+        <Show when={trafficPaneMounted()}>
+          {/* duration-250 is PANE_FADE_OUT_MS. */}
+          <div
+            class={`absolute inset-y-0 right-0 w-[460px] border-r border-border transition-[opacity,translate] ease-[cubic-bezier(0.2,0.8,0.2,1)] ${
+              trafficPaneOpen()
+                ? "translate-x-0 opacity-100 delay-150 duration-380 starting:translate-x-6 starting:opacity-0"
+                : "translate-x-6 opacity-0 duration-250"
+            }`}
+          >
+            <TrafficPane />
+          </div>
+        </Show>
+      </div>
+      {/* Always the closed width, so no resize timing can stretch the main screen; layout containment keeps `fixed` overlays inside it. */}
       <div
-        class={`h-full transition-opacity duration-300 ${
-          fadingOut() ? "opacity-0" : "opacity-100"
-        }`}
+        id={MAIN_COLUMN_ID}
+        class="relative h-full w-[360px] shrink-0 [contain:layout]"
       >
-        <Dynamic
-          component={screens[displayedScreen()]}
-          {...mapStoreToScreenProps(
-            displayedScreen(),
-            appState,
-          )}
-        />
+        <div
+          class={`h-full transition-opacity duration-300 ${
+            fadingOut() ? "opacity-0" : "opacity-100"
+          }`}
+        >
+          <Dynamic
+            component={screens[displayedScreen()]}
+            {...mapStoreToScreenProps(
+              displayedScreen(),
+              appState,
+            )}
+          />
+        </div>
       </div>
       <Show when={settingsTab()}>
         <SettingsPage />

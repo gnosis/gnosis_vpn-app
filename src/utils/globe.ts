@@ -1,63 +1,70 @@
-/** Unit sphere in view space (x right, y up, z to the viewer); positions come from opaque ids, not geography. */
+/** Schematic globe for the live traffic pane: places come from opaque ids, not geography. */
 
-export interface Vec3 {
-  x: number;
-  y: number;
-  z: number;
-}
+/** Latitude and longitude in degrees. */
+export type Geo = readonly [number, number];
+/** Unit sphere (x towards 0°/0°, z north); after projection x right, y up, z towards the viewer. */
+export type Vec3 = readonly [number, number, number];
 
-/** A projected point on the unit disc, y up. */
-export interface Point {
-  x: number;
-  y: number;
-}
+export type EndpointKind = "relay" | "vpn" | "other";
 
-/** What the globe needs to know about an endpoint besides its traffic. */
-export interface GlobeEndpoint {
+/** What staging needs to know about a listed endpoint. */
+export interface ListedEndpoint {
   id: string;
-  hopr_peer: boolean;
-  tunnel: boolean;
+  kind: EndpointKind;
+  /** Bytes per second both ways; busier endpoints are shown first. */
+  rate: number;
 }
 
-/** Line width easing toward the width the current traffic asks for. */
-export interface Link {
-  width: number;
-  target: number;
+export interface StagedEndpoint {
+  kind: EndpointKind;
+  rate: number;
+  /** Seconds, same clock as `now`. */
+  born: number;
+  dying: number | null;
+  /** Made room for a busier endpoint; fades out even while still listed. */
+  evicted: boolean;
 }
 
-export const MIN_LINK_WIDTH = 1;
-export const MAX_LINK_WIDTH = 12;
+export interface Stage {
+  shown: Map<string, StagedEndpoint>;
+  nextReveal: number;
+  nextRelay: number;
+}
 
-/** Rates at or below this draw the thinnest line. */
-const LOW_RATE = 100;
-/** Rates at or above this draw the thickest line. */
-const HIGH_RATE = 10_000_000;
-/** Endpoints stay inside this radius so no dot sits on the outline. */
-const PLACEMENT_RADIUS = 0.86;
-/** Tunnel destinations sit in this band along the rim so they read as the far end of the path. */
-export const DESTINATION_RING = { inner: 0.74, outer: PLACEMENT_RADIUS };
-/** How far an arc bends off its chord, relative to the chord length. */
-const ARC_BEND = 0.18;
-/** Arcs stay just inside the outline. */
-const ARC_LIMIT = 0.98;
-/** Time for a width change to cover about 63% of the distance to its target. */
-const EASE_MS = 250;
-/** Widths closer than this to their target snap to it. */
-const SETTLE_WIDTH = 0.05;
-/** Relays shown carrying the tunnel are drawn anew within this span, like path selection does. */
-export const RELAY_PICK_MS = { min: 3000, max: 6000 };
-/** At most this many relays are shown carrying the tunnel at once. */
-const MAX_TUNNEL_RELAYS = 3;
-/** Graticule tilt, so the northern cap shows like on a desk globe. */
-const TILT = (20 * Math.PI) / 180;
+/** You, drawn where the design puts it; the app never learns the user's location. */
+export const YOU: Geo = [47.4, 8.5];
+/** Exits nearer than this (degrees) to You are drawn further away so the route stays readable. */
+export const MIN_EXIT_ANGLE = 34;
+export const MAX_SHOWN_ENDPOINTS = 20;
+export const MAX_SHOWN_RELAYS = 17;
+/** Seconds a departing endpoint takes to fade out. */
+export const FADE_SECONDS = 1;
+const RELAY_STEP = 0.55;
+const FILL_STEP = { min: 0.35, max: 1.25 };
+const CHURN_STEP = { min: 1.2, max: 2.6 };
+const DEGREE = Math.PI / 180;
 
-/** Where the local host sits: lower left, like a viewer's own position on a map. */
-export const HOME: Vec3 = onSphere(-0.48, -0.36);
-/** Mid-globe, so destinations fan out from it toward the rim all around. */
-export const EXIT: Vec3 = onSphere(0.08, 0.1);
+const clamp = (value: number, low: number, high: number) =>
+  Math.min(high, Math.max(low, value));
 
-function onSphere(x: number, y: number): Vec3 {
-  return { x, y, z: Math.sqrt(Math.max(0, 1 - x * x - y * y)) };
+export function vec([lat, lon]: Geo): Vec3 {
+  const a = lat * DEGREE;
+  const b = lon * DEGREE;
+  return [Math.cos(a) * Math.cos(b), Math.cos(a) * Math.sin(b), Math.sin(a)];
+}
+
+export function geoOf([x, y, z]: Vec3): Geo {
+  return [
+    Math.asin(clamp(z, -1, 1)) / DEGREE,
+    Math.atan2(y, x) / DEGREE,
+  ];
+}
+
+/** Great-circle distance in degrees. */
+export function angleBetween(a: Geo, b: Geo): number {
+  const [ax, ay, az] = vec(a);
+  const [bx, by, bz] = vec(b);
+  return Math.acos(clamp(ax * bx + ay * by + az * bz, -1, 1)) / DEGREE;
 }
 
 /** 32-bit FNV-1a, enough to scatter ids evenly. */
@@ -70,160 +77,188 @@ function fnv1a(text: string): number {
   return hash >>> 0;
 }
 
-/** Places an endpoint id on the visible hemisphere, the same spot every time. */
-export function endpointPosition(id: string): Vec3 {
-  const u = fnv1a(id) / 2 ** 32;
-  const v = fnv1a(`${id}:angle`) / 2 ** 32;
-  // The square root spreads dots evenly over the disc area.
-  const radius = PLACEMENT_RADIUS * Math.sqrt(u);
-  const angle = 2 * Math.PI * v;
-  return onSphere(radius * Math.cos(angle), radius * Math.sin(angle));
+/** A fraction in [0, 1) that is the same for an id every time. */
+export function idFraction(id: string, salt: string): number {
+  return fnv1a(`${id}:${salt}`) / 2 ** 32;
 }
 
-/** Places a tunnel destination in the rim band, the same spot every time. */
-export function destinationPosition(id: string): Vec3 {
-  const u = fnv1a(id) / 2 ** 32;
-  const v = fnv1a(`${id}:angle`) / 2 ** 32;
-  const { inner, outer } = DESTINATION_RING;
-  const radius = inner + (outer - inner) * u;
-  const angle = 2 * Math.PI * v;
-  return onSphere(radius * Math.cos(angle), radius * Math.sin(angle));
+/** Relays spread over the hemisphere around You. */
+export function relayGeo(id: string): Geo {
+  return [
+    idFraction(id, "lat") * 100 - 30,
+    idFraction(id, "lon") * 140 - 40,
+  ];
 }
 
-/** Bent left of its chord so every link curves the same way, like a flight path. */
-export function arcPoints(from: Vec3, to: Vec3, segments = 32): Point[] {
-  const dot = Math.min(
-    1,
-    Math.max(-1, from.x * to.x + from.y * to.y + from.z * to.z),
-  );
-  const angle = Math.acos(dot);
-  const sinAngle = Math.sin(angle);
-  // Left-hand normal of the projected chord; its length is the chord length.
-  const normal = { x: -(to.y - from.y), y: to.x - from.x };
-  const points: Point[] = [];
-  for (let n = 0; n <= segments; n++) {
-    const t = n / segments;
-    // Spherical interpolation; nearly identical points fall back to a straight line.
-    const a = sinAngle < 1e-6 ? 1 - t : Math.sin((1 - t) * angle) / sinAngle;
-    const b = sinAngle < 1e-6 ? t : Math.sin(t * angle) / sinAngle;
-    const bend = ARC_BEND * Math.sin(Math.PI * t);
-    const x = a * from.x + b * to.x + normal.x * bend;
-    const y = a * from.y + b * to.y + normal.y * bend;
-    const distance = Math.hypot(x, y);
-    const limit = distance > ARC_LIMIT ? ARC_LIMIT / distance : 1;
-    points.push({ x: x * limit, y: y * limit });
-  }
+/** Endpoints scatter around where their traffic leaves: the exit for Via VPN, You otherwise. */
+export function endpointGeo(id: string, [lat, lon]: Geo): Geo {
+  return [
+    clamp(lat + (idFraction(id, "lat") - 0.5) * 120, -60, 70),
+    lon + (idFraction(id, "lon") - 0.5) * 150,
+  ];
+}
+
+export function exitGeo(id: string): Geo {
+  const spot: Geo = [
+    idFraction(id, "lat") * 90 - 30,
+    idFraction(id, "lon") * 210 - 80,
+  ];
+  return angleBetween(YOU, spot) >= MIN_EXIT_ANGLE
+    ? spot
+    : [YOU[0] - 16, YOU[1] + 42];
+}
+
+/** Between You and the exit, nudged north-east so both sit well inside the disc. */
+export function cameraTarget(exit: Geo | null): Geo {
+  const a = vec(YOU);
+  const b = vec(exit ?? YOU);
+  const sum: Vec3 = [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+  const length = Math.hypot(...sum) || 1;
+  const [lat, lon] = geoOf([sum[0] / length, sum[1] / length, sum[2] / length]);
+  return [clamp(lat + 12, -10, 52), lon + 12];
+}
+
+/** Glides toward the target; longitude takes the short way round. */
+export function easeCamera(current: Geo, target: Geo, seconds: number): Geo {
+  const step = Math.min(1, seconds * 1.2);
+  const lon = ((target[1] - current[1] + 540) % 360) - 180;
+  return [
+    current[0] + (target[0] - current[0]) * step,
+    current[1] + lon * step,
+  ];
+}
+
+/** Orthographic view centred on `center`. */
+export function projector(center: Geo): (v: Vec3) => Vec3 {
+  const lat = center[0] * DEGREE;
+  const lon = center[1] * DEGREE;
+  const [cosLat, sinLat] = [Math.cos(lat), Math.sin(lat)];
+  const [cosLon, sinLon] = [Math.cos(-lon), Math.sin(-lon)];
+  return ([x0, y0, z0]) => {
+    const x1 = x0 * cosLon - y0 * sinLon;
+    const y1 = x0 * sinLon + y0 * cosLon;
+    return [y1, z0 * cosLat - x1 * sinLat, z0 * sinLat + x1 * cosLat];
+  };
+}
+
+/** Great-circle arc lifted off the surface, drawn up to `grow` of its length. */
+export function arcPoints(
+  from: Geo,
+  to: Geo,
+  grow = 1,
+  lift = 0.18,
+  segments = 30,
+): Vec3[] {
+  const a = vec(from);
+  const b = vec(to);
+  const omega =
+    Math.acos(clamp(a[0] * b[0] + a[1] * b[1] + a[2] * b[2], -1, 1)) ||
+    1e-6;
+  const sinOmega = Math.sin(omega);
+  const at = (f: number): Vec3 => {
+    const s1 = Math.sin((1 - f) * omega) / sinOmega;
+    const s2 = Math.sin(f * omega) / sinOmega;
+    const height = 1 + lift * omega * Math.sin(Math.PI * f);
+    return [
+      (a[0] * s1 + b[0] * s2) * height,
+      (a[1] * s1 + b[1] * s2) * height,
+      (a[2] * s1 + b[2] * s2) * height,
+    ];
+  };
+  const reach = clamp(grow, 0, 1);
+  const whole = Math.floor(segments * reach);
+  const points: Vec3[] = [];
+  for (let n = 0; n <= whole; n++) points.push(at(n / segments));
+  if (segments * reach - whole > 1e-3) points.push(at(reach));
   return points;
 }
 
-function tilted(latitude: number, longitude: number): Vec3 {
-  const x = Math.cos(latitude) * Math.sin(longitude);
-  const y = Math.sin(latitude);
-  const z = Math.cos(latitude) * Math.cos(longitude);
-  return {
-    x,
-    y: y * Math.cos(TILT) - z * Math.sin(TILT),
-    z: y * Math.sin(TILT) + z * Math.cos(TILT),
-  };
-}
-
-/** Decorative only: endpoint positions do not follow the graticule. */
-export function graticule(): Point[][] {
-  const lines: Point[][] = [];
-  const degree = Math.PI / 180;
-  const trace = (sample: (step: number) => Vec3, steps: number) => {
-    let line: Point[] = [];
-    for (let step = 0; step <= steps; step++) {
-      const point = sample(step);
-      if (point.z >= 0) {
-        line.push({ x: point.x, y: point.y });
-      } else if (line.length > 0) {
-        if (line.length > 1) lines.push(line);
-        line = [];
-      }
-    }
-    if (line.length > 1) lines.push(line);
-  };
-  for (let latitude = -60; latitude <= 60; latitude += 30) {
-    trace((step) => tilted(latitude * degree, (step * 2 - 180) * degree), 180);
+/** Meridians every 30° and parallels up to ±60°, decorative only. */
+export function graticule(): Geo[][] {
+  const lines: Geo[][] = [];
+  for (let lon = -180; lon < 180; lon += 30) {
+    lines.push(Array.from({ length: 37 }, (_, n) => [-90 + n * 5, lon]));
   }
-  for (let longitude = -180; longitude < 180; longitude += 30) {
-    trace((step) => tilted((step - 90) * degree, longitude * degree), 180);
+  for (let lat = -60; lat <= 60; lat += 30) {
+    lines.push(Array.from({ length: 73 }, (_, n) => [lat, -180 + n * 5]));
   }
   return lines;
 }
 
-/** Logarithmic so trickles and bulk transfers both read, and fixed so a rate always draws the same width. */
-export function linkWidth(bytesPerSecond: number): number {
-  if (!Number.isFinite(bytesPerSecond) || bytesPerSecond <= 0) return 0;
-  const share = Math.log10(bytesPerSecond / LOW_RATE) /
-    Math.log10(HIGH_RATE / LOW_RATE);
-  const clamped = Math.min(1, Math.max(0, share));
-  return MIN_LINK_WIDTH + (MAX_LINK_WIDTH - MIN_LINK_WIDTH) * clamped;
+export function easeOutCubic(t: number): number {
+  return 1 - Math.pow(1 - clamp(t, 0, 1), 3);
 }
 
-/** Links missing from `targets` shrink and are removed; returns whether any link still moves. */
-export function easeLinks(
-  links: Map<string, Link>,
-  targets: ReadonlyMap<string, number>,
-  elapsedMs: number,
-): boolean {
-  for (const [id, target] of targets) {
-    const link = links.get(id);
-    if (link) link.target = target;
-    else links.set(id, { width: 0, target });
-  }
-  const step = 1 - Math.exp(-Math.max(0, elapsedMs) / EASE_MS);
-  let animating = false;
-  for (const [id, link] of links) {
-    if (!targets.has(id)) link.target = 0;
-    link.width += (link.target - link.width) * step;
-    if (Math.abs(link.target - link.width) < SETTLE_WIDTH) {
-      link.width = link.target;
-    } else {
-      animating = true;
-    }
-    if (link.target === 0 && link.width === 0) links.delete(id);
-  }
-  return animating;
+export function createStage(): Stage {
+  return { shown: new Map(), nextReveal: 0, nextRelay: 0 };
 }
 
-/** Endpoints carrying `mark` in the frame, plus departed ones whose dot is still fading out. */
-export function markedIds(
-  endpoints: readonly GlobeEndpoint[],
-  mark: "hopr_peer" | "tunnel",
-  previous: ReadonlySet<string>,
-  links: ReadonlyMap<string, Link>,
-): Set<string> {
-  const ids = new Set<string>();
-  const listed = new Set<string>();
-  for (const endpoint of endpoints) {
-    listed.add(endpoint.id);
-    if (endpoint[mark]) ids.add(endpoint.id);
-  }
-  for (const id of previous) {
-    if (!listed.has(id) && links.has(id)) ids.add(id);
-  }
-  return ids;
-}
+const between = (span: { min: number; max: number }, random: () => number) =>
+  span.min + random() * (span.max - span.min);
 
-/** A random few relays stand in for the paths the tunnel takes, which the capture cannot see. */
-export function pickTunnelRelays(
-  relays: readonly string[],
+/** One step of the build-up: reveals listed endpoints one at a time and retires the ones that left. */
+export function stageEndpoints(
+  stage: Stage,
+  listed: readonly ListedEndpoint[],
+  now: number,
   random: () => number = Math.random,
-): string[] {
-  const pool = [...relays];
-  const most = Math.min(MAX_TUNNEL_RELAYS, pool.length);
-  const count = most === 0 ? 0 : 1 + Math.floor(random() * most);
-  const picked: string[] = [];
-  while (picked.length < count) {
-    const [relay] = pool.splice(Math.floor(random() * pool.length), 1);
-    picked.push(relay);
+): void {
+  const byId = new Map(listed.map((endpoint) => [endpoint.id, endpoint]));
+  for (const [id, shown] of stage.shown) {
+    const current = byId.get(id);
+    if (current) {
+      shown.kind = current.kind;
+      shown.rate = current.rate;
+    }
+    // Back before its fade finished: keep the line instead of growing it again.
+    if (current && !shown.evicted) {
+      shown.dying = null;
+    } else if (shown.dying === null) {
+      shown.dying = now;
+    } else if (now - shown.dying >= FADE_SECONDS) {
+      stage.shown.delete(id);
+    }
   }
-  return picked;
-}
 
-export function nextRelayPickMs(random: () => number = Math.random): number {
-  const { min, max } = RELAY_PICK_MS;
-  return min + random() * (max - min);
+  const waiting = listed
+    .filter((endpoint) => !stage.shown.has(endpoint.id))
+    .sort((a, b) => b.rate - a.rate);
+  const reveal = (endpoint: ListedEndpoint) =>
+    stage.shown.set(endpoint.id, {
+      kind: endpoint.kind,
+      rate: endpoint.rate,
+      born: now,
+      dying: null,
+      evicted: false,
+    });
+  const alive = (relay: boolean) =>
+    [...stage.shown.entries()].filter(([, shown]) =>
+      shown.dying === null && (shown.kind === "relay") === relay
+    );
+
+  const relay = waiting.find((endpoint) => endpoint.kind === "relay");
+  if (
+    relay && now >= stage.nextRelay && alive(true).length < MAX_SHOWN_RELAYS
+  ) {
+    reveal(relay);
+    stage.nextRelay = now + RELAY_STEP;
+  }
+
+  const other = waiting.find((endpoint) => endpoint.kind !== "relay");
+  if (!other || now < stage.nextReveal) return;
+  const shownOthers = alive(false);
+  if (shownOthers.length < MAX_SHOWN_ENDPOINTS) {
+    reveal(other);
+    stage.nextReveal = now + between(FILL_STEP, random);
+    return;
+  }
+  const [quietestId, quietest] = shownOthers.reduce((low, entry) =>
+    entry[1].rate < low[1].rate ? entry : low
+  );
+  if (other.rate <= quietest.rate) return;
+  const evicted = stage.shown.get(quietestId)!;
+  evicted.evicted = true;
+  evicted.dying = now;
+  reveal(other);
+  stage.nextReveal = now + between(CHURN_STEP, random);
 }

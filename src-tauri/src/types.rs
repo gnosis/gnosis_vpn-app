@@ -112,9 +112,11 @@ mod tests {
                 since: SystemTime::UNIX_EPOCH,
                 tunnel_ping_rtt: Some(Duration::from_millis(12)),
                 stall,
+                pix: None,
             },
             disconnecting: vec![],
             probe: None,
+            pix_chunk_bytes: None,
         }
     }
 

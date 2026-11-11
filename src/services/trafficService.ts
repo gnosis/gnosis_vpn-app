@@ -1,7 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
 import { z } from "zod";
 import { StatusResponseSchema } from "@src/services/vpnService.ts";
-import { destinationTitle } from "@src/utils/destinations.ts";
+import {
+  destinationCountry,
+  destinationTitle,
+} from "@src/utils/destinations.ts";
 
 // ==========================================
 // Zod Schemas & Inferred Types
@@ -75,8 +78,10 @@ export function averageRates(
 }
 
 export interface ConnectedExit {
+  id: string;
   title: string;
   flag: string;
+  country: string | null;
 }
 
 /** Reads the exit from a `status` event payload; anything but a parsable Connected answer means no exit. */
@@ -93,8 +98,10 @@ export function connectedExit(payload: unknown): ConnectedExit | null {
   );
   if (!exit) return null;
   return {
+    id: exit.destination.id,
     title: destinationTitle(exit.destination),
     flag: exit.destination.geo?.country ?? "",
+    country: destinationCountry(exit.destination),
   };
 }
 

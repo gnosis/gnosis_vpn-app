@@ -1,6 +1,7 @@
-//! Traffic window backend: capture runs in the root daemon, remote addresses never reach the webview.
+//! Live traffic backend: capture runs in the root daemon, remote addresses never reach the webview.
 
 mod model;
+pub mod pane;
 
 use gnosis_vpn_ipc::traffic as protocol;
 use gnosis_vpn_ipc::{CallError, Request, Response, ServiceError};
@@ -58,6 +59,8 @@ pub async fn traffic_start(
     let request = protocol::StartRequest {
         interface_id: interface_id.clone(),
     };
+    // Held across the daemon call: a stop arriving mid-start must wait to see the new session.
+    let mut inner = state.inner.lock().await;
     let result = call(Request::TrafficStart(request)).await;
 
     // Another protocol version answers in shapes this app cannot read; refuse instead of an empty globe.
@@ -70,14 +73,11 @@ pub async fn traffic_start(
             if let Err(e) = call(Request::TrafficStop(stop)).await {
                 tracing::warn!(target: "traffic", error = %e, "cannot stop an incompatible traffic session");
             }
-            let mut inner = state.inner.lock().await;
             inner.session_id = None;
             inner.capture = failed(&reason);
             return Err(reason);
         }
     }
-
-    let mut inner = state.inner.lock().await;
 
     match result {
         Ok(Response::TrafficStart(protocol::StartReply::Started(started))) => {
@@ -254,33 +254,21 @@ pub async fn stop(app: &AppHandle) {
     }
 }
 
+/// Tray entry: the pane lives in the main window, which decides whether it can open it now.
 pub fn show(app: &AppHandle) {
-    let Some(window) = app.get_webview_window("traffic") else {
-        tracing::warn!(target: "traffic", "traffic window missing");
+    let Some(window) = app.get_webview_window("main") else {
+        tracing::warn!(target: "traffic", "main window missing");
         return;
     };
     #[cfg(target_os = "macos")]
     {
-        let main_visible = app
-            .get_webview_window("main")
-            .and_then(|w| w.is_visible().ok())
-            .unwrap_or(false);
-        if !main_visible {
-            let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
-        }
+        let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
     }
     let _ = window.show();
     let _ = window.set_focus();
-    // The webview outlives hiding, so it must be told to start over.
-    if let Err(e) = window.emit_to("traffic", "traffic:open", ()) {
-        tracing::warn!(target: "traffic", error = %e, "cannot notify traffic window");
+    if let Err(e) = window.emit_to("main", "traffic:open", ()) {
+        tracing::warn!(target: "traffic", error = %e, "cannot ask the main window to open the traffic pane");
     }
-}
-
-/// Same path as the tray entry, so both start a fresh session.
-#[tauri::command]
-pub fn open_traffic_window(app: AppHandle) {
-    show(&app);
 }
 
 #[cfg(test)]

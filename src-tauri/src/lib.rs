@@ -2,8 +2,8 @@
 #[macro_use]
 extern crate objc;
 
-use tauri::Manager;
 use tauri::tray::TrayIconBuilder;
+use tauri::{Emitter, Manager};
 use tokio::sync::Notify;
 use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
@@ -184,6 +184,34 @@ fn install_macos_about_panel_override(
     });
 }
 
+fn hide_to_tray(app: &tauri::AppHandle, window: &tauri::WebviewWindow) {
+    let _ = window.hide();
+    #[cfg(target_os = "macos")]
+    {
+        let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+    }
+    #[cfg(not(target_os = "macos"))]
+    let _ = app;
+}
+
+/// Window close and the tray toggle both end here, so neither leaves the traffic pane capturing unseen.
+pub(crate) fn hide_main_window(app: &tauri::AppHandle, window: &tauri::WebviewWindow) {
+    // Reopening shows the plain main screen; the capture ends with the pane.
+    if !traffic::pane::collapse_now(app) {
+        hide_to_tray(app, window);
+        return;
+    }
+    let window = window.clone();
+    let handle = app.clone();
+    tauri::async_runtime::spawn(async move {
+        // A shrink applied after hiding skips the window manager's gravity.
+        tokio::time::sleep(traffic::pane::COLLAPSE_SETTLE).await;
+        hide_to_tray(&handle, &window);
+        let _ = window.emit_to("main", "traffic:closed", ());
+        traffic::stop(&handle).await;
+    });
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let cli = Cli::from_env();
@@ -322,7 +350,7 @@ pub fn run() {
                         show_settings(app, "usage");
                     }
                     "traffic" => {
-                        tracing::info!(target: "traffic", "traffic window requested");
+                        tracing::info!(target: "traffic", "traffic pane requested");
                         traffic::show(app);
                     }
                     "check_update" => {
@@ -418,36 +446,13 @@ pub fn run() {
 
             // Intercept window close to hide to tray instead of exiting
             if let Some(window) = app.get_webview_window("main") {
-                #[cfg(target_os = "macos")]
                 let app_handle = app.handle().clone();
                 let window_clone = window.clone();
                 window.on_window_event(move |event| {
                     if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                         tracing::info!(target: "window", "main window close requested, hiding to tray");
                         api.prevent_close();
-                        let _ = window_clone.hide();
-                        #[cfg(target_os = "macos")]
-                        {
-                            let _ = app_handle
-                                .set_activation_policy(tauri::ActivationPolicy::Accessory);
-                        }
-                    }
-                });
-            }
-
-            // Closing the traffic window ends capture and releases its history.
-            if let Some(traffic_window) = app.get_webview_window("traffic") {
-                let traffic_handle = app.handle().clone();
-                let traffic_clone = traffic_window.clone();
-                traffic_window.on_window_event(move |event| {
-                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                        tracing::info!(target: "traffic", "traffic window close requested, hiding");
-                        api.prevent_close();
-                        let _ = traffic_clone.hide();
-                        let handle = traffic_handle.clone();
-                        tauri::async_runtime::spawn(async move {
-                            traffic::stop(&handle).await;
-                        });
+                        hide_main_window(&app_handle, &window_clone);
                     }
                 });
             }
@@ -490,6 +495,7 @@ pub fn run() {
             app.manage(UpdateInstallState::default());
 
             app.manage(traffic::TrafficState::default());
+            app.manage(traffic::pane::PaneState::default());
 
             let (status_tx, _) = watch::channel(None);
             let (balance_tx, _) = watch::channel(None);
@@ -536,7 +542,7 @@ pub fn run() {
             traffic::traffic_start,
             traffic::traffic_frame,
             traffic::traffic_stop,
-            traffic::open_traffic_window
+            traffic::pane::traffic_pane
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
