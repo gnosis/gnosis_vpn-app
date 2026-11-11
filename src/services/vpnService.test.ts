@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   BalanceResponseSchema,
+  connectionPix,
   ConnectResponseSchema,
   DestinationSchema,
   DisconnectResponseSchema,
@@ -141,6 +142,28 @@ describe("StatusResponseSchema", () => {
     expect(parsed.data?.probe?.state).toBe("ready");
     expect(parsed.data?.probe?.versions?.api).toEqual(["v1"]);
     expect(parsed.data?.probe?.load?.slots.available).toBe(10);
+  });
+
+  it("parses the live session's PIX chunks and the chunk size", () => {
+    const parsed = StatusResponseSchema.parse(statusConnected);
+    expect(parsed.pix_chunk_bytes).toBe(951_644_160);
+    const pix = connectionPix(parsed.connection);
+    expect(pix?.phase).toBe("funded");
+    expect(pix?.bytes_left).toBe(1_427_466_240);
+    expect(pix?.cost).toBe(1_903_288_320_000_000n);
+    expect(pix?.empty_in).toBe(5_400_000);
+  });
+
+  it("parses a session still on its free allowance", () => {
+    const parsed = StatusResponseSchema.parse(statusConnectedStalled);
+    const pix = connectionPix(parsed.connection);
+    expect(pix?.phase).toBe("free");
+    expect(pix?.bytes_left).toBeNull();
+  });
+
+  it("parses a connecting session before PIX reports anything", () => {
+    const parsed = StatusResponseSchema.parse(statusConnecting);
+    expect(connectionPix(parsed.connection)).toBeNull();
   });
 
   it("parses connecting and reconnecting with their phase", () => {

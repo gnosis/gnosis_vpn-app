@@ -107,7 +107,12 @@ export default function UsageTab() {
   const credit = createMemo(() =>
     appState.balance ? computeEffectiveCredit(appState.balance) : null
   );
-  const renewalsLeft = () => exitsCovered(credit() ?? 0n);
+  // Unknown until the node reports its chunk size.
+  const renewalsLeft = () => {
+    const chunk = appState.pixChunkBytes;
+    if (chunk === null) return null;
+    return exitsCovered(credit() ?? 0n, BigInt(chunk));
+  };
 
   const trafficStatus = createMemo(() =>
     deriveTrafficStatus(appState.balance, runModeStatus())
@@ -133,9 +138,9 @@ export default function UsageTab() {
               {/* Explicit null check: credit can be 0n, which is falsy */}
               {credit() === null ? "—" : formatCreditCompact(credit()!)}
             </span>
-            <Show when={credit() !== null}>
+            <Show when={credit() !== null && renewalsLeft() !== null}>
               <span class="ml-auto shrink-0 rounded-full bg-control-bg px-2 py-0.5 text-[11px] leading-4 font-bold text-text-soft">
-                {renewals(renewalsLeft())}
+                {renewals(renewalsLeft()!)}
               </span>
             </Show>
           </div>
@@ -148,7 +153,12 @@ export default function UsageTab() {
           </Match>
           <Match when={trafficStatus() === "Low"}>
             <Notice tone="warn">
-              Balance running low: {renewals(renewalsLeft())} left.
+              <Show
+                when={renewalsLeft() !== null}
+                fallback="Balance running low."
+              >
+                Balance running low: {renewals(renewalsLeft()!)} left.
+              </Show>
             </Notice>
           </Match>
         </Switch>

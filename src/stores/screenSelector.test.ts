@@ -97,6 +97,7 @@ function status(
     target: null,
     connection: { type: "disconnected" },
     disconnecting: [],
+    pix_chunk_bytes: null,
     probe: null,
   };
 }

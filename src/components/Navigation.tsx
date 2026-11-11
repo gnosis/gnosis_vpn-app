@@ -170,6 +170,9 @@ function Navigation(props: { gearOnly?: boolean }) {
       <BalancePopup
         show={showPopup()}
         credit={credit()}
+        chunkBytes={appState.pixChunkBytes === null
+          ? null
+          : BigInt(appState.pixChunkBytes)}
         buttonRect={buttonRect()}
         containerRect={containerRect()}
         onMouseEnter={handleMouseEnter}

@@ -44,6 +44,35 @@ export const TunnelStallSchema = z.object({
 });
 export type TunnelStall = z.infer<typeof TunnelStallSchema>;
 
+// Wei arrives as a decimal string since JSON numbers stop at 2^53; bigint at the boundary rejects malformed values early.
+const BigIntStringSchema = z.string().transform((s) => BigInt(s));
+
+// "free" until the exit asks for a chunk: traffic runs on its allowance until then.
+export const PixPhaseSchema = unitVariant([
+  "free",
+  "payment_pending",
+  "payment_failed",
+  "funded",
+]);
+export type PixPhase = z.infer<typeof PixPhaseSchema>;
+
+// The live session's chunks; byte counts stay far below 2^53.
+export const PixChunkStatsSchema = z.object({
+  phase: PixPhaseSchema,
+  chunks_committed: z.number(),
+  chunks_paid: z.number(),
+  chunks_failed: z.number(),
+  chunk_bytes: z.number(),
+  bytes_bought: z.number(),
+  cost: BigIntStringSchema,
+  bytes_spent: z.number().nullable(),
+  bytes_left: z.number().nullable(),
+  bytes_received: z.number().nullable(),
+  // ms until bytes_left runs out at the current rate.
+  empty_in: z.number().nullable(),
+});
+export type PixChunkStats = z.infer<typeof PixChunkStatsSchema>;
+
 export const ConnectionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("disconnected") }),
   z.object({
@@ -51,6 +80,8 @@ export const ConnectionSchema = z.discriminatedUnion("type", [
     destination: z.string(),
     since: z.number(),
     phase: ConnectPhaseSchema,
+    // null until the session opens.
+    pix: PixChunkStatsSchema.nullable(),
   }),
   z.object({
     type: z.literal("reconnecting"),
@@ -66,6 +97,7 @@ export const ConnectionSchema = z.discriminatedUnion("type", [
     // Latest ICMP round trip through the tunnel, in ms.
     tunnel_ping_rtt: z.number().nullable(),
     stall: TunnelStallSchema.nullable(),
+    pix: PixChunkStatsSchema.nullable(),
   }),
 ]);
 export type Connection = z.infer<typeof ConnectionSchema>;
@@ -363,9 +395,6 @@ export const QuickProbeResponseSchema = z.discriminatedUnion("type", [
 ]);
 export type QuickProbeResponse = z.infer<typeof QuickProbeResponseSchema>;
 
-// Wei arrives as a decimal string since JSON numbers stop at 2^53; bigint at the boundary rejects malformed values early.
-const BigIntStringSchema = z.string().transform((s) => BigInt(s));
-
 export const FundingLevelSchema = unitVariant(["good", "low", "empty"]);
 export type FundingLevel = z.infer<typeof FundingLevelSchema>;
 
@@ -522,6 +551,8 @@ export const StatusResponseSchema = z.object({
   // Teardowns run in the background and may overlap a new connection.
   disconnecting: z.array(DisconnectingSchema),
   probe: ProbeViewSchema.nullable(),
+  // Data an exit sells per PIX chunk; null until the node runs.
+  pix_chunk_bytes: z.number().nullable(),
 });
 export type StatusResponse = z.infer<typeof StatusResponseSchema>;
 
@@ -651,6 +682,13 @@ export function isRunningRunMode(
 /** The exit a connection is up, coming up or coming back on. */
 export function connectionDestination(connection: Connection): string | null {
   return connection.type === "disconnected" ? null : connection.destination;
+}
+
+/** The live session's PIX chunks; a reconnect has no session to report. */
+export function connectionPix(connection: Connection): PixChunkStats | null {
+  const hasSession = connection.type === "connected" ||
+    connection.type === "connecting";
+  return hasSession ? connection.pix : null;
 }
 
 // ==========================================

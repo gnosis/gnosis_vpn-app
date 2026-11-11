@@ -1,14 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
   computeEffectiveCredit,
+  dataLeftFraction,
   exitsCovered,
   formatCountCompact,
   formatCreditCompact,
+  formatDataLeft,
 } from "./credit.ts";
 import type {
   BalanceResponse,
   Capacity,
   CapacityAllocations,
+  PixChunkStats,
 } from "@src/services/vpnService.ts";
 
 const BYTES_PER_MB = 1_048_576n;
@@ -165,17 +168,80 @@ describe("formatCountCompact", () => {
   });
 
   it("keeps three digits for the largest counts", () => {
-    expect(formatCountCompact(exitsCovered(2n ** 64n - 1n))).toBe("29.3B");
+    expect(
+      formatCountCompact(exitsCovered(2n ** 64n - 1n, BYTES_PER_MB * 600n)),
+    ).toBe("29.3B");
     expect(formatCountCompact(999n * 10n ** 12n)).toBe("999T");
     expect(formatCountCompact(10n ** 15n)).toBe("999+T");
   });
 });
 
 describe("exitsCovered", () => {
-  it("counts whole 600 MB exits, rounding down", () => {
-    expect(exitsCovered(BYTES_PER_MB * 4800n)).toBe(8n);
-    expect(exitsCovered(BYTES_PER_MB * 1199n)).toBe(1n);
-    expect(exitsCovered(BYTES_PER_MB * 599n)).toBe(0n);
-    expect(exitsCovered(0n)).toBe(0n);
+  const chunk = BYTES_PER_MB * 600n;
+
+  it("counts whole chunks, rounding down", () => {
+    expect(exitsCovered(BYTES_PER_MB * 4800n, chunk)).toBe(8n);
+    expect(exitsCovered(BYTES_PER_MB * 1199n, chunk)).toBe(1n);
+    expect(exitsCovered(BYTES_PER_MB * 599n, chunk)).toBe(0n);
+    expect(exitsCovered(0n, chunk)).toBe(0n);
+  });
+
+  it("covers nothing with a zero chunk size", () => {
+    expect(exitsCovered(BYTES_PER_MB * 4800n, 0n)).toBe(0n);
+  });
+});
+
+const FUNDED: PixChunkStats = {
+  phase: "funded",
+  chunks_committed: 2,
+  chunks_paid: 2,
+  chunks_failed: 0,
+  chunk_bytes: 600 * 1_048_576,
+  bytes_bought: 1200 * 1_048_576,
+  cost: 0n,
+  bytes_spent: 300 * 1_048_576,
+  bytes_left: 900 * 1_048_576,
+  bytes_received: null,
+  empty_in: null,
+};
+
+const FREE: PixChunkStats = {
+  ...FUNDED,
+  phase: "free",
+  chunks_committed: 0,
+  chunks_paid: 0,
+  chunk_bytes: 0,
+  bytes_bought: 0,
+  bytes_spent: null,
+  bytes_left: null,
+};
+
+describe("formatDataLeft", () => {
+  it("shows the bytes left of the chunks bought", () => {
+    expect(formatDataLeft(FUNDED)).toBe("900 MB");
+  });
+
+  it("reads Free before the exit asks for a chunk", () => {
+    expect(formatDataLeft(FREE)).toBe("Free");
+  });
+
+  it("shows a dash while usage is unmeasured", () => {
+    expect(formatDataLeft({ ...FUNDED, bytes_left: null })).toBe("—");
+  });
+});
+
+describe("dataLeftFraction", () => {
+  it("is the unspent share of the chunks bought", () => {
+    expect(dataLeftFraction(FUNDED)).toBe(0.75);
+  });
+
+  it("is full before anything is bought or measured", () => {
+    expect(dataLeftFraction(FREE)).toBe(1);
+    expect(dataLeftFraction({ ...FUNDED, bytes_left: null })).toBe(1);
+  });
+
+  it("never exceeds full", () => {
+    expect(dataLeftFraction({ ...FUNDED, bytes_left: FUNDED.bytes_bought * 2 }))
+      .toBe(1);
   });
 });

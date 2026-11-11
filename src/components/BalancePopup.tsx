@@ -1,16 +1,14 @@
 import { Show } from "solid-js";
 import { Portal } from "solid-js/web";
-import {
-  exitsCovered,
-  formatCreditCompact,
-  MB_PER_EXIT,
-} from "@src/utils/credit.ts";
+import { exitsCovered, formatCreditCompact } from "@src/utils/credit.ts";
 import { openSettings, type SettingsTarget } from "@src/utils/settingsPage.ts";
 
 type Props = {
   show: boolean;
   /** Data left; null while unknown or hidden from a non-owner. */
   credit: bigint | null;
+  /** Data an exit sets aside; null until the node runs. */
+  chunkBytes: bigint | null;
   buttonRect: DOMRect | null;
   containerRect: DOMRect | null;
   onMouseEnter: () => void;
@@ -19,11 +17,11 @@ type Props = {
   onNavigate: () => void;
 };
 
-function enoughFor(creditBytes: bigint): string {
-  const exits = exitsCovered(creditBytes);
-  return `Enough for ${exits} more ${
-    exits === 1n ? "exit" : "exits"
-  } at ${MB_PER_EXIT} MB each.`;
+function enoughFor(creditBytes: bigint, chunkBytes: bigint): string {
+  const exits = exitsCovered(creditBytes, chunkBytes);
+  return `Enough for ${exits} more ${exits === 1n ? "exit" : "exits"} at ${
+    formatCreditCompact(chunkBytes)
+  } each.`;
 }
 
 export default function BalancePopup(props: Props) {
@@ -53,9 +51,9 @@ export default function BalancePopup(props: Props) {
             {props.credit === null ? "—" : formatCreditCompact(props.credit)}
           </span>
           {/* Explicit null check: credit can be 0n, which Show treats as falsy */}
-          <Show when={props.credit !== null}>
+          <Show when={props.credit !== null && props.chunkBytes !== null}>
             <span class="text-[11px] leading-[16.5px] text-text-subtle">
-              {enoughFor(props.credit!)}
+              {enoughFor(props.credit!, props.chunkBytes!)}
             </span>
           </Show>
           <button

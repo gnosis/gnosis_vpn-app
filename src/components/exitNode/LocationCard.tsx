@@ -1,8 +1,11 @@
 import { Show } from "solid-js";
-import type { DestinationState } from "@src/services/vpnService.ts";
+import {
+  connectionPix,
+  type DestinationState,
+} from "@src/services/vpnService.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
-import { MB_PER_EXIT } from "@src/utils/credit.ts";
+import { formatCreditCompact, formatDataLeft } from "@src/utils/credit.ts";
 import {
   exitShortId,
   isConfigOnly,
@@ -10,7 +13,6 @@ import {
 } from "@src/utils/destinations.ts";
 import { getLatencyMs } from "@src/utils/exitHealth.ts";
 import Flag from "../Flag.tsx";
-import Tooltip from "../common/Tooltip.tsx";
 import ChevronIcon from "../icons/ChevronIcon.tsx";
 import ConfigPill, { CONFIG_ONLY_DESTINATION } from "./ConfigPill.tsx";
 import ConnectStage from "./ConnectStage.tsx";
@@ -59,6 +61,16 @@ export default function LocationCard(props: {
   };
   const latencyMs = () =>
     reconnecting() ? null : getLatencyMs(exit(), tunnelRtt());
+
+  // The live tunnel shows what it has left; any other exit what connecting would set aside.
+  const livePix = () => liveHere() ? connectionPix(appState.connection) : null;
+  const usageFigure = () => {
+    const pix = livePix();
+    if (pix) return formatDataLeft(pix);
+    const chunk = appState.pixChunkBytes;
+    return chunk === null ? "—" : formatCreditCompact(BigInt(chunk));
+  };
+  const paymentFailed = () => livePix()?.phase === "payment_failed";
 
   const openList = () => appActions.destinationListOpened();
   const toggleDetails = () =>
@@ -154,20 +166,23 @@ export default function LocationCard(props: {
                   : "Show details"}
                 onClick={toggleDetails}
               >
-                {/* Hover only: a focus stop would sit inside the row's button */}
-                <Tooltip content={<div class="font-bold">Feature coming</div>}>
-                  <span class="flex flex-col gap-0.5">
-                    <span class="text-xs text-text-subtle">
-                      {appState.vpnStatus === "Disconnected"
-                        ? "Sets aside"
-                        : "Data left"}
-                    </span>
-                    <span class="font-figures text-[13px] leading-4 font-medium text-text-primary">
-                      {`${MB_PER_EXIT} MB`}
-                      <span class="sr-only">, feature coming</span>
-                    </span>
+                <span class="flex flex-col gap-0.5">
+                  <span class="text-xs text-text-subtle">
+                    {livePix() ? "Data left" : "Sets aside"}
                   </span>
-                </Tooltip>
+                  <span
+                    class="font-figures text-[13px] leading-4 font-medium"
+                    classList={{
+                      "text-text-primary": !paymentFailed(),
+                      "text-text-red": paymentFailed(),
+                    }}
+                  >
+                    {usageFigure()}
+                    <Show when={paymentFailed()}>
+                      <span class="sr-only">, payment failed</span>
+                    </Show>
+                  </span>
+                </span>
                 <ChevronIcon
                   class={`ml-auto h-3 w-5.5 text-control-tint transition-transform duration-200 ${
                     settings.showDetailedMetrics ? "rotate-180" : ""

@@ -8,10 +8,8 @@ import {
 } from "@src/stores/exitCost.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import {
-  BYTES_PER_MB,
   computeEffectiveCredit,
   formatCreditCompact,
-  MB_PER_EXIT,
 } from "@src/utils/credit.ts";
 import { exitDisplayName, exitShortId } from "@src/utils/destinations.ts";
 import Flag from "../Flag.tsx";
@@ -23,7 +21,6 @@ const W = 244;
 const X0 = 6;
 const EXIT_X = 288;
 const MIN_CHUNK = 36;
-const COST = MB_PER_EXIT * BYTES_PER_MB;
 
 const FAINT = "var(--color-status-idle)";
 const TINT = "var(--color-control-tint)";
@@ -70,22 +67,29 @@ export default function ExitCost(
 
   const credit = () =>
     appState.balance ? computeEffectiveCredit(appState.balance) : null;
+  // One PIX chunk; zero until the node reports its size, which leaves the battery whole.
+  const cost = () => BigInt(appState.pixChunkBytes ?? 0);
+  const costLabel = () =>
+    appState.pixChunkBytes === null ? "—" : formatCreditCompact(cost());
   const left = () => {
     const c = credit();
     if (c === null) return null;
-    return c > COST ? c - COST : 0n;
+    return c > cost() ? c - cost() : 0n;
   };
   // never below the cost, so the exit's share fits the battery even when the balance cannot cover it
   const total = () => {
     const c = credit();
-    return c === null || c < COST ? COST : c;
+    if (c === null || c < cost()) return cost();
+    return c;
   };
+  // An empty balance with no chunk size yet would divide zero by zero.
+  const share = (part: bigint) =>
+    total() === 0n ? 0 : Number(part) / Number(total());
   const leftWidth = () => {
     const l = left();
-    return l === null ? W : (Number(l) / Number(total())) * W;
+    return l === null ? W : share(l) * W;
   };
-  const chunkWidth = () =>
-    Math.max(MIN_CHUNK, (Number(COST) / Number(total())) * W);
+  const chunkWidth = () => Math.max(MIN_CHUNK, share(cost()) * W);
   const chunkX = () => Math.min(X0 + leftWidth(), W + 6 - chunkWidth());
   // the moving copy leaves from the chunk's right end, no wider than the flag it lands on
   const slideX = () => chunkX() + chunkWidth() - MIN_CHUNK;
@@ -143,7 +147,7 @@ export default function ExitCost(
             font-weight="700"
             class="fill-ok-ink dark:fill-status-ok"
           >
-            {`${MB_PER_EXIT} MB`}
+            {costLabel()}
           </text>
           <path
             d={`M${W + 22} 38h12m-5-5 5 5-5 5`}
@@ -175,7 +179,7 @@ export default function ExitCost(
       <p class="text-center text-sm font-bold">
         {exitDisplayName(props.destination)}
         <ShortId id={exitShortId(props.destination.address)} /> gets{" "}
-        {MB_PER_EXIT.toString()} MB
+        {costLabel()}
       </p>
       <Show when={!exitCostUsable()}>
         <p role="status" class="text-center text-xs text-text-subtle">
