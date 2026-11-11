@@ -64,6 +64,11 @@ never hand-edit the output.
   properly.
 - **Testing**: Unit tests for utils/hooks; mock Tauri APIs; aim for edge cases.
 - **Git**: No `--no-verify`. Follow pre-commit hooks (Deno lint, formatting).
+- **Web platform**: Consult the `modern-web-guidance` skill (`.agents/skills/`)
+  for HTML/CSS/DOM work. `.mwgrc` targets Baseline `widely` because the runtime
+  is WKWebView (macOS ≥ 15) / WebKitGTK, not Chrome; WebKitGTK may still lack
+  features, so try UI changes on Linux. After a `modern-web-guidance` bump, run
+  `deno task mwg:sync` (CI checks it).
 
 **Copilot Instructions**: See `.github/copilot-instructions.md` for extended
 patterns & Do's/Don'ts.
