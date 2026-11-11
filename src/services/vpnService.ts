@@ -304,9 +304,8 @@ export type ProbingLevel = z.infer<typeof ProbingLevelSchema>;
 
 export const ProbingReasonSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("fixed") }),
-  z.object({ type: z.literal("warming_up"), high_for: z.number() }),
-  z.object({ type: z.literal("warm") }),
-  z.object({ type: z.literal("idle") }),
+  z.object({ type: z.literal("ready"), held_for: z.number() }),
+  z.object({ type: z.literal("not_ready"), held_for: z.number() }),
   z.object({ type: z.literal("connecting") }),
   z.object({ type: z.literal("connected") }),
 ]);

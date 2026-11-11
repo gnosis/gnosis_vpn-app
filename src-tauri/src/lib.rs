@@ -212,11 +212,11 @@ pub(crate) fn hide_main_window(app: &tauri::AppHandle, window: &tauri::WebviewWi
     });
 }
 
-/// Fire and forget: the worker's 30 s boost lease lapses on its own, so nothing re-sends it.
-fn send_probing_boost(active: bool) {
-    tauri::async_runtime::spawn(async move {
-        if let Err(e) = commands::on_socket(move |p| ipc::probing_boost(p, active)).await {
-            tracing::debug!(target: "window", active, error = %e, "probing boost call failed");
+/// Fire and forget: the service steps probing back down once routes are ready.
+fn send_probing_boost() {
+    tauri::async_runtime::spawn(async {
+        if let Err(e) = commands::on_socket(ipc::probing_boost).await {
+            tracing::debug!(target: "window", error = %e, "probing boost call failed");
         }
     });
 }
@@ -463,7 +463,7 @@ pub fn run() {
                         api.prevent_close();
                         hide_main_window(&app_handle, &window_clone);
                     }
-                    tauri::WindowEvent::Focused(focused) => send_probing_boost(*focused),
+                    tauri::WindowEvent::Focused(true) => send_probing_boost(),
                     _ => {}
                 });
             }
