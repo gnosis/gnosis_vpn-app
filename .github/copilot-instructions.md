@@ -33,6 +33,9 @@ VPN UI application.
 - Use Tailwind CSS utility classes for all styling
 - Avoid inline styles or CSS modules unless absolutely necessary
 - Follow Tailwind's responsive design patterns (`sm:`, `md:`, `lg:`, etc.)
+- For HTML/CSS/DOM features, follow the `modern-web-guidance` skill in
+  `.agents/skills/`; the runtime is a WebKit webview, Baseline target in
+  `.mwgrc`
 
 ### Code Quality
 
