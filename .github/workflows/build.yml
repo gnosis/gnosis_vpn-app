@@ -79,6 +79,11 @@ jobs:
         run: deno install
       - name: Run TypeScript tests
         run: deno task test
+      - name: Modern Web skill up to date
+        # Renovate bumps the package; the vendored SKILL.md must follow.
+        run: |
+          deno task mwg:sync
+          git diff --exit-code .agents/skills || { echo "::error::Run 'deno task mwg:sync' and commit .agents/skills"; exit 1; }
   ci-ok:
     name: CI OK
     # Single required status check: stable across matrix expansion, label gating and fork guards.
