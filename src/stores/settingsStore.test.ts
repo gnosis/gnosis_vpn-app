@@ -167,10 +167,7 @@ describe("settingsStore", () => {
     await actions.rememberConnectedDestination("exit-2");
 
     expect(invokeMock).toHaveBeenCalledWith("update_settings", {
-      patch: {
-        lastConnectedDestination: "exit-2",
-        recentDestinations: ["exit-2"],
-      },
+      patch: { lastConnectedDestination: "exit-2" },
     });
     expect(state.lastConnectedDestination).toBe(null);
     fireChange({ ...settingsDefault, lastConnectedDestination: "exit-2" });

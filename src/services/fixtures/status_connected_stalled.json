@@ -37,5 +37,7 @@
   },
   "disconnecting": [],
   "probe": null,
-  "pix_chunk_bytes": 951644160
+  "pix_chunk_bytes": 951644160,
+  "probing": null,
+  "recent": []
 }

@@ -16,7 +16,6 @@
     startMinimized: false,
     updateCheck: true,
     exitNodeSortOrder: "best",
-    recentDestinations: [],
     lastCheckedAt: null,
     lastCheckOutcome: null,
     lastEndOfLife: null,

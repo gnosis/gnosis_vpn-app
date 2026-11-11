@@ -35,6 +35,8 @@ const BASE: StatusResponse = {
   disconnecting: [],
   probe: null,
   pix_chunk_bytes: null,
+  probing: null,
+  recent: [],
 };
 
 const CONNECTING: Connection = {
@@ -101,6 +103,7 @@ const BASE_APP_STATE: AppState = {
   endOfLife: null,
   targetDestination: null,
   pixChunkBytes: null,
+  recent: [],
   balance: null,
   packageVersion: null,
   toolkit: { status: "unknown", version: null, packageVersion: null },

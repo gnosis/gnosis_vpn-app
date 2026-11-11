@@ -26,7 +26,6 @@ import {
   pickerRows,
   pickStartupTarget,
   type RankContext,
-  RECENT_LIMIT,
   routeGrade,
   routeGradeLabel,
   sanitizeMetaText,
@@ -35,7 +34,6 @@ import {
   trackWeakRoutes,
   WEAK_GRACE_MS,
   type WeakRoute,
-  withRecentDestination,
 } from "./destinations.ts";
 import {
   checkedQuickProbe,
@@ -1069,25 +1067,6 @@ describe("exitDisplayName", () => {
       .toBe("Germany");
     expect(exitDisplayName(makeDestination({ id: "dest-berlin", geo: null })))
       .toBe("dest-berlin");
-  });
-});
-
-describe("withRecentDestination", () => {
-  it("puts the newest first without duplicating it", () => {
-    expect(withRecentDestination(["a", "b", "c"], "b")).toEqual([
-      "b",
-      "a",
-      "c",
-    ]);
-    expect(withRecentDestination([], "a")).toEqual(["a"]);
-  });
-
-  it("forgets the oldest past the limit", () => {
-    const full = Array.from({ length: RECENT_LIMIT }, (_, i) => `e${i}`);
-    const next = withRecentDestination(full, "new");
-    expect(next).toHaveLength(RECENT_LIMIT);
-    expect(next[0]).toBe("new");
-    expect(next).not.toContain(`e${RECENT_LIMIT - 1}`);
   });
 });
 

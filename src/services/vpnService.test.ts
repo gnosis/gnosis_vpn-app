@@ -144,6 +144,13 @@ describe("StatusResponseSchema", () => {
     expect(parsed.data?.probe?.load?.slots.available).toBe(10);
   });
 
+  it("parses the service's probing view and recent exits", () => {
+    const parsed = StatusResponseSchema.parse(statusConnected);
+    expect(parsed.probing?.level.type).toBe("medium");
+    expect(parsed.probing?.reason.type).toBe("connected");
+    expect(parsed.recent).toEqual(["test-exit", "pinned-exit"]);
+  });
+
   it("parses the live session's PIX chunks and the chunk size", () => {
     const parsed = StatusResponseSchema.parse(statusConnected);
     expect(parsed.pix_chunk_bytes).toBe(951_644_160);

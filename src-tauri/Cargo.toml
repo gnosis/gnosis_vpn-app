@@ -23,7 +23,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2.6.3", features = [] }
 
 [dependencies]
-gnosis_vpn-ipc = { git = "https://github.com/gnosis/gnosis_vpn-client.git", branch = "main" }
+gnosis_vpn-ipc = { git = "https://github.com/gnosis/gnosis_vpn-client.git", rev = "3c3a438132ba467d16818eb1b039bb50cd70add6" }
 clap = { version = "4", features = ["derive", "env"] }
 liblzma = { version = "0.4.8", default-features = false, features = ["static"] }
 serde = { version = "1.0.229", features = ["derive"] }
@@ -58,7 +58,7 @@ libloading = "0.7"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 # Only for app_nap until it moves out of the lib (GNO-1045 follow-up).
-gnosis_vpn-lib = { git = "https://github.com/gnosis/gnosis_vpn-client.git", branch = "main" }
+gnosis_vpn-lib = { git = "https://github.com/gnosis/gnosis_vpn-client.git", rev = "3c3a438132ba467d16818eb1b039bb50cd70add6" }
 cocoa = "0.26.1"
 objc = "0.2.7"
 dispatch = "0.2"

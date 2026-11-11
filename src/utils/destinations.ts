@@ -294,14 +294,6 @@ export function routeGradeLabel(grade: RouteGrade): string {
   }
 }
 
-/** How many exits the Recent tab remembers, as in the Stage 2 mock. */
-export const RECENT_LIMIT = 6;
-
-/** The Recent history after connecting to `id`: it moves to the front, the oldest falls off. */
-export function withRecentDestination(recent: string[], id: string): string[] {
-  return [id, ...recent.filter((r) => r !== id)].slice(0, RECENT_LIMIT);
-}
-
 /** The exit list's name for an exit: its country, or its title when the client found none. */
 export function exitDisplayName(d: Destination): string {
   return destinationCountry(d) ?? destinationTitle(d);

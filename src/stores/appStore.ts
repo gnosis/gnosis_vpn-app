@@ -111,6 +111,8 @@ export interface AppState {
   targetDestination: string | null;
   // Data an exit sets aside per connection; null until the node runs.
   pixChunkBytes: number | null;
+  // The service's recently connected exits, newest first.
+  recent: string[];
   balance: BalanceResponse | null;
   // The installed package version everything update-facing keys off: the toolkit's
   // read of the version file, falling back to the daemon's for older installs.
@@ -170,6 +172,7 @@ function initialState(): AppState {
     endOfLife: null,
     targetDestination: null,
     pixChunkBytes: null,
+    recent: [],
     balance: null,
     packageVersion: null,
     toolkit: { status: "unknown", version: null, packageVersion: null },
@@ -438,6 +441,7 @@ export function createAppStore(): AppStoreTuple {
     );
     setState("targetDestination", response.target);
     setState("pixChunkBytes", response.pix_chunk_bytes);
+    setState("recent", reconcile(response.recent));
     setState("connection", reconcile(response.connection));
     setState("disconnecting", reconcile(response.disconnecting));
     setState("probe", reconcile(response.probe));

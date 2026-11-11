@@ -294,6 +294,32 @@ export const ProbeViewSchema = z.object({
 });
 export type ProbeView = z.infer<typeof ProbeViewSchema>;
 
+export const ProbingLevelSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("off") }),
+  z.object({ type: z.literal("low") }),
+  z.object({ type: z.literal("medium") }),
+  z.object({ type: z.literal("high") }),
+]);
+export type ProbingLevel = z.infer<typeof ProbingLevelSchema>;
+
+export const ProbingReasonSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("fixed") }),
+  z.object({ type: z.literal("warming_up"), high_for: z.number() }),
+  z.object({ type: z.literal("warm") }),
+  z.object({ type: z.literal("idle") }),
+  z.object({ type: z.literal("connecting") }),
+  z.object({ type: z.literal("connected") }),
+]);
+export type ProbingReason = z.infer<typeof ProbingReasonSchema>;
+
+// Network probing as the service applies it; the app only renders it.
+export const ProbingViewSchema = z.object({
+  level: ProbingLevelSchema,
+  reason: ProbingReasonSchema,
+  focus: z.array(z.string()),
+});
+export type ProbingView = z.infer<typeof ProbingViewSchema>;
+
 export const DestinationStateSchema = z.object({
   destination: DestinationSchema,
   route_health: RouteHealthViewSchema.nullable(),
@@ -553,6 +579,10 @@ export const StatusResponseSchema = z.object({
   probe: ProbeViewSchema.nullable(),
   // Data an exit sells per PIX chunk; null until the node runs.
   pix_chunk_bytes: z.number().nullable(),
+  // Null until the node runs.
+  probing: ProbingViewSchema.nullable(),
+  // Recently connected exits on this network, newest first.
+  recent: z.array(z.string()),
 });
 export type StatusResponse = z.infer<typeof StatusResponseSchema>;
 

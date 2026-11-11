@@ -94,12 +94,10 @@ export default function ExitNodeList(props: {
         );
       case "recent":
         // a search looks past the history, as the mock's does
-        return query().trim()
-          ? best()
-          : settings.recentDestinations.flatMap((id) => {
-            const state = appState.destinations[id];
-            return state ? [state.destination] : [];
-          });
+        return query().trim() ? best() : appState.recent.flatMap((id) => {
+          const state = appState.destinations[id];
+          return state ? [state.destination] : [];
+        });
       default:
         return best();
     }
@@ -194,7 +192,7 @@ export default function ExitNodeList(props: {
     settings.exitNodeSortOrder === "best" && !query().trim();
   const emptyText = () =>
     settings.exitNodeSortOrder === "recent" &&
-      settings.recentDestinations.length === 0
+      appState.recent.length === 0
       ? "No exits used yet. They show up here once you connect."
       : "No other exits are available right now.";
 

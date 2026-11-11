@@ -8,7 +8,6 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { z } from "zod";
 import { logError } from "@src/utils/appLog.ts";
-import { withRecentDestination } from "@src/utils/destinations.ts";
 
 // ==========================================
 // Zod Schemas & Inferred Types
@@ -78,8 +77,6 @@ export type FlagDisplay = z.infer<typeof FlagDisplaySchema>;
 export const SettingsSchema = z.object({
   preferredLocation: z.string().nullable(),
   lastConnectedDestination: z.string().nullable(),
-  // newest first, for the exit list's Recent tab
-  recentDestinations: z.array(z.string()),
   connectOnStartup: z.boolean(),
   startMinimized: z.boolean(),
   updateCheck: z.boolean(),
@@ -105,7 +102,6 @@ export type SettingsState = z.infer<typeof SettingsSchema>;
 const DEFAULT_SETTINGS: SettingsState = {
   preferredLocation: null,
   lastConnectedDestination: null,
-  recentDestinations: [],
   connectOnStartup: false,
   startMinimized: false,
   updateCheck: true,
@@ -222,10 +218,7 @@ export function createSettingsStore(): SettingsStoreTuple {
     hydrated,
     setPreferredLocation: (id) => patch({ preferredLocation: id }),
     rememberConnectedDestination: (id) =>
-      patch({
-        lastConnectedDestination: id,
-        recentDestinations: withRecentDestination(state.recentDestinations, id),
-      }),
+      patch({ lastConnectedDestination: id }),
     setConnectOnStartup: (enabled) => patch({ connectOnStartup: enabled }),
     setStartMinimized: (enabled) => patch({ startMinimized: enabled }),
     setUpdateCheck: (enabled) => patch({ updateCheck: enabled }),

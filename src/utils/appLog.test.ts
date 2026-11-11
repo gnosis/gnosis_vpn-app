@@ -39,6 +39,8 @@ function status(target: string | null): StatusResponse {
     connection: { type: "disconnected" },
     disconnecting: [],
     pix_chunk_bytes: null,
+    probing: null,
+    recent: [],
     probe: null,
   };
 }
