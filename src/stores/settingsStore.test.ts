@@ -80,7 +80,6 @@ describe("settingsStore", () => {
     await actions.load();
 
     expect(state.preferredLocation).toBe("exit-1");
-    expect(state.lastConnectedDestination).toBe("exit-1");
     expect(state.exitNodeSortOrder).toBe("alpha");
     expect(state.channel).toBe("snapshot");
     expect(state.lastCheckOutcome?.kind).toBe("Available");
@@ -157,21 +156,6 @@ describe("settingsStore", () => {
       patch: { advancedView: true },
     });
     expect(state.advancedView).toBe(false);
-  });
-
-  it("rememberConnectedDestination sends one patch and never touches state directly", async () => {
-    mockBackend(settingsDefault);
-    const [state, actions] = await freshStore();
-    await actions.load();
-
-    await actions.rememberConnectedDestination("exit-2");
-
-    expect(invokeMock).toHaveBeenCalledWith("update_settings", {
-      patch: { lastConnectedDestination: "exit-2" },
-    });
-    expect(state.lastConnectedDestination).toBe(null);
-    fireChange({ ...settingsDefault, lastConnectedDestination: "exit-2" });
-    expect(state.lastConnectedDestination).toBe("exit-2");
   });
 
   it("swallows update_settings failures without touching state", async () => {

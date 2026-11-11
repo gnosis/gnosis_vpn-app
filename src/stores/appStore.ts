@@ -182,7 +182,7 @@ function initialState(): AppState {
       listOpen: false,
       confirming: false,
       preferredLocation: null,
-      lastConnectedDestination: null,
+      resumeLastSession: true,
     },
   };
 }
@@ -335,7 +335,6 @@ export function createAppStore(): AppStoreTuple {
       if (!settingsActions.hydrated()) return;
       destinationMode = createDestinationMode({
         preferredLocation: settings.preferredLocation,
-        lastConnectedDestination: settings.lastConnectedDestination,
       });
       if (pendingModeAppState) {
         destinationMode.applyStatusUpdate(pendingModeAppState);
@@ -377,7 +376,6 @@ export function createAppStore(): AppStoreTuple {
     setState("packageVersion", savedPackageVersion);
     destinationMode?.reset({
       preferredLocation: settings.preferredLocation,
-      lastConnectedDestination: settings.lastConnectedDestination,
     });
   };
 
@@ -453,6 +451,7 @@ export function createAppStore(): AppStoreTuple {
       destinations,
       connection: response.connection,
       probe: response.probe,
+      recent: response.recent,
     };
     destinationMode?.applyStatusUpdate(pendingModeAppState);
     maybeConnectOnStartup(pendingModeAppState);
@@ -534,7 +533,7 @@ export function createAppStore(): AppStoreTuple {
     const target = pickStartupTarget(
       status.destinations,
       settings.preferredLocation,
-      settings.lastConnectedDestination,
+      status.recent[0] ?? null,
       rankContext(status),
     );
     if (target === null) return;
@@ -810,14 +809,6 @@ export function createAppStore(): AppStoreTuple {
         return;
       }
       setState("isLoading", false);
-
-      // best-effort — losing this only affects which destination auto-reconnect tries next
-      try {
-        await settingsActions.rememberConnectedDestination(targetId);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        logWarn(`Failed to persist last connected destination: ${message}`);
-      }
     },
 
     disconnect: async () => {

@@ -52,7 +52,8 @@ export interface DestinationMode {
   confirming: boolean;
   // From DestinationModeSettings, fixed at creation, then consumed during status updates
   preferredLocation: string | null;
-  lastConnectedDestination: string | null;
+  // The first cold start of a launch resumes the service's most recent exit.
+  resumeLastSession: boolean;
 }
 
 /** The slice of AppState a status update carries. */
@@ -61,11 +62,12 @@ export interface ModeAppState {
   destinations: Record<string, DestinationState>;
   connection: Connection;
   probe: ProbeView | null;
+  // The service's recently connected exits, newest first.
+  recent: string[];
 }
 
 export interface DestinationModeSettings {
   preferredLocation: string | null;
-  lastConnectedDestination: string | null;
 }
 
 export type UserInputEvent =
@@ -97,7 +99,7 @@ function initialModel(settings: DestinationModeSettings): DestinationMode {
     listOpen: false,
     confirming: false,
     preferredLocation: settings.preferredLocation,
-    lastConnectedDestination: settings.lastConnectedDestination,
+    resumeLastSession: true,
   };
 }
 
@@ -198,9 +200,9 @@ export function createDestinationMode(
     status: ModeAppState,
     candidate: string | null,
   ): void {
-    const last = draft.lastConnectedDestination;
+    const last = draft.resumeLastSession ? (status.recent[0] ?? null) : null;
     // consulted once per app launch, whether or not it can be used
-    draft.lastConnectedDestination = null;
+    draft.resumeLastSession = false;
     const offered = last !== null &&
       status.availableDestinations.some((d) => d.id === last);
     const promoted = offered ? last : candidate;

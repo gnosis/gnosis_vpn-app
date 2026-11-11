@@ -11,7 +11,6 @@
   // update_settings merges the patch and broadcasts, mirroring src-tauri/src/settings.rs.
   const settings = {
     preferredLocation: null,
-    lastConnectedDestination: null,
     connectOnStartup: false,
     startMinimized: false,
     updateCheck: true,

@@ -381,11 +381,11 @@ export function sortByRouteQuality(
 export function pickStartupTarget(
   destinations: Record<string, DestinationState>,
   preferred: string | null,
-  lastConnected: string | null,
+  mostRecent: string | null,
   context: RankContext,
 ): string | null {
-  if (lastConnected !== null && isReady(destinations[lastConnected], context)) {
-    return lastConnected;
+  if (mostRecent !== null && isReady(destinations[mostRecent], context)) {
+    return mostRecent;
   }
   if (preferred !== null && isReady(destinations[preferred], context)) {
     return preferred;

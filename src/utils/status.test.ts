@@ -113,7 +113,7 @@ const BASE_APP_STATE: AppState = {
     listOpen: false,
     confirming: false,
     preferredLocation: null,
-    lastConnectedDestination: null,
+    resumeLastSession: true,
   },
 };
 

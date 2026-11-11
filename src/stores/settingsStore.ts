@@ -76,7 +76,6 @@ export type FlagDisplay = z.infer<typeof FlagDisplaySchema>;
 
 export const SettingsSchema = z.object({
   preferredLocation: z.string().nullable(),
-  lastConnectedDestination: z.string().nullable(),
   connectOnStartup: z.boolean(),
   startMinimized: z.boolean(),
   updateCheck: z.boolean(),
@@ -101,7 +100,6 @@ export type SettingsState = z.infer<typeof SettingsSchema>;
 // Shown until the first snapshot arrives; must match the Rust defaults.
 const DEFAULT_SETTINGS: SettingsState = {
   preferredLocation: null,
-  lastConnectedDestination: null,
   connectOnStartup: false,
   startMinimized: false,
   updateCheck: true,
@@ -123,8 +121,6 @@ type SettingsActions = {
   /** Reactive: true once the first real snapshot replaced DEFAULT_SETTINGS. */
   hydrated: () => boolean;
   setPreferredLocation: (id: string | null) => Promise<void>;
-  /** Records a connect: the startup target and the newest Recent entry, in one patch. */
-  rememberConnectedDestination: (id: string) => Promise<void>;
   setConnectOnStartup: (enabled: boolean) => Promise<void>;
   setStartMinimized: (enabled: boolean) => Promise<void>;
   setUpdateCheck: (enabled: boolean) => Promise<void>;
@@ -217,8 +213,6 @@ export function createSettingsStore(): SettingsStoreTuple {
     },
     hydrated,
     setPreferredLocation: (id) => patch({ preferredLocation: id }),
-    rememberConnectedDestination: (id) =>
-      patch({ lastConnectedDestination: id }),
     setConnectOnStartup: (enabled) => patch({ connectOnStartup: enabled }),
     setStartMinimized: (enabled) => patch({ startMinimized: enabled }),
     setUpdateCheck: (enabled) => patch({ updateCheck: enabled }),
