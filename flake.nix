@@ -78,6 +78,8 @@
               "src/assets/flags/*"
               # Designer Lottie exports; replaced wholesale, never edited.
               "src/assets/animations/*"
+              # Vendored by `deno task mwg:sync`; CI diffs it against the npm package.
+              ".agents/skills/modern-web-guidance/*"
             ];
 
             programs.nixfmt = {
