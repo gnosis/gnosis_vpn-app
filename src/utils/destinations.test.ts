@@ -382,7 +382,7 @@ describe("trackWeakRoutes — the grace before a weak route is surfaced", () => 
 });
 
 describe("routeGrade — a weak route still in its grace", () => {
-  it("grades as ready: unmeasured, or bars by latency once measured", () => {
+  it("grades as ready: unmeasured, or Good once measured however fast", () => {
     expect(routeGrade(makeWeak("a"), NO_CONTEXT, false)).toEqual({
       kind: "unmeasured",
     });
@@ -392,7 +392,7 @@ describe("routeGrade — a weak route still in its grace", () => {
     });
     expect(routeGrade(measuredWeak, NO_CONTEXT, false)).toEqual({
       kind: "measured",
-      bars: 4,
+      bars: 3,
     });
   });
 

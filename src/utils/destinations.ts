@@ -260,7 +260,7 @@ export type RouteGrade =
 /** A score at or above a threshold earns that many bars; below the last one it is a single bar. */
 const BAR_THRESHOLDS: [number, 4 | 3 | 2][] = [[0.75, 4], [0.5, 3], [0.25, 2]];
 
-/** The score as shown on a card; a weak route in its grace grades as ready. Display only: it feeds neither the sort nor auto. */
+/** The score as shown on a card; a weak route in its grace grades as Good. Display only: it feeds neither the sort nor auto. */
 export function routeGrade(
   state: DestinationState | undefined,
   context: RankContext,
@@ -273,6 +273,8 @@ export function routeGrade(
   }
   const exit = getExitData(state, context.probe);
   if (exit === null) return { kind: "unmeasured" };
+  // no path within the band yet, so it gets the lowest grade that still reads as ready
+  if (inGrace) return { kind: "measured", bars: 3 };
   const value = score(state, exit, context);
   const reached = BAR_THRESHOLDS.find(([min]) => value >= min);
   return { kind: "measured", bars: reached ? reached[1] : 1 };
