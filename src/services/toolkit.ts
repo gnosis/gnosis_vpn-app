@@ -11,7 +11,7 @@ import {
 // for the package version and update checks. Fixtures: see toolkit.test.ts.
 
 // Rejection strings the Rust side returns when the binary cannot be used. The
-// Updates tab turns them into an explanation rather than an error.
+// Settings page turns them into an explanation rather than an error.
 export const TOOLKIT_MISSING = "ToolkitMissing";
 export const TOOLKIT_TOO_OLD = "ToolkitTooOld";
 

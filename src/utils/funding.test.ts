@@ -6,7 +6,6 @@ import {
   deriveTrafficStatus,
   deriveWxhoprDeficit,
   deriveXdaiDeficit,
-  describeCriticalIssue,
 } from "./funding.ts";
 import type {
   BalanceResponse,
@@ -127,30 +126,5 @@ describe("deriveRefillShortfall", () => {
     expect(deriveRefillShortfall(makeBalance(makeStatus("good", "good")), null))
       .toBeNull();
     expect(deriveRefillShortfall(null, null)).toBeNull();
-  });
-});
-
-describe("describeCriticalIssue", () => {
-  it("returns null when both levels are Good", () => {
-    expect(describeCriticalIssue(makeBalance(makeStatus("good", "good")), null))
-      .toBeNull();
-  });
-
-  it("returns null without any status", () => {
-    expect(describeCriticalIssue(null, null)).toBeNull();
-  });
-
-  it("describes traffic when it's the worse resource", () => {
-    expect(describeCriticalIssue(makeBalance(makeStatus("low", "good")), null))
-      .toBe("Traffic funds are low — top up wxHOPR");
-    expect(describeCriticalIssue(makeBalance(makeStatus("empty", "low")), null))
-      .toBe("Traffic funds are empty — top up wxHOPR");
-  });
-
-  it("describes gas when it's the worse resource", () => {
-    expect(describeCriticalIssue(makeBalance(makeStatus("good", "low")), null))
-      .toBe("Gas is low — top up xDAI");
-    expect(describeCriticalIssue(makeBalance(makeStatus("low", "empty")), null))
-      .toBe("Gas is empty — top up xDAI");
   });
 });

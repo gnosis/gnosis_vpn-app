@@ -6,12 +6,12 @@ const BAR_COUNT = 4;
 const MEASURED_TOOLTIP =
   "Route quality from latency, free capacity and relay diversity.";
 
-/** Same green/orange/red ramp as the graded stats, keyed on the filled count. */
+/** The status dot's green/orange/red, keyed on the filled count. */
 const BAND_COLOR: Record<1 | 2 | 3 | 4, string> = {
-  4: "text-text-green",
-  3: "text-text-green",
-  2: "text-text-orange",
-  1: "text-text-red",
+  4: "text-status-ok",
+  3: "text-status-ok",
+  2: "text-status-warn",
+  1: "text-status-bad",
 };
 
 function filledBars(grade: RouteGrade): number {
@@ -43,46 +43,60 @@ function tooltip(grade: RouteGrade): string {
 }
 
 /** Four rising bars; hollow while the exit is unmeasured, so the count is honest without color. */
-export default function SignalBars(props: { grade: RouteGrade }) {
+export default function SignalBars(props: {
+  grade: RouteGrade;
+  // no tooltip: inside a clickable area its anchor would swallow the click
+  bare?: boolean;
+}) {
   const filled = () => filledBars(props.grade);
   const filledColor = () =>
     props.grade.kind === "measured"
       ? BAND_COLOR[props.grade.bars]
       : BAND_COLOR[1];
   const hollow = () => props.grade.kind === "unmeasured";
+  const bars = () => (
+    <svg
+      width="22"
+      height="12"
+      viewBox="0 0 22 12"
+      class="shrink-0"
+      role="img"
+      aria-label={label(props.grade)}
+    >
+      <For each={Array.from({ length: BAR_COUNT }, (_, i) => i)}>
+        {(i) => {
+          const height = 3 * (i + 1);
+          const isFilled = () => i < filled();
+          return (
+            <rect
+              x={i * 6}
+              y={12 - height}
+              width="4"
+              height={height}
+              rx="1"
+              class={isFilled()
+                ? filledColor()
+                : hollow()
+                ? "text-status-idle"
+                : "text-bar-off"}
+              fill={hollow() ? "none" : "currentColor"}
+              stroke={hollow() ? "currentColor" : "none"}
+              stroke-width="1"
+            />
+          );
+        }}
+      </For>
+    </svg>
+  );
 
   return (
     <Show when={props.grade.kind !== "none"}>
-      <CardTooltip tooltip={tooltip(props.grade)}>
-        <svg
-          width="16"
-          height="12"
-          viewBox="0 0 16 12"
-          class="shrink-0"
-          role="img"
-          aria-label={label(props.grade)}
-        >
-          <For each={Array.from({ length: BAR_COUNT }, (_, i) => i)}>
-            {(i) => {
-              const height = 3 * (i + 1);
-              const isFilled = () => i < filled();
-              return (
-                <rect
-                  x={i * 4}
-                  y={12 - height}
-                  width="3"
-                  height={height}
-                  rx="0.5"
-                  class={isFilled() ? filledColor() : "text-text-muted"}
-                  fill={hollow() ? "none" : "currentColor"}
-                  stroke={hollow() ? "currentColor" : "none"}
-                  stroke-width="1"
-                />
-              );
-            }}
-          </For>
-        </svg>
-      </CardTooltip>
+      <Show
+        when={!props.bare}
+        fallback={bars()}
+      >
+        <CardTooltip tooltip={tooltip(props.grade)}>{bars()}</CardTooltip>
+      </Show>
     </Show>
   );
 }

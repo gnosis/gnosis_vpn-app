@@ -75,7 +75,7 @@ import {
 export { AppScreen };
 
 /** Whether the toolkit could be used. `unknown` is "not probed yet" and nothing
- * else: a probe that ran and failed is `failed`, which the Updates tab explains. */
+ * else: a probe that ran and failed is `failed`, which the Update page explains. */
 export type ToolkitStatus = "unknown" | "ok" | "missing" | "tooOld" | "failed";
 
 export interface ToolkitState {
@@ -114,19 +114,21 @@ export interface AppState {
   // read of the version file, falling back to the daemon's for older installs.
   packageVersion: string | null;
   toolkit: ToolkitState;
-  // The carousel's cards and active pointer — see docs/destinationMode.md
+  // The destination the card shows and Connect targets — see docs/destinationMode.md
   mode: DestinationMode;
 }
 
 type AppActions = {
   initializeApp: () => Promise<void>;
   setScreen: (screen: AppScreen) => void;
-  connect: (targetId: string) => Promise<void>;
+  // `auto`: whose pick the tunnel is, for a switch confirmed while connected
+  connect: (targetId: string, auto?: boolean) => Promise<void>;
   disconnect: () => Promise<void>;
-  slideCommitted: (id: string) => void;
-  dragStarted: () => void;
   destinationListOpened: () => void;
   destinationListClosed: (picked: string | null) => void;
+  autoResumed: () => void;
+  exitCostOpened: () => void;
+  exitCostClosed: () => void;
   refreshToolkit: () => Promise<void>;
 };
 
@@ -169,16 +171,12 @@ function initialState(): AppState {
     packageVersion: null,
     toolkit: { status: "unknown", version: null, packageVersion: null },
     mode: {
-      entries: {},
-      sequence: [],
       active: null,
       mode: { mode: "auto", pending: null },
-      nextKey: 0,
       listOpen: false,
-      dragging: false,
+      confirming: false,
       preferredLocation: null,
       lastConnectedDestination: null,
-      connectOnStartup: false,
     },
   };
 }
@@ -332,15 +330,12 @@ export function createAppStore(): AppStoreTuple {
       destinationMode = createDestinationMode({
         preferredLocation: settings.preferredLocation,
         lastConnectedDestination: settings.lastConnectedDestination,
-        connectOnStartup: settings.connectOnStartup,
       });
       if (pendingModeAppState) {
         destinationMode.applyStatusUpdate(pendingModeAppState);
       }
     }
-    batch(() =>
-      setState("mode", reconcile({ ...destinationMode!.model }, { key: "key" }))
-    );
+    batch(() => setState("mode", reconcile({ ...destinationMode!.model })));
   });
 
   const criticalError = (message: string) =>
@@ -377,7 +372,6 @@ export function createAppStore(): AppStoreTuple {
     destinationMode?.reset({
       preferredLocation: settings.preferredLocation,
       lastConnectedDestination: settings.lastConnectedDestination,
-      connectOnStartup: settings.connectOnStartup,
     });
   };
 
@@ -480,7 +474,7 @@ export function createAppStore(): AppStoreTuple {
   };
 
   createEffect(() => {
-    // Tracks the mirrored mode so a slide, a pick or an auto commit re-points the probe.
+    // Tracks the mirrored mode so a pick or an auto commit re-points the probe.
     effectiveActive(state.mode, Date.now());
     const id = probeTarget();
     if (id !== null) ensureProbe(id, Date.now());
@@ -600,7 +594,7 @@ export function createAppStore(): AppStoreTuple {
   };
 
   // Asks the toolkit for its version and the package's. Failing is a state the
-  // Updates tab explains, never an error screen. One probe at a time.
+  // Settings page explains, never an error screen. One probe at a time.
   let toolkitProbe: Promise<void> | undefined;
   const refreshToolkit = (): Promise<void> => {
     if (toolkitProbe) return toolkitProbe;
@@ -781,7 +775,7 @@ export function createAppStore(): AppStoreTuple {
 
     setScreen: (screen: AppScreen) => setState("currentScreen", screen),
 
-    connect: async (targetId: string) => {
+    connect: async (targetId: string, auto?: boolean) => {
       setState("isLoading", true);
       // only for the log line — connecting to an unknown destination is a service-wide no-op
       const selected = state.availableDestinations.find(
@@ -793,7 +787,11 @@ export function createAppStore(): AppStoreTuple {
         log(`Connecting to ${name} - ${short}`);
       }
 
-      destinationMode?.applyUserInput({ type: "connectIssued", id: targetId });
+      destinationMode?.applyUserInput({
+        type: "connectIssued",
+        id: targetId,
+        auto,
+      });
       try {
         await VPNService.connect(targetId);
       } catch (error) {
@@ -807,7 +805,7 @@ export function createAppStore(): AppStoreTuple {
 
       // best-effort — losing this only affects which destination auto-reconnect tries next
       try {
-        await settingsActions.setLastConnectedDestination(targetId);
+        await settingsActions.rememberConnectedDestination(targetId);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         logWarn(`Failed to persist last connected destination: ${message}`);
@@ -827,9 +825,6 @@ export function createAppStore(): AppStoreTuple {
       }
     },
 
-    slideCommitted: (id: string) =>
-      destinationMode?.applyUserInput({ type: "slideCommitted", id }),
-    dragStarted: () => destinationMode?.applyUserInput({ type: "dragStarted" }),
     destinationListOpened: () => {
       destinationMode?.applyUserInput({ type: "listOpened" });
       VPNService.setStatusPollFast(true).catch((error) => logWarn(`${error}`));
@@ -840,6 +835,20 @@ export function createAppStore(): AppStoreTuple {
       VPNService.setStatusPollFast(false).catch((error) => logWarn(`${error}`));
       quickProbes = IDLE_SCHEDULE;
     },
+    // Closes the list like destinationListClosed; the last status lets auto choose now, not at the next poll.
+    autoResumed: () => {
+      destinationMode?.applyUserInput({
+        type: "autoResumed",
+        status: pendingModeAppState ?? null,
+      });
+      VPNService.setStatusPollFast(false).catch((error) => logWarn(`${error}`));
+      quickProbes = IDLE_SCHEDULE;
+    },
+    // The cost view holds auto off the card it shows, like the list does.
+    exitCostOpened: () =>
+      destinationMode?.applyUserInput({ type: "confirmOpened" }),
+    exitCostClosed: () =>
+      destinationMode?.applyUserInput({ type: "confirmClosed" }),
     refreshToolkit,
   } as const;
 

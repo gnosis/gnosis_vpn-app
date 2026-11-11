@@ -16,6 +16,7 @@
     startMinimized: false,
     updateCheck: true,
     exitNodeSortOrder: "best",
+    recentDestinations: [],
     lastCheckedAt: null,
     lastCheckOutcome: null,
     lastEndOfLife: null,
@@ -24,10 +25,16 @@
     installedVersion: null,
     showDetailedMetrics: false,
     flagDisplay: "color",
+    showExitCost: true,
+    advancedView: false,
     ...(fixture.settings ?? {}),
   };
 
+  // Rust holds the tray's Settings target until take_settings_target, so settings:open does too.
+  let pendingSettingsTarget = null;
+
   const fireEvent = (event, payload) => {
+    if (event === "settings:open") pendingSettingsTarget = payload;
     for (const id of eventListeners.get(event) ?? []) {
       callbacks.get(id)?.({ event, id, payload });
     }
@@ -107,6 +114,11 @@
     get_render_profile: () =>
       fixture.renderProfile ?? { softwareRendering: false, cpuCores: 8 },
     get_install_status: () => fixture.installStatus ?? null,
+    take_settings_target: () => {
+      const target = pendingSettingsTarget;
+      pendingSettingsTarget = null;
+      return target;
+    },
     // The "service not running" screen's content; fixture.serviceNotRunningInfo overrides any key.
     get_service_not_running_info: () => {
       const platform = fixture.platform ?? "linux";
@@ -121,6 +133,10 @@
           : "sudo systemctl enable --now gnosisvpn",
         migration_pending: false,
         migrate_commands: null,
+        switch_pending: false,
+        switch_from: [],
+        switch_commands: [],
+        upload_log_command: "sudo gnosis_vpn-migrate upload-log",
         can_start_from_app: macos,
         ...(fixture.serviceNotRunningInfo ?? {}),
       };

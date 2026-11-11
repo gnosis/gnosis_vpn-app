@@ -15,6 +15,7 @@ import Onboarding from "../screens/main/Onboarding.tsx";
 import Synchronization from "../screens/main/Synchronization.tsx";
 import Initialization from "../screens/main/Initialization.tsx";
 import ServiceNotRunning from "../screens/main/ServiceNotRunning.tsx";
+import { invoke } from "@tauri-apps/api/core";
 import { emit } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import {
@@ -33,6 +34,12 @@ import {
   trafficPaneMounted,
   trafficPaneOpen,
 } from "@src/utils/trafficPane.ts";
+import {
+  isSettingsTarget,
+  openSettings,
+  settingsTab,
+} from "@src/utils/settingsPage.ts";
+import SettingsPage from "../screens/settings/SettingsPage.tsx";
 
 const validScreens = [
   "main",
@@ -56,6 +63,18 @@ const SCREEN_FADE_MS = 300;
 
 const isValidScreen = (s: string): s is ValidScreen =>
   (validScreens as readonly string[]).includes(s);
+
+// Rust holds what the tray asked for, so a request made before the listener existed is not lost.
+async function takeSettingsTarget(): Promise<void> {
+  try {
+    const target = await invoke<unknown>("take_settings_target");
+    if (target === null) return;
+    if (isSettingsTarget(target)) openSettings(target);
+    else logWarn(`Ignoring settings:open with invalid target: ${target}`);
+  } catch (e) {
+    logError(`Cannot take the tray's settings target: ${e}`);
+  }
+}
 
 function handleNavigate(
   payload: NavigatePayload,
@@ -112,6 +131,7 @@ function App() {
   const [settings, settingsActions] = useSettingsStore();
   let unlistenNavigate: (() => void) | undefined;
   let unlistenTraffic: (() => void)[] = [];
+  let unlistenSettings: (() => void) | undefined;
   let disposed = false;
 
   // Auto-update scheduling lives here so it stays active regardless of which tab is open.
@@ -210,20 +230,41 @@ function App() {
     }
   });
 
-  // The pane belongs to the main screen; the others have no top bar to close it from.
+  // The pane belongs to the main screen: the others have no top bar to close it from, and settings span the whole window.
+  const paneAllowed = () => displayedScreen() === "main" && !settingsTab();
   createEffect(() => {
-    if (displayedScreen() !== "main" && trafficPaneOpen()) {
+    if (!paneAllowed() && trafficPaneOpen()) {
       void setTrafficPane(false);
     }
   });
 
+  // Settings cover the location list, so it closes rather than waiting underneath.
+  createEffect(on(settingsTab, (tab) => {
+    if (tab && untrack(() => appState.mode.listOpen)) {
+      appActions.destinationListClosed(null);
+    }
+  }));
+
   onMount(() => {
+    // Before the awaits below: the tray can ask for settings while the app still initializes.
+    void getCurrentWebviewWindow().listen(
+      "settings:open",
+      () => void takeSettingsTarget(),
+    ).then((unlisten) => {
+      if (disposed) {
+        unlisten();
+        return;
+      }
+      unlistenSettings = unlisten;
+      void takeSettingsTarget();
+    }).catch((e) => logError(`Cannot listen for settings:open: ${e}`));
+
     void (async () => {
       const current = getCurrentWebviewWindow();
       const listeners = await Promise.all([
         // From the tray entry, which has already brought the window up.
         current.listen("traffic:open", () => {
-          if (untrack(displayedScreen) === "main") void setTrafficPane(true);
+          if (untrack(paneAllowed)) void setTrafficPane(true);
           else logInfo("traffic pane requested off the main screen, ignored");
         }),
         current.listen("traffic:closed", () => trafficPaneCollapsed()),
@@ -236,7 +277,7 @@ function App() {
       await settingsActions.load();
       await appActions.initializeApp();
 
-      // window-scoped listen: a target-Any listener would also get emits aimed at the settings window
+      // window-scoped listen: a target-Any listener would also get emits aimed at other windows
       const unlisten = await getCurrentWebviewWindow().listen<NavigatePayload>(
         "navigate",
         ({ payload }) =>
@@ -256,6 +297,7 @@ function App() {
     disposed = true;
     unlistenNavigate?.();
     unlistenTraffic.forEach((unlisten) => unlisten());
+    unlistenSettings?.();
     if (timeoutId) clearTimeout(timeoutId);
     clearTimeout(fadeTimer);
   });
@@ -296,6 +338,9 @@ function App() {
           />
         </div>
       </div>
+      <Show when={settingsTab()}>
+        <SettingsPage />
+      </Show>
     </div>
   );
 }

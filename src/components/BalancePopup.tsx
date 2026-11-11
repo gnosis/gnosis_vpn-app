@@ -1,168 +1,77 @@
-import { createMemo, Show } from "solid-js";
+import { Show } from "solid-js";
 import { Portal } from "solid-js/web";
-import { isRunningRunMode } from "@src/services/vpnService.ts";
-import { humanWxhopr, humanXdai } from "@src/utils/hopli.ts";
 import {
-  deriveNodeStatus,
-  deriveRefillShortfall,
-  deriveTrafficStatus,
-  type StatusText,
-} from "@src/utils/funding.ts";
-import {
-  computeEffectiveCredit,
-  formatCredit,
-  sumCapacityStake,
+  exitsCovered,
+  formatCreditCompact,
+  MB_PER_EXIT,
 } from "@src/utils/credit.ts";
-import { useAppStore } from "@src/stores/appStore.ts";
+import { openSettings, type SettingsTarget } from "@src/utils/settingsPage.ts";
 
 type Props = {
   show: boolean;
+  /** Data left; null while unknown or hidden from a non-owner. */
+  credit: bigint | null;
   buttonRect: DOMRect | null;
   containerRect: DOMRect | null;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
+  /** The popover is left behind for the Settings page. */
+  onNavigate: () => void;
 };
 
-// Same status → color mapping as the Usage screen, brighter shades for
-// visibility on the accent background.
-function StatusDot(props: { status: StatusText }) {
-  const color = () =>
-    props.status === "Sufficient"
-      ? "bg-emerald-500"
-      : props.status === "Empty"
-      ? "bg-red-500"
-      : "bg-amber-500";
-  return <div class={`w-2 h-2 rounded-full ${color()}`}></div>;
+function enoughFor(creditBytes: bigint): string {
+  const exits = exitsCovered(creditBytes);
+  return `Enough for ${exits} more ${
+    exits === 1n ? "exit" : "exits"
+  } at ${MB_PER_EXIT} MB each.`;
 }
 
 export default function BalancePopup(props: Props) {
-  const [appState] = useAppStore();
-
-  const runModeStatus = createMemo(() =>
-    isRunningRunMode(appState.runMode) ? appState.runMode.funding_status : null
-  );
-
-  const effectiveCredit = createMemo(() => {
-    const b = appState.balance;
-    if (!b) return null;
-    return computeEffectiveCredit(b);
-  });
-
-  const totalWxhopr = createMemo(() => {
-    const b = appState.balance;
-    if (!b) return 0n;
-    return sumCapacityStake(b);
-  });
-
-  const trafficStatus = createMemo(() =>
-    deriveTrafficStatus(appState.balance, runModeStatus())
-  );
-  const refillShortfall = createMemo(() =>
-    deriveRefillShortfall(appState.balance, runModeStatus())
-  );
-  const gasStatus = createMemo(() =>
-    deriveNodeStatus(appState.balance, runModeStatus())
-  );
+  const go = (target: SettingsTarget) => {
+    props.onNavigate();
+    openSettings(target);
+  };
 
   return (
-    <Show
-      when={props.show && props.buttonRect && props.containerRect}
-    >
+    <Show when={props.show && props.buttonRect && props.containerRect}>
       <Portal>
         <div
-          class="fixed z-100"
+          role="dialog"
+          aria-label="Balance"
+          class="fixed z-100 flex w-63 flex-col gap-2 rounded-[10px] bg-bg-popover p-3 text-text-primary shadow-popover"
           style={{
-            top: `${props.buttonRect!.bottom + 12}px`,
-            left: `${props.buttonRect!.left + props.buttonRect!.width / 2}px`,
+            top: `${props.buttonRect!.bottom + 6}px`,
+            right: `${globalThis.innerWidth - props.containerRect!.right}px`,
           }}
           onMouseEnter={props.onMouseEnter}
           onMouseLeave={props.onMouseLeave}
         >
-          <div
-            class="absolute -translate-x-1/2"
-            style={{
-              top: "-6px",
-              left: "0",
-              width: "0",
-              height: "0",
-              "border-left": "6px solid transparent",
-              "border-right": "6px solid transparent",
-              "border-bottom": "6px solid var(--color-accent)",
-            }}
-          />
-
-          <div
-            class="bg-accent text-accent-text rounded-lg shadow-2xl px-3 py-2.5 -translate-x-1/2"
-            style={{ width: `150px` }}
+          <span class="text-[9px] font-bold uppercase tracking-[0.12em] text-text-subtle">
+            Balance
+          </span>
+          <span class="font-figures text-[28px] leading-[normal] font-semibold tracking-[-0.02em]">
+            {props.credit === null ? "—" : formatCreditCompact(props.credit)}
+          </span>
+          {/* Explicit null check: credit can be 0n, which Show treats as falsy */}
+          <Show when={props.credit !== null}>
+            <span class="text-[11px] leading-[16.5px] text-text-subtle">
+              {enoughFor(props.credit!)}
+            </span>
+          </Show>
+          <button
+            type="button"
+            class="h-8.5 w-full rounded-[9px] bg-control-bg hover:bg-control-bg-hover text-[12.5px] font-bold hover:cursor-pointer"
+            onClick={() => go("add-funds")}
           >
-            <div class="text-xs font-medium mb-2 text-accent-text/70">
-              Funds remaining
-            </div>
-
-            <div class="mb-2">
-              <div class="flex items-center gap-1 mb-0.5">
-                <StatusDot status={trafficStatus()} />
-                <div class="text-[9px] text-accent-text/70 uppercase tracking-wide">
-                  TRAFFIC
-                </div>
-              </div>
-              <Show
-                when={appState.balance}
-                fallback={
-                  <div class="text-[10px] text-accent-text/70">Loading...</div>
-                }
-              >
-                <div
-                  class={`text-sm font-bold font-mono text-right select-text cursor-text ${
-                    trafficStatus() === "Empty" ? "text-red-500" : ""
-                  }`}
-                >
-                  {humanWxhopr(totalWxhopr())}
-                </div>
-                <div class="text-[10px] text-accent-text/50 font-mono text-right">
-                  {effectiveCredit() !== null
-                    ? `≈${formatCredit(effectiveCredit()!)}`
-                    : "—"}
-                </div>
-                <Show when={refillShortfall()}>
-                  {(shortfall) => (
-                    <div class="text-[10px] text-accent-text/50 font-mono text-right">
-                      top up ≥ {humanWxhopr(shortfall(), "ceil")}
-                    </div>
-                  )}
-                </Show>
-              </Show>
-            </div>
-
-            <div>
-              <div class="flex items-center gap-1 mb-0.5">
-                <StatusDot status={gasStatus()} />
-                <div class="text-[9px] text-accent-text/70 uppercase tracking-wide">
-                  GAS FEES
-                </div>
-              </div>
-              <Show
-                when={appState.balance}
-                fallback={
-                  <div class="text-[10px] text-accent-text/70">Loading...</div>
-                }
-              >
-                {(b) => (
-                  <div class="flex items-baseline justify-end gap-1 text-sm font-bold font-mono">
-                    <span class="select-text cursor-text">
-                      {humanXdai(b().node)}
-                    </span>
-                    <span
-                      class="text-[10px] inline-block text-left"
-                      style={{ width: "34px" }}
-                    >
-                      xDAI
-                    </span>
-                  </div>
-                )}
-              </Show>
-            </div>
-          </div>
+            Add data
+          </button>
+          <button
+            type="button"
+            class="self-center py-0.5 text-xs text-text-subtle hover:text-text-primary hover:cursor-pointer"
+            onClick={() => go("usage")}
+          >
+            Usage details
+          </button>
         </div>
       </Portal>
     </Show>

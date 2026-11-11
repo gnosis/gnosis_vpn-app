@@ -12,7 +12,7 @@ function unitVariant<const T extends readonly [string, ...string[]]>(
   return z.object({ type: z.enum(values) }).transform((v) => v.type);
 }
 
-// In attempt order; StatusHero reads the order as progress.
+// In attempt order; ConnectStage reads the order as progress.
 export const CONNECT_PHASES = [
   "init",
   "gather_peer_ips",
@@ -558,9 +558,12 @@ export const ServiceNotRunningInfoSchema = z.object({
   migrate_commands: z.object({
     has_own_identity: z.boolean(),
     identity: z.string(),
-    upload_log: z.string(),
     start_clean: z.string(),
   }).nullable(),
+  switch_pending: z.boolean(),
+  switch_from: z.array(z.string()),
+  switch_commands: z.array(z.string()),
+  upload_log_command: z.string(),
   can_start_from_app: z.boolean(),
 });
 export type ServiceNotRunningInfo = z.infer<typeof ServiceNotRunningInfoSchema>;

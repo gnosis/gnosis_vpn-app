@@ -49,7 +49,7 @@ jobs:
     if: ${{ github.event.pull_request.head.repo.fork == false }}
     permissions:
       contents: read
-    uses: hoprnet/hopr-workflows/.github/workflows/checks.yaml@9e7e5aa57e89a4143d518806e59043cb722f21f3 # workflow-checks-v2.3.0
+    uses: hoprnet/hopr-workflows/.github/workflows/checks.yaml@061b4579c870b0fdc008f5ff07a3a500e4fede50 # workflow-checks-v2.3.1
     with:
       source_branch: ${{ github.event.pull_request.head.ref || github.ref }}
       cachix_cache_name: gnosis-vpn-app
@@ -74,7 +74,7 @@ jobs:
       - name: Setup Deno
         uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
-          deno-version: v2.9.7
+          deno-version: v2.9.8
       - name: Install frontend dependencies
         run: deno install
       - name: Run TypeScript tests

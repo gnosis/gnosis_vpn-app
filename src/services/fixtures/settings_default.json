@@ -1,6 +1,7 @@
 {
   "preferredLocation": null,
   "lastConnectedDestination": null,
+  "recentDestinations": [],
   "connectOnStartup": false,
   "startMinimized": false,
   "updateCheck": true,
@@ -12,5 +13,7 @@
   "dismissedUpdateVersion": null,
   "installedVersion": null,
   "showDetailedMetrics": false,
-  "flagDisplay": "color"
+  "flagDisplay": "color",
+  "showExitCost": true,
+  "advancedView": false
 }

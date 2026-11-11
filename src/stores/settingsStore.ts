@@ -8,6 +8,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { z } from "zod";
 import { logError } from "@src/utils/appLog.ts";
+import { withRecentDestination } from "@src/utils/destinations.ts";
 
 // ==========================================
 // Zod Schemas & Inferred Types
@@ -77,10 +78,12 @@ export type FlagDisplay = z.infer<typeof FlagDisplaySchema>;
 export const SettingsSchema = z.object({
   preferredLocation: z.string().nullable(),
   lastConnectedDestination: z.string().nullable(),
+  // newest first, for the exit list's Recent tab
+  recentDestinations: z.array(z.string()),
   connectOnStartup: z.boolean(),
   startMinimized: z.boolean(),
   updateCheck: z.boolean(),
-  exitNodeSortOrder: z.enum(["best", "alpha"]),
+  exitNodeSortOrder: z.enum(["best", "recent", "alpha"]),
   lastCheckedAt: z.number().nullable(),
   lastCheckOutcome: CheckOutcomeSchema.nullable(),
   // A corrupt entry is dropped rather than failing the whole snapshot.
@@ -88,10 +91,13 @@ export const SettingsSchema = z.object({
   channel: UpdateChannelSchema.nullable(),
   dismissedUpdateVersion: z.string().nullable(),
   installedVersion: z.string().nullable(),
-  // Name is legacy — now drives whether the exit-health details panel
-  // (chevron toggle) is expanded at all, not just its extra stat rows.
+  // Name is legacy: whether the advanced view's card has its details open (chevron).
   showDetailedMetrics: z.boolean(),
   flagDisplay: FlagDisplaySchema,
+  // Connect first shows the data an exit sets aside
+  showExitCost: z.boolean(),
+  // the main screen shows the location card instead of the simple view
+  advancedView: z.boolean(),
 });
 export type SettingsState = z.infer<typeof SettingsSchema>;
 
@@ -99,6 +105,7 @@ export type SettingsState = z.infer<typeof SettingsSchema>;
 const DEFAULT_SETTINGS: SettingsState = {
   preferredLocation: null,
   lastConnectedDestination: null,
+  recentDestinations: [],
   connectOnStartup: false,
   startMinimized: false,
   updateCheck: true,
@@ -111,6 +118,8 @@ const DEFAULT_SETTINGS: SettingsState = {
   installedVersion: null,
   showDetailedMetrics: false,
   flagDisplay: "color",
+  showExitCost: true,
+  advancedView: false,
 };
 
 type SettingsActions = {
@@ -118,11 +127,14 @@ type SettingsActions = {
   /** Reactive: true once the first real snapshot replaced DEFAULT_SETTINGS. */
   hydrated: () => boolean;
   setPreferredLocation: (id: string | null) => Promise<void>;
-  setLastConnectedDestination: (id: string | null) => Promise<void>;
+  /** Records a connect: the startup target and the newest Recent entry, in one patch. */
+  rememberConnectedDestination: (id: string) => Promise<void>;
   setConnectOnStartup: (enabled: boolean) => Promise<void>;
   setStartMinimized: (enabled: boolean) => Promise<void>;
   setUpdateCheck: (enabled: boolean) => Promise<void>;
-  setExitNodeSortOrder: (order: "best" | "alpha") => Promise<void>;
+  setExitNodeSortOrder: (
+    order: SettingsState["exitNodeSortOrder"],
+  ) => Promise<void>;
   setUpdateCheckResult: (
     outcome: CheckOutcome,
     endOfLife: EndOfLife | null,
@@ -136,6 +148,8 @@ type SettingsActions = {
   setDismissedUpdateVersion: (version: string | null) => Promise<void>;
   setShowDetailedMetrics: (show: boolean) => Promise<void>;
   setFlagDisplay: (display: FlagDisplay) => Promise<void>;
+  setShowExitCost: (show: boolean) => Promise<void>;
+  setAdvancedView: (on: boolean) => Promise<void>;
 };
 
 type SettingsStoreTuple = readonly [
@@ -207,8 +221,11 @@ export function createSettingsStore(): SettingsStoreTuple {
     },
     hydrated,
     setPreferredLocation: (id) => patch({ preferredLocation: id }),
-    setLastConnectedDestination: (id) =>
-      patch({ lastConnectedDestination: id }),
+    rememberConnectedDestination: (id) =>
+      patch({
+        lastConnectedDestination: id,
+        recentDestinations: withRecentDestination(state.recentDestinations, id),
+      }),
     setConnectOnStartup: (enabled) => patch({ connectOnStartup: enabled }),
     setStartMinimized: (enabled) => patch({ startMinimized: enabled }),
     setUpdateCheck: (enabled) => patch({ updateCheck: enabled }),
@@ -232,6 +249,8 @@ export function createSettingsStore(): SettingsStoreTuple {
       patch({ dismissedUpdateVersion: version }),
     setShowDetailedMetrics: (show) => patch({ showDetailedMetrics: show }),
     setFlagDisplay: (display) => patch({ flagDisplay: display }),
+    setShowExitCost: (show) => patch({ showExitCost: show }),
+    setAdvancedView: (on) => patch({ advancedView: on }),
   } as const;
 
   const dispose = () => {

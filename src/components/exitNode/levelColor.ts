@@ -6,8 +6,3 @@ export const levelColorClass: Record<LoadLevel, string> = {
   medium: "text-text-orange",
   high: "text-text-red",
 };
-
-/** `Stat` valueClass for a level-graded value, so they all render alike. */
-export function levelValueClass(level: LoadLevel): string {
-  return `font-semibold ${levelColorClass[level]}`;
-}

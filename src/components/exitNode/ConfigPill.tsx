@@ -29,7 +29,6 @@ export default function ConfigPill(
         class={`inline-flex items-center rounded-full bg-vpn-orange px-1.5 text-slate-900 cursor-help ${
           props.class ?? ""
         }`}
-        data-info-icon
         aria-describedby={descriptionId}
         tabIndex={0}
         onClick={(e) => e.stopPropagation()}

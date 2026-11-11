@@ -6,10 +6,10 @@ import {
   Show,
 } from "solid-js";
 import { useAppStore } from "../../stores/appStore.ts";
-import checkIcon from "@assets/icons/checked-box-filled.svg";
-import iconNumber1 from "@assets/icons/1.svg";
-import iconNumber2 from "@assets/icons/2.svg";
-import loadingIcon from "@assets/icons/loading.svg";
+import checkIcon from "@src/components/icons/checked-box-filled.svg";
+import iconNumber1 from "@src/components/icons/1.svg";
+import iconNumber2 from "@src/components/icons/2.svg";
+import loadingIcon from "@src/components/icons/loading.svg";
 import {
   getPreparingSafeNodeAddress,
   isWxHOPRTransferred,
@@ -141,7 +141,7 @@ export default function Manually() {
         when={isServiceAvailable()}
         fallback={
           <div class="flex flex-row w-full justify-center fade-in-up">
-            <StatusIndicator size="sm" whenOfflineOnly />
+            <StatusIndicator whenOfflineOnly />
           </div>
         }
       >

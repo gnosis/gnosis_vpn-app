@@ -1,7 +1,5 @@
 import {
-  type ConnectPhase,
   type Destination,
-  type DisconnectPhase,
   isDeployingSafeRunMode,
   isPreparingSafeRunMode,
   isRunningRunMode,
@@ -11,7 +9,7 @@ import {
   warmupProgress,
 } from "@src/services/vpnService.ts";
 import type { AppState } from "@src/stores/appStore.ts";
-import { destinationLabel, getExitData } from "@src/utils/destinations.ts";
+import { exitDisplayName, getExitData } from "@src/utils/destinations.ts";
 import { formatExitHealthStatus } from "@src/utils/exitHealth.ts";
 
 export function isConnected(response: StatusResponse): boolean {
@@ -91,7 +89,7 @@ export function deriveVPNStatus(
 
 export interface ConnectButtonLook {
   label: "Connect" | "Cancel" | "Disconnect";
-  variant: "primary" | "stop";
+  variant: "connect" | "stop";
 }
 
 /** "Disconnect" would imply a usable tunnel, so the whole attempt reads "Cancel". */
@@ -111,7 +109,7 @@ export function connectButtonLook(
   const attemptInFlight = vpnStatus === "Connecting" ||
     isSwitchingDestination(vpnStatus, targetDestination) || waitingForRoute;
   if (attemptInFlight) return { label: "Cancel", variant: "stop" };
-  return { label: "Connect", variant: "primary" };
+  return { label: "Connect", variant: "connect" };
 }
 
 /** A switch tears the old tunnel down before the new attempt starts, so it reports as a disconnect. */
@@ -148,43 +146,6 @@ export function getPreparingSafeNodeAddress(
   return undefined;
 }
 
-export function formatConnectionPhase(
-  phase: ConnectPhase | DisconnectPhase,
-): string {
-  switch (phase) {
-    // ConnectPhase
-    case "init":
-      return "Initializing";
-    case "generating_wg":
-      return "Generating WireGuard public key";
-    case "register_wg":
-      return "Registering WireGuard public key";
-    case "opening_ping":
-      return "Opening ping session";
-    case "gather_peer_ips":
-      return "Gathering peers";
-    case "killswitch_lockdown":
-      return "Activating kill switch";
-    case "establish_wg_tunnel":
-      return "Establishing WireGuard tunnel";
-    case "verify_ping":
-      return "Verifying destination ping";
-    case "adjust_to_main":
-      return "Adjusting for traffic throughput";
-    case "connection_established":
-      return "Connection established";
-    // DisconnectPhase
-    case "disconnecting":
-      return "Disconnecting";
-    case "opening_bridge":
-      return "Opening bridge session";
-    case "unregister_wg":
-      return "Unregistering WireGuard public key";
-    case "closing_bridge":
-      return "Closing bridge session";
-  }
-}
-
 /** Why a reconnect is waiting, from the route health the status already carries. */
 export function waitingForRouteMessage(
   state: AppState,
@@ -192,7 +153,7 @@ export function waitingForRouteMessage(
 ): string {
   const destState = state.destinations[destinationId];
   const label = destState
-    ? destinationLabel(destState.destination)
+    ? exitDisplayName(destState.destination)
     : destinationId;
   const health = destState?.route_health;
   if (destState && health && health.state.type === "unrecoverable") {

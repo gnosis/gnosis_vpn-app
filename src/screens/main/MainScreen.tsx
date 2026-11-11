@@ -5,21 +5,31 @@ import {
   onCleanup,
   Show,
 } from "solid-js";
+import { Portal } from "solid-js/web";
 import { useAppStore } from "../../stores/appStore.ts";
+import { effectiveActive } from "../../stores/destinationMode.ts";
+import {
+  cancelExitCost,
+  exitCost,
+  exitCostFor,
+} from "../../stores/exitCost.ts";
+import { isVpnActive } from "../../utils/destinations.ts";
 import { useSettingsStore } from "../../stores/settingsStore.ts";
 import { StatusIndicator } from "../../components/status/StatusIndicator.tsx";
 import Navigation from "../../components/Navigation.tsx";
-import LocationBanner from "../../components/exitNode/LocationBanner.tsx";
 import ConnectButton from "../../components/ConnectButton.tsx";
-import StatusHero from "../../components/status/StatusHero.tsx";
-import ConnectionStatus from "../../components/status/ConnectionStatus.tsx";
-import { openSettingsWindow } from "../../utils/settingsWindow.ts";
+import ExitNodeList from "../../components/exitNode/ExitNodeList.tsx";
+import LocationCard from "../../components/exitNode/LocationCard.tsx";
+import LocationHero from "../../components/exitNode/LocationHero.tsx";
+import LocationNotice from "../../components/exitNode/LocationNotice.tsx";
+import { openSettings } from "../../utils/settingsPage.ts";
 import { isRunningRunMode } from "../../services/vpnService.ts";
 import { deriveOverallStatus, type StatusText } from "../../utils/funding.ts";
 import { endOfLifeMessage } from "../../utils/updateAvailability.ts";
 import { createDeadlineClock } from "../../utils/deadlineClock.ts";
 import { channelMaintenanceWarning } from "../../utils/status.ts";
 import Banner from "../../components/common/Banner.tsx";
+import ListIcon from "../../components/icons/ListIcon.tsx";
 import UpdateIcon from "../../components/icons/UpdateIcon.tsx";
 import WarningIcon from "../../components/icons/WarningIcon.tsx";
 
@@ -29,8 +39,8 @@ const [dismissedBalanceStatus, setDismissedBalanceStatus] = createSignal<
 >(null);
 
 export function MainScreen() {
-  const [appState] = useAppStore();
-  const [, settingsActions] = useSettingsStore();
+  const [appState, appActions] = useAppStore();
+  const [settings, settingsActions] = useSettingsStore();
 
   const runModeStatus = createMemo(() =>
     isRunningRunMode(appState.runMode) ? appState.runMode.funding_status : null
@@ -62,102 +72,139 @@ export function MainScreen() {
   const maintenanceWarning = () =>
     channelMaintenanceWarning(appState.runMode, nowMs());
 
+  // The destination Connect targets; it vanishes with the status that drops it.
+  const shownDestination = createMemo(() => {
+    const id = effectiveActive(appState.mode, Date.now());
+    return id ? appState.destinations[id] : undefined;
+  });
+
+  // A cost waits on what it was asked over: a connect on the card's exit, a switch on a live tunnel.
+  createEffect(() => {
+    const request = exitCost();
+    if (request === null) return;
+    const active = isVpnActive(appState.vpnStatus, appState.targetDestination);
+    // with no card to show it on, its Cancel and Switch would be gone too
+    const stale = request.switching
+      ? !active || !appState.destinations[request.id] || !shownDestination()
+      : active || shownDestination()?.destination.id !== request.id;
+    if (stale || appState.mode.listOpen) cancelExitCost();
+  });
+  onCleanup(cancelExitCost);
+
   return (
     <div class="flex w-full flex-col h-full py-6 px-4">
       <div class="flex flex-row justify-between z-60">
         <StatusIndicator />
-        <Navigation />
+        <Navigation gearOnly={!settings.advancedView} />
       </div>
 
-      <div class="relative h-0 z-50">
-        <div class="absolute top-2 left-0 right-0 flex flex-col gap-2">
-          {/* No onDismiss: an end of life cannot be waved away. */}
-          <Show when={appState.endOfLife}>
-            {(endOfLife) => {
-              const now = createDeadlineClock(() =>
-                Date.parse(endOfLife().ends_at)
-              );
-              return (
-                <Banner
-                  variant="danger"
-                  icon={<WarningIcon />}
-                  onClick={() => openSettingsWindow("updates")}
-                >
-                  {endOfLifeMessage(endOfLife(), now())}
-                </Banner>
-              );
-            }}
-          </Show>
-          <Show when={appState.isUpdateAvailable && !appState.endOfLife}>
-            <Banner
-              variant="update"
-              icon={<UpdateIcon />}
-              onClick={() => openSettingsWindow("updates")}
-              onDismiss={() =>
-                void settingsActions.setDismissedUpdateVersion(
-                  appState.availableVersion,
-                )}
-              dismissAriaLabel="Dismiss update notification"
-            >
-              Update available
-            </Banner>
-          </Show>
-          <Show when={showBalanceBanner()}>
-            <Banner
-              icon={<WarningIcon filled />}
-              variant="warning"
-              onDismiss={() => setDismissedBalanceStatus(balanceStatus())}
-              dismissAriaLabel="Dismiss balance notification"
-              onClick={() => openSettingsWindow("usage")}
-            >
-              {balanceBannerText()}
-            </Banner>
-          </Show>
-          {/* No dismiss or click: there is no user action, and it clears once the daemon recovers. */}
-          <Show when={maintenanceWarning()}>
-            {(warning) => (
-              <Banner icon={<WarningIcon filled />} variant="warning">
-                {warning()}
-              </Banner>
-            )}
-          </Show>
-        </div>
-      </div>
-
-      <main class="flex w-full flex-1 flex-col items-center relative min-h-0">
-        <StatusHero />
+      <main class="mt-3.5 flex min-h-0 flex-1 flex-col overflow-y-auto">
         <Show
           when={!inUseByOtherUser()}
           fallback={
-            <div class="w-full bg-bg-card-outer rounded-2xl p-1.5">
-              <div class="flex w-full flex-col gap-2 rounded-2xl bg-bg-card px-3 py-3.5">
-                <span class="text-sm font-semibold text-text-primary">
-                  In use by another user on this computer
-                </span>
-                <span class="text-xs text-text-secondary">
-                  Gnosis VPN is running for another user account. It becomes
-                  available here once that user disconnects and quits.
-                </span>
-              </div>
-            </div>
+            <LocationNotice title="In use by another user on this computer">
+              Gnosis VPN is running for another user account. It becomes
+              available here once that user disconnects and quits.
+            </LocationNotice>
           }
         >
-          {
-            /* -mx-4 cancels the screen's own px-4 so the carousel's edge-peek
-            (LocationBanner.tsx) can bleed all the way to the true window
-            border instead of stopping at the page margin. */
-          }
-          <div class="-mx-4 self-stretch flex justify-center z-10">
-            <LocationBanner />
-          </div>
+          <Show
+            when={shownDestination()}
+            fallback={
+              <LocationNotice title="No exit nodes available">
+                Checking for new ones…
+              </LocationNotice>
+            }
+          >
+            {(destinationState) => (
+              <Show
+                when={settings.advancedView}
+                fallback={
+                  <LocationHero destinationState={destinationState()} />
+                }
+              >
+                <LocationCard destinationState={destinationState()} />
+              </Show>
+            )}
+          </Show>
         </Show>
       </main>
-      <Show when={!inUseByOtherUser()}>
-        <div class="mt-4 w-full z-10">
+
+      <div class="flex flex-none flex-col gap-2 pt-2.5 empty:hidden">
+        {/* No onDismiss: an end of life cannot be waved away. */}
+        <Show when={appState.endOfLife}>
+          {(endOfLife) => {
+            const now = createDeadlineClock(() =>
+              Date.parse(endOfLife().ends_at)
+            );
+            return (
+              <Banner
+                variant="danger"
+                icon={<WarningIcon />}
+                onClick={() => openSettings("update")}
+              >
+                {endOfLifeMessage(endOfLife(), now())}
+              </Banner>
+            );
+          }}
+        </Show>
+        <Show when={appState.isUpdateAvailable && !appState.endOfLife}>
+          <Banner
+            variant="update"
+            icon={<UpdateIcon />}
+            onClick={() => openSettings("update")}
+            onDismiss={() => void settingsActions.setDismissedUpdateVersion(
+              appState.availableVersion,
+            )}
+            dismissAriaLabel="Dismiss update notification"
+          >
+            Update available
+          </Banner>
+        </Show>
+        <Show when={showBalanceBanner()}>
+          <Banner
+            icon={<WarningIcon filled />}
+            variant="warning"
+            onDismiss={() => setDismissedBalanceStatus(balanceStatus())}
+            dismissAriaLabel="Dismiss balance notification"
+            onClick={() => openSettings("usage")}
+          >
+            {balanceBannerText()}
+          </Banner>
+        </Show>
+        {/* No dismiss or click: there is no user action, and it clears once the daemon recovers. */}
+        <Show when={maintenanceWarning()}>
+          {(warning) => (
+            <Banner icon={<WarningIcon filled />} variant="warning">
+              {warning()}
+            </Banner>
+          )}
+        </Show>
+      </div>
+
+      {/* The cost view carries its own Cancel and Connect */}
+      <Show when={!inUseByOtherUser() && exitCostFor() === null}>
+        <div class="flex flex-none flex-col gap-2.5 pt-2.5">
+          <button
+            type="button"
+            class="flex h-10.5 w-full cursor-pointer items-center justify-center gap-2.25 rounded-[9px] bg-bg-list text-[13px] font-bold shadow-[inset_0_0_0_1px_var(--color-control-ring)] hover:bg-control-bg"
+            onClick={() => appActions.destinationListOpened()}
+          >
+            {/* Unica77 draws its glyphs high in the line box: 1px each way centres both on the button */}
+            <span class="translate-y-px">More locations</span>
+            <ListIcon class="h-3 w-4.75 -translate-y-px text-control-tint" />
+          </button>
           <ConnectButton />
         </div>
-        <ConnectionStatus />
       </Show>
+
+      <Portal>
+        <Show when={appState.mode.listOpen}>
+          <ExitNodeList
+            onClose={(picked) => appActions.destinationListClosed(picked)}
+          />
+        </Show>
+      </Portal>
     </div>
   );
 }

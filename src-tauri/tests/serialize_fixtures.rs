@@ -975,6 +975,7 @@ fn full_settings() -> Settings {
     Settings {
         preferred_location: Some("exit-1".to_string()),
         last_connected_destination: Some("exit-1".to_string()),
+        recent_destinations: vec!["exit-1".to_string(), "exit-2".to_string()],
         connect_on_startup: true,
         start_minimized: true,
         update_check: true,
@@ -990,5 +991,7 @@ fn full_settings() -> Settings {
         installed_version: Some("0.28.5".to_string()),
         show_detailed_metrics: true,
         flag_display: FlagDisplay::Mono,
+        show_exit_cost: false,
+        advanced_view: true,
     }
 }

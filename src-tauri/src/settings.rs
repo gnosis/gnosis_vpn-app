@@ -14,6 +14,8 @@ use std::sync::{Mutex, MutexGuard};
 pub struct Settings {
     pub preferred_location: Option<String>,
     pub last_connected_destination: Option<String>,
+    /// Destinations connected to, newest first, for the exit list's Recent tab.
+    pub recent_destinations: Vec<String>,
     pub connect_on_startup: bool,
     pub start_minimized: bool,
     pub update_check: bool,
@@ -27,6 +29,10 @@ pub struct Settings {
     pub installed_version: Option<String>,
     pub show_detailed_metrics: bool,
     pub flag_display: FlagDisplay,
+    /// Whether Connect first shows the data an exit sets aside.
+    pub show_exit_cost: bool,
+    /// Whether the main screen shows the location card instead of the simple view.
+    pub advanced_view: bool,
 }
 
 impl Default for Settings {
@@ -34,6 +40,7 @@ impl Default for Settings {
         Self {
             preferred_location: None,
             last_connected_destination: None,
+            recent_destinations: Vec::new(),
             connect_on_startup: false,
             start_minimized: false,
             update_check: true,
@@ -46,6 +53,8 @@ impl Default for Settings {
             installed_version: None,
             show_detailed_metrics: false,
             flag_display: FlagDisplay::default(),
+            show_exit_cost: true,
+            advanced_view: false,
         }
     }
 }
@@ -57,6 +66,7 @@ impl Default for Settings {
 pub enum SortOrder {
     #[default]
     Best,
+    Recent,
     Alpha,
 }
 
@@ -95,6 +105,8 @@ pub struct SettingsPatch {
     #[serde(default, deserialize_with = "double_option")]
     pub last_connected_destination: Option<Option<String>>,
     #[serde(default)]
+    pub recent_destinations: Option<Vec<String>>,
+    #[serde(default)]
     pub connect_on_startup: Option<bool>,
     #[serde(default)]
     pub start_minimized: Option<bool>,
@@ -118,6 +130,10 @@ pub struct SettingsPatch {
     pub show_detailed_metrics: Option<bool>,
     #[serde(default)]
     pub flag_display: Option<FlagDisplay>,
+    #[serde(default)]
+    pub show_exit_cost: Option<bool>,
+    #[serde(default)]
+    pub advanced_view: Option<bool>,
 }
 
 impl SettingsPatch {
@@ -129,6 +145,9 @@ impl SettingsPatch {
         }
         if self.last_connected_destination.is_some() {
             keys.push("last_connected_destination");
+        }
+        if self.recent_destinations.is_some() {
+            keys.push("recent_destinations");
         }
         if self.connect_on_startup.is_some() {
             keys.push("connect_on_startup");
@@ -166,6 +185,12 @@ impl SettingsPatch {
         if self.flag_display.is_some() {
             keys.push("flag_display");
         }
+        if self.show_exit_cost.is_some() {
+            keys.push("show_exit_cost");
+        }
+        if self.advanced_view.is_some() {
+            keys.push("advanced_view");
+        }
         keys
     }
 }
@@ -185,6 +210,9 @@ impl Settings {
         }
         if let Some(v) = patch.last_connected_destination {
             self.last_connected_destination = v;
+        }
+        if let Some(v) = patch.recent_destinations {
+            self.recent_destinations = v;
         }
         if let Some(v) = patch.connect_on_startup {
             self.connect_on_startup = v;
@@ -221,6 +249,12 @@ impl Settings {
         }
         if let Some(v) = patch.flag_display {
             self.flag_display = v;
+        }
+        if let Some(v) = patch.show_exit_cost {
+            self.show_exit_cost = v;
+        }
+        if let Some(v) = patch.advanced_view {
+            self.advanced_view = v;
         }
     }
 }
@@ -473,6 +507,48 @@ mod tests {
             .update(patch(json!({ "lastConnectedDestination": null })))
             .expect("update should succeed");
         assert_eq!(store.current().last_connected_destination, None);
+    }
+
+    #[test]
+    fn recent_destinations_and_recent_sort_persist_and_reload() {
+        let path = temp_settings_path();
+        let store = SettingsStore::load(path.clone());
+        store
+            .update(patch(json!({
+                "recentDestinations": ["exit-2", "exit-1"],
+                "exitNodeSortOrder": "recent",
+            })))
+            .expect("update should succeed");
+
+        let reloaded = SettingsStore::load(path).current();
+        assert_eq!(reloaded.recent_destinations, vec!["exit-2", "exit-1"]);
+        assert_eq!(reloaded.exit_node_sort_order, SortOrder::Recent);
+    }
+
+    #[test]
+    fn show_exit_cost_defaults_on_and_persists_off() {
+        let path = temp_settings_path();
+        let store = SettingsStore::load(path.clone());
+        assert!(store.current().show_exit_cost);
+
+        store
+            .update(patch(json!({ "showExitCost": false })))
+            .expect("update should succeed");
+
+        assert!(!SettingsStore::load(path).current().show_exit_cost);
+    }
+
+    #[test]
+    fn advanced_view_defaults_off_and_persists_on() {
+        let path = temp_settings_path();
+        let store = SettingsStore::load(path.clone());
+        assert!(!store.current().advanced_view);
+
+        store
+            .update(patch(json!({ "advancedView": true })))
+            .expect("update should succeed");
+
+        assert!(SettingsStore::load(path).current().advanced_view);
     }
 
     #[test]

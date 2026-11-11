@@ -116,7 +116,10 @@ export default function Tooltip(props: {
       tabindex={props.tabIndex}
       onMouseEnter={show}
       onMouseLeave={hide}
-      onFocusIn={show}
+      // Keyboard focus only: a page handing focus back after a click must not pop the tooltip.
+      onFocusIn={(e) => {
+        if ((e.target as Element).matches(":focus-visible")) show();
+      }}
       onFocusOut={hide}
     >
       {props.children}

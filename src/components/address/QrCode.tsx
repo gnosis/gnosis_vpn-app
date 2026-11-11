@@ -1,4 +1,4 @@
-import { createEffect, createSignal, onCleanup, Show } from "solid-js";
+import { createEffect, createSignal, onCleanup, onMount, Show } from "solid-js";
 import { Portal } from "solid-js/web";
 import { overlayMount } from "@src/utils/mainColumn.ts";
 import QRCode from "qrcode";
@@ -15,6 +15,12 @@ type QrCodeProps = {
 
 export default function QrCode(props: QrCodeProps) {
   const [qrDataUrl, setQrDataUrl] = createSignal<string | undefined>();
+
+  const onKey = (e: KeyboardEvent) => {
+    if (e.key === "Escape" && props.open) props.onClose();
+  };
+  onMount(() => document.addEventListener("keydown", onKey));
+  onCleanup(() => document.removeEventListener("keydown", onKey));
 
   createEffect(() => {
     if (!props.open || !props.value) {
@@ -43,10 +49,13 @@ export default function QrCode(props: QrCodeProps) {
     <Show when={props.open}>
       <Portal mount={overlayMount()}>
         <div
-          class="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay"
+          class="fixed inset-0 z-140 flex items-center justify-center bg-bg-overlay"
           onClick={props.onClose}
         >
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={props.title ?? "QR code"}
             class="rounded-xl bg-bg-surface p-4 shadow-xl w-xs"
             onClick={(e) => e.stopPropagation()}
           >
