@@ -18,8 +18,24 @@
       "since": 0,
       "failed_pings": 2,
       "reconnect_at": 3
+    },
+    "pix": {
+      "phase": {
+        "type": "free"
+      },
+      "chunks_committed": 0,
+      "chunks_paid": 0,
+      "chunks_failed": 0,
+      "chunk_bytes": 0,
+      "bytes_bought": 0,
+      "cost": "0",
+      "bytes_spent": null,
+      "bytes_left": null,
+      "bytes_received": null,
+      "empty_in": null
     }
   },
   "disconnecting": [],
-  "probe": null
+  "probe": null,
+  "pix_chunk_bytes": 951644160
 }

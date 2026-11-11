@@ -498,5 +498,6 @@
     "type": "disconnected"
   },
   "disconnecting": [],
-  "probe": null
+  "probe": null,
+  "pix_chunk_bytes": null
 }

@@ -715,7 +715,7 @@ dependencies = [
  "futures",
  "futures-utils-wasm",
  "lru 0.16.4",
- "parking_lot",
+ "parking_lot 0.12.5",
  "pin-project",
  "reqwest",
  "serde",
@@ -757,7 +757,7 @@ dependencies = [
  "futures-utils-wasm",
  "http",
  "lru 0.18.5",
- "parking_lot",
+ "parking_lot 0.12.5",
  "pin-project",
  "reqwest",
  "serde",
@@ -1111,7 +1111,7 @@ dependencies = [
  "derive_more",
  "futures",
  "futures-utils-wasm",
- "parking_lot",
+ "parking_lot 0.12.5",
  "serde",
  "serde_json",
  "thiserror 2.0.21",
@@ -1134,7 +1134,7 @@ dependencies = [
  "derive_more",
  "futures",
  "futures-utils-wasm",
- "parking_lot",
+ "parking_lot 0.12.5",
  "serde",
  "serde_json",
  "thiserror 2.0.21",
@@ -1273,7 +1273,7 @@ version = "1.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "40c48f72fd53cd289104fc64099abca73db4166ad86ea0b4341abe65af83dadc"
 dependencies = [
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1284,7 +1284,7 @@ checksum = "291e6a250ff86cd4a820112fb8898808a366d8f9f58ce16d1f538353ad55747d"
 dependencies = [
  "anstyle",
  "once_cell_polyfill",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2191,13 +2191,13 @@ dependencies = [
 
 [[package]]
 name = "auto_impl"
-version = "1.3.0"
+version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ffdcb70bdbc4d478427380519163274ac86e52916e10f0a8889adf0f96d3fee7"
+checksum = "683bf733a032aec4f8954e5c0ec9d5c2183c341c49d0939ad77acc0a19fa338a"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.119",
+ "syn 3.0.6",
 ]
 
 [[package]]
@@ -2515,9 +2515,9 @@ dependencies = [
 
 [[package]]
 name = "blokli-client"
-version = "0.35.0"
+version = "0.37.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8478d012a20a01bd39c6b0033e6794f6a98d5ac2819d8c89264db02fc251e84c"
+checksum = "b0316ef1a89d3d089b8534c12fa77403702dbbbef24a64361f74f4b5ec7e2edd"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2535,6 +2535,7 @@ dependencies = [
  "serde_json",
  "smart-default",
  "thiserror 2.0.21",
+ "tokio",
  "tracing",
  "url",
 ]
@@ -3265,17 +3266,23 @@ checksum = "a31eee39dddec8330830986fcd7625edb5a24ec90ea038215273bbc3adb08ac6"
 
 [[package]]
 name = "crossfire"
-version = "3.1.20"
+version = "3.1.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "adb5e5c51e448ac2309883593482db91a5549c528d08a36aaa87bba13e5a40ae"
+checksum = "342783f90d75bfc49d9c7cff550d0a25d3b1b346b5964f3f22672d195cbb6b1f"
 dependencies = [
- "crossbeam-utils",
+ "crossfire-utils",
  "futures-core",
- "parking_lot",
+ "parking_lot 0.13.0",
  "pointers",
  "smallvec",
  "tokio",
 ]
+
+[[package]]
+name = "crossfire-utils"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d3398c18f4a17fd2b156e19256dfd20666488d5bf9a0d111d3fa8088e12b62ae"
 
 [[package]]
 name = "crunchy"
@@ -3448,9 +3455,9 @@ dependencies = [
 
 [[package]]
 name = "curvy-abi"
-version = "0.1.1"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "17f2842dcb08fefd48d0aed11d50daea49dfd641b5481eb3b52ab14b44cd9176"
+checksum = "0d1ab2fcd735e691e4d98e2aabdbb451aed5369a116fa4c6a78f56c1661de6b8"
 dependencies = [
  "alloy 1.8.3",
  "anyhow",
@@ -3461,9 +3468,9 @@ dependencies = [
 
 [[package]]
 name = "curvy-chain-api"
-version = "0.1.1"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b5b85f9a9b2de3f665350c45e37174ca80cbc079dad372b9ede4344f4e64e87e"
+checksum = "696a7297647f388dcee03eba12a271e2b5efee8c9058191bd25850d3511fe323"
 dependencies = [
  "async-trait",
  "curvy-types",
@@ -3472,9 +3479,9 @@ dependencies = [
 
 [[package]]
 name = "curvy-chain-blokli"
-version = "0.1.1"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "08f60123881122d9a97b2a859bde301afe44df84cb28e4fbe2387e7d0db18116"
+checksum = "b5827733945f3f551c7c9140dd0a29caa1b58bc40f99e340735ea8752a0898e9"
 dependencies = [
  "async-trait",
  "curvy-chain-api",
@@ -3486,9 +3493,9 @@ dependencies = [
 
 [[package]]
 name = "curvy-core"
-version = "0.1.1"
+version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "70ed262e8e4a09d5e23b46d7925bca0236cb58ebc082515120411244f295b963"
+checksum = "ff91eb5c647d11ab9d4fb4eed504cbf36ee47375ad2a749e47f471b92b57ea38"
 dependencies = [
  "aes 0.9.3",
  "ark-bn254 0.6.0",
@@ -3504,14 +3511,15 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.11.0",
+ "sha3 0.12.0",
  "zeroize",
 ]
 
 [[package]]
 name = "curvy-prover"
-version = "0.1.1"
+version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3cbf5e627f6f4fd70c72b07a7d2d2802f0b86e6db27bc979be70dca10c4f77bf"
+checksum = "daf81d5040593ef402496b7041af24ff699f8782229a051861bf477933912c17"
 dependencies = [
  "ark-bn254 0.6.0",
  "ark-ec 0.6.0",
@@ -3533,9 +3541,9 @@ dependencies = [
 
 [[package]]
 name = "curvy-sdk"
-version = "0.1.1"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "67866dca7d73d0848dc61df498ff9abbe6861dc193885a9198de03a9cf20ba9b"
+checksum = "59640f209a21c8e444280a79eca57cb07da040ddaba38d1a72bf5c351bd0113e"
 dependencies = [
  "anyhow",
  "ark-bn254 0.6.0",
@@ -3554,18 +3562,18 @@ dependencies = [
 
 [[package]]
 name = "curvy-types"
-version = "0.1.1"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "66940fe6e44985e87076b9abaf6c33c250658f97b3c3f2897b88d98995c0d2ca"
+checksum = "6377facda73ea91c91946b519dc3e6e4ae6b8fee10e03c362dc527cf5fc1b081"
 dependencies = [
  "serde",
 ]
 
 [[package]]
 name = "curvy-witness"
-version = "0.1.1"
+version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "13b5b42b7fc39c7ba607f1a47e5a3c567d1ced7deec23ecffd6056b8ee88a05d"
+checksum = "533e8947dbe9f935eb9ad6a5226759463b9b2468a8af50fdbcd59b5fe9ffca84"
 dependencies = [
  "ark-bn254 0.6.0",
  "ark-ff 0.6.0",
@@ -3580,9 +3588,9 @@ dependencies = [
 
 [[package]]
 name = "curvy-witnesscalc"
-version = "0.1.1"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "91adb62f99297fafacbcd6aaebcac6638ab0ddc5c0165ee2eb0d823633d2427d"
+checksum = "adba11d164153a68eaafe861821e4cc3d76e235f92d7477d1dfc4b2826e92295"
 dependencies = [
  "anyhow",
  "ark-bn254 0.6.0",
@@ -3780,9 +3788,9 @@ dependencies = [
  "cfg-if",
  "crossbeam-utils",
  "hashbrown 0.14.5",
- "lock_api",
+ "lock_api 0.4.14",
  "once_cell",
- "parking_lot_core",
+ "parking_lot_core 0.9.12",
 ]
 
 [[package]]
@@ -3808,7 +3816,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c54e03a951783e8b327515db3f2a2fd0e3bed362a96b066f341ce66ed49b4ead"
 dependencies = [
  "data-encoding",
- "syn 1.0.109",
+ "syn 3.0.6",
 ]
 
 [[package]]
@@ -4013,7 +4021,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -4221,7 +4229,7 @@ dependencies = [
 [[package]]
 name = "edgli"
 version = "5.2.0"
-source = "git+https://github.com/hoprnet/edge-client.git?rev=89c799f378f0d5c060a71f15b4f3fda47e2794f8#89c799f378f0d5c060a71f15b4f3fda47e2794f8"
+source = "git+https://github.com/hoprnet/edge-client.git?branch=main#cb26f0da366ba53f921c7d9a7c1885bf30e9edc3"
 dependencies = [
  "anyhow",
  "async-signal",
@@ -4469,7 +4477,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5248,21 +5256,21 @@ dependencies = [
 [[package]]
 name = "gnosis_vpn-ipc"
 version = "0.101.1"
-source = "git+https://github.com/gnosis/gnosis_vpn-client.git?branch=main#643e69f8b13e85d3e2eb51be7c35ddd8d987a1f8"
+source = "git+https://github.com/gnosis/gnosis_vpn-client.git?branch=main#d06db828cb6c316ecb4cc144c2d540086bdbc0b5"
 dependencies = [
  "base64 0.23.1",
  "humantime",
  "semver 1.0.28",
  "serde",
  "serde_json",
- "sha3 0.10.9",
+ "sha3 0.12.0",
  "thiserror 2.0.21",
 ]
 
 [[package]]
 name = "gnosis_vpn-lib"
 version = "0.101.1"
-source = "git+https://github.com/gnosis/gnosis_vpn-client.git?branch=main#643e69f8b13e85d3e2eb51be7c35ddd8d987a1f8"
+source = "git+https://github.com/gnosis/gnosis_vpn-client.git?branch=main#d06db828cb6c316ecb4cc144c2d540086bdbc0b5"
 dependencies = [
  "async-trait",
  "backon",
@@ -5272,6 +5280,7 @@ dependencies = [
  "edgli",
  "futures-util",
  "gnosis_vpn-ipc",
+ "hopr-strategy",
  "hopr-utils-session",
  "human-bandwidth",
  "humantime",
@@ -5655,7 +5664,7 @@ dependencies = [
  "ipconfig",
  "moka",
  "once_cell",
- "parking_lot",
+ "parking_lot 0.12.5",
  "rand 0.9.5",
  "resolv-conf",
  "smallvec",
@@ -5680,7 +5689,7 @@ dependencies = [
  "moka",
  "ndk-context",
  "once_cell",
- "parking_lot",
+ "parking_lot 0.12.5",
  "rand 0.10.3",
  "resolv-conf",
  "smallvec",
@@ -5728,9 +5737,9 @@ dependencies = [
 
 [[package]]
 name = "hopr-api"
-version = "4.4.0"
+version = "5.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "da72d7cfdba3bc36ec2ad790ce87c6f71cb2fc69e44b1a58f903fec471727b78"
+checksum = "fa64c5a401c0c7db4ad9a0688d11e59bc4566f92c0661e8ef97e4008816509ad"
 dependencies = [
  "async-trait",
  "atomic_enum",
@@ -5749,9 +5758,9 @@ dependencies = [
 
 [[package]]
 name = "hopr-bindings"
-version = "5.0.0"
+version = "5.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "13cb248171e67e6bf5891c2e60e5a02389ba3121da8a1aa77b3f435e75c6099f"
+checksum = "2d204f2c9c630c1a0a3d150ed2d1be29107a635df1611acc097ef8b6f69bad25"
 dependencies = [
  "alloy 2.5.0",
  "anyhow",
@@ -5767,9 +5776,9 @@ dependencies = [
 
 [[package]]
 name = "hopr-chain-connector"
-version = "0.28.0"
+version = "0.31.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3aa0ec8acc3a19e49b7e5b7eac42a4cd1edb9225cfc3655a29fb21074f4bcb73"
+checksum = "3fb6f363700957a383f5be7c6fcda692206e468e1a2b38bb0d4e9921a286754f"
 dependencies = [
  "ahash",
  "anyhow",
@@ -5785,7 +5794,7 @@ dependencies = [
  "hopr-api",
  "hopr-utilities",
  "moka",
- "parking_lot",
+ "parking_lot 0.12.5",
  "petgraph",
  "postcard",
  "redb",
@@ -5799,8 +5808,8 @@ dependencies = [
 
 [[package]]
 name = "hopr-crypto-packet"
-version = "2.1.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#1462e4a019db9babd14f32f941c3762563d57157"
+version = "2.2.0"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#bfb7c233abf396ffd41c436cfb3e543b917323ee"
 dependencies = [
  "bimap",
  "const-hex",
@@ -5818,9 +5827,9 @@ dependencies = [
 
 [[package]]
 name = "hopr-ct-full-network"
-version = "0.7.0"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "95cfe06f2b8a510183e0da5d12a7fb5063711274e31a19411ecd0a4e4fe7f9c6"
+checksum = "105dbbbaddcff05658a073b40b849658a8cc91d47513cc8fcfcfc28b6713d035"
 dependencies = [
  "anyhow",
  "cfg-if",
@@ -5836,8 +5845,8 @@ dependencies = [
 
 [[package]]
 name = "hopr-lib"
-version = "5.0.0-rc.5"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#1462e4a019db9babd14f32f941c3762563d57157"
+version = "5.0.0-rc.6"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#bfb7c233abf396ffd41c436cfb3e543b917323ee"
 dependencies = [
  "anyhow",
  "async-broadcast",
@@ -5854,22 +5863,23 @@ dependencies = [
  "hopr-utilities",
  "humantime-serde",
  "lazy_static",
- "parking_lot",
+ "parking_lot 0.12.5",
  "serde",
  "serde_with",
  "smart-default",
  "strum",
  "thiserror 2.0.21",
  "tokio",
+ "toml_edit 0.25.15+spec-1.1.0",
  "tracing",
  "validator",
 ]
 
 [[package]]
 name = "hopr-network-graph"
-version = "0.8.0"
+version = "0.10.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "009f463e7c597f55aa8fda7b5a4c5df5d28cec3f119e9cc13b94628c7cc2c386"
+checksum = "1bd1852424489abfe1c58bec954bbb83ad0f847507663d0620c6665e9643b858"
 dependencies = [
  "anyhow",
  "bimap",
@@ -5878,7 +5888,7 @@ dependencies = [
  "hopr-utilities",
  "indexmap 2.14.2",
  "lazy_static",
- "parking_lot",
+ "parking_lot 0.12.5",
  "petgraph",
  "rand 0.10.3",
  "smallvec",
@@ -5889,7 +5899,7 @@ dependencies = [
 [[package]]
 name = "hopr-protocol-app"
 version = "1.2.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#1462e4a019db9babd14f32f941c3762563d57157"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#bfb7c233abf396ffd41c436cfb3e543b917323ee"
 dependencies = [
  "hopr-crypto-packet",
  "hopr-types",
@@ -5901,8 +5911,8 @@ dependencies = [
 
 [[package]]
 name = "hopr-protocol-hopr"
-version = "6.4.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#1462e4a019db9babd14f32f941c3762563d57157"
+version = "6.5.0"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#bfb7c233abf396ffd41c436cfb3e543b917323ee"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5918,9 +5928,10 @@ dependencies = [
  "humantime-serde",
  "lazy_static",
  "moka",
- "parking_lot",
+ "parking_lot 0.12.5",
  "serde",
  "serde_with",
+ "siphasher",
  "smart-default",
  "strum",
  "thiserror 2.0.21",
@@ -5931,7 +5942,7 @@ dependencies = [
 [[package]]
 name = "hopr-protocol-pix"
 version = "0.3.1"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#1462e4a019db9babd14f32f941c3762563d57157"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#bfb7c233abf396ffd41c436cfb3e543b917323ee"
 dependencies = [
  "ahash",
  "auto_impl",
@@ -5940,7 +5951,7 @@ dependencies = [
  "hopr-types",
  "hopr-utilities",
  "moka",
- "parking_lot",
+ "parking_lot 0.12.5",
  "serde",
  "serde_bytes",
  "smart-default",
@@ -5953,8 +5964,8 @@ dependencies = [
 
 [[package]]
 name = "hopr-protocol-session"
-version = "1.6.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#1462e4a019db9babd14f32f941c3762563d57157"
+version = "1.6.2"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#bfb7c233abf396ffd41c436cfb3e543b917323ee"
 dependencies = [
  "aquamarine",
  "asynchronous-codec",
@@ -5970,7 +5981,7 @@ dependencies = [
  "hopr-types",
  "hopr-utilities",
  "lazy_static",
- "parking_lot",
+ "parking_lot 0.12.5",
  "pin-project",
  "ringbuffer",
  "serde",
@@ -5985,7 +5996,7 @@ dependencies = [
 [[package]]
 name = "hopr-protocol-start"
 version = "3.1.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#1462e4a019db9babd14f32f941c3762563d57157"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#bfb7c233abf396ffd41c436cfb3e543b917323ee"
 dependencies = [
  "aquamarine",
  "flagset",
@@ -6000,9 +6011,9 @@ dependencies = [
 
 [[package]]
 name = "hopr-strategy"
-version = "5.5.0"
+version = "7.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "71c74c804d50149931fd5e02833f31809bc62cd0f2cd595c4851ae50a4ee4a64"
+checksum = "a0a72ce784a31e50a8c371002b005bf29a4ad3d005a1b2a11eee777df3f256f2"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6029,7 +6040,7 @@ dependencies = [
  "lazy_static",
  "moka",
  "num_enum",
- "parking_lot",
+ "parking_lot 0.13.0",
  "redb",
  "reqwest",
  "scrypt",
@@ -6049,9 +6060,9 @@ dependencies = [
 
 [[package]]
 name = "hopr-ticket-manager"
-version = "0.8.0"
+version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b2219a766732e0970cc3f31fcf55ca86619a37733c8db40e2f18b20ef8dbc852"
+checksum = "45c6071f3da29beaa7137fbe6dbf621e595e9c268c45c847dbfbed7ac1a33a4a"
 dependencies = [
  "ahash",
  "anyhow",
@@ -6061,7 +6072,7 @@ dependencies = [
  "hashbrown 0.17.1",
  "hopr-api",
  "hopr-utilities",
- "parking_lot",
+ "parking_lot 0.12.5",
  "postcard",
  "redb",
  "strum",
@@ -6072,8 +6083,8 @@ dependencies = [
 
 [[package]]
 name = "hopr-transport"
-version = "0.52.1"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#1462e4a019db9babd14f32f941c3762563d57157"
+version = "0.52.3"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#bfb7c233abf396ffd41c436cfb3e543b917323ee"
 dependencies = [
  "ahash",
  "anyhow",
@@ -6103,6 +6114,7 @@ dependencies = [
  "libp2p",
  "moka",
  "multiaddr",
+ "parking_lot 0.12.5",
  "proc-macro-regex",
  "rand 0.10.3",
  "rand_distr",
@@ -6118,26 +6130,27 @@ dependencies = [
 
 [[package]]
 name = "hopr-transport-mixer"
-version = "0.5.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#1462e4a019db9babd14f32f941c3762563d57157"
+version = "1.0.0"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#bfb7c233abf396ffd41c436cfb3e543b917323ee"
 dependencies = [
  "futures",
  "futures-timer",
  "hopr-types",
  "humantime-serde",
  "lazy_static",
- "parking_lot",
+ "parking_lot 0.12.5",
  "serde",
  "smart-default",
  "thiserror 2.0.21",
  "tracing",
+ "validator",
 ]
 
 [[package]]
 name = "hopr-transport-p2p"
-version = "0.12.3"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "058cd92ee5ebc5da71d301fe44300c17f9e81645862d918cd1edcfa8799183d5"
+checksum = "9acc9b3048e50fdb326b95ce343d55849dd2b742f0a747acf5c7d371c1aa309a"
 dependencies = [
  "async-broadcast",
  "async-trait",
@@ -6149,7 +6162,6 @@ dependencies = [
  "hopr-utilities",
  "libp2p",
  "libp2p-stream",
- "multiaddr",
  "pin-project",
  "quinn-udp 0.6.2",
  "thiserror 2.0.21",
@@ -6159,7 +6171,7 @@ dependencies = [
 [[package]]
 name = "hopr-transport-probe"
 version = "0.9.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#1462e4a019db9babd14f32f941c3762563d57157"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#bfb7c233abf396ffd41c436cfb3e543b917323ee"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6184,8 +6196,8 @@ dependencies = [
 
 [[package]]
 name = "hopr-transport-session"
-version = "0.33.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#1462e4a019db9babd14f32f941c3762563d57157"
+version = "0.34.0"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#bfb7c233abf396ffd41c436cfb3e543b917323ee"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6203,7 +6215,7 @@ dependencies = [
  "humantime-serde",
  "lazy_static",
  "moka",
- "parking_lot",
+ "parking_lot 0.12.5",
  "pid",
  "pin-project",
  "serde",
@@ -6219,7 +6231,7 @@ dependencies = [
 [[package]]
 name = "hopr-transport-tag-allocator"
 version = "0.2.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#1462e4a019db9babd14f32f941c3762563d57157"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#bfb7c233abf396ffd41c436cfb3e543b917323ee"
 dependencies = [
  "hopr-protocol-app",
  "serde",
@@ -6230,9 +6242,9 @@ dependencies = [
 
 [[package]]
 name = "hopr-types"
-version = "4.1.0"
+version = "5.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9edbc7eef689f0dde57fb481404f15b671f0877dd75ff1e88c125f19a09efaf7"
+checksum = "d4e349732219ccec165d89c6c0c49905a0016240c0af6eb4b32452a9d3545363"
 dependencies = [
  "aes 0.9.3",
  "anyhow",
@@ -6294,9 +6306,9 @@ dependencies = [
 
 [[package]]
 name = "hopr-utilities"
-version = "0.17.3"
+version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72da17af86817eee527335feb09887ae1bd506f690bf8ffb787f54808f590203"
+checksum = "a47d87130566d650aea8a10c3614c3ea3ddde51fb23df9ef10792deaab38531a"
 dependencies = [
  "arrayvec",
  "auto_impl",
@@ -6330,7 +6342,7 @@ dependencies = [
 [[package]]
 name = "hopr-utils-session"
 version = "1.3.0"
-source = "git+https://github.com/hoprnet/hoprnet?branch=master#1462e4a019db9babd14f32f941c3762563d57157"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#bfb7c233abf396ffd41c436cfb3e543b917323ee"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6345,7 +6357,7 @@ dependencies = [
  "hopr-utilities",
  "human-bandwidth",
  "lazy_static",
- "parking_lot",
+ "parking_lot 0.12.5",
  "serde",
  "serde_with",
  "thiserror 2.0.21",
@@ -6528,7 +6540,7 @@ dependencies = [
  "js-sys",
  "log",
  "wasm-bindgen",
- "windows-core 0.61.2",
+ "windows-core 0.62.2",
 ]
 
 [[package]]
@@ -7291,9 +7303,9 @@ dependencies = [
 
 [[package]]
 name = "libc"
-version = "0.2.190"
+version = "0.2.191"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce5d3ddc6d3fa000eb1536d85e147bfe31aacaba692ed6a876f95cb7c855be78"
+checksum = "65cd87c9a6d60536580b316ad985726104730a5151c99845f2490428ef91240a"
 
 [[package]]
 name = "libdbus-sys"
@@ -7443,7 +7455,7 @@ dependencies = [
  "multiaddr",
  "multihash",
  "multistream-select",
- "parking_lot",
+ "parking_lot 0.12.5",
  "pin-project",
  "quick-protobuf",
  "rand 0.8.8",
@@ -7465,7 +7477,7 @@ dependencies = [
  "hickory-resolver 0.25.2",
  "libp2p-core",
  "libp2p-identity",
- "parking_lot",
+ "parking_lot 0.12.5",
  "smallvec",
  "tracing",
 ]
@@ -7751,6 +7763,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "lock_api"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "65d91b22da179613dcf4d6ec8349563f52a363f6849e03b00dd0a185ec4a59af"
+dependencies = [
+ "scopeguard",
+]
+
+[[package]]
 name = "log"
 version = "0.4.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8012,7 +8033,7 @@ dependencies = [
  "equivalent",
  "event-listener 5.4.2",
  "futures-util",
- "parking_lot",
+ "parking_lot 0.12.5",
  "portable-atomic",
  "smallvec",
  "tagptr",
@@ -8047,7 +8068,7 @@ dependencies = [
  "png 0.18.1",
  "serde",
  "thiserror 2.0.21",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -8179,7 +8200,7 @@ dependencies = [
  "libc",
  "nix 0.31.3",
  "num_cpus",
- "parking_lot",
+ "parking_lot 0.12.5",
  "rand_core 0.6.4",
  "ring",
  "subtle",
@@ -8315,7 +8336,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -8410,7 +8431,7 @@ version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "680998035259dcfcafe653688bf2aa6d3e2dc05e98be6ab46afb089dc84f1df8"
 dependencies = [
- "proc-macro-crate 1.3.1",
+ "proc-macro-crate 2.0.2",
  "proc-macro2",
  "quote",
  "syn 2.0.119",
@@ -8902,8 +8923,18 @@ version = "0.12.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "93857453250e3077bd71ff98b6a65ea6621a19bb0f559a85248955ac12c45a1a"
 dependencies = [
- "lock_api",
- "parking_lot_core",
+ "lock_api 0.4.14",
+ "parking_lot_core 0.9.12",
+]
+
+[[package]]
+name = "parking_lot"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a9cf937ca4e1d0b7578784559063422fc39ae7c5a00f02471f2614d5486fd226"
+dependencies = [
+ "lock_api 0.5.0",
+ "parking_lot_core 0.10.0",
 ]
 
 [[package]]
@@ -8914,7 +8945,19 @@ checksum = "2621685985a2ebf1c516881c026032ac7deafcda1a2c9b7850dc81e3dfcb64c1"
 dependencies = [
  "cfg-if",
  "libc",
- "redox_syscall",
+ "redox_syscall 0.5.18",
+ "smallvec",
+ "windows-link 0.2.1",
+]
+
+[[package]]
+name = "parking_lot_core"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9cfff060068cc18aa7815010fcaf80c68c7fb9e85fc7f5c0f9bf142c21d19826"
+dependencies = [
+ "libc",
+ "redox_syscall 0.9.5",
  "smallvec",
  "windows-link 0.2.1",
 ]
@@ -9126,7 +9169,7 @@ checksum = "1b9b6f1c9925ed567de6b7f09ebd5972a0f56ed1679902ec9abdb84d12545655"
 dependencies = [
  "rand 0.9.5",
  "socket2 0.6.5",
- "thiserror 2.0.21",
+ "thiserror 1.0.69",
  "tokio",
 ]
 
@@ -9517,7 +9560,7 @@ checksum = "cf41c1a7c32ed72abe5082fb19505b969095c12da9f5732a4bc9878757fd087c"
 dependencies = [
  "dtoa",
  "itoa",
- "parking_lot",
+ "parking_lot 0.12.5",
  "prometheus-client-derive-encode",
 ]
 
@@ -9672,7 +9715,7 @@ dependencies = [
  "once_cell",
  "socket2 0.6.5",
  "tracing",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -9684,7 +9727,7 @@ dependencies = [
  "cfg_aliases",
  "libc",
  "socket2 0.6.5",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -9877,9 +9920,9 @@ dependencies = [
 
 [[package]]
 name = "redb"
-version = "4.3.0"
+version = "4.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb338a6c67830a61bed824b78c2bb034ab1ff401a20616bd7957524f4fdc2f22"
+checksum = "8b317ef681e18f6091efbfab532eaf924a135c492d9d0299d0fbfae07e92a39b"
 dependencies = [
  "libc",
 ]
@@ -9889,6 +9932,15 @@ name = "redox_syscall"
 version = "0.5.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed2bf2547551a7053d6fdfafda3f938979645c44812fbfcda098faae3f1a362d"
+dependencies = [
+ "bitflags 2.13.2",
+]
+
+[[package]]
+name = "redox_syscall"
+version = "0.9.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "580c875845b41ecb1564ad1ae4703044cef774145e3d7a94dc2b3fa7c97868fd"
 dependencies = [
  "bitflags 2.13.2",
 ]
@@ -10206,7 +10258,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -10265,7 +10317,7 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -11024,7 +11076,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3d1e2c7f27f8d4cb10542a02c49005dbd6e93095799d6f3be745fae9f8fedd4"
 dependencies = [
  "libc",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -11042,7 +11094,7 @@ dependencies = [
  "objc2-foundation 0.3.2",
  "objc2-quartz-core",
  "raw-window-handle",
- "redox_syscall",
+ "redox_syscall 0.5.18",
  "tracing",
  "wasm-bindgen",
  "web-sys",
@@ -11081,7 +11133,7 @@ version = "0.9.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3763264f6b73151db08c50ff20d7d8a0b8796e021cdea7ceedad07b80155fa0e"
 dependencies = [
- "lock_api",
+ "lock_api 0.4.14",
 ]
 
 [[package]]
@@ -11142,7 +11194,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a18596f8c785a729f2819c0f6a7eae6ebeebdfffbfe4214ae6b087f690e31901"
 dependencies = [
  "new_debug_unreachable",
- "parking_lot",
+ "parking_lot 0.12.5",
  "phf_shared 0.13.1",
  "precomputed-hash",
 ]
@@ -11384,7 +11436,7 @@ dependencies = [
  "objc2-foundation 0.3.2",
  "objc2-ui-kit",
  "once_cell",
- "parking_lot",
+ "parking_lot 0.12.5",
  "percent-encoding",
  "raw-window-handle",
  "tao-macros",
@@ -11736,10 +11788,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.3.4",
+ "getrandom 0.4.3",
  "once_cell",
  "rustix",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -11857,14 +11909,14 @@ checksum = "fd3ca314f692efd6c868f8408f53fe444634a845f96c028b97d35f6a1f79f0ee"
 
 [[package]]
 name = "tokio"
-version = "1.53.3"
+version = "1.54.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce3335fa71841cda333a58d7615b03901380ecf09d59b3296d21f8bbac0dde4e"
+checksum = "b52fd3255258d26fac7264ab5a76b53c13367136dc011d3d6ad4f8ed070396a3"
 dependencies = [
  "bytes",
  "libc",
  "mio",
- "parking_lot",
+ "parking_lot 0.12.5",
  "pin-project-lite",
  "signal-hook-registry",
  "socket2 0.6.5",
@@ -12253,7 +12305,7 @@ dependencies = [
  "png 0.18.1",
  "serde",
  "thiserror 2.0.21",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -12294,7 +12346,7 @@ checksum = "f2f6fb2847f6742cd76af783a2a2c49e9375d0a111c7bef6f71cd9e738c72d6e"
 dependencies = [
  "memoffset",
  "tempfile",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -12704,7 +12756,7 @@ checksum = "1c598d6b99ea013e35844697fc4670d08339d5cda15588f193c6beedd12f644b"
 dependencies = [
  "futures",
  "js-sys",
- "parking_lot",
+ "parking_lot 0.12.5",
  "pin-utils",
  "slab",
  "wasm-bindgen",
@@ -12869,7 +12921,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -13604,7 +13656,7 @@ dependencies = [
  "futures",
  "log",
  "nohash-hasher",
- "parking_lot",
+ "parking_lot 0.12.5",
  "pin-project",
  "rand 0.8.8",
  "static_assertions",
@@ -13619,7 +13671,7 @@ dependencies = [
  "futures",
  "log",
  "nohash-hasher",
- "parking_lot",
+ "parking_lot 0.12.5",
  "pin-project",
  "rand 0.9.5",
  "static_assertions",
@@ -13777,9 +13829,9 @@ dependencies = [
 
 [[package]]
 name = "zeroize"
-version = "1.9.0"
+version = "1.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e13c156562582aa81c60cb29407084cdb54c4164760106ab78e6c5b0858cf64e"
+checksum = "e13084392c5e4bc371903e2935a5eaeed24905a7511356b883835e18a78f6879"
 dependencies = [
  "zeroize_derive",
 ]

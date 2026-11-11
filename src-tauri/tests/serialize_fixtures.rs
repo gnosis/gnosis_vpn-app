@@ -157,14 +157,52 @@ fn status_base(run_mode: RunMode) -> Status {
         connection: Connection::Disconnected,
         disconnecting: vec![],
         probe: None,
+        pix_chunk_bytes: None,
     }
 }
+
+const PIX_CHUNK_BYTES: u64 = 951_644_160;
 
 fn status_with_connection(connection: Connection) -> Status {
     Status {
         target: connection.destination().cloned(),
         connection,
+        pix_chunk_bytes: Some(PIX_CHUNK_BYTES),
         ..status_base(running())
+    }
+}
+
+// Two chunks bought, a quarter of them spent.
+fn funded_pix() -> ipc::PixChunkStats {
+    ipc::PixChunkStats {
+        phase: ipc::PixPhase::Funded,
+        chunks_committed: 2,
+        chunks_paid: 2,
+        chunks_failed: 0,
+        chunk_bytes: PIX_CHUNK_BYTES,
+        bytes_bought: 2 * PIX_CHUNK_BYTES,
+        cost: Balance::from_wei(1_903_288_320_000_000),
+        bytes_spent: Some(PIX_CHUNK_BYTES / 2),
+        bytes_left: Some(PIX_CHUNK_BYTES * 3 / 2),
+        bytes_received: Some(PIX_CHUNK_BYTES / 3),
+        empty_in: Some(Duration::from_secs(5400)),
+    }
+}
+
+// What the client reports before the exit asks for the first chunk.
+fn free_pix() -> ipc::PixChunkStats {
+    ipc::PixChunkStats {
+        phase: ipc::PixPhase::Free,
+        chunks_committed: 0,
+        chunks_paid: 0,
+        chunks_failed: 0,
+        chunk_bytes: 0,
+        bytes_bought: 0,
+        cost: Balance::from_wei(0),
+        bytes_spent: None,
+        bytes_left: None,
+        bytes_received: None,
+        empty_in: None,
     }
 }
 
@@ -404,6 +442,7 @@ fn generate_fixtures() {
                 since: SystemTime::UNIX_EPOCH,
                 tunnel_ping_rtt: Some(Duration::from_millis(12)),
                 stall: None,
+                pix: Some(funded_pix()),
             })
         },
     );
@@ -414,6 +453,7 @@ fn generate_fixtures() {
             destination: "test-exit".into(),
             since: SystemTime::UNIX_EPOCH,
             phase: ipc::ConnectPhase::RegisterWg,
+            pix: None,
         }),
     );
     write(
@@ -451,6 +491,7 @@ fn generate_fixtures() {
                 failed_pings: 2,
                 reconnect_at: 3,
             }),
+            pix: Some(free_pix()),
         }),
     );
 
