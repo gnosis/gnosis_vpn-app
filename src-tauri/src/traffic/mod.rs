@@ -59,6 +59,8 @@ pub async fn traffic_start(
     let request = protocol::StartRequest {
         interface_id: interface_id.clone(),
     };
+    // Held across the daemon call: a stop arriving mid-start must wait to see the new session.
+    let mut inner = state.inner.lock().await;
     let result = call(Request::TrafficStart(request)).await;
 
     // Another protocol version answers in shapes this app cannot read; refuse instead of an empty globe.
@@ -71,14 +73,11 @@ pub async fn traffic_start(
             if let Err(e) = call(Request::TrafficStop(stop)).await {
                 tracing::warn!(target: "traffic", error = %e, "cannot stop an incompatible traffic session");
             }
-            let mut inner = state.inner.lock().await;
             inner.session_id = None;
             inner.capture = failed(&reason);
             return Err(reason);
         }
     }
-
-    let mut inner = state.inner.lock().await;
 
     match result {
         Ok(Response::TrafficStart(protocol::StartReply::Started(started))) => {

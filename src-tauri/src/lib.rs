@@ -194,6 +194,24 @@ fn hide_to_tray(app: &tauri::AppHandle, window: &tauri::WebviewWindow) {
     let _ = app;
 }
 
+/// Window close and the tray toggle both end here, so neither leaves the traffic pane capturing unseen.
+pub(crate) fn hide_main_window(app: &tauri::AppHandle, window: &tauri::WebviewWindow) {
+    // Reopening shows the plain main screen; the capture ends with the pane.
+    if !traffic::pane::collapse_now(app) {
+        hide_to_tray(app, window);
+        return;
+    }
+    let window = window.clone();
+    let handle = app.clone();
+    tauri::async_runtime::spawn(async move {
+        // A shrink applied after hiding skips the window manager's gravity.
+        tokio::time::sleep(traffic::pane::COLLAPSE_SETTLE).await;
+        hide_to_tray(&handle, &window);
+        let _ = window.emit_to("main", "traffic:closed", ());
+        traffic::stop(&handle).await;
+    });
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let cli = Cli::from_env();
@@ -434,20 +452,7 @@ pub fn run() {
                     if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                         tracing::info!(target: "window", "main window close requested, hiding to tray");
                         api.prevent_close();
-                        // Reopening shows the plain main screen; the capture ends with the pane.
-                        if traffic::pane::collapse_now(&app_handle) {
-                            let window = window_clone.clone();
-                            let handle = app_handle.clone();
-                            tauri::async_runtime::spawn(async move {
-                                // A shrink applied after hiding skips the window manager's gravity.
-                                tokio::time::sleep(traffic::pane::COLLAPSE_SETTLE).await;
-                                hide_to_tray(&handle, &window);
-                                let _ = window.emit_to("main", "traffic:closed", ());
-                                traffic::stop(&handle).await;
-                            });
-                        } else {
-                            hide_to_tray(&app_handle, &window_clone);
-                        }
+                        hide_main_window(&app_handle, &window_clone);
                     }
                 });
             }

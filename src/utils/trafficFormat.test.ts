@@ -26,6 +26,11 @@ describe("rate readout", () => {
     expect(show(1_500_000_000, "bytes")).toBe("1,50 GB/s");
   });
 
+  it("drops to one decimal when the figure rounds up to a hundred", () => {
+    expect(show(99_999_000, "bytes")).toBe("100,0 MB/s");
+    expect(show(99_994_000, "bytes")).toBe("99,99 MB/s");
+  });
+
   it("never needs more than five characters for the figure", () => {
     for (let rate = 1; rate < 1e11; rate *= 1.37) {
       for (const family of ["bits", "bytes"] as const) {

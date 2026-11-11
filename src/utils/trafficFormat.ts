@@ -32,6 +32,8 @@ export function rateScale(
 /** At most five characters with a decimal comma, as the live traffic readout shows them ("3,8"). */
 export function formatRate(bytesPerSecond: number, scale: RateScale): string {
   const value = usable(bytesPerSecond) / scale.bytesPerUnit;
-  const digits = scale.unit === "Mbit/s" || value >= 100 ? 1 : 2;
+  // Rounding decides: 99.999 would print as "100,00", a digit too wide.
+  const roundsToHundred = Number(value.toFixed(2)) >= 100;
+  const digits = scale.unit === "Mbit/s" || roundsToHundred ? 1 : 2;
   return value.toFixed(digits).replace(".", ",");
 }
