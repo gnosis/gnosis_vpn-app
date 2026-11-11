@@ -51,6 +51,7 @@ function statusFor(
     connecting: null,
     reconnecting: null,
     probe: null,
+    recent: [],
   };
 }
 

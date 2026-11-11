@@ -80,7 +80,14 @@
         "connecting": null,
         "reconnecting": null,
         "disconnecting": [],
+<<<<<<< HEAD
         "probe": null
+=======
+        "probe": null,
+        "pix_chunk_bytes": 951644160,
+        "probing": null,
+        "recent": ["dest-zurich"]
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
       }
     },
     "balance": {

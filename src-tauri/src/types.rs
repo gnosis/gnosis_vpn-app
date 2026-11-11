@@ -394,6 +394,12 @@ mod tests {
             reconnecting: None,
             disconnecting: vec![],
             probe: None,
+<<<<<<< HEAD
+=======
+            pix_chunk_bytes: None,
+            probing: None,
+            recent: vec![],
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
         }
     }
 

@@ -27,5 +27,12 @@
     "checked_at": null,
     "consecutive_failures": 2,
     "last_error": "timeout"
+<<<<<<< HEAD
   }
+=======
+  },
+  "pix_chunk_bytes": null,
+  "probing": null,
+  "recent": []
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
 }

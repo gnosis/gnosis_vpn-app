@@ -76,9 +76,14 @@ export interface DestinationMode {
   dragging: boolean;
   // From DestinationModeSettings, fixed at creation, then consumed during status updates
   preferredLocation: string | null;
+<<<<<<< HEAD
   lastConnectedDestination: string | null;
   // a connect is coming as soon as anything is ready, so auto must stay out of its way
   connectOnStartup: boolean;
+=======
+  // The first cold start of a launch resumes the service's most recent exit.
+  resumeLastSession: boolean;
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
 }
 
 /** The slice of AppState a status update carries. */
@@ -89,12 +94,17 @@ export interface ModeAppState {
   connecting: ConnectingInfo | null;
   reconnecting: ReconnectingInfo | null;
   probe: ProbeView | null;
+  // The service's recently connected exits, newest first.
+  recent: string[];
 }
 
 export interface DestinationModeSettings {
   preferredLocation: string | null;
+<<<<<<< HEAD
   lastConnectedDestination: string | null;
   connectOnStartup: boolean;
+=======
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
 }
 
 export type UserInputEvent =
@@ -125,8 +135,12 @@ function initialModel(settings: DestinationModeSettings): DestinationMode {
     listOpen: false,
     dragging: false,
     preferredLocation: settings.preferredLocation,
+<<<<<<< HEAD
     lastConnectedDestination: settings.lastConnectedDestination,
     connectOnStartup: settings.connectOnStartup,
+=======
+    resumeLastSession: true,
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
   };
 }
 
@@ -297,9 +311,9 @@ export function createDestinationMode(
     status: ModeAppState,
     candidate: string | null,
   ): void {
-    const last = draft.lastConnectedDestination;
+    const last = draft.resumeLastSession ? (status.recent[0] ?? null) : null;
     // consulted once per app launch, whether or not it can be used
-    draft.lastConnectedDestination = null;
+    draft.resumeLastSession = false;
     const offered = last !== null &&
       status.availableDestinations.some((d) => d.id === last);
     const promoted = offered ? last : candidate;

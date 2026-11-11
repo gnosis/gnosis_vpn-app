@@ -57,6 +57,7 @@ function makeUnavailable(id: string): DestinationState {
 
 function statusFor(
   destinations: Record<string, DestinationState>,
+  recent: string[] = [],
 ): ModeAppState {
   return {
     availableDestinations: Object.values(destinations).map((d) =>
@@ -67,6 +68,7 @@ function statusFor(
     connecting: null,
     reconnecting: null,
     probe: null,
+    recent,
   };
 }
 
@@ -93,8 +95,11 @@ function connectingTo(
 function setup(settings: Partial<DestinationModeSettings> = {}) {
   return createDestinationMode({
     preferredLocation: null,
+<<<<<<< HEAD
     lastConnectedDestination: null,
     connectOnStartup: false,
+=======
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
     ...settings,
   });
 }
@@ -874,19 +879,20 @@ describe("auto — disarming and the sweep", () => {
 });
 
 describe("cold start", () => {
-  it("starts on lastConnected regardless of readiness, then drops the field", () => {
-    const handle = setup({ lastConnectedDestination: "uk" });
+  it("starts on the most recent exit regardless of readiness, then stops resuming", () => {
+    const handle = setup();
 
     step(
       handle,
       statusFor({
         uk: makeUnavailable("uk"),
         usa: makeEligible("usa", 90),
-      }),
+      }, ["uk", "usa"]),
     );
 
     expect(handle.model.active).toBe("uk");
     // where the last session left off is the user's choice, not auto's proposal
+<<<<<<< HEAD
     expect(handle.model.mode).toEqual({
       mode: "selected",
       autoRevertAt: Date.now() + SELECTED_AUTO_REVERT_MS,
@@ -900,6 +906,18 @@ describe("cold start", () => {
 
     vi.advanceTimersByTime(SELECTED_AUTO_REVERT_MS);
     expectInvariants(handle.model);
+=======
+    expect(handle.model.mode).toEqual({ mode: "selected" });
+    expect(handle.model.resumeLastSession).toBe(false);
+  });
+
+  it("holds the most recent exit like any selection, past any number of polls", async () => {
+    const handle = setup();
+    step(handle, statusFor(UK_USA, ["uk"]));
+
+    await vi.advanceTimersByTimeAsync(60_000);
+    step(handle, statusFor(UK_USA, ["uk"]));
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
 
     expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
   });
@@ -961,17 +979,14 @@ describe("cold start", () => {
   });
 
   it("outranks a ready preferred location", () => {
-    const handle = setup({
-      lastConnectedDestination: "uk",
-      preferredLocation: "fr",
-    });
+    const handle = setup({ preferredLocation: "fr" });
 
     step(
       handle,
       statusFor({
         uk: makeEligible("uk", 50),
         fr: makeEligible("fr", 70),
-      }),
+      }, ["uk"]),
     );
 
     expect(handle.model.active).toBe("uk");
@@ -982,16 +997,17 @@ describe("cold start", () => {
       .toBe("fr");
   });
 
-  it("falls through to the best candidate when lastConnected is not offered", () => {
-    const handle = setup({ lastConnectedDestination: "gone" });
+  it("falls through to the best candidate when the most recent exit is not offered", () => {
+    const handle = setup();
 
-    step(handle, statusFor({ usa: makeEligible("usa", 90) }));
+    step(handle, statusFor({ usa: makeEligible("usa", 90) }, ["gone"]));
 
     expect(handle.model.active).toBe("usa");
-    expect(handle.model.lastConnectedDestination).toBeNull();
+    expect(handle.model.resumeLastSession).toBe(false);
   });
 
   it("is consulted once per launch, not again mid-session", () => {
+<<<<<<< HEAD
     const handle = setup({ lastConnectedDestination: "uk" });
     step(
       handle,
@@ -1000,10 +1016,14 @@ describe("cold start", () => {
         usa: makeEligible("usa", 90),
       }),
     );
+=======
+    const handle = setup();
+    step(handle, statusFor(UK_USA, ["uk"]));
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
     expect(handle.model.active).toBe("uk");
 
     // uk vanishes, forcing a mid-session cold start
-    step(handle, statusFor({ usa: makeEligible("usa", 90) }));
+    step(handle, statusFor({ usa: makeEligible("usa", 90) }, ["uk"]));
     expect(handle.model.active).toBe("usa");
 
     // and coming back does not reinstate it
@@ -1012,7 +1032,7 @@ describe("cold start", () => {
       statusFor({
         uk: makeEligible("uk", 95),
         usa: makeEligible("usa", 90),
-      }),
+      }, ["uk"]),
     );
     expect(handle.model.active).toBe("usa");
   });
@@ -1647,11 +1667,11 @@ describe("connectIssued", () => {
   });
 
   it("replaces the promotion when the startup connect disagrees with it", () => {
-    // cold start takes lastConnected regardless of readiness; pickStartupTarget needs ready
-    const handle = setup({ lastConnectedDestination: "uk" });
+    // cold start takes the most recent exit regardless of readiness; pickStartupTarget needs ready
+    const handle = setup();
     step(
       handle,
-      statusFor({ uk: makeWeak("uk"), usa: makeEligible("usa", 90) }),
+      statusFor({ uk: makeWeak("uk"), usa: makeEligible("usa", 90) }, ["uk"]),
     );
     expect(handle.model.sequence).toEqual(["uk"]);
 
@@ -1761,11 +1781,15 @@ describe("reset", () => {
       true,
     );
 
+<<<<<<< HEAD
     handle.reset({
       preferredLocation: null,
       lastConnectedDestination: null,
       connectOnStartup: false,
     });
+=======
+    handle.reset({ preferredLocation: null });
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
 
     expect(handle.model.listOpen).toBe(false);
     expect(handle.model.dragging).toBe(false);

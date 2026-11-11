@@ -3,9 +3,21 @@ use gnosis_vpn_app_lib::toolkit::{CheckOutcome, CheckResult, EndOfLife, Manifest
 use gnosis_vpn_app_lib::traffic::{CaptureStatus, Endpoint, Frame, FrameResponse};
 use gnosis_vpn_app_lib::types;
 use gnosis_vpn_app_lib::update_install::InstallStatus;
+<<<<<<< HEAD
 use gnosis_vpn_lib::balance::{
     Balance, BalanceRecommendation, Balances, Capacity, CapacityAllocations, FundingLevel,
     FundingStatus, WxHOPR, XDai,
+=======
+use gnosis_vpn_ipc as ipc;
+use gnosis_vpn_ipc::{
+    Address, ApiVersion, Balance, BalanceRecommendation, Balances, Capacity, CapacityAllocations,
+    ChannelMaintenance, Connection, Destination, DestinationSource, DestinationStatus,
+    ExitVersions, FundingLevel, FundingStatus, Geo, GeoSource, Health, Hops, LoadAvg, Meta,
+    Overrides, ProbeResponse, ProbeState, ProbeView, ProbingLevel, ProbingReason, ProbingView,
+    QuickProbeCheck, QuickProbeResponse, QuickProbeState, RouteHealthState, RouteHealthView,
+    RouteWalk, RunMode, Slots, Status, UnprobeResponse, UnrecoverableReason, WarmupStage, WxHopr,
+    XDai,
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
 };
 use gnosis_vpn_lib::command::{
     ProbeResponse, ProbeView, QuickProbeResponse, RouteHealthView, UnprobeResponse,
@@ -112,6 +124,57 @@ fn status_base(run_mode: types::RunMode) -> types::StatusResponse {
         reconnecting: None,
         disconnecting: vec![],
         probe: None,
+<<<<<<< HEAD
+=======
+        pix_chunk_bytes: None,
+        probing: None,
+        recent: vec![],
+    }
+}
+
+const PIX_CHUNK_BYTES: u64 = 951_644_160;
+
+fn status_with_connection(connection: Connection) -> Status {
+    Status {
+        target: connection.destination().cloned(),
+        connection,
+        pix_chunk_bytes: Some(PIX_CHUNK_BYTES),
+        ..status_base(running())
+    }
+}
+
+// Two chunks bought, a quarter of them spent.
+fn funded_pix() -> ipc::PixChunkStats {
+    ipc::PixChunkStats {
+        phase: ipc::PixPhase::Funded,
+        chunks_committed: 2,
+        chunks_paid: 2,
+        chunks_failed: 0,
+        chunk_bytes: PIX_CHUNK_BYTES,
+        bytes_bought: 2 * PIX_CHUNK_BYTES,
+        cost: Balance::from_wei(1_903_288_320_000_000),
+        bytes_spent: Some(PIX_CHUNK_BYTES / 2),
+        bytes_left: Some(PIX_CHUNK_BYTES * 3 / 2),
+        bytes_received: Some(PIX_CHUNK_BYTES / 3),
+        empty_in: Some(Duration::from_secs(5400)),
+    }
+}
+
+// What the client reports before the exit asks for the first chunk.
+fn free_pix() -> ipc::PixChunkStats {
+    ipc::PixChunkStats {
+        phase: ipc::PixPhase::Free,
+        chunks_committed: 0,
+        chunks_paid: 0,
+        chunks_failed: 0,
+        chunk_bytes: 0,
+        bytes_bought: 0,
+        cost: Balance::from_wei(0),
+        bytes_spent: None,
+        bytes_left: None,
+        bytes_received: None,
+        empty_in: None,
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
     }
 }
 
@@ -355,6 +418,7 @@ fn generate_fixtures() {
     // App-synthesised: the daemon answers a bare InUseByOtherUser, the app shapes it into a status.
     write(
         &fixtures_dir,
+<<<<<<< HEAD
         "status_in_use_by_other_user.json",
         &types::StatusResponse::in_use_by_other_user(),
     );
@@ -368,6 +432,24 @@ fn generate_fixtures() {
             target_destination: Some("test-exit".to_string()),
             connected: Some(command::ConnectedInfo {
                 destination_id: "test-exit".to_string(),
+=======
+        "status_connected.json",
+        &Status {
+            disconnecting: vec![ipc::Disconnecting {
+                destination: "pinned-exit".into(),
+                since: SystemTime::UNIX_EPOCH,
+                phase: ipc::DisconnectPhase::UnregisterWg,
+            }],
+            probe: Some(ready_probe()),
+            probing: Some(ProbingView {
+                level: ProbingLevel::Medium,
+                reason: ProbingReason::Connected,
+                focus: vec!["test-exit".into()],
+            }),
+            recent: vec!["test-exit".into(), "pinned-exit".into()],
+            ..status_with_connection(Connection::Connected {
+                destination: "test-exit".into(),
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
                 since: SystemTime::UNIX_EPOCH,
                 tunnel_ping_rtt: Some(Duration::from_millis(12)),
                 stall: None,
@@ -936,7 +1018,10 @@ fn full_settings() -> Settings {
 
     Settings {
         preferred_location: Some("exit-1".to_string()),
+<<<<<<< HEAD
         last_connected_destination: Some("exit-1".to_string()),
+=======
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
         connect_on_startup: true,
         start_minimized: true,
         update_check: true,

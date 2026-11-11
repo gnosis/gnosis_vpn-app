@@ -48,8 +48,12 @@ interface DestinationMode {
   listOpen: boolean;
   dragging: boolean;
   preferredLocation: string | null; // one shot, spent when it becomes active
+<<<<<<< HEAD
   lastConnectedDestination: string | null; // dropped at the first cold start
   connectOnStartup: boolean; // a connect is coming as soon as anything is ready
+=======
+  resumeLastSession: boolean; // the first cold start resumes status.recent[0]
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
 }
 ```
 
@@ -401,19 +405,20 @@ Any armed pending is discarded first — a countdown is a switch away from
 something, and there is nothing to switch away from. Then direct promotion, no
 countdown, entry minted with `wasActive: true`:
 
-1. `lastConnectedDestination` if it matches an offered destination — no
+1. `status.recent[0]`, the service's most recent exit, if it is offered — no
    readiness or capacity check, it is simply where the last session left off.
-   Then drop the field unconditionally; it is consulted once per app launch and
-   never again.
+   Then clear `resumeLastSession` unconditionally; it is consulted once per app
+   launch and never again.
 2. otherwise `effectiveCandidate`, so an unspent ready preferred location lands
    immediately with no startup animation, and a plain start lands on the best
    destination.
 
-Precedence: `lastConnected > preferred > sortHead`. Promotion is unconditional:
-as long as the backend offers anything at all, a status update leaves `active`
-set. `active` is null only when there are no destinations, and then there is no
+Precedence: `mostRecent > preferred > sortHead`. Promotion is unconditional: as
+long as the backend offers anything at all, a status update leaves `active` set.
+`active` is null only when there are no destinations, and then there is no
 candidate to arm either.
 
+<<<<<<< HEAD
 **The promotion is a selection when the user made it.** `selected` with a fresh
 `SELECTED_AUTO_REVERT_MS` if the promoted id is `lastConnectedDestination`, or
 if `connectOnStartup` is armed; otherwise `auto`, as before. Where the last
@@ -423,6 +428,12 @@ slide you off it seconds after launch — the same reason
 keeps auto from arming toward the first destination to become ready in the very
 poll that the connect targets it, which would mint a card the connect then has
 to leave behind.
+=======
+**The promotion is a selection when the user made it.** `selected` if the
+promoted id is `status.recent[0]`, otherwise `auto`. Where the last session left
+off is the user's choice, not auto's proposal, so it holds like any selection
+until the user picks again or chooses Auto.
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
 
 A promotion onto `preferred` or the sort head stays in `auto`: the preferred
 location is an [input to the candidate](#the-preferred-location), never a

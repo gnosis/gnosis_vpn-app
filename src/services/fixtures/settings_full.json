@@ -1,6 +1,9 @@
 {
   "preferredLocation": "exit-1",
+<<<<<<< HEAD
   "lastConnectedDestination": "exit-1",
+=======
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
   "connectOnStartup": true,
   "startMinimized": true,
   "updateCheck": true,

@@ -13,7 +13,10 @@ use std::sync::{Mutex, MutexGuard};
 #[serde(rename_all = "camelCase", default)]
 pub struct Settings {
     pub preferred_location: Option<String>,
+<<<<<<< HEAD
     pub last_connected_destination: Option<String>,
+=======
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
     pub connect_on_startup: bool,
     pub start_minimized: bool,
     pub update_check: bool,
@@ -33,7 +36,10 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             preferred_location: None,
+<<<<<<< HEAD
             last_connected_destination: None,
+=======
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
             connect_on_startup: false,
             start_minimized: false,
             update_check: true,
@@ -92,8 +98,11 @@ impl UpdateChannel {
 pub struct SettingsPatch {
     #[serde(default, deserialize_with = "double_option")]
     pub preferred_location: Option<Option<String>>,
+<<<<<<< HEAD
     #[serde(default, deserialize_with = "double_option")]
     pub last_connected_destination: Option<Option<String>>,
+=======
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
     #[serde(default)]
     pub connect_on_startup: Option<bool>,
     #[serde(default)]
@@ -127,9 +136,12 @@ impl SettingsPatch {
         if self.preferred_location.is_some() {
             keys.push("preferred_location");
         }
+<<<<<<< HEAD
         if self.last_connected_destination.is_some() {
             keys.push("last_connected_destination");
         }
+=======
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
         if self.connect_on_startup.is_some() {
             keys.push("connect_on_startup");
         }
@@ -183,9 +195,12 @@ impl Settings {
         if let Some(v) = patch.preferred_location {
             self.preferred_location = v;
         }
+<<<<<<< HEAD
         if let Some(v) = patch.last_connected_destination {
             self.last_connected_destination = v;
         }
+=======
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
         if let Some(v) = patch.connect_on_startup {
             self.connect_on_startup = v;
         }
@@ -455,6 +470,7 @@ mod tests {
     }
 
     #[test]
+<<<<<<< HEAD
     fn last_connected_destination_persists_and_reloads() {
         let path = temp_settings_path();
         let store = SettingsStore::load(path.clone());
@@ -473,6 +489,45 @@ mod tests {
             .update(patch(json!({ "lastConnectedDestination": null })))
             .expect("update should succeed");
         assert_eq!(store.current().last_connected_destination, None);
+=======
+    fn recent_sort_persists_and_reloads() {
+        let path = temp_settings_path();
+        let store = SettingsStore::load(path.clone());
+        store
+            .update(patch(json!({
+                "exitNodeSortOrder": "recent",
+            })))
+            .expect("update should succeed");
+
+        let reloaded = SettingsStore::load(path).current();
+        assert_eq!(reloaded.exit_node_sort_order, SortOrder::Recent);
+    }
+
+    #[test]
+    fn show_exit_cost_defaults_on_and_persists_off() {
+        let path = temp_settings_path();
+        let store = SettingsStore::load(path.clone());
+        assert!(store.current().show_exit_cost);
+
+        store
+            .update(patch(json!({ "showExitCost": false })))
+            .expect("update should succeed");
+
+        assert!(!SettingsStore::load(path).current().show_exit_cost);
+    }
+
+    #[test]
+    fn advanced_view_defaults_off_and_persists_on() {
+        let path = temp_settings_path();
+        let store = SettingsStore::load(path.clone());
+        assert!(!store.current().advanced_view);
+
+        store
+            .update(patch(json!({ "advancedView": true })))
+            .expect("update should succeed");
+
+        assert!(SettingsStore::load(path).current().advanced_view);
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
     }
 
     #[test]

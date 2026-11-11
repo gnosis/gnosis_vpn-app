@@ -189,6 +189,46 @@ fn install_macos_about_panel_override(
     });
 }
 
+<<<<<<< HEAD
+=======
+fn hide_to_tray(app: &tauri::AppHandle, window: &tauri::WebviewWindow) {
+    let _ = window.hide();
+    #[cfg(target_os = "macos")]
+    {
+        let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+    }
+    #[cfg(not(target_os = "macos"))]
+    let _ = app;
+}
+
+/// Window close and the tray toggle both end here, so neither leaves the traffic pane capturing unseen.
+pub(crate) fn hide_main_window(app: &tauri::AppHandle, window: &tauri::WebviewWindow) {
+    // Reopening shows the plain main screen; the capture ends with the pane.
+    if !traffic::pane::collapse_now(app) {
+        hide_to_tray(app, window);
+        return;
+    }
+    let window = window.clone();
+    let handle = app.clone();
+    tauri::async_runtime::spawn(async move {
+        // A shrink applied after hiding skips the window manager's gravity.
+        tokio::time::sleep(traffic::pane::COLLAPSE_SETTLE).await;
+        hide_to_tray(&handle, &window);
+        let _ = window.emit_to("main", "traffic:closed", ());
+        traffic::stop(&handle).await;
+    });
+}
+
+/// Fire and forget: the service steps probing back down once routes are ready.
+fn send_probing_boost() {
+    tauri::async_runtime::spawn(async {
+        if let Err(e) = commands::on_socket(ipc::probing_boost).await {
+            tracing::debug!(target: "window", error = %e, "probing boost call failed");
+        }
+    });
+}
+
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let cli = Cli::from_env();
@@ -440,8 +480,8 @@ pub fn run() {
                 #[cfg(target_os = "macos")]
                 let app_handle = app.handle().clone();
                 let window_clone = window.clone();
-                window.on_window_event(move |event| {
-                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                window.on_window_event(move |event| match event {
+                    tauri::WindowEvent::CloseRequested { api, .. } => {
                         tracing::info!(target: "window", "main window close requested, hiding to tray");
                         api.prevent_close();
                         let _ = window_clone.hide();
@@ -468,6 +508,8 @@ pub fn run() {
                             traffic::stop(&handle).await;
                         });
                     }
+                    tauri::WindowEvent::Focused(true) => send_probing_boost(),
+                    _ => {}
                 });
             }
 

@@ -80,7 +80,6 @@ describe("settingsStore", () => {
     await actions.load();
 
     expect(state.preferredLocation).toBe("exit-1");
-    expect(state.lastConnectedDestination).toBe("exit-1");
     expect(state.exitNodeSortOrder).toBe("alpha");
     expect(state.channel).toBe("snapshot");
     expect(state.lastCheckOutcome?.kind).toBe("Available");
@@ -151,6 +150,7 @@ describe("settingsStore", () => {
     expect(state.connectOnStartup).toBe(true);
   });
 
+<<<<<<< HEAD
   it("setLastConnectedDestination sends a patch and never touches state directly", async () => {
     mockBackend(settingsDefault);
     const [state, actions] = await freshStore();
@@ -166,6 +166,8 @@ describe("settingsStore", () => {
     expect(state.lastConnectedDestination).toBe("exit-2");
   });
 
+=======
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
   it("swallows update_settings failures without touching state", async () => {
     mockBackend(settingsDefault);
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});

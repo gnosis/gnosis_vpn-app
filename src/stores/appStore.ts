@@ -111,6 +111,13 @@ export interface AppState {
   // Set only while the stored verdict covers the installed package.
   endOfLife: EndOfLife | null;
   targetDestination: string | null;
+<<<<<<< HEAD
+=======
+  // Data an exit sets aside per connection; null until the node runs.
+  pixChunkBytes: number | null;
+  // The service's recently connected exits, newest first.
+  recent: string[];
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
   balance: BalanceResponse | null;
   // The installed package version everything update-facing keys off: the toolkit's
   // read of the version file, falling back to the daemon's for older installs.
@@ -169,6 +176,11 @@ function initialState(): AppState {
     availableVersion: null,
     endOfLife: null,
     targetDestination: null,
+<<<<<<< HEAD
+=======
+    pixChunkBytes: null,
+    recent: [],
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
     balance: null,
     packageVersion: null,
     toolkit: { status: "unknown", version: null, packageVersion: null },
@@ -181,8 +193,12 @@ function initialState(): AppState {
       listOpen: false,
       dragging: false,
       preferredLocation: null,
+<<<<<<< HEAD
       lastConnectedDestination: null,
       connectOnStartup: false,
+=======
+      resumeLastSession: true,
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
     },
   };
 }
@@ -335,8 +351,11 @@ export function createAppStore(): AppStoreTuple {
       if (!settingsActions.hydrated()) return;
       destinationMode = createDestinationMode({
         preferredLocation: settings.preferredLocation,
+<<<<<<< HEAD
         lastConnectedDestination: settings.lastConnectedDestination,
         connectOnStartup: settings.connectOnStartup,
+=======
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
       });
       if (pendingModeAppState) {
         destinationMode.applyStatusUpdate(pendingModeAppState);
@@ -368,8 +387,11 @@ export function createAppStore(): AppStoreTuple {
     setState("error", message);
     destinationMode?.reset({
       preferredLocation: settings.preferredLocation,
+<<<<<<< HEAD
       lastConnectedDestination: settings.lastConnectedDestination,
       connectOnStartup: settings.connectOnStartup,
+=======
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
     });
   };
 
@@ -429,10 +451,17 @@ export function createAppStore(): AppStoreTuple {
       "weakRoutes",
       reconcile(trackWeakRoutes(state.weakRoutes, destinations, Date.now())),
     );
+<<<<<<< HEAD
     setState("targetDestination", response.target_destination);
     setState("connected", response.connected);
     setState("connecting", reconcile(response.connecting));
     setState("reconnecting", reconcile(response.reconnecting));
+=======
+    setState("targetDestination", response.target);
+    setState("pixChunkBytes", response.pix_chunk_bytes);
+    setState("recent", reconcile(response.recent));
+    setState("connection", reconcile(response.connection));
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
     setState("disconnecting", reconcile(response.disconnecting));
     setState("probe", reconcile(response.probe));
     setState("vpnStatus", deriveVPNStatus(response));
@@ -445,6 +474,7 @@ export function createAppStore(): AppStoreTuple {
       connecting: response.connecting,
       reconnecting: response.reconnecting,
       probe: response.probe,
+      recent: response.recent,
     };
     destinationMode?.applyStatusUpdate(pendingModeAppState);
     maybeConnectOnStartup(pendingModeAppState);
@@ -527,7 +557,7 @@ export function createAppStore(): AppStoreTuple {
     const target = pickStartupTarget(
       status.destinations,
       settings.preferredLocation,
-      settings.lastConnectedDestination,
+      status.recent[0] ?? null,
       rankContext(status),
     );
     if (target === null) return;
@@ -808,6 +838,7 @@ export function createAppStore(): AppStoreTuple {
         return;
       }
       setState("isLoading", false);
+<<<<<<< HEAD
 
       // best-effort — losing this only affects which destination auto-reconnect tries next
       try {
@@ -816,6 +847,8 @@ export function createAppStore(): AppStoreTuple {
         const message = error instanceof Error ? error.message : String(error);
         logWarn(`Failed to persist last connected destination: ${message}`);
       }
+=======
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
     },
 
     disconnect: async () => {

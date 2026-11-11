@@ -136,7 +136,62 @@ describe("StatusResponseSchema", () => {
     expect(parsed.data?.probe?.load?.slots.available).toBe(10);
   });
 
+<<<<<<< HEAD
   it("parses a stalled tunnel and tolerates daemons without the field", () => {
+=======
+  it("parses the service's probing view and recent exits", () => {
+    const parsed = StatusResponseSchema.parse(statusConnected);
+    expect(parsed.probing?.level.type).toBe("medium");
+    expect(parsed.probing?.reason.type).toBe("connected");
+    expect(parsed.recent).toEqual(["test-exit", "pinned-exit"]);
+  });
+
+  it("parses the live session's PIX chunks and the chunk size", () => {
+    const parsed = StatusResponseSchema.parse(statusConnected);
+    expect(parsed.pix_chunk_bytes).toBe(951_644_160);
+    const pix = connectionPix(parsed.connection);
+    expect(pix?.phase).toBe("funded");
+    expect(pix?.bytes_left).toBe(1_427_466_240);
+    expect(pix?.cost).toBe(1_903_288_320_000_000n);
+    expect(pix?.empty_in).toBe(5_400_000);
+  });
+
+  it("parses a session still on its free allowance", () => {
+    const parsed = StatusResponseSchema.parse(statusConnectedStalled);
+    const pix = connectionPix(parsed.connection);
+    expect(pix?.phase).toBe("free");
+    expect(pix?.bytes_left).toBeNull();
+  });
+
+  it("parses a connecting session before PIX reports anything", () => {
+    const parsed = StatusResponseSchema.parse(statusConnecting);
+    expect(connectionPix(parsed.connection)).toBeNull();
+  });
+
+  it("parses connecting and reconnecting with their phase", () => {
+    const connecting = StatusResponseSchema.safeParse(statusConnecting);
+    expect(connecting.success).toBe(true);
+    expect(connecting.data?.connection).toMatchObject({
+      type: "connecting",
+      phase: "register_wg",
+    });
+    const reconnecting = StatusResponseSchema.safeParse(statusReconnecting);
+    expect(reconnecting.success).toBe(true);
+    expect(reconnecting.data?.connection).toMatchObject({
+      type: "reconnecting",
+      phase: "init",
+    });
+  });
+
+  it("parses a teardown with nothing connected", () => {
+    const parsed = StatusResponseSchema.safeParse(statusDisconnecting);
+    expect(parsed.success).toBe(true);
+    expect(parsed.data?.connection.type).toBe("disconnected");
+    expect(parsed.data?.disconnecting[0]?.destination).toBe("test-exit");
+  });
+
+  it("parses a stalled tunnel", () => {
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
     const parsed = StatusResponseSchema.safeParse(statusConnectedStalled);
     expect(parsed.success).toBe(true);
     expect(parsed.data?.connected?.stall?.failed_pings).toBe(2);

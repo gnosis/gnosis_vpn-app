@@ -33,6 +33,12 @@ const BASE: StatusResponse = {
   reconnecting: null,
   disconnecting: [],
   probe: null,
+<<<<<<< HEAD
+=======
+  pix_chunk_bytes: null,
+  probing: null,
+  recent: [],
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
 };
 
 const CONNECTING_INFO = {
@@ -90,6 +96,11 @@ const BASE_APP_STATE: AppState = {
   availableVersion: null,
   endOfLife: null,
   targetDestination: null,
+<<<<<<< HEAD
+=======
+  pixChunkBytes: null,
+  recent: [],
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
   balance: null,
   packageVersion: null,
   toolkit: { status: "unknown", version: null, packageVersion: null },
@@ -102,8 +113,12 @@ const BASE_APP_STATE: AppState = {
     dragging: false,
     nextKey: 0,
     preferredLocation: null,
+<<<<<<< HEAD
     lastConnectedDestination: null,
     connectOnStartup: false,
+=======
+    resumeLastSession: true,
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
   },
 };
 

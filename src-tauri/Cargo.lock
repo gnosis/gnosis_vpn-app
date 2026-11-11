@@ -3535,8 +3535,13 @@ dependencies = [
 
 [[package]]
 name = "edgli"
+<<<<<<< HEAD
 version = "4.1.1"
 source = "git+https://github.com/hoprnet/edge-client.git?branch=release%2F4.1#d87e343cbebe5a58805b2e1e0ca72e412c332a30"
+=======
+version = "5.3.0"
+source = "git+https://github.com/hoprnet/edge-client.git?branch=main#b41f6c9113df7f88529046d2922faac4dae5965e"
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
 dependencies = [
  "anyhow",
  "async-signal",
@@ -3548,7 +3553,7 @@ dependencies = [
  "hopr-chain-connector",
  "hopr-ct-full-network",
  "hopr-lib",
- "hopr-network-graph",
+ "hopr-network-graph 0.11.0",
  "hopr-strategy",
  "hopr-ticket-manager",
  "hopr-transport-p2p",
@@ -4534,9 +4539,29 @@ dependencies = [
 ]
 
 [[package]]
+<<<<<<< HEAD
 name = "gnosis_vpn-lib"
 version = "0.97.1"
 source = "git+https://github.com/gnosis/gnosis_vpn-client.git?branch=tb%2F202610-traffic-hopr-peers#5de891ecd8b4b9b0572412134916401c42faa549"
+=======
+name = "gnosis_vpn-ipc"
+version = "0.101.1"
+source = "git+https://github.com/gnosis/gnosis_vpn-client.git?branch=main#2a018bfa0a554b837e886cf1fa2d00d579d9d891"
+dependencies = [
+ "base64 0.23.1",
+ "humantime",
+ "semver 1.0.28",
+ "serde",
+ "serde_json",
+ "sha3 0.12.0",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "gnosis_vpn-lib"
+version = "0.101.1"
+source = "git+https://github.com/gnosis/gnosis_vpn-client.git?branch=main#2a018bfa0a554b837e886cf1fa2d00d579d9d891"
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
 dependencies = [
  "async-trait",
  "backon",
@@ -5049,8 +5074,13 @@ dependencies = [
 
 [[package]]
 name = "hopr-crypto-packet"
+<<<<<<< HEAD
 version = "1.4.0"
 source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#b3637134defd618a6fe755b47234a358497ec9d5"
+=======
+version = "2.2.0"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#0c356bfd80746d5adce1cb4678c02c24f13d9336"
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
 dependencies = [
  "bimap",
  "const-hex",
@@ -5067,26 +5097,38 @@ dependencies = [
 
 [[package]]
 name = "hopr-ct-full-network"
+<<<<<<< HEAD
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d7985d0e77c83e9ae107dcc53012eeb736b83edeb83cf3522a3d1b7ab1e66fa9"
+=======
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "344e82a1e789dfe44edfaa1ad483effdfdda1b67133db0af008b8273bff6a75c"
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
 dependencies = [
  "anyhow",
  "cfg-if",
  "futures",
  "futures-time",
  "hopr-api",
- "hopr-network-graph",
+ "hopr-network-graph 0.11.0",
  "hopr-utilities",
  "smart-default",
+ "tokio",
  "tracing",
  "validator",
 ]
 
 [[package]]
 name = "hopr-lib"
+<<<<<<< HEAD
 version = "4.0.5"
 source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#b3637134defd618a6fe755b47234a358497ec9d5"
+=======
+version = "5.0.0-rc.6"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#0c356bfd80746d5adce1cb4678c02c24f13d9336"
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
 dependencies = [
  "anyhow",
  "async-broadcast",
@@ -5098,7 +5140,7 @@ dependencies = [
  "futures-concurrency",
  "futures-time",
  "hopr-api",
- "hopr-network-graph",
+ "hopr-network-graph 0.10.3",
  "hopr-transport",
  "hopr-utilities",
  "humantime-serde",
@@ -5125,6 +5167,24 @@ dependencies = [
  "futures",
  "hopr-api",
  "hopr-utilities",
+ "lazy_static",
+ "parking_lot 0.12.5",
+ "smallvec",
+ "thiserror 2.0.21",
+ "tracing",
+]
+
+[[package]]
+name = "hopr-network-graph"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "053f0d252ace2004a36423758640118c9103fba9d55c1729b980370cf6f11087"
+dependencies = [
+ "anyhow",
+ "bimap",
+ "futures",
+ "hopr-api",
+ "hopr-utilities",
  "indexmap 2.14.2",
  "lazy_static",
  "parking_lot",
@@ -5137,8 +5197,13 @@ dependencies = [
 
 [[package]]
 name = "hopr-protocol-app"
+<<<<<<< HEAD
 version = "1.1.0"
 source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#b3637134defd618a6fe755b47234a358497ec9d5"
+=======
+version = "1.2.0"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#0c356bfd80746d5adce1cb4678c02c24f13d9336"
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
 dependencies = [
  "hopr-crypto-packet",
  "hopr-types",
@@ -5150,8 +5215,13 @@ dependencies = [
 
 [[package]]
 name = "hopr-protocol-hopr"
+<<<<<<< HEAD
 version = "6.2.0"
 source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#b3637134defd618a6fe755b47234a358497ec9d5"
+=======
+version = "6.5.0"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#0c356bfd80746d5adce1cb4678c02c24f13d9336"
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5178,9 +5248,38 @@ dependencies = [
 ]
 
 [[package]]
+<<<<<<< HEAD
 name = "hopr-protocol-session"
 version = "1.5.0"
 source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#b3637134defd618a6fe755b47234a358497ec9d5"
+=======
+name = "hopr-protocol-pix"
+version = "0.3.1"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#0c356bfd80746d5adce1cb4678c02c24f13d9336"
+dependencies = [
+ "ahash",
+ "auto_impl",
+ "const-hex",
+ "elliptic-curve-tools",
+ "hopr-types",
+ "hopr-utilities",
+ "moka",
+ "parking_lot 0.12.5",
+ "serde",
+ "serde_bytes",
+ "smart-default",
+ "strum",
+ "thiserror 2.0.21",
+ "tracing",
+ "validator",
+ "vsss-rs",
+]
+
+[[package]]
+name = "hopr-protocol-session"
+version = "1.7.0"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#0c356bfd80746d5adce1cb4678c02c24f13d9336"
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
 dependencies = [
  "aquamarine",
  "asynchronous-codec",
@@ -5210,8 +5309,13 @@ dependencies = [
 
 [[package]]
 name = "hopr-protocol-start"
+<<<<<<< HEAD
 version = "1.1.0"
 source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#b3637134defd618a6fe755b47234a358497ec9d5"
+=======
+version = "3.1.0"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#0c356bfd80746d5adce1cb4678c02c24f13d9336"
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
 dependencies = [
  "aquamarine",
  "flagset",
@@ -5280,8 +5384,13 @@ dependencies = [
 
 [[package]]
 name = "hopr-transport"
+<<<<<<< HEAD
 version = "0.48.6"
 source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#b3637134defd618a6fe755b47234a358497ec9d5"
+=======
+version = "0.53.0"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#0c356bfd80746d5adce1cb4678c02c24f13d9336"
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
 dependencies = [
  "ahash",
  "anyhow",
@@ -5324,8 +5433,13 @@ dependencies = [
 
 [[package]]
 name = "hopr-transport-mixer"
+<<<<<<< HEAD
 version = "0.4.1"
 source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#b3637134defd618a6fe755b47234a358497ec9d5"
+=======
+version = "1.0.0"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#0c356bfd80746d5adce1cb4678c02c24f13d9336"
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
 dependencies = [
  "futures",
  "futures-timer",
@@ -5364,8 +5478,13 @@ dependencies = [
 
 [[package]]
 name = "hopr-transport-probe"
+<<<<<<< HEAD
 version = "0.8.0"
 source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#b3637134defd618a6fe755b47234a358497ec9d5"
+=======
+version = "0.9.0"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#0c356bfd80746d5adce1cb4678c02c24f13d9336"
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5390,8 +5509,13 @@ dependencies = [
 
 [[package]]
 name = "hopr-transport-session"
+<<<<<<< HEAD
 version = "0.30.3"
 source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#b3637134defd618a6fe755b47234a358497ec9d5"
+=======
+version = "0.35.0"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#0c356bfd80746d5adce1cb4678c02c24f13d9336"
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5422,8 +5546,13 @@ dependencies = [
 
 [[package]]
 name = "hopr-transport-tag-allocator"
+<<<<<<< HEAD
 version = "0.1.1"
 source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#b3637134defd618a6fe755b47234a358497ec9d5"
+=======
+version = "0.2.0"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#0c356bfd80746d5adce1cb4678c02c24f13d9336"
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
 dependencies = [
  "hopr-protocol-app",
  "serde",
@@ -5498,9 +5627,15 @@ dependencies = [
 
 [[package]]
 name = "hopr-utilities"
+<<<<<<< HEAD
 version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7883d6a0c8865972b9e700972ed5fc6c76f96a02721bf37176890939682d64f1"
+=======
+version = "0.19.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "13b34f66429e82ec56350a3370e153921dcd4e7e1dd48316973d9c1fe741dc29"
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
 dependencies = [
  "arrayvec",
  "auto_impl",
@@ -5533,8 +5668,13 @@ dependencies = [
 
 [[package]]
 name = "hopr-utils-session"
+<<<<<<< HEAD
 version = "1.2.1"
 source = "git+https://github.com/hoprnet/hoprnet?branch=release%2F4.0#b3637134defd618a6fe755b47234a358497ec9d5"
+=======
+version = "1.3.0"
+source = "git+https://github.com/hoprnet/hoprnet?branch=master#0c356bfd80746d5adce1cb4678c02c24f13d9336"
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8278,7 +8418,7 @@ checksum = "1b9b6f1c9925ed567de6b7f09ebd5972a0f56ed1679902ec9abdb84d12545655"
 dependencies = [
  "rand 0.8.8",
  "socket2 0.6.5",
- "thiserror 1.0.69",
+ "thiserror 2.0.21",
  "tokio",
 ]
 

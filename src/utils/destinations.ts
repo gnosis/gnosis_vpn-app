@@ -260,7 +260,14 @@ export type RouteGrade =
   | { kind: "weak" }
   | { kind: "none" };
 
+<<<<<<< HEAD
 /** The grade as shown on a row: readiness from the walk, bars from latency alone; a weak route in its grace grades as ready. Display only. */
+=======
+/** A score at or above a threshold earns that many bars; below the last one it is a single bar. */
+const BAR_THRESHOLDS: [number, 4 | 3 | 2][] = [[0.75, 4], [0.5, 3], [0.25, 2]];
+
+/** The score as shown on a card; a weak route in its grace grades as Good. Display only: it feeds neither the sort nor auto. */
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
 export function routeGrade(
   state: DestinationState | undefined,
   context: RankContext,
@@ -273,7 +280,69 @@ export function routeGrade(
   }
   const exit = getExitData(state, context.probe);
   if (exit === null) return { kind: "unmeasured" };
+<<<<<<< HEAD
   return { kind: "measured", bars: latencyBars(exit.rtt / 2) };
+=======
+  // no path within the band yet, so it gets the lowest grade that still reads as ready
+  if (inGrace) return { kind: "measured", bars: 3 };
+  const value = score(state, exit, context);
+  const reached = BAR_THRESHOLDS.find(([min]) => value >= min);
+  return { kind: "measured", bars: reached ? reached[1] : 1 };
+}
+
+const GRADE_WORDS = { 1: "Poor", 2: "Fair", 3: "Good", 4: "Excellent" };
+
+/** The grade in words, as the exit list shows it beside the bars. */
+export function routeGradeLabel(grade: RouteGrade): string {
+  switch (grade.kind) {
+    case "measured":
+      return GRADE_WORDS[grade.bars];
+    case "weak":
+      return "Weak route";
+    case "unmeasured":
+      return "Not measured yet";
+    case "none":
+      return "";
+  }
+}
+
+/** The exit list's name for an exit: its country, or its title when the client found none. */
+export function exitDisplayName(d: Destination): string {
+  return destinationCountry(d) ?? destinationTitle(d);
+}
+
+/** The last five characters of the exit's address: tells apart exits that share a country. */
+export function exitShortId(address: string): string {
+  return address.slice(-5);
+}
+
+/** The list's rows: usable exits other than `excludeId` that match `query`, the first `limit` unless searching. */
+export function pickerRows(
+  sorted: Destination[],
+  options: {
+    query: string;
+    excludeId: string | null;
+    isUsable: (id: string) => boolean;
+    limit: number | null;
+  },
+): { rows: Destination[]; more: boolean } {
+  const q = options.query.trim().toLowerCase();
+  const usable = sorted.filter((d) =>
+    d.id !== options.excludeId && options.isUsable(d.id)
+  );
+  if (q) {
+    return {
+      rows: usable.filter((d) =>
+        destinationSearchText(d).toLowerCase().includes(q)
+      ),
+      more: false,
+    };
+  }
+  if (options.limit === null || usable.length <= options.limit) {
+    return { rows: usable, more: false };
+  }
+  return { rows: usable.slice(0, options.limit), more: true };
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
 }
 
 /** Measured eligible first (by score), then unmeasured eligible (by resilience), then the rest (by closeness). */
@@ -362,11 +431,11 @@ export function sortForPicker(
 export function pickStartupTarget(
   destinations: Record<string, DestinationState>,
   preferred: string | null,
-  lastConnected: string | null,
+  mostRecent: string | null,
   context: RankContext,
 ): string | null {
-  if (lastConnected !== null && isReady(destinations[lastConnected], context)) {
-    return lastConnected;
+  if (mostRecent !== null && isReady(destinations[mostRecent], context)) {
+    return mostRecent;
   }
   if (preferred !== null && isReady(destinations[preferred], context)) {
     return preferred;

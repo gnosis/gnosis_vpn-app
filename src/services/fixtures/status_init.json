@@ -1,0 +1,16 @@
+{
+  "run_mode": {
+    "type": "init",
+    "last_error": null
+  },
+  "destinations": [],
+  "target": null,
+  "connection": {
+    "type": "disconnected"
+  },
+  "disconnecting": [],
+  "probe": null,
+  "pix_chunk_bytes": null,
+  "probing": null,
+  "recent": []
+}

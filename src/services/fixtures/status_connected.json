@@ -1,0 +1,90 @@
+{
+  "run_mode": {
+    "type": "running",
+    "hopr_status": null,
+    "funding_status": null,
+    "channel_maintenance": {
+      "type": "ok"
+    }
+  },
+  "destinations": [],
+  "target": "test-exit",
+  "connection": {
+    "type": "connected",
+    "destination": "test-exit",
+    "since": 0,
+    "tunnel_ping_rtt": 12,
+    "stall": null,
+    "pix": {
+      "phase": {
+        "type": "funded"
+      },
+      "chunks_committed": 2,
+      "chunks_paid": 2,
+      "chunks_failed": 0,
+      "chunk_bytes": 951644160,
+      "bytes_bought": 1903288320,
+      "cost": "1903288320000000",
+      "bytes_spent": 475822080,
+      "bytes_left": 1427466240,
+      "bytes_received": 317214720,
+      "empty_in": 5400000
+    }
+  },
+  "disconnecting": [
+    {
+      "destination": "pinned-exit",
+      "since": 0,
+      "phase": {
+        "type": "unregister_wg"
+      }
+    }
+  ],
+  "probe": {
+    "destination": "test-exit",
+    "state": {
+      "type": "ready"
+    },
+    "session_since": 0,
+    "versions": {
+      "api": [
+        "v1"
+      ],
+      "server": "0.7.1"
+    },
+    "api_version": "v1",
+    "ping_rtt": 42,
+    "load": {
+      "slots": {
+        "total": 16,
+        "available": 10,
+        "connected": 1
+      },
+      "load_avg": {
+        "one": 0.1,
+        "five": 0.2,
+        "fifteen": 0.3,
+        "nproc": 4
+      }
+    },
+    "checked_at": 0,
+    "consecutive_failures": 0,
+    "last_error": null
+  },
+  "pix_chunk_bytes": 951644160,
+  "probing": {
+    "level": {
+      "type": "medium"
+    },
+    "reason": {
+      "type": "connected"
+    },
+    "focus": [
+      "test-exit"
+    ]
+  },
+  "recent": [
+    "test-exit",
+    "pinned-exit"
+  ]
+}

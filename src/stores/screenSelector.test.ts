@@ -93,6 +93,12 @@ function status(
     connecting: null,
     reconnecting: null,
     disconnecting: [],
+<<<<<<< HEAD
+=======
+    pix_chunk_bytes: null,
+    probing: null,
+    recent: [],
+>>>>>>> cdc5c80 (feat(app): boost network probing on window focus, read recent exits from service (#664))
     probe: null,
   };
 }
