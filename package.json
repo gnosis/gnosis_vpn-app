@@ -10,7 +10,8 @@
     "serve": "vite preview",
     "tauri": "tauri",
     "typecheck": "tsc --noEmit",
-    "test": "tsc --noEmit && vitest run"
+    "test": "tsc --noEmit && vitest run",
+    "mwg:sync": "cp node_modules/modern-web-guidance/skills/modern-web-guidance/SKILL.md .agents/skills/modern-web-guidance/SKILL.md"
   },
   "license": "MIT",
   "dependencies": {
@@ -32,6 +33,7 @@
     "@tailwindcss/vite": "4.3.3",
     "@tauri-apps/cli": "2.11.4",
     "eslint": "10.12.0",
+    "modern-web-guidance": "1.0.0",
     "prettier": "3.9.10",
     "typescript": "6.0.3",
     "vite-plugin-solid": "2.11.14",
