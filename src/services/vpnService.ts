@@ -299,6 +299,7 @@ export const ProbingLevelSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("low") }),
   z.object({ type: z.literal("medium") }),
   z.object({ type: z.literal("high") }),
+  z.object({ type: z.literal("ultra") }),
 ]);
 export type ProbingLevel = z.infer<typeof ProbingLevelSchema>;
 
