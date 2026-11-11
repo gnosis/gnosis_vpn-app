@@ -40,7 +40,7 @@ interface DestinationMode {
   listOpen: boolean;
   confirming: boolean; // Connect waits on the exit cost view
   preferredLocation: string | null; // one shot, spent when it becomes active
-  lastConnectedDestination: string | null; // dropped at the first cold start
+  resumeLastSession: boolean; // the first cold start resumes status.recent[0]
 }
 ```
 
@@ -309,23 +309,23 @@ Any armed pending is discarded first — a countdown is a switch away from
 something, and there is nothing to switch away from. Then direct promotion, no
 countdown:
 
-1. `lastConnectedDestination` if it matches an offered destination — no
+1. `status.recent[0]`, the service's most recent exit, if it is offered — no
    readiness or capacity check, it is simply where the last session left off.
-   Then drop the field unconditionally; it is consulted once per app launch and
-   never again.
+   Then clear `resumeLastSession` unconditionally; it is consulted once per app
+   launch and never again.
 2. otherwise `effectiveCandidate`, so an unspent ready preferred location lands
    immediately with no countdown, and a plain start lands on the best
    destination.
 
-Precedence: `lastConnected > preferred > sortHead`. Promotion is unconditional:
-as long as the backend offers anything at all, a status update leaves `active`
-set. `active` is null only when there are no destinations, and then there is no
+Precedence: `mostRecent > preferred > sortHead`. Promotion is unconditional: as
+long as the backend offers anything at all, a status update leaves `active` set.
+`active` is null only when there are no destinations, and then there is no
 candidate to arm either.
 
 **The promotion is a selection when the user made it.** `selected` if the
-promoted id is `lastConnectedDestination`, otherwise `auto`. Where the last
-session left off is the user's choice, not auto's proposal, so it holds like any
-selection until the user picks again or chooses Auto.
+promoted id is `status.recent[0]`, otherwise `auto`. Where the last session left
+off is the user's choice, not auto's proposal, so it holds like any selection
+until the user picks again or chooses Auto.
 
 A promotion onto `preferred` or the sort head stays in `auto`: the preferred
 location is an [input to the candidate](#the-preferred-location), never a

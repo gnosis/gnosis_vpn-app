@@ -27,5 +27,7 @@
     "consecutive_failures": 2,
     "last_error": "timeout"
   },
-  "pix_chunk_bytes": null
+  "pix_chunk_bytes": null,
+  "probing": null,
+  "recent": []
 }

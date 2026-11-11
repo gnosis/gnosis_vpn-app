@@ -212,6 +212,15 @@ pub(crate) fn hide_main_window(app: &tauri::AppHandle, window: &tauri::WebviewWi
     });
 }
 
+/// Fire and forget: the service steps probing back down once routes are ready.
+fn send_probing_boost() {
+    tauri::async_runtime::spawn(async {
+        if let Err(e) = commands::on_socket(ipc::probing_boost).await {
+            tracing::debug!(target: "window", error = %e, "probing boost call failed");
+        }
+    });
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let cli = Cli::from_env();
@@ -448,12 +457,14 @@ pub fn run() {
             if let Some(window) = app.get_webview_window("main") {
                 let app_handle = app.handle().clone();
                 let window_clone = window.clone();
-                window.on_window_event(move |event| {
-                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                window.on_window_event(move |event| match event {
+                    tauri::WindowEvent::CloseRequested { api, .. } => {
                         tracing::info!(target: "window", "main window close requested, hiding to tray");
                         api.prevent_close();
                         hide_main_window(&app_handle, &window_clone);
                     }
+                    tauri::WindowEvent::Focused(true) => send_probing_boost(),
+                    _ => {}
                 });
             }
 

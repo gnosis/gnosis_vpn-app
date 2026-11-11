@@ -8,9 +8,10 @@ use gnosis_vpn_ipc::{
     Address, ApiVersion, Balance, BalanceRecommendation, Balances, Capacity, CapacityAllocations,
     ChannelMaintenance, Connection, Destination, DestinationSource, DestinationStatus,
     ExitVersions, FundingLevel, FundingStatus, Geo, GeoSource, Health, Hops, LoadAvg, Meta,
-    Overrides, ProbeResponse, ProbeState, ProbeView, QuickProbeCheck, QuickProbeResponse,
-    QuickProbeState, RouteHealthState, RouteHealthView, RouteWalk, RunMode, Slots, Status,
-    UnprobeResponse, UnrecoverableReason, WarmupStage, WxHopr, XDai,
+    Overrides, ProbeResponse, ProbeState, ProbeView, ProbingLevel, ProbingReason, ProbingView,
+    QuickProbeCheck, QuickProbeResponse, QuickProbeState, RouteHealthState, RouteHealthView,
+    RouteWalk, RunMode, Slots, Status, UnprobeResponse, UnrecoverableReason, WarmupStage, WxHopr,
+    XDai,
 };
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -158,6 +159,8 @@ fn status_base(run_mode: RunMode) -> Status {
         disconnecting: vec![],
         probe: None,
         pix_chunk_bytes: None,
+        probing: None,
+        recent: vec![],
     }
 }
 
@@ -437,6 +440,12 @@ fn generate_fixtures() {
                 phase: ipc::DisconnectPhase::UnregisterWg,
             }],
             probe: Some(ready_probe()),
+            probing: Some(ProbingView {
+                level: ProbingLevel::Medium,
+                reason: ProbingReason::Connected,
+                focus: vec!["test-exit".into()],
+            }),
+            recent: vec!["test-exit".into(), "pinned-exit".into()],
             ..status_with_connection(Connection::Connected {
                 destination: "test-exit".into(),
                 since: SystemTime::UNIX_EPOCH,
@@ -1015,8 +1024,6 @@ fn full_settings() -> Settings {
 
     Settings {
         preferred_location: Some("exit-1".to_string()),
-        last_connected_destination: Some("exit-1".to_string()),
-        recent_destinations: vec!["exit-1".to_string(), "exit-2".to_string()],
         connect_on_startup: true,
         start_minimized: true,
         update_check: true,

@@ -260,7 +260,7 @@ export type RouteGrade =
 /** A score at or above a threshold earns that many bars; below the last one it is a single bar. */
 const BAR_THRESHOLDS: [number, 4 | 3 | 2][] = [[0.75, 4], [0.5, 3], [0.25, 2]];
 
-/** The score as shown on a card; a weak route in its grace grades as ready. Display only: it feeds neither the sort nor auto. */
+/** The score as shown on a card; a weak route in its grace grades as Good. Display only: it feeds neither the sort nor auto. */
 export function routeGrade(
   state: DestinationState | undefined,
   context: RankContext,
@@ -273,6 +273,8 @@ export function routeGrade(
   }
   const exit = getExitData(state, context.probe);
   if (exit === null) return { kind: "unmeasured" };
+  // no path within the band yet, so it gets the lowest grade that still reads as ready
+  if (inGrace) return { kind: "measured", bars: 3 };
   const value = score(state, exit, context);
   const reached = BAR_THRESHOLDS.find(([min]) => value >= min);
   return { kind: "measured", bars: reached ? reached[1] : 1 };
@@ -292,14 +294,6 @@ export function routeGradeLabel(grade: RouteGrade): string {
     case "none":
       return "";
   }
-}
-
-/** How many exits the Recent tab remembers, as in the Stage 2 mock. */
-export const RECENT_LIMIT = 6;
-
-/** The Recent history after connecting to `id`: it moves to the front, the oldest falls off. */
-export function withRecentDestination(recent: string[], id: string): string[] {
-  return [id, ...recent.filter((r) => r !== id)].slice(0, RECENT_LIMIT);
 }
 
 /** The exit list's name for an exit: its country, or its title when the client found none. */
@@ -389,11 +383,11 @@ export function sortByRouteQuality(
 export function pickStartupTarget(
   destinations: Record<string, DestinationState>,
   preferred: string | null,
-  lastConnected: string | null,
+  mostRecent: string | null,
   context: RankContext,
 ): string | null {
-  if (lastConnected !== null && isReady(destinations[lastConnected], context)) {
-    return lastConnected;
+  if (mostRecent !== null && isReady(destinations[mostRecent], context)) {
+    return mostRecent;
   }
   if (preferred !== null && isReady(destinations[preferred], context)) {
     return preferred;

@@ -26,7 +26,6 @@ import {
   pickerRows,
   pickStartupTarget,
   type RankContext,
-  RECENT_LIMIT,
   routeGrade,
   routeGradeLabel,
   sanitizeMetaText,
@@ -35,7 +34,6 @@ import {
   trackWeakRoutes,
   WEAK_GRACE_MS,
   type WeakRoute,
-  withRecentDestination,
 } from "./destinations.ts";
 import {
   checkedQuickProbe,
@@ -384,7 +382,7 @@ describe("trackWeakRoutes — the grace before a weak route is surfaced", () => 
 });
 
 describe("routeGrade — a weak route still in its grace", () => {
-  it("grades as ready: unmeasured, or bars by latency once measured", () => {
+  it("grades as ready: unmeasured, or Good once measured however fast", () => {
     expect(routeGrade(makeWeak("a"), NO_CONTEXT, false)).toEqual({
       kind: "unmeasured",
     });
@@ -394,7 +392,7 @@ describe("routeGrade — a weak route still in its grace", () => {
     });
     expect(routeGrade(measuredWeak, NO_CONTEXT, false)).toEqual({
       kind: "measured",
-      bars: 4,
+      bars: 3,
     });
   });
 
@@ -1069,25 +1067,6 @@ describe("exitDisplayName", () => {
       .toBe("Germany");
     expect(exitDisplayName(makeDestination({ id: "dest-berlin", geo: null })))
       .toBe("dest-berlin");
-  });
-});
-
-describe("withRecentDestination", () => {
-  it("puts the newest first without duplicating it", () => {
-    expect(withRecentDestination(["a", "b", "c"], "b")).toEqual([
-      "b",
-      "a",
-      "c",
-    ]);
-    expect(withRecentDestination([], "a")).toEqual(["a"]);
-  });
-
-  it("forgets the oldest past the limit", () => {
-    const full = Array.from({ length: RECENT_LIMIT }, (_, i) => `e${i}`);
-    const next = withRecentDestination(full, "new");
-    expect(next).toHaveLength(RECENT_LIMIT);
-    expect(next[0]).toBe("new");
-    expect(next).not.toContain(`e${RECENT_LIMIT - 1}`);
   });
 });
 

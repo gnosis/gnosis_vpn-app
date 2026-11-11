@@ -71,5 +71,20 @@
     "consecutive_failures": 0,
     "last_error": null
   },
-  "pix_chunk_bytes": 951644160
+  "pix_chunk_bytes": 951644160,
+  "probing": {
+    "level": {
+      "type": "medium"
+    },
+    "reason": {
+      "type": "connected"
+    },
+    "focus": [
+      "test-exit"
+    ]
+  },
+  "recent": [
+    "test-exit",
+    "pinned-exit"
+  ]
 }

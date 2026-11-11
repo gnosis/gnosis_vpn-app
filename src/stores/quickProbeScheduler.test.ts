@@ -49,6 +49,7 @@ function statusFor(
     destinations,
     connection: { type: "disconnected" },
     probe: null,
+    recent: [],
   };
 }
 
