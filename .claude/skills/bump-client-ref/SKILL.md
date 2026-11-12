@@ -59,8 +59,7 @@ responses the app reshapes, e.g. `BalanceResponse`), `icons.rs`, `lib.rs`, and
 
 ## 3. Move the lockfile pin
 
-`Cargo.toml` stays as it is (`branch = "main"` on `main`,
-`branch = "release/hoprdv4"` on the release line); only `Cargo.lock` moves. The
+`Cargo.toml` stays as it is (`branch = "main"`); only `Cargo.lock` moves. The
 rev must be reachable from that branch — for a client PR that is not merged yet,
 cargo still resolves it as long as the commit is pushed.
 
