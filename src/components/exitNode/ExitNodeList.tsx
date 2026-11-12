@@ -381,7 +381,7 @@ export default function ExitNodeList(props: {
                     </Show>
                   </span>
                   <Show when={view().autoOn}>
-                    <span class="shrink-0 rounded-full bg-control-bg px-1.75 py-0.5 text-[10px] leading-3 font-bold">
+                    <span class="shrink-0 rounded-full bg-control-bg px-1.75 pt-[3px] pb-px text-[10px] leading-3 font-bold">
                       On
                     </span>
                   </Show>
