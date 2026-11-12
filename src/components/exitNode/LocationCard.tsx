@@ -5,7 +5,7 @@ import {
 } from "@src/services/vpnService.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
-import { formatCreditCompact, formatDataLeft } from "@src/utils/credit.ts";
+import { formatCreditCompact } from "@src/utils/credit.ts";
 import {
   exitShortId,
   isConfigOnly,
@@ -22,6 +22,7 @@ import { createLocationState } from "./locationState.ts";
 import { PhaseTag, SwitchingTo } from "./LocationTags.tsx";
 import { ShortId } from "./LocationRow.tsx";
 import SignalBars from "./SignalBars.tsx";
+import UsageMeter from "./UsageMeter.tsx";
 
 /** The advanced view's exit: what Connect targets, its live stats, and, open, its connect stage or diagnostics. */
 export default function LocationCard(props: {
@@ -62,15 +63,12 @@ export default function LocationCard(props: {
   const latencyMs = () =>
     reconnecting() ? null : getLatencyMs(exit(), tunnelRtt());
 
-  // The live tunnel shows what it has left; any other exit what connecting would set aside.
+  // The live tunnel shows its usage; any other exit what connecting would set aside.
   const livePix = () => liveHere() ? connectionPix(appState.connection) : null;
-  const usageFigure = () => {
-    const pix = livePix();
-    if (pix) return formatDataLeft(pix);
+  const setAside = () => {
     const chunk = appState.pixChunkBytes;
     return chunk === null ? "—" : formatCreditCompact(BigInt(chunk));
   };
-  const paymentFailed = () => livePix()?.phase === "payment_failed";
 
   const openList = () => appActions.destinationListOpened();
   const toggleDetails = () =>
@@ -80,7 +78,8 @@ export default function LocationCard(props: {
   let shownOnce = false;
 
   return (
-    <div class="overflow-hidden rounded-[10px] bg-bg-location-card">
+    // Scrolls only once the diagnostics list is down to its minimum
+    <div class="flex min-h-0 flex-col overflow-x-hidden overflow-y-auto rounded-[10px] bg-bg-location-card">
       <div
         role="button"
         tabIndex={0}
@@ -152,52 +151,48 @@ export default function LocationCard(props: {
         </div>
       </div>
       {/* A connect waiting on this exit, or a switch away from its tunnel, shows the cost in place of the stats */}
-      <div class="border-t border-dashed border-line-dash">
+      <div class="flex min-h-0 flex-col border-t border-dashed border-line-dash">
         <Show
           when={costTarget()}
           fallback={
             <>
+              {/* Fixed height: "Sets aside" turns into the usage meter on connect without resizing the card */}
               <button
                 type="button"
-                class="flex w-full cursor-pointer items-center gap-4.5 px-3 py-2.25 text-left hover:bg-row-hover"
+                class="flex h-13 w-full cursor-pointer items-center gap-4.5 px-3 text-left hover:bg-row-hover"
                 aria-expanded={settings.showDetailedMetrics}
                 aria-label={settings.showDetailedMetrics
                   ? "Hide details"
                   : "Show details"}
                 onClick={toggleDetails}
               >
-                <span class="flex flex-col gap-0.5">
-                  <span class="text-xs text-text-subtle">
-                    {livePix() ? "Data left" : "Sets aside"}
-                  </span>
-                  <span
-                    class="font-figures text-[13px] leading-4 font-medium"
-                    classList={{
-                      "text-text-primary": !paymentFailed(),
-                      "text-text-red": paymentFailed(),
-                    }}
-                  >
-                    {usageFigure()}
-                    <Show when={paymentFailed()}>
-                      <span class="sr-only">, payment failed</span>
-                    </Show>
-                  </span>
-                </span>
+                <Show
+                  when={livePix()}
+                  fallback={
+                    <span class="flex flex-col gap-0.5">
+                      <span class="text-xs text-text-subtle">Sets aside</span>
+                      <span class="font-figures text-[13px] leading-4 font-medium text-text-primary">
+                        {setAside()}
+                      </span>
+                    </span>
+                  }
+                >
+                  <UsageMeter class="min-w-0 flex-1" hideStatus />
+                </Show>
                 <ChevronIcon
-                  class={`ml-auto h-3 w-5.5 text-control-tint transition-transform duration-200 ${
+                  class={`ml-auto h-3 w-5.5 shrink-0 text-control-tint transition-transform duration-200 ${
                     settings.showDetailedMetrics ? "rotate-180" : ""
                   }`}
                 />
               </button>
               <Show when={attemptInFlight() || showDiagnostics()}>
-                <div class="border-t border-dashed border-line-dash transition-opacity duration-200 starting:opacity-0">
+                <div class="flex min-h-0 flex-col border-t border-dashed border-line-dash transition-opacity duration-200 starting:opacity-0">
                   <Show
                     when={attemptInFlight()}
                     fallback={
                       <ExitDiagnostics
                         destinationState={props.destinationState}
                         latencyMs={latencyMs()}
-                        showUsage={liveHere()}
                       />
                     }
                   >

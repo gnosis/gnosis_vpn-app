@@ -25,7 +25,6 @@ import {
 } from "@src/utils/exitHealth.ts";
 import { levelColorClass } from "./levelColor.ts";
 import Tooltip from "../common/Tooltip.tsx";
-import UsageMeter from "./UsageMeter.tsx";
 
 const RELIABILITY = ["Less reliable", "Less reliable", "Reliable"];
 
@@ -69,8 +68,6 @@ function Row(
 export default function ExitDiagnostics(props: {
   destinationState: DestinationState;
   latencyMs: number | null;
-  // the allotment is spent only on a tunnel
-  showUsage: boolean;
 }) {
   const [appState] = useAppStore();
   const exit = createMemo(() =>
@@ -145,7 +142,7 @@ export default function ExitDiagnostics(props: {
   };
 
   return (
-    <div class="flex flex-col gap-2.5 p-3">
+    <div class="flex min-h-0 flex-col gap-2.5 p-3">
       <div class="grid grid-cols-2 border-b border-line pb-2">
         <div class="flex items-baseline justify-between gap-2 pr-3.5 text-xs text-text-subtle">
           <Label tip={latencyTip}>Latency</Label>
@@ -168,8 +165,8 @@ export default function ExitDiagnostics(props: {
           </Explained>
         </div>
       </div>
-      <div class="flex flex-col">
-        <span class="mb-1 text-xs text-text-subtle">Diagnostics</span>
+      {/* Banners below take their space from here first; two rows stay visible */}
+      <div class="flex min-h-11 flex-col overflow-y-auto overscroll-contain">
         <Row
           label="Last checked"
           tip={say("When this exit was last measured.")}
@@ -207,9 +204,6 @@ export default function ExitDiagnostics(props: {
           value={reliability()}
         />
       </div>
-      <Show when={props.showUsage}>
-        <UsageMeter class="border-t border-line pt-2.5" />
-      </Show>
     </div>
   );
 }
