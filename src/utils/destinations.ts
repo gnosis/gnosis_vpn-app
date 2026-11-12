@@ -306,32 +306,34 @@ export function exitShortId(address: string): string {
   return address.slice(-5);
 }
 
-/** The list's rows: usable exits other than `excludeId` that match `query`, the first `limit` unless searching. */
+/** The list's rows: `current`, then usable exits, all matching `query`; the first `limit` of the rest unless searching. */
 export function pickerRows(
   sorted: Destination[],
   options: {
     query: string;
-    excludeId: string | null;
+    // the tunnel's exit leads whether usable or not, outside the limit
+    current: Destination | null;
     isUsable: (id: string) => boolean;
     limit: number | null;
   },
 ): { rows: Destination[]; more: boolean } {
   const q = options.query.trim().toLowerCase();
+  const matches = (d: Destination) =>
+    destinationSearchText(d).toLowerCase().includes(q);
+  const current = options.current && (!q || matches(options.current))
+    ? [options.current]
+    : [];
   const usable = sorted.filter((d) =>
-    d.id !== options.excludeId && options.isUsable(d.id)
+    d.id !== options.current?.id && options.isUsable(d.id)
   );
-  if (q) {
-    return {
-      rows: usable.filter((d) =>
-        destinationSearchText(d).toLowerCase().includes(q)
-      ),
-      more: false,
-    };
-  }
+  if (q) return { rows: [...current, ...usable.filter(matches)], more: false };
   if (options.limit === null || usable.length <= options.limit) {
-    return { rows: usable, more: false };
+    return { rows: [...current, ...usable], more: false };
   }
-  return { rows: usable.slice(0, options.limit), more: true };
+  return {
+    rows: [...current, ...usable.slice(0, options.limit)],
+    more: true,
+  };
 }
 
 /** Measured eligible first (by score), then unmeasured eligible (by resilience), then the rest (by closeness). */
