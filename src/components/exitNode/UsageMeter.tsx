@@ -1,12 +1,10 @@
-import { Match, Show, Switch } from "solid-js";
+import { Show } from "solid-js";
 import { connectionPix } from "@src/services/vpnService.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { dataLeftFraction, formatDataLeft } from "@src/utils/credit.ts";
 
-/** The live tunnel's data left of the PIX chunks it bought; `hideStatus` keeps it one fixed height. */
-export default function UsageMeter(
-  props: { class?: string; hideStatus?: boolean },
-) {
+/** The live tunnel's data left of the PIX chunks it bought. */
+export default function UsageMeter(props: { class?: string }) {
   const [appState] = useAppStore();
 
   const pix = () => connectionPix(appState.connection);
@@ -19,13 +17,7 @@ export default function UsageMeter(
           <span class="flex items-center justify-between gap-2">
             <span class="text-[13px] leading-5 text-text-soft">Usage</span>
             <span class="text-[13px] leading-5 text-text-subtle">
-              <span
-                class="font-figures text-[15px] leading-5 font-semibold"
-                classList={{
-                  "text-text-primary": stats().phase !== "payment_failed",
-                  "text-text-red": stats().phase === "payment_failed",
-                }}
-              >
+              <span class="font-figures text-[15px] leading-5 font-semibold">
                 {formatDataLeft(stats())}
               </span>{" "}
               {stats().phase === "free" ? "allowance" : "left"}
@@ -38,20 +30,6 @@ export default function UsageMeter(
               style={{ width: `${dataLeftFraction(stats()) * 100}%` }}
             />
           </span>
-          <Show when={!props.hideStatus}>
-            <Switch>
-              <Match when={stats().phase === "payment_failed"}>
-                <span role="status" class="text-xs text-text-red">
-                  Payment for more data failed
-                </span>
-              </Match>
-              <Match when={stats().phase === "payment_pending"}>
-                <span role="status" class="text-xs text-text-subtle">
-                  Paying for more data…
-                </span>
-              </Match>
-            </Switch>
-          </Show>
         </span>
       )}
     </Show>

@@ -177,7 +177,7 @@ export default function LocationCard(props: {
                     </span>
                   }
                 >
-                  <UsageMeter class="min-w-0 flex-1" hideStatus />
+                  <UsageMeter class="min-w-0 flex-1" />
                 </Show>
                 <ChevronIcon
                   class={`ml-auto h-3 w-5.5 shrink-0 text-control-tint transition-transform duration-200 ${
