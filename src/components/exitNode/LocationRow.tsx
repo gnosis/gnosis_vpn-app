@@ -12,6 +12,10 @@ import SignalBars from "./SignalBars.tsx";
 export const ACTION_BUTTON =
   "h-8.5 shrink-0 rounded-lg bg-control-bg px-3 text-[13px] font-bold hover:bg-control-bg-hover hover:cursor-pointer disabled:cursor-default disabled:opacity-50";
 
+/** The small pill at a row's end, Auto's "On" and the current exit's status. */
+export const STATUS_PILL =
+  "shrink-0 rounded-full bg-control-bg px-1.75 pt-[3px] pb-px text-[10px] leading-3 font-bold";
+
 const ROW_BODY =
   "flex min-w-0 flex-1 items-center gap-3 self-stretch py-2.5 pr-3 pl-2.5 text-left";
 
@@ -20,11 +24,17 @@ export function ListRow(props: {
   selectLabel: string;
   onSelect?: () => void;
   disabled?: boolean;
+  // tinted at half the hover tone
+  current?: boolean;
   action: JSX.Element;
   children: JSX.Element;
 }) {
   return (
-    <div class="flex min-h-14.5 items-center rounded-[10px] pr-2.5 hover:bg-row-hover">
+    <div
+      class={`flex min-h-14.5 items-center rounded-[10px] pr-2.5 hover:bg-row-hover ${
+        props.current ? "bg-row-hover/50" : ""
+      }`}
+    >
       <Show
         when={props.onSelect}
         fallback={<div class={ROW_BODY}>{props.children}</div>}
@@ -55,6 +65,8 @@ export default function LocationRow(props: {
   onAction: () => void;
   // the row's body picks the exit without connecting
   onSelect?: () => void;
+  // the tunnel's own exit: there is nowhere to go, so the status takes the button's place
+  status?: "Connected" | "Connecting";
 }) {
   const destination = () => props.destination;
   const name = () => exitDisplayName(destination());
@@ -67,16 +79,19 @@ export default function LocationRow(props: {
         .filter(Boolean).join(", ")}
       onSelect={props.onSelect}
       disabled={props.disabled}
+      current={props.status !== undefined}
       action={
-        <button
-          type="button"
-          class={ACTION_BUTTON}
-          aria-label={`${props.actionLabel} to ${name()} #${shortId()}`}
-          disabled={props.disabled}
-          onClick={() => props.onAction()}
-        >
-          {props.actionLabel}
-        </button>
+        <Show when={!props.status}>
+          <button
+            type="button"
+            class={ACTION_BUTTON}
+            aria-label={`${props.actionLabel} to ${name()} #${shortId()}`}
+            disabled={props.disabled}
+            onClick={() => props.onAction()}
+          >
+            {props.actionLabel}
+          </button>
+        </Show>
       }
     >
       <Flag
@@ -93,6 +108,9 @@ export default function LocationRow(props: {
           {routeGradeLabel(grade())}
         </span>
       </span>
+      <Show when={props.status}>
+        {(status) => <span class={STATUS_PILL}>{status()}</span>}
+      </Show>
     </ListRow>
   );
 }
