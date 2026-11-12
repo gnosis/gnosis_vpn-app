@@ -2,7 +2,9 @@ import { Match, Show, Switch } from "solid-js";
 import { type CardPhase, cardTitle } from "@src/utils/destinations.ts";
 import SwitchSpinner from "./SwitchSpinner.tsx";
 
-const PILL = "rounded-full px-1.75 py-0.5 text-[10px] leading-[1.3] font-bold";
+// Uneven padding: Unica77 sits glyphs 1px high in the line box.
+const PILL =
+  "rounded-full px-1.75 pt-[3px] pb-px text-[10px] leading-[1.3] font-bold";
 
 /** The exit's standing: a pill for auto's best or the user's pick, a caption once live. Fades in on each change. */
 export function PhaseTag(props: { phase: CardPhase }) {
