@@ -36,6 +36,7 @@ import LocationRow, {
   ACTION_BUTTON,
   ListRow,
   ShortId,
+  STATUS_PILL,
 } from "./LocationRow.tsx";
 
 const ROW_LIMIT = 5;
@@ -49,6 +50,7 @@ interface ListView {
   autoPick: Destination | null;
   autoOn: boolean;
   connected: boolean;
+  current: { id: string; status: "Connected" | "Connecting" } | null;
 }
 
 export default function ExitNodeList(props: {
@@ -138,11 +140,13 @@ export default function ExitNodeList(props: {
   };
 
   const liveView = createMemo((): ListView => {
-    // the exit we are on has nothing to connect to; auto's pick stays listed
     const connectedId = connectionDestination(appState.connection);
+    const current = connectedId === null
+      ? undefined
+      : appState.destinations[connectedId]?.destination;
     const { rows, more } = pickerRows(frozenList(), {
       query: query(),
-      excludeId: connectedId,
+      current: current ?? null,
       isUsable,
       limit: showAll() ? null : ROW_LIMIT,
     });
@@ -169,6 +173,14 @@ export default function ExitNodeList(props: {
         ? appState.mode.mode.mode === "auto"
         : appState.mode.mode.mode === "live" && appState.mode.mode.auto,
       connected: isVpnActive(appState.vpnStatus, appState.targetDestination),
+      current: current
+        ? {
+          id: current.id,
+          status: appState.connection.type === "connected"
+            ? "Connected"
+            : "Connecting",
+        }
+        : null,
     };
   });
 
@@ -381,9 +393,7 @@ export default function ExitNodeList(props: {
                     </Show>
                   </span>
                   <Show when={view().autoOn}>
-                    <span class="shrink-0 rounded-full bg-control-bg px-1.75 pt-[3px] pb-px text-[10px] leading-3 font-bold">
-                      On
-                    </span>
+                    <span class={STATUS_PILL}>On</span>
                   </Show>
                 </ListRow>
               </Show>
@@ -397,6 +407,9 @@ export default function ExitNodeList(props: {
                     disabled={appState.isLoading || !isUsable(id)}
                     onAction={() => connectTo(id)}
                     onSelect={view().connected ? undefined : () => select(id)}
+                    status={view().current?.id === id
+                      ? view().current?.status
+                      : undefined}
                   />
                 )}
               </For>

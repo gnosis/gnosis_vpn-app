@@ -1085,20 +1085,43 @@ describe("pickerRows", () => {
   const usableExcept = (...unusable: string[]) => (id: string) =>
     !unusable.includes(id);
 
-  it("drops the excluded and unusable exits, keeping the order", () => {
+  it("drops the unusable exits, keeping the order", () => {
     const { rows } = pickerRows(dests, {
       query: "",
-      excludeId: "a",
+      current: null,
       isUsable: usableExcept("c"),
       limit: null,
     });
-    expect(rows.map((d) => d.id)).toEqual(["b", "d", "e", "f", "g"]);
+    expect(rows.map((d) => d.id)).toEqual(["a", "b", "d", "e", "f", "g"]);
+  });
+
+  it("leads with the current exit, usable or not, outside the cap", () => {
+    const { rows, more } = pickerRows(dests, {
+      query: "",
+      current: dests[3],
+      isUsable: usableExcept("d"),
+      limit: 5,
+    });
+    expect(rows.map((d) => d.id)).toEqual(["d", "a", "b", "c", "e", "f"]);
+    expect(more).toBe(true);
+  });
+
+  it("lists the current exit only when it matches the search", () => {
+    const search = (query: string) =>
+      pickerRows(dests, {
+        query,
+        current: dests[3],
+        isUsable: usableExcept(),
+        limit: 5,
+      }).rows.map((d) => d.id);
+    expect(search("exit d")).toEqual(["d"]);
+    expect(search("exit g")).toEqual(["g"]);
   });
 
   it("caps the list and says there is more", () => {
     const { rows, more } = pickerRows(dests, {
       query: "",
-      excludeId: null,
+      current: null,
       isUsable: usableExcept(),
       limit: 5,
     });
@@ -1109,7 +1132,7 @@ describe("pickerRows", () => {
   it("does not offer more when everything already fits", () => {
     const { more } = pickerRows(dests.slice(0, 5), {
       query: "",
-      excludeId: null,
+      current: null,
       isUsable: usableExcept(),
       limit: 5,
     });
@@ -1119,7 +1142,7 @@ describe("pickerRows", () => {
   it("searches every usable exit past the cap", () => {
     const { rows, more } = pickerRows(dests, {
       query: "  EXIT G ",
-      excludeId: null,
+      current: null,
       isUsable: usableExcept(),
       limit: 5,
     });
@@ -1139,7 +1162,7 @@ describe("pickerRows", () => {
     for (const query of ["469da", "#469Da"]) {
       const { rows } = pickerRows(twins, {
         query,
-        excludeId: null,
+        current: null,
         isUsable: usableExcept(),
         limit: 5,
       });
@@ -1150,7 +1173,7 @@ describe("pickerRows", () => {
   it("never finds an unusable exit", () => {
     const { rows } = pickerRows(dests, {
       query: "exit c",
-      excludeId: null,
+      current: null,
       isUsable: usableExcept("c"),
       limit: 5,
     });
