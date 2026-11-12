@@ -9,10 +9,12 @@ import {
 import Flag from "../Flag.tsx";
 import SignalBars from "./SignalBars.tsx";
 
-export const ACTION_BUTTON =
-  "h-8.5 shrink-0 rounded-lg bg-control-bg px-3 text-[13px] font-bold hover:bg-control-bg-hover hover:cursor-pointer disabled:cursor-default disabled:opacity-50";
+const BUTTON_SHAPE = "h-8.5 shrink-0 rounded-lg px-3 text-[13px] font-bold";
 
-/** The small pill at a row's end, Auto's "On" and the current exit's status. */
+export const ACTION_BUTTON =
+  `${BUTTON_SHAPE} bg-control-bg hover:bg-control-bg-hover hover:cursor-pointer disabled:cursor-default disabled:opacity-50`;
+
+/** Auto's "On" pill at its row's end. */
 export const STATUS_PILL =
   "shrink-0 rounded-full bg-control-bg px-1.75 pt-[3px] pb-px text-[10px] leading-3 font-bold";
 
@@ -81,16 +83,32 @@ export default function LocationRow(props: {
       disabled={props.disabled}
       current={props.status !== undefined}
       action={
-        <Show when={!props.status}>
-          <button
-            type="button"
-            class={ACTION_BUTTON}
-            aria-label={`${props.actionLabel} to ${name()} #${shortId()}`}
-            disabled={props.disabled}
-            onClick={() => props.onAction()}
-          >
-            {props.actionLabel}
-          </button>
+        <Show
+          when={props.status}
+          fallback={
+            <button
+              type="button"
+              class={ACTION_BUTTON}
+              aria-label={`${props.actionLabel} to ${name()} #${shortId()}`}
+              disabled={props.disabled}
+              onClick={() => props.onAction()}
+            >
+              {props.actionLabel}
+            </button>
+          }
+        >
+          {(status) => (
+            <span
+              class={`${BUTTON_SHAPE} flex items-center`}
+              classList={{
+                "bg-btn-connect-bg text-btn-connect-text":
+                  status() === "Connected",
+                "bg-control-bg text-text-subtle": status() === "Connecting",
+              }}
+            >
+              {status()}
+            </span>
+          )}
         </Show>
       }
     >
@@ -108,9 +126,6 @@ export default function LocationRow(props: {
           {routeGradeLabel(grade())}
         </span>
       </span>
-      <Show when={props.status}>
-        {(status) => <span class={STATUS_PILL}>{status()}</span>}
-      </Show>
     </ListRow>
   );
 }
