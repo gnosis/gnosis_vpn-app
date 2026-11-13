@@ -64,6 +64,16 @@ export function dataLeftFraction(pix: PixChunkStats): number {
   return Math.min(1, pix.bytes_left! / pix.bytes_bought);
 }
 
+/** wxHOPR held across open channels, the Safe and the node EOA. */
+export function sumCapacityStake(balance: BalanceResponse): bigint {
+  const caps = balance.capacity_allocations;
+  if (!caps) return 0n;
+  return Object.values(caps.peer_allocations).reduce(
+    (sum, c) => sum + c.stake,
+    caps.node.stake + caps.safe.stake,
+  );
+}
+
 /** Sum byte_capacity across all capacity allocations
  * (open channels + Safe + node EOA). */
 export function computeEffectiveCredit(balance: BalanceResponse): bigint {

@@ -158,6 +158,7 @@ textarea {
   --color-warn-ink: #a85d02;
   --color-bad-bg: #fbe5e6;
   --color-bad-ink: #b4232c;
+  --color-address-ink: #cc356d;
 
   /* Border colors */
   --color-border: #e5e7eb;
@@ -250,6 +251,7 @@ textarea {
   --color-warn-ink: #f6b866;
   --color-bad-bg: #3a171a;
   --color-bad-ink: #ff8f93;
+  --color-address-ink: #ff4288;
 
   /* Border colors */
   --color-border: #374151;
@@ -363,6 +365,7 @@ textarea {
   --color-text-soft: var(--color-text-soft);
   --color-warn-bg: var(--color-warn-bg);
   --color-warn-ink: var(--color-warn-ink);
+  --color-address-ink: var(--color-address-ink);
   --color-bad-bg: var(--color-bad-bg);
   --color-bad-ink: var(--color-bad-ink);
 

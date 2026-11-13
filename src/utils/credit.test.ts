@@ -6,6 +6,7 @@ import {
   formatCountCompact,
   formatCreditCompact,
   formatDataLeft,
+  sumCapacityStake,
 } from "./credit.ts";
 import type {
   BalanceResponse,
@@ -51,6 +52,24 @@ function makeBalance(
     capacity_allocations,
   };
 }
+
+describe("sumCapacityStake", () => {
+  it("returns 0 when allocations are missing", () => {
+    expect(sumCapacityStake(makeBalance(null))).toBe(0n);
+  });
+
+  it("sums stake across node, safe and peer allocations", () => {
+    const allocations = makeAllocations({
+      node: makeCapacity(0, 1n),
+      safe: makeCapacity(0, 20n),
+      peer_allocations: {
+        "0xabc": makeCapacity(0, 300n),
+        "0xdef": makeCapacity(0, 4000n),
+      },
+    });
+    expect(sumCapacityStake(makeBalance(allocations))).toBe(4321n);
+  });
+});
 
 describe("computeEffectiveCredit", () => {
   it("returns 0 for all-zero allocations", () => {
