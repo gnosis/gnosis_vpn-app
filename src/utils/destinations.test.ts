@@ -1086,7 +1086,7 @@ describe("pickerRows", () => {
     !unusable.includes(id);
 
   it("drops the unusable exits, keeping the order", () => {
-    const { rows } = pickerRows(dests, {
+    const rows = pickerRows(dests, {
       query: "",
       current: null,
       isUsable: usableExcept("c"),
@@ -1096,14 +1096,13 @@ describe("pickerRows", () => {
   });
 
   it("leads with the current exit, usable or not, outside the cap", () => {
-    const { rows, more } = pickerRows(dests, {
+    const rows = pickerRows(dests, {
       query: "",
       current: dests[3],
       isUsable: usableExcept("d"),
       limit: 5,
     });
     expect(rows.map((d) => d.id)).toEqual(["d", "a", "b", "c", "e", "f"]);
-    expect(more).toBe(true);
   });
 
   it("lists the current exit only when it matches the search", () => {
@@ -1113,41 +1112,39 @@ describe("pickerRows", () => {
         current: dests[3],
         isUsable: usableExcept(),
         limit: 5,
-      }).rows.map((d) => d.id);
+      }).map((d) => d.id);
     expect(search("exit d")).toEqual(["d"]);
     expect(search("exit g")).toEqual(["g"]);
   });
 
-  it("caps the list and says there is more", () => {
-    const { rows, more } = pickerRows(dests, {
+  it("caps the list", () => {
+    const rows = pickerRows(dests, {
       query: "",
       current: null,
       isUsable: usableExcept(),
       limit: 5,
     });
     expect(rows.map((d) => d.id)).toEqual(["a", "b", "c", "d", "e"]);
-    expect(more).toBe(true);
   });
 
-  it("does not offer more when everything already fits", () => {
-    const { more } = pickerRows(dests.slice(0, 5), {
+  it("lists every usable exit when they fit under the cap", () => {
+    const rows = pickerRows(dests, {
       query: "",
       current: null,
-      isUsable: usableExcept(),
+      isUsable: usableExcept("a", "b", "c"),
       limit: 5,
     });
-    expect(more).toBe(false);
+    expect(rows.map((d) => d.id)).toEqual(["d", "e", "f", "g"]);
   });
 
   it("searches every usable exit past the cap", () => {
-    const { rows, more } = pickerRows(dests, {
+    const rows = pickerRows(dests, {
       query: "  EXIT G ",
       current: null,
       isUsable: usableExcept(),
       limit: 5,
     });
     expect(rows.map((d) => d.id)).toEqual(["g"]);
-    expect(more).toBe(false);
   });
 
   it("finds an exit by the short id its row shows", () => {
@@ -1160,7 +1157,7 @@ describe("pickerRows", () => {
       makeDestination({ id: "y", address: "0x0c1D2e7Fb10", geo: germany }),
     ];
     for (const query of ["469da", "#469Da"]) {
-      const { rows } = pickerRows(twins, {
+      const rows = pickerRows(twins, {
         query,
         current: null,
         isUsable: usableExcept(),
@@ -1171,7 +1168,7 @@ describe("pickerRows", () => {
   });
 
   it("never finds an unusable exit", () => {
-    const { rows } = pickerRows(dests, {
+    const rows = pickerRows(dests, {
       query: "exit c",
       current: null,
       isUsable: usableExcept("c"),
