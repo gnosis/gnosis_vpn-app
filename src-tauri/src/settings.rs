@@ -26,10 +26,10 @@ pub struct Settings {
     pub installed_version: Option<String>,
     pub show_detailed_metrics: bool,
     pub flag_display: FlagDisplay,
-    /// Whether Connect first shows the data an exit sets aside.
-    pub show_exit_cost: bool,
     /// Whether the main screen shows the location card instead of the simple view.
     pub advanced_view: bool,
+    /// Whether a connect ever succeeded; until one does, Connect always shows the data cost first.
+    pub has_connected: bool,
 }
 
 impl Default for Settings {
@@ -48,8 +48,8 @@ impl Default for Settings {
             installed_version: None,
             show_detailed_metrics: false,
             flag_display: FlagDisplay::default(),
-            show_exit_cost: true,
             advanced_view: false,
+            has_connected: false,
         }
     }
 }
@@ -122,9 +122,9 @@ pub struct SettingsPatch {
     #[serde(default)]
     pub flag_display: Option<FlagDisplay>,
     #[serde(default)]
-    pub show_exit_cost: Option<bool>,
-    #[serde(default)]
     pub advanced_view: Option<bool>,
+    #[serde(default)]
+    pub has_connected: Option<bool>,
 }
 
 impl SettingsPatch {
@@ -170,11 +170,11 @@ impl SettingsPatch {
         if self.flag_display.is_some() {
             keys.push("flag_display");
         }
-        if self.show_exit_cost.is_some() {
-            keys.push("show_exit_cost");
-        }
         if self.advanced_view.is_some() {
             keys.push("advanced_view");
+        }
+        if self.has_connected.is_some() {
+            keys.push("has_connected");
         }
         keys
     }
@@ -229,11 +229,11 @@ impl Settings {
         if let Some(v) = patch.flag_display {
             self.flag_display = v;
         }
-        if let Some(v) = patch.show_exit_cost {
-            self.show_exit_cost = v;
-        }
         if let Some(v) = patch.advanced_view {
             self.advanced_view = v;
+        }
+        if let Some(v) = patch.has_connected {
+            self.has_connected = v;
         }
     }
 }
@@ -482,16 +482,16 @@ mod tests {
     }
 
     #[test]
-    fn show_exit_cost_defaults_on_and_persists_off() {
+    fn has_connected_defaults_off_and_persists_on() {
         let path = temp_settings_path();
         let store = SettingsStore::load(path.clone());
-        assert!(store.current().show_exit_cost);
+        assert!(!store.current().has_connected);
 
         store
-            .update(patch(json!({ "showExitCost": false })))
+            .update(patch(json!({ "hasConnected": true })))
             .expect("update should succeed");
 
-        assert!(!SettingsStore::load(path).current().show_exit_cost);
+        assert!(SettingsStore::load(path).current().has_connected);
     }
 
     #[test]
