@@ -1,5 +1,4 @@
 import { createEffect, onCleanup, onMount, Show } from "solid-js";
-import Tooltip from "@src/components/common/Tooltip.tsx";
 import type {
   ConnectedExit,
   TrafficEndpoint,
@@ -376,15 +375,9 @@ export default function TrafficGlobe(props: TrafficGlobeProps) {
         {(exit) => (
           <div
             ref={exitLabel}
-            class="pointer-events-none invisible absolute top-0 left-0 flex items-center gap-1 rounded-[5px] border border-border bg-bg-surface px-2 py-px text-[11px] leading-4 font-medium whitespace-nowrap text-text-secondary"
+            class="pointer-events-none invisible absolute top-0 left-0 rounded-[5px] border border-border bg-bg-surface px-2 py-px text-[11px] leading-4 font-medium whitespace-nowrap text-text-secondary"
           >
-            <span>{exit().country ?? exit().title}</span>
-            <span class="pointer-events-auto">
-              {/* The id hashes the exit's public IP, which the client does not hand over yet. */}
-              <Tooltip content="Feature coming" position="top">
-                <span class="font-mono text-text-muted">#X</span>
-              </Tooltip>
-            </span>
+            {exit().country ?? exit().title}
           </div>
         )}
       </Show>
