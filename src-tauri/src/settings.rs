@@ -72,6 +72,7 @@ pub enum FlagDisplay {
     Mono,
     #[default]
     Color,
+    Node,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
