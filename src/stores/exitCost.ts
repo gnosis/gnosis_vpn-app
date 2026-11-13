@@ -20,13 +20,13 @@ export { exitCost };
 /** The exit a request waits on, or null. */
 export const exitCostFor = (): string | null => exitCost()?.id ?? null;
 
-/** Connects or switches to `id`, or first shows what it sets aside while the user still wants to see that. */
+/** Connects or switches to `id`; until a connect has ever succeeded, first shows what it sets aside. */
 export function requestConnect(
   id: string,
   options: { switching?: boolean; auto?: boolean } = {},
 ): void {
   const [settings] = useSettingsStore();
-  if (settings.showExitCost) {
+  if (!settings.hasConnected) {
     useAppStore()[1].exitCostOpened();
     setExitCost({
       id,

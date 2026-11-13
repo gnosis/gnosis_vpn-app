@@ -343,6 +343,15 @@ export function createAppStore(): AppStoreTuple {
     batch(() => setState("mode", reconcile({ ...destinationMode!.model })));
   });
 
+  createEffect(() => {
+    if (
+      settingsActions.hydrated() && !settings.hasConnected &&
+      state.connection.type === "connected"
+    ) {
+      void settingsActions.markConnected();
+    }
+  });
+
   const criticalError = (message: string) =>
     resetToScreen(AppScreen.Initialization, message);
 
