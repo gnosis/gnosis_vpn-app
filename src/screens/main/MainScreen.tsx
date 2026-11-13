@@ -13,7 +13,11 @@ import {
   exitCost,
   exitCostFor,
 } from "../../stores/exitCost.ts";
-import { isVpnActive } from "../../utils/destinations.ts";
+import {
+  isSelectable,
+  isVpnActive,
+  rankContext,
+} from "../../utils/destinations.ts";
 import { useSettingsStore } from "../../stores/settingsStore.ts";
 import { StatusIndicator } from "../../components/status/StatusIndicator.tsx";
 import Navigation from "../../components/Navigation.tsx";
@@ -72,10 +76,22 @@ export function MainScreen() {
   const maintenanceWarning = () =>
     channelMaintenanceWarning(appState.runMode, nowMs());
 
-  // The destination Connect targets; it vanishes with the status that drops it.
+  // Auto still promotes an exit with no route; offering it would only dim Connect.
+  const anyConnectable = createMemo(() => {
+    const context = rankContext(appState);
+    return Object.values(appState.destinations).some((ds) =>
+      isSelectable(ds, context)
+    );
+  });
+
+  // The destination Connect targets; it vanishes with the status that drops it, and while nothing is connectable.
   const shownDestination = createMemo(() => {
     const id = effectiveActive(appState.mode, Date.now());
-    return id ? appState.destinations[id] : undefined;
+    if (!id) return undefined;
+    const live = appState.mode.mode.mode === "live" ||
+      isVpnActive(appState.vpnStatus, appState.targetDestination);
+    if (!live && !anyConnectable()) return undefined;
+    return appState.destinations[id];
   });
 
   // A cost waits on what it was asked over: a connect on the card's exit, a switch on a live tunnel.

@@ -320,7 +320,9 @@ countdown:
 Precedence: `mostRecent > preferred > sortHead`. Promotion is unconditional: as
 long as the backend offers anything at all, a status update leaves `active` set.
 `active` is null only when there are no destinations, and then there is no
-candidate to arm either.
+candidate to arm either. The view hides the card behind its no-exits notice
+while nothing is live and no destination `isSelectable`; `active` survives
+underneath, so a selection outlives a route outage.
 
 **The promotion is a selection when the user made it.** `selected` if the
 promoted id is `status.recent[0]`, otherwise `auto`. Where the last session left
