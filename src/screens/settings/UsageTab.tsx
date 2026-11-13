@@ -60,9 +60,9 @@ async function openFundingSite(address: string) {
   }
 }
 
-// The client reports no session lifetime yet, so the tooltip promises it instead of naming one.
+// The client reports no session lifetime yet, so the expiry value reads "Feature coming".
 const SESSION_EXPIRY_NOTE =
-  "Relay channels close after a while, because keeping them open costs data. Connecting again opens new ones.";
+  "Relay channels close after 3 h, because keeping them open costs data. Connecting again opens new ones.";
 
 function SessionExpiryInfo() {
   const descriptionId = createUniqueId();
