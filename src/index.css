@@ -292,13 +292,10 @@ textarea {
     rgb(255 255 255 / 0.08)
   );
 }
-/* pr-* whose padding pays for the scrollbar, so content keeps its inset and never shifts */
-@utility pr-gutter-* {
-  padding-right: --spacing(--value(number));
-  @supports (scrollbar-gutter: stable) {
-    scrollbar-gutter: stable;
-    padding-right: calc(--spacing(--value(number)) - var(--scrollbar-size));
-  }
+/* Vertical scroller whose right inset pr-N includes an always-present scrollbar; WebKit reserves no gutter for a short overflow:auto one */
+@utility scroller-* {
+  overflow-y: scroll;
+  padding-right: calc(--spacing(--value(number)) - var(--scrollbar-size));
 }
 
 /* Button press animation */

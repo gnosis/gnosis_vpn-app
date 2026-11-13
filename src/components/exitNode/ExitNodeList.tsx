@@ -317,7 +317,7 @@ export default function ExitNodeList(props: {
 
       <div
         ref={scrollRef}
-        class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pl-3.5 pr-gutter-3.5 pt-1 pb-4"
+        class="flex min-h-0 flex-1 flex-col gap-3 pl-3.5 scroller-3.5 pt-1 pb-4"
       >
         <div class="relative shrink-0">
           <svg

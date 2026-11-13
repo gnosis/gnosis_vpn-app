@@ -166,7 +166,7 @@ export default function ExitDiagnostics(props: {
         </div>
       </div>
       {/* Banners below take their space from here first; two rows stay visible */}
-      <div class="-mr-3 flex min-h-11 flex-col overflow-y-auto overscroll-contain pr-gutter-3">
+      <div class="-mr-3 flex min-h-11 flex-col overscroll-contain scroller-3">
         <Row
           label="Last checked"
           tip={say("When this exit was last measured.")}
