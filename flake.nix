@@ -149,7 +149,7 @@
               pkgs.openssl
               pkgs.rust-analyzer
             ]
-            ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
+            ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [
               # Linux-specific packages
               pkgs.at-spi2-atk
               pkgs.atkmm
@@ -170,13 +170,13 @@
               pkgs.patchelf
               pkgs.webkitgtk_4_1
             ]
-            ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
+            ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
               # macOS-specific packages
               pkgs.libiconv
             ];
 
             LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath (
-              pkgs.lib.optionals pkgs.stdenv.isLinux [
+              pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [
                 pkgs.libayatana-appindicator
                 pkgs.libproxy
                 pkgs.libGL

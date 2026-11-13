@@ -83,11 +83,11 @@ fn install_macos_about_panel_override(
     package_version: String,
     icon_path: Option<String>,
 ) {
-    use cocoa::base::{id, nil};
-    use cocoa::foundation::NSString;
     use objc::declare::ClassDecl;
     use objc::runtime::{Class, Object, Sel};
     use std::sync::OnceLock;
+
+    type Id = *mut Object;
 
     static PACKAGE_VERSION: OnceLock<String> = OnceLock::new();
     static ICON_PATH: OnceLock<Option<String>> = OnceLock::new();
@@ -97,7 +97,7 @@ fn install_macos_about_panel_override(
     // NSMenuItem stores its target as unsafe_unretained, so the handler must
     // outlive the menu item (i.e. live for the process). Park it in a static
     // OnceLock so it's a deliberate singleton instead of an orphaned pointer.
-    struct HandlerPtr(id);
+    struct HandlerPtr(Id);
     unsafe impl Send for HandlerPtr {}
     unsafe impl Sync for HandlerPtr {}
 
@@ -107,78 +107,84 @@ fn install_macos_about_panel_override(
         let superclass = class!(NSObject);
         let mut decl = ClassDecl::new("GnosisVpnAboutHandler", superclass)
             .expect("failed to declare GnosisVpnAboutHandler");
-        extern "C" fn show_about(_this: &Object, _cmd: Sel, _sender: id) {
+        extern "C" fn show_about(_this: &Object, _cmd: Sel, _sender: Id) {
             unsafe {
+                // alloc/init returns +1; autorelease lets the AppKit run loop pool drain it.
+                let ns_string = |s: &str| -> Id {
+                    let alloc: Id = msg_send![class!(NSString), alloc];
+                    let utf8_encoding: usize = 4;
+                    let string: Id = msg_send![
+                        alloc,
+                        initWithBytes: s.as_ptr() as *const std::os::raw::c_void
+                        length: s.len()
+                        encoding: utf8_encoding
+                    ];
+                    msg_send![string, autorelease]
+                };
                 let version_str = PACKAGE_VERSION.get().map(String::as_str).unwrap_or("");
-                // NSString::alloc(...).init_str(...) returns a +1 retained object;
-                // balance with autorelease so the AppKit run loop pool drains it.
-                let ns_version: id = NSString::alloc(nil).init_str(version_str);
-                let ns_version: id = msg_send![ns_version, autorelease];
+                let ns_version = ns_string(version_str);
                 // "ApplicationVersion" maps to NSAboutPanelOptionApplicationVersion —
                 // the main "Version X" line on the standard About panel (overrides
                 // CFBundleShortVersionString). The "Version" key, by contrast,
                 // controls the parenthesized build number.
-                let ns_app_version_key: id = NSString::alloc(nil).init_str("ApplicationVersion");
-                let ns_app_version_key: id = msg_send![ns_app_version_key, autorelease];
+                let ns_app_version_key = ns_string("ApplicationVersion");
 
                 // Build a mutable dictionary so we can also add the icon when available.
-                let options: id = msg_send![class!(NSMutableDictionary), dictionary];
+                let options: Id = msg_send![class!(NSMutableDictionary), dictionary];
                 let _: () = msg_send![options, setObject: ns_version forKey: ns_app_version_key];
 
                 if let Some(Some(path)) = ICON_PATH.get() {
-                    let ns_path: id = NSString::alloc(nil).init_str(path.as_str());
-                    let ns_path: id = msg_send![ns_path, autorelease];
-                    let image: id = msg_send![class!(NSImage), alloc];
-                    let image: id = msg_send![image, initWithContentsOfFile: ns_path];
-                    if image != nil {
-                        let image: id = msg_send![image, autorelease];
-                        let ns_icon_key: id = NSString::alloc(nil).init_str("ApplicationIcon");
-                        let ns_icon_key: id = msg_send![ns_icon_key, autorelease];
+                    let ns_path = ns_string(path);
+                    let image: Id = msg_send![class!(NSImage), alloc];
+                    let image: Id = msg_send![image, initWithContentsOfFile: ns_path];
+                    if !image.is_null() {
+                        let image: Id = msg_send![image, autorelease];
+                        let ns_icon_key = ns_string("ApplicationIcon");
                         let _: () = msg_send![options, setObject: image forKey: ns_icon_key];
                     }
                 }
 
-                let app: id = msg_send![class!(NSApplication), sharedApplication];
+                let app: Id = msg_send![class!(NSApplication), sharedApplication];
                 let _: () = msg_send![app, orderFrontStandardAboutPanelWithOptions: options];
             }
         }
         unsafe {
             decl.add_method(
                 sel!(showAbout:),
-                show_about as extern "C" fn(&Object, Sel, id),
+                show_about as extern "C" fn(&Object, Sel, Id),
             );
         }
         decl.register()
     });
 
     let _ = app.run_on_main_thread(move || unsafe {
-        let app_ns: id = msg_send![class!(NSApplication), sharedApplication];
-        let main_menu: id = msg_send![app_ns, mainMenu];
-        if main_menu == nil {
+        let app_ns: Id = msg_send![class!(NSApplication), sharedApplication];
+        let main_menu: Id = msg_send![app_ns, mainMenu];
+        if main_menu.is_null() {
             return;
         }
         let count: i64 = msg_send![main_menu, numberOfItems];
         if count < 1 {
             return;
         }
-        let app_menu_item: id = msg_send![main_menu, itemAtIndex: 0i64];
-        if app_menu_item == nil {
+        let app_menu_item: Id = msg_send![main_menu, itemAtIndex: 0i64];
+        if app_menu_item.is_null() {
             return;
         }
-        let app_submenu: id = msg_send![app_menu_item, submenu];
-        if app_submenu == nil {
+        let app_submenu: Id = msg_send![app_menu_item, submenu];
+        if app_submenu.is_null() {
             return;
         }
         let sub_count: i64 = msg_send![app_submenu, numberOfItems];
         if sub_count < 1 {
             return;
         }
-        let about_item: id = msg_send![app_submenu, itemAtIndex: 0i64];
-        if about_item == nil {
+        let about_item: Id = msg_send![app_submenu, itemAtIndex: 0i64];
+        if about_item.is_null() {
             return;
         }
 
-        let handler: id = HANDLER.get_or_init(|| HandlerPtr(msg_send![cls, new])).0;
+        let handler: Id = HANDLER.get_or_init(|| HandlerPtr(msg_send![cls, new])).0;
         let _: () = msg_send![about_item, setTarget: handler];
         let _: () = msg_send![about_item, setAction: sel!(showAbout:)];
     });
