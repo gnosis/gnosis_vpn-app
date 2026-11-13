@@ -17,7 +17,7 @@ export default function Tooltip(props: {
   children: JSX.Element;
   position?: "top" | "bottom";
   tabIndex?: number;
-  // When true the tooltip never shows (and hides if already visible).
+  // When true the tooltip never shows (and hides if already visible); it shows again on the next hover or focus.
   disabled?: boolean;
   // Extra classes for the trigger wrapper, replacing the default `w-fit`
   // (e.g. `w-full` when the trigger should span its row).
@@ -83,8 +83,6 @@ export default function Tooltip(props: {
     });
   });
 
-  // Tracks hover/focus intent even while disabled, so the tooltip can
-  // reappear when `disabled` clears without a fresh mouseenter.
   const [wantVisible, setWantVisible] = createSignal(false);
 
   // Handlers only record intent; the effect below turns intent + `disabled`
@@ -96,8 +94,8 @@ export default function Tooltip(props: {
   createEffect(() => {
     clearTimeout(timeout);
     if (props.disabled) {
-      // Force-hide immediately; wantVisible stays intact so the tooltip
-      // reappears once re-enabled without a fresh mouseenter.
+      // A trigger covered while disabled gets no mouseleave, so its hover is stale on re-enable.
+      setWantVisible(false);
       setVisible(false);
     } else if (wantVisible()) {
       // untrack: updateAnchor reads props.position, which must not become a
