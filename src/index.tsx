@@ -2,6 +2,7 @@
 import "@src/index.css";
 import { render } from "solid-js/web";
 import App from "./windows/App.tsx";
+import TrafficWindow from "./windows/TrafficWindow.tsx";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -118,6 +119,6 @@ function applyTheme(theme: string) {
       });
     });
 
-    return <App />;
+    return curWindow.label === "traffic" ? <TrafficWindow /> : <App />;
   }, root);
 })();

@@ -2,8 +2,8 @@
 #[macro_use]
 extern crate objc;
 
+use tauri::Manager;
 use tauri::tray::TrayIconBuilder;
-use tauri::{Emitter, Manager};
 use tokio::sync::Notify;
 use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
@@ -184,7 +184,8 @@ fn install_macos_about_panel_override(
     });
 }
 
-fn hide_to_tray(app: &tauri::AppHandle, window: &tauri::WebviewWindow) {
+/// Window close and the tray toggle both end here; the traffic window stays as it is.
+pub(crate) fn hide_main_window(app: &tauri::AppHandle, window: &tauri::WebviewWindow) {
     let _ = window.hide();
     #[cfg(target_os = "macos")]
     {
@@ -192,24 +193,6 @@ fn hide_to_tray(app: &tauri::AppHandle, window: &tauri::WebviewWindow) {
     }
     #[cfg(not(target_os = "macos"))]
     let _ = app;
-}
-
-/// Window close and the tray toggle both end here, so neither leaves the traffic pane capturing unseen.
-pub(crate) fn hide_main_window(app: &tauri::AppHandle, window: &tauri::WebviewWindow) {
-    // Reopening shows the plain main screen; the capture ends with the pane.
-    if !traffic::pane::collapse_now(app) {
-        hide_to_tray(app, window);
-        return;
-    }
-    let window = window.clone();
-    let handle = app.clone();
-    tauri::async_runtime::spawn(async move {
-        // A shrink applied after hiding skips the window manager's gravity.
-        tokio::time::sleep(traffic::pane::COLLAPSE_SETTLE).await;
-        hide_to_tray(&handle, &window);
-        let _ = window.emit_to("main", "traffic:closed", ());
-        traffic::stop(&handle).await;
-    });
 }
 
 /// Fire and forget: the service steps probing back down once routes are ready.
@@ -359,8 +342,8 @@ pub fn run() {
                         show_settings(app, "usage");
                     }
                     "traffic" => {
-                        tracing::info!(target: "traffic", "traffic pane requested");
-                        traffic::show(app);
+                        tracing::info!(target: "traffic", "traffic window requested");
+                        traffic::window::show(app);
                     }
                     "check_update" => {
                         tracing::info!(target: "tray", "update check requested");
@@ -453,6 +436,9 @@ pub fn run() {
                 });
             }
 
+            app.manage(traffic::window::TrafficWindowState::default());
+            traffic::window::setup(app.handle());
+
             // Intercept window close to hide to tray instead of exiting
             if let Some(window) = app.get_webview_window("main") {
                 let app_handle = app.handle().clone();
@@ -463,7 +449,10 @@ pub fn run() {
                         api.prevent_close();
                         hide_main_window(&app_handle, &window_clone);
                     }
-                    tauri::WindowEvent::Focused(true) => send_probing_boost(),
+                    tauri::WindowEvent::Focused(true) => {
+                        traffic::window::main_focused(&app_handle);
+                        send_probing_boost();
+                    }
                     _ => {}
                 });
             }
@@ -506,7 +495,6 @@ pub fn run() {
             app.manage(UpdateInstallState::default());
 
             app.manage(traffic::TrafficState::default());
-            app.manage(traffic::pane::PaneState::default());
 
             let (status_tx, _) = watch::channel(None);
             let (balance_tx, _) = watch::channel(None);
@@ -553,7 +541,7 @@ pub fn run() {
             traffic::traffic_start,
             traffic::traffic_frame,
             traffic::traffic_stop,
-            traffic::pane::traffic_pane
+            traffic::window::traffic_window_toggle
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

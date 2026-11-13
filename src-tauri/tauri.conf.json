@@ -17,6 +17,20 @@
         "height": 612,
         "resizable": false,
         "visible": false,
+        "acceptFirstMouse": true,
+        "backgroundColor": "#121219",
+        "allowLinkPreview": false
+      },
+      {
+        "label": "traffic",
+        "title": "Gnosis VPN Live Traffic",
+        "width": 460,
+        "height": 612,
+        "minWidth": 460,
+        "minHeight": 612,
+        "resizable": true,
+        "visible": false,
+        "center": true,
         "backgroundColor": "#121219",
         "allowLinkPreview": false
       }

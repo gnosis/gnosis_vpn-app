@@ -95,8 +95,8 @@
       return frame;
     },
     traffic_stop: () => null,
-    // The window resize itself is the real app's; pass --size 820x612 to see the pane.
-    traffic_pane: () => null,
+    // Showing another window is the real app's; render it with windowLabel "traffic".
+    traffic_window_toggle: () => null,
     get_cached_state: () => fixture.cached_state,
     get_initial_theme: () => fixture.theme ?? "dark",
     get_log_uploader_website_url: () =>
