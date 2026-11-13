@@ -9,7 +9,7 @@ export default function SettingsSubpage(
   return (
     <PageLayer label={props.title}>
       <PageHeader title={props.title} onBack={props.onBack} />
-      <div class="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pl-3 pr-gutter-3 pt-1 pb-4.5">
+      <div class="flex min-h-0 flex-1 flex-col gap-2 pl-3 scroller-3 pt-1 pb-4.5">
         {props.children}
       </div>
     </PageLayer>

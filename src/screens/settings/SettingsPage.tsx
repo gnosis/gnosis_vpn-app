@@ -24,6 +24,7 @@ import GeneralTab from "./GeneralTab.tsx";
 import UsageTab from "./UsageTab.tsx";
 import UpdatePage from "./UpdatePage.tsx";
 import AboutPage from "./AboutPage.tsx";
+import SendFundsPage from "./SendFundsPage.tsx";
 import { useUpdates } from "./useUpdates.ts";
 
 const TABS: { id: SettingsTab; label: string }[] = [
@@ -31,9 +32,11 @@ const TABS: { id: SettingsTab; label: string }[] = [
   { id: "usage", label: "Usage" },
 ];
 
-/** The main window's Settings page (Stage 2.1 mock): General and Usage tabs, Update and About behind rows. */
+/** The main window's Settings page (Stage 2.1 mock): General and Usage tabs, Update, About and Send funds behind rows. */
 export default function SettingsPage() {
-  const [subpage, setSubpage] = createSignal<"update" | "about" | null>(null);
+  const [subpage, setSubpage] = createSignal<
+    "update" | "about" | "send-funds" | null
+  >(null);
   const updates = useUpdates();
 
   // The tabs sit under an open subpage, so a tab change comes from outside (tray, top bar) and shows that tab.
@@ -85,7 +88,7 @@ export default function SettingsPage() {
             )}
           </For>
         </div>
-        <div class="flex min-h-0 flex-1 flex-col gap-2 overflow-y-scroll pl-3 pr-gutter-3 pt-1 pb-4.5">
+        <div class="flex min-h-0 flex-1 flex-col gap-2 pl-3 scroller-3 pt-1 pb-4.5">
           <Switch>
             <Match when={settingsTab() === "general"}>
               <GeneralTab
@@ -94,7 +97,7 @@ export default function SettingsPage() {
               />
             </Match>
             <Match when={settingsTab() === "usage"}>
-              <UsageTab />
+              <UsageTab onAddFunds={() => setSubpage("send-funds")} />
             </Match>
           </Switch>
         </div>
@@ -105,6 +108,9 @@ export default function SettingsPage() {
         </Match>
         <Match when={subpage() === "about"}>
           <AboutPage onBack={() => setSubpage(null)} />
+        </Match>
+        <Match when={subpage() === "send-funds"}>
+          <SendFundsPage onBack={() => setSubpage(null)} />
         </Match>
       </Switch>
     </>

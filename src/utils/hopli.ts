@@ -224,3 +224,9 @@ export function humanWxhopr(
   const { amount, unit } = humanWxhoprParts(hopli, rounding);
   return amount === NO_VALUE ? amount : `${amount} ${unit}`;
 }
+
+/** An xDAI amount as a compact number without the unit: floored to 2 decimals above 0.1, significant figures below. */
+export function humanXdai(value: string | bigint | null | undefined): string {
+  const raw = toBigIntSafe(value);
+  return raw === null ? NO_VALUE : formatCompactAmount(raw, 10n ** 17n);
+}

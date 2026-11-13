@@ -1,20 +1,15 @@
 import {
   createEffect,
   createMemo,
-  createSignal,
   createUniqueId,
   Match,
   Show,
   Switch,
   untrack,
 } from "solid-js";
-import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   connectionDestination,
   connectionPix,
-  isPreparingSafeRunMode,
-  isRunningRunMode,
-  warmupProgress,
 } from "@src/services/vpnService.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
 import {
@@ -23,20 +18,12 @@ import {
   formatCountCompact,
   formatCreditCompact,
 } from "@src/utils/credit.ts";
-import {
-  deriveNodeStatus,
-  deriveRefillShortfall,
-  deriveTrafficStatus,
-  deriveWxhoprDeficit,
-  deriveXdaiDeficit,
-} from "@src/utils/funding.ts";
+import { deriveNodeStatus, deriveTrafficStatus } from "@src/utils/funding.ts";
 import { exitDisplayName, exitShortId } from "@src/utils/destinations.ts";
-import { logWarn } from "@src/utils/appLog.ts";
 import {
   clearSettingsRequest,
   settingsRequest,
 } from "@src/utils/settingsPage.ts";
-import AddFundsModal from "@src/components/AddFundsModal.tsx";
 import Tooltip from "@src/components/common/Tooltip.tsx";
 import { ShortId } from "@src/components/exitNode/LocationRow.tsx";
 import UsageMeter from "@src/components/exitNode/UsageMeter.tsx";
@@ -48,17 +35,7 @@ import {
   SettingsHeading,
 } from "@src/components/settings/SettingsGroup.tsx";
 import SettingsRow from "@src/components/settings/SettingsRow.tsx";
-
-const FUNDING_SITE_URL = "https://funding.vpn.gnosis.eth.limo/";
-
-async function openFundingSite(address: string) {
-  const url = `${FUNDING_SITE_URL}?address=${encodeURIComponent(address)}`;
-  try {
-    await openUrl(url);
-  } catch (e) {
-    logWarn(`Failed to open ${url}: ${e}`);
-  }
-}
+import { openFundingSite, useFunding } from "./useFunding.ts";
 
 // The client reports no session lifetime yet, so the expiry value reads "Feature coming".
 const SESSION_EXPIRY_NOTE =
@@ -106,53 +83,17 @@ function renewals(count: bigint): string {
   }`;
 }
 
-export default function UsageTab() {
+export default function UsageTab(props: { onAddFunds: () => void }) {
   const [appState] = useAppStore();
-  const [isAddFundsOpen, setIsAddFundsOpen] = createSignal(false);
-
-  const preparingSafe =
-    () => (isPreparingSafeRunMode(appState.runMode) ? appState.runMode : null);
-  // What stands in for the balance card while the service cannot report one.
-  const standIn = createMemo(
-    (): { tone: "warn" | "bad"; text: string } | null => {
-      switch (appState.vpnStatus) {
-        case "WorkerRestarting":
-          return { tone: "warn", text: "Service restarting" };
-        case "ServiceUnavailable":
-          return { tone: "bad", text: "Service unavailable" };
-        case "InUseByOtherUser":
-          return {
-            tone: "warn",
-            text: "In use by another user on this computer",
-          };
-        case "DeployingSafe":
-          return { tone: "warn", text: "Preparing service" };
-      }
-      return warmupProgress(appState.runMode)
-        ? { tone: "warn", text: "Syncing in progress" }
-        : null;
-    },
-  );
-  // The Add funds modal renders with the balance card, so it can only open while the card shows.
-  const balanceShown = () =>
-    standIn() === null &&
-    (isRunningRunMode(appState.runMode) || preparingSafe() !== null);
+  const { preparingSafe, standIn, balanceShown, runModeStatus, nodeAddress } =
+    useFunding();
 
   // The balance popover's "Add data" lands here; before the card shows it only opens the tab.
   createEffect(() => {
     if (settingsRequest() !== "add-funds") return;
     clearSettingsRequest();
-    if (untrack(balanceShown)) setIsAddFundsOpen(true);
+    if (untrack(balanceShown)) props.onAddFunds();
   });
-  // Closed with the card, so it cannot pop up by itself when the card comes back.
-  createEffect(() => {
-    if (!balanceShown()) setIsAddFundsOpen(false);
-  });
-  const runModeStatus = createMemo(() =>
-    isRunningRunMode(appState.runMode) ? appState.runMode.funding_status : null
-  );
-  const nodeAddress = () =>
-    preparingSafe()?.node_address ?? appState.balance?.info.node_address ?? "";
 
   const credit = createMemo(() =>
     appState.balance ? computeEffectiveCredit(appState.balance) : null
@@ -234,7 +175,7 @@ export default function UsageTab() {
           <SettingsRow
             icon="add"
             title="Add funds directly"
-            onClick={() => setIsAddFundsOpen(true)}
+            onClick={() => props.onAddFunds()}
           >
             <BackIcon class="rotate-180 text-text-subtle" />
           </SettingsRow>
@@ -274,16 +215,6 @@ export default function UsageTab() {
             }
           />
         </div>
-        <AddFundsModal
-          open={isAddFundsOpen()}
-          onClose={() => setIsAddFundsOpen(false)}
-          nodeAddress={nodeAddress()}
-          wxhoprDeficit={deriveWxhoprDeficit(
-            appState.balance,
-            runModeStatus(),
-          ) ?? deriveRefillShortfall(appState.balance, runModeStatus())}
-          xdaiDeficit={deriveXdaiDeficit(appState.balance, runModeStatus())}
-        />
       </Show>
     </>
   );

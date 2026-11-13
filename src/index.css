@@ -158,6 +158,7 @@ textarea {
   --color-warn-ink: #a85d02;
   --color-bad-bg: #fbe5e6;
   --color-bad-ink: #b4232c;
+  --color-address-ink: #cc356d;
 
   /* Border colors */
   --color-border: #e5e7eb;
@@ -250,6 +251,7 @@ textarea {
   --color-warn-ink: #f6b866;
   --color-bad-bg: #3a171a;
   --color-bad-ink: #ff8f93;
+  --color-address-ink: #ff4288;
 
   /* Border colors */
   --color-border: #374151;
@@ -290,13 +292,10 @@ textarea {
     rgb(255 255 255 / 0.08)
   );
 }
-/* pr-* whose padding pays for the scrollbar, so content keeps its inset and never shifts */
-@utility pr-gutter-* {
-  padding-right: --spacing(--value(number));
-  @supports (scrollbar-gutter: stable) {
-    scrollbar-gutter: stable;
-    padding-right: calc(--spacing(--value(number)) - var(--scrollbar-size));
-  }
+/* Vertical scroller whose right inset pr-N includes an always-present scrollbar; WebKit reserves no gutter for a short overflow:auto one */
+@utility scroller-* {
+  overflow-y: scroll;
+  padding-right: calc(--spacing(--value(number)) - var(--scrollbar-size));
 }
 
 /* Button press animation */
@@ -363,6 +362,7 @@ textarea {
   --color-text-soft: var(--color-text-soft);
   --color-warn-bg: var(--color-warn-bg);
   --color-warn-ink: var(--color-warn-ink);
+  --color-address-ink: var(--color-address-ink);
   --color-bad-bg: var(--color-bad-bg);
   --color-bad-ink: var(--color-bad-ink);
 
