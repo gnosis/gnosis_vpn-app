@@ -2,6 +2,7 @@ import {
   createEffect,
   createMemo,
   createSignal,
+  createUniqueId,
   Match,
   Show,
   Switch,
@@ -9,6 +10,8 @@ import {
 } from "solid-js";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
+  connectionDestination,
+  connectionPix,
   isPreparingSafeRunMode,
   isRunningRunMode,
   warmupProgress,
@@ -27,15 +30,23 @@ import {
   deriveWxhoprDeficit,
   deriveXdaiDeficit,
 } from "@src/utils/funding.ts";
+import { exitDisplayName, exitShortId } from "@src/utils/destinations.ts";
 import { logWarn } from "@src/utils/appLog.ts";
 import {
   clearSettingsRequest,
   settingsRequest,
 } from "@src/utils/settingsPage.ts";
 import AddFundsModal from "@src/components/AddFundsModal.tsx";
+import Tooltip from "@src/components/common/Tooltip.tsx";
+import { ShortId } from "@src/components/exitNode/LocationRow.tsx";
+import UsageMeter from "@src/components/exitNode/UsageMeter.tsx";
 import BackIcon from "@src/components/icons/BackIcon.tsx";
+import SettingIcon from "@src/components/icons/SettingIcon.tsx";
 import Notice from "@src/components/settings/Notice.tsx";
-import { SettingsCard } from "@src/components/settings/SettingsGroup.tsx";
+import {
+  SettingsCard,
+  SettingsHeading,
+} from "@src/components/settings/SettingsGroup.tsx";
 import SettingsRow from "@src/components/settings/SettingsRow.tsx";
 
 const FUNDING_SITE_URL = "https://funding.vpn.gnosis.eth.limo/";
@@ -47,6 +58,42 @@ async function openFundingSite(address: string) {
   } catch (e) {
     logWarn(`Failed to open ${url}: ${e}`);
   }
+}
+
+// The client reports no session lifetime yet, so the tooltip promises it instead of naming one.
+const SESSION_EXPIRY_NOTE =
+  "Relay channels close after a while, because keeping them open costs data. Connecting again opens new ones.";
+
+function SessionExpiryInfo() {
+  const descriptionId = createUniqueId();
+  return (
+    <Tooltip
+      content={
+        <div class="flex flex-col gap-2">
+          <p class="flex justify-between gap-4">
+            <span>Session expiry</span>
+            <span class="font-bold">Feature coming</span>
+          </p>
+          <p class="text-gray-300">{SESSION_EXPIRY_NOTE}</p>
+        </div>
+      }
+      position="bottom"
+      triggerClass="w-fit shrink-0"
+    >
+      <span
+        class="inline-flex cursor-help text-text-subtle"
+        tabIndex={0}
+        aria-label="Session expiry"
+        aria-describedby={descriptionId}
+      >
+        <SettingIcon name="info" size={14} />
+      </span>
+      {/* Always in the DOM so the description resolves on focus; the portalled bubble mounts too late for that. */}
+      <span id={descriptionId} class="sr-only">
+        Feature coming. {SESSION_EXPIRY_NOTE}
+      </span>
+    </Tooltip>
+  );
 }
 
 function renewals(count: bigint): string {
@@ -123,6 +170,13 @@ export default function UsageTab() {
   // The daemon's levels alone (before the first balance) are blind to EOA funds, so they only warrant amber.
   const emptyTone = () => (appState.balance === null ? "warn" : "bad");
 
+  // The exit whose session the meter reports; a reconnect has none.
+  const liveExitId = () => {
+    const c = appState.connection;
+    const live = c.type === "connected" || connectionPix(c) !== null;
+    return live ? connectionDestination(c) : null;
+  };
+
   return (
     <>
       <Show when={standIn()}>
@@ -193,6 +247,30 @@ export default function UsageTab() {
             )}
           </Show>
         </SettingsCard>
+        <SettingsHeading>This exit</SettingsHeading>
+        <div class="flex shrink-0 flex-col rounded-xl bg-bg-list px-3.5 py-3.5">
+          <UsageMeter
+            keepBar
+            label={
+              <Show when={liveExitId()} fallback="Not connected">
+                {(id) => {
+                  const exit = () => appState.destinations[id()]?.destination;
+                  return (
+                    <>
+                      <span class="truncate font-medium text-text-primary">
+                        {exit() ? exitDisplayName(exit()!) : "Unavailable exit"}
+                        <Show when={exit()}>
+                          {(d) => <ShortId id={exitShortId(d().address)} />}
+                        </Show>
+                      </span>
+                      <SessionExpiryInfo />
+                    </>
+                  );
+                }}
+              </Show>
+            }
+          />
+        </div>
         <AddFundsModal
           open={isAddFundsOpen()}
           onClose={() => setIsAddFundsOpen(false)}
