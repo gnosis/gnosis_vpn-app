@@ -82,7 +82,7 @@ function Navigation(props: { gearOnly?: boolean }) {
       <Portal>
         <div
           ref={(el) => (containerRef = el)}
-          class="fixed top-6 right-4 z-60 flex items-center gap-1.5 justify-center"
+          class="fixed top-4 right-4 z-60 flex items-center gap-1.5 justify-center"
         >
           <Show when={!props.gearOnly}>
             {/* The client has no lockdown yet (the kill switch only lives with a connection), so it always reads off */}

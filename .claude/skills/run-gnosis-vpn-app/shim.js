@@ -23,8 +23,8 @@
     installedVersion: null,
     showDetailedMetrics: false,
     flagDisplay: "color",
-    showExitCost: true,
     advancedView: false,
+    hasConnected: false,
     ...(fixture.settings ?? {}),
   };
 
