@@ -20,7 +20,7 @@ import {
 /** Frame cadence; one request is in flight at a time. */
 const FRAME_INTERVAL_MS = 100;
 
-/** Live traffic beside the main screen; capture runs only while it is mounted, so every opening starts empty. */
+/** Live traffic; capture runs only while it is mounted, so every opening starts empty. */
 export default function TrafficPane() {
   const [frame, setFrame] = createSignal<TrafficFrame | null>(null);
   const [capture, setCapture] = createSignal<CaptureStatus | null>(null);

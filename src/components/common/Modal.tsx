@@ -1,6 +1,5 @@
 import { JSX, onCleanup, onMount, Show } from "solid-js";
 import { Portal } from "solid-js/web";
-import { overlayMount } from "@src/utils/mainColumn.ts";
 
 type ModalProps = {
   open: boolean;
@@ -23,7 +22,7 @@ export function Modal(props: ModalProps) {
 
   return (
     <Show when={props.open}>
-      <Portal mount={overlayMount()}>
+      <Portal>
         <div
           class="fixed inset-0 z-110 bg-bg-overlay backdrop-blur-[1px]"
           onClick={() => props.onClose()}

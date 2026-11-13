@@ -5,11 +5,9 @@ import SettingsIcon from "./icons/SettingsIcon.tsx";
 import { openSettings, settingsTab } from "../utils/settingsPage.ts";
 import TrafficIcon from "./icons/TrafficIcon.tsx";
 import {
-  balanceHoverBlocked,
-  toggleTrafficPane,
-  trafficPaneOpen,
-} from "../utils/trafficPane.ts";
-import { overlayMount } from "../utils/mainColumn.ts";
+  toggleTrafficWindow,
+  trafficWindowOpen,
+} from "../utils/trafficWindow.ts";
 import { isRunningRunMode } from "../services/vpnService.ts";
 import LockIcon from "./icons/LockIcon.tsx";
 import { deriveOverallStatus } from "../utils/funding.ts";
@@ -64,7 +62,6 @@ function Navigation(props: { gearOnly?: boolean }) {
   };
 
   const handleMouseEnter = gateOnWindowFocus(() => {
-    if (balanceHoverBlocked()) return;
     clearTimeout(hoverTimeout);
     if (showPopup()) return;
     hoverTimeout = setTimeout(() => {
@@ -82,7 +79,7 @@ function Navigation(props: { gearOnly?: boolean }) {
 
   return (
     <>
-      <Portal mount={overlayMount()}>
+      <Portal>
         <div
           ref={(el) => (containerRef = el)}
           class="fixed top-4 right-4 z-60 flex items-center gap-1.5 justify-center"
@@ -109,10 +106,10 @@ function Navigation(props: { gearOnly?: boolean }) {
             <Tooltip content="Live traffic" position="bottom">
               <IconButton
                 label="Live traffic"
-                active={trafficPaneOpen()}
+                active={trafficWindowOpen()}
                 onClick={() => {
                   hidePopup();
-                  void toggleTrafficPane();
+                  void toggleTrafficWindow();
                 }}
               >
                 <TrafficIcon />

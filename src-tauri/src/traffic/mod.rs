@@ -1,12 +1,12 @@
 //! Live traffic backend: capture runs in the root daemon, remote addresses never reach the webview.
 
 mod model;
-pub mod pane;
+pub mod window;
 
 use gnosis_vpn_ipc::traffic as protocol;
 use gnosis_vpn_ipc::{CallError, Request, Response, ServiceError};
 use serde::Serialize;
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Manager, State};
 use tokio::sync::Mutex;
 
 pub use model::{Endpoint, Frame, MAX_ENDPOINTS, WINDOW_SECONDS};
@@ -251,23 +251,6 @@ async fn stop_inner(inner: &Mutex<Inner>) {
 pub async fn stop(app: &AppHandle) {
     if let Some(state) = app.try_state::<TrafficState>() {
         stop_inner(&state.inner).await;
-    }
-}
-
-/// Tray entry: the pane lives in the main window, which decides whether it can open it now.
-pub fn show(app: &AppHandle) {
-    let Some(window) = app.get_webview_window("main") else {
-        tracing::warn!(target: "traffic", "main window missing");
-        return;
-    };
-    #[cfg(target_os = "macos")]
-    {
-        let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
-    }
-    let _ = window.show();
-    let _ = window.set_focus();
-    if let Err(e) = window.emit_to("main", "traffic:open", ()) {
-        tracing::warn!(target: "traffic", error = %e, "cannot ask the main window to open the traffic pane");
     }
 }
 
