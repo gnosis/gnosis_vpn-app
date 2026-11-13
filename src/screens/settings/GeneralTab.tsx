@@ -114,7 +114,8 @@ export default function GeneralTab(
   const updateWaiting = () => appState.availableVersion !== null;
 
   // Flags covers the colored and the old monochrome look, which stays until changed.
-  const flagsShown = () => settings.flagDisplay !== "none";
+  const flagsShown = () =>
+    settings.flagDisplay === "color" || settings.flagDisplay === "mono";
 
   const [showUpload, setShowUpload] = createSignal(false);
   // an error seen here stays here; one from an export still running shows on return
@@ -212,22 +213,17 @@ export default function GeneralTab(
             aria-label="Exit icons"
             class="flex shrink-0 gap-0.5 rounded-lg bg-control-bg p-0.5"
           >
-            <FeatureComing>
-              <button
-                type="button"
-                class={`${segmentClass(false)} opacity-50`}
-                aria-pressed={false}
-                disabled
-              >
-                Node icon
-              </button>
-            </FeatureComing>
             <For
               each={[
+                {
+                  label: "Node icon",
+                  pressed: () => settings.flagDisplay === "node",
+                  display: "node",
+                },
                 { label: "Flags", pressed: flagsShown, display: "color" },
                 {
                   label: "None",
-                  pressed: () => !flagsShown(),
+                  pressed: () => settings.flagDisplay === "none",
                   display: "none",
                 },
               ] as const}
