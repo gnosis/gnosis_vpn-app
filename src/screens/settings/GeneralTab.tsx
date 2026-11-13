@@ -171,16 +171,6 @@ export default function GeneralTab(
             />
           </Show>
         </SettingsRow>
-        <SettingsRow
-          title="Hide data use before connecting"
-          description="Connect goes straight ahead instead of first showing the 600 MB an exit takes."
-        >
-          <Switch
-            label="Hide data use before connecting"
-            checked={!settings.showExitCost}
-            onChange={(hide) => void settingsActions.setShowExitCost(!hide)}
-          />
-        </SettingsRow>
         <FeatureComing class="w-full">
           <SettingsRow
             title="Auto-renew sessions"

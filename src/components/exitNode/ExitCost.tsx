@@ -6,7 +6,6 @@ import {
   confirmExitCost,
   exitCostUsable,
 } from "@src/stores/exitCost.ts";
-import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import {
   computeEffectiveCredit,
   formatCreditCompact,
@@ -14,7 +13,6 @@ import {
 import { exitDisplayName, exitShortId } from "@src/utils/destinations.ts";
 import Flag from "../Flag.tsx";
 import FeatureComing from "../settings/FeatureComing.tsx";
-import { ShortId } from "./LocationRow.tsx";
 
 // The Stage 2.1 mock's quota graphic: a 330×74 stage, the balance as a battery 244 wide.
 const W = 244;
@@ -25,45 +23,11 @@ const MIN_CHUNK = 36;
 const FAINT = "var(--color-status-idle)";
 const TINT = "var(--color-control-tint)";
 
-/** A drawn box: WebKit's native checkbox renders oddly once checked. */
-function Checkbox(props: {
-  checked: boolean;
-  disabled?: boolean;
-  onChange?: (checked: boolean) => void;
-}) {
-  return (
-    <span class="relative flex size-4 shrink-0">
-      <input
-        type="checkbox"
-        class="peer size-4 appearance-none rounded-[4px] border border-control-ring checked:border-control-tint checked:bg-control-tint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-control-tint"
-        checked={props.checked}
-        disabled={props.disabled}
-        onChange={(e) => props.onChange?.(e.currentTarget.checked)}
-      />
-      <svg
-        viewBox="0 0 16 16"
-        class="pointer-events-none absolute inset-0 hidden size-4 text-bg-location-card peer-checked:block"
-        aria-hidden="true"
-      >
-        <path
-          d="M4 8.5l2.5 2.5L12 5.5"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        />
-      </svg>
-    </span>
-  );
-}
-
 /** Before a connect: what the exit sets aside from the balance, and the user's go-ahead. */
 export default function ExitCost(
   props: { destination: Destination; switching: boolean },
 ) {
   const [appState] = useAppStore();
-  const [settings, settingsActions] = useSettingsStore();
 
   const credit = () =>
     appState.balance ? computeEffectiveCredit(appState.balance) : null;
@@ -176,10 +140,10 @@ export default function ExitCost(
         />
       </div>
 
-      <p class="text-center text-sm font-bold">
-        {exitDisplayName(props.destination)}
-        <ShortId id={exitShortId(props.destination.address)} /> gets{" "}
-        {costLabel()}
+      <p class="text-center text-[15px] font-bold">
+        {`${exitDisplayName(props.destination)} #${
+          exitShortId(props.destination.address)
+        } gets ${costLabel()}.`}
       </p>
       <Show when={!exitCostUsable()}>
         <p role="status" class="text-center text-xs text-text-subtle">
@@ -187,24 +151,7 @@ export default function ExitCost(
         </p>
       </Show>
 
-      <div class="mt-1 flex flex-col gap-1.5 self-center text-xs text-text-soft">
-        <FeatureComing>
-          <label class="flex items-center gap-2 opacity-50">
-            <Checkbox checked disabled />
-            Turn on Auto-renew sessions
-          </label>
-        </FeatureComing>
-        <label class="flex items-center gap-2">
-          {/* The same setting as "Hide data use before connecting", written at once */}
-          <Checkbox
-            checked={!settings.showExitCost}
-            onChange={(hide) => void settingsActions.setShowExitCost(!hide)}
-          />
-          Do not show this again
-        </label>
-      </div>
-
-      <div class="mt-1.5 flex gap-2">
+      <div class="flex gap-2">
         <button
           type="button"
           class="h-11 flex-1 rounded-[10px] text-[15px] font-bold hover:bg-control-bg"
@@ -221,6 +168,12 @@ export default function ExitCost(
           {props.switching ? "Switch" : "Connect"}
         </button>
       </div>
+
+      <FeatureComing class="self-center">
+        <button type="button" class="text-xs text-text-subtle" disabled>
+          Turn on Auto-renew
+        </button>
+      </FeatureComing>
     </div>
   );
 }
