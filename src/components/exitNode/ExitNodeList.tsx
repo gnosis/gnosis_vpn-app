@@ -39,14 +39,13 @@ import LocationRow, {
   STATUS_PILL,
 } from "./LocationRow.tsx";
 
-const ROW_LIMIT = 5;
+const BEST_ROW_LIMIT = 5;
 
 /** Everything the list shows that a status update can change. */
 interface ListView {
   // ids, so <For> keeps a row, and a focused button, when only its grade changes
   rows: string[];
   exits: Record<string, { destination: Destination; grade: RouteGrade }>;
-  more: boolean;
   autoPick: Destination | null;
   autoOn: boolean;
   connected: boolean;
@@ -61,9 +60,27 @@ export default function ExitNodeList(props: {
   const [settings, settingsActions] = useSettingsStore();
 
   const [query, setQuery] = createSignal("");
-  const [showAll, setShowAll] = createSignal(false);
+  // exit rows that fit below the list's top without scrolling; null until laid out
+  const [fitRows, setFitRows] = createSignal<number | null>(null);
 
   let searchInputRef: HTMLInputElement | undefined;
+  let scrollRef: HTMLDivElement | undefined;
+  let listRef: HTMLDivElement | undefined;
+
+  // rows share one height, so the room left divides into whole rows
+  const measureFit = () => {
+    const row = listRef?.lastElementChild;
+    if (!scrollRef || !listRef?.isConnected || !row) return;
+    const list = getComputedStyle(listRef);
+    const top = listRef.getBoundingClientRect().top -
+      scrollRef.getBoundingClientRect().top + scrollRef.scrollTop;
+    const room = scrollRef.clientHeight - top -
+      parseFloat(getComputedStyle(scrollRef).paddingBottom) -
+      parseFloat(list.paddingTop) - parseFloat(list.paddingBottom);
+    const gap = parseFloat(list.rowGap) || 0;
+    const rowHeight = row.getBoundingClientRect().height + gap;
+    setFitRows(Math.max(1, Math.floor((room + gap) / rowHeight)));
+  };
 
   function handleKeyDown(e: KeyboardEvent) {
     if (e.key === "Escape") {
@@ -78,6 +95,9 @@ export default function ExitNodeList(props: {
   onMount(() => {
     searchInputRef?.focus();
     document.addEventListener("keydown", handleKeyDown);
+    const resize = new ResizeObserver(measureFit);
+    if (scrollRef) resize.observe(scrollRef);
+    onCleanup(() => resize.disconnect());
   });
   onCleanup(() => document.removeEventListener("keydown", handleKeyDown));
 
@@ -139,16 +159,31 @@ export default function ExitNodeList(props: {
       : null;
   };
 
+  // the cap on rows past the current exit
+  const rowLimit = (hasCurrent: boolean): number | null => {
+    switch (settings.exitNodeSortOrder) {
+      case "best":
+        return BEST_ROW_LIMIT;
+      case "recent": {
+        // the current exit takes a row of the screen too
+        const fit = fitRows();
+        return fit === null ? null : Math.max(0, fit - (hasCurrent ? 1 : 0));
+      }
+      default:
+        return null;
+    }
+  };
+
   const liveView = createMemo((): ListView => {
     const connectedId = connectionDestination(appState.connection);
     const current = connectedId === null
       ? undefined
       : appState.destinations[connectedId]?.destination;
-    const { rows, more } = pickerRows(frozenList(), {
+    const rows = pickerRows(frozenList(), {
       query: query(),
       current: current ?? null,
       isUsable,
-      limit: showAll() ? null : ROW_LIMIT,
+      limit: rowLimit(current !== undefined),
     });
     const context = rankContext(appState);
     const autoPick = liveAutoPick();
@@ -166,7 +201,6 @@ export default function ExitNodeList(props: {
     return {
       rows: rows.map((destination) => destination.id),
       exits,
-      more,
       autoPick,
       // connected, "On" means auto was on when this tunnel came up
       autoOn: connectedId === null
@@ -191,14 +225,16 @@ export default function ExitNodeList(props: {
     const next = liveView();
     if (!hovering()) setView(next);
   });
-  // the user's own changes show at once, pointer or not
+  // the user's own changes, and the layout's, show at once, pointer or not
   createEffect(
     on(
-      [query, showAll, () => settings.exitNodeSortOrder],
+      [query, fitRows, () => settings.exitNodeSortOrder],
       () => setView(liveView()),
       { defer: true },
     ),
   );
+  // the list's first rows may arrive after the scroll area was measured
+  createEffect(on(view, measureFit, { defer: true }));
 
   const showAuto = () =>
     settings.exitNodeSortOrder === "best" && !query().trim();
@@ -279,7 +315,10 @@ export default function ExitNodeList(props: {
     <div class="fixed inset-0 z-100 bg-bg-primary text-text-primary flex flex-col outline-none transition-transform duration-220 ease-[cubic-bezier(0.2,0.8,0.2,1)] starting:translate-x-full motion-reduce:transition-none">
       <PageHeader title="Choose location" onBack={() => props.onClose(null)} />
 
-      <div class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pl-3.5 pr-gutter-3.5 pt-1 pb-4">
+      <div
+        ref={scrollRef}
+        class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pl-3.5 pr-gutter-3.5 pt-1 pb-4"
+      >
         <div class="relative shrink-0">
           <svg
             class="pointer-events-none absolute top-2.25 left-2.25 text-text-subtle"
@@ -343,6 +382,7 @@ export default function ExitNodeList(props: {
             }
           >
             <div
+              ref={listRef}
               role="group"
               aria-label="Locations"
               class="flex flex-col gap-0.5 rounded-xl bg-bg-list p-1.5"
@@ -413,16 +453,6 @@ export default function ExitNodeList(props: {
                   />
                 )}
               </For>
-
-              <Show when={view().more}>
-                <button
-                  type="button"
-                  class="self-center py-0.5 text-[13px] leading-4 font-bold text-text-link hover:cursor-pointer"
-                  onClick={() => setShowAll(true)}
-                >
-                  Show all exits
-                </button>
-              </Show>
 
               <Show when={query().trim() && view().rows.length === 0}>
                 <p class="px-2.5 py-4 text-center text-[10.5px] text-text-subtle">
