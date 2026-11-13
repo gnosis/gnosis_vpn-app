@@ -90,10 +90,10 @@ export const SettingsSchema = z.object({
   // Name is legacy: whether the advanced view's card has its details open (chevron).
   showDetailedMetrics: z.boolean(),
   flagDisplay: FlagDisplaySchema,
-  // Connect first shows the data an exit sets aside
-  showExitCost: z.boolean(),
   // the main screen shows the location card instead of the simple view
   advancedView: z.boolean(),
+  // until a connect succeeds, Connect always shows the data cost first
+  hasConnected: z.boolean(),
 });
 export type SettingsState = z.infer<typeof SettingsSchema>;
 
@@ -112,8 +112,8 @@ const DEFAULT_SETTINGS: SettingsState = {
   installedVersion: null,
   showDetailedMetrics: false,
   flagDisplay: "color",
-  showExitCost: true,
   advancedView: false,
+  hasConnected: false,
 };
 
 type SettingsActions = {
@@ -140,8 +140,8 @@ type SettingsActions = {
   setDismissedUpdateVersion: (version: string | null) => Promise<void>;
   setShowDetailedMetrics: (show: boolean) => Promise<void>;
   setFlagDisplay: (display: FlagDisplay) => Promise<void>;
-  setShowExitCost: (show: boolean) => Promise<void>;
   setAdvancedView: (on: boolean) => Promise<void>;
+  markConnected: () => Promise<void>;
 };
 
 type SettingsStoreTuple = readonly [
@@ -236,8 +236,8 @@ export function createSettingsStore(): SettingsStoreTuple {
       patch({ dismissedUpdateVersion: version }),
     setShowDetailedMetrics: (show) => patch({ showDetailedMetrics: show }),
     setFlagDisplay: (display) => patch({ flagDisplay: display }),
-    setShowExitCost: (show) => patch({ showExitCost: show }),
     setAdvancedView: (on) => patch({ advancedView: on }),
+    markConnected: () => patch({ hasConnected: true }),
   } as const;
 
   const dispose = () => {

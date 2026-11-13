@@ -30,6 +30,6 @@
   "installedVersion": "0.28.5",
   "showDetailedMetrics": true,
   "flagDisplay": "mono",
-  "showExitCost": false,
-  "advancedView": true
+  "advancedView": true,
+  "hasConnected": true
 }
