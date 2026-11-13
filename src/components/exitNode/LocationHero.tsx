@@ -7,9 +7,8 @@ import ExitCost from "./ExitCost.tsx";
 import { createLocationState } from "./locationState.ts";
 import { PhaseTag, SwitchingTo } from "./LocationTags.tsx";
 import SignalBars from "./SignalBars.tsx";
-import UsageMeter from "./UsageMeter.tsx";
 
-/** The simple view's exit: its flag, name and standing, the connect stage, then its cost or usage at the foot. */
+/** The simple view's exit: its flag, name and standing, the connect stage, then its cost at the foot. */
 export default function LocationHero(props: {
   destinationState: DestinationState;
 }) {
@@ -23,7 +22,6 @@ export default function LocationHero(props: {
     phase,
     pending,
     candidateName,
-    liveHere,
     attemptInFlight,
     connectPhase,
     connectSince,
@@ -109,14 +107,7 @@ export default function LocationHero(props: {
         </div>
       </Show>
       <div class="mt-auto shrink-0 pt-2.5 empty:hidden">
-        <Show
-          when={costTarget()}
-          fallback={
-            <Show when={liveHere() && !attemptInFlight()}>
-              <UsageMeter />
-            </Show>
-          }
-        >
+        <Show when={costTarget()}>
           {(target) => (
             // No overflow-hidden: it would let the column squash the buttons.
             <div class="rounded-[10px] bg-bg-location-card">
