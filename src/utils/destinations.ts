@@ -316,7 +316,7 @@ export function pickerRows(
     isUsable: (id: string) => boolean;
     limit: number | null;
   },
-): { rows: Destination[]; more: boolean } {
+): Destination[] {
   const q = options.query.trim().toLowerCase();
   const matches = (d: Destination) =>
     destinationSearchText(d).toLowerCase().includes(q);
@@ -326,14 +326,10 @@ export function pickerRows(
   const usable = sorted.filter((d) =>
     d.id !== options.current?.id && options.isUsable(d.id)
   );
-  if (q) return { rows: [...current, ...usable.filter(matches)], more: false };
-  if (options.limit === null || usable.length <= options.limit) {
-    return { rows: [...current, ...usable], more: false };
-  }
-  return {
-    rows: [...current, ...usable.slice(0, options.limit)],
-    more: true,
-  };
+  if (q) return [...current, ...usable.filter(matches)];
+  return options.limit === null
+    ? [...current, ...usable]
+    : [...current, ...usable.slice(0, options.limit)];
 }
 
 /** Measured eligible first (by score), then unmeasured eligible (by resilience), then the rest (by closeness). */
