@@ -1,6 +1,5 @@
 import { Match, Show, Switch } from "solid-js";
 import type { DestinationState } from "@src/services/vpnService.ts";
-import { useAppStore } from "@src/stores/appStore.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import Flag from "../Flag.tsx";
 import ConnectStage from "./ConnectStage.tsx";
@@ -14,7 +13,6 @@ export default function LocationHero(props: {
   destinationState: DestinationState;
 }) {
   const [settings] = useSettingsStore();
-  const [, appActions] = useAppStore();
   const {
     destination,
     id,
@@ -51,17 +49,12 @@ export default function LocationHero(props: {
               classList={{ "motion-safe:animate-swap-in": swapped }}
             >
               <Show when={settings.flagDisplay !== "none"}>
-                <button
-                  type="button"
-                  aria-label="More locations"
-                  class="flex size-14 cursor-pointer items-center justify-center rounded-2xl bg-pill-selected hover:shadow-[inset_0_0_0_1px_var(--color-control-ring)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-control-tint"
-                  onClick={() => appActions.destinationListOpened()}
-                >
+                <span class="flex size-14 items-center justify-center rounded-2xl bg-pill-selected">
                   <Flag
                     code={destination().geo?.country ?? ""}
-                    sizeClass="w-10 h-7.5 rounded"
+                    sizeClass="w-8.5 h-6 rounded"
                   />
-                </button>
+                </span>
               </Show>
               <span class="flex max-w-full flex-col items-center gap-1">
                 <span class="flex max-w-full items-center gap-2.5">
