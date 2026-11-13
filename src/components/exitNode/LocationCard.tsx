@@ -24,7 +24,7 @@ import { ShortId } from "./LocationRow.tsx";
 import SignalBars from "./SignalBars.tsx";
 import UsageMeter from "./UsageMeter.tsx";
 
-/** The advanced view's exit: what Connect targets, its live stats, and, open, its connect stage or diagnostics. */
+/** The advanced view's exit: what Connect targets, its live stats, its connect stage, and, open, its diagnostics. */
 export default function LocationCard(props: {
   destinationState: DestinationState;
 }) {
@@ -50,9 +50,6 @@ export default function LocationCard(props: {
     stallText,
     costTarget,
   } = createLocationState(() => props.destinationState);
-
-  const showDiagnostics = () =>
-    !attemptInFlight() && settings.showDetailedMetrics;
 
   const tunnelRtt = () => {
     const c = appState.connection;
@@ -159,7 +156,7 @@ export default function LocationCard(props: {
               {/* Fixed height: "Sets aside" turns into the usage meter on connect without resizing the card */}
               <button
                 type="button"
-                class="flex h-13 w-full cursor-pointer items-center gap-4.5 px-3 text-left hover:bg-row-hover"
+                class="flex h-13 w-full shrink-0 cursor-pointer items-center gap-4.5 px-3 text-left hover:bg-row-hover"
                 aria-expanded={settings.showDetailedMetrics}
                 aria-label={settings.showDetailedMetrics
                   ? "Hide details"
@@ -185,17 +182,11 @@ export default function LocationCard(props: {
                   }`}
                 />
               </button>
-              <Show when={attemptInFlight() || showDiagnostics()}>
+              <Show
+                when={attemptInFlight() || settings.showDetailedMetrics}
+              >
                 <div class="flex min-h-0 flex-col border-t border-dashed border-line-dash transition-opacity duration-200 starting:opacity-0">
-                  <Show
-                    when={attemptInFlight()}
-                    fallback={
-                      <ExitDiagnostics
-                        destinationState={props.destinationState}
-                        latencyMs={latencyMs()}
-                      />
-                    }
-                  >
+                  <Show when={attemptInFlight()}>
                     <ConnectStage
                       phase={connectPhase()}
                       seed={connectSince()}
@@ -203,6 +194,17 @@ export default function LocationCard(props: {
                       relays={relaysFound()}
                       caption={waitingCaption()}
                     />
+                  </Show>
+                  <Show when={settings.showDetailedMetrics}>
+                    <div
+                      class="flex min-h-0 flex-col border-dashed border-line-dash"
+                      classList={{ "border-t": attemptInFlight() }}
+                    >
+                      <ExitDiagnostics
+                        destinationState={props.destinationState}
+                        latencyMs={latencyMs()}
+                      />
+                    </div>
                   </Show>
                 </div>
               </Show>
