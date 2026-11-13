@@ -279,7 +279,7 @@ export default function ExitNodeList(props: {
     <div class="fixed inset-0 z-100 bg-bg-primary text-text-primary flex flex-col outline-none transition-transform duration-220 ease-[cubic-bezier(0.2,0.8,0.2,1)] starting:translate-x-full motion-reduce:transition-none">
       <PageHeader title="Choose location" onBack={() => props.onClose(null)} />
 
-      <div class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3.5 pt-1 pb-4">
+      <div class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pl-3.5 pr-gutter-3.5 pt-1 pb-4">
         <div class="relative shrink-0">
           <svg
             class="pointer-events-none absolute top-2.25 left-2.25 text-text-subtle"

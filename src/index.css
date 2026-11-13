@@ -41,6 +41,40 @@ textarea {
   user-select: text;
 }
 
+/* Page-drawn, so always shown and themed unlike macOS overlay ones; scrollbar-color/-width would switch these off */
+::-webkit-scrollbar {
+  width: var(--scrollbar-size);
+  height: var(--scrollbar-size);
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  min-height: 24px;
+  min-width: 24px;
+  border: 2px solid transparent;
+  border-radius: 9999px;
+  background-clip: padding-box;
+  background-color: color-mix(
+    in srgb,
+    var(--color-scrollbar-thumb) 50%,
+    transparent
+  );
+}
+:hover::-webkit-scrollbar-thumb {
+  background-color: var(--color-scrollbar-thumb);
+}
+::-webkit-scrollbar-thumb:hover,
+::-webkit-scrollbar-thumb:active {
+  background-color: var(--color-scrollbar-thumb-hover);
+}
+@media (prefers-contrast: more) {
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--color-scrollbar-thumb);
+  }
+}
+
 :root {
   font-family: "Unica77", sans-serif;
   font-size: 16px;
@@ -50,6 +84,8 @@ textarea {
   width: 100%;
   height: 100%;
 
+  /* Native UI follows the app's theme class, not the OS */
+  color-scheme: light;
   color: var(--color-text-primary);
   background-color: var(--color-bg-primary);
 
@@ -62,6 +98,8 @@ textarea {
   /* Logo centers on the golden section of the viewport (1/φ² ≈ 0.382); content starts φ × the 3rem logo height below that line. */
   --golden-logo-y: 38.2%;
   --golden-content-y: calc(38.2% + 4.854rem);
+
+  --scrollbar-size: 10px;
 
   /* Background colors */
   --color-bg-primary: #f4f4f6;
@@ -100,6 +138,10 @@ textarea {
   /* an off switch's track: 3:1 against the Settings card and its white thumb */
   --color-switch-off: #8a8a92;
   --color-update-dot: #5a49d6;
+
+  /* Scrollbar thumb: full strength is 3:1 against every surface it crosses */
+  --color-scrollbar-thumb: #8a8a92;
+  --color-scrollbar-thumb-hover: #6b6b70;
 
   /* Exit list (Stage 2.1 "Choose location") */
   --color-bg-list: #ffffff;
@@ -150,6 +192,8 @@ textarea {
 }
 
 :root.dark {
+  color-scheme: dark;
+
   /* Background colors */
   --color-bg-primary: #121219;
   --color-bg-surface: #1f2937;
@@ -186,6 +230,10 @@ textarea {
   --color-control-tint: #a8a8ca;
   --color-switch-off: #6a6880;
   --color-update-dot: #b0a6ff;
+
+  /* Scrollbar */
+  --color-scrollbar-thumb: #807e94;
+  --color-scrollbar-thumb-hover: #a8a8ca;
 
   /* Exit list */
   --color-bg-list: #1b1a26;
@@ -241,6 +289,14 @@ textarea {
     rgb(255 255 255 / 0.08),
     rgb(255 255 255 / 0.08)
   );
+}
+/* pr-* whose padding pays for the scrollbar, so content keeps its inset and never shifts */
+@utility pr-gutter-* {
+  padding-right: --spacing(--value(number));
+  @supports (scrollbar-gutter: stable) {
+    scrollbar-gutter: stable;
+    padding-right: calc(--spacing(--value(number)) - var(--scrollbar-size));
+  }
 }
 
 /* Button press animation */
