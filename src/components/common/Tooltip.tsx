@@ -83,8 +83,6 @@ export default function Tooltip(props: {
     });
   });
 
-  // Tracks hover/focus intent even while disabled, so the tooltip can
-  // reappear when `disabled` clears without a fresh mouseenter.
   const [wantVisible, setWantVisible] = createSignal(false);
 
   // Handlers only record intent; the effect below turns intent + `disabled`
@@ -96,8 +94,8 @@ export default function Tooltip(props: {
   createEffect(() => {
     clearTimeout(timeout);
     if (props.disabled) {
-      // Force-hide immediately; wantVisible stays intact so the tooltip
-      // reappears once re-enabled without a fresh mouseenter.
+      // What disables it (a page over the trigger) never sends a mouseleave, so the hover intent is stale.
+      setWantVisible(false);
       setVisible(false);
     } else if (wantVisible()) {
       // untrack: updateAnchor reads props.position, which must not become a
