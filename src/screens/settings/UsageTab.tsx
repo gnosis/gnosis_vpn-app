@@ -62,7 +62,10 @@ async function openFundingSite(address: string) {
 
 // The client reports no session lifetime yet, so the expiry value reads "Feature coming".
 const SESSION_EXPIRY_NOTE =
-  "Relay channels close after 3 h, because keeping them open costs data. Connecting again opens new ones.";
+  "For now, the session expiry gets renewed automatically.";
+// Back once sessions expire:
+// const SESSION_EXPIRY_NOTE =
+//   "Relay channels close after 3 h, because keeping them open costs data. Connecting again opens new ones.";
 
 function SessionExpiryInfo() {
   const descriptionId = createUniqueId();
