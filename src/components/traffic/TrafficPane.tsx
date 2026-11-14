@@ -150,9 +150,7 @@ export default function TrafficPane() {
     if (!live()) return "Capture stopped";
     if (observedSeconds() === 0) return "Collecting traffic…";
     const count = endpointCount();
-    return `Observing IP traffic · ${count} ${
-      count === 1 ? "endpoint" : "endpoints"
-    }`;
+    return `${count} ${count === 1 ? "endpoint" : "endpoints"}`;
   };
 
   return (
