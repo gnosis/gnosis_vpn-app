@@ -29,6 +29,7 @@ import {
 } from "@src/utils/hopli.ts";
 import Button from "@src/components/common/Button.tsx";
 import GnosisMark from "@src/components/common/GnosisMark.tsx";
+import CheckCircleIcon from "@src/components/icons/CheckCircleIcon.tsx";
 import SettingIcon from "@src/components/icons/SettingIcon.tsx";
 import {
   SettingsCard,
@@ -113,6 +114,7 @@ function TokenRow(props: {
   status: StatusText | null;
   statusClass: string;
   sendAtLeast: string | null;
+  enough: boolean;
 }) {
   return (
     <div class="flex flex-col gap-1 px-3.5 py-2.5">
@@ -148,6 +150,12 @@ function TokenRow(props: {
             {props.token}
           </span>
         )}
+      </Show>
+      <Show when={props.enough}>
+        <span class="flex items-center gap-1.5 text-xs leading-normal text-text-soft">
+          <CheckCircleIcon class="size-3.5 text-ok-badge" />
+          You have enough {props.token}
+        </span>
       </Show>
     </div>
   );
@@ -207,6 +215,8 @@ export default function SendFundsPage(props: { onBack: () => void }) {
 
   const needsFunds = (status: StatusText | null) =>
     status === "Empty" || status === "Low";
+  const onboardingEnough = (status: StatusText | null) =>
+    funding.preparingSafe() !== null && status === "Sufficient";
   const wxhoprToSend = () => {
     if (!needsFunds(trafficStatus())) return null;
     // Onboarding shows the client's exact minimum; a running top-up reads better as a round amount.
@@ -251,6 +261,7 @@ export default function SendFundsPage(props: { onBack: () => void }) {
           status={trafficStatus()}
           statusClass={statusClass(trafficStatus())}
           sendAtLeast={wxhoprToSend()}
+          enough={onboardingEnough(trafficStatus())}
         />
         <TokenRow
           token="xDAI"
@@ -259,6 +270,7 @@ export default function SendFundsPage(props: { onBack: () => void }) {
           status={gasStatus()}
           statusClass={statusClass(gasStatus())}
           sendAtLeast={xdaiToSend()}
+          enough={onboardingEnough(gasStatus())}
         />
       </SettingsCard>
       <p class="flex gap-2 px-1 pt-1 text-xs leading-[1.45] text-text-subtle">

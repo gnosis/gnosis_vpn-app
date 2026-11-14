@@ -162,6 +162,7 @@ textarea {
   --color-address-ink: #cc356d;
   --color-logo-ink: #1a1751;
   --color-logo-accent: #ff4288;
+  --color-ok-badge: #0f8a4e;
 
   /* Border colors */
   --color-border: #e5e7eb;
@@ -369,6 +370,7 @@ textarea {
   --color-address-ink: var(--color-address-ink);
   --color-logo-ink: var(--color-logo-ink);
   --color-logo-accent: var(--color-logo-accent);
+  --color-ok-badge: var(--color-ok-badge);
   --color-bad-bg: var(--color-bad-bg);
   --color-bad-ink: var(--color-bad-ink);
 
