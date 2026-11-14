@@ -20,6 +20,7 @@ import {
   settingsTab,
   showSettingsTab,
 } from "@src/utils/settingsPage.ts";
+import { createTapSequence } from "@src/utils/tapSequence.ts";
 import GeneralTab from "./GeneralTab.tsx";
 import UsageTab from "./UsageTab.tsx";
 import UpdatePage from "./UpdatePage.tsx";
@@ -38,6 +39,9 @@ export default function SettingsPage() {
     "update" | "about" | "send-funds" | null
   >(null);
   const updates = useUpdates();
+  // Hidden: seven quick clicks on the Usage tab toggle its balance breakdown.
+  const [showBreakdown, setShowBreakdown] = createSignal(false);
+  const usageTap = createTapSequence(7, 500);
 
   // The tabs sit under an open subpage, so a tab change comes from outside (tray, top bar) and shows that tab.
   createEffect(on(settingsTab, () => setSubpage(null), { defer: true }));
@@ -81,7 +85,12 @@ export default function SettingsPage() {
                 class={`flex-1 rounded-md p-2 text-xs leading-4 font-bold ${
                   segmentStateClass(settingsTab() === tab.id)
                 }`}
-                onClick={() => showSettingsTab(tab.id)}
+                onClick={() => {
+                  showSettingsTab(tab.id);
+                  if (tab.id === "usage" && usageTap(performance.now())) {
+                    setShowBreakdown((shown) => !shown);
+                  }
+                }}
               >
                 {tab.label}
               </button>
@@ -97,7 +106,10 @@ export default function SettingsPage() {
               />
             </Match>
             <Match when={settingsTab() === "usage"}>
-              <UsageTab onAddFunds={() => setSubpage("send-funds")} />
+              <UsageTab
+                onAddFunds={() => setSubpage("send-funds")}
+                showBreakdown={showBreakdown()}
+              />
             </Match>
           </Switch>
         </div>

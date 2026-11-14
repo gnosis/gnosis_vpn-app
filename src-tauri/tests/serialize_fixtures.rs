@@ -7,11 +7,11 @@ use gnosis_vpn_ipc as ipc;
 use gnosis_vpn_ipc::{
     Address, ApiVersion, Balance, BalanceRecommendation, Balances, Capacity, CapacityAllocations,
     ChannelMaintenance, Connection, Destination, DestinationSource, DestinationStatus,
-    ExitVersions, FundingLevel, FundingStatus, Geo, GeoSource, Health, Hops, LoadAvg, Meta,
-    Overrides, ProbeResponse, ProbeState, ProbeView, ProbingLevel, ProbingReason, ProbingView,
-    QuickProbeCheck, QuickProbeResponse, QuickProbeState, RouteHealthState, RouteHealthView,
-    RouteWalk, RunMode, Slots, Status, UnprobeResponse, UnrecoverableReason, WarmupStage, WxHopr,
-    XDai,
+    ExitTrafficFunds, ExitVersions, FundingLevel, FundingStatus, Geo, GeoSource, Health, Hops,
+    LoadAvg, Meta, Overrides, ProbeResponse, ProbeState, ProbeView, ProbingLevel, ProbingReason,
+    ProbingView, QuickProbeCheck, QuickProbeResponse, QuickProbeState, RouteHealthState,
+    RouteHealthView, RouteWalk, RunMode, Slots, Status, UnprobeResponse, UnrecoverableReason,
+    WarmupStage, WxHopr, XDai,
 };
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -147,6 +147,7 @@ fn balances(node: Balance<XDai>, safe: Balance<WxHopr>) -> Balances {
         capacity_allocations: None,
         ideal_balance: None,
         funding_status: None,
+        pix_float: None,
     }
 }
 
@@ -409,6 +410,7 @@ fn generate_fixtures() {
                 wxhopr: Balance::from_wei(10_000_000_000_000_000_000), // 10 wxHOPR
                 xdai: Balance::from_wei(100_000_000_000_000_000),      // 0.1 xDAI
                 channel_stakes: Balance::from_wei(9_990_000_000_000_000_000), // 9.99 wxHOPR
+                pix_float: Balance::zero(),
                 fee_to_start: Balance::from_wei(10_000_000_000_000_000), // 0.01 wxHOPR
                 txs_to_start: 3,
                 xdai_fee_per_tx: Balance::from_wei(100_000_000_000_000_000), // 0.1 xDAI
@@ -818,6 +820,7 @@ fn generate_fixtures() {
                 wxhopr: Balance::from_wei(2_000_000_000_000_000_000), // 2 wxHOPR
                 xdai: Balance::from_wei(50_000_000_000_000_000),      // 0.05 xDAI
                 channel_stakes: Balance::from_wei(2_000_000_000_000_000_000), // 2 wxHOPR
+                pix_float: Balance::zero(),
                 fee_to_start: Balance::zero(), // key already bound while running
                 txs_to_start: 0,
                 xdai_fee_per_tx: Balance::from_wei(50_000_000_000_000_000), // 0.05 xDAI
@@ -850,7 +853,7 @@ fn generate_fixtures() {
         }),
     );
 
-    // One open channel, the Safe, and wxHOPR on the node EOA not yet swept into the Safe.
+    // One open channel, the Safe, wxHOPR on the node EOA not yet swept into the Safe, and the PIX float.
     let capacity_allocations = CapacityAllocations {
         peer_allocations: BTreeMap::from([(
             address(),
@@ -873,14 +876,42 @@ fn generate_fixtures() {
             min_guaranteed_messages: 100,
             byte_capacity: 1_048_576,
         },
+        exit_traffic: ExitTrafficFunds {
+            stake: Balance::from_wei(1_000_000_000_000_000_000), // 1 wxHOPR
+            byte_capacity: 524_288,
+            bytes_from_exits: 1_000_000_000, // at 1 Gwei per byte
+        },
     };
     write(
         &fixtures_dir,
         "balance_response_with_capacity.json",
         &types::BalanceResponse::from(Balances {
-            capacity_allocations: Some(capacity_allocations),
+            capacity_allocations: Some(capacity_allocations.clone()),
             ..balances(node_xdai, safe_wxhopr)
         }),
+    );
+
+    // A same-protocol service from before PIX omits both fields; their serde defaults must fill them in.
+    let mut older_service = serde_json::to_value(Balances {
+        capacity_allocations: Some(capacity_allocations),
+        ..balances(node_xdai, safe_wxhopr)
+    })
+    .expect("balances serialize");
+    older_service
+        .as_object_mut()
+        .and_then(|b| b.remove("pix_float"))
+        .expect("balances carry pix_float");
+    older_service["capacity_allocations"]
+        .as_object_mut()
+        .and_then(|c| c.remove("exit_traffic"))
+        .expect("capacity allocations carry exit_traffic");
+    write(
+        &fixtures_dir,
+        "balance_response_from_older_service.json",
+        &types::BalanceResponse::from(
+            serde_json::from_value::<Balances>(older_service)
+                .expect("exit_traffic and pix_float keep their serde defaults"),
+        ),
     );
 
     write(

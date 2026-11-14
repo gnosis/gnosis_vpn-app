@@ -13,6 +13,7 @@ import {
 import { useAppStore } from "@src/stores/appStore.ts";
 import {
   computeEffectiveCredit,
+  creditBreakdown,
   exitsCovered,
   formatCountCompact,
   formatCreditCompact,
@@ -30,6 +31,7 @@ import UsageMeter from "@src/components/exitNode/UsageMeter.tsx";
 import BackIcon from "@src/components/icons/BackIcon.tsx";
 import SettingIcon from "@src/components/icons/SettingIcon.tsx";
 import WarningIcon from "@src/components/icons/WarningIcon.tsx";
+import BalanceBreakdown from "@src/components/settings/BalanceBreakdown.tsx";
 import Notice from "@src/components/settings/Notice.tsx";
 import {
   SettingsCard,
@@ -84,7 +86,9 @@ function renewals(count: bigint): string {
   }`;
 }
 
-export default function UsageTab(props: { onAddFunds: () => void }) {
+export default function UsageTab(
+  props: { onAddFunds: () => void; showBreakdown: boolean },
+) {
   const [appState] = useAppStore();
   const { preparingSafe, standIn, balanceShown, runModeStatus, nodeAddress } =
     useFunding();
@@ -145,6 +149,11 @@ export default function UsageTab(props: { onAddFunds: () => void }) {
     }
     return warnings;
   });
+
+  const breakdown = () =>
+    props.showBreakdown && appState.balance
+      ? creditBreakdown(appState.balance)
+      : null;
 
   // The exit whose session the meter reports; a reconnect has none.
   const liveExitId = () => {
@@ -219,6 +228,9 @@ export default function UsageTab(props: { onAddFunds: () => void }) {
             }
           />
         </div>
+        <Show when={breakdown()}>
+          {(lines) => <BalanceBreakdown lines={lines()} />}
+        </Show>
         <Show when={balanceWarnings().length > 0}>
           <div class="mt-auto flex shrink-0 flex-col gap-2 pt-2">
             <For each={balanceWarnings()}>

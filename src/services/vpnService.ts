@@ -455,6 +455,8 @@ export const BalanceRecommendationSchema = z.object({
   wxhopr: BigIntStringSchema,
   xdai: BigIntStringSchema,
   channel_stakes: BigIntStringSchema,
+  // Curvy float shielded from the Safe once; part of `wxhopr`, only during onboarding.
+  pix_float: BigIntStringSchema,
   fee_to_start: BigIntStringSchema,
   txs_to_start: z.number(),
   xdai_fee_per_tx: BigIntStringSchema,
@@ -471,11 +473,20 @@ export const CapacitySchema = z.object({
 });
 export type Capacity = z.infer<typeof CapacitySchema>;
 
-// Open outgoing channels keyed by checksum address, wxHOPR on the node EOA (not yet swept into the Safe), and the unallocated Safe balance.
+// The funds paying for exit traffic (the PIX float): byte_capacity counts toward the total, bytes_from_exits is what they buy from exits.
+export const ExitTrafficFundsSchema = z.object({
+  stake: BigIntStringSchema,
+  byte_capacity: z.number(),
+  bytes_from_exits: z.number(),
+});
+export type ExitTrafficFunds = z.infer<typeof ExitTrafficFundsSchema>;
+
+// The funds paying for relays — open outgoing channels keyed by checksum address, wxHOPR on the node EOA (not yet swept into the Safe), the unallocated Safe balance — and for exit traffic.
 export const CapacityAllocationsSchema = z.object({
   peer_allocations: z.record(z.string(), CapacitySchema),
   node: CapacitySchema,
   safe: CapacitySchema,
+  exit_traffic: ExitTrafficFundsSchema,
 });
 export type CapacityAllocations = z.infer<typeof CapacityAllocationsSchema>;
 
