@@ -120,32 +120,6 @@ export function isSwitchingDestination(
   return vpnStatus === "Disconnecting" && targetDestination !== null;
 }
 
-export function isXDAITransferred(state: AppState): boolean {
-  if (!state || !isPreparingSafeRunMode(state.runMode)) return false;
-  const { node_xdai, balance_recommendation } = state.runMode;
-  return (
-    balance_recommendation !== null && node_xdai >= balance_recommendation.xdai
-  );
-}
-
-export function isWxHOPRTransferred(state: AppState): boolean {
-  if (!state || !isPreparingSafeRunMode(state.runMode)) return false;
-  const { node_wxhopr, balance_recommendation } = state.runMode;
-  return (
-    balance_recommendation !== null &&
-    node_wxhopr >= balance_recommendation.wxhopr
-  );
-}
-
-export function getPreparingSafeNodeAddress(
-  state: AppState,
-): string | undefined {
-  if (isPreparingSafeRunMode(state.runMode)) {
-    return state.runMode.node_address;
-  }
-  return undefined;
-}
-
 /** Why a reconnect is waiting, from the route health the status already carries. */
 export function waitingForRouteMessage(
   state: AppState,

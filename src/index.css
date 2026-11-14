@@ -2,6 +2,7 @@
 @import "./assets/flags/flags.css" layer(components);
 @import "@fontsource/jetbrains-mono/latin-500.css";
 @import "@fontsource/jetbrains-mono/latin-600.css";
+@import "@fontsource/jetbrains-mono/latin-700.css";
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* Local fonts */
@@ -159,6 +160,8 @@ textarea {
   --color-bad-bg: #fbe5e6;
   --color-bad-ink: #b4232c;
   --color-address-ink: #cc356d;
+  --color-logo-ink: #1a1751;
+  --color-logo-accent: #ff4288;
 
   /* Border colors */
   --color-border: #e5e7eb;
@@ -252,6 +255,7 @@ textarea {
   --color-bad-bg: #3a171a;
   --color-bad-ink: #ff8f93;
   --color-address-ink: #ff4288;
+  --color-logo-ink: #ffffff;
 
   /* Border colors */
   --color-border: #374151;
@@ -363,6 +367,8 @@ textarea {
   --color-warn-bg: var(--color-warn-bg);
   --color-warn-ink: var(--color-warn-ink);
   --color-address-ink: var(--color-address-ink);
+  --color-logo-ink: var(--color-logo-ink);
+  --color-logo-accent: var(--color-logo-accent);
   --color-bad-bg: var(--color-bad-bg);
   --color-bad-ink: var(--color-bad-ink);
 
@@ -446,37 +452,6 @@ textarea {
       opacity: 0;
     }
   }
-}
-
-.fade-in-up {
-  animation: fade-in-up 240ms ease-out both;
-}
-
-@keyframes fade-in-up {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes check-pop {
-  0% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.6);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-
-.check-pop {
-  animation: check-pop 400ms ease-out forwards;
 }
 
 /* Ring depletes clockwise from full to empty, like a countdown timer running

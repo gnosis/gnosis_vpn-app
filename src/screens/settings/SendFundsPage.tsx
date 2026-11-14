@@ -15,7 +15,11 @@ import {
   deriveTrafficStatus,
   deriveWxhoprDeficit,
   deriveXdaiDeficit,
+  preparingSafeShortfall,
+  resolveFundingStatus,
+  roundUpToStep,
   type StatusText,
+  WXHOPR_SEND_STEP,
 } from "@src/utils/funding.ts";
 import {
   formatWxhopr,
@@ -143,7 +147,7 @@ function TokenRow(props: {
         {(amount) => (
           <span class="text-xs leading-normal text-text-soft">
             Send at least{" "}
-            <span class="cursor-text font-figures select-text">
+            <span class="cursor-text font-figures font-bold text-text-primary select-text">
               {amount()}
             </span>{" "}
             {props.token}
@@ -154,7 +158,7 @@ function TokenRow(props: {
   );
 }
 
-/** The address, QR code and what each token is for, opened from Usage → Add funds directly. */
+/** The address, QR code and what each token is for, opened from Usage → Add funds directly or the onboarding Fund screen. */
 export default function SendFundsPage(props: { onBack: () => void }) {
   const [appState] = useAppStore();
   const funding = useFunding();
@@ -171,38 +175,63 @@ export default function SendFundsPage(props: { onBack: () => void }) {
   const xdai = () =>
     funding.preparingSafe()?.node_xdai ?? appState.balance?.node ?? null;
 
-  // Without a balance or the daemon's levels the derived "Sufficient" is only a default.
+  // Running: only the levels the client reports, never the derive helpers' "Sufficient" default.
   const levelsKnown = () =>
-    appState.balance !== null || funding.runModeStatus() !== null;
-  const trafficStatus = createMemo(() =>
-    levelsKnown()
+    resolveFundingStatus(appState.balance, funding.runModeStatus()) !== null;
+  const preparingStatus = (token: "wxhopr" | "xdai"): StatusText | null => {
+    const preparing = funding.preparingSafe();
+    if (!preparing?.balance_recommendation) return null;
+    if (preparingSafeShortfall(preparing, token) === null) return "Sufficient";
+    const have = token === "wxhopr"
+      ? preparing.node_wxhopr
+      : preparing.node_xdai;
+    return have === 0n ? "Empty" : "Low";
+  };
+  // Onboarding: Sufficient only once the node holds the client's full minimum.
+  const trafficStatus = createMemo(() => {
+    if (funding.preparingSafe()) return preparingStatus("wxhopr");
+    return levelsKnown()
       ? deriveTrafficStatus(appState.balance, funding.runModeStatus())
-      : null
-  );
-  const gasStatus = createMemo(() =>
-    levelsKnown()
+      : null;
+  });
+  const gasStatus = createMemo(() => {
+    if (funding.preparingSafe()) return preparingStatus("xdai");
+    return levelsKnown()
       ? deriveNodeStatus(appState.balance, funding.runModeStatus())
-      : null
-  );
-  // The daemon's levels alone (before the first balance) are blind to EOA funds, so they only warrant amber.
+      : null;
+  });
+  // The daemon's levels alone (before the first balance) are blind to EOA funds, so they only warrant amber; preparing_safe's node balances are exact.
   const statusClass = (status: StatusText | null) => {
     if (status === "Sufficient") return "text-ok-ink";
-    if (status === "Empty" && appState.balance !== null) return "text-bad-ink";
+    if (
+      status === "Empty" &&
+      (appState.balance !== null || funding.preparingSafe() !== null)
+    ) return "text-bad-ink";
     return "text-warn-ink";
   };
 
+  const needsFunds = (status: StatusText | null) =>
+    status === "Empty" || status === "Low";
   const wxhoprToSend = () => {
+    if (!needsFunds(trafficStatus())) return null;
+    // Onboarding shows the client's exact minimum; a running top-up reads better as a round amount.
+    const onboarding = preparingSafeShortfall(
+      funding.preparingSafe(),
+      "wxhopr",
+    );
+    if (onboarding) return formatWxhopr(onboarding, 3, "ceil");
     const deficit = deriveWxhoprDeficit(
       appState.balance,
       funding.runModeStatus(),
     ) ?? deriveRefillShortfall(appState.balance, funding.runModeStatus());
-    return deficit ? formatWxhopr(deficit, 3, "ceil") : null;
+    return deficit
+      ? formatWxhopr(roundUpToStep(deficit, WXHOPR_SEND_STEP), 3, "ceil")
+      : null;
   };
   const xdaiToSend = () => {
-    const deficit = deriveXdaiDeficit(
-      appState.balance,
-      funding.runModeStatus(),
-    );
+    if (!needsFunds(gasStatus())) return null;
+    const deficit = preparingSafeShortfall(funding.preparingSafe(), "xdai") ??
+      deriveXdaiDeficit(appState.balance, funding.runModeStatus());
     return deficit ? formatXdai(deficit, 3, "ceil") : null;
   };
 

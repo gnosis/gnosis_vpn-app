@@ -2,12 +2,13 @@ import type {
   BalanceResponse,
   FundingLevel,
   FundingStatus,
+  PreparingSafe,
 } from "@src/services/vpnService.ts";
 
 export type StatusText = "Sufficient" | "Low" | "Empty" | string;
 
-// balance's funding_status (fresher) wins; runModeStatus is the pre-balance fallback.
-function resolveFundingStatus(
+/** The levels the client reports: balance's funding_status (fresher) wins, runModeStatus is the pre-balance fallback. */
+export function resolveFundingStatus(
   balance: BalanceResponse | null,
   runModeStatus: FundingStatus | null,
 ): FundingStatus | null {
@@ -76,4 +77,23 @@ export function deriveRefillShortfall(
   const status = resolveFundingStatus(balance, runModeStatus);
   if (!status || status.wxhopr_deficit !== null) return null;
   return status.refill_shortfall;
+}
+
+/** Before the safe exists the daemon's recommendation is the only target: what is still missing, or null once met. */
+export function preparingSafeShortfall(
+  runMode: PreparingSafe | null,
+  token: "wxhopr" | "xdai",
+): bigint | null {
+  const recommended = runMode?.balance_recommendation?.[token];
+  if (!runMode || recommended === undefined) return null;
+  const have = token === "wxhopr" ? runMode.node_wxhopr : runMode.node_xdai;
+  return have < recommended ? recommended - have : null;
+}
+
+/** wxHOPR asks are rounded up to whole multiples of this. */
+export const WXHOPR_SEND_STEP = 10n * 10n ** 18n;
+
+/** Rounds `amount` up to the next multiple of `step`. */
+export function roundUpToStep(amount: bigint, step: bigint): bigint {
+  return ((amount + step - 1n) / step) * step;
 }

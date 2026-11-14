@@ -11,7 +11,9 @@ import {
   untrack,
 } from "solid-js";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
-import Onboarding from "../screens/main/Onboarding.tsx";
+import Onboarding, {
+  type OnboardingStep,
+} from "../screens/main/Onboarding.tsx";
 import Synchronization from "../screens/main/Synchronization.tsx";
 import Initialization from "../screens/main/Initialization.tsx";
 import ServiceNotRunning from "../screens/main/ServiceNotRunning.tsx";
@@ -49,7 +51,6 @@ const validScreens = [
   "serviceNotRunning",
 ] as const;
 type ValidScreen = (typeof validScreens)[number];
-type OnboardingStep = "start" | "airdrop" | "manually";
 type NavigatePayload =
   | ValidScreen
   | {
