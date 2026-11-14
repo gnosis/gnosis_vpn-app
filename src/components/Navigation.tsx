@@ -148,7 +148,7 @@ function Navigation(props: { gearOnly?: boolean }) {
               </span>
             </IconButton>
           </Show>
-          {/* The page covers the gear without a mouseleave, so the open page hides the tooltip. */}
+          {/* The page covers the gear without a mouseleave, so the open page hides the tooltip and ends its hover. */}
           <Tooltip
             content="Settings"
             position="bottom"
