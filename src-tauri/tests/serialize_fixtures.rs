@@ -410,6 +410,7 @@ fn generate_fixtures() {
                 wxhopr: Balance::from_wei(10_000_000_000_000_000_000), // 10 wxHOPR
                 xdai: Balance::from_wei(100_000_000_000_000_000),      // 0.1 xDAI
                 channel_stakes: Balance::from_wei(9_990_000_000_000_000_000), // 9.99 wxHOPR
+                pix_float: Balance::zero(),
                 fee_to_start: Balance::from_wei(10_000_000_000_000_000), // 0.01 wxHOPR
                 txs_to_start: 3,
                 xdai_fee_per_tx: Balance::from_wei(100_000_000_000_000_000), // 0.1 xDAI
@@ -819,6 +820,7 @@ fn generate_fixtures() {
                 wxhopr: Balance::from_wei(2_000_000_000_000_000_000), // 2 wxHOPR
                 xdai: Balance::from_wei(50_000_000_000_000_000),      // 0.05 xDAI
                 channel_stakes: Balance::from_wei(2_000_000_000_000_000_000), // 2 wxHOPR
+                pix_float: Balance::zero(),
                 fee_to_start: Balance::zero(), // key already bound while running
                 txs_to_start: 0,
                 xdai_fee_per_tx: Balance::from_wei(50_000_000_000_000_000), // 0.05 xDAI

@@ -455,6 +455,8 @@ export const BalanceRecommendationSchema = z.object({
   wxhopr: BigIntStringSchema,
   xdai: BigIntStringSchema,
   channel_stakes: BigIntStringSchema,
+  // Curvy float shielded from the Safe once; part of `wxhopr`, only during onboarding.
+  pix_float: BigIntStringSchema,
   fee_to_start: BigIntStringSchema,
   txs_to_start: z.number(),
   xdai_fee_per_tx: BigIntStringSchema,
