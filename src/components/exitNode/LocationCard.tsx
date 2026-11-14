@@ -75,15 +75,15 @@ export default function LocationCard(props: {
   let shownOnce = false;
 
   return (
-    // Scrolls only once the diagnostics list is down to its minimum
-    <div class="flex min-h-0 flex-col overflow-x-hidden overflow-y-auto rounded-[10px] bg-bg-location-card">
+    // Never scrolls as a whole: the exit stays put while the diagnostics below give up their room and scroll
+    <div class="flex min-h-0 flex-col overflow-hidden rounded-[10px] bg-bg-location-card">
       <div
         role="button"
         tabIndex={0}
         aria-label={`Choose location, now ${name()} #${
           exitShortId(destination().address)
         }`}
-        class="flex cursor-pointer flex-col gap-2.25 px-3 pt-2.75 pb-2.5 hover:bg-row-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-control-tint"
+        class="flex shrink-0 cursor-pointer flex-col gap-2.25 px-3 pt-2.75 pb-2.5 hover:bg-row-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-control-tint"
         onClick={openList}
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.repeat) openList();
