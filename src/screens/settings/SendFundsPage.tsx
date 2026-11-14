@@ -27,6 +27,8 @@ import {
   humanWxhoprParts,
   humanXdai,
 } from "@src/utils/hopli.ts";
+import Button from "@src/components/common/Button.tsx";
+import GnosisMark from "@src/components/common/GnosisMark.tsx";
 import SettingIcon from "@src/components/icons/SettingIcon.tsx";
 import {
   SettingsCard,
@@ -97,13 +99,6 @@ function AddressCard(props: { address: string }) {
                 Copied
               </span>
             </span>
-          </button>
-          <button
-            type="button"
-            class={ROW_BUTTON}
-            onClick={() => void openFundingSite(props.address)}
-          >
-            Funding site <span aria-hidden="true">↗</span>
           </button>
         </div>
       </div>
@@ -241,19 +236,14 @@ export default function SendFundsPage(props: { onBack: () => void }) {
         {(address) => <AddressCard address={address()} />}
       </Show>
       <p class="flex items-center gap-2.5 px-1 pt-1 text-xs leading-[1.45] text-text-subtle">
-        <span
-          aria-hidden="true"
-          class="flex size-5 shrink-0 items-center justify-center rounded-full bg-text-primary text-[10px] font-bold text-bg-primary"
-        >
-          G
-        </span>
+        <GnosisMark class="size-5 shrink-0 text-text-primary" />
         <span>
           Send on <b class="text-text-primary">Gnosis Chain</b>{" "}
           only. Other networks won't arrive.
         </span>
       </p>
-      <SettingsHeading>What to send</SettingsHeading>
-      <SettingsCard label="What to send">
+      <SettingsHeading>Balances</SettingsHeading>
+      <SettingsCard label="Balances">
         <TokenRow
           token="wxHOPR"
           purpose="Pays for your traffic"
@@ -280,6 +270,19 @@ export default function SendFundsPage(props: { onBack: () => void }) {
           Usually about 2 minutes.
         </span>
       </p>
+      <Show when={funding.nodeAddress()}>
+        {(address) => (
+          <div class="mt-auto pt-2.5">
+            <Button
+              size="xl"
+              variant="connect"
+              onClick={() => void openFundingSite(address())}
+            >
+              Open funding site <span aria-hidden="true">↗</span>
+            </Button>
+          </div>
+        )}
+      </Show>
     </SettingsSubpage>
   );
 }
