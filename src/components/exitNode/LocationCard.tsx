@@ -81,7 +81,7 @@ export default function LocationCard(props: {
         role="button"
         tabIndex={0}
         aria-label={`Choose location, now ${name()} #${
-          exitShortId(destination().address)
+          exitShortId(destination())
         }`}
         class="flex shrink-0 cursor-pointer flex-col gap-2.25 px-3 pt-2.75 pb-2.5 hover:bg-row-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-control-tint"
         onClick={openList}
@@ -127,7 +127,7 @@ export default function LocationCard(props: {
                     <span class="flex min-w-0 items-center gap-1.5">
                       <span class="line-clamp-2 min-w-0 text-[15px] leading-tight font-bold text-balance">
                         {name()}
-                        <ShortId id={exitShortId(destination().address)} />
+                        <ShortId id={exitShortId(destination())} />
                       </span>
                       <Show when={isConfigOnly(destination())}>
                         <ConfigPill

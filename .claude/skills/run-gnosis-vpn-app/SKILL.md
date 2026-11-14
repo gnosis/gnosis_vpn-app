@@ -82,9 +82,13 @@ source:
   connection is `connection`, one of `{"type": "disconnected"}`, `connecting`,
   `reconnecting` or `connected` (see `ConnectionSchema`).
 - `destination.geo` — `{"country": "SE", "source": {"type": "announced_ip"}}` or
-  `null`; the client derives it from the exit's announced IP. With a code the
-  label gains the country name and, unless `settings.flagDisplay` is `"none"`,
-  the flag.
+  `null`; the client derives it from the exit's announced IP. A code shows the
+  flag unless `settings.flagDisplay` is `"none"`.
+- `exit_names` — beside `destinations`, keyed by id: the names the Rust backend
+  gives each exit (`display_name`, `title`, `short_id`, `country`,
+  `description`). The frontend derives none, so every listed destination needs
+  an entry (else the status fails to parse) and a changed `geo` or `meta` needs
+  matching names here.
 - `settings` — seeds the shim's `get_settings` snapshot (camelCase keys as in
   `SettingsSchema` in `src/stores/settingsStore.ts`), e.g.
   `"settings": { "exitNodeSortOrder": "alpha", "advancedView": true, "showDetailedMetrics": true, "flagDisplay": "color" }`.

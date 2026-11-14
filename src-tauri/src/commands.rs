@@ -21,9 +21,8 @@ use crate::icons::{self, TrayIconState};
 use crate::platform::{SystemInfo, get_system_info};
 use crate::toolkit;
 use crate::tray;
-use crate::types::{BalanceResponse, ConnectionState};
+use crate::types::{BalanceResponse, ConnectionState, NamedStatus};
 use crate::{AppStateCache, BalancePollingHandle, PollingExit, StatusPollingHandle};
-use gnosis_vpn_ipc::Status;
 
 /// Poll cap while the destination list is open; mirrors STATUS_POLL_FAST_MS in docs/destinationMode.md.
 const STATUS_POLL_FAST: Duration = Duration::from_millis(500);
@@ -654,7 +653,7 @@ pub async fn stop_client() -> Result<(), String> {
 
 #[derive(Serialize)]
 pub struct CachedState {
-    pub status: Result<Status, String>,
+    pub status: Result<NamedStatus, String>,
     pub balance: Result<BalanceResponse, String>,
     pub service_info: Option<ipc::InfoResponse>,
 }
@@ -677,7 +676,7 @@ pub fn get_cached_state(cache: State<'_, AppStateCache>) -> CachedState {
 }
 
 // A window opening later hydrates from the cache, so it must hold every answer the event carried.
-fn publish_status(app: &AppHandle, answer: Result<Option<Status>, String>) {
+fn publish_status(app: &AppHandle, answer: Result<Option<NamedStatus>, String>) {
     app.state::<AppStateCache>()
         .status
         .send_replace(Some(answer.clone()));
@@ -685,7 +684,7 @@ fn publish_status(app: &AppHandle, answer: Result<Option<Status>, String>) {
 }
 
 /// The tray's state for a status answer; `None` leaves the tray as it is.
-fn tray_connection_state(answer: &Result<Option<Status>, String>) -> Option<ConnectionState> {
+fn tray_connection_state(answer: &Result<Option<NamedStatus>, String>) -> Option<ConnectionState> {
     match answer {
         Ok(Some(status)) => Some(status.into()),
         Err(e) if e == SERVICE_NOT_RUNNING_ERROR => Some(ConnectionState::ServiceNotRunning),
@@ -832,7 +831,7 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
                             warn_on_change(&mut last_status_warn, format!("status query failed: {e}"));
                         }
                         let run_mode = match &result {
-                            Ok(Some(status)) => Some(&status.run_mode),
+                            Ok(Some(named)) => Some(&named.status.run_mode),
                             _ => None,
                         };
                         if run_mode.is_some() && last_status_warn.take().is_some() {
@@ -1004,7 +1003,7 @@ struct StatusPoll {
     /// Whether the worker is gone and initialization has to run again.
     needs_reinit: bool,
     /// What to hand the frontend - `None` while the worker is bouncing and has nothing to report.
-    answer: Option<Result<Option<Status>, String>>,
+    answer: Option<Result<Option<NamedStatus>, String>>,
 }
 
 async fn query_status() -> StatusPoll {
@@ -1012,14 +1011,14 @@ async fn query_status() -> StatusPoll {
 }
 
 /// Decides whether initialization must restart, when to poll next, and what the frontend is told.
-fn classify_status_response(resp: Result<Status, CallError>) -> StatusPoll {
+fn classify_status_response(resp: Result<ipc::Status, CallError>) -> StatusPoll {
     match resp {
         Ok(status) => {
             if matches!(status.run_mode, ipc::RunMode::NotRunning) {
                 return StatusPoll {
                     delay: Duration::from_secs(5),
                     needs_reinit: true,
-                    answer: Some(Ok(Some(status))),
+                    answer: Some(Ok(Some(status.into()))),
                 };
             }
 
@@ -1037,7 +1036,7 @@ fn classify_status_response(resp: Result<Status, CallError>) -> StatusPoll {
             StatusPoll {
                 delay,
                 needs_reinit: false,
-                answer: Some(Ok(Some(status))),
+                answer: Some(Ok(Some(status.into()))),
             }
         }
         // Restart already under way - reporting it would flash the critical error screen.

@@ -27,6 +27,7 @@ const RUNNING: RunMode = {
 const DESTINATION: DestinationState = {
   destination: makeDestination({
     geo: { country: "br", source: { type: "announced_ip" } },
+    names: { display_name: "Brazil", country: "Brazil" },
   }),
   route_health: null,
 };

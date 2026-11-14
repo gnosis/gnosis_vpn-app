@@ -251,6 +251,26 @@ describe("StatusResponseSchema", () => {
     expect(carried?.status_rtt).toBe(42);
   });
 
+  it("gives each destination the names the backend sent for it", () => {
+    const parsed = StatusResponseSchema.parse(statusRouteHealthVariants);
+    const pinned = parsed.destinations.find((ds) =>
+      ds.destination.id === "pinned-exit"
+    );
+    expect(pinned?.destination.names).toEqual({
+      display_name: "pinned-exit (Frankfurt-1)",
+      title: "pinned-exit (Frankfurt-1)",
+      short_id: "AaaAa",
+      country: null,
+      description: "10Gbit uplink, no logs kept",
+    });
+    expect(parsed).not.toHaveProperty("exit_names");
+  });
+
+  it("rejects a destination the backend sent no names for", () => {
+    const unnamed = { ...statusRouteHealthVariants, exit_names: {} };
+    expect(StatusResponseSchema.safeParse(unnamed).success).toBe(false);
+  });
+
   it("parses a reconnect reported without a phase", () => {
     const parsed = StatusResponseSchema.safeParse(statusReconnectWaiting);
     expect(parsed.success).toBe(true);

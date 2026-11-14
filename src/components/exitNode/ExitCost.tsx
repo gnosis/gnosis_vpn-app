@@ -143,7 +143,7 @@ export default function ExitCost(
 
       <p class="text-center text-[15px] font-bold">
         {exitDisplayName(props.destination)}
-        <ShortId id={exitShortId(props.destination.address)} />
+        <ShortId id={exitShortId(props.destination)} />
         {` gets ${costLabel()}.`}
       </p>
       <Show when={!exitCostUsable()}>

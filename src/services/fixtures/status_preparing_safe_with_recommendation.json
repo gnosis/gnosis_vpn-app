@@ -25,5 +25,6 @@
   "probe": null,
   "pix_chunk_bytes": null,
   "probing": null,
-  "recent": []
+  "recent": [],
+  "exit_names": {}
 }

@@ -6,17 +6,11 @@ import type {
   Slots,
 } from "@src/services/vpnService.ts";
 import {
-  destinationCountry,
-  destinationDescription,
   destinationLabel,
   destinationSearchText,
-  destinationTitle,
-  exitDisplayName,
-  exitShortId,
   freeSlots,
   getExitData,
   isConfigOnly,
-  isConfigPinned,
   isReady,
   isReadyForDisplay,
   isSelectable,
@@ -28,7 +22,6 @@ import {
   type RankContext,
   routeGrade,
   routeGradeLabel,
-  sanitizeMetaText,
   sortAlphaDestinations,
   sortByRouteQuality,
   trackWeakRoutes,
@@ -47,17 +40,21 @@ import {
   weakRouteHealth,
 } from "@src/testing/destinations.ts";
 
-const BASE_DESTINATION: Destination = makeDestination({
-  id: "a",
-  address: "0x1234",
-  geo: { country: "de", source: { type: "announced_ip" } },
-});
+/** Named as the backend names an exit it located in Germany. */
+function germanExit(id: string): Destination {
+  return makeDestination({
+    id,
+    address: "0x1234",
+    geo: { country: "de", source: { type: "announced_ip" } },
+    names: { display_name: "Germany", country: "Germany" },
+  });
+}
 
 function withRouteHealth(
   id: string,
   route_health: RouteHealthView | null,
 ): DestinationState {
-  return { destination: { ...BASE_DESTINATION, id }, route_health };
+  return { destination: germanExit(id), route_health };
 }
 
 /** Eligible; `relays` is distinct first relays, so a higher number ranks higher. */
@@ -620,8 +617,8 @@ describe("isVpnActive", () => {
 
 describe("sortAlphaDestinations", () => {
   it("places eligible destinations before those with no route health", () => {
-    const ready: Destination = { ...BASE_DESTINATION, id: "ready" };
-    const notReady: Destination = { ...BASE_DESTINATION, id: "aaaaa" };
+    const ready = germanExit("ready");
+    const notReady = germanExit("aaaaa");
     const sorted = sortAlphaDestinations(
       [notReady, ready],
       {
@@ -635,8 +632,8 @@ describe("sortAlphaDestinations", () => {
   });
 
   it("places a weak route in the tail with the unreachable ones", () => {
-    const weak: Destination = { ...BASE_DESTINATION, id: "aaa-weak" };
-    const ready: Destination = { ...BASE_DESTINATION, id: "zzz-ready" };
+    const weak = germanExit("aaa-weak");
+    const ready = germanExit("zzz-ready");
     const sorted = sortAlphaDestinations(
       [weak, ready],
       {
@@ -649,8 +646,8 @@ describe("sortAlphaDestinations", () => {
   });
 
   it("sorts eligible destinations alphabetically within the tier", () => {
-    const bravo: Destination = { ...BASE_DESTINATION, id: "bravo" };
-    const alpha: Destination = { ...BASE_DESTINATION, id: "alpha" };
+    const bravo = germanExit("bravo");
+    const alpha = germanExit("alpha");
     const sorted = sortAlphaDestinations(
       [bravo, alpha],
       {
@@ -664,8 +661,8 @@ describe("sortAlphaDestinations", () => {
   });
 
   it("sorts non-ready destinations alphabetically within the tier", () => {
-    const zeta: Destination = { ...BASE_DESTINATION, id: "zeta" };
-    const mu: Destination = { ...BASE_DESTINATION, id: "mu" };
+    const zeta = germanExit("zeta");
+    const mu = germanExit("mu");
     const sorted = sortAlphaDestinations(
       [zeta, mu],
       {
@@ -679,25 +676,11 @@ describe("sortAlphaDestinations", () => {
   });
 
   it("orders by the country the list shows, then by label within a country", () => {
-    const at = (country: string) => ({
-      country,
-      source: { type: "announced_ip" as const },
-    });
-    const swiss: Destination = {
-      ...BASE_DESTINATION,
-      id: "a-ch",
-      geo: at("CH"),
-    };
-    const french: Destination = {
-      ...BASE_DESTINATION,
-      id: "z-fr",
-      geo: at("FR"),
-    };
-    const french2: Destination = {
-      ...BASE_DESTINATION,
-      id: "y-fr",
-      geo: at("FR"),
-    };
+    const exitIn = (id: string, country: string) =>
+      makeDestination({ id, names: { display_name: country, country } });
+    const swiss = exitIn("a-ch", "Switzerland");
+    const french = exitIn("z-fr", "France");
+    const french2 = exitIn("y-fr", "France");
     const sorted = sortAlphaDestinations(
       [swiss, french, french2],
       {
@@ -847,132 +830,18 @@ describe("pickStartupTarget — connect-on-startup pick", () => {
   });
 });
 
-// Mirrors the client's naming rule so the app and gvpn-ctl name an exit the same way.
-describe("destinationTitle", () => {
-  it("is the connect id without a name", () => {
-    expect(destinationTitle(makeDestination({ id: "my-exit" }))).toBe(
-      "my-exit",
-    );
-  });
-
-  it("leads with a configured id, the user's own handle, and brackets the published name", () => {
+describe("destinationLabel", () => {
+  it("puts the country after the title", () => {
     const dest = makeDestination({
-      id: "my-exit",
-      source: "configured_and_discovered",
-      meta: { name: "Frankfurt-1" },
-    });
-    expect(destinationTitle(dest)).toBe("my-exit (Frankfurt-1)");
-  });
-
-  it("does not repeat a name spelled exactly like the configured id", () => {
-    const dest = makeDestination({
-      id: "frankfurt-1",
-      source: "configured_and_discovered",
-      meta: { name: "frankfurt-1" },
-    });
-    expect(destinationTitle(dest)).toBe("frankfurt-1");
-  });
-
-  it("still shows a pinned name spelled like the id, so the override stays visible", () => {
-    const dest = makeDestination({
-      id: "frankfurt-1",
-      source: "configured_and_discovered",
-      meta: { name: "frankfurt-1" },
-      overrides: { configured_meta: { name: "frankfurt-1" } },
-    });
-    expect(destinationTitle(dest)).toBe("frankfurt-1 (frankfurt-1)");
-  });
-
-  it("treats a name that sanitizes to nothing as absent", () => {
-    const dest = makeDestination({
-      id: "0xabc-1234",
-      source: "discovered",
-      meta: { name: "\u200b\u202e" },
-    });
-    expect(destinationTitle(dest)).toBe("0xabc-1234");
-  });
-
-  it("is the published name alone for a discovered destination, whose id is that name slugged", () => {
-    const dest = makeDestination({
-      id: "frankfurt-1-a1b2",
-      source: "discovered",
-      meta: { name: "Frankfurt-1" },
-    });
-    expect(destinationTitle(dest)).toBe("Frankfurt-1");
-  });
-
-  it("puts the derived country after the title in the label", () => {
-    const dest = makeDestination({
-      id: "frankfurt-1-a1b2",
-      source: "discovered",
-      meta: { name: "Frankfurt-1" },
-      geo: { country: "de", source: { type: "announced_ip" } },
+      names: { title: "Frankfurt-1", country: "Germany" },
     });
     expect(destinationLabel(dest)).toBe("Frankfurt-1 - Germany");
   });
-});
 
-describe("destinationCountry", () => {
-  it("names the country the client derived", () => {
-    const dest = makeDestination({
-      geo: { country: "gb", source: { type: "announced_ip" } },
-    });
-    expect(destinationCountry(dest)).toBe("United Kingdom");
-  });
-
-  it("is null without a derived country, and the label is just the title", () => {
-    const dest = makeDestination({ id: "my-exit", geo: null });
-    expect(destinationCountry(dest)).toBeNull();
-    expect(destinationLabel(dest)).toBe("my-exit");
-  });
-
-  it("shows an unknown code as itself", () => {
-    const dest = makeDestination({
-      geo: { country: "qz", source: { type: "announced_ip" } },
-    });
-    expect(destinationCountry(dest)).toBe("QZ");
-  });
-
-  it("is null when the schema dropped a malformed code", () => {
-    const dest = makeDestination({
-      geo: { country: undefined, source: { type: "announced_ip" } },
-    });
-    expect(destinationCountry(dest)).toBeNull();
-  });
-});
-
-describe("sanitizeMetaText", () => {
-  it("strips control and bidi-override characters", () => {
-    expect(sanitizeMetaText("\u001b[2K\u202eGermany\u200b")).toBe("[2KGermany");
-  });
-
-  it("elides after 64 code points, counting characters rather than UTF-16 units", () => {
-    const long = "\u{1F1E9}".repeat(70);
-    const shown = sanitizeMetaText(long);
-    expect(Array.from(shown)).toHaveLength(65);
-    expect(shown.endsWith("\u2026")).toBe(true);
-  });
-
-  it("leaves a short plain value alone", () => {
-    expect(sanitizeMetaText("Germany")).toBe("Germany");
-  });
-});
-
-describe("destinationDescription", () => {
-  it("is null when the operator published none", () => {
-    expect(destinationDescription(makeDestination())).toBeNull();
-  });
-
-  it("sanitizes the published text like every other label", () => {
-    const dest = makeDestination({
-      meta: { description: "\u202e10Gbit uplink\u200b" },
-    });
-    expect(destinationDescription(dest)).toBe("10Gbit uplink");
-  });
-
-  it("elides past 64 characters", () => {
-    const dest = makeDestination({ meta: { description: "a".repeat(70) } });
-    expect(destinationDescription(dest)).toBe("a".repeat(64) + "\u2026");
+  it("is just the title without a country", () => {
+    expect(destinationLabel(makeDestination({ id: "my-exit" }))).toBe(
+      "my-exit",
+    );
   });
 });
 
@@ -980,8 +849,7 @@ describe("destinationSearchText", () => {
   it("appends the description so a search can reach it", () => {
     const dest = makeDestination({
       id: "my-exit",
-      meta: { description: "no logs kept" },
-      geo: { country: "de", source: { type: "announced_ip" } },
+      names: { country: "Germany", description: "no logs kept" },
     });
     expect(destinationSearchText(dest)).toBe(
       "my-exit - Germany no logs kept #xexit",
@@ -991,15 +859,6 @@ describe("destinationSearchText", () => {
   it("is the label and short id when no description was published", () => {
     const dest = makeDestination({ id: "my-exit" });
     expect(destinationSearchText(dest)).toBe("my-exit #xexit");
-  });
-
-  it("keeps a configured id searchable beside the published name", () => {
-    const dest = makeDestination({
-      id: "pinned-exit",
-      source: "configured_and_discovered",
-      meta: { name: "Frankfurt-1" },
-    });
-    expect(destinationSearchText(dest)).toContain("pinned-exit");
   });
 });
 
@@ -1011,47 +870,6 @@ describe("isConfigOnly", () => {
       isConfigOnly(makeDestination({ source: "configured_and_discovered" })),
     )
       .toBe(false);
-  });
-});
-
-// The ctl's rule: configuration's own values are marked only where config and discovery mix.
-describe("isConfigPinned", () => {
-  const pinnedName = { configured_meta: { name: "Frankfurt-1" } };
-
-  it("marks a value configuration set on a configured-and-discovered destination", () => {
-    const dest = makeDestination({
-      source: "configured_and_discovered",
-      meta: { name: "Frankfurt-1" },
-      overrides: pinnedName,
-    });
-    expect(isConfigPinned(dest, "name")).toBe(true);
-    expect(isConfigPinned(dest, "description")).toBe(false);
-  });
-
-  it("marks a pinned description", () => {
-    const dest = makeDestination({
-      source: "configured_and_discovered",
-      meta: { description: "10Gbit uplink" },
-      overrides: { configured_meta: { description: "10Gbit uplink" } },
-    });
-    expect(isConfigPinned(dest, "description")).toBe(true);
-  });
-
-  it("marks nothing on a config-only destination, where every value is config's by definition", () => {
-    const dest = makeDestination({
-      source: "configured",
-      meta: { name: "Frankfurt-1" },
-      overrides: pinnedName,
-    });
-    expect(isConfigPinned(dest, "name")).toBe(false);
-  });
-
-  it("marks nothing on a discovered-only destination", () => {
-    const dest = makeDestination({
-      source: "discovered",
-      meta: { name: "Frankfurt-1" },
-    });
-    expect(isConfigPinned(dest, "name")).toBe(false);
   });
 });
 
@@ -1067,27 +885,9 @@ describe("routeGradeLabel", () => {
   });
 });
 
-describe("exitDisplayName", () => {
-  it("names the country, else falls back to the title", () => {
-    const geo = { country: "DE", source: { type: "announced_ip" as const } };
-    expect(exitDisplayName(makeDestination({ id: "dest-berlin", geo })))
-      .toBe("Germany");
-    expect(exitDisplayName(makeDestination({ id: "dest-berlin", geo: null })))
-      .toBe("dest-berlin");
-  });
-});
-
-describe("exitShortId", () => {
-  it("takes the address's last five characters as written", () => {
-    expect(exitShortId("0x6a3B9f1c0D2e4F5a6b7C8d9E0f1A2b3C4d5469Da")).toBe(
-      "469Da",
-    );
-  });
-});
-
 describe("pickerRows", () => {
   const dests = ["a", "b", "c", "d", "e", "f", "g"].map((id) =>
-    makeDestination({ id, meta: { name: `Exit ${id}` } })
+    makeDestination({ id, names: { title: `Exit ${id}` } })
   );
   const usableExcept = (...unusable: string[]) => (id: string) =>
     !unusable.includes(id);
@@ -1155,14 +955,9 @@ describe("pickerRows", () => {
   });
 
   it("finds an exit by the short id its row shows", () => {
-    const germany = {
-      country: "de",
-      source: { type: "announced_ip" },
-    } as const;
-    const twins = [
-      makeDestination({ id: "x", address: "0x6a3B9f469Da", geo: germany }),
-      makeDestination({ id: "y", address: "0x0c1D2e7Fb10", geo: germany }),
-    ];
+    const germanTwin = (id: string, short_id: string) =>
+      makeDestination({ id, names: { country: "Germany", short_id } });
+    const twins = [germanTwin("x", "469Da"), germanTwin("y", "7Fb10")];
     for (const query of ["469da", "#469Da"]) {
       const rows = pickerRows(twins, {
         query,

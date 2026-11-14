@@ -1,33 +1,49 @@
-//! The tray names an exit the way the main window does: `exitDisplayName` and `#exitShortId` in src/utils/destinations.ts.
-
-use std::collections::HashMap;
-use std::sync::LazyLock;
+//! Every name the app gives an exit; the main window only looks these up, so it and the tray agree.
 
 use gnosis_vpn_ipc as ipc;
+use serde::Serialize;
 
-/// The main window's own list, so the tray spells countries the same way.
-static COUNTRY_NAMES: LazyLock<HashMap<String, String>> = LazyLock::new(|| {
-    serde_json::from_str(include_str!("../../src/assets/country-names.json"))
-        .expect("src/assets/country-names.json must be a code-to-name map")
-});
+use crate::country_names::country_name;
 
-/// The frontend's META_FIELD_MAX_CHARS.
+/// The client's META_FIELD_MAX_CHARS.
 const META_FIELD_MAX_CHARS: usize = 64;
 
-/// `Australia #ddf4c`: the country, or the title when there is none, and the address's last five characters.
-pub fn exit_label(d: &ipc::Destination) -> String {
-    let name = match &d.geo {
-        Some(geo) => country(&geo.country.to_string()),
-        None => title(d),
-    };
-    let address = d.address.to_string();
-    format!("{name} #{}", &address[address.len() - 5..])
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct ExitNames {
+    /// The exit list's name: the country, or the title when the client found none.
+    pub display_name: String,
+    pub title: String,
+    /// The address's last five characters: tells apart exits that share a country.
+    pub short_id: String,
+    /// Derived by the client; never the operator's claim.
+    pub country: Option<String>,
+    pub description: Option<String>,
 }
 
-/// An unknown code shows as itself, as in the main window.
-fn country(code: &str) -> String {
-    let code = code.to_ascii_uppercase();
-    COUNTRY_NAMES.get(&code).cloned().unwrap_or(code)
+impl ExitNames {
+    pub fn of(d: &ipc::Destination) -> Self {
+        let title = title(d);
+        let country = d.geo.as_ref().map(|geo| country(geo.country));
+        let address = d.address.to_string();
+        ExitNames {
+            display_name: country.clone().unwrap_or_else(|| title.clone()),
+            title,
+            short_id: address[address.len() - 5..].to_string(),
+            country,
+            description: published(d.meta.description.as_deref()),
+        }
+    }
+
+    /// `Australia #BeAed`, as the tray shows it.
+    pub fn label(&self) -> String {
+        format!("{} #{}", self.display_name, self.short_id)
+    }
+}
+
+/// An unknown code shows as itself.
+fn country(code: ipc::CountryCode) -> String {
+    let code = code.to_string();
+    country_name(&code).map_or(code, str::to_string)
 }
 
 /// A discovered id is the name slugged, so the name alone suffices; a configured id is the user's own handle and leads.
@@ -42,13 +58,15 @@ fn title(d: &ipc::Destination) -> String {
 
 /// The published name; one that respells the id says nothing new, unless config pinned it.
 fn name(d: &ipc::Destination) -> Option<String> {
-    let name = sanitize(d.meta.name.as_deref()?);
-    if name.is_empty() {
-        return None;
-    }
+    let name = published(d.meta.name.as_deref())?;
     let pinned = d.source == ipc::DestinationSource::ConfiguredAndDiscovered
         && d.overrides.configured_meta.contains_key("name");
     (name != d.id.to_string() || pinned).then_some(name)
+}
+
+/// Operator text that is still there once sanitized.
+fn published(text: Option<&str>) -> Option<String> {
+    Some(sanitize(text?)).filter(|text| !text.is_empty())
 }
 
 /// Operator-published text, never shown verbatim: no controls or zero-width/bidi characters, and capped.
@@ -97,53 +115,100 @@ pub(crate) mod tests {
         d
     }
 
-    #[test]
-    fn a_located_exit_is_its_country_and_short_id() {
-        assert_eq!(
-            exit_label(&destination("syd-1", Some("AU"))),
-            "Australia #BeAed"
-        );
+    fn described(mut d: ipc::Destination, description: &str) -> ipc::Destination {
+        d.meta.description = Some(description.into());
+        d
     }
 
     #[test]
-    fn the_shared_country_list_parses_whole() {
-        assert!(COUNTRY_NAMES.len() > 200, "{} names", COUNTRY_NAMES.len());
+    fn a_located_exit_is_its_country_and_short_id() {
+        let names = ExitNames::of(&named(destination("syd-1", Some("au")), "Sydney 1"));
+        assert_eq!(
+            names,
+            ExitNames {
+                display_name: "Australia".into(),
+                title: "Sydney 1".into(),
+                short_id: "BeAed".into(),
+                country: Some("Australia".into()),
+                description: None,
+            }
+        );
+        assert_eq!(names.label(), "Australia #BeAed");
     }
 
     #[test]
     fn an_unknown_country_code_shows_as_itself() {
-        assert_eq!(exit_label(&destination("x", Some("QZ"))), "QZ #BeAed");
+        let names = ExitNames::of(&destination("x", Some("QZ")));
+        assert_eq!(names.country.as_deref(), Some("QZ"));
+        assert_eq!(names.label(), "QZ #BeAed");
     }
 
     #[test]
-    fn without_a_country_a_discovered_exit_is_its_name() {
+    fn without_a_country_a_discovered_exit_is_its_name_else_its_id() {
         let d = named(destination("frankfurt-1", None), "Frankfurt 1");
-        assert_eq!(exit_label(&d), "Frankfurt 1 #BeAed");
+        assert_eq!(ExitNames::of(&d).label(), "Frankfurt 1 #BeAed");
+        let d = destination("frankfurt-1", None);
+        assert_eq!(ExitNames::of(&d).display_name, "frankfurt-1");
     }
 
     #[test]
-    fn without_a_country_a_configured_exit_leads_with_its_id() {
+    fn a_configured_exit_leads_with_its_id() {
         let mut d = named(destination("my-exit", None), "Frankfurt 1");
         d.source = ipc::DestinationSource::Configured;
-        assert_eq!(exit_label(&d), "my-exit (Frankfurt 1) #BeAed");
+        assert_eq!(ExitNames::of(&d).title, "my-exit (Frankfurt 1)");
         d.meta.name = None;
-        assert_eq!(exit_label(&d), "my-exit #BeAed");
+        assert_eq!(ExitNames::of(&d).title, "my-exit");
     }
 
     #[test]
     fn a_name_that_respells_the_id_is_dropped_unless_config_pinned_it() {
         let mut d = named(destination("my-exit", None), "my-exit");
         d.source = ipc::DestinationSource::ConfiguredAndDiscovered;
-        assert_eq!(exit_label(&d), "my-exit #BeAed");
+        assert_eq!(ExitNames::of(&d).title, "my-exit");
         d.overrides.configured_meta = BTreeMap::from([("name".into(), "my-exit".into())]);
-        assert_eq!(exit_label(&d), "my-exit (my-exit) #BeAed");
+        assert_eq!(ExitNames::of(&d).title, "my-exit (my-exit)");
+    }
+
+    #[test]
+    fn a_name_that_sanitizes_to_nothing_is_absent() {
+        let d = named(destination("0xabc-1234", None), "\u{200B}\u{202E}");
+        assert_eq!(ExitNames::of(&d).title, "0xabc-1234");
     }
 
     #[test]
     fn spoofing_characters_are_stripped_and_long_names_capped() {
         let d = named(destination("x", None), "Evil\u{202E}exit\u{200B}\n");
-        assert_eq!(exit_label(&d), "Evilexit #BeAed");
+        assert_eq!(ExitNames::of(&d).title, "Evilexit");
         let d = named(destination("x", None), &"a".repeat(70));
-        assert_eq!(exit_label(&d), format!("{}\u{2026} #BeAed", "a".repeat(64)));
+        assert_eq!(
+            ExitNames::of(&d).title,
+            format!("{}\u{2026}", "a".repeat(64))
+        );
+    }
+
+    #[test]
+    fn the_cap_counts_characters_not_bytes() {
+        let d = named(destination("x", None), &"\u{1F1E9}".repeat(70));
+        let title = ExitNames::of(&d).title;
+        assert_eq!(title.chars().count(), 65);
+        assert!(title.ends_with('\u{2026}'));
+    }
+
+    #[test]
+    fn the_description_is_sanitized_capped_and_absent_when_empty() {
+        let d = destination("x", None);
+        assert_eq!(ExitNames::of(&d).description, None);
+        let d = described(destination("x", None), "\u{202E}10Gbit uplink\u{200B}");
+        assert_eq!(
+            ExitNames::of(&d).description.as_deref(),
+            Some("10Gbit uplink")
+        );
+        let d = described(destination("x", None), &"a".repeat(70));
+        assert_eq!(
+            ExitNames::of(&d).description,
+            Some(format!("{}\u{2026}", "a".repeat(64)))
+        );
+        let d = described(destination("x", None), "\u{200B}");
+        assert_eq!(ExitNames::of(&d).description, None);
     }
 }

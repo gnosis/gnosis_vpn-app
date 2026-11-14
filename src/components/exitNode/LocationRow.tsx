@@ -72,7 +72,7 @@ export default function LocationRow(props: {
 }) {
   const destination = () => props.destination;
   const name = () => exitDisplayName(destination());
-  const shortId = () => exitShortId(destination().address);
+  const shortId = () => exitShortId(destination());
   const grade = () => props.grade;
 
   return (

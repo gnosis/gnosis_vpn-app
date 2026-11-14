@@ -10,7 +10,6 @@ import {
   type QuickProbeState,
   type Slots,
 } from "@src/services/vpnService.ts";
-import countryNames from "@assets/country-names.json";
 
 export function getPreferredAvailabilityChangeMessage(
   previous: Destination[],
@@ -299,12 +298,12 @@ export function routeGradeLabel(grade: RouteGrade): string {
 
 /** The exit list's name for an exit: its country, or its title when the client found none. */
 export function exitDisplayName(d: Destination): string {
-  return destinationCountry(d) ?? destinationTitle(d);
+  return d.names.display_name;
 }
 
-/** The last five characters of the exit's address: tells apart exits that share a country. */
-export function exitShortId(address: string): string {
-  return address.slice(-5);
+/** Tells apart exits that share a country. */
+export function exitShortId(d: Destination): string {
+  return d.names.short_id;
 }
 
 /** The list's rows: `current`, then usable exits, all matching `query`; the first `limit` of the rest unless searching. */
@@ -408,50 +407,19 @@ export function isVpnActive(
     (vpnStatus === "Disconnecting" && targetDestination !== null);
 }
 
-// Longest label value rendered before it is elided; mirrors the client's META_FIELD_MAX_CHARS.
-const META_FIELD_MAX_CHARS = 64;
-
-// Controls plus the zero-width and bidi-override formatting characters that could spoof surrounding text.
-const DISPLAY_UNSAFE =
-  /[\p{Cc}\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/gu;
-
-/** Metadata is operator-published and unverified, so never render it verbatim. */
-export function sanitizeMetaText(text: string): string {
-  const cleaned = Array.from(text.replace(DISPLAY_UNSAFE, ""));
-  if (cleaned.length <= META_FIELD_MAX_CHARS) return cleaned.join("");
-  return cleaned.slice(0, META_FIELD_MAX_CHARS).join("") + "\u2026";
-}
-
-/** The published `name`; a name that respells the connect id says nothing new, unless config pinned it and the override should show. */
-export function destinationName(d: Destination): string | null {
-  if (d.meta.name === null) return null;
-  const name = sanitizeMetaText(d.meta.name);
-  if (name === "") return null;
-  const respellsId = name === d.id && !isConfigPinned(d, "name");
-  return respellsId ? null : name;
-}
-
-/** A discovered id is the name slugged, so the name alone suffices; a configured id is the user's own handle and leads. */
+/** The connect id and published name, as the exit's source combines them. */
 export function destinationTitle(d: Destination): string {
-  const name = destinationName(d);
-  if (d.source === "discovered") return name ?? d.id;
-  return name === null ? d.id : `${d.id} (${name})`;
+  return d.names.title;
 }
 
-// Shared with the tray (src-tauri/src/exit_label.rs) so both spell countries alike.
-const COUNTRY_NAMES: Record<string, string> = countryNames;
-
-/** The exit's country as the client derived it; never the operator's claim. An unknown code shows as itself. */
+/** The exit's country as the client derived it; never the operator's claim. */
 export function destinationCountry(d: Destination): string | null {
-  const code = d.geo?.country?.toUpperCase();
-  if (code === undefined) return null;
-  return COUNTRY_NAMES[code] ?? code;
+  return d.names.country;
 }
 
+/** Sanitized by the backend, like every published label. */
 export function destinationDescription(d: Destination): string | null {
-  return d.meta.description === null
-    ? null
-    : sanitizeMetaText(d.meta.description);
+  return d.names.description;
 }
 
 export function destinationLabel(d: Destination): string {
@@ -463,17 +431,9 @@ export function destinationLabel(d: Destination): string {
 /** Label, description and the row's #short id, so a search tells apart exits that share a country. */
 export function destinationSearchText(d: Destination): string {
   const description = destinationDescription(d);
-  return [destinationLabel(d), description, `#${exitShortId(d.address)}`]
+  return [destinationLabel(d), description, `#${exitShortId(d)}`]
     .filter((part) => part)
     .join(" ");
-}
-
-export type PinnableMeta = "name" | "description";
-
-/** Configuration set this value; only meaningful where config and discovery mix, as on a config-only entry every value is config's. */
-export function isConfigPinned(d: Destination, key: PinnableMeta): boolean {
-  const mixedOrigins = d.source === "configured_and_discovered";
-  return mixedOrigins && key in d.overrides.configured_meta;
 }
 
 /** Every value is config's: nothing was discovered for this destination. */

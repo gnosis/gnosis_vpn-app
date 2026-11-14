@@ -77,6 +77,7 @@ const RUNNING: RunMode = {
 
 const DESTINATION: Destination = makeDestination({
   geo: { country: "br", source: { type: "announced_ip" } },
+  names: { display_name: "Brazil", country: "Brazil" },
 });
 
 const BASE_APP_STATE: AppState = {

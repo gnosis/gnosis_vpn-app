@@ -208,7 +208,7 @@ export default function UsageTab(props: { onAddFunds: () => void }) {
                       <span class="truncate font-medium text-text-primary">
                         {exit() ? exitDisplayName(exit()!) : "Unavailable exit"}
                         <Show when={exit()}>
-                          {(d) => <ShortId id={exitShortId(d().address)} />}
+                          {(d) => <ShortId id={exitShortId(d())} />}
                         </Show>
                       </span>
                       <SessionExpiryInfo />

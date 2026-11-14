@@ -2,11 +2,31 @@ use gnosis_vpn_ipc as ipc;
 
 use serde::Serialize;
 
+use std::collections::BTreeMap;
 use std::fmt::{self, Display};
 
-use crate::exit_label::exit_label;
+use crate::exit_label::ExitNames;
 
 // Only reshaped responses live here; everything else goes to the frontend as the ipc type.
+
+/// The daemon's status with every listed exit's names by connect id, so the main window derives none itself.
+#[derive(Clone, Debug, Serialize)]
+pub struct NamedStatus {
+    #[serde(flatten)]
+    pub status: ipc::Status,
+    pub exit_names: BTreeMap<String, ExitNames>,
+}
+
+impl From<ipc::Status> for NamedStatus {
+    fn from(status: ipc::Status) -> Self {
+        let exit_names = status
+            .destinations
+            .iter()
+            .map(|d| (d.destination.id.to_string(), ExitNames::of(&d.destination)))
+            .collect();
+        NamedStatus { status, exit_names }
+    }
+}
 
 /// An exit by its connect id, which logs keep for gnosis_vpn-ctl, and by the name the tray shows.
 #[derive(Debug, Clone)]
@@ -67,16 +87,17 @@ impl From<ipc::Balances> for BalanceResponse {
     }
 }
 
-impl From<&ipc::Status> for ConnectionState {
-    fn from(status: &ipc::Status) -> Self {
+impl From<&NamedStatus> for ConnectionState {
+    fn from(named: &NamedStatus) -> Self {
+        let status = &named.status;
         // An exit missing from the list still has its id to show.
-        let exit = |id: &ipc::DestinationId| Exit {
-            id: id.to_string(),
-            label: status
-                .destinations
-                .iter()
-                .find(|d| d.destination.id == *id)
-                .map_or_else(|| id.to_string(), |d| exit_label(&d.destination)),
+        let exit = |id: &ipc::DestinationId| {
+            let id = id.to_string();
+            let label = named
+                .exit_names
+                .get(&id)
+                .map_or_else(|| id.clone(), ExitNames::label);
+            Exit { id, label }
         };
         match &status.connection {
             ipc::Connection::Connected {
@@ -138,7 +159,7 @@ mod tests {
     use super::*;
     use std::time::{Duration, SystemTime};
 
-    fn connected_status(stall: Option<ipc::TunnelStall>) -> ipc::Status {
+    fn connected_status(stall: Option<ipc::TunnelStall>) -> NamedStatus {
         ipc::Status {
             run_mode: ipc::RunMode::NotRunning,
             destinations: vec![],
@@ -156,6 +177,7 @@ mod tests {
             probing: None,
             recent: vec![],
         }
+        .into()
     }
 
     #[test]
@@ -178,12 +200,12 @@ mod tests {
 
     #[test]
     fn the_tray_names_a_listed_exit_while_the_log_key_keeps_its_connect_id() {
-        let mut status = connected_status(None);
+        let mut status = connected_status(None).status;
         status.destinations = vec![ipc::DestinationStatus {
             destination: crate::exit_label::tests::destination("x", Some("AU")),
             route_health: None,
         }];
-        let state = ConnectionState::from(&status);
+        let state = ConnectionState::from(&NamedStatus::from(status));
         assert_eq!(state.tray_text(), "Connected to Australia #BeAed");
         assert_eq!(state.to_string(), "Connected to x");
     }
