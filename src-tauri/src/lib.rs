@@ -13,6 +13,8 @@ use std::sync::{Arc, Mutex};
 
 mod cli;
 mod commands;
+mod country_names;
+mod exit_label;
 mod icons;
 mod logging;
 mod navigation;
@@ -33,7 +35,7 @@ use commands::{
     quick_probe, run_initialization_loop, set_app_icon, set_status_poll_fast, stop_client,
     upload_logs,
 };
-use gnosis_vpn_ipc::{self as ipc, InfoResponse, Status};
+use gnosis_vpn_ipc::{self as ipc, InfoResponse};
 use icons::{IconState, TrayIconState, determine_tray_icon, start_icon_heartbeat};
 use platform::{Platform, PlatformInterface, get_platform, get_system_info};
 use service_control::{get_service_not_running_info, start_service};
@@ -47,8 +49,8 @@ use tray::{
     PendingSettings, create_tray_menu, handle_tray_event, show_settings, take_settings_target,
     toggle_main_window_visibility,
 };
-use types::BalanceResponse;
 use types::ConnectionState;
+use types::{BalanceResponse, NamedStatus};
 use update_install::{UpdateInstallState, get_install_status, install_update};
 
 struct HeartbeatHandle(Mutex<Option<tauri::async_runtime::JoinHandle<()>>>);
@@ -72,7 +74,7 @@ pub struct BalancePollingHandle {
 }
 
 pub struct AppStateCache {
-    pub status: watch::Sender<Option<Result<Option<Status>, String>>>,
+    pub status: watch::Sender<Option<Result<Option<NamedStatus>, String>>>,
     pub balance: watch::Sender<Option<Result<Option<BalanceResponse>, String>>>,
     pub service_info: watch::Sender<Option<InfoResponse>>,
 }

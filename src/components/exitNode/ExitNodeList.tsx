@@ -427,7 +427,7 @@ export default function ExitNodeList(props: {
                       {(pick) => (
                         <span class="truncate text-xs text-text-subtle">
                           {exitDisplayName(pick())}
-                          <ShortId id={exitShortId(pick().address)} />
+                          <ShortId id={exitShortId(pick())} />
                         </span>
                       )}
                     </Show>

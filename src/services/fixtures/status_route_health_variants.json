@@ -501,5 +501,21 @@
   "probe": null,
   "pix_chunk_bytes": null,
   "probing": null,
-  "recent": []
+  "recent": [],
+  "exit_names": {
+    "pinned-exit": {
+      "display_name": "pinned-exit (Frankfurt-1)",
+      "title": "pinned-exit (Frankfurt-1)",
+      "short_id": "AaaAa",
+      "country": null,
+      "description": "10Gbit uplink, no logs kept"
+    },
+    "test-exit": {
+      "display_name": "Germany",
+      "title": "test-exit",
+      "short_id": "AaaAa",
+      "country": "Germany",
+      "description": null
+    }
+  }
 }

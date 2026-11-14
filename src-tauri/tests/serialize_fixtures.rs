@@ -239,6 +239,11 @@ fn write(dir: &Path, name: &str, val: &impl serde::Serialize) {
     std::fs::write(&path, format!("{json}\n")).expect("failed to write fixture");
 }
 
+/// As the app publishes it: with the names the main window looks up.
+fn write_status(dir: &Path, name: &str, status: Status) {
+    write(dir, name, &types::NamedStatus::from(status));
+}
+
 // Real serde output keeps the TypeScript Zod tests honest; regenerate with `cargo test --test serialize_fixtures`.
 #[test]
 fn generate_fixtures() {
@@ -330,39 +335,35 @@ fn generate_fixtures() {
         },
     );
 
-    write(
+    write_status(
         &fixtures_dir,
         "status_not_running.json",
-        &status_base(RunMode::NotRunning),
+        status_base(RunMode::NotRunning),
     );
-    write(
+    write_status(
         &fixtures_dir,
         "status_shutdown.json",
-        &status_base(RunMode::Shutdown),
+        status_base(RunMode::Shutdown),
     );
-    write(
+    write_status(
         &fixtures_dir,
         "status_init.json",
-        &status_base(RunMode::Init { last_error: None }),
+        status_base(RunMode::Init { last_error: None }),
     );
-    write(
+    write_status(
         &fixtures_dir,
         "status_warmup.json",
-        &status_base(RunMode::Warmup {
+        status_base(RunMode::Warmup {
             stage: WarmupStage::WaitingForFunds,
             last_error: None,
         }),
     );
-    write(
-        &fixtures_dir,
-        "status_running.json",
-        &status_base(running()),
-    );
+    write_status(&fixtures_dir, "status_running.json", status_base(running()));
 
-    write(
+    write_status(
         &fixtures_dir,
         "status_channel_maintenance_unavailable.json",
-        &status_base(RunMode::Running {
+        status_base(RunMode::Running {
             hopr_status: None,
             funding_status: None,
             channel_maintenance: ChannelMaintenance::Unavailable {
@@ -372,20 +373,20 @@ fn generate_fixtures() {
     );
 
     // A reconnect with no attempt in flight: the daemon holds the target and waits on route health.
-    write(
+    write_status(
         &fixtures_dir,
         "status_reconnect_waiting.json",
-        &status_with_connection(Connection::Reconnecting {
+        status_with_connection(Connection::Reconnecting {
             destination: "test-exit".into(),
             since: SystemTime::UNIX_EPOCH,
             phase: None,
         }),
     );
 
-    write(
+    write_status(
         &fixtures_dir,
         "status_preparing_safe.json",
-        &status_base(RunMode::PreparingSafe {
+        status_base(RunMode::PreparingSafe {
             node_address: address(),
             node_xdai: Balance::zero(),
             node_wxhopr: Balance::zero(),
@@ -395,10 +396,10 @@ fn generate_fixtures() {
         }),
     );
 
-    write(
+    write_status(
         &fixtures_dir,
         "status_preparing_safe_with_recommendation.json",
-        &status_base(RunMode::PreparingSafe {
+        status_base(RunMode::PreparingSafe {
             node_address: address(),
             node_xdai: Balance::from_wei(10_000_000_000_000_000), // 0.01 xDAI
             node_wxhopr: Balance::from_wei(500_000_000_000_000_000), // 0.5 wxHOPR
@@ -416,24 +417,24 @@ fn generate_fixtures() {
         }),
     );
 
-    write(
+    write_status(
         &fixtures_dir,
         "status_deploying_safe.json",
-        &status_base(RunMode::DeployingSafe {
+        status_base(RunMode::DeployingSafe {
             node_address: Address::new([0; 20]),
         }),
     );
-    write(
+    write_status(
         &fixtures_dir,
         "status_restarting.json",
-        &status_base(RunMode::Restarting),
+        status_base(RunMode::Restarting),
     );
 
     // Connected while the previous exit still tears down in the background, with a ready probe.
-    write(
+    write_status(
         &fixtures_dir,
         "status_connected.json",
-        &Status {
+        Status {
             disconnecting: vec![ipc::Disconnecting {
                 destination: "pinned-exit".into(),
                 since: SystemTime::UNIX_EPOCH,
@@ -455,29 +456,29 @@ fn generate_fixtures() {
             })
         },
     );
-    write(
+    write_status(
         &fixtures_dir,
         "status_connecting.json",
-        &status_with_connection(Connection::Connecting {
+        status_with_connection(Connection::Connecting {
             destination: "test-exit".into(),
             since: SystemTime::UNIX_EPOCH,
             phase: ipc::ConnectPhase::RegisterWg,
             pix: None,
         }),
     );
-    write(
+    write_status(
         &fixtures_dir,
         "status_reconnecting.json",
-        &status_with_connection(Connection::Reconnecting {
+        status_with_connection(Connection::Reconnecting {
             destination: "test-exit".into(),
             since: SystemTime::UNIX_EPOCH,
             phase: Some(ipc::ConnectPhase::Init),
         }),
     );
-    write(
+    write_status(
         &fixtures_dir,
         "status_disconnecting.json",
-        &Status {
+        Status {
             disconnecting: vec![ipc::Disconnecting {
                 destination: "test-exit".into(),
                 since: SystemTime::UNIX_EPOCH,
@@ -488,10 +489,10 @@ fn generate_fixtures() {
     );
 
     // Tunnel up but the data path stalled: counted ping failures short of the reconnect threshold.
-    write(
+    write_status(
         &fixtures_dir,
         "status_connected_stalled.json",
-        &status_with_connection(Connection::Connected {
+        status_with_connection(Connection::Connected {
             destination: "test-exit".into(),
             since: SystemTime::UNIX_EPOCH,
             tunnel_ping_rtt: Some(Duration::from_millis(12)),
@@ -505,10 +506,10 @@ fn generate_fixtures() {
     );
 
     // A probe session that has not produced a result yet: every optional is null.
-    write(
+    write_status(
         &fixtures_dir,
         "status_probe_opening.json",
-        &Status {
+        Status {
             probe: Some(ProbeView {
                 destination: "test-exit".into(),
                 state: ProbeState::Opening,
@@ -611,10 +612,10 @@ fn generate_fixtures() {
             }),
         ))),
     ];
-    write(
+    write_status(
         &fixtures_dir,
         "status_route_health_variants.json",
-        &Status {
+        Status {
             destinations: route_health_variants,
             ..status_base(RunMode::NotRunning)
         },

@@ -49,6 +49,14 @@ Vite
 committed -- country art from `flag-icons`. Re-run the script to refresh it;
 never hand-edit the output.
 
+**Exit names**: `src-tauri/src/exit_label.rs` alone names an exit (display name,
+title, short id, country, description) and sanitizes operator text. The tray
+reads those names directly; the status payload carries them as `exit_names`, and
+the frontend's `exitDisplayName`, `destinationTitle`, etc. only look them up, so
+naming rules never go in TypeScript. Country names come from
+`src-tauri/src/country_names.rs`, a hand-kept table of the 249 ISO 3166-1
+alpha-2 codes; edit it directly.
+
 ## Code Style & Conventions
 
 - **TypeScript**: Strict mode enabled. Type all functions. Use `@src/*`,

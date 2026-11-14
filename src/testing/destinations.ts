@@ -7,17 +7,21 @@ import type {
   Slots,
 } from "@src/services/vpnService.ts";
 
-type DestinationOverrides = Partial<Omit<Destination, "meta" | "overrides">> & {
-  meta?: Partial<Destination["meta"]>;
-  overrides?: Partial<Destination["overrides"]>;
-};
+type DestinationOverrides =
+  & Partial<Omit<Destination, "meta" | "overrides" | "names">>
+  & {
+    meta?: Partial<Destination["meta"]>;
+    overrides?: Partial<Destination["overrides"]>;
+    names?: Partial<Destination["names"]>;
+  };
 
-/** A configured, 1-hop destination with sensible defaults; override only what a test is about. */
+/** A configured, 1-hop destination with sensible defaults; override only what a test is about. Names are what the backend would send, never derived here. */
 export function makeDestination(
   overrides: DestinationOverrides = {},
 ): Destination {
+  const id = overrides.id ?? "dest-1";
   return {
-    id: "dest-1",
+    id,
     address: "0xexit",
     hops: 1,
     gnosis_vpn_server: "172.30.0.1:8000",
@@ -36,6 +40,14 @@ export function makeDestination(
       configured_gnosis_vpn_server: null,
       configured_wireguard_server: null,
       ...overrides.overrides,
+    },
+    names: {
+      display_name: id,
+      title: id,
+      short_id: "xexit",
+      country: null,
+      description: null,
+      ...overrides.names,
     },
   };
 }

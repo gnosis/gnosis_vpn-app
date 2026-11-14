@@ -124,7 +124,23 @@
         "probe": null,
         "pix_chunk_bytes": 951644160,
         "probing": null,
-        "recent": ["dest-zurich"]
+        "recent": ["dest-zurich"],
+        "exit_names": {
+          "dest-berlin": {
+            "display_name": "Germany",
+            "title": "dest-berlin",
+            "short_id": "11111",
+            "country": "Germany",
+            "description": null
+          },
+          "dest-zurich": {
+            "display_name": "Switzerland",
+            "title": "dest-zurich",
+            "short_id": "22222",
+            "country": "Switzerland",
+            "description": null
+          }
+        }
       }
     },
     "balance": {

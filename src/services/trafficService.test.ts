@@ -89,7 +89,11 @@ describe("averageRates", () => {
 
 describe("connectedExit", () => {
   const exit = routeHealth.destinations[0];
-  const status = { ...connected, destinations: [exit] };
+  const status = {
+    ...connected,
+    destinations: [exit],
+    exit_names: routeHealth.exit_names,
+  };
 
   it("names the exit the service is connected to", () => {
     expect(connectedExit({ Ok: status })).toEqual({

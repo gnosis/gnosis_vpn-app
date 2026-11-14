@@ -39,5 +39,6 @@
   "probe": null,
   "pix_chunk_bytes": 951644160,
   "probing": null,
-  "recent": []
+  "recent": [],
+  "exit_names": {}
 }
