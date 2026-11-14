@@ -886,9 +886,32 @@ fn generate_fixtures() {
         &fixtures_dir,
         "balance_response_with_capacity.json",
         &types::BalanceResponse::from(Balances {
-            capacity_allocations: Some(capacity_allocations),
+            capacity_allocations: Some(capacity_allocations.clone()),
             ..balances(node_xdai, safe_wxhopr)
         }),
+    );
+
+    // A same-protocol service from before PIX omits both fields; their serde defaults must fill them in.
+    let mut older_service = serde_json::to_value(Balances {
+        capacity_allocations: Some(capacity_allocations),
+        ..balances(node_xdai, safe_wxhopr)
+    })
+    .expect("balances serialize");
+    older_service
+        .as_object_mut()
+        .and_then(|b| b.remove("pix_float"))
+        .expect("balances carry pix_float");
+    older_service["capacity_allocations"]
+        .as_object_mut()
+        .and_then(|c| c.remove("exit_traffic"))
+        .expect("capacity allocations carry exit_traffic");
+    write(
+        &fixtures_dir,
+        "balance_response_from_older_service.json",
+        &types::BalanceResponse::from(
+            serde_json::from_value::<Balances>(older_service)
+                .expect("exit_traffic and pix_float keep their serde defaults"),
+        ),
     );
 
     write(
