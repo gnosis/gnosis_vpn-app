@@ -1,7 +1,6 @@
 import {
   createEffect,
   createMemo,
-  createSignal,
   createUniqueId,
   For,
   Show,
@@ -39,7 +38,6 @@ import {
   SettingsHeading,
 } from "@src/components/settings/SettingsGroup.tsx";
 import SettingsRow from "@src/components/settings/SettingsRow.tsx";
-import { createTapSequence } from "@src/utils/tapSequence.ts";
 import { openFundingSite, useFunding } from "./useFunding.ts";
 
 // The client reports no session lifetime yet, so the expiry value reads "Feature coming".
@@ -88,7 +86,9 @@ function renewals(count: bigint): string {
   }`;
 }
 
-export default function UsageTab(props: { onAddFunds: () => void }) {
+export default function UsageTab(
+  props: { onAddFunds: () => void; showBreakdown: boolean },
+) {
   const [appState] = useAppStore();
   const { preparingSafe, standIn, balanceShown, runModeStatus, nodeAddress } =
     useFunding();
@@ -150,11 +150,8 @@ export default function UsageTab(props: { onAddFunds: () => void }) {
     return warnings;
   });
 
-  // Hidden: seven quick clicks on the exit meter toggle the balance breakdown.
-  const [showBreakdown, setShowBreakdown] = createSignal(false);
-  const breakdownTap = createTapSequence(7, 500);
   const breakdown = () =>
-    showBreakdown() && appState.balance
+    props.showBreakdown && appState.balance
       ? creditBreakdown(appState.balance)
       : null;
 
@@ -208,12 +205,7 @@ export default function UsageTab(props: { onAddFunds: () => void }) {
           </Show>
         </SettingsCard>
         <SettingsHeading>This exit</SettingsHeading>
-        <div
-          class="flex shrink-0 flex-col rounded-xl bg-bg-list px-3.5 py-3.5 select-none"
-          onClick={() => {
-            if (breakdownTap(performance.now())) setShowBreakdown((v) => !v);
-          }}
-        >
+        <div class="flex shrink-0 flex-col rounded-xl bg-bg-list px-3.5 py-3.5">
           <UsageMeter
             keepBar
             label={
