@@ -449,10 +449,7 @@ pub fn run() {
                         api.prevent_close();
                         hide_main_window(&app_handle, &window_clone);
                     }
-                    tauri::WindowEvent::Focused(true) => {
-                        traffic::window::main_focused(&app_handle);
-                        send_probing_boost();
-                    }
+                    tauri::WindowEvent::Focused(true) => send_probing_boost(),
                     _ => {}
                 });
             }

@@ -247,10 +247,11 @@ function App() {
     void getCurrentWebviewWindow().listen<unknown>(
       "traffic:window",
       ({ payload }) => {
-        if (typeof payload === "boolean") setTrafficWindowOpen(payload);
-        else {logWarn(
-            `Ignoring traffic:window with invalid payload: ${payload}`,
-          );}
+        if (typeof payload !== "boolean") {
+          logWarn(`Ignoring traffic:window with invalid payload: ${payload}`);
+          return;
+        }
+        setTrafficWindowOpen(payload);
       },
     ).then((unlisten) => {
       if (disposed) unlisten();
