@@ -147,6 +147,7 @@ fn balances(node: Balance<XDai>, safe: Balance<WxHopr>) -> Balances {
         capacity_allocations: None,
         ideal_balance: None,
         funding_status: None,
+        pix_float: None,
     }
 }
 
@@ -850,7 +851,7 @@ fn generate_fixtures() {
         }),
     );
 
-    // One open channel, the Safe, and wxHOPR on the node EOA not yet swept into the Safe.
+    // One open channel, the Safe, wxHOPR on the node EOA not yet swept into the Safe, and the PIX float.
     let capacity_allocations = CapacityAllocations {
         peer_allocations: BTreeMap::from([(
             address(),
@@ -872,6 +873,12 @@ fn generate_fixtures() {
             expected_messages: 1000,
             min_guaranteed_messages: 100,
             byte_capacity: 1_048_576,
+        },
+        pix_float: Capacity {
+            stake: Balance::from_wei(1_000_000_000_000_000_000), // 1 wxHOPR
+            expected_messages: 500,
+            min_guaranteed_messages: 50,
+            byte_capacity: 524_288,
         },
     };
     write(
