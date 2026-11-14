@@ -2,7 +2,13 @@ import { For } from "solid-js";
 import { type CreditLine, formatCreditPrecise } from "@src/utils/credit.ts";
 import { humanWxhoprParts } from "@src/utils/hopli.ts";
 
-/** Each allocation's data and wxHOPR, with the totals without and with the PIX pool. */
+const ROW_CLASS: Record<CreditLine["kind"], string> = {
+  part: "text-text-soft",
+  sum: "border-t border-border font-semibold text-text-primary",
+  aside: "border-t border-dashed border-border text-text-subtle italic",
+};
+
+/** Each allocation's data and wxHOPR, the totals without and with the PIX pool, and the pool at the PIX price outside the totals. */
 export default function BalanceBreakdown(props: { lines: CreditLine[] }) {
   return (
     <div class="flex shrink-0 flex-col rounded-xl bg-bg-list px-3.5 py-3">
@@ -22,15 +28,11 @@ export default function BalanceBreakdown(props: { lines: CreditLine[] }) {
         <tbody>
           <For each={props.lines}>
             {(line) => (
-              <tr
-                class={line.sum
-                  ? "border-t border-border font-semibold text-text-primary"
-                  : "text-text-soft"}
-              >
+              <tr class={ROW_CLASS[line.kind]}>
                 <th
                   scope="row"
                   class="py-0.5 text-left whitespace-nowrap"
-                  classList={{ "font-normal": !line.sum }}
+                  classList={{ "font-normal": line.kind !== "sum" }}
                 >
                   {line.label}
                 </th>

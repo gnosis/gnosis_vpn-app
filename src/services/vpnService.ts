@@ -596,6 +596,8 @@ export const StatusResponseSchema = z.object({
   probe: ProbeViewSchema.nullable(),
   // Data an exit sells per PIX chunk; null until the node runs.
   pix_chunk_bytes: z.number().nullable(),
+  // What one chunk costs at the client's price, in wei; older services omit it.
+  pix_chunk_cost: BigIntStringSchema.nullable().default(null),
   // Null until the node runs.
   probing: ProbingViewSchema.nullable(),
   // Recently connected exits on this network, newest first.

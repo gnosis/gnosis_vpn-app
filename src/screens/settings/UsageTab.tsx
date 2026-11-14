@@ -150,10 +150,14 @@ export default function UsageTab(
     return warnings;
   });
 
-  const breakdown = () =>
-    props.showBreakdown && appState.balance
-      ? creditBreakdown(appState.balance)
+  const breakdown = () => {
+    if (!props.showBreakdown || !appState.balance) return null;
+    const { pixChunkBytes, pixChunkCost } = appState;
+    const chunk = pixChunkBytes !== null && pixChunkCost !== null
+      ? { bytes: BigInt(pixChunkBytes), cost: pixChunkCost }
       : null;
+    return creditBreakdown(appState.balance, chunk);
+  };
 
   // The exit whose session the meter reports; a reconnect has none.
   const liveExitId = () => {

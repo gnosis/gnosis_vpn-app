@@ -87,34 +87,56 @@ export function computeEffectiveCredit(balance: BalanceResponse): bigint {
   );
 }
 
-/** One line of {@link creditBreakdown}: an allocation, or a sum of the lines above it. */
+/** One line of {@link creditBreakdown}: an allocation, a sum of the lines above it, or an aside outside the sums. */
 export interface CreditLine {
   label: string;
   bytes: bigint;
   stake: bigint;
-  sum: boolean;
+  kind: "part" | "sum" | "aside";
 }
 
-/** Each allocation with the totals without and with the PIX float; null before allocations arrive. */
-export function creditBreakdown(balance: BalanceResponse): CreditLine[] | null {
+/** A PIX chunk's size and price, to value the float at what exits charge. */
+export interface PixChunkPrice {
+  bytes: bigint;
+  cost: bigint;
+}
+
+/** Each allocation with the totals without and with the PIX float, then the float at the PIX price; null before allocations arrive. */
+export function creditBreakdown(
+  balance: BalanceResponse,
+  chunk: PixChunkPrice | null,
+): CreditLine[] | null {
   const caps = balance.capacity_allocations;
   if (!caps) return null;
-  const line = (label: string, parts: Capacity[], sum = false): CreditLine => ({
+  const line = (
+    label: string,
+    parts: Capacity[],
+    kind: CreditLine["kind"] = "part",
+  ): CreditLine => ({
     label,
     bytes: parts.reduce((total, c) => total + BigInt(c.byte_capacity), 0n),
     stake: parts.reduce((total, c) => total + c.stake, 0n),
-    sum,
+    kind,
   });
   const channels = Object.values(caps.peer_allocations);
   const held = [caps.node, caps.safe, ...channels];
-  return [
+  const lines = [
     line("EOA", [caps.node]),
     line("Safe", [caps.safe]),
     line("Channels", channels),
-    line("Without PIX pool", held, true),
+    line("Without PIX pool", held, "sum"),
     line("PIX pool", [caps.pix_float]),
-    line("Total", [...held, caps.pix_float], true),
+    line("Total", [...held, caps.pix_float], "sum"),
   ];
+  if (chunk && chunk.cost > 0n) {
+    lines.push({
+      label: "PIX pool at PIX price",
+      bytes: caps.pix_float.stake * chunk.bytes / chunk.cost,
+      stake: caps.pix_float.stake,
+      kind: "aside",
+    });
+  }
+  return lines;
 }
 
 /** Two decimals in GB, or in MB below one GB. */

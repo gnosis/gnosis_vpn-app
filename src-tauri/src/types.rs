@@ -174,6 +174,7 @@ mod tests {
             disconnecting: vec![],
             probe: None,
             pix_chunk_bytes: None,
+            pix_chunk_cost: None,
             probing: None,
             recent: vec![],
         }

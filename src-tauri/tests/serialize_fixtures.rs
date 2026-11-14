@@ -160,6 +160,7 @@ fn status_base(run_mode: RunMode) -> Status {
         disconnecting: vec![],
         probe: None,
         pix_chunk_bytes: None,
+        pix_chunk_cost: None,
         probing: None,
         recent: vec![],
     }
@@ -172,6 +173,9 @@ fn status_with_connection(connection: Connection) -> Status {
         target: connection.destination().cloned(),
         connection,
         pix_chunk_bytes: Some(PIX_CHUNK_BYTES),
+        pix_chunk_cost: Some(Balance::from_wei(
+            u128::from(PIX_CHUNK_BYTES) * 1_000_000_000,
+        )), // 1 Gwei per byte
         ..status_base(running())
     }
 }

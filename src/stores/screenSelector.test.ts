@@ -98,6 +98,7 @@ function status(
     connection: { type: "disconnected" },
     disconnecting: [],
     pix_chunk_bytes: null,
+    pix_chunk_cost: null,
     probing: null,
     recent: [],
     probe: null,
