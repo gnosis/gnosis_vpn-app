@@ -926,6 +926,13 @@ describe("destinationCountry", () => {
     expect(destinationLabel(dest)).toBe("my-exit");
   });
 
+  it("shows an unknown code as itself", () => {
+    const dest = makeDestination({
+      geo: { country: "qz", source: { type: "announced_ip" } },
+    });
+    expect(destinationCountry(dest)).toBe("QZ");
+  });
+
   it("is null when the schema dropped a malformed code", () => {
     const dest = makeDestination({
       geo: { country: undefined, source: { type: "announced_ip" } },

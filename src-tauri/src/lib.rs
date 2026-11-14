@@ -13,7 +13,6 @@ use std::sync::{Arc, Mutex};
 
 mod cli;
 mod commands;
-mod country_names;
 mod exit_label;
 mod icons;
 mod logging;

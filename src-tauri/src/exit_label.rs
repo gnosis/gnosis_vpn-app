@@ -1,8 +1,15 @@
 //! The tray names an exit the way the main window does: `exitDisplayName` and `#exitShortId` in src/utils/destinations.ts.
 
+use std::collections::HashMap;
+use std::sync::LazyLock;
+
 use gnosis_vpn_ipc as ipc;
 
-use crate::country_names::country_name;
+/// The main window's own list, so the tray spells countries the same way.
+static COUNTRY_NAMES: LazyLock<HashMap<String, String>> = LazyLock::new(|| {
+    serde_json::from_str(include_str!("../../src/assets/country-names.json"))
+        .expect("src/assets/country-names.json is a code-to-name map; regenerate it with scripts/generate-country-names.ts")
+});
 
 /// The frontend's META_FIELD_MAX_CHARS.
 const META_FIELD_MAX_CHARS: usize = 64;
@@ -17,10 +24,10 @@ pub fn exit_label(d: &ipc::Destination) -> String {
     format!("{name} #{}", &address[address.len() - 5..])
 }
 
-/// An unknown code shows as itself, like `Intl.DisplayNames`' default fallback.
+/// An unknown code shows as itself, as in the main window.
 fn country(code: &str) -> String {
     let code = code.to_ascii_uppercase();
-    country_name(&code).map_or(code, str::to_string)
+    COUNTRY_NAMES.get(&code).cloned().unwrap_or(code)
 }
 
 /// A discovered id is the name slugged, so the name alone suffices; a configured id is the user's own handle and leads.
@@ -96,6 +103,11 @@ pub(crate) mod tests {
             exit_label(&destination("syd-1", Some("AU"))),
             "Australia #BeAed"
         );
+    }
+
+    #[test]
+    fn the_shared_country_list_parses_whole() {
+        assert!(COUNTRY_NAMES.len() > 200, "{} names", COUNTRY_NAMES.len());
     }
 
     #[test]

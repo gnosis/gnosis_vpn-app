@@ -10,6 +10,7 @@ import {
   type QuickProbeState,
   type Slots,
 } from "@src/services/vpnService.ts";
+import countryNames from "@assets/country-names.json";
 
 export function getPreferredAvailabilityChangeMessage(
   previous: Destination[],
@@ -437,18 +438,14 @@ export function destinationTitle(d: Destination): string {
   return name === null ? d.id : `${d.id} (${name})`;
 }
 
-// The app's copy is English-only, so the country names are too.
-const COUNTRY_NAMES = new Intl.DisplayNames("en", { type: "region" });
+// Shared with the tray (src-tauri/src/exit_label.rs) so both spell countries alike.
+const COUNTRY_NAMES: Record<string, string> = countryNames;
 
-/** The exit's country as the client derived it; never the operator's claim. */
+/** The exit's country as the client derived it; never the operator's claim. An unknown code shows as itself. */
 export function destinationCountry(d: Destination): string | null {
-  const code = d.geo?.country;
+  const code = d.geo?.country?.toUpperCase();
   if (code === undefined) return null;
-  try {
-    return COUNTRY_NAMES.of(code.toUpperCase()) ?? null;
-  } catch {
-    return null;
-  }
+  return COUNTRY_NAMES[code] ?? code;
 }
 
 export function destinationDescription(d: Destination): string | null {
