@@ -754,7 +754,7 @@ async fn reflect_state_in_tray(
 
     let status_item = app.state::<tray::TrayStatusItem>();
     if let Ok(guard) = status_item.0.lock() {
-        let _ = guard.set_text(conn_state.to_string());
+        let _ = guard.set_text(conn_state.tray_text());
     };
 
     let quit_label = match conn_state {
