@@ -12,6 +12,7 @@ import {
 } from "@src/utils/credit.ts";
 import { exitDisplayName, exitShortId } from "@src/utils/destinations.ts";
 import Flag from "../Flag.tsx";
+import { ShortId } from "./LocationRow.tsx";
 import FeatureComing from "../settings/FeatureComing.tsx";
 
 // The Stage 2.1 mock's quota graphic: a 330×74 stage, the balance as a battery 244 wide.
@@ -141,9 +142,9 @@ export default function ExitCost(
       </div>
 
       <p class="text-center text-[15px] font-bold">
-        {`${exitDisplayName(props.destination)} #${
-          exitShortId(props.destination.address)
-        } gets ${costLabel()}.`}
+        {exitDisplayName(props.destination)}
+        <ShortId id={exitShortId(props.destination.address)} />
+        {` gets ${costLabel()}.`}
       </p>
       <Show when={!exitCostUsable()}>
         <p role="status" class="text-center text-xs text-text-subtle">
