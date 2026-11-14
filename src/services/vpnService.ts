@@ -471,11 +471,12 @@ export const CapacitySchema = z.object({
 });
 export type Capacity = z.infer<typeof CapacitySchema>;
 
-// Open outgoing channels keyed by checksum address, wxHOPR on the node EOA (not yet swept into the Safe), and the unallocated Safe balance.
+// Open outgoing channels keyed by checksum address, wxHOPR on the node EOA (not yet swept into the Safe), the unallocated Safe balance, and the PIX float.
 export const CapacityAllocationsSchema = z.object({
   peer_allocations: z.record(z.string(), CapacitySchema),
   node: CapacitySchema,
   safe: CapacitySchema,
+  pix_float: CapacitySchema,
 });
 export type CapacityAllocations = z.infer<typeof CapacityAllocationsSchema>;
 

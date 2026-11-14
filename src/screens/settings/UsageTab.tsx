@@ -1,6 +1,7 @@
 import {
   createEffect,
   createMemo,
+  createSignal,
   createUniqueId,
   For,
   Show,
@@ -13,6 +14,7 @@ import {
 import { useAppStore } from "@src/stores/appStore.ts";
 import {
   computeEffectiveCredit,
+  creditBreakdown,
   exitsCovered,
   formatCountCompact,
   formatCreditCompact,
@@ -30,12 +32,14 @@ import UsageMeter from "@src/components/exitNode/UsageMeter.tsx";
 import BackIcon from "@src/components/icons/BackIcon.tsx";
 import SettingIcon from "@src/components/icons/SettingIcon.tsx";
 import WarningIcon from "@src/components/icons/WarningIcon.tsx";
+import BalanceBreakdown from "@src/components/settings/BalanceBreakdown.tsx";
 import Notice from "@src/components/settings/Notice.tsx";
 import {
   SettingsCard,
   SettingsHeading,
 } from "@src/components/settings/SettingsGroup.tsx";
 import SettingsRow from "@src/components/settings/SettingsRow.tsx";
+import { createTapSequence } from "@src/utils/tapSequence.ts";
 import { openFundingSite, useFunding } from "./useFunding.ts";
 
 // The client reports no session lifetime yet, so the expiry value reads "Feature coming".
@@ -146,6 +150,14 @@ export default function UsageTab(props: { onAddFunds: () => void }) {
     return warnings;
   });
 
+  // Hidden: seven quick clicks on the exit meter toggle the balance breakdown.
+  const [showBreakdown, setShowBreakdown] = createSignal(false);
+  const breakdownTap = createTapSequence(7, 500);
+  const breakdown = () =>
+    showBreakdown() && appState.balance
+      ? creditBreakdown(appState.balance)
+      : null;
+
   // The exit whose session the meter reports; a reconnect has none.
   const liveExitId = () => {
     const c = appState.connection;
@@ -196,7 +208,12 @@ export default function UsageTab(props: { onAddFunds: () => void }) {
           </Show>
         </SettingsCard>
         <SettingsHeading>This exit</SettingsHeading>
-        <div class="flex shrink-0 flex-col rounded-xl bg-bg-list px-3.5 py-3.5">
+        <div
+          class="flex shrink-0 flex-col rounded-xl bg-bg-list px-3.5 py-3.5 select-none"
+          onClick={() => {
+            if (breakdownTap(performance.now())) setShowBreakdown((v) => !v);
+          }}
+        >
           <UsageMeter
             keepBar
             label={
@@ -219,6 +236,9 @@ export default function UsageTab(props: { onAddFunds: () => void }) {
             }
           />
         </div>
+        <Show when={breakdown()}>
+          {(lines) => <BalanceBreakdown lines={lines()} />}
+        </Show>
         <Show when={balanceWarnings().length > 0}>
           <div class="mt-auto flex shrink-0 flex-col gap-2 pt-2">
             <For each={balanceWarnings()}>

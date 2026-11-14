@@ -1,5 +1,6 @@
 import type {
   BalanceResponse,
+  Capacity,
   PixChunkStats,
 } from "@src/services/vpnService.ts";
 
@@ -64,23 +65,65 @@ export function dataLeftFraction(pix: PixChunkStats): number {
   return Math.min(1, pix.bytes_left! / pix.bytes_bought);
 }
 
-/** wxHOPR held across open channels, the Safe and the node EOA. */
+/** wxHOPR held across open channels, the Safe, the node EOA and the PIX float. */
 export function sumCapacityStake(balance: BalanceResponse): bigint {
   const caps = balance.capacity_allocations;
   if (!caps) return 0n;
   return Object.values(caps.peer_allocations).reduce(
     (sum, c) => sum + c.stake,
-    caps.node.stake + caps.safe.stake,
+    caps.node.stake + caps.safe.stake + caps.pix_float.stake,
   );
 }
 
 /** Sum byte_capacity across all capacity allocations
- * (open channels + Safe + node EOA). */
+ * (open channels + Safe + node EOA + PIX float). */
 export function computeEffectiveCredit(balance: BalanceResponse): bigint {
   const caps = balance.capacity_allocations;
   if (!caps) return 0n;
   return Object.values(caps.peer_allocations).reduce(
     (sum, c) => sum + BigInt(c.byte_capacity),
-    BigInt(caps.node.byte_capacity) + BigInt(caps.safe.byte_capacity),
+    BigInt(caps.node.byte_capacity) + BigInt(caps.safe.byte_capacity) +
+      BigInt(caps.pix_float.byte_capacity),
   );
+}
+
+/** One line of {@link creditBreakdown}: an allocation, or a sum of the lines above it. */
+export interface CreditLine {
+  label: string;
+  bytes: bigint;
+  stake: bigint;
+  sum: boolean;
+}
+
+/** Each allocation with the totals without and with the PIX float; null before allocations arrive. */
+export function creditBreakdown(balance: BalanceResponse): CreditLine[] | null {
+  const caps = balance.capacity_allocations;
+  if (!caps) return null;
+  const line = (label: string, parts: Capacity[], sum = false): CreditLine => ({
+    label,
+    bytes: parts.reduce((total, c) => total + BigInt(c.byte_capacity), 0n),
+    stake: parts.reduce((total, c) => total + c.stake, 0n),
+    sum,
+  });
+  const channels = Object.values(caps.peer_allocations);
+  const held = [caps.node, caps.safe, ...channels];
+  return [
+    line("EOA", [caps.node]),
+    line("Safe", [caps.safe]),
+    line("Channels", channels),
+    line("Without PIX pool", held, true),
+    line("PIX pool", [caps.pix_float]),
+    line("Total", [...held, caps.pix_float], true),
+  ];
+}
+
+/** Two decimals in GB, or in MB below one GB. */
+export function formatCreditPrecise(creditBytes: bigint): string {
+  const [unit, suffix] = creditBytes < BYTES_PER_GB
+    ? [BYTES_PER_MB, "MB"]
+    : [BYTES_PER_GB, "GB"];
+  const hundredths = (creditBytes * 100n + unit / 2n) / unit;
+  return `${hundredths / 100n}.${
+    String(hundredths % 100n).padStart(2, "0")
+  } ${suffix}`;
 }
