@@ -2,6 +2,7 @@ import {
   createEffect,
   createMemo,
   createSignal,
+  type JSX,
   onCleanup,
   Show,
 } from "solid-js";
@@ -29,6 +30,7 @@ import {
 } from "@src/utils/hopli.ts";
 import Button from "@src/components/common/Button.tsx";
 import GnosisMark from "@src/components/common/GnosisMark.tsx";
+import ArrowRightIcon from "@src/components/icons/ArrowRightIcon.tsx";
 import CheckCircleIcon from "@src/components/icons/CheckCircleIcon.tsx";
 import SettingIcon from "@src/components/icons/SettingIcon.tsx";
 import {
@@ -107,6 +109,16 @@ function AddressCard(props: { address: string }) {
   );
 }
 
+/** A line under a token; the fixed icon cell keeps its text in place when the arrow becomes a tick. */
+function TokenNote(props: { icon: JSX.Element; children: JSX.Element }) {
+  return (
+    <span class="flex items-center gap-1.5 text-xs leading-normal text-text-soft">
+      <span class="flex size-3.5 shrink-0">{props.icon}</span>
+      <span>{props.children}</span>
+    </span>
+  );
+}
+
 function TokenRow(props: {
   token: string;
   purpose: string;
@@ -142,20 +154,21 @@ function TokenRow(props: {
       </div>
       <Show when={props.sendAtLeast}>
         {(amount) => (
-          <span class="text-xs leading-normal text-text-soft">
+          <TokenNote
+            icon={<ArrowRightIcon class={`size-full ${props.statusClass}`} />}
+          >
             Send at least{" "}
             <span class="cursor-text font-figures font-bold text-text-primary select-text">
               {amount()}
             </span>{" "}
             {props.token}
-          </span>
+          </TokenNote>
         )}
       </Show>
       <Show when={props.enough}>
-        <span class="flex items-center gap-1.5 text-xs leading-normal text-text-soft">
-          <CheckCircleIcon class="size-3.5 text-ok-badge" />
+        <TokenNote icon={<CheckCircleIcon class="size-full text-ok-badge" />}>
           You have enough {props.token}
-        </span>
+        </TokenNote>
       </Show>
     </div>
   );
@@ -215,8 +228,6 @@ export default function SendFundsPage(props: { onBack: () => void }) {
 
   const needsFunds = (status: StatusText | null) =>
     status === "Empty" || status === "Low";
-  const onboardingEnough = (status: StatusText | null) =>
-    funding.preparingSafe() !== null && status === "Sufficient";
   const wxhoprToSend = () => {
     if (!needsFunds(trafficStatus())) return null;
     // Onboarding shows the client's exact minimum; a running top-up reads better as a round amount.
@@ -261,7 +272,7 @@ export default function SendFundsPage(props: { onBack: () => void }) {
           status={trafficStatus()}
           statusClass={statusClass(trafficStatus())}
           sendAtLeast={wxhoprToSend()}
-          enough={onboardingEnough(trafficStatus())}
+          enough={trafficStatus() === "Sufficient"}
         />
         <TokenRow
           token="xDAI"
@@ -270,7 +281,7 @@ export default function SendFundsPage(props: { onBack: () => void }) {
           status={gasStatus()}
           statusClass={statusClass(gasStatus())}
           sendAtLeast={xdaiToSend()}
-          enough={onboardingEnough(gasStatus())}
+          enough={gasStatus() === "Sufficient"}
         />
       </SettingsCard>
       <p class="flex gap-2 px-1 pt-1 text-xs leading-[1.45] text-text-subtle">
