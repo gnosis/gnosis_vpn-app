@@ -113,15 +113,6 @@ export function formatWxhopr(
   return formatXdai(value, fractionDigits, rounding);
 }
 
-/** Format a wxHOPR hopli amount as a full decimal wxHOPR value without trailing zeros. */
-export function wxhoprDecimal(
-  hopli: string | bigint | null | undefined,
-): string {
-  const raw = toBigIntSafe(hopli);
-  if (raw === null) return NO_VALUE;
-  return stripTrailingZeros(fixedFloor(raw, 18, 18));
-}
-
 const SUBSCRIPT_DIGITS = ["₀", "₁", "₂", "₃", "₄", "₅", "₆", "₇", "₈", "₉"];
 
 function toSubscript(n: number): string {

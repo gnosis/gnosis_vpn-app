@@ -6,10 +6,14 @@ import {
   deriveTrafficStatus,
   deriveWxhoprDeficit,
   deriveXdaiDeficit,
+  preparingSafeShortfall,
+  roundUpToStep,
+  WXHOPR_SEND_STEP,
 } from "./funding.ts";
 import type {
   BalanceResponse,
   FundingStatus,
+  PreparingSafe,
 } from "@src/services/vpnService.ts";
 
 function makeStatus(
@@ -126,5 +130,69 @@ describe("deriveRefillShortfall", () => {
     expect(deriveRefillShortfall(makeBalance(makeStatus("good", "good")), null))
       .toBeNull();
     expect(deriveRefillShortfall(null, null)).toBeNull();
+  });
+});
+
+describe("preparingSafeShortfall", () => {
+  const preparing = (
+    have: { wxhopr: bigint; xdai: bigint },
+    recommended: { wxhopr: bigint; xdai: bigint } | null,
+  ): PreparingSafe => ({
+    type: "preparing_safe",
+    node_address: "0xnode",
+    node_wxhopr: have.wxhopr,
+    node_xdai: have.xdai,
+    funding_tool: null,
+    error: null,
+    balance_recommendation: recommended && {
+      ...recommended,
+      channel_stakes: 0n,
+      fee_to_start: 0n,
+      txs_to_start: 0,
+      xdai_fee_per_tx: 0n,
+      topup_headroom: 0n,
+    },
+  });
+
+  it("is what is still missing per token", () => {
+    const rm = preparing({ wxhopr: 30n, xdai: 0n }, {
+      wxhopr: 100n,
+      xdai: 50n,
+    });
+    expect(preparingSafeShortfall(rm, "wxhopr")).toBe(70n);
+    expect(preparingSafeShortfall(rm, "xdai")).toBe(50n);
+  });
+
+  it("is null once the recommendation is met or exceeded", () => {
+    const rm = preparing({ wxhopr: 100n, xdai: 51n }, {
+      wxhopr: 100n,
+      xdai: 50n,
+    });
+    expect(preparingSafeShortfall(rm, "wxhopr")).toBeNull();
+    expect(preparingSafeShortfall(rm, "xdai")).toBeNull();
+  });
+
+  it("is null without a recommendation or outside preparing_safe", () => {
+    const rm = preparing({ wxhopr: 0n, xdai: 0n }, null);
+    expect(preparingSafeShortfall(rm, "wxhopr")).toBeNull();
+    expect(preparingSafeShortfall(null, "xdai")).toBeNull();
+  });
+});
+
+describe("roundUpToStep", () => {
+  const WXHOPR = 10n ** 18n;
+
+  it("rounds up to the next 10 wxHOPR", () => {
+    expect(roundUpToStep(431n * WXHOPR + 13n, WXHOPR_SEND_STEP)).toBe(
+      440n * WXHOPR,
+    );
+    expect(roundUpToStep(481n * WXHOPR + 13n, WXHOPR_SEND_STEP)).toBe(
+      490n * WXHOPR,
+    );
+    expect(roundUpToStep(1n, WXHOPR_SEND_STEP)).toBe(10n * WXHOPR);
+  });
+
+  it("keeps exact multiples", () => {
+    expect(roundUpToStep(100n * WXHOPR, WXHOPR_SEND_STEP)).toBe(100n * WXHOPR);
   });
 });

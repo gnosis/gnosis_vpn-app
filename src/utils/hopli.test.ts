@@ -6,7 +6,6 @@ import {
   humanXdai,
   NO_VALUE,
   toBigIntSafe,
-  wxhoprDecimal,
 } from "./hopli.ts";
 
 describe("formatXdai", () => {
@@ -60,22 +59,6 @@ describe("formatXdai", () => {
     expect(() => formatXdai(-1n, 2, "ceil")).toThrow(
       /hopli must be non-negative/,
     );
-  });
-});
-
-describe("wxhoprDecimal", () => {
-  it("shows full wxHOPR value without trailing zeros", () => {
-    expect(wxhoprDecimal(1n * 10n ** 18n)).toBe("1");
-    expect(wxhoprDecimal(15n * 10n ** 17n)).toBe("1.5");
-    expect(wxhoprDecimal(1n * 10n ** 15n)).toBe("0.001");
-  });
-
-  it("handles sub-micro amounts", () => {
-    expect(wxhoprDecimal(800_000_000n)).toBe("0.0000000008");
-  });
-
-  it("accepts string input", () => {
-    expect(wxhoprDecimal("1000000000000000000")).toBe("1");
   });
 });
 
@@ -226,7 +209,6 @@ describe("placeholder fallback for invalid input", () => {
       amount: NO_VALUE,
       unit: "wxHOPR",
     });
-    expect(wxhoprDecimal(undefined)).toBe(NO_VALUE);
   });
 
   it("renders NO_VALUE on malformed strings", () => {

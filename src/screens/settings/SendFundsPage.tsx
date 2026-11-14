@@ -2,6 +2,7 @@ import {
   createEffect,
   createMemo,
   createSignal,
+  type JSX,
   onCleanup,
   Show,
 } from "solid-js";
@@ -15,7 +16,11 @@ import {
   deriveTrafficStatus,
   deriveWxhoprDeficit,
   deriveXdaiDeficit,
+  preparingSafeShortfall,
+  resolveFundingStatus,
+  roundUpToStep,
   type StatusText,
+  WXHOPR_SEND_STEP,
 } from "@src/utils/funding.ts";
 import {
   formatWxhopr,
@@ -23,6 +28,10 @@ import {
   humanWxhoprParts,
   humanXdai,
 } from "@src/utils/hopli.ts";
+import Button from "@src/components/common/Button.tsx";
+import GnosisMark from "@src/components/common/GnosisMark.tsx";
+import ArrowRightIcon from "@src/components/icons/ArrowRightIcon.tsx";
+import CheckCircleIcon from "@src/components/icons/CheckCircleIcon.tsx";
 import SettingIcon from "@src/components/icons/SettingIcon.tsx";
 import {
   SettingsCard,
@@ -94,16 +103,19 @@ function AddressCard(props: { address: string }) {
               </span>
             </span>
           </button>
-          <button
-            type="button"
-            class={ROW_BUTTON}
-            onClick={() => void openFundingSite(props.address)}
-          >
-            Funding site <span aria-hidden="true">↗</span>
-          </button>
         </div>
       </div>
     </div>
+  );
+}
+
+/** A line under a token; the fixed icon cell keeps its text in place when the arrow becomes a tick. */
+function TokenNote(props: { icon: JSX.Element; children: JSX.Element }) {
+  return (
+    <span class="flex items-center gap-1.5 text-xs leading-normal text-text-soft">
+      <span class="flex size-3.5 shrink-0">{props.icon}</span>
+      <span>{props.children}</span>
+    </span>
   );
 }
 
@@ -114,6 +126,7 @@ function TokenRow(props: {
   status: StatusText | null;
   statusClass: string;
   sendAtLeast: string | null;
+  enough: boolean;
 }) {
   return (
     <div class="flex flex-col gap-1 px-3.5 py-2.5">
@@ -141,20 +154,27 @@ function TokenRow(props: {
       </div>
       <Show when={props.sendAtLeast}>
         {(amount) => (
-          <span class="text-xs leading-normal text-text-soft">
+          <TokenNote
+            icon={<ArrowRightIcon class={`size-full ${props.statusClass}`} />}
+          >
             Send at least{" "}
-            <span class="cursor-text font-figures select-text">
+            <span class="cursor-text font-figures font-bold text-text-primary select-text">
               {amount()}
             </span>{" "}
             {props.token}
-          </span>
+          </TokenNote>
         )}
+      </Show>
+      <Show when={props.enough}>
+        <TokenNote icon={<CheckCircleIcon class="size-full text-ok-badge" />}>
+          You have enough {props.token}
+        </TokenNote>
       </Show>
     </div>
   );
 }
 
-/** The address, QR code and what each token is for, opened from Usage → Add funds directly. */
+/** The address, QR code and what each token is for, opened from Usage → Add funds directly or the onboarding Fund screen. */
 export default function SendFundsPage(props: { onBack: () => void }) {
   const [appState] = useAppStore();
   const funding = useFunding();
@@ -171,38 +191,63 @@ export default function SendFundsPage(props: { onBack: () => void }) {
   const xdai = () =>
     funding.preparingSafe()?.node_xdai ?? appState.balance?.node ?? null;
 
-  // Without a balance or the daemon's levels the derived "Sufficient" is only a default.
+  // Running: only the levels the client reports, never the derive helpers' "Sufficient" default.
   const levelsKnown = () =>
-    appState.balance !== null || funding.runModeStatus() !== null;
-  const trafficStatus = createMemo(() =>
-    levelsKnown()
+    resolveFundingStatus(appState.balance, funding.runModeStatus()) !== null;
+  const preparingStatus = (token: "wxhopr" | "xdai"): StatusText | null => {
+    const preparing = funding.preparingSafe();
+    if (!preparing?.balance_recommendation) return null;
+    if (preparingSafeShortfall(preparing, token) === null) return "Sufficient";
+    const have = token === "wxhopr"
+      ? preparing.node_wxhopr
+      : preparing.node_xdai;
+    return have === 0n ? "Empty" : "Low";
+  };
+  // Onboarding: Sufficient only once the node holds the client's full minimum.
+  const trafficStatus = createMemo(() => {
+    if (funding.preparingSafe()) return preparingStatus("wxhopr");
+    return levelsKnown()
       ? deriveTrafficStatus(appState.balance, funding.runModeStatus())
-      : null
-  );
-  const gasStatus = createMemo(() =>
-    levelsKnown()
+      : null;
+  });
+  const gasStatus = createMemo(() => {
+    if (funding.preparingSafe()) return preparingStatus("xdai");
+    return levelsKnown()
       ? deriveNodeStatus(appState.balance, funding.runModeStatus())
-      : null
-  );
-  // The daemon's levels alone (before the first balance) are blind to EOA funds, so they only warrant amber.
+      : null;
+  });
+  // The daemon's levels alone (before the first balance) are blind to EOA funds, so they only warrant amber; preparing_safe's node balances are exact.
   const statusClass = (status: StatusText | null) => {
     if (status === "Sufficient") return "text-ok-ink";
-    if (status === "Empty" && appState.balance !== null) return "text-bad-ink";
+    if (
+      status === "Empty" &&
+      (appState.balance !== null || funding.preparingSafe() !== null)
+    ) return "text-bad-ink";
     return "text-warn-ink";
   };
 
+  const needsFunds = (status: StatusText | null) =>
+    status === "Empty" || status === "Low";
   const wxhoprToSend = () => {
+    if (!needsFunds(trafficStatus())) return null;
+    // Onboarding shows the client's exact minimum; a running top-up reads better as a round amount.
+    const onboarding = preparingSafeShortfall(
+      funding.preparingSafe(),
+      "wxhopr",
+    );
+    if (onboarding) return formatWxhopr(onboarding, 3, "ceil");
     const deficit = deriveWxhoprDeficit(
       appState.balance,
       funding.runModeStatus(),
     ) ?? deriveRefillShortfall(appState.balance, funding.runModeStatus());
-    return deficit ? formatWxhopr(deficit, 3, "ceil") : null;
+    return deficit
+      ? formatWxhopr(roundUpToStep(deficit, WXHOPR_SEND_STEP), 3, "ceil")
+      : null;
   };
   const xdaiToSend = () => {
-    const deficit = deriveXdaiDeficit(
-      appState.balance,
-      funding.runModeStatus(),
-    );
+    if (!needsFunds(gasStatus())) return null;
+    const deficit = preparingSafeShortfall(funding.preparingSafe(), "xdai") ??
+      deriveXdaiDeficit(appState.balance, funding.runModeStatus());
     return deficit ? formatXdai(deficit, 3, "ceil") : null;
   };
 
@@ -212,19 +257,14 @@ export default function SendFundsPage(props: { onBack: () => void }) {
         {(address) => <AddressCard address={address()} />}
       </Show>
       <p class="flex items-center gap-2.5 px-1 pt-1 text-xs leading-[1.45] text-text-subtle">
-        <span
-          aria-hidden="true"
-          class="flex size-5 shrink-0 items-center justify-center rounded-full bg-text-primary text-[10px] font-bold text-bg-primary"
-        >
-          G
-        </span>
+        <GnosisMark class="size-5 shrink-0 text-text-primary" />
         <span>
           Send on <b class="text-text-primary">Gnosis Chain</b>{" "}
           only. Other networks won't arrive.
         </span>
       </p>
-      <SettingsHeading>What to send</SettingsHeading>
-      <SettingsCard label="What to send">
+      <SettingsHeading>Balances</SettingsHeading>
+      <SettingsCard label="Balances">
         <TokenRow
           token="wxHOPR"
           purpose="Pays for your traffic"
@@ -232,6 +272,7 @@ export default function SendFundsPage(props: { onBack: () => void }) {
           status={trafficStatus()}
           statusClass={statusClass(trafficStatus())}
           sendAtLeast={wxhoprToSend()}
+          enough={trafficStatus() === "Sufficient"}
         />
         <TokenRow
           token="xDAI"
@@ -240,6 +281,7 @@ export default function SendFundsPage(props: { onBack: () => void }) {
           status={gasStatus()}
           statusClass={statusClass(gasStatus())}
           sendAtLeast={xdaiToSend()}
+          enough={gasStatus() === "Sufficient"}
         />
       </SettingsCard>
       <p class="flex gap-2 px-1 pt-1 text-xs leading-[1.45] text-text-subtle">
@@ -251,6 +293,19 @@ export default function SendFundsPage(props: { onBack: () => void }) {
           Usually about 2 minutes.
         </span>
       </p>
+      <Show when={funding.nodeAddress()}>
+        {(address) => (
+          <div class="mt-auto pt-2.5">
+            <Button
+              size="xl"
+              variant="connect"
+              onClick={() => void openFundingSite(address())}
+            >
+              Open funding site <span aria-hidden="true">↗</span>
+            </Button>
+          </div>
+        )}
+      </Show>
     </SettingsSubpage>
   );
 }

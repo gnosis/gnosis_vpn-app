@@ -1,11 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type {
-  BalanceRecommendation,
   ChannelMaintenance,
   Connection,
   Destination,
   Disconnecting,
-  PreparingSafe,
   RouteHealthView,
   RunMode,
   StatusResponse,
@@ -21,8 +19,6 @@ import {
   isDisconnected,
   isDisconnecting,
   isSwitchingDestination,
-  isWxHOPRTransferred,
-  isXDAITransferred,
   waitingForRouteMessage,
 } from "./status.ts";
 import { makeDestination } from "@src/testing/destinations.ts";
@@ -117,33 +113,6 @@ const BASE_APP_STATE: AppState = {
   },
 };
 
-const BALANCE_RECOMMENDATION: BalanceRecommendation = {
-  wxhopr: 100n,
-  xdai: 50n,
-  channel_stakes: 0n,
-  fee_to_start: 0n,
-  txs_to_start: 0,
-  xdai_fee_per_tx: 0n,
-  topup_headroom: 0n,
-};
-
-const PREPARING_SAFE: PreparingSafe = {
-  type: "preparing_safe",
-  node_address: "0xnode",
-  node_xdai: 0n,
-  node_wxhopr: 0n,
-  funding_tool: null,
-  error: null,
-  balance_recommendation: BALANCE_RECOMMENDATION,
-};
-
-function appStateWithPreparingSafe(preparingSafe: PreparingSafe): AppState {
-  return {
-    ...BASE_APP_STATE,
-    runMode: preparingSafe,
-  };
-}
-
 describe("isConnected", () => {
   it("returns true when connected info is present", () => {
     expect(
@@ -207,84 +176,6 @@ describe("isDisconnected", () => {
 
   it("returns false when a parked reconnect target remains", () => {
     expect(isDisconnected({ ...BASE, target: "dest-1" })).toBe(false);
-  });
-});
-
-describe("isXDAITransferred", () => {
-  it("returns false when not in PreparingSafe run mode", () => {
-    expect(isXDAITransferred(BASE_APP_STATE)).toBe(false);
-  });
-
-  it("returns false when balance_recommendation is null", () => {
-    const state = appStateWithPreparingSafe({
-      ...PREPARING_SAFE,
-      node_xdai: 1_000n,
-      balance_recommendation: null,
-    });
-    expect(isXDAITransferred(state)).toBe(false);
-  });
-
-  it("returns false when node_xdai is below the recommendation", () => {
-    const state = appStateWithPreparingSafe({
-      ...PREPARING_SAFE,
-      node_xdai: BALANCE_RECOMMENDATION.xdai - 1n,
-    });
-    expect(isXDAITransferred(state)).toBe(false);
-  });
-
-  it("returns true when node_xdai meets the recommendation", () => {
-    const state = appStateWithPreparingSafe({
-      ...PREPARING_SAFE,
-      node_xdai: BALANCE_RECOMMENDATION.xdai,
-    });
-    expect(isXDAITransferred(state)).toBe(true);
-  });
-
-  it("returns true when node_xdai exceeds the recommendation", () => {
-    const state = appStateWithPreparingSafe({
-      ...PREPARING_SAFE,
-      node_xdai: BALANCE_RECOMMENDATION.xdai + 1n,
-    });
-    expect(isXDAITransferred(state)).toBe(true);
-  });
-});
-
-describe("isWxHOPRTransferred", () => {
-  it("returns false when not in PreparingSafe run mode", () => {
-    expect(isWxHOPRTransferred(BASE_APP_STATE)).toBe(false);
-  });
-
-  it("returns false when balance_recommendation is null", () => {
-    const state = appStateWithPreparingSafe({
-      ...PREPARING_SAFE,
-      node_wxhopr: 1_000n,
-      balance_recommendation: null,
-    });
-    expect(isWxHOPRTransferred(state)).toBe(false);
-  });
-
-  it("returns false when node_wxhopr is below the recommendation", () => {
-    const state = appStateWithPreparingSafe({
-      ...PREPARING_SAFE,
-      node_wxhopr: BALANCE_RECOMMENDATION.wxhopr - 1n,
-    });
-    expect(isWxHOPRTransferred(state)).toBe(false);
-  });
-
-  it("returns true when node_wxhopr meets the recommendation", () => {
-    const state = appStateWithPreparingSafe({
-      ...PREPARING_SAFE,
-      node_wxhopr: BALANCE_RECOMMENDATION.wxhopr,
-    });
-    expect(isWxHOPRTransferred(state)).toBe(true);
-  });
-
-  it("returns true when node_wxhopr exceeds the recommendation", () => {
-    const state = appStateWithPreparingSafe({
-      ...PREPARING_SAFE,
-      node_wxhopr: BALANCE_RECOMMENDATION.wxhopr + 1n,
-    });
-    expect(isWxHOPRTransferred(state)).toBe(true);
   });
 });
 
