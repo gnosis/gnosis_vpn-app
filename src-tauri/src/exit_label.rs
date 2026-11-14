@@ -8,7 +8,7 @@ use gnosis_vpn_ipc as ipc;
 /// The main window's own list, so the tray spells countries the same way.
 static COUNTRY_NAMES: LazyLock<HashMap<String, String>> = LazyLock::new(|| {
     serde_json::from_str(include_str!("../../src/assets/country-names.json"))
-        .expect("src/assets/country-names.json is a code-to-name map; regenerate it with scripts/generate-country-names.ts")
+        .expect("src/assets/country-names.json must be a code-to-name map")
 });
 
 /// The frontend's META_FIELD_MAX_CHARS.
