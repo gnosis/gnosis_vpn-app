@@ -2,9 +2,8 @@ import {
   createEffect,
   createMemo,
   createUniqueId,
-  Match,
+  For,
   Show,
-  Switch,
   untrack,
 } from "solid-js";
 import {
@@ -24,11 +23,13 @@ import {
   clearSettingsRequest,
   settingsRequest,
 } from "@src/utils/settingsPage.ts";
+import Banner from "@src/components/common/Banner.tsx";
 import Tooltip from "@src/components/common/Tooltip.tsx";
 import { ShortId } from "@src/components/exitNode/LocationRow.tsx";
 import UsageMeter from "@src/components/exitNode/UsageMeter.tsx";
 import BackIcon from "@src/components/icons/BackIcon.tsx";
 import SettingIcon from "@src/components/icons/SettingIcon.tsx";
+import WarningIcon from "@src/components/icons/WarningIcon.tsx";
 import Notice from "@src/components/settings/Notice.tsx";
 import {
   SettingsCard,
@@ -112,7 +113,38 @@ export default function UsageTab(props: { onAddFunds: () => void }) {
     deriveNodeStatus(appState.balance, runModeStatus())
   );
   // The daemon's levels alone (before the first balance) are blind to EOA funds, so they only warrant amber.
-  const emptyTone = () => (appState.balance === null ? "warn" : "bad");
+  const emptyVariant = () =>
+    appState.balance === null ? "warning" as const : "critical" as const;
+  // The main screen's banners, minus the X: this tab is where they lead.
+  const balanceWarnings = createMemo(() => {
+    const warnings: { variant: "warning" | "critical"; text: string }[] = [];
+    if (trafficStatus() === "Empty") {
+      warnings.push({
+        variant: emptyVariant(),
+        text: "Balance empty: add data to keep connecting.",
+      });
+    } else if (trafficStatus() === "Low") {
+      const left = renewalsLeft();
+      warnings.push({
+        variant: "warning",
+        text: left === null
+          ? "Balance running low."
+          : `Balance running low: ${renewals(left)} left.`,
+      });
+    }
+    if (gasStatus() === "Empty") {
+      warnings.push({
+        variant: emptyVariant(),
+        text: "Gas is empty — top up xDAI.",
+      });
+    } else if (gasStatus() === "Low") {
+      warnings.push({ variant: "warning", text: "Gas is low — top up xDAI." });
+    }
+    if (preparingSafe()) {
+      warnings.push({ variant: "warning", text: "Waiting for incoming funds" });
+    }
+    return warnings;
+  });
 
   // The exit whose session the meter reports; a reconnect has none.
   const liveExitId = () => {
@@ -143,34 +175,6 @@ export default function UsageTab(props: { onAddFunds: () => void }) {
             </Show>
           </div>
         </div>
-        <Switch>
-          <Match when={trafficStatus() === "Empty"}>
-            <Notice tone={emptyTone()}>
-              Balance empty: add data to keep connecting.
-            </Notice>
-          </Match>
-          <Match when={trafficStatus() === "Low"}>
-            <Notice tone="warn">
-              <Show
-                when={renewalsLeft() !== null}
-                fallback="Balance running low."
-              >
-                Balance running low: {renewals(renewalsLeft()!)} left.
-              </Show>
-            </Notice>
-          </Match>
-        </Switch>
-        <Switch>
-          <Match when={gasStatus() === "Empty"}>
-            <Notice tone={emptyTone()}>Gas is empty — top up xDAI.</Notice>
-          </Match>
-          <Match when={gasStatus() === "Low"}>
-            <Notice tone="warn">Gas is low — top up xDAI.</Notice>
-          </Match>
-        </Switch>
-        <Show when={preparingSafe()}>
-          <Notice tone="warn">Waiting for incoming funds</Notice>
-        </Show>
         <SettingsCard label="Funding">
           <SettingsRow
             icon="add"
@@ -215,6 +219,17 @@ export default function UsageTab(props: { onAddFunds: () => void }) {
             }
           />
         </div>
+        <Show when={balanceWarnings().length > 0}>
+          <div class="mt-auto flex shrink-0 flex-col gap-2 pt-2">
+            <For each={balanceWarnings()}>
+              {(warning) => (
+                <Banner variant={warning.variant} icon={<WarningIcon filled />}>
+                  {warning.text}
+                </Banner>
+              )}
+            </For>
+          </div>
+        </Show>
       </Show>
     </>
   );
