@@ -471,12 +471,20 @@ export const CapacitySchema = z.object({
 });
 export type Capacity = z.infer<typeof CapacitySchema>;
 
-// Open outgoing channels keyed by checksum address, wxHOPR on the node EOA (not yet swept into the Safe), the unallocated Safe balance, and the PIX float.
+// The funds paying for exit traffic (the PIX float): byte_capacity counts toward the total, bytes_from_exits is what they buy from exits.
+export const ExitTrafficFundsSchema = z.object({
+  stake: BigIntStringSchema,
+  byte_capacity: z.number(),
+  bytes_from_exits: z.number(),
+});
+export type ExitTrafficFunds = z.infer<typeof ExitTrafficFundsSchema>;
+
+// The funds paying for relays — open outgoing channels keyed by checksum address, wxHOPR on the node EOA (not yet swept into the Safe), the unallocated Safe balance — and for exit traffic.
 export const CapacityAllocationsSchema = z.object({
   peer_allocations: z.record(z.string(), CapacitySchema),
   node: CapacitySchema,
   safe: CapacitySchema,
-  pix_float: CapacitySchema,
+  exit_traffic: ExitTrafficFundsSchema,
 });
 export type CapacityAllocations = z.infer<typeof CapacityAllocationsSchema>;
 
@@ -596,8 +604,6 @@ export const StatusResponseSchema = z.object({
   probe: ProbeViewSchema.nullable(),
   // Data an exit sells per PIX chunk; null until the node runs.
   pix_chunk_bytes: z.number().nullable(),
-  // What one chunk costs at the client's price, in wei; older services omit it.
-  pix_chunk_cost: BigIntStringSchema.nullable().default(null),
   // Null until the node runs.
   probing: ProbingViewSchema.nullable(),
   // Recently connected exits on this network, newest first.

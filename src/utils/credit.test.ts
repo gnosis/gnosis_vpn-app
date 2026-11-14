@@ -14,6 +14,7 @@ import type {
   BalanceResponse,
   Capacity,
   CapacityAllocations,
+  ExitTrafficFunds,
   PixChunkStats,
 } from "@src/services/vpnService.ts";
 
@@ -30,6 +31,14 @@ function makeCapacity(byte_capacity: number, stake = 0n): Capacity {
   };
 }
 
+function makeExitFunds(
+  byte_capacity: number,
+  stake = 0n,
+  bytes_from_exits = 0,
+): ExitTrafficFunds {
+  return { stake, byte_capacity, bytes_from_exits };
+}
+
 function makeAllocations(
   parts: Partial<CapacityAllocations>,
 ): CapacityAllocations {
@@ -37,7 +46,7 @@ function makeAllocations(
     peer_allocations: {},
     node: makeCapacity(0),
     safe: makeCapacity(0),
-    pix_float: makeCapacity(0),
+    exit_traffic: makeExitFunds(0),
     ...parts,
   };
 }
@@ -65,7 +74,7 @@ describe("sumCapacityStake", () => {
     const allocations = makeAllocations({
       node: makeCapacity(0, 1n),
       safe: makeCapacity(0, 20n),
-      pix_float: makeCapacity(0, 50000n),
+      exit_traffic: makeExitFunds(0, 50000n),
       peer_allocations: {
         "0xabc": makeCapacity(0, 300n),
         "0xdef": makeCapacity(0, 4000n),
@@ -126,7 +135,7 @@ describe("computeEffectiveCredit", () => {
   it("includes the PIX float", () => {
     const allocations = makeAllocations({
       safe: makeCapacity(1_000_000),
-      pix_float: makeCapacity(250_000),
+      exit_traffic: makeExitFunds(250_000),
     });
     expect(computeEffectiveCredit(makeBalance(allocations))).toBe(1_250_000n);
   });
@@ -134,20 +143,20 @@ describe("computeEffectiveCredit", () => {
 
 describe("creditBreakdown", () => {
   it("is null before allocations arrive", () => {
-    expect(creditBreakdown(makeBalance(null), null)).toBeNull();
+    expect(creditBreakdown(makeBalance(null))).toBeNull();
   });
 
-  it("lists each allocation, then the totals without and with the PIX pool", () => {
+  it("lists each allocation, the totals, then what the PIX pool buys from exits", () => {
     const allocations = makeAllocations({
       node: makeCapacity(1, 1n),
       safe: makeCapacity(20, 20n),
-      pix_float: makeCapacity(5000, 5000n),
+      exit_traffic: makeExitFunds(5000, 5000n, 50000),
       peer_allocations: {
         "0xabc": makeCapacity(300, 300n),
         "0xdef": makeCapacity(400, 400n),
       },
     });
-    const lines = creditBreakdown(makeBalance(allocations), null)!;
+    const lines = creditBreakdown(makeBalance(allocations))!;
     expect(lines.map((l) => [l.label, l.bytes, l.stake, l.kind])).toEqual([
       ["EOA", 1n, 1n, "part"],
       ["Safe", 20n, 20n, "part"],
@@ -155,44 +164,17 @@ describe("creditBreakdown", () => {
       ["Without PIX pool", 721n, 721n, "sum"],
       ["PIX pool", 5000n, 5000n, "part"],
       ["Total", 5721n, 5721n, "sum"],
+      ["PIX pool at PIX price", 50000n, 5000n, "aside"],
     ]);
-  });
-
-  it("adds the PIX pool at the PIX price after the totals", () => {
-    const allocations = makeAllocations({
-      safe: makeCapacity(20, 20n),
-      pix_float: makeCapacity(5000, 5000n),
-    });
-    const lines = creditBreakdown(makeBalance(allocations), {
-      bytes: 100n,
-      cost: 10n,
-    })!;
-    expect(lines.map((l) => l.label).slice(-2)).toEqual([
-      "Total",
-      "PIX pool at PIX price",
-    ]);
-    expect(lines[lines.length - 1]).toEqual({
-      label: "PIX pool at PIX price",
-      bytes: 50000n,
-      stake: 5000n,
-      kind: "aside",
-    });
-  });
-
-  it("leaves the PIX price line out without a chunk price", () => {
-    const balance = makeBalance(
-      makeAllocations({ pix_float: makeCapacity(1, 1n) }),
-    );
-    expect(creditBreakdown(balance, { bytes: 100n, cost: 0n })!.length).toBe(6);
   });
 
   it("matches computeEffectiveCredit in its total", () => {
     const balance = makeBalance(makeAllocations({
       safe: makeCapacity(1_000_000),
-      pix_float: makeCapacity(250_000),
+      exit_traffic: makeExitFunds(250_000),
     }));
-    const lines = creditBreakdown(balance, null)!;
-    expect(lines[lines.length - 1].bytes).toBe(computeEffectiveCredit(balance));
+    const total = creditBreakdown(balance)!.find((l) => l.label === "Total");
+    expect(total?.bytes).toBe(computeEffectiveCredit(balance));
   });
 });
 

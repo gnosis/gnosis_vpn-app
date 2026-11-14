@@ -30,11 +30,10 @@
       "min_guaranteed_messages": 100,
       "byte_capacity": 1048576
     },
-    "pix_float": {
+    "exit_traffic": {
       "stake": "1000000000000000000",
-      "expected_messages": 500,
-      "min_guaranteed_messages": 50,
-      "byte_capacity": 524288
+      "byte_capacity": 524288,
+      "bytes_from_exits": 1000000000
     }
   }
 }

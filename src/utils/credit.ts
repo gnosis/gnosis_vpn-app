@@ -65,25 +65,25 @@ export function dataLeftFraction(pix: PixChunkStats): number {
   return Math.min(1, pix.bytes_left! / pix.bytes_bought);
 }
 
-/** wxHOPR held across open channels, the Safe, the node EOA and the PIX float. */
+/** wxHOPR held across open channels, the Safe, the node EOA and the funds paying for exit traffic. */
 export function sumCapacityStake(balance: BalanceResponse): bigint {
   const caps = balance.capacity_allocations;
   if (!caps) return 0n;
   return Object.values(caps.peer_allocations).reduce(
     (sum, c) => sum + c.stake,
-    caps.node.stake + caps.safe.stake + caps.pix_float.stake,
+    caps.node.stake + caps.safe.stake + caps.exit_traffic.stake,
   );
 }
 
 /** Sum byte_capacity across all capacity allocations
- * (open channels + Safe + node EOA + PIX float). */
+ * (open channels + Safe + node EOA + exit-traffic funds). */
 export function computeEffectiveCredit(balance: BalanceResponse): bigint {
   const caps = balance.capacity_allocations;
   if (!caps) return 0n;
   return Object.values(caps.peer_allocations).reduce(
     (sum, c) => sum + BigInt(c.byte_capacity),
     BigInt(caps.node.byte_capacity) + BigInt(caps.safe.byte_capacity) +
-      BigInt(caps.pix_float.byte_capacity),
+      BigInt(caps.exit_traffic.byte_capacity),
   );
 }
 
@@ -95,22 +95,13 @@ export interface CreditLine {
   kind: "part" | "sum" | "aside";
 }
 
-/** A PIX chunk's size and price, to value the float at what exits charge. */
-export interface PixChunkPrice {
-  bytes: bigint;
-  cost: bigint;
-}
-
-/** Each allocation with the totals without and with the PIX float, then the float at the PIX price; null before allocations arrive. */
-export function creditBreakdown(
-  balance: BalanceResponse,
-  chunk: PixChunkPrice | null,
-): CreditLine[] | null {
+/** Each allocation with the totals without and with the PIX float, then what the float buys from exits; null before allocations arrive. */
+export function creditBreakdown(balance: BalanceResponse): CreditLine[] | null {
   const caps = balance.capacity_allocations;
   if (!caps) return null;
   const line = (
     label: string,
-    parts: Capacity[],
+    parts: Pick<Capacity, "stake" | "byte_capacity">[],
     kind: CreditLine["kind"] = "part",
   ): CreditLine => ({
     label,
@@ -120,23 +111,21 @@ export function creditBreakdown(
   });
   const channels = Object.values(caps.peer_allocations);
   const held = [caps.node, caps.safe, ...channels];
-  const lines = [
+  const exit = caps.exit_traffic;
+  return [
     line("EOA", [caps.node]),
     line("Safe", [caps.safe]),
     line("Channels", channels),
     line("Without PIX pool", held, "sum"),
-    line("PIX pool", [caps.pix_float]),
-    line("Total", [...held, caps.pix_float], "sum"),
-  ];
-  if (chunk && chunk.cost > 0n) {
-    lines.push({
+    line("PIX pool", [exit]),
+    line("Total", [...held, exit], "sum"),
+    {
       label: "PIX pool at PIX price",
-      bytes: caps.pix_float.stake * chunk.bytes / chunk.cost,
-      stake: caps.pix_float.stake,
+      bytes: BigInt(exit.bytes_from_exits),
+      stake: exit.stake,
       kind: "aside",
-    });
-  }
-  return lines;
+    },
+  ];
 }
 
 /** Two decimals in GB, or in MB below one GB. */

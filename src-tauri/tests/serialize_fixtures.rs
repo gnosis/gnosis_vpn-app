@@ -7,11 +7,11 @@ use gnosis_vpn_ipc as ipc;
 use gnosis_vpn_ipc::{
     Address, ApiVersion, Balance, BalanceRecommendation, Balances, Capacity, CapacityAllocations,
     ChannelMaintenance, Connection, Destination, DestinationSource, DestinationStatus,
-    ExitVersions, FundingLevel, FundingStatus, Geo, GeoSource, Health, Hops, LoadAvg, Meta,
-    Overrides, ProbeResponse, ProbeState, ProbeView, ProbingLevel, ProbingReason, ProbingView,
-    QuickProbeCheck, QuickProbeResponse, QuickProbeState, RouteHealthState, RouteHealthView,
-    RouteWalk, RunMode, Slots, Status, UnprobeResponse, UnrecoverableReason, WarmupStage, WxHopr,
-    XDai,
+    ExitTrafficFunds, ExitVersions, FundingLevel, FundingStatus, Geo, GeoSource, Health, Hops,
+    LoadAvg, Meta, Overrides, ProbeResponse, ProbeState, ProbeView, ProbingLevel, ProbingReason,
+    ProbingView, QuickProbeCheck, QuickProbeResponse, QuickProbeState, RouteHealthState,
+    RouteHealthView, RouteWalk, RunMode, Slots, Status, UnprobeResponse, UnrecoverableReason,
+    WarmupStage, WxHopr, XDai,
 };
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -160,7 +160,6 @@ fn status_base(run_mode: RunMode) -> Status {
         disconnecting: vec![],
         probe: None,
         pix_chunk_bytes: None,
-        pix_chunk_cost: None,
         probing: None,
         recent: vec![],
     }
@@ -173,9 +172,6 @@ fn status_with_connection(connection: Connection) -> Status {
         target: connection.destination().cloned(),
         connection,
         pix_chunk_bytes: Some(PIX_CHUNK_BYTES),
-        pix_chunk_cost: Some(Balance::from_wei(
-            u128::from(PIX_CHUNK_BYTES) * 1_000_000_000,
-        )), // 1 Gwei per byte
         ..status_base(running())
     }
 }
@@ -878,11 +874,10 @@ fn generate_fixtures() {
             min_guaranteed_messages: 100,
             byte_capacity: 1_048_576,
         },
-        pix_float: Capacity {
+        exit_traffic: ExitTrafficFunds {
             stake: Balance::from_wei(1_000_000_000_000_000_000), // 1 wxHOPR
-            expected_messages: 500,
-            min_guaranteed_messages: 50,
             byte_capacity: 524_288,
+            bytes_from_exits: 1_000_000_000, // at 1 Gwei per byte
         },
     };
     write(
