@@ -32,6 +32,7 @@ import {
   sortAlphaDestinations,
   sortByRouteQuality,
 } from "@src/utils/destinations.ts";
+import GnosisMark from "../common/GnosisMark.tsx";
 import PageHeader from "../common/PageHeader.tsx";
 import LocationRow, {
   ACTION_BUTTON,
@@ -442,10 +443,10 @@ export default function ExitNodeList(props: {
 
                   }
                 >
-                  <span
-                    class="h-5.25 w-7.5 shrink-0 rounded bg-auto-mark"
-                    aria-hidden="true"
-                  />
+                  {/* In the colors of auto's "Current Best Location" pill */}
+                  <span class="flex h-5.25 w-7.5 shrink-0 items-center justify-center rounded bg-pill-auto text-ok-ink">
+                    <GnosisMark class="size-3.5" />
+                  </span>
                   <span class="flex min-w-0 flex-1 flex-col gap-1">
                     <span class="text-sm leading-[1.2] font-bold">Auto</span>
                     <span class="text-xs text-text-subtle">

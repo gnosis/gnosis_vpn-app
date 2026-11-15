@@ -148,7 +148,6 @@ textarea {
   --color-bg-list: #ffffff;
   --color-bar-off: #d9d9dd;
   --color-text-link: #3f2acd;
-  --color-auto-mark: #ececee;
   --color-row-hover: rgb(0 0 0 / 0.04);
   --color-bg-popover: #ffffff;
   --popover-shadow: 0 0 0 1px #dddde3, 0 16px 34px rgb(30 20 90 / 0.16);
@@ -244,7 +243,6 @@ textarea {
   --color-bg-list: #1b1a26;
   --color-bar-off: #363447;
   --color-text-link: #b0a6ff;
-  --color-auto-mark: #28234a;
   --color-row-hover: rgb(176 166 255 / 0.08);
   --color-bg-popover: #1d1c28;
   --popover-shadow: 0 0 0 1px #34324a, 0 16px 34px rgb(0 0 0 / 0.55);
@@ -360,7 +358,6 @@ textarea {
   --color-bg-list: var(--color-bg-list);
   --color-bar-off: var(--color-bar-off);
   --color-text-link: var(--color-text-link);
-  --color-auto-mark: var(--color-auto-mark);
   --color-row-hover: var(--color-row-hover);
   --color-bg-popover: var(--color-bg-popover);
   --shadow-popover: var(--popover-shadow);
