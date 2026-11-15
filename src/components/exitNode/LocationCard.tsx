@@ -195,7 +195,8 @@ export default function LocationCard(props: {
               <Show
                 when={attemptInFlight() || settings.showDetailedMetrics}
               >
-                <div class="flex min-h-0 flex-col border-t border-dashed border-line-dash transition-opacity duration-200 starting:opacity-0">
+                {/* The one scroller in the card: the connect stage scrolls with the diagnostics; banners below take their space from here first */}
+                <div class="flex min-h-0 flex-col overscroll-contain border-t border-dashed border-line-dash pl-3 scroller-3 transition-opacity duration-200 starting:opacity-0">
                   <Show when={attemptInFlight()}>
                     <ConnectStage
                       phase={connectPhase()}
@@ -207,7 +208,7 @@ export default function LocationCard(props: {
                   </Show>
                   <Show when={settings.showDetailedMetrics}>
                     <div
-                      class="flex min-h-0 flex-col border-dashed border-line-dash"
+                      class="flex flex-col border-dashed border-line-dash"
                       classList={{ "border-t": attemptInFlight() }}
                     >
                       <ExitDiagnostics

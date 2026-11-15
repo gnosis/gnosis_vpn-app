@@ -142,8 +142,8 @@ export default function ExitDiagnostics(props: {
   };
 
   return (
-    // The one scroller in the card, latency down to reliability; banners below take their space from here first
-    <div class="flex min-h-0 flex-col gap-2.5 overscroll-contain py-3 pl-3 scroller-3">
+    // Scrolls in the card's scroller, which also sets its sides
+    <div class="flex flex-col gap-2.5 py-3">
       <div class="grid shrink-0 grid-cols-2 border-b border-line pb-2">
         <div class="flex items-baseline justify-between gap-2 pr-3.5 text-xs text-text-subtle">
           <Label tip={latencyTip}>Latency</Label>
