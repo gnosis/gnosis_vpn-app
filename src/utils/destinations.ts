@@ -306,13 +306,15 @@ export function exitShortId(d: Destination): string {
   return d.names.short_id;
 }
 
-/** The list's rows: `current`, then usable exits, all matching `query`; the first `limit` of the rest unless searching. */
+/** The list's rows: usable exits and `current`, all matching `query`; the first `limit` unless searching. */
 export function pickerRows(
   sorted: Destination[],
   options: {
     query: string;
-    // the tunnel's exit leads whether usable or not, outside the limit
+    // the tunnel's exit is listed whether usable or not
     current: Destination | null;
+    // pinned, `current` leads outside the limit; else it keeps its place, or follows the rows the limit left
+    pinCurrent: boolean;
     isUsable: (id: string) => boolean;
     limit: number | null;
   },
@@ -320,16 +322,21 @@ export function pickerRows(
   const q = options.query.trim().toLowerCase();
   const matches = (d: Destination) =>
     destinationSearchText(d).toLowerCase().includes(q);
-  const current = options.current && (!q || matches(options.current))
-    ? [options.current]
-    : [];
-  const usable = sorted.filter((d) =>
-    d.id !== options.current?.id && options.isUsable(d.id)
+  const currentId = options.current?.id;
+  const listed = sorted.filter((d) =>
+    d.id === currentId ? !options.pinCurrent : options.isUsable(d.id)
   );
-  if (q) return [...current, ...usable.filter(matches)];
-  return options.limit === null
-    ? [...current, ...usable]
-    : [...current, ...usable.slice(0, options.limit)];
+  const shown = q
+    ? listed.filter(matches)
+    : options.limit === null
+    ? listed
+    : listed.slice(0, options.limit);
+  const current = options.current;
+  if (
+    !current || (q && !matches(current)) ||
+    shown.some((d) => d.id === currentId)
+  ) return shown;
+  return options.pinCurrent ? [current, ...shown] : [...shown, current];
 }
 
 /** Measured eligible first (by score), then unmeasured eligible (by resilience), then the rest (by closeness). */

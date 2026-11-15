@@ -159,7 +159,10 @@ export default function ExitNodeList(props: {
       : null;
   };
 
-  // the cap on rows past the current exit
+  // only Recent pins the current exit; elsewhere it keeps its sorted place
+  const pinCurrent = () => settings.exitNodeSortOrder === "recent";
+
+  // the cap on rows, past a current exit pinned or left out by it
   const rowLimit = (hasCurrent: boolean): number | null => {
     switch (settings.exitNodeSortOrder) {
       case "best":
@@ -182,6 +185,7 @@ export default function ExitNodeList(props: {
     const rows = pickerRows(frozenList(), {
       query: query(),
       current: current ?? null,
+      pinCurrent: pinCurrent(),
       isUsable,
       limit: rowLimit(current !== undefined),
     });
