@@ -11,8 +11,15 @@ import SignalBars from "./SignalBars.tsx";
 
 const BUTTON_SHAPE = "h-8.5 shrink-0 rounded-lg px-3 text-[13px] font-bold";
 
+const BUTTON_STATES =
+  "hover:cursor-pointer disabled:cursor-default disabled:opacity-50";
+
 export const ACTION_BUTTON =
-  `${BUTTON_SHAPE} bg-control-bg hover:bg-control-bg-hover hover:cursor-pointer disabled:cursor-default disabled:opacity-50`;
+  `${BUTTON_SHAPE} bg-control-bg hover:bg-control-bg-hover ${BUTTON_STATES}`;
+
+/** In the main screen's Cancel colors. */
+const CANCEL_BUTTON =
+  `${BUTTON_SHAPE} bg-btn-stop-bg text-btn-stop-text hover:bg-btn-stop-hover ${BUTTON_STATES}`;
 
 /** Auto's "On" pill at its row's end. */
 export const STATUS_PILL =
@@ -62,7 +69,8 @@ export function ListRow(props: {
 export default function LocationRow(props: {
   destination: Destination;
   grade: RouteGrade;
-  actionLabel: "Connect" | "Switch";
+  // Cancel: an attempt to this exit is in flight
+  actionLabel: "Connect" | "Switch" | "Cancel";
   disabled: boolean;
   onAction: () => void;
   // the row's body picks the exit without connecting
@@ -74,6 +82,7 @@ export default function LocationRow(props: {
   const name = () => exitDisplayName(destination());
   const shortId = () => exitShortId(destination());
   const grade = () => props.grade;
+  const cancels = () => props.actionLabel === "Cancel";
 
   return (
     <ListRow
@@ -81,15 +90,17 @@ export default function LocationRow(props: {
         .filter(Boolean).join(", ")}
       onSelect={props.onSelect}
       disabled={props.disabled}
-      current={props.status !== undefined}
+      current={props.status !== undefined || cancels()}
       action={
         <Show
           when={props.status}
           fallback={
             <button
               type="button"
-              class={ACTION_BUTTON}
-              aria-label={`${props.actionLabel} to ${name()} #${shortId()}`}
+              class={cancels() ? CANCEL_BUTTON : ACTION_BUTTON}
+              aria-label={cancels()
+                ? `Cancel connecting to ${name()} #${shortId()}`
+                : `${props.actionLabel} to ${name()} #${shortId()}`}
               disabled={props.disabled}
               onClick={() => props.onAction()}
             >

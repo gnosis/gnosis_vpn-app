@@ -313,7 +313,7 @@ export function pickerRows(
     query: string;
     // the tunnel's exit is listed whether usable or not
     current: Destination | null;
-    // pinned, `current` leads outside the limit; else it keeps its place, or follows the rows the limit left
+    // pinned, `current` leads outside the limit; else it keeps its sorted place, if the limit reaches it
     pinCurrent: boolean;
     isUsable: (id: string) => boolean;
     limit: number | null;
@@ -332,11 +332,10 @@ export function pickerRows(
     ? listed
     : listed.slice(0, options.limit);
   const current = options.current;
-  if (
-    !current || (q && !matches(current)) ||
-    shown.some((d) => d.id === currentId)
-  ) return shown;
-  return options.pinCurrent ? [current, ...shown] : [...shown, current];
+  if (!options.pinCurrent || !current || (q && !matches(current))) {
+    return shown;
+  }
+  return [current, ...shown];
 }
 
 /** Measured eligible first (by score), then unmeasured eligible (by resilience), then the rest (by closeness). */
