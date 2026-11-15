@@ -149,6 +149,16 @@ export default function GeneralTab(
 
       <SettingsHeading>App Settings</SettingsHeading>
       <SettingsCard label="App Settings">
+        <SettingsRow
+          title="Advanced view"
+          description="The main screen shows the exit's latency, load and route details."
+        >
+          <Switch
+            label="Advanced view"
+            checked={settings.advancedView}
+            onChange={(on) => void settingsActions.setAdvancedView(on)}
+          />
+        </SettingsRow>
         <SettingsRow icon="globe" title="Preferred exit">
           <Show
             when={appState.availableDestinations.length > 0}
@@ -171,22 +181,14 @@ export default function GeneralTab(
             />
           </Show>
         </SettingsRow>
-        <FeatureComing class="w-full">
-          <SettingsRow
-            title="Auto-renew sessions"
-            description="Adds the next 600 MB by itself when an exit runs low, without asking."
-          >
-            <Switch label="Auto-renew sessions" checked={false} disabled />
-          </SettingsRow>
-        </FeatureComing>
         <SettingsRow
-          title="Advanced view"
-          description="The main screen shows the exit's latency, load and route details."
+          title="Hide data cost before connecting"
+          description="Connect goes straight ahead instead of first showing the 600 MB an exit takes."
         >
           <Switch
-            label="Advanced view"
-            checked={settings.advancedView}
-            onChange={(on) => void settingsActions.setAdvancedView(on)}
+            label="Hide data cost before connecting"
+            checked={!settings.showExitCost}
+            onChange={(hide) => void settingsActions.setShowExitCost(!hide)}
           />
         </SettingsRow>
         <SettingsRow title="Start minimized">
