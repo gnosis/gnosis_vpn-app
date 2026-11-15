@@ -124,21 +124,31 @@ export default function LocationCard(props: {
                     sizeClass="w-8.5 h-6 rounded"
                   />
                   <span class="flex min-w-0 flex-1 items-center gap-2.5">
-                    <span class="flex min-w-0 items-center gap-1.5">
-                      <span class="line-clamp-2 min-w-0 text-[15px] leading-tight font-bold text-balance">
-                        {name()}
-                        <ShortId id={exitShortId(destination())} />
+                    {/* Hangs into the space around the row, which keeps the flag's height with the id under the name */}
+                    <span class="-my-0.75 flex min-w-0 flex-1 flex-col">
+                      <span class="flex min-w-0 items-center gap-1.5">
+                        <span class="line-clamp-2 min-w-0 text-[15px] leading-tight font-bold text-balance">
+                          {name()}
+                        </span>
+                        <Show when={isConfigOnly(destination())}>
+                          <ConfigPill
+                            tooltip={CONFIG_ONLY_DESTINATION}
+                            class="size-2.5"
+                          />
+                        </Show>
                       </span>
-                      <Show when={isConfigOnly(destination())}>
-                        <ConfigPill
-                          tooltip={CONFIG_ONLY_DESTINATION}
-                          class="size-2.5"
-                        />
-                      </Show>
+                      <ShortId id={exitShortId(destination())} under />
                     </span>
-                    <span class="ml-auto flex shrink-0 items-center gap-1.5 text-xs text-text-subtle">
+                    <span class="flex shrink-0 items-center gap-1.5 text-xs text-text-subtle">
                       <SignalBars grade={grade()} bare />
-                      {verdict() ?? routeGradeLabel(grade())}
+                      {/* The longest grade, shrunk so it leaves the name a line */}
+                      <span
+                        classList={{
+                          "text-[10px]": grade().kind === "unmeasured",
+                        }}
+                      >
+                        {verdict() ?? routeGradeLabel(grade())}
+                      </span>
                     </span>
                   </span>
                 </span>
@@ -185,7 +195,8 @@ export default function LocationCard(props: {
               <Show
                 when={attemptInFlight() || settings.showDetailedMetrics}
               >
-                <div class="flex min-h-0 flex-col border-t border-dashed border-line-dash transition-opacity duration-200 starting:opacity-0">
+                {/* The one scroller in the card: the connect stage scrolls with the diagnostics; banners below take their space from here first */}
+                <div class="flex min-h-0 flex-col overscroll-contain border-t border-dashed border-line-dash pl-3 scroller-3 transition-opacity duration-200 starting:opacity-0">
                   <Show when={attemptInFlight()}>
                     <ConnectStage
                       phase={connectPhase()}
@@ -197,7 +208,7 @@ export default function LocationCard(props: {
                   </Show>
                   <Show when={settings.showDetailedMetrics}>
                     <div
-                      class="flex min-h-0 flex-col border-dashed border-line-dash"
+                      class="flex flex-col border-dashed border-line-dash"
                       classList={{ "border-t": attemptInFlight() }}
                     >
                       <ExitDiagnostics

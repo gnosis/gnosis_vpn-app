@@ -162,7 +162,12 @@ export default function ConnectStage(props: {
     tween(progress(), from, to, begin, span);
 
   return (
-    <div class="flex flex-col gap-1.5 px-3 pt-1.5 pb-2.5">
+    // the card's scroller sets the card size's sides
+    <div
+      class={`flex flex-col gap-1.5 pt-1.5 pb-2.5 ${
+        props.size === "hero" ? "px-3" : ""
+      }`}
+    >
       <svg
         viewBox={view().box}
         class={`block ${view().height} w-full overflow-visible font-figures text-[9px]`}

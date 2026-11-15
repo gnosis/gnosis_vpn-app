@@ -17,6 +17,7 @@ import { useAppStore } from "@src/stores/appStore.ts";
 import { autoCandidate } from "@src/stores/destinationMode.ts";
 import { requestConnect } from "@src/stores/exitCost.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
+import { connectButtonLook } from "@src/utils/status.ts";
 import {
   exitDisplayName,
   exitShortId,
@@ -31,6 +32,7 @@ import {
   sortAlphaDestinations,
   sortByRouteQuality,
 } from "@src/utils/destinations.ts";
+import GnosisMark from "../common/GnosisMark.tsx";
 import PageHeader from "../common/PageHeader.tsx";
 import LocationRow, {
   ACTION_BUTTON,
@@ -50,6 +52,7 @@ interface ListView {
   autoOn: boolean;
   connected: boolean;
   current: { id: string; status: "Connected" | "Connecting" } | null;
+  attempt: string | null;
 }
 
 export default function ExitNodeList(props: {
@@ -125,7 +128,7 @@ export default function ExitNodeList(props: {
     }
   });
 
-  // frozenList updates only on membership changes or explicit sort-order toggles;
+  // frozenList updates only on membership changes, Recent's reorders or explicit sort-order toggles;
   // health-only updates are intentionally ignored to avoid reordering nodes while
   // the user is interacting with the list.
   const [frozenList, setFrozenList] = createSignal(sortedDestinations());
@@ -140,10 +143,14 @@ export default function ExitNodeList(props: {
 
   createEffect(() => {
     const next = sortedDestinations();
-    const prevIds = new Set(untrack(frozenList).map((d) => d.id));
+    const prev = untrack(frozenList);
+    const prevIds = new Set(prev.map((d) => d.id));
     const membershipChanged = prevIds.size !== next.length ||
       next.some((d) => !prevIds.has(d.id));
-    if (membershipChanged) setFrozenList([...next]);
+    // the history's order is connections, not health, so it moves only when one is made
+    const historyReordered = settings.exitNodeSortOrder === "recent" &&
+      !query().trim() && next.some((d, i) => d.id !== prev[i]?.id);
+    if (membershipChanged || historyReordered) setFrozenList([...next]);
   });
 
   const isUsable = (id: string) =>
@@ -159,7 +166,21 @@ export default function ExitNodeList(props: {
       : null;
   };
 
-  // the cap on rows past the current exit
+  // the exit of an attempt in flight, while the main screen's button cancels it
+  const attemptTarget = (): string | null =>
+    connectButtonLook(
+        appState.vpnStatus,
+        appState.targetDestination,
+        appState.connection.type === "reconnecting",
+      ).label === "Cancel"
+      ? appState.targetDestination ??
+        connectionDestination(appState.connection)
+      : null;
+
+  // only Recent pins the current exit; elsewhere it keeps its sorted place
+  const pinCurrent = () => settings.exitNodeSortOrder === "recent";
+
+  // the cap on rows, past a pinned current exit
   const rowLimit = (hasCurrent: boolean): number | null => {
     switch (settings.exitNodeSortOrder) {
       case "best":
@@ -176,12 +197,15 @@ export default function ExitNodeList(props: {
 
   const liveView = createMemo((): ListView => {
     const connectedId = connectionDestination(appState.connection);
-    const current = connectedId === null
+    // a switch's target too, while the old tunnel goes and no connection names it yet
+    const currentId = connectedId ?? attemptTarget();
+    const current = currentId === null
       ? undefined
-      : appState.destinations[connectedId]?.destination;
+      : appState.destinations[currentId]?.destination;
     const rows = pickerRows(frozenList(), {
       query: query(),
       current: current ?? null,
+      pinCurrent: pinCurrent(),
       isUsable,
       limit: rowLimit(current !== undefined),
     });
@@ -215,6 +239,7 @@ export default function ExitNodeList(props: {
             : "Connecting",
         }
         : null,
+      attempt: attemptTarget(),
     };
   });
 
@@ -269,6 +294,10 @@ export default function ExitNodeList(props: {
     }
     props.onClose(id);
     requestConnect(id);
+  };
+  // checked live: the attempt frozen under the pointer may have connected since, and that tunnel stays
+  const cancelAttempt = (id: string) => {
+    if (attemptTarget() === id) void appActions.disconnect();
   };
   // a click on the row while disconnected: the main screen's Connect goes there later
   const select = (id: string) => {
@@ -414,10 +443,10 @@ export default function ExitNodeList(props: {
 
                   }
                 >
-                  <span
-                    class="h-5.25 w-7.5 shrink-0 rounded bg-auto-mark"
-                    aria-hidden="true"
-                  />
+                  {/* In the colors of auto's "Current Best Location" pill */}
+                  <span class="flex h-5.25 w-7.5 shrink-0 items-center justify-center rounded bg-pill-auto text-ok-ink">
+                    <GnosisMark class="size-3.5" />
+                  </span>
                   <span class="flex min-w-0 flex-1 flex-col gap-1">
                     <span class="text-sm leading-[1.2] font-bold">Auto</span>
                     <span class="text-xs text-text-subtle">
@@ -439,19 +468,28 @@ export default function ExitNodeList(props: {
               </Show>
 
               <For each={view().rows}>
-                {(id) => (
-                  <LocationRow
-                    destination={view().exits[id].destination}
-                    grade={view().exits[id].grade}
-                    actionLabel={view().connected ? "Switch" : "Connect"}
-                    disabled={appState.isLoading || !isUsable(id)}
-                    onAction={() => connectTo(id)}
-                    onSelect={view().connected ? undefined : () => select(id)}
-                    status={view().current?.id === id
-                      ? view().current?.status
-                      : undefined}
-                  />
-                )}
+                {(id) => {
+                  const cancels = () => view().attempt === id;
+                  return (
+                    <LocationRow
+                      destination={view().exits[id].destination}
+                      grade={view().exits[id].grade}
+                      actionLabel={cancels()
+                        ? "Cancel"
+                        : view().connected
+                        ? "Switch"
+                        : "Connect"}
+                      disabled={appState.isLoading ||
+                        !(cancels() || isUsable(id))}
+                      onAction={() =>
+                        cancels() ? cancelAttempt(id) : connectTo(id)}
+                      onSelect={view().connected ? undefined : () => select(id)}
+                      status={!cancels() && view().current?.id === id
+                        ? view().current?.status
+                        : undefined}
+                    />
+                  );
+                }}
               </For>
 
               <Show when={query().trim() && view().rows.length === 0}>

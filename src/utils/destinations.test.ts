@@ -896,16 +896,18 @@ describe("pickerRows", () => {
     const rows = pickerRows(dests, {
       query: "",
       current: null,
+      pinCurrent: false,
       isUsable: usableExcept("c"),
       limit: null,
     });
     expect(rows.map((d) => d.id)).toEqual(["a", "b", "d", "e", "f", "g"]);
   });
 
-  it("leads with the current exit, usable or not, outside the cap", () => {
+  it("leads with a pinned current exit, usable or not, outside the cap", () => {
     const rows = pickerRows(dests, {
       query: "",
       current: dests[3],
+      pinCurrent: true,
       isUsable: usableExcept("d"),
       limit: 5,
     });
@@ -917,6 +919,7 @@ describe("pickerRows", () => {
       pickerRows(dests, {
         query,
         current: dests[3],
+        pinCurrent: true,
         isUsable: usableExcept(),
         limit: 5,
       }).map((d) => d.id);
@@ -924,10 +927,58 @@ describe("pickerRows", () => {
     expect(search("exit g")).toEqual(["g"]);
   });
 
+  it("keeps an unpinned current exit in its place, usable or not", () => {
+    const rows = pickerRows(dests, {
+      query: "",
+      current: dests[2],
+      pinCurrent: false,
+      isUsable: usableExcept("c"),
+      limit: 5,
+    });
+    expect(rows.map((d) => d.id)).toEqual(["a", "b", "c", "d", "e"]);
+  });
+
+  it("leaves out an unpinned current exit past the cap", () => {
+    const rows = pickerRows(dests, {
+      query: "",
+      current: dests[6],
+      pinCurrent: false,
+      isUsable: usableExcept(),
+      limit: 5,
+    });
+    expect(rows.map((d) => d.id)).toEqual(["a", "b", "c", "d", "e"]);
+  });
+
+  it("pins a current exit missing from the sorted list", () => {
+    const outsider = makeDestination({ id: "z", names: { title: "Exit z" } });
+    const rows = (pinCurrent: boolean) =>
+      pickerRows(dests.slice(0, 2), {
+        query: "",
+        current: outsider,
+        pinCurrent,
+        isUsable: usableExcept(),
+        limit: null,
+      }).map((d) => d.id);
+    expect(rows(true)).toEqual(["z", "a", "b"]);
+    expect(rows(false)).toEqual(["a", "b"]);
+  });
+
+  it("searches an unpinned current exit in its place", () => {
+    const rows = pickerRows(dests, {
+      query: "exit",
+      current: dests[3],
+      pinCurrent: false,
+      isUsable: usableExcept("d"),
+      limit: 5,
+    });
+    expect(rows.map((d) => d.id)).toEqual(["a", "b", "c", "d", "e", "f", "g"]);
+  });
+
   it("caps the list", () => {
     const rows = pickerRows(dests, {
       query: "",
       current: null,
+      pinCurrent: false,
       isUsable: usableExcept(),
       limit: 5,
     });
@@ -938,6 +989,7 @@ describe("pickerRows", () => {
     const rows = pickerRows(dests, {
       query: "",
       current: null,
+      pinCurrent: false,
       isUsable: usableExcept("a", "b", "c"),
       limit: 5,
     });
@@ -948,6 +1000,7 @@ describe("pickerRows", () => {
     const rows = pickerRows(dests, {
       query: "  EXIT G ",
       current: null,
+      pinCurrent: false,
       isUsable: usableExcept(),
       limit: 5,
     });
@@ -962,6 +1015,7 @@ describe("pickerRows", () => {
       const rows = pickerRows(twins, {
         query,
         current: null,
+        pinCurrent: false,
         isUsable: usableExcept(),
         limit: 5,
       });
@@ -973,6 +1027,7 @@ describe("pickerRows", () => {
     const rows = pickerRows(dests, {
       query: "exit c",
       current: null,
+      pinCurrent: false,
       isUsable: usableExcept("c"),
       limit: 5,
     });
