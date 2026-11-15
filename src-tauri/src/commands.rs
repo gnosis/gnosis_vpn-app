@@ -103,6 +103,7 @@ fn classify_start_client_response(
 pub async fn connect(
     id: String,
     polling_state: State<'_, Mutex<StatusPollingHandle>>,
+    bal_polling_state: State<'_, Mutex<BalancePollingHandle>>,
 ) -> Result<ipc::ConnectResponse, String> {
     tracing::info!(target: "status", destination = %id, "connect requested");
     let resp = on_socket(move |p| ipc::connect(p, id.into()))
@@ -115,6 +116,13 @@ pub async fn connect(
         Ok(guard) => guard.trigger.notify_one(),
         Err(e) => {
             tracing::warn!(target: "status", error = %e, "cannot trigger status poll after connect")
+        }
+    }
+    // connecting spends funds; don't leave the balances a poll interval stale
+    match bal_polling_state.lock() {
+        Ok(guard) => guard.trigger.notify_one(),
+        Err(e) => {
+            tracing::warn!(target: "balance", error = %e, "cannot trigger balance poll after connect")
         }
     }
     Ok(resp)
@@ -694,17 +702,15 @@ fn tray_connection_state(answer: &Result<Option<NamedStatus>, String>) -> Option
 }
 
 /// Tray text, quit label and the dock/tray icons follow the polled state; `last_*` only gate the log lines.
-/// Returns whether the connection state changed since the last call.
 async fn reflect_state_in_tray(
     app: &AppHandle,
     conn_state: &ConnectionState,
     run_mode: Option<&ipc::RunMode>,
     last_conn_state: &mut Option<String>,
     last_funds_level: &mut Option<icons::FundsLevel>,
-) -> bool {
+) {
     let state_label = conn_state.to_string();
-    let state_changed = last_conn_state.as_deref() != Some(state_label.as_str());
-    if state_changed {
+    if last_conn_state.as_deref() != Some(state_label.as_str()) {
         tracing::info!(
             target: "status",
             from = last_conn_state.as_deref().unwrap_or("<startup>"),
@@ -768,7 +774,6 @@ async fn reflect_state_in_tray(
     if let Ok(guard) = quit_item.0.lock() {
         let _ = guard.set_text(quit_label);
     };
-    state_changed
 }
 
 async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
@@ -808,7 +813,6 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
         let guard = bal_polling_state.lock().map_err(|e| e.to_string())?;
         (guard.cancel.clone(), guard.trigger.clone())
     };
-    let balance_trigger = bal_trigger.clone();
 
     let app = app_handle.clone();
     let join_handle = tauri::async_runtime::spawn(async move {
@@ -846,10 +850,7 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
                             tracing::info!(target: "status", "status query recovered");
                         }
                         if let Some(conn_state) = tray_connection_state(&result) {
-                            // connecting spends funds; only on change, as each balance answer re-polls the status
-                            if reflect_state_in_tray(&app, &conn_state, run_mode, &mut last_conn_state, &mut last_funds_level).await {
-                                balance_trigger.notify_one();
-                            }
+                            reflect_state_in_tray(&app, &conn_state, run_mode, &mut last_conn_state, &mut last_funds_level).await;
                         }
                         publish_status(&app, result);
                     }
