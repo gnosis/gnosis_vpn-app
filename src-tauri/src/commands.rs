@@ -694,15 +694,17 @@ fn tray_connection_state(answer: &Result<Option<NamedStatus>, String>) -> Option
 }
 
 /// Tray text, quit label and the dock/tray icons follow the polled state; `last_*` only gate the log lines.
+/// Returns whether the connection state changed since the last call.
 async fn reflect_state_in_tray(
     app: &AppHandle,
     conn_state: &ConnectionState,
     run_mode: Option<&ipc::RunMode>,
     last_conn_state: &mut Option<String>,
     last_funds_level: &mut Option<icons::FundsLevel>,
-) {
+) -> bool {
     let state_label = conn_state.to_string();
-    if last_conn_state.as_deref() != Some(state_label.as_str()) {
+    let state_changed = last_conn_state.as_deref() != Some(state_label.as_str());
+    if state_changed {
         tracing::info!(
             target: "status",
             from = last_conn_state.as_deref().unwrap_or("<startup>"),
@@ -766,6 +768,7 @@ async fn reflect_state_in_tray(
     if let Ok(guard) = quit_item.0.lock() {
         let _ = guard.set_text(quit_label);
     };
+    state_changed
 }
 
 async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
@@ -811,8 +814,6 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
     let join_handle = tauri::async_runtime::spawn(async move {
         let tick_timeout = time::sleep(Duration::ZERO);
         tokio::pin!(tick_timeout);
-        // None until the first answer: a tunnel already up at startup is no fresh connect
-        let mut prev_conn: Option<ConnectionState> = None;
         let mut last_conn_state: Option<String> = None;
         let mut last_funds_level: Option<icons::FundsLevel> = None;
         let mut last_status_warn: Option<String> = None;
@@ -845,12 +846,10 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
                             tracing::info!(target: "status", "status query recovered");
                         }
                         if let Some(conn_state) = tray_connection_state(&result) {
-                            // connecting spends funds; don't leave the balances a poll interval stale
-                            if prev_conn.as_ref().is_some_and(|prev| conn_state.tunnel_came_up(prev)) {
+                            // connecting spends funds; only on change, as each balance answer re-polls the status
+                            if reflect_state_in_tray(&app, &conn_state, run_mode, &mut last_conn_state, &mut last_funds_level).await {
                                 balance_trigger.notify_one();
                             }
-                            reflect_state_in_tray(&app, &conn_state, run_mode, &mut last_conn_state, &mut last_funds_level).await;
-                            prev_conn = Some(conn_state);
                         }
                         publish_status(&app, result);
                     }

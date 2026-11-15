@@ -126,18 +126,6 @@ impl ConnectionState {
         self.describe(|exit| &exit.label)
     }
 
-    /// A tunnel up to an exit `prev` had none to: a connect, switch or reconnect that went through.
-    pub fn tunnel_came_up(&self, prev: &ConnectionState) -> bool {
-        match (prev, self) {
-            (
-                ConnectionState::Connected { exit: before, .. },
-                ConnectionState::Connected { exit: now, .. },
-            ) => before.id != now.id,
-            (_, ConnectionState::Connected { .. }) => true,
-            _ => false,
-        }
-    }
-
     // Only the flag, not the counts: this string is the tray text and the state-change log key.
     fn describe(&self, exit_name: fn(&Exit) -> &str) -> String {
         match self {
@@ -220,24 +208,6 @@ mod tests {
         let state = ConnectionState::from(&NamedStatus::from(status));
         assert_eq!(state.tray_text(), "Connected to Australia #BeAed");
         assert_eq!(state.to_string(), "Connected to x");
-    }
-
-    #[test]
-    fn a_tunnel_comes_up_on_connect_switch_or_reconnect_only() {
-        let connected = |id: &str, stalled| ConnectionState::Connected {
-            exit: id.into(),
-            stalled,
-        };
-        assert!(connected("a", false).tunnel_came_up(&ConnectionState::Connecting("a".into())));
-        assert!(connected("a", false).tunnel_came_up(&ConnectionState::Reconnecting("a".into())));
-        assert!(connected("a", false).tunnel_came_up(&ConnectionState::Disconnected));
-        assert!(connected("b", false).tunnel_came_up(&connected("a", false)));
-        assert!(!connected("a", false).tunnel_came_up(&connected("a", true)));
-        assert!(!connected("a", true).tunnel_came_up(&connected("a", false)));
-        assert!(!ConnectionState::Disconnected.tunnel_came_up(&connected("a", false)));
-        assert!(
-            !ConnectionState::Connecting("a".into()).tunnel_came_up(&ConnectionState::Disconnected)
-        );
     }
 
     #[test]
