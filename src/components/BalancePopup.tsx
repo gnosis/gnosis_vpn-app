@@ -1,6 +1,10 @@
 import { Show } from "solid-js";
 import { Portal } from "solid-js/web";
-import { exitsCovered, formatCreditCompact } from "@src/utils/credit.ts";
+import {
+  exitsCovered,
+  formatCountCompact,
+  formatCreditCompact,
+} from "@src/utils/credit.ts";
 import { openSettings, type SettingsTarget } from "@src/utils/settingsPage.ts";
 
 type Props = {
@@ -18,10 +22,14 @@ type Props = {
 };
 
 function enoughFor(creditBytes: bigint, chunkBytes: bigint): string {
-  const exits = exitsCovered(creditBytes, chunkBytes);
-  return `Enough for ${exits} more ${exits === 1n ? "exit" : "exits"} at ${
-    formatCreditCompact(chunkBytes)
-  } each.`;
+  const refills = exitsCovered(creditBytes, chunkBytes);
+  const size = formatCreditCompact(chunkBytes);
+  const covered = refills === 0n
+    ? `Less than one ${size} refill left.`
+    : `Enough for ${formatCountCompact(refills)} ${
+      refills === 1n ? "refill" : "refills"
+    } of ${size}.`;
+  return `${covered} Each exit connection starts on one and takes the next when it runs out.`;
 }
 
 export default function BalancePopup(props: Props) {
