@@ -800,12 +800,19 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
             guard.fast.clone(),
         )
     };
-    let bal_trigger = trigger.clone();
+    let status_trigger = trigger.clone();
+    let (bal_cancel, bal_trigger) = {
+        let guard = bal_polling_state.lock().map_err(|e| e.to_string())?;
+        (guard.cancel.clone(), guard.trigger.clone())
+    };
+    let balance_trigger = bal_trigger.clone();
 
     let app = app_handle.clone();
     let join_handle = tauri::async_runtime::spawn(async move {
         let tick_timeout = time::sleep(Duration::ZERO);
         tokio::pin!(tick_timeout);
+        // None until the first answer: a tunnel already up at startup is no fresh connect
+        let mut prev_conn: Option<ConnectionState> = None;
         let mut last_conn_state: Option<String> = None;
         let mut last_funds_level: Option<icons::FundsLevel> = None;
         let mut last_status_warn: Option<String> = None;
@@ -838,7 +845,12 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
                             tracing::info!(target: "status", "status query recovered");
                         }
                         if let Some(conn_state) = tray_connection_state(&result) {
+                            // connecting spends funds; don't leave the balances a poll interval stale
+                            if prev_conn.as_ref().is_some_and(|prev| conn_state.tunnel_came_up(prev)) {
+                                balance_trigger.notify_one();
+                            }
                             reflect_state_in_tray(&app, &conn_state, run_mode, &mut last_conn_state, &mut last_funds_level).await;
+                            prev_conn = Some(conn_state);
                         }
                         publish_status(&app, result);
                     }
@@ -856,11 +868,6 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
         guard.handle = Some(join_handle);
     }
 
-    let bal_cancel = {
-        let guard = bal_polling_state.lock().map_err(|e| e.to_string())?;
-        guard.cancel.clone()
-    };
-
     let app_bal = app_handle.clone();
     let bal_join_handle = tauri::async_runtime::spawn(async move {
         let tick_timeout = time::sleep(Duration::ZERO);
@@ -872,6 +879,9 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
                     tracing::info!(target: "balance", "balance polling cancelled");
                     break;
                 }
+                _ = bal_trigger.notified() => {
+                    tick_timeout.as_mut().reset(Instant::now());
+                }
                 _ = tick_timeout.as_mut() => {
                     let (delay, result) = query_balance(&mut last_warn).await;
                     tick_timeout.as_mut().reset(Instant::now() + delay);
@@ -879,7 +889,7 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
                     let _ = app_bal.emit("balance", result);
                     // Nudge the status loop so the tray funding level picks up
                     // the fresh balance without waiting for its next tick.
-                    bal_trigger.notify_one();
+                    status_trigger.notify_one();
                 }
             }
         }
