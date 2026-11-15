@@ -130,11 +130,13 @@ export default function LocationRow(props: {
   );
 }
 
-/** The "#469Da" after an exit's name. */
-export function ShortId(props: { id: string }) {
+/** The "#469Da" after an exit's name, or on its own line `under` it. */
+export function ShortId(props: { id: string; under?: boolean }) {
   return (
     <span
-      class="ml-[0.35em] font-figures text-[11px] font-medium text-text-subtle"
+      class={`${
+        props.under ? "block leading-none" : "ml-[0.35em]"
+      } font-figures text-[11px] font-medium text-text-subtle`}
       title="End of this exit's address"
     >
       #{props.id}

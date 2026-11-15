@@ -2,10 +2,12 @@ import { Match, Show, Switch } from "solid-js";
 import type { DestinationState } from "@src/services/vpnService.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
+import { exitShortId } from "@src/utils/destinations.ts";
 import Flag from "../Flag.tsx";
 import ConnectStage from "./ConnectStage.tsx";
 import ExitCost from "./ExitCost.tsx";
 import { createLocationState } from "./locationState.ts";
+import { ShortId } from "./LocationRow.tsx";
 import { PhaseTag, SwitchingTo } from "./LocationTags.tsx";
 import SignalBars from "./SignalBars.tsx";
 
@@ -70,6 +72,7 @@ export default function LocationHero(props: {
                   </span>
                   <SignalBars grade={grade()} />
                 </span>
+                <ShortId id={exitShortId(destination())} under />
                 <Show when={verdict()}>
                   {(text) => (
                     <span class="text-xs text-text-subtle">{text()}</span>

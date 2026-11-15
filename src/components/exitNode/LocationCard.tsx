@@ -124,21 +124,31 @@ export default function LocationCard(props: {
                     sizeClass="w-8.5 h-6 rounded"
                   />
                   <span class="flex min-w-0 flex-1 items-center gap-2.5">
-                    <span class="flex min-w-0 items-center gap-1.5">
-                      <span class="line-clamp-2 min-w-0 text-[15px] leading-tight font-bold text-balance">
-                        {name()}
-                        <ShortId id={exitShortId(destination())} />
+                    {/* Hangs into the space around the row, which keeps the flag's height with the id under the name */}
+                    <span class="-my-0.75 flex min-w-0 flex-1 flex-col">
+                      <span class="flex min-w-0 items-center gap-1.5">
+                        <span class="line-clamp-2 min-w-0 text-[15px] leading-tight font-bold text-balance">
+                          {name()}
+                        </span>
+                        <Show when={isConfigOnly(destination())}>
+                          <ConfigPill
+                            tooltip={CONFIG_ONLY_DESTINATION}
+                            class="size-2.5"
+                          />
+                        </Show>
                       </span>
-                      <Show when={isConfigOnly(destination())}>
-                        <ConfigPill
-                          tooltip={CONFIG_ONLY_DESTINATION}
-                          class="size-2.5"
-                        />
-                      </Show>
+                      <ShortId id={exitShortId(destination())} under />
                     </span>
-                    <span class="ml-auto flex shrink-0 items-center gap-1.5 text-xs text-text-subtle">
+                    <span class="flex shrink-0 items-center gap-1.5 text-xs text-text-subtle">
                       <SignalBars grade={grade()} bare />
-                      {verdict() ?? routeGradeLabel(grade())}
+                      {/* The longest grade, shrunk so it leaves the name a line */}
+                      <span
+                        classList={{
+                          "text-[10px]": grade().kind === "unmeasured",
+                        }}
+                      >
+                        {verdict() ?? routeGradeLabel(grade())}
+                      </span>
                     </span>
                   </span>
                 </span>
