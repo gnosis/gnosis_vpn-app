@@ -185,12 +185,12 @@ textarea {
   --color-btn-stop-text: #8a1b29;
   --color-btn-stop-hover: color-mix(in srgb, #d9475a 36%, #ffffff);
 
-  /* Live traffic: navy wireframe, grey relays, one hot pink for the route in use */
+  /* Live traffic: navy wireframe, green relays, grey Via VPN, one hot pink for the route in use */
   --color-traffic-sync: #cc356d;
   --color-traffic-sync-hi: #a32a61;
   --color-traffic-line: rgba(26, 23, 81, 0.13);
   --color-traffic-glow: #1a1751;
-  --color-traffic-gt: #646794;
+  --color-traffic-gt: #278733;
   --color-traffic-warn: #e8860c;
   --color-traffic-track: #ececee;
   --color-traffic-cell: #ffffff;
@@ -283,7 +283,7 @@ textarea {
   --color-traffic-sync-hi: #ff8eb5;
   --color-traffic-line: rgba(230, 228, 255, 0.13);
   --color-traffic-glow: #a8a8ca;
-  --color-traffic-gt: #a8a8ca;
+  --color-traffic-gt: #419a6e;
   --color-traffic-warn: #f29a2e;
   --color-traffic-track: #1f2937;
   --color-traffic-cell: #1a2233;
