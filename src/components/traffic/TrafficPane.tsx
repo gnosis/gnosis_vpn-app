@@ -2,6 +2,7 @@ import { createMemo, createSignal, onCleanup, onMount, Show } from "solid-js";
 import { listen } from "@tauri-apps/api/event";
 import TrafficGlobe from "@src/components/traffic/TrafficGlobe.tsx";
 import TrafficReadout from "@src/components/traffic/TrafficReadout.tsx";
+import TrafficLegend from "@src/components/traffic/TrafficLegend.tsx";
 import Spinner from "@src/components/common/Spinner.tsx";
 import { logInfo, logWarn } from "@src/utils/appLog.ts";
 import {
@@ -149,9 +150,7 @@ export default function TrafficPane() {
     if (!live()) return "Capture stopped";
     if (observedSeconds() === 0) return "Collecting traffic…";
     const count = endpointCount();
-    return `Observing IP traffic · ${count} ${
-      count === 1 ? "endpoint" : "endpoints"
-    }`;
+    return `${count} ${count === 1 ? "endpoint" : "endpoints"}`;
   };
 
   return (
@@ -194,27 +193,10 @@ export default function TrafficPane() {
           fallback={
             <>
               <span>{footerStatus()}</span>
-              <span class="inline-flex items-center gap-1.5">
-                <span
-                  class="size-2 rounded-full bg-traffic-gt"
-                  aria-hidden="true"
-                />
-                {relayCount()} HOPR {relayCount() === 1 ? "relay" : "relays"}
-              </span>
-              <span class="inline-flex items-center gap-1.5">
-                <span
-                  class="size-2 rounded-full bg-text-secondary"
-                  aria-hidden="true"
-                />
-                Via VPN
-              </span>
-              <span class="inline-flex items-center gap-1.5">
-                <span
-                  class="size-2 rounded-full bg-traffic-warn"
-                  aria-hidden="true"
-                />
-                Not via VPN
-              </span>
+              <TrafficLegend
+                relayCount={relayCount()}
+                connected={exit() !== null}
+              />
               <Show when={gap() && live()}>
                 <span class="text-text-yellow">
                   Some traffic data was not received
