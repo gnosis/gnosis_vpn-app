@@ -160,7 +160,21 @@ export const DestinationSchema = z.object({
     configured_wireguard_server: null,
   }),
 });
-export type Destination = z.infer<typeof DestinationSchema>;
+
+// Named by the backend alone (src-tauri/src/exit_label.rs), so the main window and the tray agree.
+const ExitNamesSchema = z.object({
+  display_name: z.string(),
+  title: z.string(),
+  short_id: z.string(),
+  country: z.string().nullable(),
+  description: z.string().nullable(),
+});
+export type ExitNames = z.infer<typeof ExitNamesSchema>;
+
+/** A destination as the status lists it, with its names attached. */
+export type Destination = z.infer<typeof DestinationSchema> & {
+  names: ExitNames;
+};
 
 export const SlotsSchema = z.object({
   total: z.number(),
@@ -320,11 +334,13 @@ export const ProbingViewSchema = z.object({
 });
 export type ProbingView = z.infer<typeof ProbingViewSchema>;
 
-export const DestinationStateSchema = z.object({
+const DestinationStateSchema = z.object({
   destination: DestinationSchema,
   route_health: RouteHealthViewSchema.nullable(),
 });
-export type DestinationState = z.infer<typeof DestinationStateSchema>;
+export type DestinationState =
+  & Omit<z.infer<typeof DestinationStateSchema>, "destination">
+  & { destination: Destination };
 
 export const ConnectResponseSchema = z.discriminatedUnion("type", [
   z.object({
@@ -439,6 +455,8 @@ export const BalanceRecommendationSchema = z.object({
   wxhopr: BigIntStringSchema,
   xdai: BigIntStringSchema,
   channel_stakes: BigIntStringSchema,
+  // Curvy float shielded from the Safe once; part of `wxhopr`, only during onboarding.
+  pix_float: BigIntStringSchema,
   fee_to_start: BigIntStringSchema,
   txs_to_start: z.number(),
   xdai_fee_per_tx: BigIntStringSchema,
@@ -455,11 +473,20 @@ export const CapacitySchema = z.object({
 });
 export type Capacity = z.infer<typeof CapacitySchema>;
 
-// Open outgoing channels keyed by checksum address, wxHOPR on the node EOA (not yet swept into the Safe), and the unallocated Safe balance.
+// The funds paying for exit traffic (the PIX float): byte_capacity counts toward the total, bytes_from_exits is what they buy from exits.
+export const ExitTrafficFundsSchema = z.object({
+  stake: BigIntStringSchema,
+  byte_capacity: z.number(),
+  bytes_from_exits: z.number(),
+});
+export type ExitTrafficFunds = z.infer<typeof ExitTrafficFundsSchema>;
+
+// The funds paying for relays — open outgoing channels keyed by checksum address, wxHOPR on the node EOA (not yet swept into the Safe), the unallocated Safe balance — and for exit traffic.
 export const CapacityAllocationsSchema = z.object({
   peer_allocations: z.record(z.string(), CapacitySchema),
   node: CapacitySchema,
   safe: CapacitySchema,
+  exit_traffic: ExitTrafficFundsSchema,
 });
 export type CapacityAllocations = z.infer<typeof CapacityAllocationsSchema>;
 
@@ -583,6 +610,27 @@ export const StatusResponseSchema = z.object({
   probing: ProbingViewSchema.nullable(),
   // Recently connected exits on this network, newest first.
   recent: z.array(z.string()),
+  exit_names: z.record(z.string(), ExitNamesSchema)
+    .transform((names) => new Map(Object.entries(names))),
+}).transform(({ exit_names, ...status }, ctx) => {
+  const destinations: DestinationState[] = [];
+  for (const state of status.destinations) {
+    const names = exit_names.get(state.destination.id);
+    if (names === undefined) {
+      ctx.issues.push({
+        code: "custom",
+        message: `no names for destination ${state.destination.id}`,
+        input: state.destination.id,
+        path: ["exit_names"],
+      });
+      return z.NEVER;
+    }
+    destinations.push({
+      ...state,
+      destination: { ...state.destination, names },
+    });
+  }
+  return { ...status, destinations };
 });
 export type StatusResponse = z.infer<typeof StatusResponseSchema>;
 

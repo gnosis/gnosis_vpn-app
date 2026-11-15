@@ -497,14 +497,14 @@ mod tests {
 
     fn connected() -> ConnectionState {
         ConnectionState::Connected {
-            destination_id: "x".into(),
+            exit: "x".into(),
             stalled: false,
         }
     }
 
     fn stalled() -> ConnectionState {
         ConnectionState::Connected {
-            destination_id: "x".into(),
+            exit: "x".into(),
             stalled: true,
         }
     }

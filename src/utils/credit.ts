@@ -1,5 +1,6 @@
 import type {
   BalanceResponse,
+  Capacity,
   PixChunkStats,
 } from "@src/services/vpnService.ts";
 
@@ -64,23 +65,76 @@ export function dataLeftFraction(pix: PixChunkStats): number {
   return Math.min(1, pix.bytes_left! / pix.bytes_bought);
 }
 
-/** wxHOPR held across open channels, the Safe and the node EOA. */
+/** wxHOPR held across open channels, the Safe, the node EOA and the funds paying for exit traffic. */
 export function sumCapacityStake(balance: BalanceResponse): bigint {
   const caps = balance.capacity_allocations;
   if (!caps) return 0n;
   return Object.values(caps.peer_allocations).reduce(
     (sum, c) => sum + c.stake,
-    caps.node.stake + caps.safe.stake,
+    caps.node.stake + caps.safe.stake + caps.exit_traffic.stake,
   );
 }
 
 /** Sum byte_capacity across all capacity allocations
- * (open channels + Safe + node EOA). */
+ * (open channels + Safe + node EOA + exit-traffic funds). */
 export function computeEffectiveCredit(balance: BalanceResponse): bigint {
   const caps = balance.capacity_allocations;
   if (!caps) return 0n;
   return Object.values(caps.peer_allocations).reduce(
     (sum, c) => sum + BigInt(c.byte_capacity),
-    BigInt(caps.node.byte_capacity) + BigInt(caps.safe.byte_capacity),
+    BigInt(caps.node.byte_capacity) + BigInt(caps.safe.byte_capacity) +
+      BigInt(caps.exit_traffic.byte_capacity),
   );
+}
+
+/** One line of {@link creditBreakdown}: an allocation, a sum of the lines above it, or an aside outside the sums. */
+export interface CreditLine {
+  label: string;
+  bytes: bigint;
+  stake: bigint;
+  kind: "part" | "sum" | "aside";
+}
+
+/** Each allocation with the totals without and with the PIX float, then what the float buys from exits; null before allocations arrive. */
+export function creditBreakdown(balance: BalanceResponse): CreditLine[] | null {
+  const caps = balance.capacity_allocations;
+  if (!caps) return null;
+  const line = (
+    label: string,
+    parts: Pick<Capacity, "stake" | "byte_capacity">[],
+    kind: CreditLine["kind"] = "part",
+  ): CreditLine => ({
+    label,
+    bytes: parts.reduce((total, c) => total + BigInt(c.byte_capacity), 0n),
+    stake: parts.reduce((total, c) => total + c.stake, 0n),
+    kind,
+  });
+  const channels = Object.values(caps.peer_allocations);
+  const held = [caps.node, caps.safe, ...channels];
+  const exit = caps.exit_traffic;
+  return [
+    line("EOA", [caps.node]),
+    line("Safe", [caps.safe]),
+    line("Channels", channels),
+    line("Without PIX pool", held, "sum"),
+    line("PIX pool", [exit]),
+    line("Total", [...held, exit], "sum"),
+    {
+      label: "PIX pool at PIX price",
+      bytes: BigInt(exit.bytes_from_exits),
+      stake: exit.stake,
+      kind: "aside",
+    },
+  ];
+}
+
+/** Two decimals in GB, or in MB below one GB. */
+export function formatCreditPrecise(creditBytes: bigint): string {
+  const [unit, suffix] = creditBytes < BYTES_PER_GB
+    ? [BYTES_PER_MB, "MB"]
+    : [BYTES_PER_GB, "GB"];
+  const hundredths = (creditBytes * 100n + unit / 2n) / unit;
+  return `${hundredths / 100n}.${
+    String(hundredths % 100n).padStart(2, "0")
+  } ${suffix}`;
 }

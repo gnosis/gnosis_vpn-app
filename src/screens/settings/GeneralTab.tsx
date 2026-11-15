@@ -37,7 +37,7 @@ const AUTO_LOCATION: ExitOption = {
 const exitOption = (d: Destination): ExitOption => ({
   id: d.id,
   name: exitDisplayName(d),
-  shortId: exitShortId(d.address),
+  shortId: exitShortId(d),
 });
 
 const exitOptionText = (o: ExitOption) =>

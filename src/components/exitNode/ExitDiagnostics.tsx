@@ -142,8 +142,9 @@ export default function ExitDiagnostics(props: {
   };
 
   return (
-    <div class="flex min-h-0 flex-col gap-2.5 p-3">
-      <div class="grid grid-cols-2 border-b border-line pb-2">
+    // The one scroller in the card, latency down to reliability; banners below take their space from here first
+    <div class="flex min-h-0 flex-col gap-2.5 overscroll-contain py-3 pl-3 scroller-3">
+      <div class="grid shrink-0 grid-cols-2 border-b border-line pb-2">
         <div class="flex items-baseline justify-between gap-2 pr-3.5 text-xs text-text-subtle">
           <Label tip={latencyTip}>Latency</Label>
           <Explained tip={latencyTip}>
@@ -165,8 +166,7 @@ export default function ExitDiagnostics(props: {
           </Explained>
         </div>
       </div>
-      {/* Banners below take their space from here first; two rows stay visible */}
-      <div class="-mr-3 flex min-h-11 flex-col overscroll-contain scroller-3">
+      <div class="flex shrink-0 flex-col">
         <Row
           label="Last checked"
           tip={say("When this exit was last measured.")}

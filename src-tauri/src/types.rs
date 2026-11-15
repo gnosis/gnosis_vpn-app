@@ -2,18 +2,57 @@ use gnosis_vpn_ipc as ipc;
 
 use serde::Serialize;
 
+use std::collections::BTreeMap;
 use std::fmt::{self, Display};
 
+use crate::exit_label::ExitNames;
+
 // Only reshaped responses live here; everything else goes to the frontend as the ipc type.
+
+/// The daemon's status with every listed exit's names by connect id, so the main window derives none itself.
+#[derive(Clone, Debug, Serialize)]
+pub struct NamedStatus {
+    #[serde(flatten)]
+    pub status: ipc::Status,
+    pub exit_names: BTreeMap<String, ExitNames>,
+}
+
+impl From<ipc::Status> for NamedStatus {
+    fn from(status: ipc::Status) -> Self {
+        let exit_names = status
+            .destinations
+            .iter()
+            .map(|d| (d.destination.id.to_string(), ExitNames::of(&d.destination)))
+            .collect();
+        NamedStatus { status, exit_names }
+    }
+}
+
+/// An exit by its connect id, which logs keep for gnosis_vpn-ctl, and by the name the tray shows.
+#[derive(Debug, Clone)]
+pub struct Exit {
+    pub id: String,
+    pub label: String,
+}
+
+#[cfg(test)]
+impl From<&str> for Exit {
+    fn from(id: &str) -> Self {
+        Exit {
+            id: id.into(),
+            label: id.into(),
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub enum ConnectionState {
     Connected {
-        destination_id: String,
+        exit: Exit,
         stalled: bool,
     },
-    Connecting(String),
-    Reconnecting(String),
+    Connecting(Exit),
+    Reconnecting(Exit),
     Disconnecting,
     Disconnected,
     /// The daemon refuses this user: another local user owns the worker.
@@ -48,20 +87,30 @@ impl From<ipc::Balances> for BalanceResponse {
     }
 }
 
-impl From<&ipc::Status> for ConnectionState {
-    fn from(status: &ipc::Status) -> Self {
+impl From<&NamedStatus> for ConnectionState {
+    fn from(named: &NamedStatus) -> Self {
+        let status = &named.status;
+        // An exit missing from the list still has its id to show.
+        let exit = |id: &ipc::DestinationId| {
+            let id = id.to_string();
+            let label = named
+                .exit_names
+                .get(&id)
+                .map_or_else(|| id.clone(), ExitNames::label);
+            Exit { id, label }
+        };
         match &status.connection {
             ipc::Connection::Connected {
                 destination, stall, ..
             } => ConnectionState::Connected {
-                destination_id: destination.to_string(),
+                exit: exit(destination),
                 stalled: stall.is_some(),
             },
             ipc::Connection::Connecting { destination, .. } => {
-                ConnectionState::Connecting(destination.to_string())
+                ConnectionState::Connecting(exit(destination))
             }
             ipc::Connection::Reconnecting { destination, .. } => {
-                ConnectionState::Reconnecting(destination.to_string())
+                ConnectionState::Reconnecting(exit(destination))
             }
             ipc::Connection::Disconnected if !status.disconnecting.is_empty() => {
                 ConnectionState::Disconnecting
@@ -71,29 +120,37 @@ impl From<&ipc::Status> for ConnectionState {
     }
 }
 
-impl Display for ConnectionState {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl ConnectionState {
+    /// The tray's line names the exit as the main window does; Display keeps the connect id.
+    pub fn tray_text(&self) -> String {
+        self.describe(|exit| &exit.label)
+    }
+
+    // Only the flag, not the counts: this string is the tray text and the state-change log key.
+    fn describe(&self, exit_name: fn(&Exit) -> &str) -> String {
         match self {
             ConnectionState::Connected {
-                destination_id,
+                exit,
                 stalled: false,
-            } => {
-                write!(f, "Connected to {destination_id}")
-            }
-            // Only the flag, not the counts: this string is the tray text and the state-change log key.
+            } => format!("Connected to {}", exit_name(exit)),
             ConnectionState::Connected {
-                destination_id,
+                exit,
                 stalled: true,
-            } => {
-                write!(f, "Connected to {destination_id} (stalled)")
-            }
-            ConnectionState::Connecting(dest) => write!(f, "Connecting to {}", dest),
-            ConnectionState::Reconnecting(dest) => write!(f, "Reconnecting to {}", dest),
-            ConnectionState::Disconnecting => write!(f, "Disconnecting"),
-            ConnectionState::Disconnected => write!(f, "Disconnected"),
-            ConnectionState::InUseByOtherUser => write!(f, "In use by another user"),
-            ConnectionState::ServiceNotRunning => write!(f, "Service not running"),
+            } => format!("Connected to {} (stalled)", exit_name(exit)),
+            ConnectionState::Connecting(exit) => format!("Connecting to {}", exit_name(exit)),
+            ConnectionState::Reconnecting(exit) => format!("Reconnecting to {}", exit_name(exit)),
+            ConnectionState::Disconnecting => "Disconnecting".into(),
+            ConnectionState::Disconnected => "Disconnected".into(),
+            ConnectionState::InUseByOtherUser => "In use by another user".into(),
+            ConnectionState::ServiceNotRunning => "Service not running".into(),
         }
+    }
+}
+
+/// The state-change log key, with the connect id gnosis_vpn-ctl takes.
+impl Display for ConnectionState {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.describe(|exit| &exit.id))
     }
 }
 
@@ -102,7 +159,7 @@ mod tests {
     use super::*;
     use std::time::{Duration, SystemTime};
 
-    fn connected_status(stall: Option<ipc::TunnelStall>) -> ipc::Status {
+    fn connected_status(stall: Option<ipc::TunnelStall>) -> NamedStatus {
         ipc::Status {
             run_mode: ipc::RunMode::NotRunning,
             destinations: vec![],
@@ -120,6 +177,7 @@ mod tests {
             probing: None,
             recent: vec![],
         }
+        .into()
     }
 
     #[test]
@@ -137,6 +195,19 @@ mod tests {
             ConnectionState::Connected { stalled: true, .. }
         ));
         assert_eq!(stalled.to_string(), "Connected to x (stalled)");
+        assert_eq!(stalled.tray_text(), "Connected to x (stalled)");
+    }
+
+    #[test]
+    fn the_tray_names_a_listed_exit_while_the_log_key_keeps_its_connect_id() {
+        let mut status = connected_status(None).status;
+        status.destinations = vec![ipc::DestinationStatus {
+            destination: crate::exit_label::tests::destination("x", Some("AU")),
+            route_health: None,
+        }];
+        let state = ConnectionState::from(&NamedStatus::from(status));
+        assert_eq!(state.tray_text(), "Connected to Australia #BeAed");
+        assert_eq!(state.to_string(), "Connected to x");
     }
 
     #[test]
@@ -158,6 +229,7 @@ mod tests {
             capacity_allocations: None,
             ideal_balance: None,
             funding_status: None,
+            pix_float: None,
         };
         assert_eq!(BalanceResponse::from(balances).channels_out.wei(), 5);
     }

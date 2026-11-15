@@ -10,6 +10,7 @@
       "wxhopr": "10000000000000000000",
       "xdai": "100000000000000000",
       "channel_stakes": "9990000000000000000",
+      "pix_float": "0",
       "fee_to_start": "10000000000000000",
       "txs_to_start": 3,
       "xdai_fee_per_tx": "100000000000000000",
@@ -25,5 +26,6 @@
   "probe": null,
   "pix_chunk_bytes": null,
   "probing": null,
-  "recent": []
+  "recent": [],
+  "exit_names": {}
 }

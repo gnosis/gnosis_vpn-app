@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   computeEffectiveCredit,
+  creditBreakdown,
   dataLeftFraction,
   exitsCovered,
   formatCountCompact,
   formatCreditCompact,
+  formatCreditPrecise,
   formatDataLeft,
   sumCapacityStake,
 } from "./credit.ts";
@@ -12,6 +14,7 @@ import type {
   BalanceResponse,
   Capacity,
   CapacityAllocations,
+  ExitTrafficFunds,
   PixChunkStats,
 } from "@src/services/vpnService.ts";
 
@@ -28,6 +31,14 @@ function makeCapacity(byte_capacity: number, stake = 0n): Capacity {
   };
 }
 
+function makeExitFunds(
+  byte_capacity: number,
+  stake = 0n,
+  bytes_from_exits = 0,
+): ExitTrafficFunds {
+  return { stake, byte_capacity, bytes_from_exits };
+}
+
 function makeAllocations(
   parts: Partial<CapacityAllocations>,
 ): CapacityAllocations {
@@ -35,6 +46,7 @@ function makeAllocations(
     peer_allocations: {},
     node: makeCapacity(0),
     safe: makeCapacity(0),
+    exit_traffic: makeExitFunds(0),
     ...parts,
   };
 }
@@ -58,16 +70,17 @@ describe("sumCapacityStake", () => {
     expect(sumCapacityStake(makeBalance(null))).toBe(0n);
   });
 
-  it("sums stake across node, safe and peer allocations", () => {
+  it("sums stake across node, safe, PIX float and peer allocations", () => {
     const allocations = makeAllocations({
       node: makeCapacity(0, 1n),
       safe: makeCapacity(0, 20n),
+      exit_traffic: makeExitFunds(0, 50000n),
       peer_allocations: {
         "0xabc": makeCapacity(0, 300n),
         "0xdef": makeCapacity(0, 4000n),
       },
     });
-    expect(sumCapacityStake(makeBalance(allocations))).toBe(4321n);
+    expect(sumCapacityStake(makeBalance(allocations))).toBe(54321n);
   });
 });
 
@@ -117,6 +130,63 @@ describe("computeEffectiveCredit", () => {
       node: makeCapacity(500_000),
     });
     expect(computeEffectiveCredit(makeBalance(allocations))).toBe(1_500_000n);
+  });
+
+  it("includes the PIX float", () => {
+    const allocations = makeAllocations({
+      safe: makeCapacity(1_000_000),
+      exit_traffic: makeExitFunds(250_000),
+    });
+    expect(computeEffectiveCredit(makeBalance(allocations))).toBe(1_250_000n);
+  });
+});
+
+describe("creditBreakdown", () => {
+  it("is null before allocations arrive", () => {
+    expect(creditBreakdown(makeBalance(null))).toBeNull();
+  });
+
+  it("lists each allocation, the totals, then what the PIX pool buys from exits", () => {
+    const allocations = makeAllocations({
+      node: makeCapacity(1, 1n),
+      safe: makeCapacity(20, 20n),
+      exit_traffic: makeExitFunds(5000, 5000n, 50000),
+      peer_allocations: {
+        "0xabc": makeCapacity(300, 300n),
+        "0xdef": makeCapacity(400, 400n),
+      },
+    });
+    const lines = creditBreakdown(makeBalance(allocations))!;
+    expect(lines.map((l) => [l.label, l.bytes, l.stake, l.kind])).toEqual([
+      ["EOA", 1n, 1n, "part"],
+      ["Safe", 20n, 20n, "part"],
+      ["Channels", 700n, 700n, "part"],
+      ["Without PIX pool", 721n, 721n, "sum"],
+      ["PIX pool", 5000n, 5000n, "part"],
+      ["Total", 5721n, 5721n, "sum"],
+      ["PIX pool at PIX price", 50000n, 5000n, "aside"],
+    ]);
+  });
+
+  it("matches computeEffectiveCredit in its total", () => {
+    const balance = makeBalance(makeAllocations({
+      safe: makeCapacity(1_000_000),
+      exit_traffic: makeExitFunds(250_000),
+    }));
+    const total = creditBreakdown(balance)!.find((l) => l.label === "Total");
+    expect(total?.bytes).toBe(computeEffectiveCredit(balance));
+  });
+});
+
+describe("formatCreditPrecise", () => {
+  it("shows two decimals in GB from one GB up", () => {
+    expect(formatCreditPrecise(BYTES_PER_GB * 7306n / 100n)).toBe("73.06 GB");
+    expect(formatCreditPrecise(BYTES_PER_GB)).toBe("1.00 GB");
+  });
+
+  it("switches to MB below one GB", () => {
+    expect(formatCreditPrecise(0n)).toBe("0.00 MB");
+    expect(formatCreditPrecise(BYTES_PER_MB * 141n)).toBe("141.00 MB");
   });
 });
 

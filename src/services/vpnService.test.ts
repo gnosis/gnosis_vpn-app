@@ -67,6 +67,7 @@ import balanceResponse from "./fixtures/balance_response.json";
 import balanceResponseWithIssues from "./fixtures/balance_response_with_issues.json";
 import balanceResponseWithRefillShortfall from "./fixtures/balance_response_with_refill_shortfall.json";
 import balanceResponseWithCapacity from "./fixtures/balance_response_with_capacity.json";
+import balanceResponseFromOlderService from "./fixtures/balance_response_from_older_service.json";
 import serviceInfo from "./fixtures/service_info.json";
 
 const { invokeMock } = vi.hoisted(() => ({ invokeMock: vi.fn() }));
@@ -251,6 +252,26 @@ describe("StatusResponseSchema", () => {
     expect(carried?.status_rtt).toBe(42);
   });
 
+  it("gives each destination the names the backend sent for it", () => {
+    const parsed = StatusResponseSchema.parse(statusRouteHealthVariants);
+    const pinned = parsed.destinations.find((ds) =>
+      ds.destination.id === "pinned-exit"
+    );
+    expect(pinned?.destination.names).toEqual({
+      display_name: "pinned-exit (Frankfurt-1)",
+      title: "pinned-exit (Frankfurt-1)",
+      short_id: "AaaAa",
+      country: null,
+      description: "10Gbit uplink, no logs kept",
+    });
+    expect(parsed).not.toHaveProperty("exit_names");
+  });
+
+  it("rejects a destination the backend sent no names for", () => {
+    const unnamed = { ...statusRouteHealthVariants, exit_names: {} };
+    expect(StatusResponseSchema.safeParse(unnamed).success).toBe(false);
+  });
+
   it("parses a reconnect reported without a phase", () => {
     const parsed = StatusResponseSchema.safeParse(statusReconnectWaiting);
     expect(parsed.success).toBe(true);
@@ -394,6 +415,18 @@ describe("BalanceResponseSchema", () => {
     const peers = Object.values(caps!.peer_allocations);
     expect(peers.length).toBeGreaterThan(0);
     expect(typeof peers[0].stake).toBe("bigint");
+  });
+
+  it("zeroes the exit-traffic funds an older service doesn't report", () => {
+    const result = BalanceResponseSchema.safeParse(
+      balanceResponseFromOlderService,
+    );
+    expect(result.success).toBe(true);
+    expect(result.data?.capacity_allocations?.exit_traffic).toEqual({
+      stake: 0n,
+      byte_capacity: 0,
+      bytes_from_exits: 0,
+    });
   });
 });
 
