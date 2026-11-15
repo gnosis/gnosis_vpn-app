@@ -701,13 +701,61 @@ fn tray_connection_state(answer: &Result<Option<NamedStatus>, String>) -> Option
     }
 }
 
-/// Tray text, quit label and the dock/tray icons follow the polled state; `last_*` only gate the log lines.
-async fn reflect_state_in_tray(
+/// Repaints the dock/tray icons from the cached status and balance, so each poll redraws on its own answer.
+async fn redraw_icons(app: &AppHandle) {
+    let cache = app.state::<AppStateCache>();
+    let (conn_state, funds) = {
+        let status = cache.status.borrow();
+        let Some(conn_state) = status.as_ref().and_then(tray_connection_state) else {
+            return;
+        };
+        // Without a run mode the daemon is gone and the icon ignores funds.
+        let funds = match status.as_ref() {
+            Some(Ok(Some(named))) => {
+                let balance = cache.balance.borrow();
+                let balance = balance
+                    .as_ref()
+                    .and_then(|res| res.as_ref().ok())
+                    .and_then(Option::as_ref);
+                Some(icons::funds_level(&named.status.run_mode, balance))
+            }
+            _ => None,
+        };
+        (conn_state, funds)
+    };
+    let level = funds.unwrap_or(icons::FundsLevel::Sufficient);
+
+    let icon_state = app.state::<Arc<Mutex<icons::IconState>>>();
+    let new_dock_icon = match icon_state.lock() {
+        Ok(mut guard) => {
+            if funds.is_some() && guard.funds_level != Some(level) {
+                tracing::info!(target: "status", level = ?level, "funds level changed");
+            }
+            guard.apply_status(&conn_state, level)
+        }
+        Err(e) => {
+            tracing::warn!(target: "status", error = %e, "failed to lock icon state");
+            None
+        }
+    };
+
+    // during animation, the heartbeat logic owns app and tray icon changes
+    if !icons::is_animating_state(&conn_state) {
+        icons::update_tray_icon(app, &app.state::<TrayIconState>(), &conn_state, level);
+
+        if let Some(icon_name) = new_dock_icon {
+            if let Err(e) = set_app_icon(app.clone(), icon_name).await {
+                tracing::warn!(target: "status", error = %e, "failed to set app icon");
+            }
+        }
+    }
+}
+
+/// Tray text and quit label follow the polled state; `last_conn_state` only gates the log line.
+fn reflect_state_in_tray(
     app: &AppHandle,
     conn_state: &ConnectionState,
-    run_mode: Option<&ipc::RunMode>,
     last_conn_state: &mut Option<String>,
-    last_funds_level: &mut Option<icons::FundsLevel>,
 ) {
     let state_label = conn_state.to_string();
     if last_conn_state.as_deref() != Some(state_label.as_str()) {
@@ -718,45 +766,6 @@ async fn reflect_state_in_tray(
             "connection state changed",
         );
         *last_conn_state = Some(state_label);
-    }
-
-    // Without a run mode the daemon is gone and the icon ignores funds; skip the funds log too.
-    let level = match run_mode {
-        Some(run_mode) => {
-            // Funding level needs the balance poll's data; use the latest cached response.
-            let cached_balance = app.state::<AppStateCache>().balance.borrow().clone();
-            let balance = cached_balance
-                .as_ref()
-                .and_then(|res| res.as_ref().ok())
-                .and_then(|opt| opt.as_ref());
-            let level = icons::funds_level(run_mode, balance);
-            if *last_funds_level != Some(level) {
-                tracing::info!(target: "status", level = ?level, "funds level changed");
-                *last_funds_level = Some(level);
-            }
-            level
-        }
-        None => icons::FundsLevel::Sufficient,
-    };
-
-    let icon_state = app.state::<Arc<Mutex<icons::IconState>>>();
-    let new_dock_icon = match icon_state.lock() {
-        Ok(mut guard) => guard.apply_status(conn_state, level),
-        Err(e) => {
-            tracing::warn!(target: "status", error = %e, "failed to lock icon state");
-            None
-        }
-    };
-
-    // during animation, the heartbeat logic owns app and tray icon changes
-    if !icons::is_animating_state(conn_state) {
-        icons::update_tray_icon(app, &app.state::<TrayIconState>(), conn_state, level);
-
-        if let Some(icon_name) = new_dock_icon {
-            if let Err(e) = set_app_icon(app.clone(), icon_name).await {
-                tracing::warn!(target: "status", error = %e, "failed to set app icon");
-            }
-        }
     }
 
     let status_item = app.state::<tray::TrayStatusItem>();
@@ -808,7 +817,6 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
             guard.fast.clone(),
         )
     };
-    let status_trigger = trigger.clone();
     let (bal_cancel, bal_trigger) = {
         let guard = bal_polling_state.lock().map_err(|e| e.to_string())?;
         (guard.cancel.clone(), guard.trigger.clone())
@@ -819,7 +827,6 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
         let tick_timeout = time::sleep(Duration::ZERO);
         tokio::pin!(tick_timeout);
         let mut last_conn_state: Option<String> = None;
-        let mut last_funds_level: Option<icons::FundsLevel> = None;
         let mut last_status_warn: Option<String> = None;
         loop {
             tokio::select! {
@@ -850,9 +857,10 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
                             tracing::info!(target: "status", "status query recovered");
                         }
                         if let Some(conn_state) = tray_connection_state(&result) {
-                            reflect_state_in_tray(&app, &conn_state, run_mode, &mut last_conn_state, &mut last_funds_level).await;
+                            reflect_state_in_tray(&app, &conn_state, &mut last_conn_state);
                         }
                         publish_status(&app, result);
+                        redraw_icons(&app).await;
                     }
                     if needs_reinit {
                         tracing::warn!(target: "status", "daemon worker offline, restarting initialization");
@@ -887,9 +895,7 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
                     tick_timeout.as_mut().reset(Instant::now() + delay);
                     app_bal.state::<AppStateCache>().balance.send_replace(Some(result.clone()));
                     let _ = app_bal.emit("balance", result);
-                    // Nudge the status loop so the tray funding level picks up
-                    // the fresh balance without waiting for its next tick.
-                    status_trigger.notify_one();
+                    redraw_icons(&app_bal).await;
                 }
             }
         }
@@ -907,7 +913,6 @@ pub async fn run_initialization_loop(app: AppHandle) {
     const RETRY_DELAY: Duration = Duration::from_secs(5);
     let mut last_warn: Option<String> = None;
     let mut last_conn_state: Option<String> = None;
-    let mut last_funds_level: Option<icons::FundsLevel> = None;
     loop {
         let info = match on_socket(ipc::info).await {
             Ok(i) => i,
@@ -917,12 +922,10 @@ pub async fn run_initialization_loop(app: AppHandle) {
                 reflect_state_in_tray(
                     &app,
                     &ConnectionState::ServiceNotRunning,
-                    None,
                     &mut last_conn_state,
-                    &mut last_funds_level,
-                )
-                .await;
+                );
                 publish_status(&app, Err(SERVICE_NOT_RUNNING_ERROR.to_string()));
+                redraw_icons(&app).await;
                 time::sleep(RETRY_DELAY).await;
                 continue;
             }

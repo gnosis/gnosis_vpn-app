@@ -392,7 +392,7 @@ pub fn run() {
             let icon_state = Arc::new(Mutex::new(IconState {
                 is_animating: false,
                 current_icon: icons::APP_ICON_DISCONNECTED.to_string(),
-                funds_level: icons::FundsLevel::Sufficient,
+                funds_level: None,
             }));
             app.manage(icon_state.clone());
 

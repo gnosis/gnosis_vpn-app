@@ -194,14 +194,15 @@ fn png_files(dir: &Path) -> Result<Vec<(String, PathBuf)>, String> {
     Ok(files)
 }
 
-// App (dock) icon state shared between the status poll loop (writer) and the
-// heartbeat task (reader). One Mutex over all fields so a reader never
-// observes a mix of old and new state.
+// App (dock) icon state shared between the status and balance poll loops
+// (writers) and the heartbeat task (reader). One Mutex over all fields so a
+// reader never observes a mix of old and new state.
 pub struct IconState {
     pub is_animating: bool,
     // Last dock icon written, used to skip redundant repaints.
     pub current_icon: String,
-    pub funds_level: FundsLevel,
+    // None until the first repaint.
+    pub funds_level: Option<FundsLevel>,
 }
 
 impl IconState {
@@ -212,7 +213,7 @@ impl IconState {
         conn_state: &ConnectionState,
         level: FundsLevel,
     ) -> Option<String> {
-        self.funds_level = level;
+        self.funds_level = Some(level);
         self.is_animating = is_animating_state(conn_state);
         if self.is_animating {
             return None;
@@ -454,7 +455,7 @@ pub fn start_icon_heartbeat(
         loop {
             // Snapshot under one lock; never hold it across an await.
             let level = match icon_state.lock() {
-                Ok(guard) if guard.is_animating => Some(guard.funds_level),
+                Ok(guard) if guard.is_animating => guard.funds_level,
                 _ => None,
             };
             let Some(level) = level else {
