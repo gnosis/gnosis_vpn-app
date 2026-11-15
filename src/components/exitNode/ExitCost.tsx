@@ -6,6 +6,7 @@ import {
   confirmExitCost,
   exitCostUsable,
 } from "@src/stores/exitCost.ts";
+import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import {
   computeEffectiveCredit,
   formatCreditCompact,
@@ -13,7 +14,6 @@ import {
 import { exitDisplayName, exitShortId } from "@src/utils/destinations.ts";
 import Flag from "../Flag.tsx";
 import { ShortId } from "./LocationRow.tsx";
-import FeatureComing from "../settings/FeatureComing.tsx";
 
 // The Stage 2.1 mock's quota graphic: a 330×74 stage, the balance as a battery 244 wide.
 const W = 244;
@@ -24,11 +24,43 @@ const MIN_CHUNK = 36;
 const FAINT = "var(--color-status-idle)";
 const TINT = "var(--color-control-tint)";
 
+/** A drawn box: WebKit's native checkbox renders oddly once checked. */
+function Checkbox(props: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <span class="relative flex size-4 shrink-0">
+      <input
+        type="checkbox"
+        class="peer size-4 appearance-none rounded-[4px] border border-control-ring checked:border-control-tint checked:bg-control-tint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-control-tint"
+        checked={props.checked}
+        onChange={(e) => props.onChange(e.currentTarget.checked)}
+      />
+      <svg
+        viewBox="0 0 16 16"
+        class="pointer-events-none absolute inset-0 hidden size-4 text-bg-location-card peer-checked:block"
+        aria-hidden="true"
+      >
+        <path
+          d="M4 8.5l2.5 2.5L12 5.5"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </span>
+  );
+}
+
 /** Before a connect: what the exit sets aside from the balance, and the user's go-ahead. */
 export default function ExitCost(
   props: { destination: Destination; switching: boolean },
 ) {
   const [appState] = useAppStore();
+  const [settings, settingsActions] = useSettingsStore();
 
   const credit = () =>
     appState.balance ? computeEffectiveCredit(appState.balance) : null;
@@ -152,7 +184,16 @@ export default function ExitCost(
         </p>
       </Show>
 
-      <div class="flex gap-2">
+      <label class="mt-1 flex items-center gap-2 self-center text-xs text-text-soft">
+        {/* The same setting as "Hide data cost before connecting", written at once */}
+        <Checkbox
+          checked={!settings.showExitCost}
+          onChange={(hide) => void settingsActions.setShowExitCost(!hide)}
+        />
+        Do not show this again
+      </label>
+
+      <div class="mt-1.5 flex gap-2">
         <button
           type="button"
           class="h-11 flex-1 rounded-[10px] text-[15px] font-bold hover:bg-control-bg"
@@ -169,12 +210,6 @@ export default function ExitCost(
           {props.switching ? "Switch" : "Connect"}
         </button>
       </div>
-
-      <FeatureComing class="self-center">
-        <button type="button" class="text-xs text-text-subtle" disabled>
-          Turn on Auto-renew
-        </button>
-      </FeatureComing>
     </div>
   );
 }

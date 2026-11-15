@@ -12,6 +12,6 @@
   "installedVersion": null,
   "showDetailedMetrics": false,
   "flagDisplay": "color",
-  "advancedView": false,
-  "hasConnected": false
+  "showExitCost": true,
+  "advancedView": false
 }
