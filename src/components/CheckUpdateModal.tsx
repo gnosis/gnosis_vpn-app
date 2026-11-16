@@ -31,7 +31,7 @@ export default function CheckUpdateModal(props: {
           </button>
           <button
             type="button"
-            class={`${btn} bg-vpn-red text-white`}
+            class={`${btn} bg-vpn-orange text-white`}
             onClick={props.onCheckAnyway}
           >
             Check anyway
