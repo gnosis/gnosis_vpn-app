@@ -23,11 +23,11 @@
     "dompurify": "3.4.17",
     "flag-icons": "7.6.0",
     "lottie-web": "5.13.0",
-    "marked": "18.1.1",
+    "marked": "18.1.2",
     "qrcode": "1.5.4",
-    "solid-js": "1.9.17",
+    "solid-js": "1.9.18",
     "tailwindcss": "4.3.3",
-    "vite": "8.3.4",
+    "vite": "8.3.5",
     "zod": "4.6.7"
   },
   "devDependencies": {
@@ -37,7 +37,7 @@
     "modern-web-guidance": "1.0.0",
     "prettier": "3.9.10",
     "typescript": "6.0.3",
-    "vite-plugin-solid": "2.11.14",
+    "vite-plugin-solid": "2.11.15",
     "vitest": "4.1.12"
   },
   "overrides": {
