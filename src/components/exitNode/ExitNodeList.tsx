@@ -30,7 +30,7 @@ import {
   type RouteGrade,
   routeGrade,
   sortAlphaDestinations,
-  sortByRouteQuality,
+  sortByGrade,
 } from "@src/utils/destinations.ts";
 import GnosisMark from "../common/GnosisMark.tsx";
 import PageHeader from "../common/PageHeader.tsx";
@@ -40,8 +40,6 @@ import LocationRow, {
   ShortId,
   STATUS_PILL,
 } from "./LocationRow.tsx";
-
-const BEST_ROW_LIMIT = 5;
 
 /** Everything the list shows that a status update can change. */
 interface ListView {
@@ -106,10 +104,8 @@ export default function ExitNodeList(props: {
 
   const sortedDestinations = createMemo(() => {
     const context = rankContext(appState);
-    // the same ranking auto picks from, so the list's head is the destination it would choose
-    const best = () =>
-      sortByRouteQuality(appState.destinations, context)
-        .map((id) => appState.destinations[id].destination);
+    const byQuality = () =>
+      sortByGrade(appState.destinations, context, appState.weakRoutes);
     switch (settings.exitNodeSortOrder) {
       case "alpha":
         return sortAlphaDestinations(
@@ -119,12 +115,12 @@ export default function ExitNodeList(props: {
         );
       case "recent":
         // a search looks past the history, as the mock's does
-        return query().trim() ? best() : appState.recent.flatMap((id) => {
+        return query().trim() ? byQuality() : appState.recent.flatMap((id) => {
           const state = appState.destinations[id];
           return state ? [state.destination] : [];
         });
       default:
-        return best();
+        return byQuality();
     }
   });
 
@@ -180,19 +176,11 @@ export default function ExitNodeList(props: {
   // only Recent pins the current exit; elsewhere it keeps its sorted place
   const pinCurrent = () => settings.exitNodeSortOrder === "recent";
 
-  // the cap on rows, past a pinned current exit
+  // only Recent is capped, to the screen; a pinned current exit takes a row of it too
   const rowLimit = (hasCurrent: boolean): number | null => {
-    switch (settings.exitNodeSortOrder) {
-      case "best":
-        return BEST_ROW_LIMIT;
-      case "recent": {
-        // the current exit takes a row of the screen too
-        const fit = fitRows();
-        return fit === null ? null : Math.max(0, fit - (hasCurrent ? 1 : 0));
-      }
-      default:
-        return null;
-    }
+    if (settings.exitNodeSortOrder !== "recent") return null;
+    const fit = fitRows();
+    return fit === null ? null : Math.max(0, fit - (hasCurrent ? 1 : 0));
   };
 
   const liveView = createMemo((): ListView => {
@@ -335,7 +323,7 @@ export default function ExitNodeList(props: {
   };
 
   const sortOptions = [
-    { order: "best" as const, label: "Best" },
+    { order: "best" as const, label: "Quality" },
     { order: "recent" as const, label: "Recent" },
     { order: "alpha" as const, label: "A–Z" },
   ];

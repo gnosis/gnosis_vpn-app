@@ -36,9 +36,14 @@ export function sortAlphaDestinations(
     const aReady = isReadyForDisplay(destinations[a.id], context);
     const bReady = isReadyForDisplay(destinations[b.id], context);
     if (aReady !== bReady) return aReady ? -1 : 1;
-    return exitDisplayName(a).localeCompare(exitDisplayName(b)) ||
-      destinationLabel(a).localeCompare(destinationLabel(b));
+    return compareByName(a, b);
   });
+}
+
+/** A–Z by the name the list shows, then by full label. */
+function compareByName(a: Destination, b: Destination): number {
+  return exitDisplayName(a).localeCompare(exitDisplayName(b)) ||
+    destinationLabel(a).localeCompare(destinationLabel(b));
 }
 
 /** What readiness and ranking need beyond the destination itself. */
@@ -278,6 +283,39 @@ export function routeGrade(
   const value = score(state, exit, context);
   const reached = BAR_THRESHOLDS.find(([min]) => value >= min);
   return { kind: "measured", bars: reached ? reached[1] : 1 };
+}
+
+/** Most bars first, then weak routes, then unmeasured; ungraded last. */
+function gradeRank(grade: RouteGrade): number {
+  switch (grade.kind) {
+    case "measured":
+      return 4 - grade.bars;
+    case "weak":
+      return 4;
+    case "unmeasured":
+      return 5;
+    case "none":
+      return 6;
+  }
+}
+
+/** The Quality tab's order: by the grade each row shows, A–Z within a grade. */
+export function sortByGrade(
+  destinations: Record<string, DestinationState>,
+  context: RankContext,
+  weakRoutes: Record<string, WeakRoute>,
+): Destination[] {
+  return Object.entries(destinations)
+    .map(([id, state]) => ({
+      destination: state.destination,
+      rank: gradeRank(
+        routeGrade(state, context, weakRoutes[id]?.surfaced ?? false),
+      ),
+    }))
+    .sort((a, b) =>
+      a.rank - b.rank || compareByName(a.destination, b.destination)
+    )
+    .map(({ destination }) => destination);
 }
 
 const GRADE_WORDS = { 1: "Poor", 2: "Fair", 3: "Good", 4: "Excellent" };
