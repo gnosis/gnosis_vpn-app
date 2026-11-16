@@ -23,6 +23,7 @@ import {
   routeGrade,
   routeGradeLabel,
   sortAlphaDestinations,
+  sortByGrade,
   sortByRouteQuality,
   trackWeakRoutes,
   WEAK_GRACE_MS,
@@ -691,6 +692,64 @@ describe("sortAlphaDestinations", () => {
       NO_CONTEXT,
     );
     expect(sorted.map((d) => d.id)).toEqual(["y-fr", "z-fr", "a-ch"]);
+  });
+});
+
+describe("sortByGrade — the Quality tab", () => {
+  const named = (state: DestinationState, country: string) => ({
+    ...state,
+    destination: makeDestination({
+      id: state.destination.id,
+      names: { display_name: country, country },
+    }),
+  });
+  const ids = (
+    destinations: Record<string, DestinationState>,
+    weakRoutes: Record<string, WeakRoute> = {},
+  ) => sortByGrade(destinations, NO_CONTEXT, weakRoutes).map((d) => d.id);
+
+  it("orders best grade first, weak next, unmeasured last", () => {
+    expect(ids({
+      unmeasured: makeEligible("unmeasured", 4),
+      weak: makeWeak("weak"),
+      poor: makeMeasured(
+        "poor",
+        { total: 8, available: 1, connected: 7 },
+        2_000,
+        1,
+      ),
+      excellent: makeMeasured("excellent", OPEN_SLOTS, 0),
+      good: makeMeasured("good", OPEN_SLOTS, 1_000),
+    }, { weak: { since: 0, surfaced: true } })).toEqual([
+      "excellent",
+      "good",
+      "poor",
+      "weak",
+      "unmeasured",
+    ]);
+  });
+
+  it("orders exits of one grade by name, not by score", () => {
+    expect(ids({
+      "a-ch": named(makeMeasured("a-ch", OPEN_SLOTS, 0), "Switzerland"),
+      "b-fr": named(makeMeasured("b-fr", OPEN_SLOTS, 200), "France"),
+      "c-at": named(makeEligible("c-at"), "Austria"),
+      "d-be": named(makeEligible("d-be"), "Belgium"),
+    })).toEqual(["b-fr", "a-ch", "c-at", "d-be"]);
+  });
+
+  it("ranks a weak route by the grade it shows during its grace", () => {
+    const measuredWeak = withRouteHealth("weak", {
+      ...weakRouteHealth(),
+      quick_probe: checkedQuickProbe(OPEN_SLOTS, 0),
+    });
+    const destinations = {
+      fair: makeMeasured("fair", OPEN_SLOTS, 2_000),
+      weak: measuredWeak,
+    };
+    expect(ids(destinations)).toEqual(["weak", "fair"]);
+    expect(ids(destinations, { weak: { since: 0, surfaced: true } }))
+      .toEqual(["fair", "weak"]);
   });
 });
 
