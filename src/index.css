@@ -136,8 +136,9 @@ textarea {
   --color-control-bg: #ececee;
   --color-control-bg-hover: #e3e3e6;
   --color-control-tint: #646794;
-  /* an off switch's track: 3:1 against the Settings card and its white thumb */
-  --color-switch-off: #8a8a92;
+  /* off is faded like a disabled switch, below 3:1 by design */
+  --color-switch-off: #c7c7cb;
+  --color-switch-on: #4f3fd6;
   --color-update-dot: #5a49d6;
 
   /* Scrollbar thumb: full strength is 3:1 against every surface it crosses */
@@ -232,7 +233,8 @@ textarea {
   --color-control-bg: #262433;
   --color-control-bg-hover: #302d40;
   --color-control-tint: #a8a8ca;
-  --color-switch-off: #6a6880;
+  --color-switch-off: #424153;
+  --color-switch-on: #8b7dff;
   --color-update-dot: #b0a6ff;
 
   /* Scrollbar */
@@ -354,6 +356,7 @@ textarea {
   --color-control-bg-hover: var(--color-control-bg-hover);
   --color-control-tint: var(--color-control-tint);
   --color-switch-off: var(--color-switch-off);
+  --color-switch-on: var(--color-switch-on);
   --color-update-dot: var(--color-update-dot);
   --color-bg-list: var(--color-bg-list);
   --color-bar-off: var(--color-bar-off);
