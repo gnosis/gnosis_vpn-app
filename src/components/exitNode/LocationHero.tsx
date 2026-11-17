@@ -41,8 +41,8 @@ export default function LocationHero(props: {
   return (
     // Clipped: the slide-in and the globe's exit label would scroll the screen sideways.
     <div class="flex min-h-0 flex-1 flex-col overflow-x-clip">
-      {/* The one part that gives way when banners stack */}
-      <div class="h-12.5" />
+      {/* Gives way first when banners stack; the globe only after it is gone */}
+      <div class="h-12.5 shrink-1000" />
       <Show when={id()} keyed>
         {(_id: string) => {
           const swapped = shownOnce;
@@ -105,7 +105,8 @@ export default function LocationHero(props: {
       </div>
       {/* A switch's cost takes the globe's place, as on the card */}
       <Show when={attemptInFlight() && !costTarget()}>
-        <div class="mt-3 shrink-0 transition-opacity duration-200 starting:opacity-0">
+        {/* min-h-0: when banners stack, the globe shrinks rather than the screen scrolling */}
+        <div class="mt-3 flex min-h-0 flex-col transition-opacity duration-200 starting:opacity-0">
           <ConnectStage
             size="hero"
             phase={connectPhase()}

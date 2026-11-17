@@ -58,13 +58,12 @@ const DRAW = 0.1;
 const FADE = 0.05;
 const POP = 0.04;
 
-// The svg is width-bound, so the hero crops to the globe and its labels to draw it larger.
+// Crops to the drawing (globe, You, an 11-char exit label) to draw it larger; the hero's label runs into its side padding.
 const VIEW = {
-  card: { box: "0 0 300 92", height: "h-23" },
-  hero: { box: "40 0 220 92", height: "h-31.5" },
+  card: { box: "40 4 220 84", height: "h-30" },
+  hero: { box: "55 0 190 92", height: "h-34" },
 };
-// what fits right of the exit inside the hero's crop
-const HERO_LABEL_CHARS = 11;
+const EXIT_LABEL_CHARS = 11;
 
 const SYNC = "var(--color-control-tint)";
 const SYNC_HI = "var(--color-text-primary)";
@@ -129,10 +128,7 @@ export default function ConnectStage(props: {
     : animatedProgress(() => props.phase);
   const glowId = createUniqueId();
   const view = () => VIEW[props.size ?? "card"];
-  const exitLabel = () =>
-    props.size === "hero"
-      ? clampLabel(props.exitName, HERO_LABEL_CHARS)
-      : props.exitName;
+  const exitLabel = () => clampLabel(props.exitName, EXIT_LABEL_CHARS);
 
   const hops = () => HOP_SETS[Math.abs(Math.floor(props.seed)) % 4];
   const peers = () => {
@@ -162,15 +158,15 @@ export default function ConnectStage(props: {
     tween(progress(), from, to, begin, span);
 
   return (
-    // the card's scroller sets the card size's sides
+    // The card's scroller sets its sides and scrolls it whole; the hero shrinks when banners stack.
     <div
       class={`flex flex-col gap-1.5 pt-1.5 pb-2.5 ${
-        props.size === "hero" ? "px-3" : ""
+        props.size === "hero" ? "min-h-0 px-3" : "shrink-0"
       }`}
     >
       <svg
         viewBox={view().box}
-        class={`block ${view().height} w-full overflow-visible font-figures text-[9px]`}
+        class={`block ${view().height} min-h-23 w-full overflow-visible font-figures text-[9px]`}
         role="img"
         aria-label={`Connecting: opening channels to relays, then routing through one relay to the exit in ${props.exitName}`}
       >
@@ -368,23 +364,24 @@ export default function ConnectStage(props: {
           Exit
         </text>
       </svg>
+      {/* its own line, so exit names and route waits show in full */}
+      <p class="min-h-4.5 text-center text-xs leading-4.5 text-balance text-text-subtle">
+        {caption()}
+      </p>
       <div class="flex h-4.5 items-center justify-between gap-2.5 overflow-hidden whitespace-nowrap text-xs text-text-subtle">
-        <span class="flex min-w-0 items-center gap-1.75">
-          <span class="flex shrink-0 gap-1" aria-hidden="true">
-            <For each={Array.from({ length: STAGE_STEP_COUNT }, (_, i) => i)}>
-              {(i) => (
-                <span
-                  class="size-1.75 rounded-full"
-                  classList={{
-                    "bg-control-tint": i < step(),
-                    "bg-text-primary": i === step(),
-                    "bg-bar-off": i > step(),
-                  }}
-                />
-              )}
-            </For>
-          </span>
-          <span class="truncate">{caption()}</span>
+        <span class="flex shrink-0 gap-1" aria-hidden="true">
+          <For each={Array.from({ length: STAGE_STEP_COUNT }, (_, i) => i)}>
+            {(i) => (
+              <span
+                class="size-1.75 rounded-full"
+                classList={{
+                  "bg-control-tint": i < step(),
+                  "bg-text-primary": i === step(),
+                  "bg-bar-off": i > step(),
+                }}
+              />
+            )}
+          </For>
         </span>
         <Show when={props.relays}>
           {(relays) => (
