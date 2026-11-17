@@ -10,8 +10,8 @@ use gnosis_vpn_ipc::{
     ExitTrafficFunds, ExitVersions, FundingLevel, FundingStatus, Geo, GeoSource, Health, Hops,
     LoadAvg, Meta, Overrides, ProbeResponse, ProbeState, ProbeView, ProbingLevel, ProbingReason,
     ProbingView, QuickProbeCheck, QuickProbeResponse, QuickProbeState, RouteHealthState,
-    RouteHealthView, RouteWalk, RunMode, Slots, Status, UnprobeResponse, UnrecoverableReason,
-    WarmupStage, WxHopr, XDai,
+    RouteHealthView, RouteWalk, RunMode, Slots, StartupIssue, StartupIssueKind, Status,
+    UnprobeResponse, UnrecoverableReason, WarmupStage, WxHopr, XDai,
 };
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -349,14 +349,20 @@ fn generate_fixtures() {
     write_status(
         &fixtures_dir,
         "status_init.json",
-        status_base(RunMode::Init { last_error: None }),
+        status_base(RunMode::Init {
+            issue: Some(StartupIssue {
+                kind: StartupIssueKind::Unreachable,
+                message: "chain error: error sending request".to_string(),
+                since: SystemTime::UNIX_EPOCH,
+            }),
+        }),
     );
     write_status(
         &fixtures_dir,
         "status_warmup.json",
         status_base(RunMode::Warmup {
             stage: WarmupStage::WaitingForFunds,
-            last_error: None,
+            issue: None,
         }),
     );
     write_status(&fixtures_dir, "status_running.json", status_base(running()));
@@ -392,7 +398,7 @@ fn generate_fixtures() {
             node_xdai: Balance::zero(),
             node_wxhopr: Balance::zero(),
             funding_tool: None,
-            error: None,
+            issue: None,
             balance_recommendation: None,
         }),
     );
@@ -405,7 +411,7 @@ fn generate_fixtures() {
             node_xdai: Balance::from_wei(10_000_000_000_000_000), // 0.01 xDAI
             node_wxhopr: Balance::from_wei(500_000_000_000_000_000), // 0.5 wxHOPR
             funding_tool: None,
-            error: None,
+            issue: None,
             balance_recommendation: Some(Box::new(BalanceRecommendation {
                 wxhopr: Balance::from_wei(10_000_000_000_000_000_000), // 10 wxHOPR
                 xdai: Balance::from_wei(100_000_000_000_000_000),      // 0.1 xDAI
@@ -502,6 +508,7 @@ fn generate_fixtures() {
                 since: SystemTime::UNIX_EPOCH,
                 failed_pings: 2,
                 reconnect_at: 3,
+                awaiting_payment_since: None,
             }),
             pix: Some(free_pix()),
         }),

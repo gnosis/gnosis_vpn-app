@@ -1,10 +1,12 @@
 import { createMemo, Show } from "solid-js";
+import type { StartupIssue } from "@src/services/vpnService.ts";
 import SyncAnimation from "@src/components/SyncAnimation.tsx";
+import StartupIssueBanner from "@src/components/StartupIssueBanner.tsx";
 import { syncProgressDigits } from "@src/utils/syncProgress.ts";
 
 export interface SynchronizationProps {
   syncProgress: number;
-  recoveryReason?: string | null;
+  recoveryReason?: StartupIssue | null;
 }
 
 export default function Synchronization(props: SynchronizationProps) {
@@ -35,6 +37,10 @@ export default function Synchronization(props: SynchronizationProps) {
           </Show>
           %
         </span>
+      </div>
+
+      <div class="pt-4">
+        <StartupIssueBanner issue={props.recoveryReason} />
       </div>
 
       <div class="grow flex flex-col justify-center pt-8">

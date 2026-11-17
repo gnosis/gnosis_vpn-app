@@ -189,6 +189,7 @@ mod tests {
             since: SystemTime::UNIX_EPOCH,
             failed_pings: 2,
             reconnect_at: 3,
+            awaiting_payment_since: None,
         })));
         assert!(matches!(
             stalled,

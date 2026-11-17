@@ -1,7 +1,13 @@
 {
   "run_mode": {
     "type": "init",
-    "last_error": null
+    "issue": {
+      "kind": {
+        "type": "unreachable"
+      },
+      "message": "chain error: error sending request",
+      "since": 0
+    }
   },
   "destinations": [],
   "target": null,

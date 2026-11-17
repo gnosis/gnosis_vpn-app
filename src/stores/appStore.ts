@@ -27,6 +27,7 @@ import {
   SERVICE_NOT_RUNNING_ERROR,
   type ServiceInfo,
   ServiceInfoSchema,
+  type StartupIssue,
   type StatusResponse,
   StatusResponseSchema,
   VPNService,
@@ -103,7 +104,7 @@ export interface AppState {
   vpnStatus: string;
   warmupStatus: string;
   syncProgress: number;
-  syncRecoveryReason: string | null;
+  syncRecoveryReason: StartupIssue | null;
   isUpdateAvailable: boolean;
   availableVersion: string | null;
   // Set only while the stored verdict covers the installed package.
@@ -381,18 +382,21 @@ export function createAppStore(): AppStoreTuple {
 
   const processStatusResponse = (response: StatusResponse) => {
     const [screen, warmupStatus, recoveryReason] = selectScreen(response);
-    const lastWarmupError = warmupProgress(response.run_mode)?.last_error;
+    const warmupIssue = warmupProgress(response.run_mode)?.issue;
     // The daemon retries warmup and the safe lookup; only past those screens is that fatal.
     if (
-      lastWarmupError &&
+      warmupIssue &&
       screen !== AppScreen.Synchronization &&
       screen !== AppScreen.Initialization
     ) {
-      criticalError(lastWarmupError);
+      criticalError(warmupIssue.message);
       return;
     }
-    if (recoveryReason && state.syncRecoveryReason !== recoveryReason) {
-      logError(recoveryReason);
+    if (
+      recoveryReason &&
+      state.syncRecoveryReason?.message !== recoveryReason.message
+    ) {
+      logError(recoveryReason.message);
     }
     setState("syncRecoveryReason", recoveryReason);
     if (recoveryReason && !recovering) {
