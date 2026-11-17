@@ -115,6 +115,7 @@ textarea {
   --color-ok-ink: #0a6638;
   --color-pill-auto: color-mix(in srgb, #0f8a4e 20%, #ffffff);
   --color-pill-selected: #efedfc;
+  --color-pill-current: #ececee;
   --color-control-ring: #adafc0;
 
   /* Text colors */
@@ -212,6 +213,8 @@ textarea {
   --color-ok-ink: #62dfa2;
   --color-pill-auto: color-mix(in srgb, #3ccf85 20%, #1b1a26);
   --color-pill-selected: #28234a;
+  /* lighter than control-bg, which vanishes on the dark card */
+  --color-pill-current: #34314a;
   --color-control-ring: #3a3849;
 
   /* Text colors */
@@ -338,6 +341,7 @@ textarea {
   --color-ok-ink: var(--color-ok-ink);
   --color-pill-auto: var(--color-pill-auto);
   --color-pill-selected: var(--color-pill-selected);
+  --color-pill-current: var(--color-pill-current);
   --color-control-ring: var(--color-control-ring);
 
   --color-text-primary: var(--color-text-primary);
