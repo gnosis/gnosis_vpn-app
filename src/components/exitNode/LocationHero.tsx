@@ -9,6 +9,7 @@ import { createLocationState } from "./locationState.ts";
 import { ShortId } from "./LocationRow.tsx";
 import { PhaseTag, SwitchingTo } from "./LocationTags.tsx";
 import SignalBars from "./SignalBars.tsx";
+import { StatusDot } from "../status/StatusIndicator.tsx";
 
 /** The simple view's exit: its flag, name and standing, the connect stage, then its cost at the foot. */
 export default function LocationHero(props: {
@@ -63,8 +64,12 @@ export default function LocationHero(props: {
               </button>
               <span class="flex max-w-full flex-col items-center gap-1">
                 <span class="flex max-w-full items-center gap-2.5">
-                  <span class="line-clamp-2 min-w-0 text-[22px] leading-7 font-bold text-balance">
-                    {name()}
+                  {/* the advanced card's dot-to-name gap */}
+                  <span class="flex min-w-0 items-center gap-1.5">
+                    <StatusDot />
+                    <span class="line-clamp-2 min-w-0 text-[22px] leading-7 font-bold text-balance">
+                      {name()}
+                    </span>
                   </span>
                   <SignalBars grade={grade()} />
                 </span>
