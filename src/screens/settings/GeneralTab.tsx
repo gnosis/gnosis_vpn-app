@@ -11,7 +11,6 @@ import { Dropdown } from "@src/components/common/Dropdown.tsx";
 import ExportLogsModal from "@src/components/ExportLogsModal.tsx";
 import UploadLogsModal from "@src/components/UploadLogsModal.tsx";
 import BackIcon from "@src/components/icons/BackIcon.tsx";
-import FeatureComing from "@src/components/settings/FeatureComing.tsx";
 import {
   SettingsCard,
   SettingsHeading,
@@ -136,15 +135,6 @@ export default function GeneralTab(
             onChange={(on) => void settingsActions.setConnectOnStartup(on)}
           />
         </SettingsRow>
-        <FeatureComing class="w-full">
-          <SettingsRow
-            icon="lock"
-            title="Lockdown mode"
-            description="Block all traffic whenever Gnosis VPN is not connected."
-          >
-            <Switch label="Lockdown mode" checked={false} disabled />
-          </SettingsRow>
-        </FeatureComing>
       </SettingsCard>
 
       <SettingsHeading>App Settings</SettingsHeading>
@@ -204,16 +194,6 @@ export default function GeneralTab(
             aria-label="Exit icons"
             class="flex shrink-0 gap-0.5 rounded-lg bg-control-bg p-0.5"
           >
-            <FeatureComing>
-              <button
-                type="button"
-                class={`${segmentClass(false)} opacity-50`}
-                aria-pressed={false}
-                disabled
-              >
-                Node icon
-              </button>
-            </FeatureComing>
             <For
               each={[
                 { label: "Flags", pressed: flagsShown, display: "color" },
