@@ -60,7 +60,7 @@ jobs:
           cachix_auth_token: "${{ secrets.CACHIX_AUTH_TOKEN }}"
       - name: Updates build version
         id: version
-        uses: hoprnet/hopr-workflows/actions/set-build-version@43c833e72dffe4f2f3be60193733e5657f8aa0d7 # set-build-version-v3.0.0
+        uses: hoprnet/hopr-workflows/actions/set-build-version@68b94a3b8a7afe8958fc1fc089c56f50b3a31398 # set-build-version-v3.0.1
         with:
           file: src-tauri/Cargo.toml
           version_type: ${{ inputs.version_type }}
