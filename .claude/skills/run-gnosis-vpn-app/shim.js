@@ -22,7 +22,6 @@
     dismissedUpdateVersion: null,
     installedVersion: null,
     showDetailedMetrics: false,
-    flagDisplay: "color",
     showExitCost: true,
     advancedView: false,
     ...(fixture.settings ?? {}),

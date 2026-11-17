@@ -115,6 +115,7 @@ textarea {
   --color-ok-ink: #0a6638;
   --color-pill-auto: color-mix(in srgb, #0f8a4e 20%, #ffffff);
   --color-pill-selected: #efedfc;
+  --color-pill-current: #ececee;
   --color-control-ring: #adafc0;
 
   /* Text colors */
@@ -136,8 +137,9 @@ textarea {
   --color-control-bg: #ececee;
   --color-control-bg-hover: #e3e3e6;
   --color-control-tint: #646794;
-  /* an off switch's track: 3:1 against the Settings card and its white thumb */
-  --color-switch-off: #8a8a92;
+  /* off is muted, below 3:1 against the card by design */
+  --color-switch-off: #a0a0a6;
+  --color-switch-on: #4f3fd6;
   --color-update-dot: #5a49d6;
 
   /* Scrollbar thumb: full strength is 3:1 against every surface it crosses */
@@ -211,6 +213,8 @@ textarea {
   --color-ok-ink: #62dfa2;
   --color-pill-auto: color-mix(in srgb, #3ccf85 20%, #1b1a26);
   --color-pill-selected: #28234a;
+  /* lighter than control-bg, which vanishes on the dark card */
+  --color-pill-current: #34314a;
   --color-control-ring: #3a3849;
 
   /* Text colors */
@@ -232,7 +236,8 @@ textarea {
   --color-control-bg: #262433;
   --color-control-bg-hover: #302d40;
   --color-control-tint: #a8a8ca;
-  --color-switch-off: #6a6880;
+  --color-switch-off: #302f38;
+  --color-switch-on: #8b7dff;
   --color-update-dot: #b0a6ff;
 
   /* Scrollbar */
@@ -336,6 +341,7 @@ textarea {
   --color-ok-ink: var(--color-ok-ink);
   --color-pill-auto: var(--color-pill-auto);
   --color-pill-selected: var(--color-pill-selected);
+  --color-pill-current: var(--color-pill-current);
   --color-control-ring: var(--color-control-ring);
 
   --color-text-primary: var(--color-text-primary);
@@ -354,6 +360,7 @@ textarea {
   --color-control-bg-hover: var(--color-control-bg-hover);
   --color-control-tint: var(--color-control-tint);
   --color-switch-off: var(--color-switch-off);
+  --color-switch-on: var(--color-switch-on);
   --color-update-dot: var(--color-update-dot);
   --color-bg-list: var(--color-bg-list);
   --color-bar-off: var(--color-bar-off);

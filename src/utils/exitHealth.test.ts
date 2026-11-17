@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   formatExitHealthStatus,
+  formatLatency,
   getLatencyLevel,
   getLatencyMs,
   getSlotLoad,
@@ -92,6 +93,24 @@ describe("getLatencyMs — one-way, as displayed", () => {
 
   it("is null without either", () => {
     expect(getLatencyMs(null, null)).toBe(null);
+  });
+});
+
+describe("formatLatency", () => {
+  it("shows ms up to 9,999", () => {
+    expect(formatLatency(42)).toBe("42 ms");
+    expect(formatLatency(9999)).toBe("9,999 ms");
+  });
+
+  it("switches to seconds past 9,999 ms, to one decimal", () => {
+    expect(formatLatency(10000)).toBe("10 s");
+    expect(formatLatency(12345)).toBe("12.3 s");
+    expect(formatLatency(99_949)).toBe("99.9 s");
+  });
+
+  it("drops the decimal from 100 s, so it stays no wider than 9,999 ms", () => {
+    expect(formatLatency(123_456)).toBe("123 s");
+    expect(formatLatency(1_234_567)).toBe("1,235 s");
   });
 });
 

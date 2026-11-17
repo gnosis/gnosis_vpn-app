@@ -22,7 +22,7 @@ export default function SettingsRow(props: {
     <Dynamic
       component={props.onClick ? "button" : "div"}
       type={props.onClick ? "button" : undefined}
-      class={`flex min-h-12.5 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left ${
+      class={`flex min-h-10 w-full items-center gap-3 rounded-xl px-3 py-1.5 text-left ${
         props.onClick ? "hover:bg-control-bg-hover hover:cursor-pointer" : ""
       }`}
       onClick={props.onClick}
@@ -41,7 +41,7 @@ export default function SettingsRow(props: {
       <span class="block min-w-0 flex-1 translate-y-px text-[13px] leading-4.5">
         {props.title}
         <Show when={description()}>
-          <small class="mt-0.5 block text-xs leading-normal text-text-subtle">
+          <small class="mt-0.5 block text-xs leading-4 text-text-subtle">
             {description()}
           </small>
         </Show>

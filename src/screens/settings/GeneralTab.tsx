@@ -1,4 +1,4 @@
-import { createMemo, createSignal, For, onCleanup, Show } from "solid-js";
+import { createMemo, createSignal, onCleanup, Show } from "solid-js";
 import { save } from "@tauri-apps/plugin-dialog";
 import { downloadDir, join } from "@tauri-apps/api/path";
 import { useAppStore } from "@src/stores/appStore.ts";
@@ -11,7 +11,6 @@ import { Dropdown } from "@src/components/common/Dropdown.tsx";
 import ExportLogsModal from "@src/components/ExportLogsModal.tsx";
 import UploadLogsModal from "@src/components/UploadLogsModal.tsx";
 import BackIcon from "@src/components/icons/BackIcon.tsx";
-import FeatureComing from "@src/components/settings/FeatureComing.tsx";
 import {
   SettingsCard,
   SettingsHeading,
@@ -20,7 +19,6 @@ import SettingsRow, {
   ROW_BUTTON,
 } from "@src/components/settings/SettingsRow.tsx";
 import Switch from "@src/components/settings/Switch.tsx";
-import { segmentStateClass } from "@src/components/settings/segment.ts";
 
 // One width for Export and Upload, wide enough for "Exporting…".
 const LOG_BUTTON = `${ROW_BUTTON} w-20`;
@@ -62,11 +60,6 @@ function ExitOptionLabel(props: { option: ExitOption; inList?: boolean }) {
     </span>
   );
 }
-
-const SEGMENT =
-  "rounded-md px-2 py-1 text-[11px] leading-3.5 font-bold whitespace-nowrap";
-const segmentClass = (pressed: boolean) =>
-  `${SEGMENT} ${segmentStateClass(pressed)}`;
 
 // Module-level, so an export still running when the tab unmounts reports once it is back.
 const [exporting, setExporting] = createSignal(false);
@@ -113,9 +106,6 @@ export default function GeneralTab(
   // Set while a checked update is not installed, as on the top bar's gear.
   const updateWaiting = () => appState.availableVersion !== null;
 
-  // Flags covers the colored and the old monochrome look, which stays until changed.
-  const flagsShown = () => settings.flagDisplay !== "none";
-
   const [showUpload, setShowUpload] = createSignal(false);
   // an error seen here stays here; one from an export still running shows on return
   onCleanup(() => setExportError(null));
@@ -136,15 +126,6 @@ export default function GeneralTab(
             onChange={(on) => void settingsActions.setConnectOnStartup(on)}
           />
         </SettingsRow>
-        <FeatureComing class="w-full">
-          <SettingsRow
-            icon="lock"
-            title="Lockdown mode"
-            description="Block all traffic whenever Gnosis VPN is not connected."
-          >
-            <Switch label="Lockdown mode" checked={false} disabled />
-          </SettingsRow>
-        </FeatureComing>
       </SettingsCard>
 
       <SettingsHeading>App Settings</SettingsHeading>
@@ -197,49 +178,6 @@ export default function GeneralTab(
             checked={settings.startMinimized}
             onChange={(on) => void settingsActions.setStartMinimized(on)}
           />
-        </SettingsRow>
-        <SettingsRow title="Exit icons">
-          <div
-            role="group"
-            aria-label="Exit icons"
-            class="flex shrink-0 gap-0.5 rounded-lg bg-control-bg p-0.5"
-          >
-            <FeatureComing>
-              <button
-                type="button"
-                class={`${segmentClass(false)} opacity-50`}
-                aria-pressed={false}
-                disabled
-              >
-                Node icon
-              </button>
-            </FeatureComing>
-            <For
-              each={[
-                { label: "Flags", pressed: flagsShown, display: "color" },
-                {
-                  label: "None",
-                  pressed: () => !flagsShown(),
-                  display: "none",
-                },
-              ] as const}
-            >
-              {(option) => (
-                <button
-                  type="button"
-                  class={segmentClass(option.pressed())}
-                  aria-pressed={option.pressed()}
-                  onClick={() => {
-                    if (settings.flagDisplay !== option.display) {
-                      void settingsActions.setFlagDisplay(option.display);
-                    }
-                  }}
-                >
-                  {option.label}
-                </button>
-              )}
-            </For>
-          </div>
         </SettingsRow>
       </SettingsCard>
 

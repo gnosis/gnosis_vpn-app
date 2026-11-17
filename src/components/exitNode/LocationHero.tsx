@@ -1,7 +1,6 @@
 import { Match, Show, Switch } from "solid-js";
 import type { DestinationState } from "@src/services/vpnService.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
-import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import { exitShortId } from "@src/utils/destinations.ts";
 import Flag from "../Flag.tsx";
 import ConnectStage from "./ConnectStage.tsx";
@@ -10,12 +9,12 @@ import { createLocationState } from "./locationState.ts";
 import { ShortId } from "./LocationRow.tsx";
 import { PhaseTag, SwitchingTo } from "./LocationTags.tsx";
 import SignalBars from "./SignalBars.tsx";
+import { StatusDot } from "../status/StatusIndicator.tsx";
 
 /** The simple view's exit: its flag, name and standing, the connect stage, then its cost at the foot. */
 export default function LocationHero(props: {
   destinationState: DestinationState;
 }) {
-  const [settings] = useSettingsStore();
   const [, appActions] = useAppStore();
   const {
     destination,
@@ -41,8 +40,8 @@ export default function LocationHero(props: {
   return (
     // Clipped: the slide-in and the globe's exit label would scroll the screen sideways.
     <div class="flex min-h-0 flex-1 flex-col overflow-x-clip">
-      {/* The one part that gives way when banners stack */}
-      <div class="h-12.5" />
+      {/* Gives way first when banners stack; the globe only after it is gone */}
+      <div class="h-12.5 shrink-1000" />
       <Show when={id()} keyed>
         {(_id: string) => {
           const swapped = shownOnce;
@@ -52,23 +51,25 @@ export default function LocationHero(props: {
               class="flex flex-col items-center gap-3 text-center"
               classList={{ "motion-safe:animate-swap-in": swapped }}
             >
-              <Show when={settings.flagDisplay !== "none"}>
-                <button
-                  type="button"
-                  aria-label="More locations"
-                  class="flex size-14 cursor-pointer items-center justify-center rounded-2xl bg-pill-selected hover:shadow-[inset_0_0_0_1px_var(--color-control-ring)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-control-tint"
-                  onClick={() => appActions.destinationListOpened()}
-                >
-                  <Flag
-                    code={destination().geo?.country ?? ""}
-                    sizeClass="w-10 h-7.5 rounded"
-                  />
-                </button>
-              </Show>
+              <button
+                type="button"
+                aria-label="More locations"
+                class="flex size-14 cursor-pointer items-center justify-center rounded-2xl bg-pill-selected hover:shadow-[inset_0_0_0_1px_var(--color-control-ring)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-control-tint"
+                onClick={() => appActions.destinationListOpened()}
+              >
+                <Flag
+                  code={destination().geo?.country ?? ""}
+                  sizeClass="w-10 h-7.5 rounded"
+                />
+              </button>
               <span class="flex max-w-full flex-col items-center gap-1">
                 <span class="flex max-w-full items-center gap-2.5">
-                  <span class="line-clamp-2 min-w-0 text-[22px] leading-7 font-bold text-balance">
-                    {name()}
+                  {/* the advanced card's dot-to-name gap */}
+                  <span class="flex min-w-0 items-center gap-1.5">
+                    <StatusDot />
+                    <span class="line-clamp-2 min-w-0 text-[22px] leading-7 font-bold text-balance">
+                      {name()}
+                    </span>
                   </span>
                   <SignalBars grade={grade()} />
                 </span>
@@ -105,7 +106,8 @@ export default function LocationHero(props: {
       </div>
       {/* A switch's cost takes the globe's place, as on the card */}
       <Show when={attemptInFlight() && !costTarget()}>
-        <div class="mt-3 shrink-0 transition-opacity duration-200 starting:opacity-0">
+        {/* min-h-0: when banners stack, the globe shrinks rather than the screen scrolling */}
+        <div class="mt-3 flex min-h-0 flex-col transition-opacity duration-200 starting:opacity-0">
           <ConnectStage
             size="hero"
             phase={connectPhase()}

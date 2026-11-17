@@ -82,8 +82,8 @@ source:
   connection is `connection`, one of `{"type": "disconnected"}`, `connecting`,
   `reconnecting` or `connected` (see `ConnectionSchema`).
 - `destination.geo` — `{"country": "SE", "source": {"type": "announced_ip"}}` or
-  `null`; the client derives it from the exit's announced IP. A code shows the
-  flag unless `settings.flagDisplay` is `"none"`.
+  `null`; the client derives it from the exit's announced IP. A known code shows
+  its flag.
 - `exit_names` — beside `destinations`, keyed by id: the names the Rust backend
   gives each exit (`display_name`, `title`, `short_id`, `country`,
   `description`). The frontend derives none, so every listed destination needs
@@ -91,7 +91,7 @@ source:
   matching names here.
 - `settings` — seeds the shim's `get_settings` snapshot (camelCase keys as in
   `SettingsSchema` in `src/stores/settingsStore.ts`), e.g.
-  `"settings": { "exitNodeSortOrder": "alpha", "advancedView": true, "showDetailedMetrics": true, "flagDisplay": "color" }`.
+  `"settings": { "exitNodeSortOrder": "alpha", "advancedView": true, "showDetailedMetrics": true }`.
   The main screen defaults to the simple view; `"advancedView": true` renders
   the location card instead, and `showDetailedMetrics` (its details panel) only
   matters then. Unset keys fall back to the app's defaults; `update_settings`

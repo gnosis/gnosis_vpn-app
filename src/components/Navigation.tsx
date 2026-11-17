@@ -11,7 +11,6 @@ import {
 } from "../utils/trafficPane.ts";
 import { overlayMount } from "../utils/mainColumn.ts";
 import { isRunningRunMode } from "../services/vpnService.ts";
-import LockIcon from "./icons/LockIcon.tsx";
 import { deriveOverallStatus } from "../utils/funding.ts";
 import {
   computeEffectiveCredit,
@@ -88,24 +87,6 @@ function Navigation(props: { gearOnly?: boolean }) {
           class="fixed top-4 right-4 z-60 flex items-center gap-1.5 justify-center"
         >
           <Show when={!props.gearOnly}>
-            {/* The client has no lockdown yet (the kill switch only lives with a connection), so it always reads off */}
-            <Tooltip
-              content={
-                <>
-                  <div class="font-bold">Feature coming</div>
-                  <div>Lockdown off · click to turn on</div>
-                </>
-              }
-              position="bottom"
-            >
-              <div
-                role="img"
-                aria-label="Lockdown off"
-                class="w-7.5 h-7.5 rounded-lg flex items-center justify-center bg-control-bg text-text-subtle"
-              >
-                <LockIcon open />
-              </div>
-            </Tooltip>
             <Tooltip content="Live traffic" position="bottom">
               <IconButton
                 label="Live traffic"

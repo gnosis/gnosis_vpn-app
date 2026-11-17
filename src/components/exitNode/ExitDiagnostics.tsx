@@ -14,6 +14,7 @@ import {
   rankContext,
 } from "@src/utils/destinations.ts";
 import {
+  formatLatency,
   formatPathValue,
   formatRelays,
   formatRouting,
@@ -92,9 +93,7 @@ export default function ExitDiagnostics(props: {
       : formatSecondsAgo(Math.max(0, Math.round(nowSec() - epoch)));
   };
   const latency = () =>
-    props.latencyMs === null
-      ? null
-      : `${props.latencyMs.toLocaleString("en")} ms`;
+    props.latencyMs === null ? null : formatLatency(props.latencyMs);
   const latencyColor = () =>
     props.latencyMs === null
       ? "text-text-primary"
@@ -145,7 +144,7 @@ export default function ExitDiagnostics(props: {
     // Scrolls in the card's scroller, which also sets its sides
     <div class="flex flex-col gap-2.5 py-3">
       <div class="grid shrink-0 grid-cols-2 border-b border-line pb-2">
-        <div class="flex items-baseline justify-between gap-2 pr-3.5 text-xs text-text-subtle">
+        <div class="flex items-baseline justify-between gap-2 pr-3.5 text-xs whitespace-nowrap text-text-subtle">
           <Label tip={latencyTip}>Latency</Label>
           <Explained tip={latencyTip}>
             <span

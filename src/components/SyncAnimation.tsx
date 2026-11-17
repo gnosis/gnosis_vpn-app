@@ -102,8 +102,8 @@ export default function SyncAnimation() {
   });
 
   return (
-    <div class="flex flex-col items-center gap-4 w-full">
-      <div ref={container} class="w-full aspect-[420/370]" />
+    <div class="flex min-h-0 flex-col items-center gap-4 w-full">
+      <div ref={container} class="min-h-0 w-full aspect-[420/370]" />
       <p
         class={`min-h-12 text-center text-text-secondary transition-opacity duration-500 ease-in-out ${
           isVisible() ? "opacity-100" : "opacity-0"
