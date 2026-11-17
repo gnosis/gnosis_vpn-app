@@ -71,7 +71,7 @@ export const CheckOutcomeSchema = z.discriminatedUnion("kind", [
 ]);
 export type CheckOutcome = z.infer<typeof CheckOutcomeSchema>;
 
-export const FlagDisplaySchema = z.enum(["none", "mono", "color"]);
+export const FlagDisplaySchema = z.enum(["none", "mono", "color", "node"]);
 export type FlagDisplay = z.infer<typeof FlagDisplaySchema>;
 
 export const SettingsSchema = z.object({
