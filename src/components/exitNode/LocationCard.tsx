@@ -23,6 +23,7 @@ import { PhaseTag, SwitchingTo } from "./LocationTags.tsx";
 import { ShortId } from "./LocationRow.tsx";
 import SignalBars from "./SignalBars.tsx";
 import UsageMeter from "./UsageMeter.tsx";
+import { StatusDot } from "../status/StatusIndicator.tsx";
 
 /** The advanced view's exit: what Connect targets, its live stats, its connect stage, and, open, its diagnostics. */
 export default function LocationCard(props: {
@@ -116,13 +117,14 @@ export default function LocationCard(props: {
               shownOnce = true;
               return (
                 <span
-                  class="flex w-full min-w-0 items-center gap-3"
+                  class="flex w-full min-w-0 items-center gap-1.5"
                   classList={{ "animate-swap-in": swapped }}
                 >
                   <Flag
                     code={destination().geo?.country ?? ""}
                     sizeClass="w-8.5 h-6 rounded"
                   />
+                  <StatusDot />
                   <span class="flex min-w-0 flex-1 items-center gap-2.5">
                     {/* Hangs into the space around the row, which keeps the flag's height with the id under the name */}
                     <span class="-my-0.75 flex min-w-0 flex-1 flex-col">

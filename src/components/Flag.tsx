@@ -1,14 +1,9 @@
-import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import { FLAG_CODES } from "@assets/flags/codes.ts";
 
 const KNOWN_FLAG_CODES = new Set(FLAG_CODES);
 
 export default function Flag(props: { code: string; sizeClass?: string }) {
-  const [settings] = useSettingsStore();
-
-  const visible = () =>
-    KNOWN_FLAG_CODES.has(props.code) && settings.flagDisplay !== "none";
-  const grayscale = () => settings.flagDisplay === "mono";
+  const visible = () => KNOWN_FLAG_CODES.has(props.code);
 
   return (
     <span
@@ -16,7 +11,7 @@ export default function Flag(props: { code: string; sizeClass?: string }) {
         visible()
           ? `ring-1 ring-inset ring-black/15 dark:ring-slate-950 fi fi-${props.code}`
           : ""
-      }${grayscale() ? " grayscale" : ""}`}
+      }`}
       // Decorative: the label beside it names the country.
       aria-hidden="true"
     />

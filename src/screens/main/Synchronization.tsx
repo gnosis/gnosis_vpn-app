@@ -43,7 +43,8 @@ export default function Synchronization(props: SynchronizationProps) {
         <StartupIssueBanner issue={props.recoveryReason} />
       </div>
 
-      <div class="grow flex flex-col justify-center pt-8">
+      {/* min-h-0 down to the animation: macOS fonts run a few px taller, so it shrinks rather than the screen scrolling */}
+      <div class="grow min-h-0 flex flex-col justify-center pt-8">
         <h3 class="text-xs font-bold uppercase tracking-widest text-text-secondary mb-2">
           How it works
         </h3>

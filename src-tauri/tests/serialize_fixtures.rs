@@ -1,4 +1,4 @@
-use gnosis_vpn_app_lib::settings::{FlagDisplay, Settings, SortOrder, UpdateChannel};
+use gnosis_vpn_app_lib::settings::{Settings, SortOrder, UpdateChannel};
 use gnosis_vpn_app_lib::toolkit::{CheckOutcome, CheckResult, EndOfLife, Manifest, ToolkitInfo};
 use gnosis_vpn_app_lib::traffic::{CaptureStatus, Endpoint, Frame, FrameResponse};
 use gnosis_vpn_app_lib::types;
@@ -1077,7 +1077,6 @@ fn full_settings() -> Settings {
         dismissed_update_version: Some("0.28.0".to_string()),
         installed_version: Some("0.28.5".to_string()),
         show_detailed_metrics: true,
-        flag_display: FlagDisplay::Mono,
         show_exit_cost: false,
         advanced_view: true,
     }

@@ -71,13 +71,13 @@ export function getLatencyMs(
   return rtt === null ? null : Math.round(rtt / 2);
 }
 
-/** Format one-way latency as e.g. "42 ms". Returns null when unavailable. */
-export function formatLatency(
-  exit: ExitData | null,
-  tunnelPingRtt: number | null,
-): string | null {
-  const ms = getLatencyMs(exit, tunnelPingRtt);
-  return ms === null ? null : `${ms} ms`;
+/** Latency as "1,234 ms", or seconds past 9,999 ms ("12.3 s", "123 s"): never wider than "9,999 ms". */
+export function formatLatency(ms: number): string {
+  if (ms <= 9999) return `${ms.toLocaleString("en")} ms`;
+  const digits = ms < 100_000 ? 1 : 0;
+  return `${
+    (ms / 1000).toLocaleString("en", { maximumFractionDigits: digits })
+  } s`;
 }
 
 /** Share of an exit's connection slots currently in use. */

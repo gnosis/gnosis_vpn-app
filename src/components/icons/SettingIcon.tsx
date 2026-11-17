@@ -21,12 +21,6 @@ const PATHS = {
       <path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" />
     </>
   ),
-  lock: () => (
-    <>
-      <rect x="5" y="11" width="14" height="10" rx="2" />
-      <path d="M8 11V8a4 4 0 0 1 8 0v3" />
-    </>
-  ),
   upload: () => (
     <>
       <path d="M12 16V4M6 10l6-6 6 6" />
