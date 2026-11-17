@@ -1,7 +1,6 @@
 import { Match, Show, Switch } from "solid-js";
 import type { DestinationState } from "@src/services/vpnService.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
-import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import { exitShortId } from "@src/utils/destinations.ts";
 import Flag from "../Flag.tsx";
 import ConnectStage from "./ConnectStage.tsx";
@@ -15,7 +14,6 @@ import SignalBars from "./SignalBars.tsx";
 export default function LocationHero(props: {
   destinationState: DestinationState;
 }) {
-  const [settings] = useSettingsStore();
   const [, appActions] = useAppStore();
   const {
     destination,
@@ -52,19 +50,17 @@ export default function LocationHero(props: {
               class="flex flex-col items-center gap-3 text-center"
               classList={{ "motion-safe:animate-swap-in": swapped }}
             >
-              <Show when={settings.flagDisplay !== "none"}>
-                <button
-                  type="button"
-                  aria-label="More locations"
-                  class="flex size-14 cursor-pointer items-center justify-center rounded-2xl bg-pill-selected hover:shadow-[inset_0_0_0_1px_var(--color-control-ring)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-control-tint"
-                  onClick={() => appActions.destinationListOpened()}
-                >
-                  <Flag
-                    code={destination().geo?.country ?? ""}
-                    sizeClass="w-10 h-7.5 rounded"
-                  />
-                </button>
-              </Show>
+              <button
+                type="button"
+                aria-label="More locations"
+                class="flex size-14 cursor-pointer items-center justify-center rounded-2xl bg-pill-selected hover:shadow-[inset_0_0_0_1px_var(--color-control-ring)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-control-tint"
+                onClick={() => appActions.destinationListOpened()}
+              >
+                <Flag
+                  code={destination().geo?.country ?? ""}
+                  sizeClass="w-10 h-7.5 rounded"
+                />
+              </button>
               <span class="flex max-w-full flex-col items-center gap-1">
                 <span class="flex max-w-full items-center gap-2.5">
                   <span class="line-clamp-2 min-w-0 text-[22px] leading-7 font-bold text-balance">

@@ -25,7 +25,6 @@ pub struct Settings {
     pub dismissed_update_version: Option<String>,
     pub installed_version: Option<String>,
     pub show_detailed_metrics: bool,
-    pub flag_display: FlagDisplay,
     /// Whether Connect first shows the data an exit sets aside.
     pub show_exit_cost: bool,
     /// Whether the main screen shows the location card instead of the simple view.
@@ -47,7 +46,6 @@ impl Default for Settings {
             dismissed_update_version: None,
             installed_version: None,
             show_detailed_metrics: false,
-            flag_display: FlagDisplay::default(),
             show_exit_cost: true,
             advanced_view: false,
         }
@@ -63,15 +61,6 @@ pub enum SortOrder {
     Best,
     Recent,
     Alpha,
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum FlagDisplay {
-    None,
-    Mono,
-    #[default]
-    Color,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -120,8 +109,6 @@ pub struct SettingsPatch {
     #[serde(default)]
     pub show_detailed_metrics: Option<bool>,
     #[serde(default)]
-    pub flag_display: Option<FlagDisplay>,
-    #[serde(default)]
     pub show_exit_cost: Option<bool>,
     #[serde(default)]
     pub advanced_view: Option<bool>,
@@ -166,9 +153,6 @@ impl SettingsPatch {
         }
         if self.show_detailed_metrics.is_some() {
             keys.push("show_detailed_metrics");
-        }
-        if self.flag_display.is_some() {
-            keys.push("flag_display");
         }
         if self.show_exit_cost.is_some() {
             keys.push("show_exit_cost");
@@ -225,9 +209,6 @@ impl Settings {
         }
         if let Some(v) = patch.show_detailed_metrics {
             self.show_detailed_metrics = v;
-        }
-        if let Some(v) = patch.flag_display {
-            self.flag_display = v;
         }
         if let Some(v) = patch.show_exit_cost {
             self.show_exit_cost = v;
@@ -427,6 +408,7 @@ mod tests {
             &path,
             json!({
                 "theme": "dark",
+                "flagDisplay": "none",
                 "updateManifest": { "schema_version": 1 },
                 "exitNodeSortOrder": "bogus",
                 "preferredLocation": "exit-1",

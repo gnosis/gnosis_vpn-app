@@ -71,9 +71,6 @@ export const CheckOutcomeSchema = z.discriminatedUnion("kind", [
 ]);
 export type CheckOutcome = z.infer<typeof CheckOutcomeSchema>;
 
-export const FlagDisplaySchema = z.enum(["none", "mono", "color"]);
-export type FlagDisplay = z.infer<typeof FlagDisplaySchema>;
-
 export const SettingsSchema = z.object({
   preferredLocation: z.string().nullable(),
   connectOnStartup: z.boolean(),
@@ -89,7 +86,6 @@ export const SettingsSchema = z.object({
   installedVersion: z.string().nullable(),
   // Name is legacy: whether the advanced view's card has its details open (chevron).
   showDetailedMetrics: z.boolean(),
-  flagDisplay: FlagDisplaySchema,
   // Connect first shows the data an exit sets aside
   showExitCost: z.boolean(),
   // the main screen shows the location card instead of the simple view
@@ -111,7 +107,6 @@ const DEFAULT_SETTINGS: SettingsState = {
   dismissedUpdateVersion: null,
   installedVersion: null,
   showDetailedMetrics: false,
-  flagDisplay: "color",
   showExitCost: true,
   advancedView: false,
 };
@@ -139,7 +134,6 @@ type SettingsActions = {
   ) => Promise<void>;
   setDismissedUpdateVersion: (version: string | null) => Promise<void>;
   setShowDetailedMetrics: (show: boolean) => Promise<void>;
-  setFlagDisplay: (display: FlagDisplay) => Promise<void>;
   setShowExitCost: (show: boolean) => Promise<void>;
   setAdvancedView: (on: boolean) => Promise<void>;
 };
@@ -235,7 +229,6 @@ export function createSettingsStore(): SettingsStoreTuple {
     setDismissedUpdateVersion: (version) =>
       patch({ dismissedUpdateVersion: version }),
     setShowDetailedMetrics: (show) => patch({ showDetailedMetrics: show }),
-    setFlagDisplay: (display) => patch({ flagDisplay: display }),
     setShowExitCost: (show) => patch({ showExitCost: show }),
     setAdvancedView: (on) => patch({ advancedView: on }),
   } as const;
