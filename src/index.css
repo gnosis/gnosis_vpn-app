@@ -136,8 +136,8 @@ textarea {
   --color-control-bg: #ececee;
   --color-control-bg-hover: #e3e3e6;
   --color-control-tint: #646794;
-  /* off is faded like a disabled switch, below 3:1 by design */
-  --color-switch-off: #c7c7cb;
+  /* off is muted, below 3:1 against the card by design */
+  --color-switch-off: #a0a0a6;
   --color-switch-on: #4f3fd6;
   --color-update-dot: #5a49d6;
 
@@ -233,7 +233,7 @@ textarea {
   --color-control-bg: #262433;
   --color-control-bg-hover: #302d40;
   --color-control-tint: #a8a8ca;
-  --color-switch-off: #424153;
+  --color-switch-off: #302f38;
   --color-switch-on: #8b7dff;
   --color-update-dot: #b0a6ff;
 
