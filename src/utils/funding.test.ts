@@ -3,7 +3,6 @@ import {
   DATA_SEND_STEP,
   dataToSend,
   deriveNodeStatus,
-  deriveOverallStatus,
   deriveRefillShortfall,
   deriveTrafficStatus,
   deriveWxhoprDeficit,
@@ -82,19 +81,6 @@ describe("deriveNodeStatus", () => {
       .toBe("Low");
     expect(deriveNodeStatus(makeBalance(makeStatus("good", "empty")), null))
       .toBe("Empty");
-  });
-});
-
-describe("deriveOverallStatus", () => {
-  it("returns the worst of traffic and gas", () => {
-    expect(deriveOverallStatus(makeBalance(makeStatus("empty", "good")), null))
-      .toBe("Empty");
-    expect(deriveOverallStatus(makeBalance(makeStatus("good", "empty")), null))
-      .toBe("Empty");
-    expect(deriveOverallStatus(makeBalance(makeStatus("low", "good")), null))
-      .toBe("Low");
-    expect(deriveOverallStatus(makeBalance(makeStatus("good", "good")), null))
-      .toBe("Sufficient");
   });
 });
 

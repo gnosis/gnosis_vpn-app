@@ -18,11 +18,7 @@ import {
   formatCountCompact,
   formatCreditCompact,
 } from "@src/utils/credit.ts";
-import {
-  deriveNodeStatus,
-  deriveTrafficStatus,
-  formatDataToSend,
-} from "@src/utils/funding.ts";
+import { deriveTrafficStatus, formatDataToSend } from "@src/utils/funding.ts";
 import { exitDisplayName, exitShortId } from "@src/utils/destinations.ts";
 import {
   clearSettingsRequest,
@@ -34,18 +30,12 @@ import Tooltip from "@src/components/common/Tooltip.tsx";
 import { ShortId } from "@src/components/exitNode/LocationRow.tsx";
 import UsageMeter from "@src/components/exitNode/UsageMeter.tsx";
 import ArrowRightIcon from "@src/components/icons/ArrowRightIcon.tsx";
-import BackIcon from "@src/components/icons/BackIcon.tsx";
 import CheckCircleIcon from "@src/components/icons/CheckCircleIcon.tsx";
 import SettingIcon from "@src/components/icons/SettingIcon.tsx";
 import WarningIcon from "@src/components/icons/WarningIcon.tsx";
-import AccountId from "@src/components/settings/AccountId.tsx";
 import BalanceBreakdown from "@src/components/settings/BalanceBreakdown.tsx";
 import Notice from "@src/components/settings/Notice.tsx";
-import {
-  SettingsCard,
-  SettingsHeading,
-} from "@src/components/settings/SettingsGroup.tsx";
-import SettingsRow from "@src/components/settings/SettingsRow.tsx";
+import { SettingsHeading } from "@src/components/settings/SettingsGroup.tsx";
 import TokenNote from "@src/components/settings/TokenNote.tsx";
 import { openFundingSite, useFunding } from "./useFunding.ts";
 
@@ -129,9 +119,6 @@ export default function UsageTab(
   const trafficStatus = createMemo(() =>
     deriveTrafficStatus(appState.balance, runModeStatus())
   );
-  const gasStatus = createMemo(() =>
-    deriveNodeStatus(appState.balance, runModeStatus())
-  );
   // The daemon's levels alone (before the first balance) are blind to EOA funds, so they only warrant amber.
   const emptyVariant = () =>
     appState.balance === null ? "warning" as const : "critical" as const;
@@ -152,27 +139,13 @@ export default function UsageTab(
           : `Balance running low: ${renewals(left)} left.`,
       });
     }
-    if (gasStatus() === "Empty") {
-      warnings.push({
-        variant: emptyVariant(),
-        text: "Gas is empty — top up xDAI.",
-      });
-    } else if (gasStatus() === "Low") {
-      warnings.push({ variant: "warning", text: "Gas is low — top up xDAI." });
-    }
     if (preparingSafe()) {
       warnings.push({ variant: "warning", text: "Waiting for incoming funds" });
     }
     return warnings;
   });
 
-  // Send funds' "You have enough" ticks, joined into one line.
-  const enoughText = () => {
-    const tokens = (["wxhopr", "xdai"] as const)
-      .filter((token) => tokenStatus(token) === "Sufficient")
-      .map((token) => token === "wxhopr" ? "data" : "xDAI");
-    return tokens.length > 0 ? `You have enough ${tokens.join(" and ")}` : null;
-  };
+  const enoughData = () => tokenStatus("wxhopr") === "Sufficient";
 
   const breakdown = () =>
     props.showBreakdown && appState.balance
@@ -192,10 +165,9 @@ export default function UsageTab(
         {(notice) => <Notice tone={notice().tone}>{notice().text}</Notice>}
       </Show>
       <Show when={balanceShown()}>
+        <SettingsHeading>Balance</SettingsHeading>
         <div class="flex shrink-0 flex-col gap-2 rounded-xl bg-bg-list px-3.5 pt-4 pb-3.5">
-          <span class="text-xs leading-4 text-text-subtle">
-            Available balance
-          </span>
+          <span class="text-xs leading-4 text-text-subtle">Available</span>
           <div class="flex items-baseline gap-2.5">
             <span class="font-figures text-[34px] leading-none font-semibold tracking-[-0.04em]">
               {/* Explicit null check: credit can be 0n, which is falsy */}
@@ -227,38 +199,32 @@ export default function UsageTab(
               </TokenNote>
             )}
           </Show>
-          <Show when={enoughText()}>
-            {(text) => (
-              <TokenNote
-                icon={<CheckCircleIcon class="size-full text-ok-badge" />}
-              >
-                {text()}
-              </TokenNote>
-            )}
+          <Show when={enoughData()}>
+            <TokenNote
+              icon={<CheckCircleIcon class="size-full text-ok-badge" />}
+            >
+              You have enough data
+            </TokenNote>
           </Show>
         </div>
         <Show when={nodeAddress()}>
-          {(address) => <AccountId address={address()} />}
-        </Show>
-        <SettingsCard label="Funding">
-          <SettingsRow
-            icon="add"
-            title="Add funds directly"
-            onClick={() => props.onAddFunds()}
-          >
-            <BackIcon class="rotate-180 text-text-subtle" />
-          </SettingsRow>
-        </SettingsCard>
-        <Show when={nodeAddress()}>
           {(address) => (
-            <Button
-              size="xl"
-              variant="connect"
-              class="shrink-0"
-              onClick={() => void openFundingSite(address())}
-            >
-              Open funding site <span aria-hidden="true">↗</span>
-            </Button>
+            <>
+              <Button
+                size="xl"
+                variant="connect"
+                class="shrink-0"
+                onClick={() => void openFundingSite(address())}
+              >
+                Open funding site <span aria-hidden="true">↗</span>
+              </Button>
+              <p class="flex gap-2 px-1 pt-1 text-xs leading-[1.45] text-text-subtle">
+                <span class="mt-px shrink-0">
+                  <SettingIcon name="info" size={14} />
+                </span>
+                <span>Funding usually takes 2 minutes.</span>
+              </p>
+            </>
           )}
         </Show>
         <SettingsHeading>This exit</SettingsHeading>

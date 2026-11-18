@@ -43,18 +43,6 @@ export function deriveNodeStatus(
   return status ? toStatusText(status.gas) : "Sufficient";
 }
 
-// Worst of traffic and gas status — the wallet icon must flag either problem.
-export function deriveOverallStatus(
-  balance: BalanceResponse | null,
-  runModeStatus: FundingStatus | null,
-): StatusText {
-  const traffic = deriveTrafficStatus(balance, runModeStatus);
-  const gas = deriveNodeStatus(balance, runModeStatus);
-  if (traffic === "Empty" || gas === "Empty") return "Empty";
-  if (traffic === "Low" || gas === "Low") return "Low";
-  return "Sufficient";
-}
-
 // Daemon already gates these to null while the corresponding level is Good.
 export function deriveWxhoprDeficit(
   balance: BalanceResponse | null,
