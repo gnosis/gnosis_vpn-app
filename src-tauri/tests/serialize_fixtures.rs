@@ -160,12 +160,15 @@ fn status_base(run_mode: RunMode) -> Status {
         disconnecting: vec![],
         probe: None,
         pix_chunk_bytes: None,
+        pix_price_per_byte: PIX_PRICE_PER_BYTE,
         probing: None,
         recent: vec![],
     }
 }
 
 const PIX_CHUNK_BYTES: u64 = 951_644_160;
+// 1 Gwei, as the balance fixture's exit traffic.
+const PIX_PRICE_PER_BYTE: Balance<WxHopr> = Balance::from_wei(1_000_000_000);
 
 fn status_with_connection(connection: Connection) -> Status {
     Status {

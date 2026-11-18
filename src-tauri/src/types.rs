@@ -174,6 +174,7 @@ mod tests {
             disconnecting: vec![],
             probe: None,
             pix_chunk_bytes: None,
+            pix_price_per_byte: ipc::Balance::zero(),
             probing: None,
             recent: vec![],
         }
