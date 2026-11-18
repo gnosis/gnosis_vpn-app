@@ -33,6 +33,12 @@ describe("detectChannel", () => {
     expect(detectChannel("0.7.5+build.7")).toBe("snapshot");
   });
 
+  it("returns snapshot for alpha prereleases and snapshot installer versions", () => {
+    expect(detectChannel("1.0.0-alpha.1")).toBe("snapshot");
+    expect(detectChannel("1.0.1-0.20261117010203")).toBe("snapshot");
+    expect(detectChannel("1.1.0-rc.1.20261120010203")).toBe("snapshot");
+  });
+
   it("returns snapshot when version contains both hyphen and plus", () => {
     expect(detectChannel("1.0.0-alpha+build.1")).toBe("snapshot");
   });
