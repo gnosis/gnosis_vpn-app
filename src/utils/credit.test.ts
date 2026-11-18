@@ -35,8 +35,16 @@ function makeExitFunds(
   byte_capacity: number,
   stake = 0n,
   bytes_from_exits = 0,
+  bytes_from_exits_with_safe = 0,
+  price_per_byte = 0n,
 ): ExitTrafficFunds {
-  return { stake, byte_capacity, bytes_from_exits };
+  return {
+    stake,
+    byte_capacity,
+    bytes_from_exits,
+    bytes_from_exits_with_safe,
+    price_per_byte,
+  };
 }
 
 function makeAllocations(
@@ -132,12 +140,21 @@ describe("computeEffectiveCredit", () => {
     expect(computeEffectiveCredit(makeBalance(allocations))).toBe(1_500_000n);
   });
 
-  it("includes the PIX float", () => {
+  it("includes the PIX pool", () => {
     const allocations = makeAllocations({
       safe: makeCapacity(1_000_000),
       exit_traffic: makeExitFunds(250_000),
     });
     expect(computeEffectiveCredit(makeBalance(allocations))).toBe(1_250_000n);
+  });
+
+  it("reports the client's PIX-price figure once there is a PIX price", () => {
+    const allocations = makeAllocations({
+      safe: makeCapacity(1_000_000, 20n),
+      peer_allocations: { "0xabc": makeCapacity(500_000, 300n) },
+      exit_traffic: makeExitFunds(250_000, 5n, 5, 25, 1n),
+    });
+    expect(computeEffectiveCredit(makeBalance(allocations))).toBe(25n);
   });
 });
 
@@ -146,29 +163,34 @@ describe("creditBreakdown", () => {
     expect(creditBreakdown(makeBalance(null))).toBeNull();
   });
 
-  it("lists each allocation, the totals, then what the PIX pool buys from exits", () => {
+  it("lists each allocation and the totals, at the relay rate and the PIX price", () => {
     const allocations = makeAllocations({
-      node: makeCapacity(1, 1n),
-      safe: makeCapacity(20, 20n),
-      exit_traffic: makeExitFunds(5000, 5000n, 50000),
+      node: makeCapacity(1, 10n),
+      safe: makeCapacity(20, 200n),
+      exit_traffic: makeExitFunds(5000, 50000n, 10000, 10042, 5n),
       peer_allocations: {
-        "0xabc": makeCapacity(300, 300n),
-        "0xdef": makeCapacity(400, 400n),
+        "0xabc": makeCapacity(300, 3000n),
+        "0xdef": makeCapacity(400, 4000n),
       },
     });
     const lines = creditBreakdown(makeBalance(allocations))!;
-    expect(lines.map((l) => [l.label, l.bytes, l.stake, l.kind])).toEqual([
-      ["EOA", 1n, 1n, "part"],
-      ["Safe", 20n, 20n, "part"],
-      ["Channels", 700n, 700n, "part"],
-      ["Without PIX pool", 721n, 721n, "sum"],
-      ["PIX pool", 5000n, 5000n, "part"],
-      ["Total", 5721n, 5721n, "sum"],
-      ["PIX pool at PIX price", 50000n, 5000n, "aside"],
-    ]);
+    expect(lines.map((l) => [l.label, l.bytes, l.pixBytes, l.stake, l.kind]))
+      .toEqual([
+        ["EOA", 1n, 2n, 10n, "part"],
+        ["Safe", 20n, 40n, 200n, "part"],
+        ["Channels", 700n, 1400n, 7000n, "part"],
+        ["Without PIX pool", 721n, 1442n, 7210n, "sum"],
+        ["PIX pool", 5000n, 10000n, 50000n, "part"],
+        ["Total", 5721n, 11442n, 57210n, "sum"],
+      ]);
   });
 
-  it("matches computeEffectiveCredit in its total", () => {
+  it("has no PIX-price figures without a PIX price", () => {
+    const lines = creditBreakdown(makeBalance(makeAllocations({})))!;
+    expect(lines.every((l) => l.pixBytes === null)).toBe(true);
+  });
+
+  it("matches computeEffectiveCredit in its total without a PIX price", () => {
     const balance = makeBalance(makeAllocations({
       safe: makeCapacity(1_000_000),
       exit_traffic: makeExitFunds(250_000),

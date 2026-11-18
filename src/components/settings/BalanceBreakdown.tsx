@@ -5,10 +5,9 @@ import { humanWxhoprParts } from "@src/utils/hopli.ts";
 const ROW_CLASS: Record<CreditLine["kind"], string> = {
   part: "text-text-soft",
   sum: "border-t border-border font-semibold text-text-primary",
-  aside: "border-t border-dashed border-border text-text-subtle italic",
 };
 
-/** Each allocation's data and wxHOPR, the totals without and with the PIX pool, and the pool at the PIX price outside the totals. */
+/** Each allocation's data at the relay rate and at the PIX price, and its wxHOPR, with the totals without and with the PIX pool. */
 export default function BalanceBreakdown(props: { lines: CreditLine[] }) {
   return (
     <div class="flex shrink-0 flex-col rounded-xl bg-bg-list px-3.5 py-3">
@@ -20,6 +19,9 @@ export default function BalanceBreakdown(props: { lines: CreditLine[] }) {
           <tr class="text-xs leading-4 text-text-subtle">
             <th scope="col" class="pb-1 text-left font-normal">Allocation</th>
             <th scope="col" class="pb-1 text-right font-normal">Data</th>
+            <th scope="col" class="pb-1 pl-3 text-right font-normal">
+              At PIX price
+            </th>
             <th scope="col" class="pb-1 pl-3 text-right font-normal">
               wxHOPR
             </th>
@@ -38,6 +40,11 @@ export default function BalanceBreakdown(props: { lines: CreditLine[] }) {
                 </th>
                 <td class="py-0.5 text-right font-figures whitespace-nowrap tabular-nums">
                   {formatCreditPrecise(line.bytes)}
+                </td>
+                <td class="py-0.5 pl-3 text-right font-figures whitespace-nowrap tabular-nums">
+                  {line.pixBytes === null
+                    ? "—"
+                    : formatCreditPrecise(line.pixBytes)}
                 </td>
                 <td class="py-0.5 pl-3 text-right font-figures whitespace-nowrap tabular-nums">
                   {humanWxhoprParts(line.stake).amount}

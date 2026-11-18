@@ -5211,7 +5211,7 @@ dependencies = [
 [[package]]
 name = "gnosis_vpn-ipc"
 version = "1.0.1"
-source = "git+https://github.com/gnosis/gnosis_vpn-client.git?branch=main#25f292e43d97032560eca6d29677d71e893962a1"
+source = "git+https://github.com/gnosis/gnosis_vpn-client.git?branch=main#6fac913fc4429944b7b40e2b7dbbcc749045d654"
 dependencies = [
  "base64 0.23.1",
  "humantime",
@@ -5225,7 +5225,7 @@ dependencies = [
 [[package]]
 name = "gnosis_vpn-lib"
 version = "1.0.1"
-source = "git+https://github.com/gnosis/gnosis_vpn-client.git?branch=main#25f292e43d97032560eca6d29677d71e893962a1"
+source = "git+https://github.com/gnosis/gnosis_vpn-client.git?branch=main#6fac913fc4429944b7b40e2b7dbbcc749045d654"
 dependencies = [
  "async-trait",
  "backon",
