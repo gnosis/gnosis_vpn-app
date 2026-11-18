@@ -1,15 +1,16 @@
 import { createResource, createSignal, Show } from "solid-js";
 import { getVersion } from "@tauri-apps/api/app";
-import type { ServiceInfo } from "@src/services/vpnService.ts";
+import type { ServiceInfo, StartupIssue } from "@src/services/vpnService.ts";
 import Spinner from "@src/components/common/Spinner.tsx";
 import GnosisVpnLogo from "@src/components/common/GnosisVpnLogo.tsx";
+import StartupIssueBanner from "@src/components/StartupIssueBanner.tsx";
 
 interface InitializationProps {
   info: ServiceInfo | null;
   /** The store's canonical package version; `info` stays for service details. */
   packageVersion: string | null;
   error?: string;
-  recoveryReason?: string | null;
+  recoveryReason?: StartupIssue | null;
 }
 
 const REVEAL_CLICKS = 7;
@@ -50,11 +51,9 @@ export default function Initialization(props: InitializationProps) {
             <div class="flex flex-col items-center">
               <Spinner class="mb-4 h-8 w-8 text-brand-primary" />
               <p class="text-text-secondary">Running startup tasks</p>
-              <Show when={props.recoveryReason}>
-                <p class="text-sm text-text-secondary mt-2 opacity-80">
-                  Oh snap, something seems wrong, waiting for recovery
-                </p>
-              </Show>
+              <div class="mt-4">
+                <StartupIssueBanner issue={props.recoveryReason} />
+              </div>
             </div>
           )}
 

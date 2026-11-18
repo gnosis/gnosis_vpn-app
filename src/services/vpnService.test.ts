@@ -85,7 +85,9 @@ describe("StatusResponseSchema", () => {
   it("parses Init run_mode as the first warmup stage", () => {
     const parsed = StatusResponseSchema.safeParse(statusInit);
     expect(parsed.success).toBe(true);
-    expect(warmupProgress(parsed.data?.run_mode)?.stage).toBe("initializing");
+    const progress = warmupProgress(parsed.data?.run_mode);
+    expect(progress?.stage).toBe("initializing");
+    expect(progress?.issue?.kind.type).toBe("unreachable");
   });
 
   it("parses Warmup run_mode", () => {

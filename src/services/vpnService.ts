@@ -538,9 +538,25 @@ export const ChannelMaintenanceSchema = z.discriminatedUnion("type", [
 ]);
 export type ChannelMaintenance = z.infer<typeof ChannelMaintenanceSchema>;
 
+export const StartupIssueKindSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("unreachable") }),
+  z.object({ type: z.literal("service_unavailable") }),
+  z.object({ type: z.literal("incompatible") }),
+  z.object({ type: z.literal("other") }),
+]);
+export type StartupIssueKind = z.infer<typeof StartupIssueKindSchema>;
+
+// A startup step keeps failing; `since` is the streak's first failure in ms since epoch.
+export const StartupIssueSchema = z.object({
+  kind: StartupIssueKindSchema,
+  message: z.string(),
+  since: z.number(),
+});
+export type StartupIssue = z.infer<typeof StartupIssueSchema>;
+
 export const InitSchema = z.object({
   type: z.literal("init"),
-  last_error: z.string().nullable(),
+  issue: StartupIssueSchema.nullable(),
 });
 export type Init = z.infer<typeof InitSchema>;
 
@@ -550,7 +566,7 @@ export const PreparingSafeSchema = z.object({
   node_xdai: BigIntStringSchema,
   node_wxhopr: BigIntStringSchema,
   funding_tool: z.string().nullable(),
-  error: z.string().nullable(),
+  issue: StartupIssueSchema.nullable(),
   balance_recommendation: BalanceRecommendationSchema.nullable(),
 });
 export type PreparingSafe = z.infer<typeof PreparingSafeSchema>;
@@ -564,7 +580,7 @@ export type DeployingSafe = z.infer<typeof DeployingSafeSchema>;
 export const WarmupSchema = z.object({
   type: z.literal("warmup"),
   stage: WarmupStageSchema,
-  last_error: z.string().nullable(),
+  issue: StartupIssueSchema.nullable(),
 });
 export type Warmup = z.infer<typeof WarmupSchema>;
 
@@ -729,12 +745,12 @@ export function formatWarmupStatus(stage: WarmupStage): string {
 /** Init precedes the edge client and reads as its first warmup stage. */
 export function warmupProgress(
   rm: RunMode | null | undefined,
-): { stage: WarmupStage; last_error: string | null } | null {
+): { stage: WarmupStage; issue: StartupIssue | null } | null {
   if (rm?.type === "init") {
-    return { stage: "initializing", last_error: rm.last_error };
+    return { stage: "initializing", issue: rm.issue };
   }
   if (rm?.type === "warmup") {
-    return { stage: rm.stage, last_error: rm.last_error };
+    return { stage: rm.stage, issue: rm.issue };
   }
   return null;
 }
