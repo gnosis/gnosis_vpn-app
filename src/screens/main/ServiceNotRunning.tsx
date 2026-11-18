@@ -14,7 +14,7 @@ export default function ServiceNotRunning() {
 
   return (
     <div class="h-full w-full flex flex-col p-6 gap-4 overflow-y-auto text-text-primary">
-      <GnosisVpnLogo class="w-2/3 self-center text-text-primary" />
+      <GnosisVpnLogo class="w-2/3 self-center text-logo-ink" />
       <h1 class="text-2xl font-bold">Gnosis VPN service is not running</h1>
       <Show when={info()}>
         {(details) => {

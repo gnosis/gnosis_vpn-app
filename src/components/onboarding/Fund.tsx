@@ -1,6 +1,6 @@
 import { Show } from "solid-js";
 import Button from "@src/components/common/Button.tsx";
-import GnosisVpnLogoTwoTone from "@src/components/common/GnosisVpnLogoTwoTone.tsx";
+import GnosisVpnLogo from "@src/components/common/GnosisVpnLogo.tsx";
 import SettingIcon from "@src/components/icons/SettingIcon.tsx";
 
 /** First onboarding screen: why to fund, and the two ways to do it. */
@@ -13,7 +13,7 @@ export default function Fund(props: {
   return (
     <div class="flex h-full w-full flex-col px-4 pt-4 pb-6">
       <div class="flex flex-col items-start gap-2.5 px-1 pt-3.5">
-        <GnosisVpnLogoTwoTone class="mb-3.5 w-[190px] text-logo-ink" />
+        <GnosisVpnLogo class="mb-3.5 w-[190px] text-logo-ink" />
         <h1 class="text-[26px] leading-tight font-bold text-balance">
           Fund your VPN
         </h1>
