@@ -2,7 +2,6 @@ import {
   createEffect,
   createMemo,
   createSignal,
-  type JSX,
   onCleanup,
   Show,
 } from "solid-js";
@@ -11,13 +10,10 @@ import { useAppStore } from "@src/stores/appStore.ts";
 import { logWarn } from "@src/utils/appLog.ts";
 import { sumCapacityStake } from "@src/utils/credit.ts";
 import {
-  deriveNodeStatus,
   deriveRefillShortfall,
-  deriveTrafficStatus,
   deriveWxhoprDeficit,
   deriveXdaiDeficit,
   preparingSafeShortfall,
-  resolveFundingStatus,
   roundUpToStep,
   type StatusText,
   WXHOPR_SEND_STEP,
@@ -33,6 +29,7 @@ import GnosisMark from "@src/components/common/GnosisMark.tsx";
 import ArrowRightIcon from "@src/components/icons/ArrowRightIcon.tsx";
 import CheckCircleIcon from "@src/components/icons/CheckCircleIcon.tsx";
 import SettingIcon from "@src/components/icons/SettingIcon.tsx";
+import TokenNote from "@src/components/settings/TokenNote.tsx";
 import {
   SettingsCard,
   SettingsHeading,
@@ -109,16 +106,6 @@ function AddressCard(props: { address: string }) {
   );
 }
 
-/** A line under a token; the fixed icon cell keeps its text in place when the arrow becomes a tick. */
-function TokenNote(props: { icon: JSX.Element; children: JSX.Element }) {
-  return (
-    <span class="flex items-center gap-1.5 text-xs leading-normal text-text-soft">
-      <span class="flex size-3.5 shrink-0">{props.icon}</span>
-      <span>{props.children}</span>
-    </span>
-  );
-}
-
 function TokenRow(props: {
   token: string;
   purpose: string;
@@ -191,31 +178,8 @@ export default function SendFundsPage(props: { onBack: () => void }) {
   const xdai = () =>
     funding.preparingSafe()?.node_xdai ?? appState.balance?.node ?? null;
 
-  // Running: only the levels the client reports, never the derive helpers' "Sufficient" default.
-  const levelsKnown = () =>
-    resolveFundingStatus(appState.balance, funding.runModeStatus()) !== null;
-  const preparingStatus = (token: "wxhopr" | "xdai"): StatusText | null => {
-    const preparing = funding.preparingSafe();
-    if (!preparing?.balance_recommendation) return null;
-    if (preparingSafeShortfall(preparing, token) === null) return "Sufficient";
-    const have = token === "wxhopr"
-      ? preparing.node_wxhopr
-      : preparing.node_xdai;
-    return have === 0n ? "Empty" : "Low";
-  };
-  // Onboarding: Sufficient only once the node holds the client's full minimum.
-  const trafficStatus = createMemo(() => {
-    if (funding.preparingSafe()) return preparingStatus("wxhopr");
-    return levelsKnown()
-      ? deriveTrafficStatus(appState.balance, funding.runModeStatus())
-      : null;
-  });
-  const gasStatus = createMemo(() => {
-    if (funding.preparingSafe()) return preparingStatus("xdai");
-    return levelsKnown()
-      ? deriveNodeStatus(appState.balance, funding.runModeStatus())
-      : null;
-  });
+  const trafficStatus = () => funding.tokenStatus("wxhopr");
+  const gasStatus = () => funding.tokenStatus("xdai");
   // The daemon's levels alone (before the first balance) are blind to EOA funds, so they only warrant amber; preparing_safe's node balances are exact.
   const statusClass = (status: StatusText | null) => {
     if (status === "Sufficient") return "text-ok-ink";

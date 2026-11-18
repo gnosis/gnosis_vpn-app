@@ -6,6 +6,13 @@ import {
   warmupProgress,
 } from "@src/services/vpnService.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
+import {
+  deriveNodeStatus,
+  deriveTrafficStatus,
+  preparingSafeShortfall,
+  resolveFundingStatus,
+  type StatusText,
+} from "@src/utils/funding.ts";
 import { logWarn } from "@src/utils/appLog.ts";
 
 const FUNDING_SITE_URL = "https://funding.vpn.gnosis.eth.limo/";
@@ -55,5 +62,42 @@ export function useFunding() {
   const nodeAddress = () =>
     preparingSafe()?.node_address ?? appState.balance?.info.node_address ?? "";
 
-  return { preparingSafe, standIn, balanceShown, runModeStatus, nodeAddress };
+  // Running: only the levels the client reports, never the derive helpers' "Sufficient" default.
+  const levelsKnown = () =>
+    resolveFundingStatus(appState.balance, runModeStatus()) !== null;
+  // Onboarding: Sufficient only once the node holds the client's full minimum.
+  const preparingStatus = (token: "wxhopr" | "xdai"): StatusText | null => {
+    const preparing = preparingSafe();
+    if (!preparing?.balance_recommendation) return null;
+    if (preparingSafeShortfall(preparing, token) === null) return "Sufficient";
+    const have = token === "wxhopr"
+      ? preparing.node_wxhopr
+      : preparing.node_xdai;
+    return have === 0n ? "Empty" : "Low";
+  };
+  const statuses = {
+    wxhopr: createMemo(() => {
+      if (preparingSafe()) return preparingStatus("wxhopr");
+      return levelsKnown()
+        ? deriveTrafficStatus(appState.balance, runModeStatus())
+        : null;
+    }),
+    xdai: createMemo(() => {
+      if (preparingSafe()) return preparingStatus("xdai");
+      return levelsKnown()
+        ? deriveNodeStatus(appState.balance, runModeStatus())
+        : null;
+    }),
+  };
+  /** A token's level as Send funds shows it; null while unknown. */
+  const tokenStatus = (token: "wxhopr" | "xdai") => statuses[token]();
+
+  return {
+    preparingSafe,
+    standIn,
+    balanceShown,
+    runModeStatus,
+    nodeAddress,
+    tokenStatus,
+  };
 }

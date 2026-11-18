@@ -30,6 +30,7 @@ import Tooltip from "@src/components/common/Tooltip.tsx";
 import { ShortId } from "@src/components/exitNode/LocationRow.tsx";
 import UsageMeter from "@src/components/exitNode/UsageMeter.tsx";
 import BackIcon from "@src/components/icons/BackIcon.tsx";
+import CheckCircleIcon from "@src/components/icons/CheckCircleIcon.tsx";
 import SettingIcon from "@src/components/icons/SettingIcon.tsx";
 import WarningIcon from "@src/components/icons/WarningIcon.tsx";
 import AccountId from "@src/components/settings/AccountId.tsx";
@@ -40,6 +41,7 @@ import {
   SettingsHeading,
 } from "@src/components/settings/SettingsGroup.tsx";
 import SettingsRow from "@src/components/settings/SettingsRow.tsx";
+import TokenNote from "@src/components/settings/TokenNote.tsx";
 import { openFundingSite, useFunding } from "./useFunding.ts";
 
 // The client reports no session lifetime yet, so the expiry value reads "Feature coming".
@@ -92,8 +94,14 @@ export default function UsageTab(
   props: { onAddFunds: () => void; showBreakdown: boolean },
 ) {
   const [appState] = useAppStore();
-  const { preparingSafe, standIn, balanceShown, runModeStatus, nodeAddress } =
-    useFunding();
+  const {
+    preparingSafe,
+    standIn,
+    balanceShown,
+    runModeStatus,
+    nodeAddress,
+    tokenStatus,
+  } = useFunding();
 
   // The balance popover's "Add data" lands here; before the card shows it only opens the tab.
   createEffect(() => {
@@ -152,6 +160,14 @@ export default function UsageTab(
     return warnings;
   });
 
+  // Send funds' "You have enough" ticks, joined into one line.
+  const enoughText = () => {
+    const tokens = (["wxhopr", "xdai"] as const)
+      .filter((token) => tokenStatus(token) === "Sufficient")
+      .map((token) => token === "wxhopr" ? "wxHOPR" : "xDAI");
+    return tokens.length > 0 ? `You have enough ${tokens.join(" and ")}` : null;
+  };
+
   const breakdown = () =>
     props.showBreakdown && appState.balance
       ? creditBreakdown(appState.balance)
@@ -185,6 +201,15 @@ export default function UsageTab(
               </span>
             </Show>
           </div>
+          <Show when={enoughText()}>
+            {(text) => (
+              <TokenNote
+                icon={<CheckCircleIcon class="size-full text-ok-badge" />}
+              >
+                {text()}
+              </TokenNote>
+            )}
+          </Show>
         </div>
         <Show when={nodeAddress()}>
           {(address) => <AccountId address={address()} />}
