@@ -26,7 +26,7 @@ export default function AccountId(props: { address: string }) {
       description={
         <span class="@container block">
           {/* 42 monospace glyphs at 0.6em fill 25.2em, so 3.9cqi keeps the address on one line */}
-          <span class="block cursor-text overflow-hidden font-figures text-[length:clamp(9px,3.9cqi,11px)] leading-4 text-ellipsis whitespace-nowrap text-address-ink select-text">
+          <span class="block cursor-text overflow-hidden font-figures text-[length:clamp(8px,3.9cqi,11px)] leading-4 text-ellipsis whitespace-nowrap text-address-ink select-text">
             {props.address}
           </span>
         </span>

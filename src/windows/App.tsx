@@ -11,14 +11,11 @@ import {
   untrack,
 } from "solid-js";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
-import Onboarding, {
-  type OnboardingStep,
-} from "../screens/main/Onboarding.tsx";
+import Onboarding from "../screens/main/Onboarding.tsx";
 import Synchronization from "../screens/main/Synchronization.tsx";
 import Initialization from "../screens/main/Initialization.tsx";
 import ServiceNotRunning from "../screens/main/ServiceNotRunning.tsx";
 import { invoke } from "@tauri-apps/api/core";
-import { emit } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import {
   AUTO_CHECK_INTERVAL_MS,
@@ -53,10 +50,7 @@ const validScreens = [
 type ValidScreen = (typeof validScreens)[number];
 type NavigatePayload =
   | ValidScreen
-  | {
-    screen: ValidScreen;
-    step?: OnboardingStep;
-  };
+  | { screen: ValidScreen };
 
 const MIN_SCREEN_DISPLAY_TIME = 1333; // ms - ensure screens show for at least this long
 // Matches the screen wrapper's duration-300.
@@ -87,10 +81,6 @@ function handleNavigate(
     return;
   }
   setScreen(screen);
-  if (screen === "onboarding") {
-    const step = typeof payload === "string" ? undefined : payload.step;
-    if (step) void emit("onboarding:set-step", step);
-  }
 }
 
 /**

@@ -2,15 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   DATA_SEND_STEP,
   dataToSend,
-  deriveNodeStatus,
   deriveRefillShortfall,
   deriveTrafficStatus,
   deriveWxhoprDeficit,
-  deriveXdaiDeficit,
   formatDataToSend,
   preparingSafeShortfall,
   roundUpToStep,
-  WXHOPR_SEND_STEP,
 } from "./funding.ts";
 import type {
   BalanceResponse,
@@ -75,29 +72,15 @@ describe("deriveTrafficStatus", () => {
   });
 });
 
-describe("deriveNodeStatus", () => {
-  it("maps the daemon's gas level to the UI status text", () => {
-    expect(deriveNodeStatus(makeBalance(makeStatus("good", "low")), null))
-      .toBe("Low");
-    expect(deriveNodeStatus(makeBalance(makeStatus("good", "empty")), null))
-      .toBe("Empty");
-  });
-});
-
-describe("deriveWxhoprDeficit / deriveXdaiDeficit", () => {
-  it("passes through the daemon-computed deficits as-is", () => {
-    const status = makeStatus("low", "low", {
-      wxhoprDeficit: 500n,
-      xdaiDeficit: 20n,
-    });
-    const balance = makeBalance(status);
-    expect(deriveWxhoprDeficit(balance, null)).toBe(500n);
-    expect(deriveXdaiDeficit(balance, null)).toBe(20n);
+describe("deriveWxhoprDeficit", () => {
+  it("passes through the daemon-computed deficit as-is", () => {
+    const status = makeStatus("low", "low", { wxhoprDeficit: 500n });
+    expect(deriveWxhoprDeficit(makeBalance(status), null)).toBe(500n);
   });
 
   it("returns null without a status", () => {
     expect(deriveWxhoprDeficit(null, null)).toBeNull();
-    expect(deriveXdaiDeficit(makeBalance(null), null)).toBeNull();
+    expect(deriveWxhoprDeficit(makeBalance(null), null)).toBeNull();
   });
 });
 
@@ -144,46 +127,42 @@ describe("preparingSafeShortfall", () => {
     },
   });
 
-  it("is what is still missing per token", () => {
+  it("is the wxHOPR still missing", () => {
     const rm = preparing({ wxhopr: 30n, xdai: 0n }, {
       wxhopr: 100n,
       xdai: 50n,
     });
-    expect(preparingSafeShortfall(rm, "wxhopr")).toBe(70n);
-    expect(preparingSafeShortfall(rm, "xdai")).toBe(50n);
+    expect(preparingSafeShortfall(rm)).toBe(70n);
   });
 
   it("is null once the recommendation is met or exceeded", () => {
-    const rm = preparing({ wxhopr: 100n, xdai: 51n }, {
+    const met = preparing({ wxhopr: 100n, xdai: 0n }, {
       wxhopr: 100n,
       xdai: 50n,
     });
-    expect(preparingSafeShortfall(rm, "wxhopr")).toBeNull();
-    expect(preparingSafeShortfall(rm, "xdai")).toBeNull();
+    const exceeded = preparing({ wxhopr: 101n, xdai: 0n }, {
+      wxhopr: 100n,
+      xdai: 50n,
+    });
+    expect(preparingSafeShortfall(met)).toBeNull();
+    expect(preparingSafeShortfall(exceeded)).toBeNull();
   });
 
   it("is null without a recommendation or outside preparing_safe", () => {
     const rm = preparing({ wxhopr: 0n, xdai: 0n }, null);
-    expect(preparingSafeShortfall(rm, "wxhopr")).toBeNull();
-    expect(preparingSafeShortfall(null, "xdai")).toBeNull();
+    expect(preparingSafeShortfall(rm)).toBeNull();
+    expect(preparingSafeShortfall(null)).toBeNull();
   });
 });
 
 describe("roundUpToStep", () => {
-  const WXHOPR = 10n ** 18n;
-
-  it("rounds up to the next 10 wxHOPR", () => {
-    expect(roundUpToStep(431n * WXHOPR + 13n, WXHOPR_SEND_STEP)).toBe(
-      440n * WXHOPR,
-    );
-    expect(roundUpToStep(481n * WXHOPR + 13n, WXHOPR_SEND_STEP)).toBe(
-      490n * WXHOPR,
-    );
-    expect(roundUpToStep(1n, WXHOPR_SEND_STEP)).toBe(10n * WXHOPR);
+  it("rounds up to the next step", () => {
+    expect(roundUpToStep(431n, 10n)).toBe(440n);
+    expect(roundUpToStep(1n, 10n)).toBe(10n);
   });
 
   it("keeps exact multiples", () => {
-    expect(roundUpToStep(100n * WXHOPR, WXHOPR_SEND_STEP)).toBe(100n * WXHOPR);
+    expect(roundUpToStep(100n, 10n)).toBe(100n);
   });
 });
 
@@ -198,6 +177,11 @@ describe("dataToSend", () => {
 
   it("counts a partly bought byte as a whole one", () => {
     expect(dataToSend(5n * GB * 9n + 1n, 9n)).toBe(10n * GB);
+  });
+
+  it("rounds to a given step instead", () => {
+    expect(dataToSend(22n * GB + 1n, 1n, GB)).toBe(23n * GB);
+    expect(dataToSend(22n * GB, 1n, GB)).toBe(22n * GB);
   });
 
   it("has no answer without a PIX price", () => {

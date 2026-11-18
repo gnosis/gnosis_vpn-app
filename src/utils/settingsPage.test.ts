@@ -23,10 +23,6 @@ describe("settingsPage", () => {
   });
 
   it("opens the tab a request belongs to", () => {
-    openSettings("add-funds");
-    expect(settingsTab()).toBe("usage");
-    expect(settingsRequest()).toBe("add-funds");
-
     openSettings("update");
     expect(settingsTab()).toBe("general");
     expect(settingsRequest()).toBe("update");
@@ -43,12 +39,12 @@ describe("settingsPage", () => {
   });
 
   it("keeps the request across a tab switch until it is cleared", () => {
-    openSettings("add-funds");
-    showSettingsTab("general");
-    expect(settingsRequest()).toBe("add-funds");
+    openSettings("update");
+    showSettingsTab("usage");
+    expect(settingsRequest()).toBe("update");
     clearSettingsRequest();
     expect(settingsRequest()).toBeNull();
-    expect(settingsTab()).toBe("general");
+    expect(settingsTab()).toBe("usage");
   });
 
   it("notifies on reopening the tab already shown", () => {
@@ -65,7 +61,7 @@ describe("settingsPage", () => {
   });
 
   it("closing clears the tab and the request", () => {
-    openSettings("add-funds");
+    openSettings("check-update");
     closeSettings();
     expect(settingsTab()).toBeNull();
     expect(settingsRequest()).toBeNull();

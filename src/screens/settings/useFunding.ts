@@ -8,7 +8,6 @@ import {
 import { useAppStore } from "@src/stores/appStore.ts";
 import {
   dataToSend,
-  deriveNodeStatus,
   deriveRefillShortfall,
   deriveTrafficStatus,
   deriveWxhoprDeficit,
@@ -29,7 +28,7 @@ export async function openFundingSite(address: string) {
   }
 }
 
-/** What the Usage tab and the Send funds page know about funding right now. */
+/** What the Usage tab and the onboarding Fund screen know about funding right now. */
 export function useFunding() {
   const [appState] = useAppStore();
 
@@ -68,48 +67,33 @@ export function useFunding() {
   // Running: only the levels the client reports, never the derive helpers' "Sufficient" default.
   const levelsKnown = () =>
     resolveFundingStatus(appState.balance, runModeStatus()) !== null;
-  // Onboarding: Sufficient only once the node holds the client's full minimum.
-  const preparingStatus = (token: "wxhopr" | "xdai"): StatusText | null => {
+  /** wxHOPR's level; null while unknown. Onboarding: Sufficient only once the node holds the client's full minimum. */
+  const wxhoprStatus = createMemo((): StatusText | null => {
     const preparing = preparingSafe();
-    if (!preparing?.balance_recommendation) return null;
-    if (preparingSafeShortfall(preparing, token) === null) return "Sufficient";
-    const have = token === "wxhopr"
-      ? preparing.node_wxhopr
-      : preparing.node_xdai;
-    return have === 0n ? "Empty" : "Low";
-  };
-  const statuses = {
-    wxhopr: createMemo(() => {
-      if (preparingSafe()) return preparingStatus("wxhopr");
-      return levelsKnown()
-        ? deriveTrafficStatus(appState.balance, runModeStatus())
-        : null;
-    }),
-    xdai: createMemo(() => {
-      if (preparingSafe()) return preparingStatus("xdai");
-      return levelsKnown()
-        ? deriveNodeStatus(appState.balance, runModeStatus())
-        : null;
-    }),
-  };
-  /** A token's level as Send funds shows it; null while unknown. */
-  const tokenStatus = (token: "wxhopr" | "xdai") => statuses[token]();
+    if (preparing) {
+      if (!preparing.balance_recommendation) return null;
+      if (preparingSafeShortfall(preparing) === null) return "Sufficient";
+      return preparing.node_wxhopr === 0n ? "Empty" : "Low";
+    }
+    return levelsKnown()
+      ? deriveTrafficStatus(appState.balance, runModeStatus())
+      : null;
+  });
 
   /** wxHOPR to send while traffic is Low or Empty; null otherwise, or when the client names no amount. */
   const wxhoprShortfall = () => {
-    const status = tokenStatus("wxhopr");
+    const status = wxhoprStatus();
     if (status !== "Empty" && status !== "Low") return null;
-    return preparingSafeShortfall(preparingSafe(), "wxhopr") ??
+    return preparingSafeShortfall(preparingSafe()) ??
       deriveWxhoprDeficit(appState.balance, runModeStatus()) ??
       deriveRefillShortfall(appState.balance, runModeStatus());
   };
-  /** That shortfall as data at the PIX price; null without one (onboarding, older services). */
+  /** That shortfall as data at the PIX price; null without one (older services). */
   const dataShortfall = () => {
     const amount = wxhoprShortfall();
-    const price =
-      appState.balance?.capacity_allocations?.exit_traffic.price_per_byte ??
-        0n;
-    return amount === null ? null : dataToSend(amount, price);
+    return amount === null
+      ? null
+      : dataToSend(amount, appState.pixPricePerByte);
   };
 
   return {
@@ -118,7 +102,7 @@ export function useFunding() {
     balanceShown,
     runModeStatus,
     nodeAddress,
-    tokenStatus,
+    wxhoprStatus,
     wxhoprShortfall,
     dataShortfall,
   };

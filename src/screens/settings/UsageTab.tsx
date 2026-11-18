@@ -1,11 +1,4 @@
-import {
-  createEffect,
-  createMemo,
-  createUniqueId,
-  For,
-  Show,
-  untrack,
-} from "solid-js";
+import { createMemo, createUniqueId, For, Show } from "solid-js";
 import {
   connectionDestination,
   connectionPix,
@@ -20,10 +13,6 @@ import {
 } from "@src/utils/credit.ts";
 import { deriveTrafficStatus, formatDataToSend } from "@src/utils/funding.ts";
 import { exitDisplayName, exitShortId } from "@src/utils/destinations.ts";
-import {
-  clearSettingsRequest,
-  settingsRequest,
-} from "@src/utils/settingsPage.ts";
 import Banner from "@src/components/common/Banner.tsx";
 import Button from "@src/components/common/Button.tsx";
 import Tooltip from "@src/components/common/Tooltip.tsx";
@@ -85,9 +74,7 @@ function renewals(count: bigint): string {
   }`;
 }
 
-export default function UsageTab(
-  props: { onAddFunds: () => void; showBreakdown: boolean },
-) {
+export default function UsageTab(props: { showBreakdown: boolean }) {
   const [appState] = useAppStore();
   const {
     preparingSafe,
@@ -95,16 +82,9 @@ export default function UsageTab(
     balanceShown,
     runModeStatus,
     nodeAddress,
-    tokenStatus,
+    wxhoprStatus,
     dataShortfall,
   } = useFunding();
-
-  // The balance popover's "Add data" lands here; before the card shows it only opens the tab.
-  createEffect(() => {
-    if (settingsRequest() !== "add-funds") return;
-    clearSettingsRequest();
-    if (untrack(balanceShown)) props.onAddFunds();
-  });
 
   const credit = createMemo(() =>
     appState.balance ? computeEffectiveCredit(appState.balance) : null
@@ -145,7 +125,7 @@ export default function UsageTab(
     return warnings;
   });
 
-  const enoughData = () => tokenStatus("wxhopr") === "Sufficient";
+  const enoughData = () => wxhoprStatus() === "Sufficient";
 
   const breakdown = () =>
     props.showBreakdown && appState.balance
