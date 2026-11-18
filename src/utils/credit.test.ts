@@ -78,7 +78,7 @@ describe("sumCapacityStake", () => {
     expect(sumCapacityStake(makeBalance(null))).toBe(0n);
   });
 
-  it("sums stake across node, safe, PIX float and peer allocations", () => {
+  it("sums stake across node, safe, PIX pool and peer allocations", () => {
     const allocations = makeAllocations({
       node: makeCapacity(0, 1n),
       safe: makeCapacity(0, 20n),
@@ -180,23 +180,14 @@ describe("creditBreakdown", () => {
         ["Safe", 20n, 40n, 200n, "part"],
         ["Channels", 700n, 1400n, 7000n, "part"],
         ["Without PIX pool", 721n, 1442n, 7210n, "sum"],
-        ["PIX pool", 5000n, 10000n, 50000n, "part"],
-        ["Total", 5721n, 11442n, 57210n, "sum"],
+        ["PIX pool", null, 10000n, 50000n, "part"],
+        ["Total", null, 11442n, 57210n, "sum"],
       ]);
   });
 
   it("has no PIX-price figures without a PIX price", () => {
     const lines = creditBreakdown(makeBalance(makeAllocations({})))!;
     expect(lines.every((l) => l.pixBytes === null)).toBe(true);
-  });
-
-  it("matches computeEffectiveCredit in its total without a PIX price", () => {
-    const balance = makeBalance(makeAllocations({
-      safe: makeCapacity(1_000_000),
-      exit_traffic: makeExitFunds(250_000),
-    }));
-    const total = creditBreakdown(balance)!.find((l) => l.label === "Total");
-    expect(total?.bytes).toBe(computeEffectiveCredit(balance));
   });
 });
 

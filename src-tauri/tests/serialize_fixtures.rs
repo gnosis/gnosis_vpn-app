@@ -860,7 +860,7 @@ fn generate_fixtures() {
         }),
     );
 
-    // One open channel, the Safe, wxHOPR on the node EOA not yet swept into the Safe, and the PIX float.
+    // One open channel, the Safe, wxHOPR on the node EOA not yet swept into the Safe, and the PIX pool.
     let capacity_allocations = CapacityAllocations {
         peer_allocations: BTreeMap::from([(
             address(),

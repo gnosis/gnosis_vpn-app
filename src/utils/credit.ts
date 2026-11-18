@@ -93,8 +93,8 @@ export function computeEffectiveCredit(balance: BalanceResponse): bigint {
 /** One line of {@link creditBreakdown}: an allocation or a sum of the lines above it. */
 export interface CreditLine {
   label: string;
-  /** At the relay rate. */
-  bytes: bigint;
+  /** At the relay rate; null for lines holding the PIX pool, which never pays relays. */
+  bytes: bigint | null;
   /** At the PIX price; null without one. */
   pixBytes: bigint | null;
   stake: bigint;
@@ -105,7 +105,8 @@ export interface CreditLine {
 export function creditBreakdown(balance: BalanceResponse): CreditLine[] | null {
   const caps = balance.capacity_allocations;
   if (!caps) return null;
-  const price = caps.exit_traffic.price_per_byte;
+  const exit = caps.exit_traffic;
+  const price = exit.price_per_byte;
   const line = (
     label: string,
     parts: Pick<Capacity, "stake" | "byte_capacity">[],
@@ -114,7 +115,9 @@ export function creditBreakdown(balance: BalanceResponse): CreditLine[] | null {
     const stake = parts.reduce((total, c) => total + c.stake, 0n);
     return {
       label,
-      bytes: parts.reduce((total, c) => total + BigInt(c.byte_capacity), 0n),
+      bytes: parts.includes(exit)
+        ? null
+        : parts.reduce((total, c) => total + BigInt(c.byte_capacity), 0n),
       pixBytes: price > 0n ? stake / price : null,
       stake,
       kind,
@@ -122,7 +125,6 @@ export function creditBreakdown(balance: BalanceResponse): CreditLine[] | null {
   };
   const channels = Object.values(caps.peer_allocations);
   const held = [caps.node, caps.safe, ...channels];
-  const exit = caps.exit_traffic;
   return [
     line("EOA", [caps.node]),
     line("Safe", [caps.safe]),

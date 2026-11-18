@@ -39,7 +39,7 @@ export default function BalanceBreakdown(props: { lines: CreditLine[] }) {
                   {line.label}
                 </th>
                 <td class="py-0.5 text-right font-figures whitespace-nowrap tabular-nums">
-                  {formatCreditPrecise(line.bytes)}
+                  {line.bytes === null ? "—" : formatCreditPrecise(line.bytes)}
                 </td>
                 <td class="py-0.5 pl-3 text-right font-figures whitespace-nowrap tabular-nums">
                   {line.pixBytes === null
