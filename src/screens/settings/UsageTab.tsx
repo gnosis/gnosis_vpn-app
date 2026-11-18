@@ -235,7 +235,12 @@ export default function UsageTab(
           />
         </div>
         <Show when={breakdown()}>
-          {(lines) => <BalanceBreakdown lines={lines()} />}
+          {(lines) => (
+            <BalanceBreakdown
+              lines={lines()}
+              xdai={appState.balance?.node ?? 0n}
+            />
+          )}
         </Show>
         <Show when={balanceWarnings().length > 0}>
           <div class="mt-auto flex shrink-0 flex-col gap-2 pt-2">

@@ -1,20 +1,29 @@
-import { For } from "solid-js";
+import { createUniqueId, For } from "solid-js";
 import { type CreditLine, formatCreditPrecise } from "@src/utils/credit.ts";
-import { humanWxhoprParts } from "@src/utils/hopli.ts";
+import { formatXdai, humanWxhoprParts } from "@src/utils/hopli.ts";
 
 const ROW_CLASS: Record<CreditLine["kind"], string> = {
   part: "text-text-soft",
   sum: "border-t border-border font-semibold text-text-primary",
 };
 
-/** Each allocation's data at the relay rate and at the PIX price, and its wxHOPR, with the totals without and with the PIX pool. */
-export default function BalanceBreakdown(props: { lines: CreditLine[] }) {
+/** The EOA's xDAI, then each allocation's data at the relay rate and at the PIX price, and its wxHOPR, with the totals without and with the PIX pool. */
+export default function BalanceBreakdown(
+  props: { lines: CreditLine[]; xdai: bigint },
+) {
+  const headingId = createUniqueId();
   return (
     <div class="flex shrink-0 flex-col rounded-xl bg-bg-list px-3.5 py-3">
-      <table class="w-full text-[13px] leading-5">
-        <caption class="pb-1.5 text-left text-xs leading-4 text-text-subtle">
-          Balance breakdown
-        </caption>
+      <span id={headingId} class="pb-1.5 text-xs leading-4 text-text-subtle">
+        Balance breakdown
+      </span>
+      <p class="flex justify-between gap-3 border-b border-border pb-1.5 mb-1.5 text-[13px] leading-5 text-text-soft">
+        <span>EOA xDAI</span>
+        <span class="font-figures whitespace-nowrap tabular-nums">
+          {formatXdai(props.xdai, 6)}
+        </span>
+      </p>
+      <table class="w-full text-[13px] leading-5" aria-labelledby={headingId}>
         <thead>
           <tr class="text-xs leading-4 text-text-subtle">
             <th scope="col" class="pb-1 text-left font-normal">Allocation</th>
