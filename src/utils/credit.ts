@@ -75,13 +75,13 @@ export function sumCapacityStake(balance: BalanceResponse): bigint {
   );
 }
 
-/** Data left: what exits sell for the PIX pool, Safe and node EOA at the PIX price, as the client reports it.
+/** Data left: all wxHOPR at the PIX price, as the client reports it.
  * Without a PIX price, the byte_capacity of every allocation at the relay rate. */
 export function computeEffectiveCredit(balance: BalanceResponse): bigint {
   const caps = balance.capacity_allocations;
   if (!caps) return 0n;
   if (caps.exit_traffic.price_per_byte > 0n) {
-    return BigInt(caps.exit_traffic.bytes_from_exits_with_safe);
+    return BigInt(caps.exit_traffic.total_bytes_at_pix_price);
   }
   return Object.values(caps.peer_allocations).reduce(
     (sum, c) => sum + BigInt(c.byte_capacity),

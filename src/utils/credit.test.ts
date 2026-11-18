@@ -35,14 +35,14 @@ function makeExitFunds(
   byte_capacity: number,
   stake = 0n,
   bytes_from_exits = 0,
-  bytes_from_exits_with_safe = 0,
+  total_bytes_at_pix_price = 0,
   price_per_byte = 0n,
 ): ExitTrafficFunds {
   return {
     stake,
     byte_capacity,
     bytes_from_exits,
-    bytes_from_exits_with_safe,
+    total_bytes_at_pix_price,
     price_per_byte,
   };
 }

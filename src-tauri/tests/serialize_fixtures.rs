@@ -887,7 +887,7 @@ fn generate_fixtures() {
             stake: Balance::from_wei(1_000_000_000_000_000_000), // 1 wxHOPR
             byte_capacity: 524_288,
             bytes_from_exits: 1_000_000_000, // at 1 Gwei per byte
-            bytes_from_exits_with_safe: 3_250_000_000, // with the Safe and node
+            total_bytes_at_pix_price: 3_750_000_000, // all 3.75 wxHOPR
             price_per_byte: Balance::from_wei(1_000_000_000),
         },
     };

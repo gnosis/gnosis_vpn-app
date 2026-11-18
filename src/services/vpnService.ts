@@ -473,12 +473,12 @@ export const CapacitySchema = z.object({
 });
 export type Capacity = z.infer<typeof CapacitySchema>;
 
-// The funds paying for exit traffic (the PIX pool): byte_capacity values them at the relay rate, bytes_from_exits is what they buy from exits, bytes_from_exits_with_safe adds the Safe and node EOA that top the pool up.
+// The funds paying for exit traffic (the PIX pool): byte_capacity values them at the relay rate, bytes_from_exits is what they buy from exits, total_bytes_at_pix_price is all wxHOPR at the PIX price.
 export const ExitTrafficFundsSchema = z.object({
   stake: BigIntStringSchema,
   byte_capacity: z.number(),
   bytes_from_exits: z.number(),
-  bytes_from_exits_with_safe: z.number(),
+  total_bytes_at_pix_price: z.number(),
   // Wei per byte; zero without a PIX pool.
   price_per_byte: BigIntStringSchema,
 });

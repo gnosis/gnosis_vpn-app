@@ -428,7 +428,7 @@ describe("BalanceResponseSchema", () => {
       stake: 0n,
       byte_capacity: 0,
       bytes_from_exits: 0,
-      bytes_from_exits_with_safe: 0,
+      total_bytes_at_pix_price: 0,
       price_per_byte: 0n,
     });
   });
