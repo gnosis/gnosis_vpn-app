@@ -111,9 +111,10 @@ function mapStoreToScreenProps(screen: ValidScreen, state: AppState) {
         syncProgress: state.syncProgress,
         recoveryReason: state.syncRecoveryReason,
       };
+    case "serviceNotRunning":
+      return { packageVersion: state.packageVersion };
     case "main":
     case "onboarding":
-    case "serviceNotRunning":
     default:
       return {};
   }
