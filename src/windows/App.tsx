@@ -101,8 +101,6 @@ function mapStoreToScreenProps(screen: ValidScreen, state: AppState) {
   switch (screen) {
     case "initialization":
       return {
-        info: state.serviceInfo,
-        packageVersion: state.packageVersion,
         error: state.error,
         recoveryReason: state.syncRecoveryReason,
       };
