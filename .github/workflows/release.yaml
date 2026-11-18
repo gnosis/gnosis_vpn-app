@@ -39,7 +39,7 @@ jobs:
       pull-requests: read
       id-token: write
     with:
-      source_branch: ${{ github.ref_name }}
+      ref: ${{ github.ref_name }}
       architecture: ${{ matrix.binary.architecture }}
       runner: ${{ matrix.binary.runner }}
       version_type: "release"

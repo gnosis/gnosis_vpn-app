@@ -31,7 +31,7 @@ jobs:
       pull-requests: read
       id-token: write
     with:
-      source_branch: ${{ github.event.pull_request.base.ref }}
+      ref: ${{ github.event.pull_request.merge_commit_sha }}
       architecture: ${{ matrix.binary.architecture }}
       runner: ${{ matrix.binary.runner }}
       version_type: "pr"
