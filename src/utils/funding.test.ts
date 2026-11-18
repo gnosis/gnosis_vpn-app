@@ -136,7 +136,7 @@ describe("preparingSafeShortfall", () => {
     balance_recommendation: recommended && {
       ...recommended,
       channel_stakes: 0n,
-      pix_float: 0n,
+      pix_pool: 0n,
       fee_to_start: 0n,
       txs_to_start: 0,
       xdai_fee_per_tx: 0n,

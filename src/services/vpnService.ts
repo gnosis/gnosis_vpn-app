@@ -456,7 +456,7 @@ export const BalanceRecommendationSchema = z.object({
   xdai: BigIntStringSchema,
   channel_stakes: BigIntStringSchema,
   // PIX pool shielded from the Safe once; part of `wxhopr`, only during onboarding.
-  pix_float: BigIntStringSchema,
+  pix_pool: BigIntStringSchema,
   fee_to_start: BigIntStringSchema,
   txs_to_start: z.number(),
   xdai_fee_per_tx: BigIntStringSchema,
