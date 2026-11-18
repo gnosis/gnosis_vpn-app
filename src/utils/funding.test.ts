@@ -143,7 +143,7 @@ describe("preparingSafeShortfall", () => {
     node_wxhopr: have.wxhopr,
     node_xdai: have.xdai,
     funding_tool: null,
-    error: null,
+    issue: null,
     balance_recommendation: recommended && {
       ...recommended,
       channel_stakes: 0n,

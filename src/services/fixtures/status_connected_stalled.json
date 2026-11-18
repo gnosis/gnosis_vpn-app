@@ -17,7 +17,8 @@
     "stall": {
       "since": 0,
       "failed_pings": 2,
-      "reconnect_at": 3
+      "reconnect_at": 3,
+      "awaiting_payment_since": null
     },
     "pix": {
       "phase": {

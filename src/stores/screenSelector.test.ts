@@ -3,6 +3,7 @@ import type {
   DestinationState,
   RouteHealthView,
   RunMode,
+  StartupIssue,
   StatusResponse,
 } from "@src/services/vpnService.ts";
 
@@ -39,22 +40,26 @@ const RUNNING: RunMode = {
 const WARMUP: RunMode = {
   type: "warmup",
   stage: "starting_node",
-  last_error: null,
+  issue: null,
 };
 const DEPLOYING_SAFE: RunMode = {
   type: "deploying_safe",
   node_address: "0xnode",
 };
-const LOOKING_UP_SAFE: RunMode = { type: "init", last_error: null };
+const LOOKING_UP_SAFE: RunMode = { type: "init", issue: null };
 const PREPARING_SAFE: RunMode = {
   type: "preparing_safe",
   node_address: "0xnode",
   node_xdai: 0n,
   node_wxhopr: 0n,
   funding_tool: null,
-  error: null,
+  issue: null,
   balance_recommendation: null,
 };
+
+function issue(message: string): StartupIssue {
+  return { kind: { type: "other" }, message, since: 0 };
+}
 
 function failedSafeDeployment(
   funded: boolean,
@@ -65,7 +70,7 @@ function failedSafeDeployment(
     node_xdai: funded ? 10n : 0n,
     node_wxhopr: funded ? 10n : 0n,
     funding_tool: null,
-    error: "deploy tx reverted",
+    issue: issue("deploy tx reverted"),
     balance_recommendation: {
       wxhopr: 5n,
       xdai: 5n,
@@ -226,7 +231,7 @@ describe("createScreenSelector", () => {
     expect(select(status(failedSafeDeployment(true)))).toEqual([
       AppScreen.Synchronization,
       "Safe deployment failed, retrying",
-      "deploy tx reverted",
+      issue("deploy tx reverted"),
     ]);
   });
 
@@ -248,9 +253,11 @@ describe("createScreenSelector", () => {
     const failing: RunMode = {
       type: "warmup",
       stage: "starting_node",
-      last_error: "safe 0xabc does not exist",
+      issue: issue("safe 0xabc does not exist"),
     };
-    expect(select(status(failing))[2]).toBe("safe 0xabc does not exist");
+    expect(select(status(failing))[2]?.message).toBe(
+      "safe 0xabc does not exist",
+    );
     expect(select(status(WARMUP))[2]).toBeNull();
   });
 
@@ -265,11 +272,12 @@ describe("createScreenSelector", () => {
 
   it("reports a failing safe lookup as the recovery reason", () => {
     const select = createScreenSelector();
-    const failing: RunMode = { type: "init", last_error: "blokli unreachable" };
+    const unreachable = issue("blokli unreachable");
+    const failing: RunMode = { type: "init", issue: unreachable };
     expect(select(status(failing))).toEqual([
       AppScreen.Initialization,
       "Checking for an existing safe",
-      "blokli unreachable",
+      unreachable,
     ]);
   });
 

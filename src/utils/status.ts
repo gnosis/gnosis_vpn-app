@@ -4,6 +4,7 @@ import {
   isPreparingSafeRunMode,
   isRunningRunMode,
   type RunMode,
+  type StartupIssue,
   StatusResponse,
   type TunnelStall,
   warmupProgress,
@@ -164,4 +165,48 @@ export function channelMaintenanceWarning(
   return `Channel maintenance down for ${
     formatDurationShort(sec)
   } — tunnel may degrade`;
+}
+
+/** A failing startup step only shows once it outlasts a blip, e.g. Wi-Fi still coming up. */
+export const STARTUP_ISSUE_SHOW_DELAY_MS = 10_000;
+
+export type StartupIssueAction = "send-logs" | "check-update";
+
+export interface StartupIssueHint {
+  text: string;
+  action: StartupIssueAction | null;
+}
+
+/** What the user can do about a startup step that keeps failing; null while it may still be a blip. */
+export function startupIssueHint(
+  issue: StartupIssue | null | undefined,
+  nowMs: number,
+): StartupIssueHint | null {
+  if (!issue) return null;
+  if (nowMs - issue.since < STARTUP_ISSUE_SHOW_DELAY_MS) return null;
+  switch (issue.kind.type) {
+    case "unreachable":
+      return {
+        text:
+          "Can't reach the GnosisVPN network. Check your internet connection, proxy or firewall.",
+        action: null,
+      };
+    case "service_unavailable":
+      return {
+        text:
+          "The GnosisVPN network service isn't responding. Still retrying; send logs if this persists.",
+        action: "send-logs",
+      };
+    case "incompatible":
+      return {
+        text:
+          "This version can't talk to the GnosisVPN network. Update GnosisVPN.",
+        action: "check-update",
+      };
+    case "other":
+      return {
+        text: `Startup is stuck: ${issue.message}`,
+        action: "send-logs",
+      };
+  }
 }

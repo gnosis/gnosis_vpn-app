@@ -4,6 +4,7 @@ import {
   isPreparingSafeRunMode,
   isRunningRunMode,
   type PreparingSafe,
+  type StartupIssue,
   type StatusResponse,
   warmupProgress,
 } from "@src/services/vpnService.ts";
@@ -20,8 +21,8 @@ export enum AppScreen {
 
 export type SyncPhaseIndex = 0 | 1 | 2;
 
-/** Screen to show, its status line, and the error a retrying sync waits to recover from. */
-export type ScreenChoice = [AppScreen, string, string | null];
+/** Screen to show, its status line, and the issue a retrying sync waits to recover from. */
+export type ScreenChoice = [AppScreen, string, StartupIssue | null];
 
 /** How long a stuck startup sync waits for a route before moving on. */
 export const MAXIMUM_DELAY_TIME = 5 * 60 * 1000;
@@ -53,12 +54,12 @@ function isUnderfunded(safe: PreparingSafe): boolean {
 }
 
 /** A failed safe deployment the daemon retries by itself, without the user topping up. */
-function retryingSafeDeployment(status: StatusResponse): string | null {
+function retryingSafeDeployment(status: StatusResponse): StartupIssue | null {
   const runMode = status.run_mode;
   if (!isPreparingSafeRunMode(runMode)) return null;
   const safe = runMode;
-  if (!safe.error || isUnderfunded(safe)) return null;
-  return safe.error;
+  if (!safe.issue || isUnderfunded(safe)) return null;
+  return safe.issue;
 }
 
 export function detectSyncPhase(
@@ -104,7 +105,7 @@ export function createScreenSelector(): (
       return [
         AppScreen.Initialization,
         "Checking for an existing safe",
-        runMode.last_error,
+        runMode.issue,
       ];
     }
 
@@ -117,7 +118,7 @@ export function createScreenSelector(): (
       return [
         AppScreen.Synchronization,
         formatWarmupStatus(warmup.stage),
-        warmup.last_error,
+        warmup.issue,
       ];
     }
     // Only a running daemon spends the sync screen: the app sees not_running before it starts the worker.

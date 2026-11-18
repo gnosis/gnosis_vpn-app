@@ -6,6 +6,7 @@ import type {
   Disconnecting,
   RouteHealthView,
   RunMode,
+  StartupIssue,
   StatusResponse,
 } from "@src/services/vpnService.ts";
 import type { AppState } from "@src/stores/appStore.ts";
@@ -19,6 +20,8 @@ import {
   isDisconnected,
   isDisconnecting,
   isSwitchingDestination,
+  STARTUP_ISSUE_SHOW_DELAY_MS,
+  startupIssueHint,
   waitingForRouteMessage,
 } from "./status.ts";
 import { makeDestination } from "@src/testing/destinations.ts";
@@ -291,12 +294,12 @@ describe("deriveVPNStatus", () => {
     const warmup: RunMode = {
       type: "warmup",
       stage: "waiting_for_funds",
-      last_error: null,
+      issue: null,
     };
     expect(deriveVPNStatus({ ...BASE, run_mode: warmup })).toBe(
       "waiting_for_funds",
     );
-    const init: RunMode = { type: "init", last_error: null };
+    const init: RunMode = { type: "init", issue: null };
     expect(deriveVPNStatus({ ...BASE, run_mode: init })).toBe("initializing");
   });
 });
@@ -417,5 +420,44 @@ describe("isSwitchingDestination", () => {
     expect(isSwitchingDestination("Disconnecting", "dest-2")).toBe(true);
     expect(isSwitchingDestination("Disconnecting", null)).toBe(false);
     expect(isSwitchingDestination("Connecting", "dest-2")).toBe(false);
+  });
+});
+
+describe("startupIssueHint", () => {
+  const since = 1_000_000;
+  const issue = (type: StartupIssue["kind"]["type"]): StartupIssue => ({
+    kind: { type },
+    message: "connector: server not healthy",
+    since,
+  });
+  const shown = since + STARTUP_ISSUE_SHOW_DELAY_MS;
+
+  it("stays hidden while the failure may still be a blip", () => {
+    expect(startupIssueHint(issue("unreachable"), shown - 1)).toBeNull();
+    expect(startupIssueHint(null, shown)).toBeNull();
+  });
+
+  it("points at the user's own network when the service is unreachable", () => {
+    const hint = startupIssueHint(issue("unreachable"), shown);
+    expect(hint?.text).toContain("internet connection");
+    expect(hint?.action).toBeNull();
+  });
+
+  it("offers logs while the service is unavailable", () => {
+    expect(startupIssueHint(issue("service_unavailable"), shown)?.action).toBe(
+      "send-logs",
+    );
+  });
+
+  it("offers an update when the answer can't be understood", () => {
+    expect(startupIssueHint(issue("incompatible"), shown)?.action).toBe(
+      "check-update",
+    );
+  });
+
+  it("names the cause of an uncategorized failure", () => {
+    const hint = startupIssueHint(issue("other"), shown);
+    expect(hint?.text).toContain("server not healthy");
+    expect(hint?.action).toBe("send-logs");
   });
 });
