@@ -18,7 +18,11 @@ import {
   formatCountCompact,
   formatCreditCompact,
 } from "@src/utils/credit.ts";
-import { deriveNodeStatus, deriveTrafficStatus } from "@src/utils/funding.ts";
+import {
+  deriveNodeStatus,
+  deriveTrafficStatus,
+  formatDataToSend,
+} from "@src/utils/funding.ts";
 import { exitDisplayName, exitShortId } from "@src/utils/destinations.ts";
 import {
   clearSettingsRequest,
@@ -29,6 +33,7 @@ import Button from "@src/components/common/Button.tsx";
 import Tooltip from "@src/components/common/Tooltip.tsx";
 import { ShortId } from "@src/components/exitNode/LocationRow.tsx";
 import UsageMeter from "@src/components/exitNode/UsageMeter.tsx";
+import ArrowRightIcon from "@src/components/icons/ArrowRightIcon.tsx";
 import BackIcon from "@src/components/icons/BackIcon.tsx";
 import CheckCircleIcon from "@src/components/icons/CheckCircleIcon.tsx";
 import SettingIcon from "@src/components/icons/SettingIcon.tsx";
@@ -101,6 +106,7 @@ export default function UsageTab(
     runModeStatus,
     nodeAddress,
     tokenStatus,
+    dataShortfall,
   } = useFunding();
 
   // The balance popover's "Add data" lands here; before the card shows it only opens the tab.
@@ -164,7 +170,7 @@ export default function UsageTab(
   const enoughText = () => {
     const tokens = (["wxhopr", "xdai"] as const)
       .filter((token) => tokenStatus(token) === "Sufficient")
-      .map((token) => token === "wxhopr" ? "wxHOPR" : "xDAI");
+      .map((token) => token === "wxhopr" ? "data" : "xDAI");
     return tokens.length > 0 ? `You have enough ${tokens.join(" and ")}` : null;
   };
 
@@ -201,6 +207,26 @@ export default function UsageTab(
               </span>
             </Show>
           </div>
+          <Show when={dataShortfall()}>
+            {(bytes) => (
+              <TokenNote
+                icon={
+                  <ArrowRightIcon
+                    class={`size-full ${
+                      trafficStatus() === "Empty"
+                        ? "text-bad-ink"
+                        : "text-warn-ink"
+                    }`}
+                  />
+                }
+              >
+                Add at least{" "}
+                <span class="font-figures font-bold text-text-primary">
+                  {formatDataToSend(bytes())}
+                </span>
+              </TokenNote>
+            )}
+          </Show>
           <Show when={enoughText()}>
             {(text) => (
               <TokenNote

@@ -10,9 +10,8 @@ import { useAppStore } from "@src/stores/appStore.ts";
 import { logWarn } from "@src/utils/appLog.ts";
 import { sumCapacityStake } from "@src/utils/credit.ts";
 import {
-  deriveRefillShortfall,
-  deriveWxhoprDeficit,
   deriveXdaiDeficit,
+  formatDataToSend,
   preparingSafeShortfall,
   roundUpToStep,
   type StatusText,
@@ -112,7 +111,8 @@ function TokenRow(props: {
   amount: string;
   status: StatusText | null;
   statusClass: string;
-  sendAtLeast: string | null;
+  /** `worth`: the amount is the data the token buys, not the token. */
+  sendAtLeast: { amount: string; worth: boolean } | null;
   enough: boolean;
 }) {
   return (
@@ -140,17 +140,25 @@ function TokenRow(props: {
         </span>
       </div>
       <Show when={props.sendAtLeast}>
-        {(amount) => (
-          <TokenNote
-            icon={<ArrowRightIcon class={`size-full ${props.statusClass}`} />}
-          >
-            Send at least{" "}
+        {(ask) => {
+          const amount = (
             <span class="cursor-text font-figures font-bold text-text-primary select-text">
-              {amount()}
-            </span>{" "}
-            {props.token}
-          </TokenNote>
-        )}
+              {ask().amount}
+            </span>
+          );
+          return (
+            <TokenNote
+              icon={<ArrowRightIcon class={`size-full ${props.statusClass}`} />}
+            >
+              <Show
+                when={ask().worth}
+                fallback={<>Send at least {amount} {props.token}</>}
+              >
+                Send {props.token} worth at least {amount}
+              </Show>
+            </TokenNote>
+          );
+        }}
       </Show>
       <Show when={props.enough}>
         <TokenNote icon={<CheckCircleIcon class="size-full text-ok-badge" />}>
@@ -193,26 +201,28 @@ export default function SendFundsPage(props: { onBack: () => void }) {
   const needsFunds = (status: StatusText | null) =>
     status === "Empty" || status === "Low";
   const wxhoprToSend = () => {
-    if (!needsFunds(trafficStatus())) return null;
+    const data = funding.dataShortfall();
+    if (data !== null) return { amount: formatDataToSend(data), worth: true };
+    const amount = funding.wxhoprShortfall();
+    if (amount === null) return null;
     // Onboarding shows the client's exact minimum; a running top-up reads better as a round amount.
-    const onboarding = preparingSafeShortfall(
-      funding.preparingSafe(),
-      "wxhopr",
-    );
-    if (onboarding) return formatWxhopr(onboarding, 3, "ceil");
-    const deficit = deriveWxhoprDeficit(
-      appState.balance,
-      funding.runModeStatus(),
-    ) ?? deriveRefillShortfall(appState.balance, funding.runModeStatus());
-    return deficit
-      ? formatWxhopr(roundUpToStep(deficit, WXHOPR_SEND_STEP), 3, "ceil")
-      : null;
+    const exact = funding.preparingSafe() !== null;
+    return {
+      amount: formatWxhopr(
+        exact ? amount : roundUpToStep(amount, WXHOPR_SEND_STEP),
+        3,
+        "ceil",
+      ),
+      worth: false,
+    };
   };
   const xdaiToSend = () => {
     if (!needsFunds(gasStatus())) return null;
     const deficit = preparingSafeShortfall(funding.preparingSafe(), "xdai") ??
       deriveXdaiDeficit(appState.balance, funding.runModeStatus());
-    return deficit ? formatXdai(deficit, 3, "ceil") : null;
+    return deficit
+      ? { amount: formatXdai(deficit, 3, "ceil"), worth: false }
+      : null;
   };
 
   return (

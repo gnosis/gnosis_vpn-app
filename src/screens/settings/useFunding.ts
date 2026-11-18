@@ -7,8 +7,11 @@ import {
 } from "@src/services/vpnService.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
 import {
+  dataToSend,
   deriveNodeStatus,
+  deriveRefillShortfall,
   deriveTrafficStatus,
+  deriveWxhoprDeficit,
   preparingSafeShortfall,
   resolveFundingStatus,
   type StatusText,
@@ -92,6 +95,23 @@ export function useFunding() {
   /** A token's level as Send funds shows it; null while unknown. */
   const tokenStatus = (token: "wxhopr" | "xdai") => statuses[token]();
 
+  /** wxHOPR to send while traffic is Low or Empty; null otherwise, or when the client names no amount. */
+  const wxhoprShortfall = () => {
+    const status = tokenStatus("wxhopr");
+    if (status !== "Empty" && status !== "Low") return null;
+    return preparingSafeShortfall(preparingSafe(), "wxhopr") ??
+      deriveWxhoprDeficit(appState.balance, runModeStatus()) ??
+      deriveRefillShortfall(appState.balance, runModeStatus());
+  };
+  /** That shortfall as data at the PIX price; null without one (onboarding, older services). */
+  const dataShortfall = () => {
+    const amount = wxhoprShortfall();
+    const price =
+      appState.balance?.capacity_allocations?.exit_traffic.price_per_byte ??
+        0n;
+    return amount === null ? null : dataToSend(amount, price);
+  };
+
   return {
     preparingSafe,
     standIn,
@@ -99,5 +119,7 @@ export function useFunding() {
     runModeStatus,
     nodeAddress,
     tokenStatus,
+    wxhoprShortfall,
+    dataShortfall,
   };
 }

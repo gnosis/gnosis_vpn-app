@@ -4,6 +4,7 @@ import type {
   FundingStatus,
   PreparingSafe,
 } from "@src/services/vpnService.ts";
+import { BYTES_PER_GB } from "@src/utils/credit.ts";
 
 export type StatusText = "Sufficient" | "Low" | "Empty" | string;
 
@@ -96,4 +97,24 @@ export const WXHOPR_SEND_STEP = 10n * 10n ** 18n;
 /** Rounds `amount` up to the next multiple of `step`. */
 export function roundUpToStep(amount: bigint, step: bigint): bigint {
   return ((amount + step - 1n) / step) * step;
+}
+
+/** Data asks are rounded up to whole multiples of this. */
+export const DATA_SEND_STEP = 5n * BYTES_PER_GB;
+
+/** `wxhopr` as data at the PIX `pricePerByte`, rounded up to whole 5 GB; null without a price. */
+export function dataToSend(
+  wxhopr: bigint,
+  pricePerByte: bigint,
+): bigint | null {
+  if (pricePerByte <= 0n) return null;
+  return roundUpToStep(
+    (wxhopr + pricePerByte - 1n) / pricePerByte,
+    DATA_SEND_STEP,
+  );
+}
+
+/** A {@link dataToSend} amount, always whole GB. */
+export function formatDataToSend(bytes: bigint): string {
+  return `${bytes / BYTES_PER_GB} GB`;
 }
