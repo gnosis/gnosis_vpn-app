@@ -34,6 +34,7 @@ const BASE: StatusResponse = {
   disconnecting: [],
   probe: null,
   pix_chunk_bytes: null,
+  pix_price_per_byte: 0n,
   probing: null,
   recent: [],
 };
@@ -103,6 +104,7 @@ const BASE_APP_STATE: AppState = {
   endOfLife: null,
   targetDestination: null,
   pixChunkBytes: null,
+  pixPricePerByte: 0n,
   recent: [],
   balance: null,
   packageVersion: null,

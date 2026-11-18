@@ -112,6 +112,8 @@ export interface AppState {
   targetDestination: string | null;
   // Data an exit sets aside per connection; null until the node runs.
   pixChunkBytes: number | null;
+  // wxHOPR per byte of exit traffic, in every run mode; 0n until a status reports it.
+  pixPricePerByte: bigint;
   // The service's recently connected exits, newest first.
   recent: string[];
   balance: BalanceResponse | null;
@@ -173,6 +175,7 @@ function initialState(): AppState {
     endOfLife: null,
     targetDestination: null,
     pixChunkBytes: null,
+    pixPricePerByte: 0n,
     recent: [],
     balance: null,
     packageVersion: null,
@@ -443,6 +446,7 @@ export function createAppStore(): AppStoreTuple {
     );
     setState("targetDestination", response.target);
     setState("pixChunkBytes", response.pix_chunk_bytes);
+    setState("pixPricePerByte", response.pix_price_per_byte);
     setState("recent", reconcile(response.recent));
     setState("connection", reconcile(response.connection));
     setState("disconnecting", reconcile(response.disconnecting));

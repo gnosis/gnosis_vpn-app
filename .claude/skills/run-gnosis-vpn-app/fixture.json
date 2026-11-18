@@ -123,6 +123,7 @@
         "disconnecting": [],
         "probe": null,
         "pix_chunk_bytes": 951644160,
+        "pix_price_per_byte": "9000000000",
         "probing": null,
         "recent": ["dest-zurich"],
         "exit_names": {
