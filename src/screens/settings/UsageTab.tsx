@@ -25,6 +25,7 @@ import {
   settingsRequest,
 } from "@src/utils/settingsPage.ts";
 import Banner from "@src/components/common/Banner.tsx";
+import Button from "@src/components/common/Button.tsx";
 import Tooltip from "@src/components/common/Tooltip.tsx";
 import { ShortId } from "@src/components/exitNode/LocationRow.tsx";
 import UsageMeter from "@src/components/exitNode/UsageMeter.tsx";
@@ -196,18 +197,19 @@ export default function UsageTab(
           >
             <BackIcon class="rotate-180 text-text-subtle" />
           </SettingsRow>
-          <Show when={nodeAddress()}>
-            {(address) => (
-              <SettingsRow
-                icon="external"
-                title="Open funding site"
-                onClick={() => void openFundingSite(address())}
-              >
-                <BackIcon class="rotate-180 text-text-subtle" />
-              </SettingsRow>
-            )}
-          </Show>
         </SettingsCard>
+        <Show when={nodeAddress()}>
+          {(address) => (
+            <Button
+              size="xl"
+              variant="connect"
+              class="shrink-0"
+              onClick={() => void openFundingSite(address())}
+            >
+              Open funding site <span aria-hidden="true">↗</span>
+            </Button>
+          )}
+        </Show>
         <SettingsHeading>This exit</SettingsHeading>
         <div class="flex shrink-0 flex-col rounded-xl bg-bg-list px-3.5 py-3.5">
           <UsageMeter

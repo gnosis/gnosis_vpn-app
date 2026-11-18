@@ -23,9 +23,12 @@ export default function AccountId(props: { address: string }) {
     <div class="flex shrink-0 flex-col gap-1 rounded-xl bg-bg-list px-3.5 py-3">
       <span class="text-xs leading-4 text-text-subtle">Account ID</span>
       <div class="flex items-center gap-2">
-        <span class="min-w-0 flex-1 cursor-text font-figures text-[11px] leading-4 break-all text-address-ink select-text">
-          {props.address}
-        </span>
+        <div class="@container min-w-0 flex-1">
+          {/* 42 monospace glyphs at 0.6em fill 25.2em, so 3.9cqi keeps the address on one line */}
+          <span class="block cursor-text overflow-hidden font-figures text-[length:clamp(9px,3.9cqi,11px)] leading-4 text-ellipsis whitespace-nowrap text-address-ink select-text">
+            {props.address}
+          </span>
+        </div>
         <button
           type="button"
           class="inline-flex size-6.5 shrink-0 items-center justify-center rounded-[7px] bg-control-bg text-text-soft hover:cursor-pointer hover:bg-control-bg-hover"
