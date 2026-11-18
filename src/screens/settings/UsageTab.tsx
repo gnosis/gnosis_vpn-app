@@ -31,6 +31,7 @@ import UsageMeter from "@src/components/exitNode/UsageMeter.tsx";
 import BackIcon from "@src/components/icons/BackIcon.tsx";
 import SettingIcon from "@src/components/icons/SettingIcon.tsx";
 import WarningIcon from "@src/components/icons/WarningIcon.tsx";
+import AccountId from "@src/components/settings/AccountId.tsx";
 import BalanceBreakdown from "@src/components/settings/BalanceBreakdown.tsx";
 import Notice from "@src/components/settings/Notice.tsx";
 import {
@@ -184,6 +185,9 @@ export default function UsageTab(
             </Show>
           </div>
         </div>
+        <Show when={nodeAddress()}>
+          {(address) => <AccountId address={address()} />}
+        </Show>
         <SettingsCard label="Funding">
           <SettingsRow
             icon="add"
