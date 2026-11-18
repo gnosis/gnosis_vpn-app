@@ -38,7 +38,7 @@ jobs:
       pull-requests: read
       id-token: write
     with:
-      source_branch: ${{ github.event.pull_request.head.ref || github.ref }}
+      ref: ${{ github.event.pull_request.head.ref || github.ref }}
       architecture: ${{ matrix.architecture }}
       runner: ${{ matrix.runner }}
       version_type: "commit"
