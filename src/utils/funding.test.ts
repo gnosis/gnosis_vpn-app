@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  DATA_SEND_STEP,
+  dataToSend,
   deriveNodeStatus,
-  deriveOverallStatus,
   deriveRefillShortfall,
   deriveTrafficStatus,
   deriveWxhoprDeficit,
   deriveXdaiDeficit,
+  formatDataToSend,
   preparingSafeShortfall,
   roundUpToStep,
   WXHOPR_SEND_STEP,
@@ -82,19 +84,6 @@ describe("deriveNodeStatus", () => {
   });
 });
 
-describe("deriveOverallStatus", () => {
-  it("returns the worst of traffic and gas", () => {
-    expect(deriveOverallStatus(makeBalance(makeStatus("empty", "good")), null))
-      .toBe("Empty");
-    expect(deriveOverallStatus(makeBalance(makeStatus("good", "empty")), null))
-      .toBe("Empty");
-    expect(deriveOverallStatus(makeBalance(makeStatus("low", "good")), null))
-      .toBe("Low");
-    expect(deriveOverallStatus(makeBalance(makeStatus("good", "good")), null))
-      .toBe("Sufficient");
-  });
-});
-
 describe("deriveWxhoprDeficit / deriveXdaiDeficit", () => {
   it("passes through the daemon-computed deficits as-is", () => {
     const status = makeStatus("low", "low", {
@@ -147,7 +136,7 @@ describe("preparingSafeShortfall", () => {
     balance_recommendation: recommended && {
       ...recommended,
       channel_stakes: 0n,
-      pix_float: 0n,
+      pix_pool: 0n,
       fee_to_start: 0n,
       txs_to_start: 0,
       xdai_fee_per_tx: 0n,
@@ -195,5 +184,27 @@ describe("roundUpToStep", () => {
 
   it("keeps exact multiples", () => {
     expect(roundUpToStep(100n * WXHOPR, WXHOPR_SEND_STEP)).toBe(100n * WXHOPR);
+  });
+});
+
+describe("dataToSend", () => {
+  const GB = 1024n ** 3n;
+
+  it("rounds the data the wxHOPR buys up to whole 5 GB", () => {
+    expect(dataToSend(1n, 1n)).toBe(DATA_SEND_STEP);
+    expect(dataToSend(5n * GB, 1n)).toBe(5n * GB);
+    expect(dataToSend(5n * GB + 1n, 1n)).toBe(10n * GB);
+  });
+
+  it("counts a partly bought byte as a whole one", () => {
+    expect(dataToSend(5n * GB * 9n + 1n, 9n)).toBe(10n * GB);
+  });
+
+  it("has no answer without a PIX price", () => {
+    expect(dataToSend(10n ** 18n, 0n)).toBeNull();
+  });
+
+  it("reads as whole GB", () => {
+    expect(formatDataToSend(15n * GB)).toBe("15 GB");
   });
 });

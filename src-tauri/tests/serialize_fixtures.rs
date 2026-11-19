@@ -147,7 +147,7 @@ fn balances(node: Balance<XDai>, safe: Balance<WxHopr>) -> Balances {
         capacity_allocations: None,
         ideal_balance: None,
         funding_status: None,
-        pix_float: None,
+        pix_pool: None,
     }
 }
 
@@ -160,12 +160,15 @@ fn status_base(run_mode: RunMode) -> Status {
         disconnecting: vec![],
         probe: None,
         pix_chunk_bytes: None,
+        pix_price_per_byte: PIX_PRICE_PER_BYTE,
         probing: None,
         recent: vec![],
     }
 }
 
 const PIX_CHUNK_BYTES: u64 = 951_644_160;
+// 1 Gwei, as the balance fixture's exit traffic.
+const PIX_PRICE_PER_BYTE: Balance<WxHopr> = Balance::from_wei(1_000_000_000);
 
 fn status_with_connection(connection: Connection) -> Status {
     Status {
@@ -416,7 +419,7 @@ fn generate_fixtures() {
                 wxhopr: Balance::from_wei(10_000_000_000_000_000_000), // 10 wxHOPR
                 xdai: Balance::from_wei(100_000_000_000_000_000),      // 0.1 xDAI
                 channel_stakes: Balance::from_wei(9_990_000_000_000_000_000), // 9.99 wxHOPR
-                pix_float: Balance::zero(),
+                pix_pool: Balance::zero(),
                 fee_to_start: Balance::from_wei(10_000_000_000_000_000), // 0.01 wxHOPR
                 txs_to_start: 3,
                 xdai_fee_per_tx: Balance::from_wei(100_000_000_000_000_000), // 0.1 xDAI
@@ -827,7 +830,7 @@ fn generate_fixtures() {
                 wxhopr: Balance::from_wei(2_000_000_000_000_000_000), // 2 wxHOPR
                 xdai: Balance::from_wei(50_000_000_000_000_000),      // 0.05 xDAI
                 channel_stakes: Balance::from_wei(2_000_000_000_000_000_000), // 2 wxHOPR
-                pix_float: Balance::zero(),
+                pix_pool: Balance::zero(),
                 fee_to_start: Balance::zero(), // key already bound while running
                 txs_to_start: 0,
                 xdai_fee_per_tx: Balance::from_wei(50_000_000_000_000_000), // 0.05 xDAI
@@ -860,7 +863,7 @@ fn generate_fixtures() {
         }),
     );
 
-    // One open channel, the Safe, wxHOPR on the node EOA not yet swept into the Safe, and the PIX float.
+    // One open channel, the Safe, wxHOPR on the node EOA not yet swept into the Safe, and the PIX pool.
     let capacity_allocations = CapacityAllocations {
         peer_allocations: BTreeMap::from([(
             address(),
@@ -887,6 +890,8 @@ fn generate_fixtures() {
             stake: Balance::from_wei(1_000_000_000_000_000_000), // 1 wxHOPR
             byte_capacity: 524_288,
             bytes_from_exits: 1_000_000_000, // at 1 Gwei per byte
+            total_bytes_at_pix_price: 3_750_000_000, // all 3.75 wxHOPR
+            price_per_byte: Balance::from_wei(1_000_000_000),
         },
     };
     write(
@@ -896,29 +901,6 @@ fn generate_fixtures() {
             capacity_allocations: Some(capacity_allocations.clone()),
             ..balances(node_xdai, safe_wxhopr)
         }),
-    );
-
-    // A same-protocol service from before PIX omits both fields; their serde defaults must fill them in.
-    let mut older_service = serde_json::to_value(Balances {
-        capacity_allocations: Some(capacity_allocations),
-        ..balances(node_xdai, safe_wxhopr)
-    })
-    .expect("balances serialize");
-    older_service
-        .as_object_mut()
-        .and_then(|b| b.remove("pix_float"))
-        .expect("balances carry pix_float");
-    older_service["capacity_allocations"]
-        .as_object_mut()
-        .and_then(|c| c.remove("exit_traffic"))
-        .expect("capacity allocations carry exit_traffic");
-    write(
-        &fixtures_dir,
-        "balance_response_from_older_service.json",
-        &types::BalanceResponse::from(
-            serde_json::from_value::<Balances>(older_service)
-                .expect("exit_traffic and pix_float keep their serde defaults"),
-        ),
     );
 
     write(

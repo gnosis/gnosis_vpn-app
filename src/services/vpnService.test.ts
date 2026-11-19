@@ -67,7 +67,6 @@ import balanceResponse from "./fixtures/balance_response.json";
 import balanceResponseWithIssues from "./fixtures/balance_response_with_issues.json";
 import balanceResponseWithRefillShortfall from "./fixtures/balance_response_with_refill_shortfall.json";
 import balanceResponseWithCapacity from "./fixtures/balance_response_with_capacity.json";
-import balanceResponseFromOlderService from "./fixtures/balance_response_from_older_service.json";
 import serviceInfo from "./fixtures/service_info.json";
 
 const { invokeMock } = vi.hoisted(() => ({ invokeMock: vi.fn() }));
@@ -417,18 +416,6 @@ describe("BalanceResponseSchema", () => {
     const peers = Object.values(caps!.peer_allocations);
     expect(peers.length).toBeGreaterThan(0);
     expect(typeof peers[0].stake).toBe("bigint");
-  });
-
-  it("zeroes the exit-traffic funds an older service doesn't report", () => {
-    const result = BalanceResponseSchema.safeParse(
-      balanceResponseFromOlderService,
-    );
-    expect(result.success).toBe(true);
-    expect(result.data?.capacity_allocations?.exit_traffic).toEqual({
-      stake: 0n,
-      byte_capacity: 0,
-      bytes_from_exits: 0,
-    });
   });
 });
 

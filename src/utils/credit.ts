@@ -75,11 +75,14 @@ export function sumCapacityStake(balance: BalanceResponse): bigint {
   );
 }
 
-/** Sum byte_capacity across all capacity allocations
- * (open channels + Safe + node EOA + exit-traffic funds). */
+/** Data left: all wxHOPR at the PIX price, as the client reports it.
+ * Without a PIX price, the byte_capacity of every allocation at the relay rate. */
 export function computeEffectiveCredit(balance: BalanceResponse): bigint {
   const caps = balance.capacity_allocations;
   if (!caps) return 0n;
+  if (caps.exit_traffic.price_per_byte > 0n) {
+    return BigInt(caps.exit_traffic.total_bytes_at_pix_price);
+  }
   return Object.values(caps.peer_allocations).reduce(
     (sum, c) => sum + BigInt(c.byte_capacity),
     BigInt(caps.node.byte_capacity) + BigInt(caps.safe.byte_capacity) +
@@ -87,31 +90,41 @@ export function computeEffectiveCredit(balance: BalanceResponse): bigint {
   );
 }
 
-/** One line of {@link creditBreakdown}: an allocation, a sum of the lines above it, or an aside outside the sums. */
+/** One line of {@link creditBreakdown}: an allocation or a sum of the lines above it. */
 export interface CreditLine {
   label: string;
-  bytes: bigint;
+  /** At the relay rate; null for lines holding the PIX pool, which never pays relays. */
+  bytes: bigint | null;
+  /** At the PIX price; null without one. */
+  pixBytes: bigint | null;
   stake: bigint;
-  kind: "part" | "sum" | "aside";
+  kind: "part" | "sum";
 }
 
-/** Each allocation with the totals without and with the PIX float, then what the float buys from exits; null before allocations arrive. */
+/** Each allocation with the totals without and with the PIX pool; null before allocations arrive. */
 export function creditBreakdown(balance: BalanceResponse): CreditLine[] | null {
   const caps = balance.capacity_allocations;
   if (!caps) return null;
+  const exit = caps.exit_traffic;
+  const price = exit.price_per_byte;
   const line = (
     label: string,
     parts: Pick<Capacity, "stake" | "byte_capacity">[],
     kind: CreditLine["kind"] = "part",
-  ): CreditLine => ({
-    label,
-    bytes: parts.reduce((total, c) => total + BigInt(c.byte_capacity), 0n),
-    stake: parts.reduce((total, c) => total + c.stake, 0n),
-    kind,
-  });
+  ): CreditLine => {
+    const stake = parts.reduce((total, c) => total + c.stake, 0n);
+    return {
+      label,
+      bytes: parts.includes(exit)
+        ? null
+        : parts.reduce((total, c) => total + BigInt(c.byte_capacity), 0n),
+      pixBytes: price > 0n ? stake / price : null,
+      stake,
+      kind,
+    };
+  };
   const channels = Object.values(caps.peer_allocations);
   const held = [caps.node, caps.safe, ...channels];
-  const exit = caps.exit_traffic;
   return [
     line("EOA", [caps.node]),
     line("Safe", [caps.safe]),
@@ -119,12 +132,6 @@ export function creditBreakdown(balance: BalanceResponse): CreditLine[] | null {
     line("Without PIX pool", held, "sum"),
     line("PIX pool", [exit]),
     line("Total", [...held, exit], "sum"),
-    {
-      label: "PIX pool at PIX price",
-      bytes: BigInt(exit.bytes_from_exits),
-      stake: exit.stake,
-      kind: "aside",
-    },
   ];
 }
 

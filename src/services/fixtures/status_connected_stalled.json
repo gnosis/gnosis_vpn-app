@@ -39,6 +39,7 @@
   "disconnecting": [],
   "probe": null,
   "pix_chunk_bytes": 951644160,
+  "pix_price_per_byte": "1000000000",
   "probing": null,
   "recent": [],
   "exit_names": {}

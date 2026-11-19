@@ -11,6 +11,7 @@ import { Dropdown } from "@src/components/common/Dropdown.tsx";
 import ExportLogsModal from "@src/components/ExportLogsModal.tsx";
 import UploadLogsModal from "@src/components/UploadLogsModal.tsx";
 import BackIcon from "@src/components/icons/BackIcon.tsx";
+import AccountId from "@src/components/settings/AccountId.tsx";
 import {
   SettingsCard,
   SettingsHeading,
@@ -19,6 +20,7 @@ import SettingsRow, {
   ROW_BUTTON,
 } from "@src/components/settings/SettingsRow.tsx";
 import Switch from "@src/components/settings/Switch.tsx";
+import { useFunding } from "./useFunding.ts";
 
 // One width for Export and Upload, wide enough for "Exporting…".
 const LOG_BUTTON = `${ROW_BUTTON} w-20`;
@@ -95,6 +97,7 @@ export default function GeneralTab(
 ) {
   const [appState] = useAppStore();
   const [settings, settingsActions] = useSettingsStore();
+  const { nodeAddress } = useFunding();
   const preferredExit = (): ExitOption => {
     const id = settings.preferredLocation;
     if (id === null) return AUTO_LOCATION;
@@ -239,6 +242,9 @@ export default function GeneralTab(
         <SettingsRow icon="info" title="About" onClick={props.onAbout}>
           <BackIcon class="rotate-180 text-text-subtle" />
         </SettingsRow>
+        <Show when={nodeAddress()}>
+          {(address) => <AccountId address={address()} />}
+        </Show>
       </SettingsCard>
 
       <ExportLogsModal path={savedPath()} onClose={() => setSavedPath(null)} />

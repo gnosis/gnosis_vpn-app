@@ -11,7 +11,7 @@ import {
 } from "../utils/trafficPane.ts";
 import { overlayMount } from "../utils/mainColumn.ts";
 import { isRunningRunMode } from "../services/vpnService.ts";
-import { deriveOverallStatus } from "../utils/funding.ts";
+import { deriveTrafficStatus } from "../utils/funding.ts";
 import {
   computeEffectiveCredit,
   formatCreditCompact,
@@ -30,10 +30,10 @@ function Navigation(props: { gearOnly?: boolean }) {
   let containerRef: HTMLDivElement | undefined;
   let hoverTimeout: ReturnType<typeof globalThis.setTimeout> | undefined;
 
-  // Bar reflects the worst of traffic and gas status; widths are fixed per level, not a measured fraction.
+  // Bar reflects the traffic status; widths are fixed per level, not a measured fraction.
   const fundsBarClass = () => {
     if (!isRunningRunMode(appState.runMode)) return "bg-status-bad w-[10%]";
-    const status = deriveOverallStatus(
+    const status = deriveTrafficStatus(
       appState.balance,
       appState.runMode.funding_status,
     );

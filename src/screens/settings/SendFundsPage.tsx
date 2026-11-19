@@ -2,7 +2,6 @@ import {
   createEffect,
   createMemo,
   createSignal,
-  type JSX,
   onCleanup,
   Show,
 } from "solid-js";
@@ -11,13 +10,9 @@ import { useAppStore } from "@src/stores/appStore.ts";
 import { logWarn } from "@src/utils/appLog.ts";
 import { sumCapacityStake } from "@src/utils/credit.ts";
 import {
-  deriveNodeStatus,
-  deriveRefillShortfall,
-  deriveTrafficStatus,
-  deriveWxhoprDeficit,
   deriveXdaiDeficit,
+  formatDataToSend,
   preparingSafeShortfall,
-  resolveFundingStatus,
   roundUpToStep,
   type StatusText,
   WXHOPR_SEND_STEP,
@@ -33,6 +28,7 @@ import GnosisMark from "@src/components/common/GnosisMark.tsx";
 import ArrowRightIcon from "@src/components/icons/ArrowRightIcon.tsx";
 import CheckCircleIcon from "@src/components/icons/CheckCircleIcon.tsx";
 import SettingIcon from "@src/components/icons/SettingIcon.tsx";
+import TokenNote from "@src/components/settings/TokenNote.tsx";
 import {
   SettingsCard,
   SettingsHeading,
@@ -109,23 +105,14 @@ function AddressCard(props: { address: string }) {
   );
 }
 
-/** A line under a token; the fixed icon cell keeps its text in place when the arrow becomes a tick. */
-function TokenNote(props: { icon: JSX.Element; children: JSX.Element }) {
-  return (
-    <span class="flex items-center gap-1.5 text-xs leading-normal text-text-soft">
-      <span class="flex size-3.5 shrink-0">{props.icon}</span>
-      <span>{props.children}</span>
-    </span>
-  );
-}
-
 function TokenRow(props: {
   token: string;
   purpose: string;
   amount: string;
   status: StatusText | null;
   statusClass: string;
-  sendAtLeast: string | null;
+  /** `worth`: the amount is the data the token buys, not the token. */
+  sendAtLeast: { amount: string; worth: boolean } | null;
   enough: boolean;
 }) {
   return (
@@ -153,17 +140,25 @@ function TokenRow(props: {
         </span>
       </div>
       <Show when={props.sendAtLeast}>
-        {(amount) => (
-          <TokenNote
-            icon={<ArrowRightIcon class={`size-full ${props.statusClass}`} />}
-          >
-            Send at least{" "}
+        {(ask) => {
+          const amount = (
             <span class="cursor-text font-figures font-bold text-text-primary select-text">
-              {amount()}
-            </span>{" "}
-            {props.token}
-          </TokenNote>
-        )}
+              {ask().amount}
+            </span>
+          );
+          return (
+            <TokenNote
+              icon={<ArrowRightIcon class={`size-full ${props.statusClass}`} />}
+            >
+              <Show
+                when={ask().worth}
+                fallback={<>Send at least {amount} {props.token}</>}
+              >
+                Send {props.token} worth at least {amount}
+              </Show>
+            </TokenNote>
+          );
+        }}
       </Show>
       <Show when={props.enough}>
         <TokenNote icon={<CheckCircleIcon class="size-full text-ok-badge" />}>
@@ -191,31 +186,8 @@ export default function SendFundsPage(props: { onBack: () => void }) {
   const xdai = () =>
     funding.preparingSafe()?.node_xdai ?? appState.balance?.node ?? null;
 
-  // Running: only the levels the client reports, never the derive helpers' "Sufficient" default.
-  const levelsKnown = () =>
-    resolveFundingStatus(appState.balance, funding.runModeStatus()) !== null;
-  const preparingStatus = (token: "wxhopr" | "xdai"): StatusText | null => {
-    const preparing = funding.preparingSafe();
-    if (!preparing?.balance_recommendation) return null;
-    if (preparingSafeShortfall(preparing, token) === null) return "Sufficient";
-    const have = token === "wxhopr"
-      ? preparing.node_wxhopr
-      : preparing.node_xdai;
-    return have === 0n ? "Empty" : "Low";
-  };
-  // Onboarding: Sufficient only once the node holds the client's full minimum.
-  const trafficStatus = createMemo(() => {
-    if (funding.preparingSafe()) return preparingStatus("wxhopr");
-    return levelsKnown()
-      ? deriveTrafficStatus(appState.balance, funding.runModeStatus())
-      : null;
-  });
-  const gasStatus = createMemo(() => {
-    if (funding.preparingSafe()) return preparingStatus("xdai");
-    return levelsKnown()
-      ? deriveNodeStatus(appState.balance, funding.runModeStatus())
-      : null;
-  });
+  const trafficStatus = () => funding.tokenStatus("wxhopr");
+  const gasStatus = () => funding.tokenStatus("xdai");
   // The daemon's levels alone (before the first balance) are blind to EOA funds, so they only warrant amber; preparing_safe's node balances are exact.
   const statusClass = (status: StatusText | null) => {
     if (status === "Sufficient") return "text-ok-ink";
@@ -229,26 +201,28 @@ export default function SendFundsPage(props: { onBack: () => void }) {
   const needsFunds = (status: StatusText | null) =>
     status === "Empty" || status === "Low";
   const wxhoprToSend = () => {
-    if (!needsFunds(trafficStatus())) return null;
+    const data = funding.dataShortfall();
+    if (data !== null) return { amount: formatDataToSend(data), worth: true };
+    const amount = funding.wxhoprShortfall();
+    if (amount === null) return null;
     // Onboarding shows the client's exact minimum; a running top-up reads better as a round amount.
-    const onboarding = preparingSafeShortfall(
-      funding.preparingSafe(),
-      "wxhopr",
-    );
-    if (onboarding) return formatWxhopr(onboarding, 3, "ceil");
-    const deficit = deriveWxhoprDeficit(
-      appState.balance,
-      funding.runModeStatus(),
-    ) ?? deriveRefillShortfall(appState.balance, funding.runModeStatus());
-    return deficit
-      ? formatWxhopr(roundUpToStep(deficit, WXHOPR_SEND_STEP), 3, "ceil")
-      : null;
+    const exact = funding.preparingSafe() !== null;
+    return {
+      amount: formatWxhopr(
+        exact ? amount : roundUpToStep(amount, WXHOPR_SEND_STEP),
+        3,
+        "ceil",
+      ),
+      worth: false,
+    };
   };
   const xdaiToSend = () => {
     if (!needsFunds(gasStatus())) return null;
     const deficit = preparingSafeShortfall(funding.preparingSafe(), "xdai") ??
       deriveXdaiDeficit(appState.balance, funding.runModeStatus());
-    return deficit ? formatXdai(deficit, 3, "ceil") : null;
+    return deficit
+      ? { amount: formatXdai(deficit, 3, "ceil"), worth: false }
+      : null;
   };
 
   return (
