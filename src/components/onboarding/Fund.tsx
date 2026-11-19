@@ -17,7 +17,7 @@ export default function Fund(props: {
   return (
     <div class="flex h-full w-full flex-col px-4 pt-4 pb-6">
       <div class="flex flex-col items-start gap-2.5 px-1 pt-3.5">
-        <GnosisVpnLogo class="mb-3.5 w-[190px] text-logo-ink" />
+        <GnosisVpnLogo class="mb-0.75 w-[190px] text-logo-ink" />
         <h1 class="text-[26px] leading-tight font-bold text-balance">
           Fund your VPN
         </h1>
