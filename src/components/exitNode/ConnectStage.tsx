@@ -110,14 +110,14 @@ function animatedProgress(phase: () => ConnectPhase | null): Accessor<number> {
   return progress;
 }
 
+const ROUTE_COUNT = 4;
+
 /** The mock's connecting globe: you open channels to relays, then route through one to the exit. */
 export default function ConnectStage(props: {
   phase: ConnectPhase | null;
   // picks the relays the routes run through, so each attempt draws its own
   seed: number;
   exitName: string;
-  // distinct first relays the route walk found, when known
-  relays: number | null;
   // replaces the step text, e.g. while a reconnect waits on its route
   caption?: string | null;
   size?: "card" | "hero";
@@ -139,9 +139,8 @@ export default function ConnectStage(props: {
       .slice(0, 2);
     return [...hops(), ...others];
   };
-  const routeCount = () => Math.min(4, Math.max(1, props.relays ?? 4));
   const routes = () =>
-    hops().slice(0, routeCount()).map((i, k) =>
+    hops().slice(0, ROUTE_COUNT).map((i, k) =>
       arc(YOU, NODES[i], 10 + k * 2) +
       arc(NODES[i], EXIT, 8 + k).replace(/^M[^Q]+/, "")
     );
@@ -383,13 +382,6 @@ export default function ConnectStage(props: {
             )}
           </For>
         </span>
-        <Show when={props.relays}>
-          {(relays) => (
-            <span class="shrink-0 font-figures text-status-idle">
-              {relays()} relays found
-            </span>
-          )}
-        </Show>
       </div>
       <div class="h-0.75 overflow-hidden rounded-xs bg-control-bg">
         {/* A width set per frame, which no utility class can express */}

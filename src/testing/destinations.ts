@@ -52,48 +52,20 @@ export function makeDestination(
   };
 }
 
-/** Routable with a path within the band: eligible. More distinct relays ranks higher. */
-export function eligibleRouteHealth(
-  relays = 2,
-  count = relays,
-): RouteHealthView {
+/** Routable and graded by the daemon; the top exit always reads 100. */
+export function gradedRouteHealth(percentOfBest = 100): RouteHealthView {
   return {
     state: { type: "routable" },
     last_error: null,
-    walk: {
-      type: "paths",
-      walked_at: 0,
-      count,
-      distinct_first_relays: relays,
-      best_relays: Array.from({ length: relays }, (_, i) => `0xrelay${i}`),
-      best_value: 1,
-      return_count: count,
-      return_best_relays: Array.from(
-        { length: relays },
-        (_, i) => `0xrelay${i}`,
-      ),
-      return_best_value: 1,
-    },
+    walked_at: 0,
+    percent_of_best: percentOfBest,
     quick_probe: null,
   };
 }
 
-/** Routable, but the best path is degraded: offered grayed out, never a candidate. */
-export function weakRouteHealth(bestValue = 0.5): RouteHealthView {
-  return {
-    ...eligibleRouteHealth(1),
-    walk: {
-      type: "paths",
-      walked_at: 0,
-      count: 1,
-      distinct_first_relays: 1,
-      best_relays: ["0xrelay0"],
-      best_value: bestValue,
-      return_count: 1,
-      return_best_relays: ["0xrelay0"],
-      return_best_value: bestValue,
-    },
-  };
+/** Routable, and the best exit right now. */
+export function eligibleRouteHealth(): RouteHealthView {
+  return gradedRouteHealth();
 }
 
 /** The walk found nothing plannable. */
@@ -101,7 +73,8 @@ export function noPathRouteHealth(): RouteHealthView {
   return {
     state: { type: "not_routable" },
     last_error: null,
-    walk: { type: "no_path", walked_at: 0, forward_count: 0, return_count: 0 },
+    walked_at: 0,
+    percent_of_best: null,
     quick_probe: null,
   };
 }
@@ -110,7 +83,8 @@ export function unrecoverableRouteHealth(): RouteHealthView {
   return {
     state: { type: "unrecoverable", reason: { type: "not_allowed" } },
     last_error: null,
-    walk: null,
+    walked_at: null,
+    percent_of_best: null,
     quick_probe: null,
   };
 }

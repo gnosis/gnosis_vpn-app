@@ -104,8 +104,7 @@ export default function ExitNodeList(props: {
 
   const sortedDestinations = createMemo(() => {
     const context = rankContext(appState);
-    const byQuality = () =>
-      sortByGrade(appState.destinations, context, appState.weakRoutes);
+    const byQuality = () => sortByGrade(appState.destinations, context);
     switch (settings.exitNodeSortOrder) {
       case "alpha":
         return sortAlphaDestinations(
@@ -203,11 +202,7 @@ export default function ExitNodeList(props: {
     for (const destination of rows) {
       exits[destination.id] = {
         destination,
-        grade: routeGrade(
-          appState.destinations[destination.id],
-          context,
-          appState.weakRoutes[destination.id]?.surfaced ?? false,
-        ),
+        grade: routeGrade(appState.destinations[destination.id], context),
       };
     }
     return {

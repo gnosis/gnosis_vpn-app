@@ -28,24 +28,12 @@ export function createLocationState(state: Accessor<DestinationState>) {
   const id = () => destination().id;
   const name = () => exitDisplayName(destination());
   const exit = createMemo(() => getExitData(state(), appState.probe));
-  const grade = createMemo(() =>
-    routeGrade(
-      state(),
-      rankContext(appState),
-      appState.weakRoutes[id()]?.surfaced ?? false,
-    )
-  );
+  const grade = createMemo(() => routeGrade(state(), rankContext(appState)));
   // No bars to show: say why the exit is unusable instead.
   const verdict = () => {
     if (grade().kind !== "none") return null;
     const health = state().route_health;
-    return health
-      ? formatExitHealthStatus(
-        health,
-        exit(),
-        appState.weakRoutes[id()]?.surfaced ?? false,
-      )
-      : "Unavailable";
+    return health ? formatExitHealthStatus(health, exit()) : "Unavailable";
   };
 
   const phase = () => cardPhase(appState.mode);
@@ -76,10 +64,6 @@ export function createLocationState(state: Accessor<DestinationState>) {
   const connectSince = () => {
     const c = connection();
     return "since" in c ? c.since : 0;
-  };
-  const relaysFound = () => {
-    const walk = state().route_health?.walk;
-    return walk?.type === "paths" ? walk.distinct_first_relays : null;
   };
   // Reconnecting with no phase is a wait on route health; say why instead of a step.
   const waitingCaption = () =>
@@ -126,7 +110,6 @@ export function createLocationState(state: Accessor<DestinationState>) {
     attemptInFlight,
     connectPhase,
     connectSince,
-    relaysFound,
     waitingCaption,
     stallText,
     costTarget,

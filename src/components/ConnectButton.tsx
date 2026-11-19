@@ -34,7 +34,7 @@ export default function ConnectButton() {
     return id ? appState.destinations[id] : undefined;
   });
 
-  // Selectable, not ready: a weak route the user picked deliberately must still connect.
+  // Selectable, not ready: an ungraded route the user picked deliberately must still connect.
   const isTargetSelectable = createMemo(() =>
     isSelectable(targetDestinationState(), rankContext(appState))
   );

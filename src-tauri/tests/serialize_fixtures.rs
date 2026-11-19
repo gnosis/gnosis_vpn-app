@@ -10,8 +10,8 @@ use gnosis_vpn_ipc::{
     ExitTrafficFunds, ExitVersions, FundingLevel, FundingStatus, Geo, GeoSource, Health, Hops,
     LoadAvg, Meta, Overrides, ProbeResponse, ProbeState, ProbeView, ProbingLevel, ProbingReason,
     ProbingView, QuickProbeCheck, QuickProbeResponse, QuickProbeState, RouteHealthState,
-    RouteHealthView, RouteWalk, RunMode, Slots, StartupIssue, StartupIssueKind, Status,
-    UnprobeResponse, UnrecoverableReason, WarmupStage, WxHopr, XDai,
+    RouteHealthView, RunMode, Slots, StartupIssue, StartupIssueKind, Status, UnprobeResponse,
+    UnrecoverableReason, WarmupStage, WxHopr, XDai,
 };
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -81,19 +81,6 @@ fn versions() -> ExitVersions {
     ExitVersions {
         api: vec![ApiVersion::new(1)],
         server: Some(semver::Version::new(0, 7, 1)),
-    }
-}
-
-fn paths_walk() -> RouteWalk {
-    RouteWalk::Paths {
-        walked_at: SystemTime::UNIX_EPOCH,
-        count: 3,
-        distinct_first_relays: 2,
-        best_relays: vec![address()],
-        best_value: 0.75,
-        return_count: 2,
-        return_best_relays: vec![address()],
-        return_best_value: 0.5,
     }
 }
 
@@ -215,13 +202,15 @@ fn free_pix() -> ipc::PixChunkStats {
 
 fn route_health_view(
     state: RouteHealthState,
-    walk: Option<RouteWalk>,
+    walked_at: Option<SystemTime>,
+    percent_of_best: Option<u8>,
     quick_probe: Option<QuickProbeState>,
 ) -> RouteHealthView {
     RouteHealthView {
         state,
         last_error: None,
-        walk,
+        walked_at,
+        percent_of_best,
         quick_probe,
     }
 }
@@ -538,53 +527,43 @@ fn generate_fixtures() {
         },
     );
 
-    // One DestinationStatus per RouteHealthState/RouteWalk/QuickProbeState variant, in one fixture.
+    // One DestinationStatus per RouteHealthState/QuickProbeState variant, with and without a path, in one fixture.
     let mut walk_timed_out = route_health_view(
         RouteHealthState::NotRoutable,
-        Some(RouteWalk::NoPath {
-            walked_at: SystemTime::UNIX_EPOCH,
-            forward_count: 0,
-            return_count: 0,
-        }),
+        Some(SystemTime::UNIX_EPOCH),
+        None,
         None,
     );
     walk_timed_out.last_error = Some("walk timed out".to_string());
     let route_health_variants = vec![
         dest_state(Some(route_health_view(
             RouteHealthState::Routable,
-            Some(paths_walk()),
+            Some(SystemTime::UNIX_EPOCH),
+            Some(100),
             Some(checked_probe()),
         ))),
-        // A 0-hop route has a single relay-less path.
         dest_state(Some(route_health_view(
             RouteHealthState::Routable,
-            Some(RouteWalk::Paths {
-                walked_at: SystemTime::UNIX_EPOCH,
-                count: 1,
-                distinct_first_relays: 0,
-                best_relays: vec![],
-                best_value: 1.0,
-                return_count: 1,
-                return_best_relays: vec![],
-                return_best_value: 1.0,
-            }),
+            Some(SystemTime::UNIX_EPOCH),
+            Some(75),
             Some(QuickProbeState::Checking {
                 since: SystemTime::UNIX_EPOCH,
                 last: None,
             }),
         ))),
         dest_state(Some(walk_timed_out)),
+        // Not walked yet.
         dest_state(Some(route_health_view(
             RouteHealthState::NotRoutable,
-            Some(RouteWalk::NotAnnounced {
-                walked_at: SystemTime::UNIX_EPOCH,
-            }),
+            None,
+            None,
             None,
         ))),
         dest_state(Some(route_health_view(
             RouteHealthState::Unrecoverable {
                 reason: UnrecoverableReason::NotAllowed,
             },
+            None,
             None,
             None,
         ))),
@@ -594,7 +573,8 @@ fn generate_fixtures() {
                     offered: vec![ApiVersion::new(2)],
                 },
             },
-            Some(paths_walk()),
+            Some(SystemTime::UNIX_EPOCH),
+            None,
             Some(QuickProbeState::Failed {
                 checked_at: SystemTime::UNIX_EPOCH,
                 error: "unsupported api".to_string(),
@@ -606,7 +586,8 @@ fn generate_fixtures() {
                     error: "surb buffer too small".to_string(),
                 },
             },
-            Some(paths_walk()),
+            Some(SystemTime::UNIX_EPOCH),
+            None,
             None,
         ))),
         dest_state(None),
@@ -617,11 +598,18 @@ fn generate_fixtures() {
         // A re-check keeps what the previous one measured.
         dest_state(Some(route_health_view(
             RouteHealthState::Routable,
-            Some(paths_walk()),
+            Some(SystemTime::UNIX_EPOCH),
+            Some(40),
             Some(QuickProbeState::Checking {
                 since: SystemTime::UNIX_EPOCH,
                 last: Some(quick_check()),
             }),
+        ))),
+        dest_state(Some(route_health_view(
+            RouteHealthState::Routable,
+            Some(SystemTime::UNIX_EPOCH),
+            Some(10),
+            None,
         ))),
     ];
     write_status(

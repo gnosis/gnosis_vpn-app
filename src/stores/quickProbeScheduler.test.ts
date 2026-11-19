@@ -14,7 +14,7 @@ import {
 import {
   checkedQuickProbe,
   checkingQuickProbe,
-  eligibleRouteHealth,
+  gradedRouteHealth,
   makeDestination,
   noPathRouteHealth,
 } from "@src/testing/destinations.ts";
@@ -23,12 +23,12 @@ const SLOTS = { total: 8, available: 6, connected: 2 };
 
 function dest(
   id: string,
-  relays: number,
+  percentOfBest: number,
   quick_probe: QuickProbeState | null = null,
 ): DestinationState {
   return {
     destination: makeDestination({ id }),
-    route_health: { ...eligibleRouteHealth(relays), quick_probe },
+    route_health: { ...gradedRouteHealth(percentOfBest), quick_probe },
   };
 }
 
@@ -56,9 +56,9 @@ function statusFor(
 describe("nextQuickProbe — which exit to check next", () => {
   it("starts with the best ranked destination that is not the active one", () => {
     const status = statusFor({
-      best: dest("best", 4),
-      good: dest("good", 3),
-      ok: dest("ok", 1),
+      best: dest("best", 100),
+      good: dest("good", 75),
+      ok: dest("ok", 10),
     });
 
     const { issue, schedule } = nextQuickProbe(
@@ -74,17 +74,17 @@ describe("nextQuickProbe — which exit to check next", () => {
 
   it("skips destinations the daemon would refuse: no route, or a check already running", () => {
     const status = statusFor({
-      best: dest("best", 4, checkingQuickProbe(null, 0)),
+      best: dest("best", 100, checkingQuickProbe(null, 0)),
       nowhere: noRoute("nowhere"),
-      ok: dest("ok", 1),
+      ok: dest("ok", 10),
     });
 
     expect(nextQuickProbe(IDLE_SCHEDULE, status, null, 0).issue).toBe("ok");
   });
 
   it("skips a result younger than the freshness guard and redoes an older one", () => {
-    const fresh = dest("fresh", 4, checkedQuickProbe(SLOTS, 100, 1_000));
-    const stale = dest("stale", 3, checkedQuickProbe(SLOTS, 100, 0));
+    const fresh = dest("fresh", 100, checkedQuickProbe(SLOTS, 100, 1_000));
+    const stale = dest("stale", 75, checkedQuickProbe(SLOTS, 100, 0));
     const now = 1_000 + QUICK_PROBE_FRESH_MS - 1;
 
     expect(
@@ -102,8 +102,8 @@ describe("nextQuickProbe — which exit to check next", () => {
   it("waits while the check in flight has no result yet", () => {
     const inFlight = { inFlight: { id: "a", issuedAt: 100 } };
     const status = statusFor({
-      a: dest("a", 2, checkingQuickProbe(null, 100)),
-      b: dest("b", 1),
+      a: dest("a", 40, checkingQuickProbe(null, 100)),
+      b: dest("b", 10),
     });
 
     const next = nextQuickProbe(inFlight, status, null, 200);
@@ -115,12 +115,12 @@ describe("nextQuickProbe — which exit to check next", () => {
   it("moves on once the result lands, but not on a result older than the request", () => {
     const inFlight = { inFlight: { id: "a", issuedAt: 100 } };
     const older = statusFor({
-      a: dest("a", 2, checkedQuickProbe(SLOTS, 100, 50)),
-      b: dest("b", 1),
+      a: dest("a", 40, checkedQuickProbe(SLOTS, 100, 50)),
+      b: dest("b", 10),
     });
     const landed = statusFor({
-      a: dest("a", 2, checkedQuickProbe(SLOTS, 100, 150)),
-      b: dest("b", 1),
+      a: dest("a", 40, checkedQuickProbe(SLOTS, 100, 150)),
+      b: dest("b", 10),
     });
 
     expect(nextQuickProbe(inFlight, older, null, 200).issue).toBe(null);
@@ -130,8 +130,12 @@ describe("nextQuickProbe — which exit to check next", () => {
   it("treats a failed check as a result too", () => {
     const inFlight = { inFlight: { id: "a", issuedAt: 100 } };
     const status = statusFor({
-      a: dest("a", 2, { type: "failed", checked_at: 150, error: "timeout" }),
-      b: dest("b", 1),
+      a: dest("a", 40, {
+        type: "failed",
+        checked_at: 150,
+        error: "timeout",
+      }),
+      b: dest("b", 10),
     });
 
     expect(nextQuickProbe(inFlight, status, null, 200).issue).toBe("b");
@@ -140,8 +144,8 @@ describe("nextQuickProbe — which exit to check next", () => {
   it("abandons a check by the clock when its result never arrives", () => {
     const inFlight = { inFlight: { id: "a", issuedAt: 100 } };
     const status = statusFor({
-      a: dest("a", 2, checkingQuickProbe(null, 100)),
-      b: dest("b", 1),
+      a: dest("a", 40, checkingQuickProbe(null, 100)),
+      b: dest("b", 10),
     });
 
     expect(
@@ -156,7 +160,7 @@ describe("nextQuickProbe — which exit to check next", () => {
 
   it("issues nothing when every candidate is fresh, and idles the schedule", () => {
     const status = statusFor({
-      a: dest("a", 2, checkedQuickProbe(SLOTS, 100, 0)),
+      a: dest("a", 40, checkedQuickProbe(SLOTS, 100, 0)),
     });
 
     const next = nextQuickProbe(IDLE_SCHEDULE, status, null, 1);

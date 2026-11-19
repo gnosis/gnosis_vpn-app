@@ -10,9 +10,10 @@ import {
 } from "@src/services/vpnService.ts";
 import {
   type CardPhase,
+  gradeRank,
   isReady,
   rankContext,
-  sortByRouteQuality,
+  sortByGrade,
 } from "@src/utils/destinations.ts";
 
 // Countdown before auto switches the card to a better destination
@@ -147,7 +148,7 @@ export function autoCandidate(
   ) {
     return preferredLocation;
   }
-  return sortByRouteQuality(status.destinations, context)[0] ?? null;
+  return sortByGrade(status.destinations, context)[0]?.id ?? null;
 }
 
 export function createDestinationMode(
@@ -226,9 +227,16 @@ export function createDestinationMode(
       coldStart(draft, status, candidate);
       return;
     }
+    const context = rankContext(status);
+    const isPreferred = candidate === draft.preferredLocation;
+    // a name breaks ties in the sort, never a reason to switch
+    const outranksActive = candidate !== null &&
+      gradeRank(status.destinations[candidate], context) <
+        gradeRank(status.destinations[draft.active], context);
     const worthSwitchingTo = candidate !== null &&
       candidate !== draft.active &&
-      isReady(status.destinations[candidate], rankContext(status));
+      (isPreferred || outranksActive) &&
+      isReady(status.destinations[candidate], context);
     if (!worthSwitchingTo) {
       draft.mode = AUTO_IDLE;
       return;

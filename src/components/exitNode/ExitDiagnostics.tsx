@@ -15,8 +15,6 @@ import {
 } from "@src/utils/destinations.ts";
 import {
   formatLatency,
-  formatPathValue,
-  formatRelays,
   formatRouting,
   formatSecondsAgo,
   getLastCheckedEpoch,
@@ -26,8 +24,6 @@ import {
 } from "@src/utils/exitHealth.ts";
 import { levelColorClass } from "./levelColor.ts";
 import Tooltip from "../common/Tooltip.tsx";
-
-const RELIABILITY = ["Less reliable", "Less reliable", "Reliable"];
 
 /** Hovering a metric's name or its value explains it; `tip` builds fresh nodes for each tooltip. */
 function Explained(props: { tip: () => JSX.Element; children: JSX.Element }) {
@@ -75,10 +71,6 @@ export default function ExitDiagnostics(props: {
     getExitData(props.destinationState, appState.probe)
   );
   const routeHealth = () => props.destinationState.route_health ?? null;
-  const walk = () => {
-    const w = routeHealth()?.walk;
-    return w?.type === "paths" ? w : null;
-  };
 
   // Ticks between status updates, so "14 s ago" keeps counting.
   const [nowSec, setNowSec] = createSignal(Date.now() / 1000);
@@ -121,23 +113,10 @@ export default function ExitDiagnostics(props: {
   const latencyTip = say(
     "One way through the relay to the exit. Green under 500 ms, orange up to 1,100 ms, red above.",
   );
-  const pathValue = () => {
-    const rh = routeHealth();
-    return rh ? formatPathValue(rh) : null;
-  };
-  const relays = () => {
-    const rh = routeHealth();
-    return rh ? formatRelays(rh) : null;
-  };
   const openSpots = () => {
     const free = freeSlots(props.destinationState, rankContext(appState));
     if (free === null) return null;
     return free > 0 ? "Yes" : "No";
-  };
-  const reliability = () => {
-    const w = walk();
-    if (!w) return null;
-    return RELIABILITY[w.distinct_first_relays] ?? "Very reliable";
   };
 
   return (
@@ -172,20 +151,6 @@ export default function ExitDiagnostics(props: {
           value={lastChecked()}
         />
         <Row
-          label="Path"
-          tip={say(
-            "Value of the best path found; below 90% counts as a weak route.",
-          )}
-          value={pathValue()}
-        />
-        <Row
-          label="Relays"
-          tip={say(
-            "Distinct first relays over the paths found; more means fewer single points of failure.",
-          )}
-          value={relays()}
-        />
-        <Row
           label="Route"
           tip={say("Relays between you and the exit.")}
           value={formatRouting(props.destinationState.destination.hops)}
@@ -194,13 +159,6 @@ export default function ExitDiagnostics(props: {
           label="Open spots"
           tip={say("Whether the exit has a free connection slot for you.")}
           value={openSpots()}
-        />
-        <Row
-          label="Reliability"
-          tip={say(
-            "From the distinct first relays: 3 or more very reliable, 2 reliable, fewer less reliable.",
-          )}
-          value={reliability()}
         />
       </div>
     </div>
