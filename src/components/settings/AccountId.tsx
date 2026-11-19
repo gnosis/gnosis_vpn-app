@@ -4,7 +4,9 @@ import SettingIcon from "@src/components/icons/SettingIcon.tsx";
 import SettingsRow from "@src/components/settings/SettingsRow.tsx";
 
 /** The node's address on one line, with an icon-only copy button. */
-export default function AccountId(props: { address: string }) {
+export default function AccountId(
+  props: { address: string; iconSlot?: boolean },
+) {
   const [copied, setCopied] = createSignal(false);
   let copyTimeout: ReturnType<typeof setTimeout> | undefined;
   onCleanup(() => clearTimeout(copyTimeout));
@@ -22,6 +24,7 @@ export default function AccountId(props: { address: string }) {
 
   return (
     <SettingsRow
+      iconSlot={props.iconSlot}
       title="Account ID"
       description={
         <span class="@container block">

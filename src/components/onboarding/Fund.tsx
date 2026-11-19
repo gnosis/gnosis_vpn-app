@@ -51,7 +51,7 @@ export default function Fund(props: {
         <Show when={props.address}>
           {(address) => (
             <SettingsCard label="Account">
-              <AccountId address={address()} />
+              <AccountId address={address()} iconSlot={false} />
             </SettingsCard>
           )}
         </Show>
