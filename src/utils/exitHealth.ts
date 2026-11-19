@@ -1,29 +1,22 @@
 import type { Destination, RouteHealthView } from "@src/services/vpnService.ts";
-import { type ExitData, MIN_PATH_VALUE } from "@src/utils/destinations.ts";
+import type { ExitData } from "@src/utils/destinations.ts";
 
-/** The walk's verdict on this destination, with exit data tightening a route within the band. */
+/** The daemon's verdict on this destination, with exit data tightening a routable one. */
 type RouteVerdict =
   | "checking"
   | "ready"
   | "full"
-  | "weak"
   | "no-route"
   | "unrecoverable";
 
-/** `weakSurfaced` false lets a weak route still in its grace read as ready or full. */
 function routeVerdict(
   rhv: RouteHealthView,
   exit: ExitData | null,
-  weakSurfaced: boolean,
 ): RouteVerdict {
-  const { state, walk } = rhv;
+  const { state, walked_at } = rhv;
   if (state.type === "unrecoverable") return "unrecoverable";
-  if (walk === null) return "checking";
-  if (state.type === "not_routable" || walk.type !== "paths") {
-    return "no-route";
-  }
-  const isWeak = walk.best_value < MIN_PATH_VALUE;
-  if (isWeak && weakSurfaced) return "weak";
+  if (walked_at === null) return "checking";
+  if (state.type === "not_routable") return "no-route";
   if (exit !== null && exit.slots.available <= 0) return "full";
   return "ready";
 }
@@ -32,15 +25,12 @@ function routeVerdict(
 export function formatExitHealthStatus(
   rhv: RouteHealthView,
   exit: ExitData | null,
-  weakSurfaced = true,
 ): string {
-  switch (routeVerdict(rhv, exit, weakSurfaced)) {
+  switch (routeVerdict(rhv, exit)) {
     case "ready":
       return "Ready to connect";
     case "full":
       return "Full";
-    case "weak":
-      return "Weak route";
     case "no-route":
       return "No route";
     case "checking":
@@ -142,22 +132,7 @@ export function getLastCheckedEpoch(
   exit: ExitData | null,
 ): number | null {
   if (exit) return Math.floor(exit.checkedAt / 1000);
-  const walkedAt = rhv.walk?.walked_at;
-  return walkedAt === undefined ? null : Math.floor(walkedAt / 1000);
-}
-
-/** The best path's value as a percentage, e.g. "100%"; null before the first walk. */
-export function formatPathValue(rhv: RouteHealthView): string | null {
-  const walk = rhv.walk;
-  if (walk?.type !== "paths") return null;
-  return `${Math.round(walk.best_value * 100)}%`;
-}
-
-/** Distinct first relays over the paths found, e.g. "3 of 5"; null before the first walk. */
-export function formatRelays(rhv: RouteHealthView): string | null {
-  const walk = rhv.walk;
-  if (walk?.type !== "paths") return null;
-  return `${walk.distinct_first_relays} of ${walk.count}`;
+  return rhv.walked_at === null ? null : Math.floor(rhv.walked_at / 1000);
 }
 
 /** Format a seconds-ago diff as a human-readable relative time, e.g. "17 s ago". */

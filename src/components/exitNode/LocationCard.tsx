@@ -46,7 +46,6 @@ export default function LocationCard(props: {
     attemptInFlight,
     connectPhase,
     connectSince,
-    relaysFound,
     waitingCaption,
     stallText,
     costTarget,
@@ -204,7 +203,6 @@ export default function LocationCard(props: {
                       phase={connectPhase()}
                       seed={connectSince()}
                       exitName={name()}
-                      relays={relaysFound()}
                       caption={waitingCaption()}
                     />
                   </Show>

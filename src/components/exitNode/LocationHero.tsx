@@ -28,7 +28,6 @@ export default function LocationHero(props: {
     attemptInFlight,
     connectPhase,
     connectSince,
-    relaysFound,
     waitingCaption,
     stallText,
     costTarget,
@@ -113,7 +112,6 @@ export default function LocationHero(props: {
             phase={connectPhase()}
             seed={connectSince()}
             exitName={name()}
-            relays={relaysFound()}
             caption={waitingCaption()}
           />
         </div>

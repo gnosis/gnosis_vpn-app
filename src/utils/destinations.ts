@@ -125,30 +125,10 @@ export function freeSlots(
   return exit.slots.available + occupiedByUs;
 }
 
-/** A path's value is a product over its edges, so it is rarely exactly 1; the band is the degradation we still call ready. */
-export const MIN_PATH_VALUE = 0.9;
-
-/** The walk's verdict alone: a path within the band exists and nothing latched the route. */
-function isRoutable(state: DestinationState): boolean {
-  if (!state.route_health) return false;
-  const { state: routeState, walk } = state.route_health;
-  if (routeState.type !== "routable") return false;
-  return walk?.type === "paths" && walk.best_value >= MIN_PATH_VALUE;
-}
-
-/** Not full once the exit has been measured; unmeasured passes on the walk alone. */
+/** Not full once the exit has been measured; unmeasured passes on the route alone. */
 function hasFreeSlot(state: DestinationState, context: RankContext): boolean {
   const free = freeSlots(state, context);
   return free === null || free > 0;
-}
-
-/** Connectable right now: routable, and not full once the exit has been measured. */
-export function isReady(
-  state: DestinationState | undefined,
-  context: RankContext,
-): boolean {
-  if (!state || !isRoutable(state)) return false;
-  return hasFreeSlot(state, context);
 }
 
 /** What the user may pick: the daemon connects to any Routable destination, but a full exit can only fail. */
@@ -160,44 +140,13 @@ export function isSelectable(
   return hasFreeSlot(state, context);
 }
 
-/** Pickable but degraded: no path within the band, so auto never proposes it and the list says so. */
-export function isWeakRoute(
+/** Connectable right now: selectable, and the daemon has graded its path. */
+export function isReady(
   state: DestinationState | undefined,
   context: RankContext,
 ): boolean {
-  return isSelectable(state, context) && !isReady(state, context);
-}
-
-/** How long a route must stay weak before the label shows: good routes dip and cold starts begin weak. */
-export const WEAK_GRACE_MS = 15_000;
-
-/** When the app first saw a destination weak, and whether the grace has run out since. */
-export type WeakRoute = { since: number; surfaced: boolean };
-
-/** Advanced per status response; only a walk within the band or leaving the response clears an entry, so weak-worse-weak earns no fresh grace. */
-export function trackWeakRoutes(
-  previous: Record<string, WeakRoute>,
-  destinations: Record<string, DestinationState>,
-  now: number,
-): Record<string, WeakRoute> {
-  const next: Record<string, WeakRoute> = {};
-  for (const [id, state] of Object.entries(destinations)) {
-    const health = state.route_health;
-    const walk = health?.walk;
-    const hasPaths = walk?.type === "paths";
-    const withinBand = hasPaths && walk.best_value >= MIN_PATH_VALUE;
-    const belowBand = health?.state.type === "routable" && hasPaths &&
-      !withinBand;
-    const seen = previous[id];
-
-    if (belowBand) {
-      const since = seen?.since ?? now;
-      next[id] = { since, surfaced: now - since >= WEAK_GRACE_MS };
-    } else if (!withinBand && seen) {
-      next[id] = seen;
-    }
-  }
-  return next;
+  const isGraded = (state?.route_health?.percent_of_best ?? null) !== null;
+  return isGraded && isSelectable(state, context);
 }
 
 /** What the list may present as usable — the destination we are on always qualifies. */
@@ -209,108 +158,55 @@ export function isReadyForDisplay(
   return state.destination.id === context.liveId || isReady(state, context);
 }
 
-/** Relative order of ineligible destinations; an ineligible Paths walk keeps its own best_value. */
-const NO_PATH_VALUE = 0;
-const UNKNOWN_VALUE = -1;
-const UNRECOVERABLE_VALUE = -2;
-
-/** How close a destination is to eligible: its best path's value, or a rank below any path. */
-function routeValue(state: DestinationState): number {
-  const health = state.route_health;
-  if (!health) return UNKNOWN_VALUE;
-  if (health.state.type === "unrecoverable") return UNRECOVERABLE_VALUE;
-  const walk = health.walk;
-  if (walk === null) return UNKNOWN_VALUE;
-  return walk.type === "paths" ? walk.best_value : NO_PATH_VALUE;
-}
-
-/** Resilience of the best path: more distinct first relays means fewer single points of failure. */
-function pathStats(state: DestinationState): { relays: number; count: number } {
-  const walk = state.route_health?.walk;
-  if (walk?.type !== "paths") return { relays: 0, count: 0 };
-  return { relays: walk.distinct_first_relays, count: walk.count };
-}
-
-const LATENCY_WEIGHT = 0.5;
-const CAPACITY_WEIGHT = 0.3;
-const DIVERSITY_WEIGHT = 0.2;
-/** One-way latency at or beyond this scores zero. */
-const LATENCY_CEILING_MS = 1_000;
-/** Distinct first relays at or beyond this score full. */
-const DIVERSITY_CEILING = 4;
-
-/** Higher is better; only meaningful for a measured, eligible destination. */
-function score(
-  state: DestinationState,
-  exit: ExitData,
-  context: RankContext,
-): number {
-  const oneWayMs = exit.rtt / 2;
-  const latency = 1 -
-    Math.min(oneWayMs, LATENCY_CEILING_MS) / LATENCY_CEILING_MS;
-  const free = Math.min(freeSlots(state, context) ?? 0, exit.slots.total);
-  const capacity = exit.slots.total > 0 ? free / exit.slots.total : 0;
-  const diversity = Math.min(pathStats(state).relays, DIVERSITY_CEILING) /
-    DIVERSITY_CEILING;
-  return LATENCY_WEIGHT * latency + CAPACITY_WEIGHT * capacity +
-    DIVERSITY_WEIGHT * diversity;
-}
-
 export type RouteGrade =
-  | { kind: "measured"; bars: 1 | 2 | 3 | 4 }
+  | { kind: "graded"; bars: 1 | 2 | 3 | 4; percentOfBest: number }
   | { kind: "unmeasured" }
-  | { kind: "weak" }
   | { kind: "none" };
 
-/** A score at or above a threshold earns that many bars; below the last one it is a single bar. */
-const BAR_THRESHOLDS: [number, 4 | 3 | 2][] = [[0.75, 4], [0.5, 3], [0.25, 2]];
+/** Cuts just above the path planner's latency factors (0.7, 0.3, 0.15): one more slow hop drops one bar. */
+function barsFor(percentOfBest: number): 1 | 2 | 3 | 4 {
+  if (percentOfBest >= 90) return 4;
+  if (percentOfBest >= 60) return 3;
+  if (percentOfBest >= 25) return 2;
+  return 1;
+}
 
-/** The score as shown on a card; a weak route in its grace grades as Good. Display only: it feeds neither the sort nor auto. */
+/** Bars relative to the best exit, so the top exit always has four. */
 export function routeGrade(
   state: DestinationState | undefined,
   context: RankContext,
-  weakSurfaced = true,
 ): RouteGrade {
-  if (!state) return { kind: "none" };
-  const inGrace = !weakSurfaced && isWeakRoute(state, context);
-  if (!isReady(state, context) && !inGrace) {
-    return isSelectable(state, context) ? { kind: "weak" } : { kind: "none" };
-  }
-  const exit = getExitData(state, context.probe);
-  if (exit === null) return { kind: "unmeasured" };
-  // no path within the band yet, so it gets the lowest grade that still reads as ready
-  if (inGrace) return { kind: "measured", bars: 3 };
-  const value = score(state, exit, context);
-  const reached = BAR_THRESHOLDS.find(([min]) => value >= min);
-  return { kind: "measured", bars: reached ? reached[1] : 1 };
+  if (!state || !isSelectable(state, context)) return { kind: "none" };
+  const percentOfBest = state.route_health?.percent_of_best ?? null;
+  if (percentOfBest === null) return { kind: "unmeasured" };
+  return { kind: "graded", bars: barsFor(percentOfBest), percentOfBest };
 }
 
-/** Most bars first, then weak routes, then unmeasured; ungraded last. */
-function gradeRank(grade: RouteGrade): number {
+/** Lower is better: most bars first, then unmeasured, ungraded last. */
+export function gradeRank(
+  state: DestinationState | undefined,
+  context: RankContext,
+): number {
+  const grade = routeGrade(state, context);
   switch (grade.kind) {
-    case "measured":
+    case "graded":
       return 4 - grade.bars;
-    case "weak":
-      return 4;
     case "unmeasured":
-      return 5;
+      return 4;
     case "none":
-      return 6;
+      return 5;
   }
 }
 
-/** The Quality tab's order: by the grade each row shows, A–Z within a grade. */
+/** The one order for the Quality tab, auto, startup and quick probes: by grade, A–Z within a grade. */
 export function sortByGrade(
   destinations: Record<string, DestinationState>,
   context: RankContext,
-  weakRoutes: Record<string, WeakRoute>,
 ): Destination[] {
-  return Object.entries(destinations)
-    .map(([id, state]) => ({
+  return Object.values(destinations)
+    .map((state) => ({
       destination: state.destination,
-      rank: gradeRank(
-        routeGrade(state, context, weakRoutes[id]?.surfaced ?? false),
-      ),
+      rank: gradeRank(state, context),
     }))
     .sort((a, b) =>
       a.rank - b.rank || compareByName(a.destination, b.destination)
@@ -318,20 +214,9 @@ export function sortByGrade(
     .map(({ destination }) => destination);
 }
 
-const GRADE_WORDS = { 1: "Poor", 2: "Fair", 3: "Good", 4: "Excellent" };
-
-/** The grade in words, as the exit list shows it beside the bars. */
+/** Text for an exit that shows no grade bars; bars alone speak for a graded one. */
 export function routeGradeLabel(grade: RouteGrade): string {
-  switch (grade.kind) {
-    case "measured":
-      return GRADE_WORDS[grade.bars];
-    case "weak":
-      return "Weak route";
-    case "unmeasured":
-      return "Not measured yet";
-    case "none":
-      return "";
-  }
+  return grade.kind === "unmeasured" ? "Not measured yet" : "";
 }
 
 /** The exit list's name for an exit: its country, or its title when the client found none. */
@@ -376,51 +261,6 @@ export function pickerRows(
   return [current, ...shown];
 }
 
-/** Measured eligible first (by score), then unmeasured eligible (by resilience), then the rest (by closeness). */
-export function sortByRouteQuality(
-  destinations: Record<string, DestinationState>,
-  context: RankContext,
-): string[] {
-  const tierOf = (state: DestinationState): number => {
-    if (!isReady(state, context)) return 2;
-    return getExitData(state, context.probe) === null ? 1 : 0;
-  };
-  return Object.keys(destinations).sort((idA, idB) => {
-    const stateA = destinations[idA];
-    const stateB = destinations[idB];
-
-    const tierA = tierOf(stateA);
-    const tierB = tierOf(stateB);
-    if (tierA !== tierB) return tierA - tierB;
-
-    if (tierA === 0) {
-      const scoreA = score(
-        stateA,
-        getExitData(stateA, context.probe)!,
-        context,
-      );
-      const scoreB = score(
-        stateB,
-        getExitData(stateB, context.probe)!,
-        context,
-      );
-      if (scoreA !== scoreB) return scoreB - scoreA;
-    } else if (tierA === 1) {
-      const pathsA = pathStats(stateA);
-      const pathsB = pathStats(stateB);
-      if (pathsA.relays !== pathsB.relays) return pathsB.relays - pathsA.relays;
-      if (pathsA.count !== pathsB.count) return pathsB.count - pathsA.count;
-    } else {
-      const valueA = routeValue(stateA);
-      const valueB = routeValue(stateB);
-      if (valueA !== valueB) return valueB - valueA;
-    }
-    return destinationLabel(stateA.destination).localeCompare(
-      destinationLabel(stateB.destination),
-    );
-  });
-}
-
 /** Connect-on-startup pick: where the last session left off, else the preferred location, else the best — each only while ready. */
 export function pickStartupTarget(
   destinations: Record<string, DestinationState>,
@@ -434,9 +274,9 @@ export function pickStartupTarget(
   if (preferred !== null && isReady(destinations[preferred], context)) {
     return preferred;
   }
-  const readyIds = sortByRouteQuality(destinations, context)
-    .filter((id) => isReady(destinations[id], context));
-  return readyIds[0] ?? null;
+  const best = sortByGrade(destinations, context)
+    .find((d) => isReady(destinations[d.id], context));
+  return best?.id ?? null;
 }
 
 /** Whether a VPN session is live enough that switching destinations should

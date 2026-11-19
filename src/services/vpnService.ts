@@ -214,7 +214,7 @@ export const UnrecoverableReasonSchema = z.discriminatedUnion("type", [
 ]);
 export type UnrecoverableReason = z.infer<typeof UnrecoverableReasonSchema>;
 
-// The daemon's verdict on whether a path to the exit exists; details live in the walk.
+// The daemon's verdict on whether a path to the exit exists; how good it is lives in `percent_of_best`.
 export const RouteHealthStateSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("unrecoverable"),
@@ -224,32 +224,6 @@ export const RouteHealthStateSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("routable") }),
 ]);
 export type RouteHealthState = z.infer<typeof RouteHealthStateSchema>;
-
-// What the last graph walk found for this exit.
-export const RouteWalkSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("not_announced"), walked_at: z.number() }),
-  // No path survived in at least one direction; the counts say which leg came up empty.
-  z.object({
-    type: z.literal("no_path"),
-    walked_at: z.number(),
-    forward_count: z.number(),
-    return_count: z.number(),
-  }),
-  z.object({
-    type: z.literal("paths"),
-    walked_at: z.number(),
-    count: z.number(),
-    distinct_first_relays: z.number(),
-    best_relays: z.array(z.string()),
-    // In (0, 1]; higher is better.
-    best_value: z.number(),
-    // The exit -> me leg, same shape.
-    return_count: z.number(),
-    return_best_relays: z.array(z.string()),
-    return_best_value: z.number(),
-  }),
-]);
-export type RouteWalk = z.infer<typeof RouteWalkSchema>;
 
 // What one quick probe measured; api_version null means no version we support.
 export const QuickProbeCheckSchema = z.object({
@@ -280,7 +254,10 @@ export type QuickProbeState = z.infer<typeof QuickProbeStateSchema>;
 export const RouteHealthViewSchema = z.object({
   state: RouteHealthStateSchema,
   last_error: z.string().nullable(),
-  walk: RouteWalkSchema.nullable(),
+  // null before the first graph walk
+  walked_at: z.number().nullable(),
+  // 0–100: this exit's path as a share of the best exit's right now; null while it has no route
+  percent_of_best: z.number().nullable(),
   quick_probe: QuickProbeStateSchema.nullable(),
 });
 export type RouteHealthView = z.infer<typeof RouteHealthViewSchema>;

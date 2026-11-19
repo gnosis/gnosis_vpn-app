@@ -89,7 +89,6 @@ const BASE_APP_STATE: AppState = {
   serviceInfo: null,
   availableDestinations: [],
   destinations: {},
-  weakRoutes: {},
   connection: { type: "disconnected" },
   disconnecting: [],
   probe: null,
@@ -200,7 +199,8 @@ function routeHealth(state: RouteHealthView["state"]): RouteHealthView {
   return {
     state,
     last_error: null,
-    walk: null,
+    walked_at: null,
+    percent_of_best: null,
     quick_probe: null,
   };
 }

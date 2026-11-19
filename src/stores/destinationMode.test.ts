@@ -19,9 +19,8 @@ import {
   type UserInputEvent,
 } from "./destinationMode.ts";
 import {
-  eligibleRouteHealth,
+  gradedRouteHealth,
   makeDestination,
-  weakRouteHealth,
 } from "@src/testing/destinations.ts";
 
 // Derived from docs/destinationMode.md — where spec and implementation disagree, the spec wins and the case is expected to fail.
@@ -32,19 +31,18 @@ const BASE_DESTINATION: Destination = makeDestination({
   geo: { country: "de", source: { type: "announced_ip" } },
 });
 
-/** Eligible; `relays` is distinct first relays, so a higher number ranks higher. */
-function makeEligible(id: string, relays = 2): DestinationState {
+function makeEligible(id: string, percentOfBest = 100): DestinationState {
   return {
     destination: { ...BASE_DESTINATION, id },
-    route_health: eligibleRouteHealth(relays),
+    route_health: gradedRouteHealth(percentOfBest),
   };
 }
 
-/** Routable with a degraded best path — not ready, per the spec's eligibility rule. */
-function makeWeak(id: string): DestinationState {
+/** Routable but not yet graded by the daemon — not ready, per the spec's eligibility rule. */
+function makeUngraded(id: string): DestinationState {
   return {
     destination: { ...BASE_DESTINATION, id },
-    route_health: weakRouteHealth(),
+    route_health: { ...gradedRouteHealth(), percent_of_best: null },
   };
 }
 
@@ -161,8 +159,8 @@ function pick(handle: DestinationModeHandle, id: string): void {
 }
 
 const UK_USA = {
-  uk: makeEligible("uk", 50),
-  usa: makeEligible("usa", 90),
+  uk: makeEligible("uk", 40),
+  usa: makeEligible("usa", 100),
 };
 
 beforeEach(() => {
@@ -176,7 +174,7 @@ afterEach(() => {
 describe("effectiveActive — the one reader of what we are on", () => {
   it("stays on the active destination until the countdown ends", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 40) }));
     step(handle, statusFor(UK_USA));
 
     expect(handle.model.active).toBe("uk");
@@ -187,7 +185,7 @@ describe("effectiveActive — the one reader of what we are on", () => {
 
   it("reports the candidate from the deadline, before the commit timer has run", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 40) }));
     step(handle, statusFor(UK_USA));
 
     const deadline = Date.now() + SWITCH_COUNTDOWN_MS;
@@ -197,7 +195,7 @@ describe("effectiveActive — the one reader of what we are on", () => {
 
   it("falls back to active for a pending gone stale by more than one poll", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 40) }));
     step(handle, statusFor(UK_USA));
 
     const wayPast = Date.now() + SWITCH_COUNTDOWN_MS + STATUS_POLL_MS + 1;
@@ -211,20 +209,23 @@ describe("statusUpdate — baseline", () => {
     step(handle, statusFor(UK_USA));
     expect(handle.model.active).toBe("usa");
 
-    step(handle, statusFor({ fr: makeEligible("fr", 70) }));
+    step(handle, statusFor({ fr: makeEligible("fr", 75) }));
 
     expect(handle.model.active).toBe("fr");
   });
 
   it("disarms a candidate that is no longer offered, so its successor counts down afresh", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 40) }));
     step(handle, statusFor(UK_USA));
 
     vi.setSystemTime(Date.now() + 1_000);
     step(
       handle,
-      statusFor({ uk: makeEligible("uk", 50), fr: makeEligible("fr", 95) }),
+      statusFor({
+        uk: makeEligible("uk", 40),
+        fr: makeEligible("fr", 100),
+      }),
     );
 
     // a retarget would have kept the vanished candidate's deadline
@@ -241,7 +242,7 @@ describe("statusUpdate — baseline", () => {
 describe("statusUpdate — live", () => {
   it("takes priority over an armed countdown", async () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 40) }));
     step(handle, statusFor(UK_USA));
     expect(handle.model.mode).toMatchObject({
       pending: { candidateId: "usa" },
@@ -260,7 +261,7 @@ describe("statusUpdate — live", () => {
   it("takes the live destination even when the prune removed it", () => {
     const handle = setup();
 
-    step(handle, connectedTo("gone", { uk: makeEligible("uk", 50) }));
+    step(handle, connectedTo("gone", { uk: makeEligible("uk", 40) }));
 
     expect(handle.model.active).toBe("gone");
     expect(handle.model.mode).toEqual({ mode: "live", auto: true });
@@ -278,7 +279,7 @@ describe("statusUpdate — live", () => {
 
   it("closes an open list, since we did not start this connection from it", () => {
     const handle = setup();
-    const destinations = { uk: makeEligible("uk", 50) };
+    const destinations = { uk: makeEligible("uk", 40) };
     step(handle, statusFor(destinations));
 
     input(handle, { type: "listOpened" });
@@ -291,7 +292,7 @@ describe("statusUpdate — live", () => {
 
   it("keeps a list opened while connecting open across polls", () => {
     const handle = setup();
-    const destinations = { uk: makeEligible("uk", 50) };
+    const destinations = { uk: makeEligible("uk", 40) };
     step(handle, connectingTo("uk", destinations));
 
     input(handle, { type: "listOpened" });
@@ -306,7 +307,7 @@ describe("statusUpdate — live", () => {
 
   it("keeps a list opened while connected open across polls", () => {
     const handle = setup();
-    const destinations = { uk: makeEligible("uk", 50) };
+    const destinations = { uk: makeEligible("uk", 40) };
     step(handle, connectedTo("uk", destinations));
 
     input(handle, { type: "listOpened" });
@@ -372,7 +373,7 @@ describe("statusUpdate — leaving live", () => {
 
   it("does not close the list", () => {
     const handle = setup();
-    const destinations = { uk: makeEligible("uk", 50) };
+    const destinations = { uk: makeEligible("uk", 40) };
     step(handle, connectedTo("uk", destinations));
     input(handle, { type: "listOpened" });
 
@@ -385,7 +386,7 @@ describe("statusUpdate — leaving live", () => {
 describe("statusUpdate — suspension", () => {
   it("freezes the mode while the list is open", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 40) }));
     input(handle, { type: "listOpened" });
 
     step(handle, statusFor(UK_USA));
@@ -397,10 +398,10 @@ describe("statusUpdate — suspension", () => {
 
   it("ends the suspension and cold starts when the active is pruned away", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 40) }));
     input(handle, { type: "listOpened" });
 
-    step(handle, statusFor({ fr: makeEligible("fr", 70) }));
+    step(handle, statusFor({ fr: makeEligible("fr", 75) }));
 
     expect(handle.model.listOpen, "a list over a vanished destination closes")
       .toBe(false);
@@ -418,7 +419,7 @@ describe("statusUpdate — selected", () => {
       handle,
       statusFor({
         uk: makeUnavailable("uk"),
-        usa: makeEligible("usa", 90),
+        usa: makeEligible("usa", 100),
       }),
     );
 
@@ -446,7 +447,7 @@ describe("statusUpdate — selected", () => {
     step(handle, statusFor(UK_USA));
     pick(handle, "uk");
 
-    step(handle, statusFor({ usa: makeEligible("usa", 90) }));
+    step(handle, statusFor({ usa: makeEligible("usa", 100) }));
 
     expect(handle.model.active).toBe("usa");
     expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
@@ -456,7 +457,7 @@ describe("statusUpdate — selected", () => {
 describe("auto — arming", () => {
   it("arms a countdown toward a better destination", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 40) }));
 
     step(handle, statusFor(UK_USA));
 
@@ -470,24 +471,64 @@ describe("auto — arming", () => {
     });
   });
 
-  // The sort already sinks weak routes, so isolating the eligibility rule needs every destination weak.
-  it("never arms toward a destination with a weak route", () => {
+  // The sort already sinks ungraded routes, so isolating the eligibility rule needs every destination ungraded.
+  it("never arms toward a destination the daemon has not graded", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 40) }));
 
     step(
       handle,
-      statusFor({ uk: makeWeak("uk"), usa: makeWeak("usa") }),
+      statusFor({ uk: makeUngraded("uk"), usa: makeUngraded("usa") }),
     );
 
-    expect(handle.model.active, "we stay put rather than chase a weak route")
+    expect(
+      handle.model.active,
+      "we stay put rather than chase an ungraded route",
+    )
       .toBe("uk");
     expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
   });
 
+  it("never arms between two equally graded exits, whatever the name order", () => {
+    const handle = setup();
+    step(handle, statusFor({ usa: makeEligible("usa", 75) }));
+
+    step(
+      handle,
+      statusFor({
+        uk: makeEligible("uk", 75),
+        usa: makeEligible("usa", 75),
+      }),
+    );
+
+    expect(handle.model.active).toBe("usa");
+    expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
+  });
+
+  it("arms toward a strictly better grade", () => {
+    const handle = setup();
+    step(handle, statusFor({ usa: makeEligible("usa", 75) }));
+
+    step(
+      handle,
+      statusFor({
+        uk: makeEligible("uk", 100),
+        usa: makeEligible("usa", 75),
+      }),
+    );
+
+    expect(handle.model.mode).toEqual({
+      mode: "auto",
+      pending: {
+        candidateId: "uk",
+        countdownEndsAt: Date.now() + SWITCH_COUNTDOWN_MS,
+      },
+    });
+  });
+
   it("commits when the countdown ends, staying in auto", async () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 40) }));
     step(handle, statusFor(UK_USA));
 
     await vi.advanceTimersByTimeAsync(SWITCH_COUNTDOWN_MS);
@@ -499,7 +540,7 @@ describe("auto — arming", () => {
 
   it("commits from the clock when the timer was never allowed to fire", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 40) }));
     step(handle, statusFor(UK_USA));
     expect(handle.model.mode).toMatchObject({
       pending: { candidateId: "usa" },
@@ -513,7 +554,7 @@ describe("auto — arming", () => {
 
   it("discards a pending slept past by more than one poll instead of committing it", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 40) }));
     step(handle, statusFor(UK_USA));
 
     vi.setSystemTime(Date.now() + SWITCH_COUNTDOWN_MS + STATUS_POLL_MS + 1);
@@ -528,7 +569,7 @@ describe("auto — arming", () => {
 
   it("discards a pending its own timer slept through", async () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 40) }));
     step(handle, statusFor(UK_USA));
 
     // the clock jumps with the pending timer, so it fires this late
@@ -544,7 +585,7 @@ describe("auto — arming", () => {
 describe("auto — retargeting", () => {
   it("retargets a pending without restarting its countdown", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 40) }));
     step(handle, statusFor(UK_USA));
     const armed = handle.model.mode;
     const countdownEndsAt = armed.mode === "auto"
@@ -555,9 +596,9 @@ describe("auto — retargeting", () => {
     step(
       handle,
       statusFor({
-        uk: makeEligible("uk", 50),
-        usa: makeEligible("usa", 60),
-        fr: makeEligible("fr", 95),
+        uk: makeEligible("uk", 40),
+        usa: makeEligible("usa", 75),
+        fr: makeEligible("fr", 100),
       }),
     );
 
@@ -569,16 +610,16 @@ describe("auto — retargeting", () => {
 
   it("commits the due candidate before weighing a new one", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 40) }));
     step(handle, statusFor(UK_USA));
 
     vi.setSystemTime(Date.now() + SWITCH_COUNTDOWN_MS);
     step(
       handle,
       statusFor({
-        uk: makeEligible("uk", 50),
-        usa: makeEligible("usa", 60),
-        fr: makeEligible("fr", 95),
+        uk: makeEligible("uk", 40),
+        usa: makeEligible("usa", 75),
+        fr: makeEligible("fr", 100),
       }),
     );
 
@@ -597,14 +638,14 @@ describe("auto — retargeting", () => {
 describe("auto — disarming", () => {
   it("drops the pending when the active becomes best again", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 40) }));
     step(handle, statusFor(UK_USA));
 
     step(
       handle,
       statusFor({
-        uk: makeEligible("uk", 90),
-        usa: makeEligible("usa", 50),
+        uk: makeEligible("uk", 100),
+        usa: makeEligible("usa", 40),
       }),
     );
 
@@ -614,7 +655,7 @@ describe("auto — disarming", () => {
 
   it("disarms when health data disappears entirely", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 40) }));
     step(handle, statusFor(UK_USA));
 
     step(
@@ -635,7 +676,7 @@ describe("cold start", () => {
       handle,
       statusFor({
         uk: makeUnavailable("uk"),
-        usa: makeEligible("usa", 90),
+        usa: makeEligible("usa", 100),
       }, ["uk", "usa"]),
     );
 
@@ -659,7 +700,7 @@ describe("cold start", () => {
   it("stays in auto when the promotion is merely the best destination", () => {
     const handle = setup();
 
-    step(handle, statusFor({ usa: makeEligible("usa", 90) }));
+    step(handle, statusFor({ usa: makeEligible("usa", 100) }));
 
     expect(handle.model.active).toBe("usa");
     expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
@@ -668,7 +709,7 @@ describe("cold start", () => {
   it("stays in auto when the promotion is a ready preferred location", () => {
     const handle = setup({ preferredLocation: "fr" });
 
-    step(handle, statusFor({ fr: makeEligible("fr", 70) }));
+    step(handle, statusFor({ fr: makeEligible("fr", 75) }));
 
     expect(handle.model.active).toBe("fr");
     // preferred is an input to the candidate, not a selection of its own
@@ -681,8 +722,8 @@ describe("cold start", () => {
     step(
       handle,
       statusFor({
-        uk: makeEligible("uk", 50),
-        fr: makeEligible("fr", 70),
+        uk: makeEligible("uk", 40),
+        fr: makeEligible("fr", 75),
       }, ["uk"]),
     );
 
@@ -697,7 +738,7 @@ describe("cold start", () => {
   it("falls through to the best candidate when the most recent exit is not offered", () => {
     const handle = setup();
 
-    step(handle, statusFor({ usa: makeEligible("usa", 90) }, ["gone"]));
+    step(handle, statusFor({ usa: makeEligible("usa", 100) }, ["gone"]));
 
     expect(handle.model.active).toBe("usa");
     expect(handle.model.resumeLastSession).toBe(false);
@@ -709,15 +750,15 @@ describe("cold start", () => {
     expect(handle.model.active).toBe("uk");
 
     // uk vanishes, forcing a mid-session cold start
-    step(handle, statusFor({ usa: makeEligible("usa", 90) }, ["uk"]));
+    step(handle, statusFor({ usa: makeEligible("usa", 100) }, ["uk"]));
     expect(handle.model.active).toBe("usa");
 
     // and coming back does not reinstate it
     step(
       handle,
       statusFor({
-        uk: makeEligible("uk", 95),
-        usa: makeEligible("usa", 90),
+        uk: makeEligible("uk", 100),
+        usa: makeEligible("usa", 100),
       }, ["uk"]),
     );
     expect(handle.model.active).toBe("usa");
@@ -730,7 +771,7 @@ describe("cold start", () => {
       handle,
       statusFor({
         fr: makeEligible("fr", 10),
-        usa: makeEligible("usa", 90),
+        usa: makeEligible("usa", 100),
       }),
     );
 
@@ -742,14 +783,14 @@ describe("cold start", () => {
 
   it("discards an armed pending and promotes directly when the active is pruned", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 40) }));
     step(handle, statusFor(UK_USA));
     expect(handle.model.mode).toMatchObject({
       pending: { candidateId: "usa" },
     });
 
     // uk vanishes mid-countdown; a countdown with nothing to switch away from cannot survive
-    step(handle, statusFor({ usa: makeEligible("usa", 90) }));
+    step(handle, statusFor({ usa: makeEligible("usa", 100) }));
 
     expect(handle.model.active).toBe("usa");
     expect(handle.model.mode, "promotion, not a countdown")
@@ -771,7 +812,7 @@ describe("preferred location", () => {
     step(
       handle,
       statusFor({
-        uk: makeEligible("uk", 90),
+        uk: makeEligible("uk", 100),
         fr: makeUnavailable("fr"),
       }),
     );
@@ -780,8 +821,29 @@ describe("preferred location", () => {
     step(
       handle,
       statusFor({
-        uk: makeEligible("uk", 90),
+        uk: makeEligible("uk", 100),
         fr: makeEligible("fr", 10),
+      }),
+    );
+
+    expect(handle.model.mode).toMatchObject({ pending: { candidateId: "fr" } });
+  });
+
+  it("arms even at a grade equal to the active's", () => {
+    const handle = setup({ preferredLocation: "fr" });
+    step(
+      handle,
+      statusFor({
+        uk: makeEligible("uk", 75),
+        fr: makeUnavailable("fr"),
+      }),
+    );
+
+    step(
+      handle,
+      statusFor({
+        uk: makeEligible("uk", 75),
+        fr: makeEligible("fr", 75),
       }),
     );
 
@@ -790,12 +852,12 @@ describe("preferred location", () => {
 
   it("does not restart a countdown it takes over", () => {
     const handle = setup({ preferredLocation: "fr" });
-    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 40) }));
     step(
       handle,
       statusFor({
-        uk: makeEligible("uk", 50),
-        usa: makeEligible("usa", 90),
+        uk: makeEligible("uk", 40),
+        usa: makeEligible("usa", 100),
         fr: makeUnavailable("fr"),
       }),
     );
@@ -808,8 +870,8 @@ describe("preferred location", () => {
     step(
       handle,
       statusFor({
-        uk: makeEligible("uk", 50),
-        usa: makeEligible("usa", 90),
+        uk: makeEligible("uk", 40),
+        usa: makeEligible("usa", 100),
         fr: makeEligible("fr", 10),
       }),
     );
@@ -821,11 +883,11 @@ describe("preferred location", () => {
 
   it("is spent only once it becomes active", async () => {
     const handle = setup({ preferredLocation: "fr" });
-    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 40) }));
     step(
       handle,
       statusFor({
-        uk: makeEligible("uk", 50),
+        uk: makeEligible("uk", 40),
         fr: makeEligible("fr", 10),
       }),
     );
@@ -839,11 +901,11 @@ describe("preferred location", () => {
 
   it("keeps its shot when it stops being ready before committing", () => {
     const handle = setup({ preferredLocation: "fr" });
-    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 40) }));
     step(
       handle,
       statusFor({
-        uk: makeEligible("uk", 50),
+        uk: makeEligible("uk", 40),
         fr: makeEligible("fr", 10),
       }),
     );
@@ -851,7 +913,7 @@ describe("preferred location", () => {
     step(
       handle,
       statusFor({
-        uk: makeEligible("uk", 50),
+        uk: makeEligible("uk", 40),
         fr: makeUnavailable("fr"),
       }),
     );
@@ -864,8 +926,8 @@ describe("preferred location", () => {
     step(
       handle,
       statusFor({
-        uk: makeEligible("uk", 50),
-        usa: makeEligible("usa", 90),
+        uk: makeEligible("uk", 40),
+        usa: makeEligible("usa", 100),
         fr: makeUnavailable("fr"),
       }),
     );
@@ -880,13 +942,13 @@ describe("preferred location", () => {
     expect(handle.model.preferredLocation).toBe("fr");
   });
 
-  it("needs a full-value path, not just a routable state", () => {
+  it("needs a graded path, not just a routable state", () => {
     const handle = setup({ preferredLocation: "fr" });
-    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 40) }));
 
     step(
       handle,
-      statusFor({ uk: makeEligible("uk", 50), fr: makeWeak("fr") }),
+      statusFor({ uk: makeEligible("uk", 40), fr: makeUngraded("fr") }),
     );
 
     expect(handle.model.mode).toEqual({ mode: "auto", pending: null });
@@ -897,7 +959,7 @@ describe("preferred location", () => {
 describe("listOpened", () => {
   it("clears an armed pending", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 40) }));
     step(handle, statusFor(UK_USA));
 
     input(handle, { type: "listOpened" });
@@ -921,7 +983,7 @@ describe("listOpened", () => {
 describe("confirmOpened and confirmClosed — the exit cost view", () => {
   it("drops an armed pending and holds auto while the cost shows", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 40) }));
     step(handle, statusFor(UK_USA));
 
     input(handle, { type: "confirmOpened" });
@@ -938,7 +1000,7 @@ describe("confirmOpened and confirmClosed — the exit cost view", () => {
 
   it("commits a due pending first, the exit Connect already resolved", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 40) }));
     step(handle, statusFor(UK_USA));
     vi.setSystemTime(Date.now() + SWITCH_COUNTDOWN_MS);
 
@@ -950,7 +1012,7 @@ describe("confirmOpened and confirmClosed — the exit cost view", () => {
 
   it("lets auto choose again once it closes", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 40) }));
     input(handle, { type: "confirmOpened" });
     step(handle, statusFor(UK_USA));
 
@@ -979,7 +1041,7 @@ describe("confirmOpened and confirmClosed — the exit cost view", () => {
     step(handle, statusFor(UK_USA));
     input(handle, { type: "confirmOpened" });
 
-    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 40) }));
 
     expect(handle.model.confirming).toBe(false);
     expect(handle.model.active).toBe("uk");
@@ -989,7 +1051,7 @@ describe("confirmOpened and confirmClosed — the exit cost view", () => {
 describe("listClosed — cancelled", () => {
   it("resumes auto from a clean slate", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 40) }));
     step(handle, statusFor(UK_USA));
     input(handle, { type: "listOpened" });
 
@@ -1019,7 +1081,7 @@ describe("listClosed — cancelled", () => {
 
   it("leaves live alone", () => {
     const handle = setup();
-    const destinations = { uk: makeEligible("uk", 50) };
+    const destinations = { uk: makeEligible("uk", 40) };
     step(handle, connectedTo("uk", destinations));
     input(handle, { type: "listOpened" });
 
@@ -1049,12 +1111,12 @@ describe("autoResumed", () => {
 
   it("keeps the active destination when nothing is ready", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeWeak("uk") }));
+    step(handle, statusFor({ uk: makeUngraded("uk") }));
     pick(handle, "uk");
 
     input(handle, {
       type: "autoResumed",
-      status: statusFor({ uk: makeWeak("uk"), usa: makeWeak("usa") }),
+      status: statusFor({ uk: makeUngraded("uk"), usa: makeUngraded("usa") }),
     });
 
     expect(handle.model.active).toBe("uk");
@@ -1134,7 +1196,7 @@ describe("listClosed — picked", () => {
 
   it("selects the already-active destination, taking it from auto", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 40) }));
 
     pick(handle, "uk");
 
@@ -1155,7 +1217,7 @@ describe("listClosed — picked", () => {
 describe("a due pending is committed, not discarded", () => {
   /** uk active with a pending on usa, the clock already past its deadline but the timer never fired. */
   function duePending(handle: DestinationModeHandle, pastDeadline = 0): void {
-    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 40) }));
     step(handle, statusFor(UK_USA));
     vi.setSystemTime(Date.now() + SWITCH_COUNTDOWN_MS + pastDeadline);
   }
@@ -1241,7 +1303,7 @@ describe("connectIssued", () => {
 
   it("clears an armed pending, so nothing counts down during the attempt", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 40) }));
     step(handle, statusFor(UK_USA));
     expect(handle.model.mode).toMatchObject({
       pending: { candidateId: "usa" },
@@ -1261,7 +1323,9 @@ describe("connectIssued", () => {
     const handle = setup();
     step(
       handle,
-      statusFor({ uk: makeWeak("uk"), usa: makeEligible("usa", 90) }, ["uk"]),
+      statusFor({ uk: makeUngraded("uk"), usa: makeEligible("usa", 100) }, [
+        "uk",
+      ]),
     );
     expect(handle.model.active).toBe("uk");
 
@@ -1303,14 +1367,14 @@ describe("connectIssued", () => {
 describe("cardPhase — which label the card wears", () => {
   it("wears auto's label only while nothing is pending", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 40) }));
 
     expect(cardPhase(handle.model)).toBe("auto");
   });
 
   it("drops auto's label once a candidate is armed", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 40) }));
     step(handle, statusFor(UK_USA));
 
     expect(cardPhase(handle.model), "no longer provably best")
@@ -1319,7 +1383,7 @@ describe("cardPhase — which label the card wears", () => {
 
   it("reads as connecting while live", () => {
     const handle = setup();
-    step(handle, connectedTo("uk", { uk: makeEligible("uk", 50) }));
+    step(handle, connectedTo("uk", { uk: makeEligible("uk", 40) }));
 
     expect(cardPhase(handle.model)).toBe("connecting");
   });
@@ -1336,7 +1400,7 @@ describe("cardPhase — which label the card wears", () => {
 describe("reset", () => {
   it("clears suspension along with everything else", () => {
     const handle = setup();
-    step(handle, statusFor({ uk: makeEligible("uk", 50) }));
+    step(handle, statusFor({ uk: makeEligible("uk", 40) }));
     input(handle, { type: "listOpened" });
     expect(handle.model.listOpen, "otherwise the reset proves nothing").toBe(
       true,
@@ -1361,6 +1425,7 @@ describe("invariants hold under randomized traffic", () => {
   };
 
   const IDS = ["a", "b", "c", "d"];
+  const PERCENTS_OF_BEST = [100, 75, 40, 10];
 
   /** A selection outlives everything but its destination disappearing. */
   function expectSelectionKept(
@@ -1392,8 +1457,11 @@ describe("invariants hold under randomized traffic", () => {
           destinations[id] = roll < 0.15
             ? makeUnavailable(id)
             : roll < 0.3
-            ? makeWeak(id)
-            : makeEligible(id, 1 + Math.floor(random() * 100));
+            ? makeUngraded(id)
+            : makeEligible(
+              id,
+              PERCENTS_OF_BEST[Math.floor(random() * PERCENTS_OF_BEST.length)],
+            );
         }
 
         const liveRoll = random();

@@ -10,9 +10,9 @@ import {
 import type { ExitData } from "./destinations.ts";
 import {
   eligibleRouteHealth,
+  gradedRouteHealth,
   noPathRouteHealth,
   unrecoverableRouteHealth,
-  weakRouteHealth,
 } from "@src/testing/destinations.ts";
 
 function measured(
@@ -131,20 +131,13 @@ describe("getLatencyLevel", () => {
 });
 
 describe("formatExitHealthStatus — one label per route state", () => {
-  it("names a path within the band ready and one below it weak", () => {
+  it("names any graded route ready, whatever its percent of best", () => {
     expect(formatExitHealthStatus(eligibleRouteHealth(), null)).toBe(
       "Ready to connect",
     );
-    expect(formatExitHealthStatus(weakRouteHealth(0.999), null)).toBe(
+    expect(formatExitHealthStatus(gradedRouteHealth(10), null)).toBe(
       "Ready to connect",
     );
-    expect(formatExitHealthStatus(weakRouteHealth(0.9), null)).toBe(
-      "Ready to connect",
-    );
-    expect(formatExitHealthStatus(weakRouteHealth(0.89), null)).toBe(
-      "Weak route",
-    );
-    expect(formatExitHealthStatus(weakRouteHealth(), null)).toBe("Weak route");
   });
 
   it("calls a measured exit with no free slot full", () => {
@@ -175,30 +168,17 @@ describe("formatExitHealthStatus — one label per route state", () => {
 
   it("is still checking before the first walk", () => {
     expect(
-      formatExitHealthStatus({ ...eligibleRouteHealth(), walk: null }, null),
+      formatExitHealthStatus({ ...noPathRouteHealth(), walked_at: null }, null),
     ).toBe("Checking…");
-  });
-});
-
-describe("a weak route still in its grace", () => {
-  it("reads ready to connect, or full on a measured full exit", () => {
-    expect(formatExitHealthStatus(weakRouteHealth(), null, false)).toBe(
-      "Ready to connect",
-    );
-    expect(formatExitHealthStatus(weakRouteHealth(), measured(0, 4), false))
-      .toBe("Full");
-  });
-
-  it("leaves every other verdict alone", () => {
-    expect(formatExitHealthStatus(noPathRouteHealth(), null, false)).toBe(
-      "No route",
-    );
     expect(
       formatExitHealthStatus(
-        { ...weakRouteHealth(), walk: null },
+        { ...eligibleRouteHealth(), walked_at: null },
         null,
-        false,
       ),
     ).toBe("Checking…");
+  });
+
+  it("says no route only once a walk came back empty", () => {
+    expect(formatExitHealthStatus(noPathRouteHealth(), null)).toBe("No route");
   });
 });
