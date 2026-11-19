@@ -264,15 +264,7 @@ pub fn funds_level(run_mode: &ipc::RunMode, balance: Option<&BalanceResponse>) -
     else {
         return FundsLevel::Sufficient;
     };
-    worst(status.traffic.into(), status.gas.into())
-}
-
-fn worst(a: FundsLevel, b: FundsLevel) -> FundsLevel {
-    match (a, b) {
-        (FundsLevel::Empty, _) | (_, FundsLevel::Empty) => FundsLevel::Empty,
-        (FundsLevel::Low, _) | (_, FundsLevel::Low) => FundsLevel::Low,
-        _ => FundsLevel::Sufficient,
-    }
+    status.traffic.into()
 }
 
 // Animation frame pair for the connecting/reconnecting states.
@@ -568,10 +560,10 @@ mod tests {
     }
 
     #[test]
-    fn funds_level_reads_worst_of_traffic_and_gas_from_balance() {
+    fn funds_level_reads_traffic_alone_from_balance() {
         let mode = running(None);
-        let b = balance(Some(status(LibFundingLevel::Good, LibFundingLevel::Low)));
-        assert_eq!(funds_level(&mode, Some(&b)), FundsLevel::Low);
+        let b = balance(Some(status(LibFundingLevel::Good, LibFundingLevel::Empty)));
+        assert_eq!(funds_level(&mode, Some(&b)), FundsLevel::Sufficient);
 
         let b = balance(Some(status(LibFundingLevel::Empty, LibFundingLevel::Good)));
         assert_eq!(funds_level(&mode, Some(&b)), FundsLevel::Empty);

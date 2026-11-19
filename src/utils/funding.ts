@@ -4,6 +4,7 @@ import type {
   FundingStatus,
   PreparingSafe,
 } from "@src/services/vpnService.ts";
+import { BYTES_PER_GB } from "@src/utils/credit.ts";
 
 export type StatusText = "Sufficient" | "Low" | "Empty" | string;
 
@@ -40,18 +41,6 @@ export function deriveNodeStatus(
 ): StatusText {
   const status = resolveFundingStatus(balance, runModeStatus);
   return status ? toStatusText(status.gas) : "Sufficient";
-}
-
-// Worst of traffic and gas status — the wallet icon must flag either problem.
-export function deriveOverallStatus(
-  balance: BalanceResponse | null,
-  runModeStatus: FundingStatus | null,
-): StatusText {
-  const traffic = deriveTrafficStatus(balance, runModeStatus);
-  const gas = deriveNodeStatus(balance, runModeStatus);
-  if (traffic === "Empty" || gas === "Empty") return "Empty";
-  if (traffic === "Low" || gas === "Low") return "Low";
-  return "Sufficient";
 }
 
 // Daemon already gates these to null while the corresponding level is Good.
@@ -96,4 +85,24 @@ export const WXHOPR_SEND_STEP = 10n * 10n ** 18n;
 /** Rounds `amount` up to the next multiple of `step`. */
 export function roundUpToStep(amount: bigint, step: bigint): bigint {
   return ((amount + step - 1n) / step) * step;
+}
+
+/** Data asks are rounded up to whole multiples of this. */
+export const DATA_SEND_STEP = 5n * BYTES_PER_GB;
+
+/** `wxhopr` as data at the PIX `pricePerByte`, rounded up to whole 5 GB; null without a price. */
+export function dataToSend(
+  wxhopr: bigint,
+  pricePerByte: bigint,
+): bigint | null {
+  if (pricePerByte <= 0n) return null;
+  return roundUpToStep(
+    (wxhopr + pricePerByte - 1n) / pricePerByte,
+    DATA_SEND_STEP,
+  );
+}
+
+/** A {@link dataToSend} amount, always whole GB. */
+export function formatDataToSend(bytes: bigint): string {
+  return `${bytes / BYTES_PER_GB} GB`;
 }

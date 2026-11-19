@@ -28,6 +28,7 @@
     "last_error": "timeout"
   },
   "pix_chunk_bytes": null,
+  "pix_price_per_byte": "1000000000",
   "probing": null,
   "recent": [],
   "exit_names": {}

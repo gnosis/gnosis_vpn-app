@@ -18,26 +18,25 @@ import {
   formatCountCompact,
   formatCreditCompact,
 } from "@src/utils/credit.ts";
-import { deriveNodeStatus, deriveTrafficStatus } from "@src/utils/funding.ts";
+import { deriveTrafficStatus, formatDataToSend } from "@src/utils/funding.ts";
 import { exitDisplayName, exitShortId } from "@src/utils/destinations.ts";
 import {
   clearSettingsRequest,
   settingsRequest,
 } from "@src/utils/settingsPage.ts";
 import Banner from "@src/components/common/Banner.tsx";
+import Button from "@src/components/common/Button.tsx";
 import Tooltip from "@src/components/common/Tooltip.tsx";
 import { ShortId } from "@src/components/exitNode/LocationRow.tsx";
 import UsageMeter from "@src/components/exitNode/UsageMeter.tsx";
-import BackIcon from "@src/components/icons/BackIcon.tsx";
+import ArrowRightIcon from "@src/components/icons/ArrowRightIcon.tsx";
+import CheckCircleIcon from "@src/components/icons/CheckCircleIcon.tsx";
 import SettingIcon from "@src/components/icons/SettingIcon.tsx";
 import WarningIcon from "@src/components/icons/WarningIcon.tsx";
 import BalanceBreakdown from "@src/components/settings/BalanceBreakdown.tsx";
 import Notice from "@src/components/settings/Notice.tsx";
-import {
-  SettingsCard,
-  SettingsHeading,
-} from "@src/components/settings/SettingsGroup.tsx";
-import SettingsRow from "@src/components/settings/SettingsRow.tsx";
+import { SettingsHeading } from "@src/components/settings/SettingsGroup.tsx";
+import TokenNote from "@src/components/settings/TokenNote.tsx";
 import { openFundingSite, useFunding } from "./useFunding.ts";
 
 // The client reports no session lifetime yet, so the expiry value reads "Feature coming".
@@ -90,8 +89,15 @@ export default function UsageTab(
   props: { onAddFunds: () => void; showBreakdown: boolean },
 ) {
   const [appState] = useAppStore();
-  const { preparingSafe, standIn, balanceShown, runModeStatus, nodeAddress } =
-    useFunding();
+  const {
+    preparingSafe,
+    standIn,
+    balanceShown,
+    runModeStatus,
+    nodeAddress,
+    tokenStatus,
+    dataShortfall,
+  } = useFunding();
 
   // The balance popover's "Add data" lands here; before the card shows it only opens the tab.
   createEffect(() => {
@@ -113,9 +119,6 @@ export default function UsageTab(
   const trafficStatus = createMemo(() =>
     deriveTrafficStatus(appState.balance, runModeStatus())
   );
-  const gasStatus = createMemo(() =>
-    deriveNodeStatus(appState.balance, runModeStatus())
-  );
   // The daemon's levels alone (before the first balance) are blind to EOA funds, so they only warrant amber.
   const emptyVariant = () =>
     appState.balance === null ? "warning" as const : "critical" as const;
@@ -136,19 +139,13 @@ export default function UsageTab(
           : `Balance running low: ${renewals(left)} left.`,
       });
     }
-    if (gasStatus() === "Empty") {
-      warnings.push({
-        variant: emptyVariant(),
-        text: "Gas is empty — top up xDAI.",
-      });
-    } else if (gasStatus() === "Low") {
-      warnings.push({ variant: "warning", text: "Gas is low — top up xDAI." });
-    }
     if (preparingSafe()) {
       warnings.push({ variant: "warning", text: "Waiting for incoming funds" });
     }
     return warnings;
   });
+
+  const enoughData = () => tokenStatus("wxhopr") === "Sufficient";
 
   const breakdown = () =>
     props.showBreakdown && appState.balance
@@ -168,10 +165,9 @@ export default function UsageTab(
         {(notice) => <Notice tone={notice().tone}>{notice().text}</Notice>}
       </Show>
       <Show when={balanceShown()}>
+        <SettingsHeading>Balance</SettingsHeading>
         <div class="flex shrink-0 flex-col gap-2 rounded-xl bg-bg-list px-3.5 pt-4 pb-3.5">
-          <span class="text-xs leading-4 text-text-subtle">
-            Available balance
-          </span>
+          <span class="text-xs leading-4 text-text-subtle">Available</span>
           <div class="flex items-baseline gap-2.5">
             <span class="font-figures text-[34px] leading-none font-semibold tracking-[-0.04em]">
               {/* Explicit null check: credit can be 0n, which is falsy */}
@@ -183,27 +179,54 @@ export default function UsageTab(
               </span>
             </Show>
           </div>
-        </div>
-        <SettingsCard label="Funding">
-          <SettingsRow
-            icon="add"
-            title="Add funds directly"
-            onClick={() => props.onAddFunds()}
-          >
-            <BackIcon class="rotate-180 text-text-subtle" />
-          </SettingsRow>
-          <Show when={nodeAddress()}>
-            {(address) => (
-              <SettingsRow
-                icon="external"
-                title="Open funding site"
-                onClick={() => void openFundingSite(address())}
+          <Show when={dataShortfall()}>
+            {(bytes) => (
+              <TokenNote
+                icon={
+                  <ArrowRightIcon
+                    class={`size-full ${
+                      trafficStatus() === "Empty"
+                        ? "text-bad-ink"
+                        : "text-warn-ink"
+                    }`}
+                  />
+                }
               >
-                <BackIcon class="rotate-180 text-text-subtle" />
-              </SettingsRow>
+                Add at least{" "}
+                <span class="font-figures font-bold text-text-primary">
+                  {formatDataToSend(bytes())}
+                </span>
+              </TokenNote>
             )}
           </Show>
-        </SettingsCard>
+          <Show when={enoughData()}>
+            <TokenNote
+              icon={<CheckCircleIcon class="size-full text-ok-badge" />}
+            >
+              You have enough data
+            </TokenNote>
+          </Show>
+        </div>
+        <Show when={nodeAddress()}>
+          {(address) => (
+            <>
+              <Button
+                size="xl"
+                variant="connect"
+                class="shrink-0"
+                onClick={() => void openFundingSite(address())}
+              >
+                Open funding site <span aria-hidden="true">↗</span>
+              </Button>
+              <p class="flex gap-2 px-1 pt-1 text-xs leading-[1.45] text-text-subtle">
+                <span class="mt-px shrink-0">
+                  <SettingIcon name="info" size={14} />
+                </span>
+                <span>Funding usually takes 2 minutes.</span>
+              </p>
+            </>
+          )}
+        </Show>
         <SettingsHeading>This exit</SettingsHeading>
         <div class="flex shrink-0 flex-col rounded-xl bg-bg-list px-3.5 py-3.5">
           <UsageMeter
@@ -229,7 +252,12 @@ export default function UsageTab(
           />
         </div>
         <Show when={breakdown()}>
-          {(lines) => <BalanceBreakdown lines={lines()} />}
+          {(lines) => (
+            <BalanceBreakdown
+              lines={lines()}
+              xdai={appState.balance?.node ?? 0n}
+            />
+          )}
         </Show>
         <Show when={balanceWarnings().length > 0}>
           <div class="mt-auto flex shrink-0 flex-col gap-2 pt-2">

@@ -28,7 +28,7 @@ import LocationHero from "../../components/exitNode/LocationHero.tsx";
 import LocationNotice from "../../components/exitNode/LocationNotice.tsx";
 import { openSettings } from "../../utils/settingsPage.ts";
 import { isRunningRunMode } from "../../services/vpnService.ts";
-import { deriveOverallStatus, type StatusText } from "../../utils/funding.ts";
+import { deriveTrafficStatus, type StatusText } from "../../utils/funding.ts";
 import { endOfLifeMessage } from "../../utils/updateAvailability.ts";
 import { createDeadlineClock } from "../../utils/deadlineClock.ts";
 import { channelMaintenanceWarning } from "../../utils/status.ts";
@@ -50,7 +50,7 @@ export function MainScreen() {
     isRunningRunMode(appState.runMode) ? appState.runMode.funding_status : null
   );
   const balanceStatus = createMemo(() =>
-    deriveOverallStatus(appState.balance, runModeStatus())
+    deriveTrafficStatus(appState.balance, runModeStatus())
   );
   // Reset dismissal when balance recovers so the next drop resurfaces the banner.
   createEffect(() => {

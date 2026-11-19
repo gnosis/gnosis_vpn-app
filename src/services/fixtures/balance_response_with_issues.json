@@ -22,7 +22,7 @@
     "wxhopr": "2000000000000000000",
     "xdai": "50000000000000000",
     "channel_stakes": "2000000000000000000",
-    "pix_float": "0",
+    "pix_pool": "0",
     "fee_to_start": "0",
     "txs_to_start": 0,
     "xdai_fee_per_tx": "50000000000000000",
