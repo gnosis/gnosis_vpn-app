@@ -48,7 +48,7 @@ export default function Fund(props: {
       <div class="flex flex-none flex-col gap-2.5">
         <Show when={props.address}>
           {(address) => (
-            <SettingsCard label="Account">
+            <SettingsCard label="Gnosis VPN address">
               <AccountId address={address()} iconSlot={false} />
             </SettingsCard>
           )}

@@ -18,14 +18,14 @@ export default function AccountId(
       clearTimeout(copyTimeout);
       copyTimeout = setTimeout(() => setCopied(false), 1500);
     } catch (e) {
-      logWarn(`Error copying account ID: ${String(e)}`);
+      logWarn(`Error copying the Gnosis VPN address: ${String(e)}`);
     }
   }
 
   return (
     <SettingsRow
       iconSlot={props.iconSlot}
-      title="Account ID"
+      title="Your Gnosis VPN Address"
       description={
         <span class="@container block">
           {/* 42 monospace glyphs at 0.6em fill 25.2em, so 3.9cqi keeps the address on one line */}
@@ -38,7 +38,7 @@ export default function AccountId(
       <button
         type="button"
         class="inline-flex size-6.5 shrink-0 items-center justify-center rounded-[7px] bg-control-bg text-text-soft hover:cursor-pointer hover:bg-control-bg-hover"
-        aria-label={copied() ? "Copied" : "Copy account ID"}
+        aria-label={copied() ? "Copied" : "Copy your Gnosis VPN address"}
         title={copied() ? "Copied" : "Copy"}
         onClick={() => void copy()}
       >
