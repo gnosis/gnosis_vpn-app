@@ -9,8 +9,8 @@ use std::time::Duration;
 
 use crate::settings::UpdateChannel;
 
-/// Where the installers put it: the macOS pkg at the first (the path its sudoers entries name),
-/// the Linux .deb at the second. A fixed list, not `$PATH`, so the environment cannot redirect us.
+/// Where the installers put it: the macOS pkg at the first, the Linux .deb at the second.
+/// A fixed list, not `$PATH`, so the environment cannot redirect us.
 const CANDIDATE_PATHS: &[&str] = &[
     "/usr/local/bin/gnosis_vpn-update",
     "/usr/bin/gnosis_vpn-update",

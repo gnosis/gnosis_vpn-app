@@ -80,6 +80,7 @@ function StartSteps(props: { details: ServiceNotRunningInfo }) {
       logInfo("Service start requested");
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
+      if (message === "Cancelled") return;
       logError(`Service start failed: ${message}`);
       setStartError(message);
     } finally {

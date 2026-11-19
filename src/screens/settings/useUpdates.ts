@@ -120,10 +120,13 @@ function createUpdates() {
         clearTimeout(completedFallback);
         completedFallback = setTimeout(() => setInstallPhase(null), 60_000);
         break;
-      case "Failed":
+      case "Failed": {
         setInstallPhase(null);
-        setInstallError(`${s.stage}: ${s.error}`);
+        const cancelled = s.stage === "Authorization" &&
+          s.error === "Cancelled";
+        if (!cancelled) setInstallError(`${s.stage}: ${s.error}`);
         break;
+      }
     }
   };
 

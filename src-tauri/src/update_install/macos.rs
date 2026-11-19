@@ -10,7 +10,10 @@ use serde::Deserialize;
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use super::{InstallStatus, UpdateInstallState};
+use crate::admin;
 use crate::toolkit;
+
+use std::path::Path;
 
 const INSTALL_STATUS_EVENT: &str = "update-install-status";
 
@@ -78,7 +81,7 @@ fn publish(app: &AppHandle, status: InstallStatus) {
 pub fn install_update(app: AppHandle, channel: String, force: bool) -> Result<(), String> {
     use std::collections::VecDeque;
     use std::io::BufRead;
-    use std::process::{Command, Stdio};
+    use std::process::Stdio;
 
     const STDERR_TAIL_LINES: usize = 10;
 
@@ -91,8 +94,7 @@ pub fn install_update(app: AppHandle, channel: String, force: bool) -> Result<()
     // Forward the enum's own spelling, never the caller's string.
     let channel = toolkit::channel_arg(parsed);
 
-    // The same lookup the version and update checks use. On macOS /usr/local/bin —
-    // the path the sudoers entries name, which is why `sudo -n` works.
+    // The same lookup the version and update checks use.
     let Some(updater) = toolkit::locate() else {
         tracing::warn!(target: "update_install", "updater binary not installed");
         return Err("ToolkitMissing".to_string());
@@ -113,31 +115,39 @@ pub fn install_update(app: AppHandle, channel: String, force: bool) -> Result<()
     let _ = app.emit(INSTALL_STATUS_EVENT, &InstallStatus::Checking);
 
     tracing::info!(target: "update_install", %updater, %channel, force, "starting updater");
-    // The installer's sudoers rule lets gnosisvpn-group members run this
-    // without a password; -n fails fast instead of prompting if it's missing.
-    let mut cmd = Command::new("sudo");
-    // Explicit `--output json`: the updater renders plain text by default, and
-    // the reader below parses one status object per stdout line.
-    cmd.args([
-        "-n",
-        &updater,
-        "update",
-        "--output",
-        "json",
-        "--channel",
-        channel,
-    ]);
-    if force {
-        cmd.arg("--force");
+    // The password dialog returns output only once the updater exits, so root streams it into a FIFO instead.
+    let fifo = std::env::temp_dir().join(format!("gnosisvpn-update-{}.fifo", std::process::id()));
+    if let Err(e) = make_fifo(&fifo) {
+        publish(
+            &app,
+            InstallStatus::Failed {
+                stage: "Spawn".to_string(),
+                error: e.clone(),
+            },
+        );
+        return Err(format!("Spawn: {e}"));
     }
-    let mut child = match cmd
+    // `--output json`: the updater defaults to plain text; the reader parses one status object per line.
+    let mut shell = format!(
+        "{} update --output json --channel {channel}",
+        admin::shell_quote(&updater)
+    );
+    if force {
+        shell.push_str(" --force");
+    }
+    shell.push_str(&format!(
+        " > {}",
+        admin::shell_quote(&fifo.to_string_lossy())
+    ));
+    let mut child = match admin::admin_command(&shell, "Gnosis VPN wants to install an update.")
         .stdin(Stdio::null())
-        .stdout(Stdio::piped())
+        .stdout(Stdio::null())
         .stderr(Stdio::piped())
         .spawn()
     {
         Ok(c) => c,
         Err(e) => {
+            let _ = std::fs::remove_file(&fifo);
             publish(
                 &app,
                 InstallStatus::Failed {
@@ -168,14 +178,20 @@ pub fn install_update(app: AppHandle, channel: String, force: bool) -> Result<()
         tail.into_iter().collect::<Vec<_>>().join("\n")
     });
 
-    let stdout = child.stdout.take();
-    std::thread::spawn(move || {
-        let mut saw_terminal = false;
-        if let Some(stdout) = stdout {
-            for line in std::io::BufReader::new(stdout)
-                .lines()
-                .map_while(Result::ok)
-            {
+    let reader = std::thread::spawn({
+        let app = app.clone();
+        let fifo = fifo.clone();
+        move || {
+            let mut saw_terminal = false;
+            // Blocks until root opens the FIFO for writing, or release_fifo_reader below gives up on it.
+            let file = match std::fs::File::open(&fifo) {
+                Ok(file) => file,
+                Err(e) => {
+                    tracing::warn!(target: "update_install", error = %e, "cannot open updater FIFO");
+                    return saw_terminal;
+                }
+            };
+            for line in std::io::BufReader::new(file).lines().map_while(Result::ok) {
                 match parse_line(&line) {
                     Some(status) => {
                         saw_terminal |= status.is_terminal();
@@ -186,30 +202,75 @@ pub fn install_update(app: AppHandle, channel: String, force: bool) -> Result<()
                     }
                 }
             }
+            saw_terminal
         }
+    });
+
+    std::thread::spawn(move || {
         let exit = child.wait();
+        release_fifo_reader(&fifo);
+        let saw_terminal = reader.join().unwrap_or_else(|_| {
+            tracing::warn!(target: "update_install", "stdout reader thread panicked");
+            false
+        });
+        let _ = std::fs::remove_file(&fifo);
         let tail = stderr_tail.join().unwrap_or_else(|_| {
             tracing::warn!(target: "update_install", "stderr reader thread panicked");
             String::new()
         });
-        // sudo refused, process killed, or output never parsed: synthesize
-        // the terminal status the frontend and the guard rely on.
-        if !saw_terminal {
-            let exit_desc = match exit {
-                Ok(status) => status.to_string(),
-                Err(e) => format!("wait failed: {e}"),
-            };
+        if saw_terminal {
+            return;
+        }
+        if admin::is_cancelled(&tail) {
             publish(
                 &app,
                 InstallStatus::Failed {
-                    stage: "Process".to_string(),
-                    error: format!("updater exited without a result ({exit_desc}); {tail}"),
+                    stage: "Authorization".to_string(),
+                    error: admin::CANCELLED.to_string(),
                 },
             );
+            return;
         }
+        // Process killed or output never parsed: the frontend and the guard still need a terminal status.
+        let exit_desc = match exit {
+            Ok(status) => status.to_string(),
+            Err(e) => format!("wait failed: {e}"),
+        };
+        publish(
+            &app,
+            InstallStatus::Failed {
+                stage: "Process".to_string(),
+                error: format!("updater exited without a result ({exit_desc}); {tail}"),
+            },
+        );
     });
 
     Ok(())
+}
+
+fn make_fifo(path: &Path) -> Result<(), String> {
+    let _ = std::fs::remove_file(path);
+    let output = std::process::Command::new("/usr/bin/mkfifo")
+        .args(["-m", "600"])
+        .arg(path)
+        .output()
+        .map_err(|e| format!("cannot run mkfifo: {e}"))?;
+    if !output.status.success() {
+        return Err(format!(
+            "mkfifo failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
+    }
+    Ok(())
+}
+
+/// A blocked reader gets EOF from a writer that opens and closes; with no reader left, open fails with ENXIO.
+fn release_fifo_reader(fifo: &Path) {
+    use std::os::unix::fs::OpenOptionsExt;
+    let _ = std::fs::OpenOptions::new()
+        .write(true)
+        .custom_flags(libc::O_NONBLOCK)
+        .open(fifo);
 }
 
 #[cfg(test)]
