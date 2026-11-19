@@ -1,5 +1,6 @@
 use gnosis_vpn_ipc::{self as ipc, CallError, ServiceError};
 
+use flate2::read::GzDecoder;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager, State};
 use tokio_util::sync::CancellationToken;
@@ -8,7 +9,7 @@ use zstd::stream::Encoder;
 
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{self, BufReader, Write};
+use std::io::{self, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
@@ -301,6 +302,24 @@ pub fn log_from_frontend(webview: tauri::Webview, level: String, message: String
     }
 }
 
+/// Like `io::copy`, but a read error ends the copy as `Ok(Some(e))`; only write errors fail.
+// A gz caught mid-rotation is truncated; it must not cost the user the whole bundle.
+fn copy_until_read_error<R: Read, W: Write>(
+    reader: &mut R,
+    writer: &mut W,
+) -> io::Result<Option<io::Error>> {
+    let mut buf = [0u8; 64 * 1024];
+    loop {
+        let n = match reader.read(&mut buf) {
+            Ok(0) => return Ok(None),
+            Ok(n) => n,
+            Err(e) if e.kind() == io::ErrorKind::Interrupted => continue,
+            Err(e) => return Ok(Some(e)),
+        };
+        writer.write_all(&buf[..n])?;
+    }
+}
+
 // The uploader accepts only one zstd frame of plain text — hence concatenation, not an archive.
 fn write_log_section<W: Write>(
     encoder: &mut Encoder<'_, W>,
@@ -316,8 +335,20 @@ fn write_log_section<W: Write>(
         .map_err(|e| format!("Failed to write section header: {e}"))?;
     match File::open(path) {
         Ok(file) => {
-            io::copy(&mut BufReader::new(file), encoder)
+            // newsyslog and logrotate gzip the rotated daemon logs.
+            let is_gzipped = path.extension().is_some_and(|ext| ext == "gz");
+            let mut reader: Box<dyn Read> = if is_gzipped {
+                Box::new(GzDecoder::new(BufReader::new(file)))
+            } else {
+                Box::new(BufReader::new(file))
+            };
+            let read_error = copy_until_read_error(&mut reader, encoder)
                 .map_err(|e| format!("Failed to compress {title}: {e}"))?;
+            if let Some(e) = read_error {
+                tracing::warn!(target: "export", path = %path.display(), error = %e, "log source truncated");
+                writeln!(encoder, "\n<truncated: {e}>")
+                    .map_err(|e| format!("Failed to write section note: {e}"))?;
+            }
         }
         Err(e) => {
             tracing::warn!(target: "export", path = %path.display(), error = %e, "log source unreadable");
@@ -331,7 +362,7 @@ fn write_log_section<W: Write>(
 // The uploader UTF-8-checks only the first 100 bytes, so a multi-byte character cut at that
 // boundary gets the bundle rejected; an ASCII preamble keeps user text and logs past it.
 const LOG_BUNDLE_PREAMBLE: &str = "===== Gnosis VPN log bundle =====\n\
-    Sections: system info, user description (if given), gnosis_vpn-app logs, gnosisvpn daemon log, \
+    Sections: system info, user description (if given), gnosis_vpn-app logs, gnosisvpn daemon logs, \
     gnosisvpn worker logs.\n\n";
 const MAX_DESCRIPTION_CHARS: usize = 2000;
 
@@ -339,7 +370,8 @@ struct LogBundleSources {
     system: SystemInfo,
     package_version: Option<String>,
     app_logs: Vec<PathBuf>,
-    daemon_log: Option<PathBuf>,
+    /// Live log first, then the rotated ones newest first.
+    daemon_logs: Vec<PathBuf>,
     /// Newest first; empty for a non-owner, whom the daemon tells no log dir.
     worker_logs: Vec<PathBuf>,
 }
@@ -375,10 +407,12 @@ fn write_log_bundle<W: Write>(
     for path in &sources.app_logs {
         write_log_section(&mut encoder, "gnosis_vpn-app log", path)?;
     }
-    match &sources.daemon_log {
-        Some(path) => write_log_section(&mut encoder, "gnosisvpn daemon log", path)?,
-        None => writeln!(encoder, "===== gnosisvpn daemon log (unavailable) =====")
-            .map_err(|e| format!("Failed to write section header: {e}"))?,
+    if sources.daemon_logs.is_empty() {
+        writeln!(encoder, "===== gnosisvpn daemon log (unavailable) =====")
+            .map_err(|e| format!("Failed to write section header: {e}"))?;
+    }
+    for path in &sources.daemon_logs {
+        write_log_section(&mut encoder, "gnosisvpn daemon log", path)?;
     }
     if sources.worker_logs.is_empty() {
         writeln!(encoder, "===== gnosisvpn worker log (unavailable) =====")
@@ -416,6 +450,38 @@ fn worker_log_files(dir: &Path) -> Vec<PathBuf> {
     files
 }
 
+/// The live daemon log, then its rotated `<name>.N` / `<name>.N.gz` siblings with the newest (lowest N) first.
+fn daemon_log_files(log_file: &Path) -> Vec<PathBuf> {
+    let mut files = vec![log_file.to_path_buf()];
+    let (Some(dir), Some(name)) = (
+        log_file.parent(),
+        log_file.file_name().and_then(|n| n.to_str()),
+    ) else {
+        return files;
+    };
+    let entries = match std::fs::read_dir(dir) {
+        Ok(entries) => entries,
+        Err(e) => {
+            tracing::warn!(target: "export", dir = %dir.display(), error = %e, "cannot read daemon log dir");
+            return files;
+        }
+    };
+    let rotated_prefix = format!("{name}.");
+    let mut rotated: Vec<(u32, PathBuf)> = entries
+        .flatten()
+        .filter_map(|entry| {
+            let file_name = entry.file_name().into_string().ok()?;
+            let suffix = file_name.strip_prefix(&rotated_prefix)?;
+            let number = suffix.strip_suffix(".gz").unwrap_or(suffix).parse().ok()?;
+            Some((number, entry.path()))
+        })
+        .collect();
+    // Numeric, not lexical: `.10` must come after `.2`.
+    rotated.sort_by_key(|(number, _)| *number);
+    files.extend(rotated.into_iter().map(|(_, path)| path));
+    files
+}
+
 async fn collect_log_sources(app: &AppHandle) -> LogBundleSources {
     let app_logs = crate::logging::log_dir(app)
         .map(|dir| crate::logging::log_files(&dir))
@@ -432,6 +498,9 @@ async fn collect_log_sources(app: &AppHandle) -> LogBundleSources {
     let (daemon_log, daemon_package_version, worker_log_dir) = info
         .map(|info| (info.log_file, info.package_version, info.worker_log_dir))
         .unwrap_or_default();
+    let daemon_logs = daemon_log
+        .map(|file| daemon_log_files(&file))
+        .unwrap_or_default();
     let worker_logs = worker_log_dir
         .map(|dir| worker_log_files(&dir))
         .unwrap_or_default();
@@ -444,7 +513,7 @@ async fn collect_log_sources(app: &AppHandle) -> LogBundleSources {
     tracing::info!(
         target: "export",
         app_log_files = app_logs.len(),
-        daemon_log_available = daemon_log.is_some(),
+        daemon_log_files = daemon_logs.len(),
         worker_log_files = worker_logs.len(),
         "collected log sources",
     );
@@ -452,7 +521,7 @@ async fn collect_log_sources(app: &AppHandle) -> LogBundleSources {
         system: get_system_info().await,
         package_version,
         app_logs,
-        daemon_log,
+        daemon_logs,
         worker_logs,
     }
 }
@@ -1211,6 +1280,100 @@ mod tests {
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
+    #[test]
+    fn daemon_logs_are_live_first_then_rotated_by_number() {
+        let dir = std::env::temp_dir().join("gnosis_vpn-app-daemon-log-files");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        for name in [
+            "gnosisvpn.log",
+            "gnosisvpn.log.10.gz",
+            "gnosisvpn.log.2.gz",
+            "gnosisvpn.log.1",
+            "gnosisvpn.log.0.gz",
+            "updates.log.0.gz",
+            "unrelated.txt",
+        ] {
+            std::fs::write(dir.join(name), "x\n").unwrap();
+        }
+
+        let files = daemon_log_files(&dir.join("gnosisvpn.log"));
+        let names: Vec<String> = files
+            .iter()
+            .map(|p| p.file_name().unwrap().to_str().unwrap().to_string())
+            .collect();
+
+        assert_eq!(
+            names,
+            [
+                "gnosisvpn.log",
+                "gnosisvpn.log.0.gz",
+                "gnosisvpn.log.1",
+                "gnosisvpn.log.2.gz",
+                "gnosisvpn.log.10.gz",
+            ]
+        );
+        let missing = dir.join("missing").join("gnosisvpn.log");
+        assert_eq!(daemon_log_files(&missing), [missing]);
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn gzipped_daemon_log_is_decompressed_into_the_bundle() {
+        let dir = std::env::temp_dir().join("gnosis_vpn-app-gzipped-daemon-log");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let rotated = dir.join("gnosisvpn.log.0.gz");
+        let mut gz = flate2::write::GzEncoder::new(
+            File::create(&rotated).unwrap(),
+            flate2::Compression::default(),
+        );
+        gz.write_all(b"root teardown line\n").unwrap();
+        gz.finish().unwrap();
+
+        let sources = LogBundleSources {
+            daemon_logs: vec![rotated],
+            ..test_bundle_sources()
+        };
+        let bytes = write_log_bundle(Vec::new(), None, &sources).unwrap();
+        let text = String::from_utf8(zstd::decode_all(&bytes[..]).unwrap()).unwrap();
+
+        assert!(text.contains(
+            "===== gnosisvpn daemon log (gnosisvpn.log.0.gz) =====\nroot teardown line\n"
+        ));
+        assert!(!text.contains("daemon log (unavailable)"));
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn truncated_gz_is_noted_and_the_bundle_continues() {
+        let dir = std::env::temp_dir().join("gnosis_vpn-app-truncated-daemon-log");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let mut gz = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+        gz.write_all(b"before the cut\n").unwrap();
+        let full = gz.finish().unwrap();
+        let truncated = dir.join("gnosisvpn.log.0.gz");
+        // Drop the 8-byte gzip trailer, as a file caught mid-compression would.
+        std::fs::write(&truncated, &full[..full.len() - 8]).unwrap();
+        let older = dir.join("gnosisvpn.log.1");
+        std::fs::write(&older, "older line\n").unwrap();
+
+        let sources = LogBundleSources {
+            daemon_logs: vec![truncated, older],
+            ..test_bundle_sources()
+        };
+        let bytes = write_log_bundle(Vec::new(), None, &sources).unwrap();
+        let text = String::from_utf8(zstd::decode_all(&bytes[..]).unwrap()).unwrap();
+
+        assert!(text.contains("<truncated:"));
+        assert!(text.contains("===== gnosisvpn daemon log (gnosisvpn.log.1) =====\nolder line\n"));
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
     // The list is rewritten by the bump-version workflow; a malformed entry
     // would otherwise only surface as a silent runtime mismatch.
     #[test]
@@ -1255,7 +1418,7 @@ mod tests {
             },
             package_version: Some("0.77.0".to_string()),
             app_logs: Vec::new(),
-            daemon_log: None,
+            daemon_logs: Vec::new(),
             worker_logs: Vec::new(),
         }
     }
