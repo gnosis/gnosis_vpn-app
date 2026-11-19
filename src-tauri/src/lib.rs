@@ -11,6 +11,8 @@ use tokio_util::sync::CancellationToken;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
+#[cfg(target_os = "macos")]
+mod admin;
 mod cli;
 mod commands;
 mod country_names;

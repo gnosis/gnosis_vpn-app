@@ -4,7 +4,9 @@ use serde::Serialize;
 
 use std::path::{Path, PathBuf};
 
-/// The sudoers rules the installer ships name exactly these argvs for `%gnosisvpn` members.
+#[cfg(target_os = "macos")]
+use crate::admin;
+
 #[cfg(target_os = "macos")]
 const LAUNCHD_PLIST: &str = "/Library/LaunchDaemons/com.gnosisvpn.gnosisvpnclient.plist";
 #[cfg(target_os = "macos")]
@@ -201,40 +203,26 @@ pub async fn start_service() -> Result<(), String> {
         ));
     }
     tracing::info!(target: "service", "starting the service via launchctl");
-    run_launchctl(&["enable", LAUNCHD_SERVICE]).await?;
-    run_launchctl(&["bootstrap", "system", LAUNCHD_PLIST]).await
-}
-
-#[cfg(target_os = "macos")]
-async fn run_launchctl(args: &[&str]) -> Result<(), String> {
-    use tokio::process::Command;
-
-    // -n fails fast instead of prompting when the sudoers rule is missing for this account.
-    let output = Command::new("sudo")
-        .arg("-n")
-        .arg("/bin/launchctl")
-        .args(args)
-        .output()
-        .await
-        .map_err(|e| format!("Could not run sudo: {e}"))?;
+    let shell = format!(
+        "/bin/launchctl enable {LAUNCHD_SERVICE} && /bin/launchctl bootstrap system {LAUNCHD_PLIST}"
+    );
+    let output = tokio::process::Command::from(admin::admin_command(
+        &shell,
+        "Gnosis VPN wants to start its service.",
+    ))
+    .output()
+    .await
+    .map_err(|e| format!("Could not run osascript: {e}"))?;
     if output.status.success() {
         return Ok(());
     }
     let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-    tracing::warn!(target: "service", ?args, status = ?output.status.code(), %stderr, "launchctl failed");
-    Err(start_failure_message(&stderr))
-}
-
-/// The group hint only helps when sudo itself refused; any launchctl failure is shown as launchctl said it.
-#[cfg(target_os = "macos")]
-fn start_failure_message(stderr: &str) -> String {
-    let sudo_refused = stderr.contains("a password is required");
-    if sudo_refused {
-        return "Could not start the service: your account must be in the gnosisvpn group \
-                (sudo dseditgroup -o edit -a $USER -t user gnosisvpn), or run the command below in Terminal."
-            .to_string();
+    if admin::is_cancelled(&stderr) {
+        tracing::info!(target: "service", "service start cancelled at the password dialog");
+        return Err(admin::CANCELLED.to_string());
     }
-    format!("Could not start the service: {stderr}")
+    tracing::warn!(target: "service", status = ?output.status.code(), %stderr, "launchctl failed");
+    Err(format!("Could not start the service: {stderr}"))
 }
 
 #[cfg(target_os = "linux")]
@@ -278,18 +266,6 @@ mod tests {
             start_command(),
             "sudo launchctl enable system/com.gnosisvpn.gnosisvpnclient && \
              sudo launchctl bootstrap system /Library/LaunchDaemons/com.gnosisvpn.gnosisvpnclient.plist"
-        );
-    }
-
-    #[cfg(target_os = "macos")]
-    #[test]
-    fn group_hint_only_when_sudo_refused() {
-        let refused = start_failure_message("sudo: a password is required");
-        assert!(refused.contains("gnosisvpn group"));
-        let launchctl = start_failure_message("Bootstrap failed: 5: Input/output error");
-        assert_eq!(
-            launchctl,
-            "Could not start the service: Bootstrap failed: 5: Input/output error"
         );
     }
 

@@ -860,7 +860,7 @@ export class VPNService {
     }
   }
 
-  /** macOS only: `sudo -n launchctl bootstrap` through the installer's sudoers rule; rejects with the reason. */
+  /** macOS only: `launchctl bootstrap` behind the admin password dialog; rejects with the reason, or "Cancelled". */
   static async startService(): Promise<void> {
     await invoke("start_service");
   }
