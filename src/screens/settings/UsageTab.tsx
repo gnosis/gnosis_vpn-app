@@ -1,11 +1,4 @@
-import {
-  createEffect,
-  createMemo,
-  createUniqueId,
-  For,
-  Show,
-  untrack,
-} from "solid-js";
+import { createMemo, createUniqueId, For, Show } from "solid-js";
 import {
   connectionDestination,
   connectionPix,
@@ -18,18 +11,14 @@ import {
   formatCountCompact,
   formatCreditCompact,
 } from "@src/utils/credit.ts";
-import { deriveTrafficStatus, formatDataToSend } from "@src/utils/funding.ts";
+import { deriveTrafficStatus } from "@src/utils/funding.ts";
 import { exitDisplayName, exitShortId } from "@src/utils/destinations.ts";
-import {
-  clearSettingsRequest,
-  settingsRequest,
-} from "@src/utils/settingsPage.ts";
 import Banner from "@src/components/common/Banner.tsx";
 import Button from "@src/components/common/Button.tsx";
+import DataAmount from "@src/components/common/DataAmount.tsx";
 import Tooltip from "@src/components/common/Tooltip.tsx";
 import { ShortId } from "@src/components/exitNode/LocationRow.tsx";
 import UsageMeter from "@src/components/exitNode/UsageMeter.tsx";
-import ArrowRightIcon from "@src/components/icons/ArrowRightIcon.tsx";
 import CheckCircleIcon from "@src/components/icons/CheckCircleIcon.tsx";
 import SettingIcon from "@src/components/icons/SettingIcon.tsx";
 import WarningIcon from "@src/components/icons/WarningIcon.tsx";
@@ -85,9 +74,7 @@ function renewals(count: bigint): string {
   }`;
 }
 
-export default function UsageTab(
-  props: { onAddFunds: () => void; showBreakdown: boolean },
-) {
+export default function UsageTab(props: { showBreakdown: boolean }) {
   const [appState] = useAppStore();
   const {
     preparingSafe,
@@ -95,16 +82,8 @@ export default function UsageTab(
     balanceShown,
     runModeStatus,
     nodeAddress,
-    tokenStatus,
-    dataShortfall,
+    wxhoprStatus,
   } = useFunding();
-
-  // The balance popover's "Add data" lands here; before the card shows it only opens the tab.
-  createEffect(() => {
-    if (settingsRequest() !== "add-funds") return;
-    clearSettingsRequest();
-    if (untrack(balanceShown)) props.onAddFunds();
-  });
 
   const credit = createMemo(() =>
     appState.balance ? computeEffectiveCredit(appState.balance) : null
@@ -145,7 +124,7 @@ export default function UsageTab(
     return warnings;
   });
 
-  const enoughData = () => tokenStatus("wxhopr") === "Sufficient";
+  const enoughData = () => wxhoprStatus() === "Sufficient";
 
   const breakdown = () =>
     props.showBreakdown && appState.balance
@@ -171,7 +150,9 @@ export default function UsageTab(
           <div class="flex items-baseline gap-2.5">
             <span class="font-figures text-[34px] leading-none font-semibold tracking-[-0.04em]">
               {/* Explicit null check: credit can be 0n, which is falsy */}
-              {credit() === null ? "—" : formatCreditCompact(credit()!)}
+              <DataAmount
+                text={credit() === null ? "—" : formatCreditCompact(credit()!)}
+              />
             </span>
             <Show when={credit() !== null && renewalsLeft() !== null}>
               <span class="ml-auto shrink-0 rounded-full bg-control-bg px-2 py-0.5 text-[11px] leading-4 font-bold text-text-soft">
@@ -179,26 +160,6 @@ export default function UsageTab(
               </span>
             </Show>
           </div>
-          <Show when={dataShortfall()}>
-            {(bytes) => (
-              <TokenNote
-                icon={
-                  <ArrowRightIcon
-                    class={`size-full ${
-                      trafficStatus() === "Empty"
-                        ? "text-bad-ink"
-                        : "text-warn-ink"
-                    }`}
-                  />
-                }
-              >
-                Add at least{" "}
-                <span class="font-figures font-bold text-text-primary">
-                  {formatDataToSend(bytes())}
-                </span>
-              </TokenNote>
-            )}
-          </Show>
           <Show when={enoughData()}>
             <TokenNote
               icon={<CheckCircleIcon class="size-full text-ok-badge" />}

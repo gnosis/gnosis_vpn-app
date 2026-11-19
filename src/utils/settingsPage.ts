@@ -2,14 +2,13 @@ import { createSignal } from "solid-js";
 import { logInfo } from "@src/utils/appLog.ts";
 
 export type SettingsTab = "general" | "usage";
-/** Something to do once its tab shows: open Send funds, open the Update page, or open it and run a check. */
-export type SettingsRequest = "add-funds" | "update" | "check-update";
+/** Something to do once its tab shows: open the Update page, or open it and run a check. */
+export type SettingsRequest = "update" | "check-update";
 export type SettingsTarget = SettingsTab | SettingsRequest;
 
 const TARGET_TAB: Record<SettingsTarget, SettingsTab> = {
   general: "general",
   usage: "usage",
-  "add-funds": "usage",
   update: "general",
   "check-update": "general",
 };

@@ -103,16 +103,6 @@ export function formatXdai(
   );
 }
 
-/** Format a wxHOPR hopli amount (18-decimal base unit) as a decimal string
- * without trailing zeros — the same math as {@link formatXdai}. */
-export function formatWxhopr(
-  value: string | number | bigint,
-  fractionDigits = 2,
-  rounding: Rounding = "floor",
-): string {
-  return formatXdai(value, fractionDigits, rounding);
-}
-
 const SUBSCRIPT_DIGITS = ["₀", "₁", "₂", "₃", "₄", "₅", "₆", "₇", "₈", "₉"];
 
 function toSubscript(n: number): string {
@@ -214,10 +204,4 @@ export function humanWxhopr(
 ): string {
   const { amount, unit } = humanWxhoprParts(hopli, rounding);
   return amount === NO_VALUE ? amount : `${amount} ${unit}`;
-}
-
-/** An xDAI amount as a compact number without the unit: floored to 2 decimals above 0.1, significant figures below. */
-export function humanXdai(value: string | bigint | null | undefined): string {
-  const raw = toBigIntSafe(value);
-  return raw === null ? NO_VALUE : formatCompactAmount(raw, 10n ** 17n);
 }

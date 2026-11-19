@@ -9,12 +9,14 @@ import CopyBlock from "@src/components/common/CopyBlock.tsx";
 import GnosisVpnLogo from "@src/components/common/GnosisVpnLogo.tsx";
 
 /** Daemon socket absent (installed, not started); the init loop keeps retrying, so this leaves by itself. */
-export default function ServiceNotRunning() {
+export default function ServiceNotRunning(
+  props: { packageVersion: string | null },
+) {
   const [info] = createResource(() => VPNService.serviceNotRunningInfo());
 
   return (
     <div class="h-full w-full flex flex-col p-6 gap-4 overflow-y-auto text-text-primary">
-      <GnosisVpnLogo class="w-2/3 self-center text-text-primary" />
+      <GnosisVpnLogo class="w-2/3 self-center text-logo-ink" />
       <h1 class="text-2xl font-bold">Gnosis VPN service is not running</h1>
       <Show when={info()}>
         {(details) => {
@@ -55,9 +57,13 @@ export default function ServiceNotRunning() {
           );
         }}
       </Show>
-      <p class="mt-auto text-center text-xs text-text-secondary">
-        Checking again every few seconds
-      </p>
+      <div class="mt-auto flex flex-col gap-1 text-center text-xs text-text-secondary">
+        <p>Checking again every few seconds</p>
+        <p>
+          Version:{" "}
+          <span class="text-text-primary">{props.packageVersion ?? "—"}</span>
+        </p>
+      </div>
     </div>
   );
 }

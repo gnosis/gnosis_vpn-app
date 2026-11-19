@@ -178,8 +178,8 @@ source:
 - Settings is a page inside the main window: click the gear
   (`button[aria-label^="Settings"]`), or fire what the tray sends,
   `eval "__GVPN_FIRE_EVENT__('settings:open', 'usage')"` (`general`, `usage`,
-  `add-funds`, `update`, `check-update`). Switch tabs by clicking the tab
-  buttons, e.g. Usage:
+  `update`, `check-update`). Switch tabs by clicking the tab buttons, e.g.
+  Usage:
 
 ```bash
 deno run -A .claude/skills/run-gnosis-vpn-app/driver.ts \

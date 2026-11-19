@@ -3,7 +3,6 @@ import {
   formatXdai,
   humanWxhopr,
   humanWxhoprParts,
-  humanXdai,
   NO_VALUE,
   toBigIntSafe,
 } from "./hopli.ts";
@@ -148,34 +147,6 @@ describe("humanWxhopr with ceil rounding (send-at-least amounts)", () => {
       amount: "101.01",
       unit: "wxHOPR",
     });
-  });
-});
-
-describe("humanXdai", () => {
-  it("floors to 2 decimals above 0.1", () => {
-    expect(humanXdai(5n * 10n ** 18n)).toBe("5");
-    expect(humanXdai(199n * 10n ** 16n)).toBe("1.99");
-    expect(humanXdai(5n * 10n ** 17n)).toBe("0.5");
-    expect(humanXdai(123456n * 10n ** 12n)).toBe("0.12");
-  });
-
-  it("treats 0.1 as the floor boundary", () => {
-    expect(humanXdai(1n * 10n ** 17n)).toBe("0.1");
-  });
-
-  it("uses significant figures between 0.0001 and 0.1", () => {
-    expect(humanXdai(5n * 10n ** 16n)).toBe("0.05");
-    expect(humanXdai(126n * 10n ** 14n)).toBe("0.0126");
-    expect(humanXdai(1n * 10n ** 14n)).toBe("0.0001");
-  });
-
-  it("uses subscript-zero notation below 0.0001", () => {
-    expect(humanXdai(349n * 10n ** 11n)).toBe("0.0₄349");
-  });
-
-  it("renders zero and null", () => {
-    expect(humanXdai(0n)).toBe("0");
-    expect(humanXdai(null)).toBe(NO_VALUE);
   });
 });
 

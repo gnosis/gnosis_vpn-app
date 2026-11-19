@@ -4,7 +4,9 @@ import SettingIcon from "@src/components/icons/SettingIcon.tsx";
 import SettingsRow from "@src/components/settings/SettingsRow.tsx";
 
 /** The node's address on one line, with an icon-only copy button. */
-export default function AccountId(props: { address: string }) {
+export default function AccountId(
+  props: { address: string; iconSlot?: boolean },
+) {
   const [copied, setCopied] = createSignal(false);
   let copyTimeout: ReturnType<typeof setTimeout> | undefined;
   onCleanup(() => clearTimeout(copyTimeout));
@@ -16,17 +18,18 @@ export default function AccountId(props: { address: string }) {
       clearTimeout(copyTimeout);
       copyTimeout = setTimeout(() => setCopied(false), 1500);
     } catch (e) {
-      logWarn(`Error copying account ID: ${String(e)}`);
+      logWarn(`Error copying the Gnosis VPN address: ${String(e)}`);
     }
   }
 
   return (
     <SettingsRow
-      title="Account ID"
+      iconSlot={props.iconSlot}
+      title="Your Gnosis VPN Address"
       description={
         <span class="@container block">
           {/* 42 monospace glyphs at 0.6em fill 25.2em, so 3.9cqi keeps the address on one line */}
-          <span class="block cursor-text overflow-hidden font-figures text-[length:clamp(9px,3.9cqi,11px)] leading-4 text-ellipsis whitespace-nowrap text-address-ink select-text">
+          <span class="block cursor-text overflow-hidden font-figures text-[length:clamp(8px,3.9cqi,11px)] leading-4 text-ellipsis whitespace-nowrap text-address-ink select-text">
             {props.address}
           </span>
         </span>
@@ -35,7 +38,7 @@ export default function AccountId(props: { address: string }) {
       <button
         type="button"
         class="inline-flex size-6.5 shrink-0 items-center justify-center rounded-[7px] bg-control-bg text-text-soft hover:cursor-pointer hover:bg-control-bg-hover"
-        aria-label={copied() ? "Copied" : "Copy account ID"}
+        aria-label={copied() ? "Copied" : "Copy your Gnosis VPN address"}
         title={copied() ? "Copied" : "Copy"}
         onClick={() => void copy()}
       >

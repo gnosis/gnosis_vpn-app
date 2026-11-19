@@ -59,7 +59,7 @@ export default function BalancePopup(props: Props) {
           <button
             type="button"
             class="h-8.5 w-full rounded-[9px] bg-control-bg hover:bg-control-bg-hover text-[12.5px] font-bold hover:cursor-pointer"
-            onClick={() => go("add-funds")}
+            onClick={() => go("usage")}
           >
             Add data
           </button>
