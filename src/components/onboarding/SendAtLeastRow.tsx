@@ -44,7 +44,7 @@ export default function SendAtLeastRow() {
                 <>
                   {parts()[0]}
                   {/* A monospace space is a full glyph wide; at half size it halves the gap and still copies */}
-                  <span class="text-[50%]">{" "}</span>
+                  <span class="text-[50%]">&nbsp;</span>
                   {parts()[1]}
                 </>
               )}
