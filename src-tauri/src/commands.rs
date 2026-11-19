@@ -9,7 +9,7 @@ use zstd::stream::Encoder;
 
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{self, BufReader, Write};
+use std::io::{self, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
@@ -302,6 +302,24 @@ pub fn log_from_frontend(webview: tauri::Webview, level: String, message: String
     }
 }
 
+/// Like `io::copy`, but a read error ends the copy as `Ok(Some(e))`; only write errors fail.
+// A gz caught mid-rotation is truncated; it must not cost the user the whole bundle.
+fn copy_until_read_error<R: Read, W: Write>(
+    reader: &mut R,
+    writer: &mut W,
+) -> io::Result<Option<io::Error>> {
+    let mut buf = [0u8; 64 * 1024];
+    loop {
+        let n = match reader.read(&mut buf) {
+            Ok(0) => return Ok(None),
+            Ok(n) => n,
+            Err(e) if e.kind() == io::ErrorKind::Interrupted => continue,
+            Err(e) => return Ok(Some(e)),
+        };
+        writer.write_all(&buf[..n])?;
+    }
+}
+
 // The uploader accepts only one zstd frame of plain text — hence concatenation, not an archive.
 fn write_log_section<W: Write>(
     encoder: &mut Encoder<'_, W>,
@@ -319,12 +337,18 @@ fn write_log_section<W: Write>(
         Ok(file) => {
             // newsyslog and logrotate gzip the rotated daemon logs.
             let is_gzipped = path.extension().is_some_and(|ext| ext == "gz");
-            let copied = if is_gzipped {
-                io::copy(&mut GzDecoder::new(BufReader::new(file)), encoder)
+            let mut reader: Box<dyn Read> = if is_gzipped {
+                Box::new(GzDecoder::new(BufReader::new(file)))
             } else {
-                io::copy(&mut BufReader::new(file), encoder)
+                Box::new(BufReader::new(file))
             };
-            copied.map_err(|e| format!("Failed to compress {title}: {e}"))?;
+            let read_error = copy_until_read_error(&mut reader, encoder)
+                .map_err(|e| format!("Failed to compress {title}: {e}"))?;
+            if let Some(e) = read_error {
+                tracing::warn!(target: "export", path = %path.display(), error = %e, "log source truncated");
+                writeln!(encoder, "\n<truncated: {e}>")
+                    .map_err(|e| format!("Failed to write section note: {e}"))?;
+            }
         }
         Err(e) => {
             tracing::warn!(target: "export", path = %path.display(), error = %e, "log source unreadable");
@@ -1319,6 +1343,33 @@ mod tests {
             "===== gnosisvpn daemon log (gnosisvpn.log.0.gz) =====\nroot teardown line\n"
         ));
         assert!(!text.contains("daemon log (unavailable)"));
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn truncated_gz_is_noted_and_the_bundle_continues() {
+        let dir = std::env::temp_dir().join("gnosis_vpn-app-truncated-daemon-log");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let mut gz = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+        gz.write_all(b"before the cut\n").unwrap();
+        let full = gz.finish().unwrap();
+        let truncated = dir.join("gnosisvpn.log.0.gz");
+        // Drop the 8-byte gzip trailer, as a file caught mid-compression would.
+        std::fs::write(&truncated, &full[..full.len() - 8]).unwrap();
+        let older = dir.join("gnosisvpn.log.1");
+        std::fs::write(&older, "older line\n").unwrap();
+
+        let sources = LogBundleSources {
+            daemon_logs: vec![truncated, older],
+            ..test_bundle_sources()
+        };
+        let bytes = write_log_bundle(Vec::new(), None, &sources).unwrap();
+        let text = String::from_utf8(zstd::decode_all(&bytes[..]).unwrap()).unwrap();
+
+        assert!(text.contains("<truncated:"));
+        assert!(text.contains("===== gnosisvpn daemon log (gnosisvpn.log.1) =====\nolder line\n"));
 
         std::fs::remove_dir_all(&dir).unwrap();
     }
