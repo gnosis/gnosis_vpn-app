@@ -15,6 +15,7 @@ import { deriveTrafficStatus } from "@src/utils/funding.ts";
 import { exitDisplayName, exitShortId } from "@src/utils/destinations.ts";
 import Banner from "@src/components/common/Banner.tsx";
 import Button from "@src/components/common/Button.tsx";
+import DataAmount from "@src/components/common/DataAmount.tsx";
 import Tooltip from "@src/components/common/Tooltip.tsx";
 import { ShortId } from "@src/components/exitNode/LocationRow.tsx";
 import UsageMeter from "@src/components/exitNode/UsageMeter.tsx";
@@ -149,7 +150,9 @@ export default function UsageTab(props: { showBreakdown: boolean }) {
           <div class="flex items-baseline gap-2.5">
             <span class="font-figures text-[34px] leading-none font-semibold tracking-[-0.04em]">
               {/* Explicit null check: credit can be 0n, which is falsy */}
-              {credit() === null ? "—" : formatCreditCompact(credit()!)}
+              <DataAmount
+                text={credit() === null ? "—" : formatCreditCompact(credit()!)}
+              />
             </span>
             <Show when={credit() !== null && renewalsLeft() !== null}>
               <span class="ml-auto shrink-0 rounded-full bg-control-bg px-2 py-0.5 text-[11px] leading-4 font-bold text-text-soft">

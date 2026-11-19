@@ -2,6 +2,7 @@ import { createMemo, Show } from "solid-js";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { formatCreditCompact, sumCapacityStake } from "@src/utils/credit.ts";
 import { dataToSend, formatDataToSend } from "@src/utils/funding.ts";
+import DataAmount from "@src/components/common/DataAmount.tsx";
 import ArrowRightIcon from "@src/components/icons/ArrowRightIcon.tsx";
 import CheckCircleIcon from "@src/components/icons/CheckCircleIcon.tsx";
 import { SettingsCard } from "@src/components/settings/SettingsGroup.tsx";
@@ -22,7 +23,7 @@ export default function SendAtLeastRow() {
   const minimum = () => {
     const wxhopr = funding.preparingSafe()?.balance_recommendation?.wxhopr;
     const bytes = wxhopr === undefined ? null : dataToSend(wxhopr, price());
-    return bytes === null ? null : formatDataToSend(bytes).split(" ");
+    return bytes === null ? "—" : formatDataToSend(bytes);
   };
   // Bytes the node's funds buy; null without a price.
   const fundedBytes = () => {
@@ -39,16 +40,7 @@ export default function SendAtLeastRow() {
             Send at least
           </span>
           <span class="cursor-text font-figures text-[34px] leading-none font-semibold tracking-[-0.04em] select-text">
-            <Show when={minimum()} fallback="—">
-              {(parts) => (
-                <>
-                  {parts()[0]}
-                  {/* A monospace space is a full glyph wide; at half size it halves the gap and still copies */}
-                  <span class="text-[50%]">&nbsp;</span>
-                  {parts()[1]}
-                </>
-              )}
-            </Show>
+            <DataAmount text={minimum()} />
           </span>
           <span class="text-xs leading-4 text-text-subtle">
             to initialize the VPN
