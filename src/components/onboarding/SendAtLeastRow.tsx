@@ -22,7 +22,7 @@ export default function SendAtLeastRow() {
   const minimum = () => {
     const wxhopr = funding.preparingSafe()?.balance_recommendation?.wxhopr;
     const bytes = wxhopr === undefined ? null : dataToSend(wxhopr, price());
-    return bytes === null ? "—" : formatDataToSend(bytes);
+    return bytes === null ? null : formatDataToSend(bytes).split(" ");
   };
   // Bytes the node's funds buy; null without a price.
   const fundedBytes = () => {
@@ -39,7 +39,16 @@ export default function SendAtLeastRow() {
             Send at least
           </span>
           <span class="cursor-text font-figures text-[34px] leading-none font-semibold tracking-[-0.04em] select-text">
-            {minimum()}
+            <Show when={minimum()} fallback="—">
+              {(parts) => (
+                <>
+                  {parts()[0]}
+                  {/* A monospace space is a full glyph wide; at half size it halves the gap and still copies */}
+                  <span class="text-[50%]">{" "}</span>
+                  {parts()[1]}
+                </>
+              )}
+            </Show>
           </span>
           <span class="text-xs leading-4 text-text-subtle">
             to initialize the VPN
