@@ -5187,6 +5187,7 @@ dependencies = [
  "gnosis_vpn-ipc",
  "gnosis_vpn-lib",
  "gtk",
+ "libc",
  "libloading",
  "liblzma",
  "objc",
