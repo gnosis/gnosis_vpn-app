@@ -7,11 +7,7 @@ import {
 } from "@src/services/vpnService.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
 import {
-  dataToSend,
-  deriveRefillShortfall,
   deriveTrafficStatus,
-  deriveWxhoprDeficit,
-  preparingSafeShortfall,
   resolveFundingStatus,
   type StatusText,
 } from "@src/utils/funding.ts";
@@ -71,30 +67,15 @@ export function useFunding() {
   const wxhoprStatus = createMemo((): StatusText | null => {
     const preparing = preparingSafe();
     if (preparing) {
-      if (!preparing.balance_recommendation) return null;
-      if (preparingSafeShortfall(preparing) === null) return "Sufficient";
+      const minimum = preparing.balance_recommendation?.wxhopr;
+      if (minimum === undefined) return null;
+      if (preparing.node_wxhopr >= minimum) return "Sufficient";
       return preparing.node_wxhopr === 0n ? "Empty" : "Low";
     }
     return levelsKnown()
       ? deriveTrafficStatus(appState.balance, runModeStatus())
       : null;
   });
-
-  /** wxHOPR to send while traffic is Low or Empty; null otherwise, or when the client names no amount. */
-  const wxhoprShortfall = () => {
-    const status = wxhoprStatus();
-    if (status !== "Empty" && status !== "Low") return null;
-    return preparingSafeShortfall(preparingSafe()) ??
-      deriveWxhoprDeficit(appState.balance, runModeStatus()) ??
-      deriveRefillShortfall(appState.balance, runModeStatus());
-  };
-  /** That shortfall as data at the PIX price; null without one (older services). */
-  const dataShortfall = () => {
-    const amount = wxhoprShortfall();
-    return amount === null
-      ? null
-      : dataToSend(amount, appState.pixPricePerByte);
-  };
 
   return {
     preparingSafe,
@@ -103,7 +84,5 @@ export function useFunding() {
     runModeStatus,
     nodeAddress,
     wxhoprStatus,
-    wxhoprShortfall,
-    dataShortfall,
   };
 }

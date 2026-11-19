@@ -3,7 +3,7 @@ import Button from "@src/components/common/Button.tsx";
 import GnosisVpnLogo from "@src/components/common/GnosisVpnLogo.tsx";
 import AccountId from "@src/components/settings/AccountId.tsx";
 import { SettingsCard } from "@src/components/settings/SettingsGroup.tsx";
-import WxhoprRow from "@src/components/onboarding/WxhoprRow.tsx";
+import SendAtLeastRow from "@src/components/onboarding/SendAtLeastRow.tsx";
 import SettingIcon from "@src/components/icons/SettingIcon.tsx";
 
 /** First onboarding screen: why to fund, and the funding site. */
@@ -28,9 +28,7 @@ export default function Fund(props: {
       </div>
 
       <div class="mt-5">
-        <SettingsCard label="Balance">
-          <WxhoprRow />
-        </SettingsCard>
+        <SendAtLeastRow />
       </div>
 
       <div class="mt-auto pb-3" role="status">

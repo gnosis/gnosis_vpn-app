@@ -11,14 +11,13 @@ import {
   formatCountCompact,
   formatCreditCompact,
 } from "@src/utils/credit.ts";
-import { deriveTrafficStatus, formatDataToSend } from "@src/utils/funding.ts";
+import { deriveTrafficStatus } from "@src/utils/funding.ts";
 import { exitDisplayName, exitShortId } from "@src/utils/destinations.ts";
 import Banner from "@src/components/common/Banner.tsx";
 import Button from "@src/components/common/Button.tsx";
 import Tooltip from "@src/components/common/Tooltip.tsx";
 import { ShortId } from "@src/components/exitNode/LocationRow.tsx";
 import UsageMeter from "@src/components/exitNode/UsageMeter.tsx";
-import ArrowRightIcon from "@src/components/icons/ArrowRightIcon.tsx";
 import CheckCircleIcon from "@src/components/icons/CheckCircleIcon.tsx";
 import SettingIcon from "@src/components/icons/SettingIcon.tsx";
 import WarningIcon from "@src/components/icons/WarningIcon.tsx";
@@ -83,7 +82,6 @@ export default function UsageTab(props: { showBreakdown: boolean }) {
     runModeStatus,
     nodeAddress,
     wxhoprStatus,
-    dataShortfall,
   } = useFunding();
 
   const credit = createMemo(() =>
@@ -159,26 +157,6 @@ export default function UsageTab(props: { showBreakdown: boolean }) {
               </span>
             </Show>
           </div>
-          <Show when={dataShortfall()}>
-            {(bytes) => (
-              <TokenNote
-                icon={
-                  <ArrowRightIcon
-                    class={`size-full ${
-                      trafficStatus() === "Empty"
-                        ? "text-bad-ink"
-                        : "text-warn-ink"
-                    }`}
-                  />
-                }
-              >
-                Add at least{" "}
-                <span class="font-figures font-bold text-text-primary">
-                  {formatDataToSend(bytes())}
-                </span>
-              </TokenNote>
-            )}
-          </Show>
           <Show when={enoughData()}>
             <TokenNote
               icon={<CheckCircleIcon class="size-full text-ok-badge" />}
