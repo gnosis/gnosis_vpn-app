@@ -3,8 +3,6 @@ import type { RouteGrade } from "@src/utils/destinations.ts";
 import CardTooltip from "./CardTooltip.tsx";
 
 const BAR_COUNT = 4;
-const MEASURED_TOOLTIP =
-  "Route quality from latency, free capacity and relay diversity.";
 
 /** The status dot's green/orange/red, keyed on the filled count. */
 const BAND_COLOR: Record<1 | 2 | 3 | 4, string> = {
@@ -14,43 +12,26 @@ const BAND_COLOR: Record<1 | 2 | 3 | 4, string> = {
   1: "text-status-bad",
 };
 
-function filledBars(grade: RouteGrade): number {
-  if (grade.kind === "measured") return grade.bars;
-  return grade.kind === "weak" ? 1 : 0;
-}
-
 function label(grade: RouteGrade): string {
   switch (grade.kind) {
-    case "measured":
-      return `Route quality ${grade.bars} of ${BAR_COUNT}`;
+    case "graded":
+      return `Route ${grade.bars} of ${BAR_COUNT}, ${grade.percentOfBest}% of the best exit right now`;
     case "unmeasured":
-      return "Route quality not measured yet";
-    case "weak":
-      return "Weak route";
+      return "Route not graded yet";
     case "none":
       return "";
   }
 }
 
-function tooltip(grade: RouteGrade): string {
-  if (grade.kind === "measured") {
-    return `${label(grade)}. ${MEASURED_TOOLTIP}`;
-  }
-  if (grade.kind === "unmeasured") {
-    return `${label(grade)}; the exit is being probed.`;
-  }
-  return `${label(grade)}: the best path found has degraded links.`;
-}
-
-/** Four rising bars; hollow while the exit is unmeasured, so the count is honest without color. */
+/** Four rising bars; hollow while the exit is ungraded, so the count is honest without color. */
 export default function SignalBars(props: {
   grade: RouteGrade;
   // no tooltip: inside a clickable area its anchor would swallow the click
   bare?: boolean;
 }) {
-  const filled = () => filledBars(props.grade);
+  const filled = () => props.grade.kind === "graded" ? props.grade.bars : 0;
   const filledColor = () =>
-    props.grade.kind === "measured"
+    props.grade.kind === "graded"
       ? BAND_COLOR[props.grade.bars]
       : BAND_COLOR[1];
   const hollow = () => props.grade.kind === "unmeasured";
@@ -95,7 +76,7 @@ export default function SignalBars(props: {
         when={!props.bare}
         fallback={bars()}
       >
-        <CardTooltip tooltip={tooltip(props.grade)}>{bars()}</CardTooltip>
+        <CardTooltip tooltip={`${label(props.grade)}.`}>{bars()}</CardTooltip>
       </Show>
     </Show>
   );

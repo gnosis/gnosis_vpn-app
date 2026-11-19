@@ -10,12 +10,12 @@ import {
   destinationSearchText,
   freeSlots,
   getExitData,
+  gradeRank,
   isConfigOnly,
   isReady,
   isReadyForDisplay,
   isSelectable,
   isVpnActive,
-  isWeakRoute,
   NO_CONTEXT,
   pickerRows,
   pickStartupTarget,
@@ -24,21 +24,17 @@ import {
   routeGradeLabel,
   sortAlphaDestinations,
   sortByGrade,
-  sortByRouteQuality,
-  trackWeakRoutes,
-  WEAK_GRACE_MS,
-  type WeakRoute,
 } from "./destinations.ts";
 import {
   checkedQuickProbe,
   checkingQuickProbe,
   eligibleRouteHealth,
+  gradedRouteHealth,
   makeDestination,
   noPathRouteHealth,
   probeViewFor,
   quickProbeCheck,
   unrecoverableRouteHealth,
-  weakRouteHealth,
 } from "@src/testing/destinations.ts";
 
 /** Named as the backend names an exit it located in Germany. */
@@ -58,31 +54,30 @@ function withRouteHealth(
   return { destination: germanExit(id), route_health };
 }
 
-/** Eligible; `relays` is distinct first relays, so a higher number ranks higher. */
-function makeEligible(
-  id: string,
-  relays = 2,
-  count = relays,
-): DestinationState {
-  return withRouteHealth(id, eligibleRouteHealth(relays, count));
+function makeEligible(id: string, percentOfBest = 100): DestinationState {
+  return withRouteHealth(id, gradedRouteHealth(percentOfBest));
 }
 
-function makeWeak(id: string, bestValue = 0.5): DestinationState {
-  return withRouteHealth(id, weakRouteHealth(bestValue));
+/** Routable, but the daemon has not graded its path yet. */
+function makeUngraded(id: string): DestinationState {
+  return withRouteHealth(id, {
+    ...eligibleRouteHealth(),
+    percent_of_best: null,
+  });
 }
 
 const OPEN_SLOTS: Slots = { total: 8, available: 6, connected: 2 };
 const FULL_SLOTS: Slots = { total: 4, available: 0, connected: 4 };
 
-/** Eligible by the walk and measured by a quick probe. */
+/** Graded by the daemon and measured by a quick probe. */
 function makeMeasured(
   id: string,
   slots: Slots = OPEN_SLOTS,
   rtt = 100,
-  relays = 2,
+  percentOfBest = 100,
 ): DestinationState {
   return withRouteHealth(id, {
-    ...eligibleRouteHealth(relays),
+    ...gradedRouteHealth(percentOfBest),
     quick_probe: checkedQuickProbe(slots, rtt),
   });
 }
@@ -110,15 +105,13 @@ function makeUnavailable(id: string): DestinationState {
 }
 
 describe("isReady — connectable right now", () => {
-  it("accepts a routable destination whose best path is within the band", () => {
-    expect(isReady(makeEligible("a"), NO_CONTEXT)).toBe(true);
-    expect(isReady(makeWeak("a", 0.999), NO_CONTEXT)).toBe(true);
-    expect(isReady(makeWeak("a", 0.9), NO_CONTEXT)).toBe(true);
+  it("accepts a routable destination with any percent of best", () => {
+    expect(isReady(makeEligible("a", 100), NO_CONTEXT)).toBe(true);
+    expect(isReady(makeEligible("a", 10), NO_CONTEXT)).toBe(true);
   });
 
-  it("rejects a routable destination whose best path is below the band", () => {
-    expect(isReady(makeWeak("a"), NO_CONTEXT)).toBe(false);
-    expect(isReady(makeWeak("a", 0.89), NO_CONTEXT)).toBe(false);
+  it("rejects a routable destination the daemon has not graded", () => {
+    expect(isReady(makeUngraded("a"), NO_CONTEXT)).toBe(false);
   });
 
   it("rejects a destination the walk found no path to", () => {
@@ -127,10 +120,10 @@ describe("isReady — connectable right now", () => {
     );
   });
 
-  it("rejects an unrecoverable destination even if it carries a walk", () => {
-    const latched = {
+  it("rejects an unrecoverable destination even if it carries a percent of best", () => {
+    const latched: RouteHealthView = {
       ...unrecoverableRouteHealth(),
-      walk: eligibleRouteHealth().walk,
+      percent_of_best: 100,
     };
     expect(isReady(withRouteHealth("a", latched), NO_CONTEXT)).toBe(false);
   });
@@ -153,22 +146,20 @@ describe("isReadyForDisplay — what the list may present as usable", () => {
 
   it("otherwise agrees with isReady", () => {
     const ready = makeEligible("a");
-    const weak = makeWeak("b");
+    const ungraded = makeUngraded("b");
 
     expect(isReadyForDisplay(ready, liveOn("c"))).toBe(
       isReady(ready, liveOn("c")),
     );
-    expect(isReadyForDisplay(weak, liveOn("c"))).toBe(
-      isReady(weak, liveOn("c")),
+    expect(isReadyForDisplay(ungraded, liveOn("c"))).toBe(
+      isReady(ungraded, liveOn("c")),
     );
   });
 });
 
 describe("isSelectable — what the user may pick", () => {
-  it("accepts a degraded path: the daemon connects over any Routable route", () => {
-    expect(isSelectable(makeWeak("a"), NO_CONTEXT)).toBe(true);
-    expect(isSelectable(makeWeak("a", 0.89), NO_CONTEXT)).toBe(true);
-    expect(isSelectable(makeWeak("a", 0.9), NO_CONTEXT)).toBe(true);
+  it("accepts an ungraded route: the daemon connects over any Routable route", () => {
+    expect(isSelectable(makeUngraded("a"), NO_CONTEXT)).toBe(true);
   });
 
   it("accepts everything ready", () => {
@@ -195,27 +186,7 @@ describe("isSelectable — what the user may pick", () => {
   });
 });
 
-describe("isWeakRoute — selectable but not ready", () => {
-  it("marks only the degraded-but-routable case", () => {
-    expect(isWeakRoute(makeWeak("a"), NO_CONTEXT)).toBe(true);
-    expect(isWeakRoute(makeWeak("a", 0.89), NO_CONTEXT)).toBe(true);
-    expect(isWeakRoute(makeWeak("a", 0.9), NO_CONTEXT)).toBe(false);
-    expect(isWeakRoute(makeEligible("a"), NO_CONTEXT)).toBe(false);
-    expect(isWeakRoute(withRouteHealth("a", noPathRouteHealth()), NO_CONTEXT))
-      .toBe(false);
-    expect(isWeakRoute(undefined, NO_CONTEXT)).toBe(false);
-  });
-
-  it("is not weak when full: nothing to pick there", () => {
-    const fullWeak = withRouteHealth("a", {
-      ...weakRouteHealth(),
-      quick_probe: checkedQuickProbe(FULL_SLOTS, 10),
-    });
-    expect(isWeakRoute(fullWeak, NO_CONTEXT)).toBe(false);
-  });
-});
-
-describe("routeGrade — the score as shown, never as used", () => {
+describe("routeGrade — the daemon's percent of best as bars", () => {
   it("grades nothing that is not selectable", () => {
     expect(routeGrade(undefined, NO_CONTEXT)).toEqual({ kind: "none" });
     expect(routeGrade(makeUnavailable("a"), NO_CONTEXT)).toEqual({
@@ -223,45 +194,40 @@ describe("routeGrade — the score as shown, never as used", () => {
     });
     expect(routeGrade(withRouteHealth("a", noPathRouteHealth()), NO_CONTEXT))
       .toEqual({ kind: "none" });
+  });
+
+  it("grades a full exit none, whatever its percent of best", () => {
     expect(routeGrade(makeMeasured("a", FULL_SLOTS), NO_CONTEXT)).toEqual({
       kind: "none",
     });
   });
 
-  it("marks a degraded path weak regardless of what the exit measured", () => {
-    expect(routeGrade(makeWeak("a"), NO_CONTEXT)).toEqual({ kind: "weak" });
-    expect(routeGrade(makeWeak("a", 0.89), NO_CONTEXT)).toEqual({
-      kind: "weak",
-    });
-    expect(routeGrade(makeWeak("a", 0.9), NO_CONTEXT)).toEqual({
-      kind: "unmeasured",
-    });
-    const measuredWeak = withRouteHealth("a", {
-      ...weakRouteHealth(),
-      quick_probe: checkedQuickProbe(OPEN_SLOTS, 10),
-    });
-    expect(routeGrade(measuredWeak, NO_CONTEXT)).toEqual({ kind: "weak" });
+  it("cuts bars at 90, 60 and 25 percent of the best exit", () => {
+    const bars = (percentOfBest: number) => {
+      const grade = routeGrade(makeEligible("a", percentOfBest), NO_CONTEXT);
+      return grade.kind === "graded" ? grade.bars : null;
+    };
+    expect([100, 90, 89, 60, 59, 25, 24, 0].map(bars)).toEqual([
+      4,
+      4,
+      3,
+      3,
+      2,
+      2,
+      1,
+      1,
+    ]);
   });
 
-  it("holds an unmeasured ready exit at unmeasured until a probe answers", () => {
-    expect(routeGrade(makeEligible("a"), NO_CONTEXT)).toEqual({
-      kind: "unmeasured",
-    });
+  it("grades by percent of best alone, whatever the exit measured", () => {
+    expect(routeGrade(makeMeasured("a", OPEN_SLOTS, 6_000), NO_CONTEXT))
+      .toEqual({ kind: "graded", bars: 4, percentOfBest: 100 });
   });
 
-  it("fills bars by score band: latency half, capacity a third, relays a fifth", () => {
-    // OPEN_SLOTS free 6/8 = 0.225, two relays = 0.1; latency decides the band
-    const bars = (rtt: number) =>
-      routeGrade(makeMeasured("a", OPEN_SLOTS, rtt), NO_CONTEXT);
-    expect(bars(0), "0.825").toEqual({ kind: "measured", bars: 4 });
-    expect(bars(1_000), "0.575").toEqual({ kind: "measured", bars: 3 });
-    expect(bars(2_000), "0.325").toEqual({ kind: "measured", bars: 2 });
-
-    const nearlyFull: Slots = { total: 8, available: 1, connected: 7 };
-    expect(
-      routeGrade(makeMeasured("a", nearlyFull, 2_000, 1), NO_CONTEXT),
-      "0.0875",
-    ).toEqual({ kind: "measured", bars: 1 });
+  it("holds a selectable exit without a percent of best at unmeasured", () => {
+    expect(routeGrade(makeUngraded("a"), NO_CONTEXT)).toEqual({
+      kind: "unmeasured",
+    });
   });
 
   it("keeps its bars through a re-check", () => {
@@ -269,146 +235,27 @@ describe("routeGrade — the score as shown, never as used", () => {
       .toEqual(routeGrade(makeMeasured("a"), NO_CONTEXT));
   });
 
-  it("discounts our own slot when grading the exit we are on", () => {
+  it("still grades the exit we are on when we hold its last slot", () => {
     const lastSlot: Slots = { total: 8, available: 0, connected: 8 };
-    const onIt = routeGrade(makeMeasured("a", lastSlot, 0, 4), liveOn("a"));
-    expect(onIt.kind).toBe("measured");
+    expect(routeGrade(makeMeasured("a", lastSlot), liveOn("a"))).toEqual({
+      kind: "graded",
+      bars: 4,
+      percentOfBest: 100,
+    });
   });
 });
 
-describe("trackWeakRoutes — the grace before a weak route is surfaced", () => {
-  const T0 = 1_000_000;
-  const byId = (...states: DestinationState[]) =>
-    Object.fromEntries(states.map((s) => [s.destination.id, s]));
-  const weakFor = (ms: number): Record<string, WeakRoute> =>
-    trackWeakRoutes(
-      trackWeakRoutes({}, byId(makeWeak("a")), T0),
-      byId(makeWeak("a")),
-      T0 + ms,
-    );
-
-  it("records the first sighting unsurfaced", () => {
-    expect(trackWeakRoutes({}, byId(makeWeak("a")), T0)).toEqual({
-      a: { since: T0, surfaced: false },
-    });
-  });
-
-  it("surfaces on the first response at or past the grace", () => {
-    expect(weakFor(WEAK_GRACE_MS - 100).a).toEqual({
-      since: T0,
-      surfaced: false,
-    });
-    expect(weakFor(WEAK_GRACE_MS).a).toEqual({ since: T0, surfaced: true });
-  });
-
-  it("tracks nothing within the band, without a path or before a walk", () => {
-    const states = byId(
-      makeEligible("ready"),
-      makeWeak("edge", 0.9),
-      withRouteHealth("dead", noPathRouteHealth()),
-      withRouteHealth("gone", unrecoverableRouteHealth()),
-      withRouteHealth("unwalked", { ...weakRouteHealth(), walk: null }),
-      makeUnavailable("none"),
-    );
-    expect(trackWeakRoutes({}, states, T0)).toEqual({});
-  });
-
-  it("restarts the grace after an answer within the band", () => {
-    const seen = trackWeakRoutes({}, byId(makeWeak("a")), T0);
-    const recovered = trackWeakRoutes(
-      seen,
-      byId(makeEligible("a")),
-      T0 + 5_000,
-    );
-    expect(recovered).toEqual({});
-    const again = trackWeakRoutes(
-      recovered,
-      byId(makeWeak("a")),
-      T0 + WEAK_GRACE_MS,
-    );
-    expect(again.a).toEqual({ since: T0 + WEAK_GRACE_MS, surfaced: false });
-  });
-
-  it("keeps the grace's start through a worse answer", () => {
-    const seen = trackWeakRoutes({}, byId(makeWeak("a")), T0);
-    const worse = [
-      withRouteHealth("a", noPathRouteHealth()),
-      withRouteHealth("a", unrecoverableRouteHealth()),
-      withRouteHealth("a", { ...weakRouteHealth(), walk: null }),
+describe("gradeRank — lower is better", () => {
+  it("ranks graded by bars, then unmeasured, then none", () => {
+    const ranks = [
+      makeEligible("a", 100),
+      makeEligible("a", 75),
+      makeEligible("a", 40),
+      makeEligible("a", 10),
+      makeUngraded("a"),
       makeUnavailable("a"),
-    ];
-    for (const state of worse) {
-      const dipped = trackWeakRoutes(seen, byId(state), T0 + 5_000);
-      const back = trackWeakRoutes(
-        dipped,
-        byId(makeWeak("a")),
-        T0 + WEAK_GRACE_MS,
-      );
-      expect(back.a).toEqual({ since: T0, surfaced: true });
-    }
-  });
-
-  it("starts the grace at the first weak sighting, even after a worse start", () => {
-    const worse = trackWeakRoutes(
-      {},
-      byId(withRouteHealth("a", noPathRouteHealth())),
-      T0,
-    );
-    const weak = trackWeakRoutes(
-      worse,
-      byId(makeWeak("a")),
-      T0 + WEAK_GRACE_MS,
-    );
-    expect(weak.a).toEqual({ since: T0 + WEAK_GRACE_MS, surfaced: false });
-  });
-
-  it("drops a destination the response no longer carries", () => {
-    const seen = trackWeakRoutes({}, byId(makeWeak("a")), T0);
-    expect(trackWeakRoutes(seen, {}, T0 + WEAK_GRACE_MS)).toEqual({});
-  });
-
-  it("tracks a full exit below the band: the walk alone decides", () => {
-    const fullWeak = withRouteHealth("a", {
-      ...weakRouteHealth(),
-      quick_probe: checkedQuickProbe(FULL_SLOTS, 10),
-    });
-    expect(trackWeakRoutes({}, byId(fullWeak), T0).a).toEqual({
-      since: T0,
-      surfaced: false,
-    });
-  });
-});
-
-describe("routeGrade — a weak route still in its grace", () => {
-  it("grades as ready: unmeasured, or Good once measured however fast", () => {
-    expect(routeGrade(makeWeak("a"), NO_CONTEXT, false)).toEqual({
-      kind: "unmeasured",
-    });
-    const measuredWeak = withRouteHealth("a", {
-      ...weakRouteHealth(),
-      quick_probe: checkedQuickProbe(OPEN_SLOTS, 10),
-    });
-    expect(routeGrade(measuredWeak, NO_CONTEXT, false)).toEqual({
-      kind: "measured",
-      bars: 3,
-    });
-  });
-
-  it("still grades a full exit as none", () => {
-    const fullWeak = withRouteHealth("a", {
-      ...weakRouteHealth(),
-      quick_probe: checkedQuickProbe(FULL_SLOTS, 10),
-    });
-    expect(routeGrade(fullWeak, NO_CONTEXT, false)).toEqual({ kind: "none" });
-  });
-
-  it("leaves every other grade alone", () => {
-    expect(routeGrade(makeEligible("a"), NO_CONTEXT, false)).toEqual({
-      kind: "unmeasured",
-    });
-    expect(
-      routeGrade(withRouteHealth("a", noPathRouteHealth()), NO_CONTEXT, false),
-    ).toEqual({ kind: "none" });
+    ].map((state) => gradeRank(state, NO_CONTEXT));
+    expect(ranks).toEqual([0, 1, 2, 3, 4, 5]);
   });
 });
 
@@ -476,7 +323,7 @@ describe("freeSlots — our own session must not count against us", () => {
   });
 });
 
-describe("isReady — exit data tightens the walk's verdict", () => {
+describe("isReady — exit data tightens the daemon's verdict", () => {
   it("rejects a full exit, which no connect could succeed against", () => {
     expect(isReady(makeMeasured("a", FULL_SLOTS), NO_CONTEXT)).toBe(false);
   });
@@ -485,116 +332,18 @@ describe("isReady — exit data tightens the walk's verdict", () => {
     expect(isReady(makeMeasured("a", FULL_SLOTS), liveOn("a"))).toBe(true);
   });
 
-  it("stays ready on the walk alone while nothing measured the exit", () => {
+  it("stays ready on the percent of best alone while nothing measured the exit", () => {
     expect(isReady(makeEligible("a"), NO_CONTEXT)).toBe(true);
   });
 
-  it("never lets exit data promote a weak route", () => {
-    const measuredWeak = withRouteHealth("a", {
-      ...weakRouteHealth(),
+  it("never lets exit data promote an ungraded route", () => {
+    const measuredUngraded = withRouteHealth("a", {
+      ...eligibleRouteHealth(),
+      percent_of_best: null,
       quick_probe: checkedQuickProbe(OPEN_SLOTS, 10),
     });
 
-    expect(isReady(measuredWeak, NO_CONTEXT)).toBe(false);
-  });
-});
-
-describe("sortByRouteQuality — measured exits", () => {
-  it("ranks every measured exit above every unmeasured one", () => {
-    expect(
-      sortByRouteQuality({
-        "a-promise": makeEligible("a-promise", 4),
-        "b-slow": makeMeasured("b-slow", OPEN_SLOTS, 1_800, 1),
-      }, NO_CONTEXT),
-    ).toEqual(["b-slow", "a-promise"]);
-  });
-
-  it("prefers lower latency at equal capacity and diversity", () => {
-    expect(
-      sortByRouteQuality({
-        far: makeMeasured("far", OPEN_SLOTS, 400),
-        near: makeMeasured("near", OPEN_SLOTS, 100),
-      }, NO_CONTEXT),
-    ).toEqual(["near", "far"]);
-  });
-
-  it("lets free capacity outweigh a small latency edge", () => {
-    // 100 ms one-way is 0.05 of the latency term; 5 of 8 free slots is 0.19 of the capacity term
-    expect(
-      sortByRouteQuality({
-        crowded: makeMeasured("crowded", {
-          total: 8,
-          available: 1,
-          connected: 7,
-        }, 100),
-        roomy: makeMeasured(
-          "roomy",
-          { total: 8, available: 6, connected: 2 },
-          300,
-        ),
-      }, NO_CONTEXT),
-    ).toEqual(["roomy", "crowded"]);
-  });
-
-  it("lets relay diversity break a tie between otherwise equal exits", () => {
-    expect(
-      sortByRouteQuality({
-        single: makeMeasured("single", OPEN_SLOTS, 100, 1),
-        diverse: makeMeasured("diverse", OPEN_SLOTS, 100, 3),
-      }, NO_CONTEXT),
-    ).toEqual(["diverse", "single"]);
-  });
-
-  it("saturates latency at one second one-way and diversity at four relays", () => {
-    expect(
-      sortByRouteQuality({
-        "a-glacial": makeMeasured("a-glacial", OPEN_SLOTS, 6_000, 4),
-        "b-slow": makeMeasured("b-slow", OPEN_SLOTS, 2_000, 9),
-      }, NO_CONTEXT),
-    ).toEqual(["a-glacial", "b-slow"]);
-  });
-
-  it("drops a full exit into the ineligible tail, above weak routes", () => {
-    expect(
-      sortByRouteQuality({
-        "a-weak": makeWeak("a-weak", 0.5),
-        "b-full": makeMeasured("b-full", FULL_SLOTS, 10),
-        "c-open": makeMeasured("c-open", OPEN_SLOTS, 500),
-      }, NO_CONTEXT),
-    ).toEqual(["c-open", "b-full", "a-weak"]);
-  });
-
-  it("scores the destination we are on with the slot we occupy given back", () => {
-    const destinations = {
-      here: makeMeasured("here", { total: 2, available: 0, connected: 2 }, 100),
-      there: makeMeasured(
-        "there",
-        { total: 2, available: 1, connected: 1 },
-        100,
-      ),
-    };
-
-    expect(sortByRouteQuality(destinations, NO_CONTEXT)).toEqual([
-      "there",
-      "here",
-    ]);
-    expect(sortByRouteQuality(destinations, liveOn("here"))).toEqual([
-      "here",
-      "there",
-    ]);
-  });
-
-  it("reads the live probe for the destination it is on", () => {
-    const probe = probeViewFor("a", OPEN_SLOTS, 50);
-    const destinations = {
-      a: makeEligible("a"),
-      b: makeMeasured("b", OPEN_SLOTS, 100),
-    };
-
-    expect(sortByRouteQuality(destinations, { probe, liveId: null })).toEqual([
-      "a",
-      "b",
-    ]);
+    expect(isReady(measuredUngraded, NO_CONTEXT)).toBe(false);
   });
 });
 
@@ -632,28 +381,28 @@ describe("sortAlphaDestinations", () => {
     expect(sorted[1].id).toBe("aaaaa");
   });
 
-  it("places a weak route in the tail with the unreachable ones", () => {
-    const weak = germanExit("aaa-weak");
+  it("places an ungraded route in the tail with the unreachable ones", () => {
+    const ungraded = germanExit("aaa-ungraded");
     const ready = germanExit("zzz-ready");
     const sorted = sortAlphaDestinations(
-      [weak, ready],
+      [ungraded, ready],
       {
-        "aaa-weak": makeWeak("aaa-weak"),
+        "aaa-ungraded": makeUngraded("aaa-ungraded"),
         "zzz-ready": makeEligible("zzz-ready"),
       },
       NO_CONTEXT,
     );
-    expect(sorted.map((d) => d.id)).toEqual(["zzz-ready", "aaa-weak"]);
+    expect(sorted.map((d) => d.id)).toEqual(["zzz-ready", "aaa-ungraded"]);
   });
 
-  it("sorts eligible destinations alphabetically within the tier", () => {
+  it("sorts eligible destinations alphabetically within the tier, whatever the percent of best", () => {
     const bravo = germanExit("bravo");
     const alpha = germanExit("alpha");
     const sorted = sortAlphaDestinations(
       [bravo, alpha],
       {
-        bravo: makeEligible("bravo", 1),
-        alpha: makeEligible("alpha", 5),
+        bravo: makeEligible("bravo", 100),
+        alpha: makeEligible("alpha", 10),
       },
       NO_CONTEXT,
     );
@@ -695,7 +444,7 @@ describe("sortAlphaDestinations", () => {
   });
 });
 
-describe("sortByGrade — the Quality tab", () => {
+describe("sortByGrade — the one order", () => {
   const named = (state: DestinationState, country: string) => ({
     ...state,
     destination: makeDestination({
@@ -705,120 +454,52 @@ describe("sortByGrade — the Quality tab", () => {
   });
   const ids = (
     destinations: Record<string, DestinationState>,
-    weakRoutes: Record<string, WeakRoute> = {},
-  ) => sortByGrade(destinations, NO_CONTEXT, weakRoutes).map((d) => d.id);
+    context: RankContext = NO_CONTEXT,
+  ) => sortByGrade(destinations, context).map((d) => d.id);
 
-  it("orders best grade first, weak next, unmeasured last", () => {
+  it("orders most bars first, then unmeasured, then the rest", () => {
     expect(ids({
-      unmeasured: makeEligible("unmeasured", 4),
-      weak: makeWeak("weak"),
-      poor: makeMeasured(
-        "poor",
-        { total: 8, available: 1, connected: 7 },
-        2_000,
-        1,
-      ),
-      excellent: makeMeasured("excellent", OPEN_SLOTS, 0),
-      good: makeMeasured("good", OPEN_SLOTS, 1_000),
-    }, { weak: { since: 0, surfaced: true } })).toEqual([
-      "excellent",
-      "good",
-      "poor",
-      "weak",
-      "unmeasured",
+      "a-none": makeUnavailable("a-none"),
+      "b-unmeasured": makeUngraded("b-unmeasured"),
+      "c-far": makeEligible("c-far", 10),
+      "d-behind": makeEligible("d-behind", 40),
+      "e-close": makeEligible("e-close", 75),
+      "f-best": makeEligible("f-best", 100),
+    })).toEqual([
+      "f-best",
+      "e-close",
+      "d-behind",
+      "c-far",
+      "b-unmeasured",
+      "a-none",
     ]);
   });
 
-  it("orders exits of one grade by name, not by score", () => {
+  it("orders exits of one grade by name, not by what the exit measured", () => {
     expect(ids({
       "a-ch": named(makeMeasured("a-ch", OPEN_SLOTS, 0), "Switzerland"),
-      "b-fr": named(makeMeasured("b-fr", OPEN_SLOTS, 200), "France"),
+      "b-fr": named(makeMeasured("b-fr", OPEN_SLOTS, 2_000), "France"),
       "c-at": named(makeEligible("c-at"), "Austria"),
-      "d-be": named(makeEligible("d-be"), "Belgium"),
-    })).toEqual(["b-fr", "a-ch", "c-at", "d-be"]);
+    })).toEqual(["c-at", "b-fr", "a-ch"]);
   });
 
-  it("ranks a weak route by the grade it shows during its grace", () => {
-    const measuredWeak = withRouteHealth("weak", {
-      ...weakRouteHealth(),
-      quick_probe: checkedQuickProbe(OPEN_SLOTS, 0),
-    });
+  it("sinks a full exit with the ungradeable ones, unless we hold its last slot", () => {
     const destinations = {
-      fair: makeMeasured("fair", OPEN_SLOTS, 2_000),
-      weak: measuredWeak,
+      "a-full": makeMeasured("a-full", FULL_SLOTS, 10),
+      "b-far": makeEligible("b-far", 10),
+      "c-none": makeUnavailable("c-none"),
     };
-    expect(ids(destinations)).toEqual(["weak", "fair"]);
-    expect(ids(destinations, { weak: { since: 0, surfaced: true } }))
-      .toEqual(["fair", "weak"]);
-  });
-});
-
-describe("sortByRouteQuality", () => {
-  it("ranks eligible destinations by distinct first relays, most first", () => {
-    expect(
-      sortByRouteQuality({
-        one: makeEligible("one", 1),
-        three: makeEligible("three", 3),
-        two: makeEligible("two", 2),
-      }, NO_CONTEXT),
-    ).toEqual(["three", "two", "one"]);
-  });
-
-  it("breaks a relay tie by path count, then by label", () => {
-    expect(
-      sortByRouteQuality({
-        "b-few": makeEligible("b-few", 2, 2),
-        "a-few": makeEligible("a-few", 2, 2),
-        "c-many": makeEligible("c-many", 2, 6),
-      }, NO_CONTEXT),
-    ).toEqual(["c-many", "a-few", "b-few"]);
-  });
-
-  it("puts every eligible destination before every weak one, whatever the relays", () => {
-    expect(
-      sortByRouteQuality({
-        "aaa-weak": makeWeak("aaa-weak"),
-        "bbb-lone": makeEligible("bbb-lone", 1),
-      }, NO_CONTEXT),
-    ).toEqual(["bbb-lone", "aaa-weak"]);
-  });
-
-  it("orders the ineligible tail by best value, closest to eligible first", () => {
-    expect(
-      sortByRouteQuality({
-        "a-far": makeWeak("a-far", 0.2),
-        "b-near": makeWeak("b-near", 0.8),
-        "c-mid": makeWeak("c-mid", 0.5),
-      }, NO_CONTEXT),
-    ).toEqual(["b-near", "c-mid", "a-far"]);
-  });
-
-  it("sinks no-path, then unknown, then unrecoverable below any weak route", () => {
-    expect(
-      sortByRouteQuality({
-        "a-latched": withRouteHealth("a-latched", unrecoverableRouteHealth()),
-        "b-dead": makeUnavailable("b-dead"),
-        "c-nopath": withRouteHealth("c-nopath", noPathRouteHealth()),
-        "d-weak": makeWeak("d-weak", 0.1),
-      }, NO_CONTEXT),
-    ).toEqual(["d-weak", "c-nopath", "b-dead", "a-latched"]);
-  });
-
-  it("falls back to the label when nothing else separates them", () => {
-    expect(
-      sortByRouteQuality({
-        zeta: makeUnavailable("zeta"),
-        alpha: makeUnavailable("alpha"),
-      }, NO_CONTEXT),
-    ).toEqual(["alpha", "zeta"]);
+    expect(ids(destinations)).toEqual(["b-far", "a-full", "c-none"]);
+    expect(ids(destinations, liveOn("a-full")))
+      .toEqual(["a-full", "b-far", "c-none"]);
   });
 });
 
 describe("pickStartupTarget — connect-on-startup pick", () => {
   it("returns the preferred location when it is ready", () => {
     const destinations = {
-      best: makeEligible("best", 5),
-      pref: makeEligible("pref", 1),
+      best: makeEligible("best", 100),
+      pref: makeEligible("pref", 10),
     };
 
     expect(pickStartupTarget(destinations, "pref", null, NO_CONTEXT)).toBe(
@@ -828,8 +509,8 @@ describe("pickStartupTarget — connect-on-startup pick", () => {
 
   it("starts where the last session left off, outranking preferred", () => {
     const destinations = {
-      last: makeEligible("last", 1),
-      pref: makeEligible("pref", 5),
+      last: makeEligible("last", 10),
+      pref: makeEligible("pref", 100),
     };
 
     expect(pickStartupTarget(destinations, "pref", "last", NO_CONTEXT)).toBe(
@@ -840,8 +521,8 @@ describe("pickStartupTarget — connect-on-startup pick", () => {
   it("falls back through preferred when the last session's destination is not ready", () => {
     const destinations = {
       last: makeUnavailable("last"),
-      pref: makeEligible("pref", 1),
-      best: makeEligible("best", 5),
+      pref: makeEligible("pref", 10),
+      best: makeEligible("best", 100),
     };
 
     expect(pickStartupTarget(destinations, "pref", "last", NO_CONTEXT)).toBe(
@@ -852,25 +533,25 @@ describe("pickStartupTarget — connect-on-startup pick", () => {
     );
   });
 
-  it("falls back to the best ready destination when preferred is not ready", () => {
+  it("falls back to the best graded destination when preferred is not ready", () => {
     const destinations = {
       pref: makeUnavailable("pref"),
-      lone: makeEligible("lone", 1),
-      best: makeEligible("best", 5),
+      "a-lone": makeEligible("a-lone", 40),
+      "z-best": makeEligible("z-best", 100),
     };
 
     expect(pickStartupTarget(destinations, "pref", null, NO_CONTEXT)).toBe(
-      "best",
+      "z-best",
     );
     expect(pickStartupTarget(destinations, null, null, NO_CONTEXT)).toBe(
-      "best",
+      "z-best",
     );
   });
 
-  it("ignores a preferred location whose path is weak", () => {
+  it("ignores a preferred location the daemon has not graded", () => {
     const destinations = {
-      pref: makeWeak("pref", 0.5),
-      open: makeEligible("open", 1),
+      pref: makeUngraded("pref"),
+      open: makeEligible("open", 10),
     };
 
     expect(pickStartupTarget(destinations, "pref", null, NO_CONTEXT)).toBe(
@@ -880,7 +561,7 @@ describe("pickStartupTarget — connect-on-startup pick", () => {
 
   it("never picks a destination that cannot take a connection", () => {
     const destinations = {
-      weak: makeWeak("weak"),
+      ungraded: makeUngraded("ungraded"),
       dead: makeUnavailable("dead"),
     };
 
@@ -933,13 +614,12 @@ describe("isConfigOnly", () => {
 });
 
 describe("routeGradeLabel", () => {
-  it("names each measured band and the unmeasured and weak states", () => {
-    expect(routeGradeLabel({ kind: "measured", bars: 4 })).toBe("Excellent");
-    expect(routeGradeLabel({ kind: "measured", bars: 3 })).toBe("Good");
-    expect(routeGradeLabel({ kind: "measured", bars: 2 })).toBe("Fair");
-    expect(routeGradeLabel({ kind: "measured", bars: 1 })).toBe("Poor");
-    expect(routeGradeLabel({ kind: "weak" })).toBe("Weak route");
+  it("names only the unmeasured state; bars speak for a graded one", () => {
     expect(routeGradeLabel({ kind: "unmeasured" })).toBe("Not measured yet");
+    expect(routeGradeLabel({ kind: "graded", bars: 4, percentOfBest: 100 }))
+      .toBe("");
+    expect(routeGradeLabel({ kind: "graded", bars: 1, percentOfBest: 10 }))
+      .toBe("");
     expect(routeGradeLabel({ kind: "none" })).toBe("");
   });
 });

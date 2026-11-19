@@ -226,11 +226,25 @@ describe("StatusResponseSchema", () => {
     expect(parsed.data?.probe?.versions).toBe(null);
   });
 
-  it("parses all RouteHealthState, RouteWalk and QuickProbeState variants", () => {
+  it("parses all RouteHealthState and QuickProbeState variants, with and without a path", () => {
     const parsed = StatusResponseSchema.safeParse(statusRouteHealthVariants);
     expect(parsed.success).toBe(true);
     const health = parsed.data?.destinations.map((d) => d.route_health) ?? [];
-    expect(health[0]?.walk?.type).toBe("paths");
+    expect(health.map((h) => h?.percent_of_best ?? null)).toEqual([
+      100,
+      75,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      40,
+      10,
+    ]);
+    expect(health[0]?.walked_at).toBe(0);
+    expect(health[3]?.walked_at, "never walked").toBe(null);
     expect(health[0]?.quick_probe?.type).toBe("checked");
     expect(health[2]?.state.type).toBe("not_routable");
     expect(health[2]?.last_error).toBe("walk timed out");

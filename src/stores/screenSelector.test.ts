@@ -28,7 +28,6 @@ import {
   eligibleRouteHealth,
   makeDestination,
   noPathRouteHealth,
-  weakRouteHealth,
 } from "@src/testing/destinations.ts";
 
 const RUNNING: RunMode = {
@@ -164,8 +163,9 @@ describe("createScreenSelector", () => {
     }
   });
 
-  it("reaches main once a weak route is connectable", () => {
-    expect(screenOf(status(RUNNING, [destination(weakRouteHealth())]))).toBe(
+  it("reaches main once a route is connectable, graded or not", () => {
+    const ungraded = { ...eligibleRouteHealth(), percent_of_best: null };
+    expect(screenOf(status(RUNNING, [destination(ungraded)]))).toBe(
       AppScreen.Main,
     );
   });
