@@ -5183,6 +5183,7 @@ dependencies = [
  "clap",
  "dark-light",
  "dispatch",
+ "flate2",
  "futures-core",
  "gnosis_vpn-ipc",
  "gnosis_vpn-lib",
