@@ -545,7 +545,6 @@ export const PreparingSafeSchema = z.object({
   node_address: z.string(),
   node_xdai: BigIntStringSchema,
   node_wxhopr: BigIntStringSchema,
-  funding_tool: z.string().nullable(),
   issue: StartupIssueSchema.nullable(),
   balance_recommendation: BalanceRecommendationSchema.nullable(),
 });
