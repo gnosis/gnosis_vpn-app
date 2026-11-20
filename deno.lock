@@ -1529,12 +1529,7 @@
         "npm:vite@8.3.5",
         "npm:vitest@4.1.12",
         "npm:zod@4.6.7"
-      ],
-      "overrides": {
-        "eslint": {
-          "flatted": "3.4.4"
-        }
-      }
+      ]
     }
   }
 }

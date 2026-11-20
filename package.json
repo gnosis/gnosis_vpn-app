@@ -37,10 +37,5 @@
     "typescript": "6.0.3",
     "vite-plugin-solid": "2.11.15",
     "vitest": "4.1.12"
-  },
-  "overrides": {
-    "eslint": {
-      "flatted": "3.4.4"
-    }
   }
 }
