@@ -389,7 +389,6 @@ fn generate_fixtures() {
             node_address: address(),
             node_xdai: Balance::zero(),
             node_wxhopr: Balance::zero(),
-            funding_tool: None,
             issue: None,
             balance_recommendation: None,
         }),
@@ -402,7 +401,6 @@ fn generate_fixtures() {
             node_address: address(),
             node_xdai: Balance::from_wei(10_000_000_000_000_000), // 0.01 xDAI
             node_wxhopr: Balance::from_wei(500_000_000_000_000_000), // 0.5 wxHOPR
-            funding_tool: None,
             issue: None,
             balance_recommendation: Some(Box::new(BalanceRecommendation {
                 wxhopr: Balance::from_wei(10_000_000_000_000_000_000), // 10 wxHOPR

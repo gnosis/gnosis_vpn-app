@@ -4,7 +4,6 @@
     "node_address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
     "node_xdai": "10000000000000000",
     "node_wxhopr": "500000000000000000",
-    "funding_tool": null,
     "issue": null,
     "balance_recommendation": {
       "wxhopr": "10000000000000000000",

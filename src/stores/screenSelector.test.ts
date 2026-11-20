@@ -51,7 +51,6 @@ const PREPARING_SAFE: RunMode = {
   node_address: "0xnode",
   node_xdai: 0n,
   node_wxhopr: 0n,
-  funding_tool: null,
   issue: null,
   balance_recommendation: null,
 };
@@ -68,7 +67,6 @@ function failedSafeDeployment(
     node_address: "0xnode",
     node_xdai: funded ? 10n : 0n,
     node_wxhopr: funded ? 10n : 0n,
-    funding_tool: null,
     issue: issue("deploy tx reverted"),
     balance_recommendation: {
       wxhopr: 5n,
