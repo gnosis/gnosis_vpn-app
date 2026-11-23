@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  balanceWarning,
   balanceWarningText,
   dataToSend,
   deriveTrafficStatus,
@@ -132,5 +133,29 @@ describe("balanceWarningText", () => {
     expect(balanceWarningText("Low", 0n, null)).toBe(
       "Balance low, add data to stay connected",
     );
+  });
+});
+
+describe("balanceWarning", () => {
+  const GB = 1024n ** 3n;
+
+  it("has nothing to say while traffic is good", () => {
+    expect(balanceWarning(makeBalance(makeStatus("good", "low")), null, 1n))
+      .toBeNull();
+  });
+
+  it("asks for the client's deficit as data at the PIX price", () => {
+    const status = makeStatus("empty", "good", { wxhoprDeficit: 4n * GB });
+    expect(balanceWarning(makeBalance(status), null, 2n)).toEqual({
+      status: "Empty",
+      text: "Balance empty, add at least 2 GB of data to stay connected",
+    });
+  });
+
+  it("warns from the run-mode status before the first balance arrives", () => {
+    expect(balanceWarning(null, makeStatus("low", "good"), 1n)).toEqual({
+      status: "Low",
+      text: "Balance low, add data to stay connected",
+    });
   });
 });

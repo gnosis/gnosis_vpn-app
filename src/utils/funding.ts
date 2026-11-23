@@ -3,7 +3,7 @@ import type {
   FundingLevel,
   FundingStatus,
 } from "@src/services/vpnService.ts";
-import { BYTES_PER_GB } from "@src/utils/credit.ts";
+import { BYTES_PER_GB, computeEffectiveCredit } from "@src/utils/credit.ts";
 
 export type StatusText = "Sufficient" | "Low" | "Empty" | string;
 
@@ -78,4 +78,19 @@ export function balanceWarningText(
     ? "add data"
     : `add at least ${formatDataToSend(toAdd)} of data`;
   return `${lead}, ${ask} to stay connected`;
+}
+
+/** The Low/Empty warning the main screen and the Usage tab share; null while traffic is Sufficient. */
+export function balanceWarning(
+  balance: BalanceResponse | null,
+  runModeStatus: FundingStatus | null,
+  pricePerByte: bigint,
+): { status: "Low" | "Empty"; text: string } | null {
+  const status = deriveTrafficStatus(balance, runModeStatus);
+  if (status !== "Low" && status !== "Empty") return null;
+  // The client's wxHOPR back to Good, as data at the PIX price.
+  const deficit = resolveFundingStatus(balance, runModeStatus)?.wxhopr_deficit;
+  const toAdd = deficit == null ? null : dataToSend(deficit, pricePerByte);
+  const credit = balance ? computeEffectiveCredit(balance) : 0n;
+  return { status, text: balanceWarningText(status, credit, toAdd) };
 }

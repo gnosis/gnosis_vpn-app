@@ -28,7 +28,11 @@ import LocationHero from "../../components/exitNode/LocationHero.tsx";
 import LocationNotice from "../../components/exitNode/LocationNotice.tsx";
 import { openSettings } from "../../utils/settingsPage.ts";
 import { isRunningRunMode } from "../../services/vpnService.ts";
-import { deriveTrafficStatus, type StatusText } from "../../utils/funding.ts";
+import {
+  balanceWarning,
+  deriveTrafficStatus,
+  type StatusText,
+} from "../../utils/funding.ts";
 import { endOfLifeMessage } from "../../utils/updateAvailability.ts";
 import { createDeadlineClock } from "../../utils/deadlineClock.ts";
 import { channelMaintenanceWarning } from "../../utils/status.ts";
@@ -65,9 +69,8 @@ export function MainScreen() {
     balanceStatus() !== "Sufficient" &&
     dismissedBalanceStatus() !== balanceStatus();
   const balanceBannerText = () =>
-    balanceStatus() === "Empty"
-      ? "Your balance is empty"
-      : "Your balance is low";
+    balanceWarning(appState.balance, runModeStatus(), appState.pixPricePerByte)
+      ?.text;
 
   // The outage age has to tick between status updates.
   const [nowMs, setNowMs] = createSignal(Date.now());
