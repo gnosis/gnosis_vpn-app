@@ -73,6 +73,7 @@ pub struct StatusPollingHandle {
 pub struct BalancePollingHandle {
     pub cancel: CancellationToken,
     pub handle: Option<tauri::async_runtime::JoinHandle<()>>,
+    /// Pulls the next poll in when the main window gains focus.
     pub trigger: Arc<Notify>,
 }
 
@@ -230,6 +231,18 @@ fn send_probing_boost() {
             tracing::debug!(target: "window", error = %e, "probing boost call failed");
         }
     });
+}
+
+fn nudge_balance_poll(app: &tauri::AppHandle) {
+    let Some(state) = app.try_state::<Mutex<BalancePollingHandle>>() else {
+        return;
+    };
+    match state.lock() {
+        Ok(guard) => guard.trigger.notify_one(),
+        Err(e) => {
+            tracing::warn!(target: "balance", error = %e, "cannot trigger balance poll on focus")
+        }
+    };
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -474,7 +487,10 @@ pub fn run() {
                         api.prevent_close();
                         hide_main_window(&app_handle, &window_clone);
                     }
-                    tauri::WindowEvent::Focused(true) => send_probing_boost(),
+                    tauri::WindowEvent::Focused(true) => {
+                        send_probing_boost();
+                        nudge_balance_poll(&app_handle);
+                    }
                     _ => {}
                 });
             }

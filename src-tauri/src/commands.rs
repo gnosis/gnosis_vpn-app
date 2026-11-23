@@ -27,6 +27,10 @@ use crate::{AppStateCache, BalancePollingHandle, PollingExit, StatusPollingHandl
 
 /// Poll cap while the destination list is open; mirrors STATUS_POLL_FAST_MS in docs/destinationMode.md.
 const STATUS_POLL_FAST: Duration = Duration::from_millis(500);
+/// The service answers from its own cache, which moves within seconds of a PIX payment.
+const BALANCE_POLL: Duration = Duration::from_secs(5);
+/// Hidden, the balance only feeds the tray and dock icons' funds level.
+const BALANCE_POLL_HIDDEN: Duration = Duration::from_secs(60);
 /// Status `Err` payload the frontend routes to its own screen; mirrors SERVICE_NOT_RUNNING_ERROR in vpnService.ts.
 pub const SERVICE_NOT_RUNNING_ERROR: &str = "service_not_running";
 /// Status `Err` payload while another local user owns the worker; mirrors IN_USE_BY_OTHER_USER_ERROR in vpnService.ts.
@@ -104,7 +108,6 @@ fn classify_start_client_response(
 pub async fn connect(
     id: String,
     polling_state: State<'_, Mutex<StatusPollingHandle>>,
-    bal_polling_state: State<'_, Mutex<BalancePollingHandle>>,
 ) -> Result<ipc::ConnectResponse, String> {
     tracing::info!(target: "status", destination = %id, "connect requested");
     let resp = on_socket(move |p| ipc::connect(p, id.into()))
@@ -117,13 +120,6 @@ pub async fn connect(
         Ok(guard) => guard.trigger.notify_one(),
         Err(e) => {
             tracing::warn!(target: "status", error = %e, "cannot trigger status poll after connect")
-        }
-    }
-    // connecting spends funds; don't leave the balances a poll interval stale
-    match bal_polling_state.lock() {
-        Ok(guard) => guard.trigger.notify_one(),
-        Err(e) => {
-            tracing::warn!(target: "balance", error = %e, "cannot trigger balance poll after connect")
         }
     }
     Ok(resp)
@@ -183,27 +179,25 @@ pub async fn disconnect(
     Ok(resp)
 }
 
-async fn query_balance(
-    last_warn: &mut Option<String>,
-) -> (Duration, Result<Option<BalanceResponse>, String>) {
+async fn query_balance(last_warn: &mut Option<String>) -> Result<Option<BalanceResponse>, String> {
     match on_socket(ipc::balance).await {
         Ok(ipc::BalanceResponse::Available(balances)) => {
             if last_warn.take().is_some() {
                 tracing::info!(target: "balance", "balance query recovered");
             }
-            (Duration::from_secs(60), Ok(Some((*balances).into())))
+            Ok(Some((*balances).into()))
         }
         Ok(ipc::BalanceResponse::Unavailable { reason }) => {
             warn_on_change(last_warn, format!("daemon balance query failed: {reason}"));
-            (Duration::from_secs(5), Ok(None))
+            Ok(None)
         }
         // worker up/down recovery is the status loop's story; stay quiet here
         Err(CallError::Service(ServiceError::WorkerOffline | ServiceError::WorkerRestarting)) => {
-            (Duration::from_secs(5), Ok(None))
+            Ok(None)
         }
         Err(e) => {
             warn_on_change(last_warn, format!("balance query failed: {e}"));
-            (Duration::from_secs(5), Err(e.to_string()))
+            Err(e.to_string())
         }
     }
 }
@@ -854,6 +848,11 @@ fn reflect_state_in_tray(
     };
 }
 
+fn main_window_visible(app: &AppHandle) -> bool {
+    app.get_webview_window("main")
+        .is_some_and(|w| w.is_visible().unwrap_or(false) && !w.is_minimized().unwrap_or(true))
+}
+
 async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
     let polling_state = app_handle.state::<Mutex<StatusPollingHandle>>();
     let bal_polling_state = app_handle.state::<Mutex<BalancePollingHandle>>();
@@ -950,18 +949,28 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
         let tick_timeout = time::sleep(Duration::ZERO);
         tokio::pin!(tick_timeout);
         let mut last_warn: Option<String> = None;
+        let mut last_poll = Instant::now();
         loop {
             tokio::select! {
                 _ = bal_cancel.cancelled() => {
                     tracing::info!(target: "balance", "balance polling cancelled");
                     break;
                 }
+                // Focused again: catch up from the hidden cadence; a no-op while visible.
                 _ = bal_trigger.notified() => {
-                    tick_timeout.as_mut().reset(Instant::now());
+                    let due = (last_poll + BALANCE_POLL).max(Instant::now());
+                    if due < tick_timeout.deadline() {
+                        tick_timeout.as_mut().reset(due);
+                    }
                 }
                 _ = tick_timeout.as_mut() => {
-                    let (delay, result) = query_balance(&mut last_warn).await;
-                    tick_timeout.as_mut().reset(Instant::now() + delay);
+                    let result = query_balance(&mut last_warn).await;
+                    last_poll = Instant::now();
+                    // Failures retry fast even hidden, so the tray's funds level fills soon after startup.
+                    let has_balance = matches!(result, Ok(Some(_)));
+                    let is_hidden = !main_window_visible(&app_bal);
+                    let delay = if has_balance && is_hidden { BALANCE_POLL_HIDDEN } else { BALANCE_POLL };
+                    tick_timeout.as_mut().reset(last_poll + delay);
                     app_bal.state::<AppStateCache>().balance.send_replace(Some(result.clone()));
                     let _ = app_bal.emit("balance", result);
                     redraw_icons(&app_bal).await;
