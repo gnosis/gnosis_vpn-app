@@ -73,7 +73,6 @@ pub struct StatusPollingHandle {
 pub struct BalancePollingHandle {
     pub cancel: CancellationToken,
     pub handle: Option<tauri::async_runtime::JoinHandle<()>>,
-    pub trigger: Arc<Notify>,
 }
 
 pub struct AppStateCache {
@@ -511,7 +510,6 @@ pub fn run() {
             app.manage(Mutex::new(BalancePollingHandle {
                 cancel: CancellationToken::new(),
                 handle: None,
-                trigger: Arc::new(Notify::new()),
             }));
 
             // last update-install status: re-hydration + concurrent-install guard
