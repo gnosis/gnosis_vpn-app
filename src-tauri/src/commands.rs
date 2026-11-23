@@ -29,6 +29,8 @@ use crate::{AppStateCache, BalancePollingHandle, PollingExit, StatusPollingHandl
 const STATUS_POLL_FAST: Duration = Duration::from_millis(500);
 /// The service answers from its own cache, which moves within seconds of a PIX payment.
 const BALANCE_POLL: Duration = Duration::from_secs(5);
+/// Hidden, the balance only feeds the tray and dock icons' funds level.
+const BALANCE_POLL_HIDDEN: Duration = Duration::from_secs(60);
 /// Status `Err` payload the frontend routes to its own screen; mirrors SERVICE_NOT_RUNNING_ERROR in vpnService.ts.
 pub const SERVICE_NOT_RUNNING_ERROR: &str = "service_not_running";
 /// Status `Err` payload while another local user owns the worker; mirrors IN_USE_BY_OTHER_USER_ERROR in vpnService.ts.
@@ -846,6 +848,11 @@ fn reflect_state_in_tray(
     };
 }
 
+fn main_window_visible(app: &AppHandle) -> bool {
+    app.get_webview_window("main")
+        .is_some_and(|w| w.is_visible().unwrap_or(true) && !w.is_minimized().unwrap_or(false))
+}
+
 async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
     let polling_state = app_handle.state::<Mutex<StatusPollingHandle>>();
     let bal_polling_state = app_handle.state::<Mutex<BalancePollingHandle>>();
@@ -878,9 +885,9 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
             guard.fast.clone(),
         )
     };
-    let bal_cancel = {
+    let (bal_cancel, bal_trigger) = {
         let guard = bal_polling_state.lock().map_err(|e| e.to_string())?;
-        guard.cancel.clone()
+        (guard.cancel.clone(), guard.trigger.clone())
     };
 
     let app = app_handle.clone();
@@ -942,15 +949,25 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
         let tick_timeout = time::sleep(Duration::ZERO);
         tokio::pin!(tick_timeout);
         let mut last_warn: Option<String> = None;
+        let mut last_poll = Instant::now();
         loop {
             tokio::select! {
                 _ = bal_cancel.cancelled() => {
                     tracing::info!(target: "balance", "balance polling cancelled");
                     break;
                 }
+                // Shown again: catch up from the hidden cadence; a no-op while visible.
+                _ = bal_trigger.notified() => {
+                    let due = (last_poll + BALANCE_POLL).max(Instant::now());
+                    if due < tick_timeout.deadline() {
+                        tick_timeout.as_mut().reset(due);
+                    }
+                }
                 _ = tick_timeout.as_mut() => {
                     let result = query_balance(&mut last_warn).await;
-                    tick_timeout.as_mut().reset(Instant::now() + BALANCE_POLL);
+                    last_poll = Instant::now();
+                    let delay = if main_window_visible(&app_bal) { BALANCE_POLL } else { BALANCE_POLL_HIDDEN };
+                    tick_timeout.as_mut().reset(last_poll + delay);
                     app_bal.state::<AppStateCache>().balance.send_replace(Some(result.clone()));
                     let _ = app_bal.emit("balance", result);
                     redraw_icons(&app_bal).await;
