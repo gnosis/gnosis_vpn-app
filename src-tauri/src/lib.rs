@@ -73,7 +73,7 @@ pub struct StatusPollingHandle {
 pub struct BalancePollingHandle {
     pub cancel: CancellationToken,
     pub handle: Option<tauri::async_runtime::JoinHandle<()>>,
-    /// Pulls the next poll in when the main window is shown again.
+    /// Pulls the next poll in when the main window gains focus.
     pub trigger: Arc<Notify>,
 }
 

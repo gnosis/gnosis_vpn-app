@@ -850,7 +850,7 @@ fn reflect_state_in_tray(
 
 fn main_window_visible(app: &AppHandle) -> bool {
     app.get_webview_window("main")
-        .is_some_and(|w| w.is_visible().unwrap_or(true) && !w.is_minimized().unwrap_or(false))
+        .is_some_and(|w| w.is_visible().unwrap_or(false) && !w.is_minimized().unwrap_or(true))
 }
 
 async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
@@ -956,7 +956,7 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
                     tracing::info!(target: "balance", "balance polling cancelled");
                     break;
                 }
-                // Shown again: catch up from the hidden cadence; a no-op while visible.
+                // Focused again: catch up from the hidden cadence; a no-op while visible.
                 _ = bal_trigger.notified() => {
                     let due = (last_poll + BALANCE_POLL).max(Instant::now());
                     if due < tick_timeout.deadline() {
@@ -966,7 +966,10 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
                 _ = tick_timeout.as_mut() => {
                     let result = query_balance(&mut last_warn).await;
                     last_poll = Instant::now();
-                    let delay = if main_window_visible(&app_bal) { BALANCE_POLL } else { BALANCE_POLL_HIDDEN };
+                    // Failures retry fast even hidden, so the tray's funds level fills soon after startup.
+                    let has_balance = matches!(result, Ok(Some(_)));
+                    let is_hidden = !main_window_visible(&app_bal);
+                    let delay = if has_balance && is_hidden { BALANCE_POLL_HIDDEN } else { BALANCE_POLL };
                     tick_timeout.as_mut().reset(last_poll + delay);
                     app_bal.state::<AppStateCache>().balance.send_replace(Some(result.clone()));
                     let _ = app_bal.emit("balance", result);
