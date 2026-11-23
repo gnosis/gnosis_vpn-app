@@ -11,7 +11,7 @@ import {
   formatCountCompact,
   formatCreditCompact,
 } from "@src/utils/credit.ts";
-import { deriveTrafficStatus } from "@src/utils/funding.ts";
+import { balanceWarning } from "@src/utils/funding.ts";
 import { exitDisplayName, exitShortId } from "@src/utils/destinations.ts";
 import Banner from "@src/components/common/Banner.tsx";
 import Button from "@src/components/common/Button.tsx";
@@ -95,27 +95,21 @@ export default function UsageTab(props: { showBreakdown: boolean }) {
     return exitsCovered(credit() ?? 0n, BigInt(chunk));
   };
 
-  const trafficStatus = createMemo(() =>
-    deriveTrafficStatus(appState.balance, runModeStatus())
-  );
-  // The daemon's levels alone (before the first balance) are blind to EOA funds, so they only warrant amber.
-  const emptyVariant = () =>
-    appState.balance === null ? "warning" as const : "critical" as const;
   // The main screen's banners, minus the X: this tab is where they lead.
   const balanceWarnings = createMemo(() => {
     const warnings: { variant: "warning" | "critical"; text: string }[] = [];
-    if (trafficStatus() === "Empty") {
+    const balance = balanceWarning(
+      appState.balance,
+      runModeStatus(),
+      appState.pixPricePerByte,
+    );
+    if (balance) {
+      // The daemon's levels alone (before the first balance) are blind to EOA funds, so they only warrant amber.
+      const isUnsure = appState.balance === null;
+      const isCritical = balance.status === "Empty" && !isUnsure;
       warnings.push({
-        variant: emptyVariant(),
-        text: "Balance empty: add data to keep connecting.",
-      });
-    } else if (trafficStatus() === "Low") {
-      const left = renewalsLeft();
-      warnings.push({
-        variant: "warning",
-        text: left === null
-          ? "Balance running low."
-          : `Balance running low: ${renewals(left)} left.`,
+        variant: isCritical ? "critical" : "warning",
+        text: balance.text,
       });
     }
     if (preparingSafe()) {

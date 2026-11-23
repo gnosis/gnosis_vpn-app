@@ -55,3 +55,24 @@ export function dataToSend(
 export function formatDataToSend(bytes: bigint): string {
   return `${bytes / BYTES_PER_GB} GB`;
 }
+
+/** The Low/Empty warning the main screen and the Usage tab share; null while traffic is Sufficient. */
+export function balanceWarning(
+  balance: BalanceResponse | null,
+  runModeStatus: FundingStatus | null,
+  pricePerByte: bigint,
+): { status: "Low" | "Empty"; text: string } | null {
+  const funding = resolveFundingStatus(balance, runModeStatus);
+  if (!funding || funding.traffic === "good") return null;
+  const status = funding.traffic === "empty" ? "Empty" : "Low";
+  // The client's wxHOPR back to Good, as data at the PIX price.
+  const deficit = funding.wxhopr_deficit;
+  const toAdd = deficit === null ? null : dataToSend(deficit, pricePerByte);
+  const ask = toAdd === null
+    ? "add data"
+    : `add at least ${formatDataToSend(toAdd)} of data`;
+  return {
+    status,
+    text: `Balance ${status.toLowerCase()}, ${ask} to stay connected`,
+  };
+}
