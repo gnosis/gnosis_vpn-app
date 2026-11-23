@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   balanceWarning,
-  balanceWarningText,
   dataToSend,
   deriveTrafficStatus,
   formatDataToSend,
@@ -102,40 +101,6 @@ describe("dataToSend", () => {
   });
 });
 
-describe("balanceWarningText", () => {
-  const GB = 1024n ** 3n;
-
-  it("calls an Empty level under 5 GB empty", () => {
-    expect(balanceWarningText("Empty", 5n * GB - 1n, 3n * GB)).toBe(
-      "Balance empty, add at least 3 GB of data to stay connected",
-    );
-  });
-
-  it("calls an Empty level from 5 GB allocated", () => {
-    expect(balanceWarningText("Empty", 5n * GB, 3n * GB)).toBe(
-      "All data currently allocated, add at least 3 GB of data to stay connected",
-    );
-  });
-
-  it("calls a Low level under 10 GB low", () => {
-    expect(balanceWarningText("Low", 10n * GB - 1n, 2n * GB)).toBe(
-      "Balance low, add at least 2 GB of data to stay connected",
-    );
-  });
-
-  it("calls a Low level from 10 GB allocated", () => {
-    expect(balanceWarningText("Low", 10n * GB, 2n * GB)).toBe(
-      "All data currently allocated, add at least 2 GB of data to stay connected",
-    );
-  });
-
-  it("asks for data without an amount when none is known", () => {
-    expect(balanceWarningText("Low", 0n, null)).toBe(
-      "Balance low, add data to stay connected",
-    );
-  });
-});
-
 describe("balanceWarning", () => {
   const GB = 1024n ** 3n;
 
@@ -150,6 +115,20 @@ describe("balanceWarning", () => {
       status: "Empty",
       text: "Balance empty, add at least 2 GB of data to stay connected",
     });
+  });
+
+  it("rounds a Low deficit up to whole GB", () => {
+    const status = makeStatus("low", "good", { wxhoprDeficit: GB + 1n });
+    expect(balanceWarning(makeBalance(status), null, 1n)?.text).toBe(
+      "Balance low, add at least 2 GB of data to stay connected",
+    );
+  });
+
+  it("asks for data without an amount when there is no PIX price", () => {
+    const status = makeStatus("low", "good", { wxhoprDeficit: GB });
+    expect(balanceWarning(makeBalance(status), null, 0n)?.text).toBe(
+      "Balance low, add data to stay connected",
+    );
   });
 
   it("warns from the run-mode status before the first balance arrives", () => {

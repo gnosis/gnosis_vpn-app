@@ -3,7 +3,7 @@ import type {
   FundingLevel,
   FundingStatus,
 } from "@src/services/vpnService.ts";
-import { BYTES_PER_GB, computeEffectiveCredit } from "@src/utils/credit.ts";
+import { BYTES_PER_GB } from "@src/utils/credit.ts";
 
 export type StatusText = "Sufficient" | "Low" | "Empty" | string;
 
@@ -56,41 +56,23 @@ export function formatDataToSend(bytes: bigint): string {
   return `${bytes / BYTES_PER_GB} GB`;
 }
 
-// From this much data on, a Low/Empty level means the funds sit in channels and the PIX pool, not that they ran out.
-const ALLOCATED_FROM_EMPTY = 5n * BYTES_PER_GB;
-const ALLOCATED_FROM_LOW = 10n * BYTES_PER_GB;
-
-/** The Usage tab's warning for a Low or Empty traffic level; `toAdd` is a {@link dataToSend} amount, null when unknown. */
-export function balanceWarningText(
-  status: "Low" | "Empty",
-  creditBytes: bigint,
-  toAdd: bigint | null,
-): string {
-  const allocatedFrom = status === "Empty"
-    ? ALLOCATED_FROM_EMPTY
-    : ALLOCATED_FROM_LOW;
-  const lead = creditBytes >= allocatedFrom
-    ? "All data currently allocated"
-    : status === "Empty"
-    ? "Balance empty"
-    : "Balance low";
-  const ask = toAdd === null
-    ? "add data"
-    : `add at least ${formatDataToSend(toAdd)} of data`;
-  return `${lead}, ${ask} to stay connected`;
-}
-
 /** The Low/Empty warning the main screen and the Usage tab share; null while traffic is Sufficient. */
 export function balanceWarning(
   balance: BalanceResponse | null,
   runModeStatus: FundingStatus | null,
   pricePerByte: bigint,
 ): { status: "Low" | "Empty"; text: string } | null {
-  const status = deriveTrafficStatus(balance, runModeStatus);
-  if (status !== "Low" && status !== "Empty") return null;
+  const funding = resolveFundingStatus(balance, runModeStatus);
+  if (!funding || funding.traffic === "good") return null;
+  const status = funding.traffic === "empty" ? "Empty" : "Low";
   // The client's wxHOPR back to Good, as data at the PIX price.
-  const deficit = resolveFundingStatus(balance, runModeStatus)?.wxhopr_deficit;
-  const toAdd = deficit == null ? null : dataToSend(deficit, pricePerByte);
-  const credit = balance ? computeEffectiveCredit(balance) : 0n;
-  return { status, text: balanceWarningText(status, credit, toAdd) };
+  const deficit = funding.wxhopr_deficit;
+  const toAdd = deficit === null ? null : dataToSend(deficit, pricePerByte);
+  const ask = toAdd === null
+    ? "add data"
+    : `add at least ${formatDataToSend(toAdd)} of data`;
+  return {
+    status,
+    text: `Balance ${status.toLowerCase()}, ${ask} to stay connected`,
+  };
 }

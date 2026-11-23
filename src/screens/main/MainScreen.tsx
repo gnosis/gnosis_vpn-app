@@ -28,11 +28,7 @@ import LocationHero from "../../components/exitNode/LocationHero.tsx";
 import LocationNotice from "../../components/exitNode/LocationNotice.tsx";
 import { openSettings } from "../../utils/settingsPage.ts";
 import { isRunningRunMode } from "../../services/vpnService.ts";
-import {
-  balanceWarning,
-  deriveTrafficStatus,
-  type StatusText,
-} from "../../utils/funding.ts";
+import { balanceWarning } from "../../utils/funding.ts";
 import { endOfLifeMessage } from "../../utils/updateAvailability.ts";
 import { createDeadlineClock } from "../../utils/deadlineClock.ts";
 import { channelMaintenanceWarning } from "../../utils/status.ts";
@@ -43,7 +39,7 @@ import WarningIcon from "../../components/icons/WarningIcon.tsx";
 
 // Module scope — survives screen switches, resets on app restart.
 const [dismissedBalanceStatus, setDismissedBalanceStatus] = createSignal<
-  StatusText | null
+  "Low" | "Empty" | null
 >(null);
 
 export function MainScreen() {
@@ -53,24 +49,23 @@ export function MainScreen() {
   const runModeStatus = createMemo(() =>
     isRunningRunMode(appState.runMode) ? appState.runMode.funding_status : null
   );
-  const balanceStatus = createMemo(() =>
-    deriveTrafficStatus(appState.balance, runModeStatus())
+  const balanceWarningNow = createMemo(() =>
+    balanceWarning(appState.balance, runModeStatus(), appState.pixPricePerByte)
   );
   // Reset dismissal when balance recovers so the next drop resurfaces the banner.
   createEffect(() => {
-    if (balanceStatus() === "Sufficient") setDismissedBalanceStatus(null);
+    if (balanceWarningNow() === null) setDismissedBalanceStatus(null);
   });
   // Somebody else's worker: nothing to pick, probe or connect; it recovers once they stop.
   const inUseByOtherUser = () => appState.vpnStatus === "InUseByOtherUser";
 
   // Dismissal is per status level so an escalation (Low → Empty) also resurfaces the banner.
-  const showBalanceBanner = () =>
-    !inUseByOtherUser() && // a non-owner sees no funds, even ones lingering from before the hand-over
-    balanceStatus() !== "Sufficient" &&
-    dismissedBalanceStatus() !== balanceStatus();
-  const balanceBannerText = () =>
-    balanceWarning(appState.balance, runModeStatus(), appState.pixPricePerByte)
-      ?.text;
+  const showBalanceBanner = () => {
+    const warning = balanceWarningNow();
+    return !inUseByOtherUser() && // a non-owner sees no funds, even ones lingering from before the hand-over
+      warning !== null &&
+      dismissedBalanceStatus() !== warning.status;
+  };
 
   // The outage age has to tick between status updates.
   const [nowMs, setNowMs] = createSignal(Date.now());
@@ -184,11 +179,12 @@ export function MainScreen() {
           <Banner
             icon={<WarningIcon filled />}
             variant="warning"
-            onDismiss={() => setDismissedBalanceStatus(balanceStatus())}
+            onDismiss={() =>
+              setDismissedBalanceStatus(balanceWarningNow()?.status ?? null)}
             dismissAriaLabel="Dismiss balance notification"
             onClick={() => openSettings("usage")}
           >
-            {balanceBannerText()}
+            {balanceWarningNow()?.text}
           </Banner>
         </Show>
         {/* No dismiss or click: there is no user action, and it clears once the daemon recovers. */}

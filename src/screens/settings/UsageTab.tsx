@@ -95,9 +95,6 @@ export default function UsageTab(props: { showBreakdown: boolean }) {
     return exitsCovered(credit() ?? 0n, BigInt(chunk));
   };
 
-  // The daemon's levels alone (before the first balance) are blind to EOA funds, so they only warrant amber.
-  const emptyVariant = () =>
-    appState.balance === null ? "warning" as const : "critical" as const;
   // The main screen's banners, minus the X: this tab is where they lead.
   const balanceWarnings = createMemo(() => {
     const warnings: { variant: "warning" | "critical"; text: string }[] = [];
@@ -107,8 +104,11 @@ export default function UsageTab(props: { showBreakdown: boolean }) {
       appState.pixPricePerByte,
     );
     if (balance) {
+      // The daemon's levels alone (before the first balance) are blind to EOA funds, so they only warrant amber.
+      const isUnsure = appState.balance === null;
+      const isCritical = balance.status === "Empty" && !isUnsure;
       warnings.push({
-        variant: balance.status === "Empty" ? emptyVariant() : "warning",
+        variant: isCritical ? "critical" : "warning",
         text: balance.text,
       });
     }
