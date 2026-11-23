@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  balanceWarningText,
   dataToSend,
   deriveTrafficStatus,
   formatDataToSend,
@@ -97,5 +98,39 @@ describe("dataToSend", () => {
 
   it("reads as whole GB", () => {
     expect(formatDataToSend(15n * GB)).toBe("15 GB");
+  });
+});
+
+describe("balanceWarningText", () => {
+  const GB = 1024n ** 3n;
+
+  it("calls an Empty level under 5 GB empty", () => {
+    expect(balanceWarningText("Empty", 5n * GB - 1n, 3n * GB)).toBe(
+      "Balance empty, add at least 3 GB of data to stay connected",
+    );
+  });
+
+  it("calls an Empty level from 5 GB allocated", () => {
+    expect(balanceWarningText("Empty", 5n * GB, 3n * GB)).toBe(
+      "All data currently allocated, add at least 3 GB of data to stay connected",
+    );
+  });
+
+  it("calls a Low level under 10 GB low", () => {
+    expect(balanceWarningText("Low", 10n * GB - 1n, 2n * GB)).toBe(
+      "Balance low, add at least 2 GB of data to stay connected",
+    );
+  });
+
+  it("calls a Low level from 10 GB allocated", () => {
+    expect(balanceWarningText("Low", 10n * GB, 2n * GB)).toBe(
+      "All data currently allocated, add at least 2 GB of data to stay connected",
+    );
+  });
+
+  it("asks for data without an amount when none is known", () => {
+    expect(balanceWarningText("Low", 0n, null)).toBe(
+      "Balance low, add data to stay connected",
+    );
   });
 });

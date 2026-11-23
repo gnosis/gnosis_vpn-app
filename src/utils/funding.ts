@@ -55,3 +55,27 @@ export function dataToSend(
 export function formatDataToSend(bytes: bigint): string {
   return `${bytes / BYTES_PER_GB} GB`;
 }
+
+// From this much data on, a Low/Empty level means the funds sit in channels and the PIX pool, not that they ran out.
+const ALLOCATED_FROM_EMPTY = 5n * BYTES_PER_GB;
+const ALLOCATED_FROM_LOW = 10n * BYTES_PER_GB;
+
+/** The Usage tab's warning for a Low or Empty traffic level; `toAdd` is a {@link dataToSend} amount, null when unknown. */
+export function balanceWarningText(
+  status: "Low" | "Empty",
+  creditBytes: bigint,
+  toAdd: bigint | null,
+): string {
+  const allocatedFrom = status === "Empty"
+    ? ALLOCATED_FROM_EMPTY
+    : ALLOCATED_FROM_LOW;
+  const lead = creditBytes >= allocatedFrom
+    ? "All data currently allocated"
+    : status === "Empty"
+    ? "Balance empty"
+    : "Balance low";
+  const ask = toAdd === null
+    ? "add data"
+    : `add at least ${formatDataToSend(toAdd)} of data`;
+  return `${lead}, ${ask} to stay connected`;
+}

@@ -11,7 +11,12 @@ import {
   formatCountCompact,
   formatCreditCompact,
 } from "@src/utils/credit.ts";
-import { deriveTrafficStatus } from "@src/utils/funding.ts";
+import {
+  balanceWarningText,
+  dataToSend,
+  deriveTrafficStatus,
+  resolveFundingStatus,
+} from "@src/utils/funding.ts";
 import { exitDisplayName, exitShortId } from "@src/utils/destinations.ts";
 import Banner from "@src/components/common/Banner.tsx";
 import Button from "@src/components/common/Button.tsx";
@@ -101,21 +106,22 @@ export default function UsageTab(props: { showBreakdown: boolean }) {
   // The daemon's levels alone (before the first balance) are blind to EOA funds, so they only warrant amber.
   const emptyVariant = () =>
     appState.balance === null ? "warning" as const : "critical" as const;
+  // The client's wxHOPR back to Good, as data at the PIX price.
+  const dataToAdd = () => {
+    const deficit = resolveFundingStatus(appState.balance, runModeStatus())
+      ?.wxhopr_deficit;
+    return deficit == null
+      ? null
+      : dataToSend(deficit, appState.pixPricePerByte);
+  };
   // The main screen's banners, minus the X: this tab is where they lead.
   const balanceWarnings = createMemo(() => {
     const warnings: { variant: "warning" | "critical"; text: string }[] = [];
-    if (trafficStatus() === "Empty") {
+    const status = trafficStatus();
+    if (status === "Empty" || status === "Low") {
       warnings.push({
-        variant: emptyVariant(),
-        text: "Balance empty: add data to keep connecting.",
-      });
-    } else if (trafficStatus() === "Low") {
-      const left = renewalsLeft();
-      warnings.push({
-        variant: "warning",
-        text: left === null
-          ? "Balance running low."
-          : `Balance running low: ${renewals(left)} left.`,
+        variant: status === "Empty" ? emptyVariant() : "warning",
+        text: balanceWarningText(status, credit() ?? 0n, dataToAdd()),
       });
     }
     if (preparingSafe()) {
