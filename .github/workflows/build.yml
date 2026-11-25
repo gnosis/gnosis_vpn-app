@@ -18,7 +18,6 @@ env:
   CARGO_TERM_COLOR: always
 jobs:
   build-binaries:
-    if: ${{ github.event.pull_request.head.repo.fork == false }}
     strategy:
       matrix:
         include:
@@ -38,7 +37,7 @@ jobs:
       pull-requests: read
       id-token: write
     with:
-      ref: ${{ github.event.pull_request.head.ref || github.ref }}
+      ref: ${{ github.event.pull_request.head.sha || github.sha }}
       architecture: ${{ matrix.architecture }}
       runner: ${{ matrix.runner }}
       version_type: "commit"
@@ -46,12 +45,11 @@ jobs:
     secrets: inherit
   checks:
     name: Checks
-    if: ${{ github.event.pull_request.head.repo.fork == false }}
     permissions:
       contents: read
-    uses: hoprnet/hopr-workflows/.github/workflows/checks.yaml@061b4579c870b0fdc008f5ff07a3a500e4fede50 # workflow-checks-v2.3.1
+    uses: hoprnet/hopr-workflows/.github/workflows/checks.yaml@43c833e72dffe4f2f3be60193733e5657f8aa0d7 # workflow-checks-v3.0.0
     with:
-      source_branch: ${{ github.event.pull_request.head.ref || github.ref }}
+      repo_sha: ${{ github.event.pull_request.head.sha || github.sha }}
       cachix_cache_name: gnosis-vpn-app
       conflict_markers: true
       # No `.#check` app or `.#ci` devshell here; `nix flake check` already covers deno-lint and treefmt.
@@ -70,7 +68,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          ref: ${{ github.event.pull_request.head.ref || github.ref }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Setup Deno
         uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
@@ -86,7 +84,7 @@ jobs:
           git diff --exit-code .agents/skills || { echo "::error::Run 'deno task mwg:sync' and commit .agents/skills"; exit 1; }
   ci-ok:
     name: CI OK
-    # Single required status check: stable across matrix expansion, label gating and fork guards.
+    # Single required status check: stable across matrix expansion and label gating.
     if: always() # a skipped job counts as passing, so never let a failed dependency skip this one
     needs: [build-binaries, checks, test]
     runs-on: depot-ubuntu-22.04-4
