@@ -104,6 +104,8 @@ function status(
     pix_price_per_byte: 0n,
     probing: null,
     recent: [],
+    mode: "normal",
+    bootstrap_available: false,
     probe: null,
   };
 }

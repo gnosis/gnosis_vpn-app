@@ -24,6 +24,7 @@ import statusShutdown from "./fixtures/status_shutdown.json";
 import statusInit from "./fixtures/status_init.json";
 import statusWarmup from "./fixtures/status_warmup.json";
 import statusRunning from "./fixtures/status_running.json";
+import statusRunningBootstrap from "./fixtures/status_running_bootstrap.json";
 import statusPreparingSafe from "./fixtures/status_preparing_safe.json";
 import statusPreparingSafeWithRecommendation from "./fixtures/status_preparing_safe_with_recommendation.json";
 import statusDeployingSafe from "./fixtures/status_deploying_safe.json";
@@ -99,6 +100,16 @@ describe("StatusResponseSchema", () => {
 
   it("parses Running run_mode", () => {
     expect(StatusResponseSchema.safeParse(statusRunning).success).toBe(true);
+  });
+
+  it("reads the service mode and whether bootstrap mode is available", () => {
+    const normal = StatusResponseSchema.parse(statusRunning);
+    expect(normal.mode).toBe("normal");
+    expect(normal.bootstrap_available).toBe(false);
+
+    const bootstrap = StatusResponseSchema.parse(statusRunningBootstrap);
+    expect(bootstrap.mode).toBe("bootstrap");
+    expect(bootstrap.bootstrap_available).toBe(true);
   });
 
   it("parses PreparingSafe run_mode", () => {

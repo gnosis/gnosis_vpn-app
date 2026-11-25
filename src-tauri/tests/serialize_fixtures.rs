@@ -56,6 +56,7 @@ fn pinned_destination() -> Destination {
             configured_meta: pinned,
             configured_gnosis_vpn_server: None,
             configured_wireguard_server: None,
+            configured_country: None,
         },
         ..destination()
     }
@@ -150,6 +151,8 @@ fn status_base(run_mode: RunMode) -> Status {
         pix_price_per_byte: PIX_PRICE_PER_BYTE,
         probing: None,
         recent: vec![],
+        mode: ipc::Mode::Normal,
+        bootstrap_available: false,
     }
 }
 
@@ -358,6 +361,15 @@ fn generate_fixtures() {
         }),
     );
     write_status(&fixtures_dir, "status_running.json", status_base(running()));
+    write_status(
+        &fixtures_dir,
+        "status_running_bootstrap.json",
+        Status {
+            mode: ipc::Mode::Bootstrap,
+            bootstrap_available: true,
+            ..status_base(running())
+        },
+    );
 
     write_status(
         &fixtures_dir,
@@ -411,6 +423,8 @@ fn generate_fixtures() {
                 txs_to_start: 3,
                 xdai_fee_per_tx: Balance::from_wei(100_000_000_000_000_000), // 0.1 xDAI
                 topup_headroom: Balance::zero(),
+                pix_top_up: Balance::zero(),
+                pix_min_available: Balance::zero(),
             })),
         }),
     );
@@ -821,6 +835,8 @@ fn generate_fixtures() {
                 txs_to_start: 0,
                 xdai_fee_per_tx: Balance::from_wei(50_000_000_000_000_000), // 0.05 xDAI
                 topup_headroom: Balance::zero(),
+                pix_top_up: Balance::zero(),
+                pix_min_available: Balance::zero(),
             }),
             funding_status: Some(FundingStatus {
                 traffic: FundingLevel::Low,
@@ -1047,5 +1063,6 @@ fn full_settings() -> Settings {
         show_detailed_metrics: true,
         show_exit_cost: false,
         advanced_view: true,
+        bootstrap_mode: true,
     }
 }

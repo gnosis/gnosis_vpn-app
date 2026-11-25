@@ -22,6 +22,7 @@ import {
   type DestinationState,
   type Disconnecting,
   IN_USE_BY_OTHER_USER_ERROR,
+  type Mode,
   type ProbeView,
   type RunMode,
   SERVICE_NOT_RUNNING_ERROR,
@@ -55,6 +56,8 @@ import {
 import {
   destinationLabel,
   getPreferredAvailabilityChangeMessage,
+  isVpnActive,
+  modeSwitchReconnectTarget,
   pickStartupTarget,
   rankContext,
 } from "@src/utils/destinations.ts";
@@ -112,6 +115,10 @@ export interface AppState {
   pixPricePerByte: bigint;
   // The service's recently connected exits, newest first.
   recent: string[];
+  // The mode the service runs; see the bootstrap mode setting.
+  serviceMode: Mode;
+  // Whether the service has a bootstrap node set; the setting shows only then.
+  bootstrapAvailable: boolean;
   balance: BalanceResponse | null;
   // The installed package version everything update-facing keys off: the toolkit's
   // read of the version file, falling back to the daemon's for older installs.
@@ -127,6 +134,8 @@ type AppActions = {
   // `auto`: whose pick the tunnel is, for a switch confirmed while connected
   connect: (targetId: string, auto?: boolean) => Promise<void>;
   disconnect: () => Promise<void>;
+  // Switches the service's mode and, if a session was up, reconnects with Auto in the new one.
+  setBootstrapMode: (on: boolean) => Promise<void>;
   destinationListOpened: () => void;
   destinationListClosed: (picked: string | null) => void;
   autoResumed: () => void;
@@ -172,6 +181,8 @@ function initialState(): AppState {
     pixChunkBytes: null,
     pixPricePerByte: 0n,
     recent: [],
+    serviceMode: "normal",
+    bootstrapAvailable: false,
     balance: null,
     packageVersion: null,
     toolkit: { status: "unknown", version: null, packageVersion: null },
@@ -439,6 +450,8 @@ export function createAppStore(): AppStoreTuple {
     setState("pixChunkBytes", response.pix_chunk_bytes);
     setState("pixPricePerByte", response.pix_price_per_byte);
     setState("recent", reconcile(response.recent));
+    setState("serviceMode", response.mode);
+    setState("bootstrapAvailable", response.bootstrap_available);
     setState("connection", reconcile(response.connection));
     setState("disconnecting", reconcile(response.disconnecting));
     setState("probe", reconcile(response.probe));
@@ -454,6 +467,7 @@ export function createAppStore(): AppStoreTuple {
     };
     destinationMode?.applyStatusUpdate(pendingModeAppState);
     maybeConnectOnStartup(pendingModeAppState);
+    maybeReconnectAfterModeSwitch(response.mode, pendingModeAppState);
     reconcileProbe(pendingModeAppState);
     runQuickProbes(pendingModeAppState);
   };
@@ -514,6 +528,23 @@ export function createAppStore(): AppStoreTuple {
         quickProbes = quickProbeAnswered(quickProbes, id, false);
         logWarn(`Quick probe ${id} failed: ${error}`);
       });
+  };
+
+  // The mode a switch that ended a session went to; cleared by the reconnect or any connect or disconnect.
+  let modeSwitchReconnect: Mode | null = null;
+  const maybeReconnectAfterModeSwitch = (
+    statusMode: Mode,
+    status: ModeAppState,
+  ) => {
+    const target = modeSwitchReconnectTarget(
+      modeSwitchReconnect,
+      statusMode,
+      status.destinations,
+      rankContext(status),
+    );
+    if (target === null) return;
+    log(`Reconnecting with Auto after switching to ${statusMode} mode`);
+    void actions.connect(target, true);
   };
 
   // One shot per launch, like preferredLocation: spent once a session is live or something is ready to connect.
@@ -782,6 +813,7 @@ export function createAppStore(): AppStoreTuple {
     setScreen: (screen: AppScreen) => setState("currentScreen", screen),
 
     connect: async (targetId: string, auto?: boolean) => {
+      modeSwitchReconnect = null;
       setState("isLoading", true);
       // only for the log line — connecting to an unknown destination is a service-wide no-op
       const selected = state.availableDestinations.find(
@@ -811,6 +843,7 @@ export function createAppStore(): AppStoreTuple {
     },
 
     disconnect: async () => {
+      modeSwitchReconnect = null;
       setState("isLoading", true);
       try {
         await VPNService.disconnect();
@@ -820,6 +853,23 @@ export function createAppStore(): AppStoreTuple {
         setState("error", message);
       } finally {
         setState("isLoading", false);
+      }
+    },
+
+    setBootstrapMode: async (on: boolean) => {
+      const mode: Mode = on ? "bootstrap" : "normal";
+      const sessionUp = isVpnActive(state.vpnStatus, state.targetDestination);
+      await settingsActions.setBootstrapMode(on);
+      try {
+        const response = await VPNService.setMode(on);
+        log(`Mode ${mode} requested: ${response}`);
+        modeSwitchReconnect = response === "switching" && sessionUp
+          ? mode
+          : null;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        logError(message);
+        setState("error", message);
       }
     },
 

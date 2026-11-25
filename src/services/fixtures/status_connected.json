@@ -88,5 +88,9 @@
     "test-exit",
     "pinned-exit"
   ],
+  "mode": {
+    "type": "normal"
+  },
+  "bootstrap_available": false,
   "exit_names": {}
 }

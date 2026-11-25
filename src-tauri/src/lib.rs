@@ -34,8 +34,8 @@ pub mod update_install;
 use cli::{Cli, get_log_uploader_website_url};
 use commands::{
     check_update, connect, disconnect, export_logs, get_cached_state, log_from_frontend, probe,
-    quick_probe, run_initialization_loop, set_app_icon, set_status_poll_fast, stop_client,
-    upload_logs,
+    quick_probe, run_initialization_loop, set_app_icon, set_mode, set_status_poll_fast,
+    stop_client, upload_logs,
 };
 use gnosis_vpn_ipc::{self as ipc, InfoResponse};
 use icons::{IconState, TrayIconState, determine_tray_icon, start_icon_heartbeat};
@@ -554,6 +554,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             connect,
+            set_mode,
             disconnect,
             probe,
             quick_probe,

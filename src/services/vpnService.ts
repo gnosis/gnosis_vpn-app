@@ -344,6 +344,19 @@ export const ConnectResponseSchema = z.discriminatedUnion("type", [
 ]);
 export type ConnectResponse = z.infer<typeof ConnectResponseSchema>;
 
+// Normal runs configured and discovered exits; bootstrap only the service's fixed node set.
+export const ModeSchema = unitVariant(["normal", "bootstrap"]);
+export type Mode = z.infer<typeof ModeSchema>;
+
+export const SetModeResponseSchema = unitVariant([
+  // The worker restarts in the new mode; a connection it had is gone.
+  "switching",
+  "unchanged",
+  // The service's configuration has no bootstrap node set.
+  "unavailable",
+]);
+export type SetModeResponse = z.infer<typeof SetModeResponseSchema>;
+
 export const DisconnectResponseSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("disconnecting"),
@@ -607,6 +620,10 @@ export const StatusResponseSchema = z.object({
   probing: ProbingViewSchema.nullable(),
   // Recently connected exits on this network, newest first.
   recent: z.array(z.string()),
+  // The mode the service runs, or runs next while no worker runs.
+  mode: ModeSchema,
+  // Whether the service's configuration has a bootstrap node set; the setting shows only then.
+  bootstrap_available: z.boolean(),
   exit_names: z.record(z.string(), ExitNamesSchema)
     .transform((names) => new Map(Object.entries(names))),
 }).transform(({ exit_names, ...status }, ctx) => {
@@ -791,6 +808,21 @@ export class VPNService {
         VPNService.logZodIssues("connect response", error);
       }
       throw new Error(`Connect error: ${error}`);
+    }
+  }
+
+  /** Switches the service's mode; a switch ends any connection. */
+  static async setMode(bootstrap: boolean): Promise<SetModeResponse> {
+    let rawRes;
+    try {
+      rawRes = await invoke("set_mode", { bootstrap });
+      return SetModeResponseSchema.parse(rawRes);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        console.error("Issues with SetModeResponseSchema", rawRes);
+        VPNService.logZodIssues("set mode response", error);
+      }
+      throw new Error(`Set mode error: ${error}`);
     }
   }
 

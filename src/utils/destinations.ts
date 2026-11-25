@@ -5,6 +5,7 @@ import {
   type DestinationState,
   type ExitVersions,
   type LoadAvg,
+  type Mode,
   type ProbeView,
   type QuickProbeCheck,
   type QuickProbeState,
@@ -259,6 +260,20 @@ export function pickerRows(
     return shown;
   }
   return [current, ...shown];
+}
+
+/**
+ * After a mode switch ended a session: the Auto pick, once the status shows the requested mode
+ * and one of its exits is ready. The last session and the preferred exit belong to the old mode.
+ */
+export function modeSwitchReconnectTarget(
+  pending: Mode | null,
+  statusMode: Mode,
+  destinations: Record<string, DestinationState>,
+  context: RankContext,
+): string | null {
+  if (pending === null || pending !== statusMode) return null;
+  return pickStartupTarget(destinations, null, null, context);
 }
 
 /** Connect-on-startup pick: where the last session left off, else the preferred location, else the best — each only while ready. */

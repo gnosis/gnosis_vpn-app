@@ -16,6 +16,7 @@ import {
   isReadyForDisplay,
   isSelectable,
   isVpnActive,
+  modeSwitchReconnectTarget,
   NO_CONTEXT,
   pickerRows,
   pickStartupTarget,
@@ -492,6 +493,52 @@ describe("sortByGrade — the one order", () => {
     expect(ids(destinations)).toEqual(["b-far", "a-full", "c-none"]);
     expect(ids(destinations, liveOn("a-full")))
       .toEqual(["a-full", "b-far", "c-none"]);
+  });
+});
+
+describe("modeSwitchReconnectTarget — reconnect after a mode switch", () => {
+  const destinations = {
+    other: makeEligible("other", 40),
+    best: makeEligible("best", 100),
+  };
+
+  it("connects to the Auto pick once the service runs the new mode", () => {
+    expect(
+      modeSwitchReconnectTarget(
+        "bootstrap",
+        "bootstrap",
+        destinations,
+        NO_CONTEXT,
+      ),
+    ).toBe("best");
+    expect(
+      modeSwitchReconnectTarget("normal", "normal", destinations, NO_CONTEXT),
+    ).toBe("best");
+  });
+
+  it("waits while the status still shows the old mode", () => {
+    expect(
+      modeSwitchReconnectTarget(
+        "bootstrap",
+        "normal",
+        destinations,
+        NO_CONTEXT,
+      ),
+    ).toBeNull();
+  });
+
+  it("waits until an exit of the new mode is ready", () => {
+    const notReady = { slow: makeUngraded("slow") };
+
+    expect(
+      modeSwitchReconnectTarget("bootstrap", "bootstrap", notReady, NO_CONTEXT),
+    ).toBeNull();
+  });
+
+  it("does nothing without a pending switch", () => {
+    expect(
+      modeSwitchReconnectTarget(null, "bootstrap", destinations, NO_CONTEXT),
+    ).toBeNull();
   });
 });
 

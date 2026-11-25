@@ -90,6 +90,8 @@ export const SettingsSchema = z.object({
   showExitCost: z.boolean(),
   // the main screen shows the location card instead of the simple view
   advancedView: z.boolean(),
+  // the service runs only its bootstrap exits and relayers
+  bootstrapMode: z.boolean(),
 });
 export type SettingsState = z.infer<typeof SettingsSchema>;
 
@@ -109,6 +111,7 @@ const DEFAULT_SETTINGS: SettingsState = {
   showDetailedMetrics: false,
   showExitCost: true,
   advancedView: false,
+  bootstrapMode: false,
 };
 
 type SettingsActions = {
@@ -136,6 +139,7 @@ type SettingsActions = {
   setShowDetailedMetrics: (show: boolean) => Promise<void>;
   setShowExitCost: (show: boolean) => Promise<void>;
   setAdvancedView: (on: boolean) => Promise<void>;
+  setBootstrapMode: (on: boolean) => Promise<void>;
 };
 
 type SettingsStoreTuple = readonly [
@@ -231,6 +235,7 @@ export function createSettingsStore(): SettingsStoreTuple {
     setShowDetailedMetrics: (show) => patch({ showDetailedMetrics: show }),
     setShowExitCost: (show) => patch({ showExitCost: show }),
     setAdvancedView: (on) => patch({ advancedView: on }),
+    setBootstrapMode: (on) => patch({ bootstrapMode: on }),
   } as const;
 
   const dispose = () => {

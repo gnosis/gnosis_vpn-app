@@ -85,6 +85,7 @@ describe("settingsStore", () => {
     expect(state.lastCheckOutcome?.kind).toBe("Available");
     expect(state.lastEndOfLife?.version).toBe("0.28.5");
     expect(state.advancedView).toBe(true);
+    expect(state.bootstrapMode).toBe(true);
   });
 
   it("stores the outcome and its end of life in one patch", async () => {
