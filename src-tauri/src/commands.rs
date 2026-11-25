@@ -27,6 +27,8 @@ use crate::{AppStateCache, BalancePollingHandle, PollingExit, StatusPollingHandl
 
 /// Poll cap while the destination list is open; mirrors STATUS_POLL_FAST_MS in docs/destinationMode.md.
 const STATUS_POLL_FAST: Duration = Duration::from_millis(500);
+/// Connected with the window shown: the PIX data left moves by the second; hidden, only the tray reads status.
+const STATUS_POLL_CONNECTED: Duration = Duration::from_secs(1);
 /// The service answers from its own cache, which moves within seconds of a PIX payment.
 const BALANCE_POLL: Duration = Duration::from_secs(5);
 /// Hidden, the balance only feeds the tray and dock icons' funds level.
@@ -906,7 +908,8 @@ async fn spawn_polling_tasks(app_handle: AppHandle) -> Result<(), String> {
                     tick_timeout.as_mut().reset(Instant::now());
                 }
                 _ = tick_timeout.as_mut() => {
-                    let StatusPoll { delay, needs_reinit, answer } = query_status().await;
+                    let StatusPoll { delay, needs_reinit, answer } =
+                        query_status(main_window_visible(&app)).await;
                     let delay = if fast.load(Ordering::Relaxed) {
                         delay.min(STATUS_POLL_FAST)
                     } else {
@@ -1097,12 +1100,12 @@ struct StatusPoll {
     answer: Option<Result<Option<NamedStatus>, String>>,
 }
 
-async fn query_status() -> StatusPoll {
-    classify_status_response(on_socket(ipc::status).await)
+async fn query_status(is_visible: bool) -> StatusPoll {
+    classify_status_response(on_socket(ipc::status).await, is_visible)
 }
 
 /// Decides whether initialization must restart, when to poll next, and what the frontend is told.
-fn classify_status_response(resp: Result<ipc::Status, CallError>) -> StatusPoll {
+fn classify_status_response(resp: Result<ipc::Status, CallError>, is_visible: bool) -> StatusPoll {
     match resp {
         Ok(status) => {
             if matches!(status.run_mode, ipc::RunMode::NotRunning) {
@@ -1119,8 +1122,11 @@ fn classify_status_response(resp: Result<ipc::Status, CallError>) -> StatusPoll 
                 ipc::Connection::Connecting { .. }
                     | ipc::Connection::Reconnecting { phase: Some(_), .. }
             );
+            let is_connected = matches!(status.connection, ipc::Connection::Connected { .. });
             let delay = if is_in_transition {
                 Duration::from_millis(222)
+            } else if is_connected && is_visible {
+                STATUS_POLL_CONNECTED
             } else {
                 Duration::from_secs_f64(2.3)
             };
@@ -1171,11 +1177,48 @@ fn classify_status_response(resp: Result<ipc::Status, CallError>) -> StatusPoll 
 mod tests {
     use super::*;
 
+    fn connected_status() -> ipc::Status {
+        ipc::Status {
+            run_mode: ipc::RunMode::Shutdown,
+            destinations: vec![],
+            target: Some("x".into()),
+            connection: ipc::Connection::Connected {
+                destination: "x".into(),
+                since: std::time::SystemTime::UNIX_EPOCH,
+                tunnel_ping_rtt: None,
+                stall: None,
+                pix: None,
+            },
+            disconnecting: vec![],
+            probe: None,
+            pix_chunk_bytes: None,
+            pix_price_per_byte: ipc::Balance::zero(),
+            probing: None,
+            recent: vec![],
+        }
+    }
+
+    #[test]
+    fn connected_polls_every_second_while_the_window_shows() {
+        let poll = classify_status_response(Ok(connected_status()), true);
+
+        assert_eq!(poll.delay, STATUS_POLL_CONNECTED);
+    }
+
+    #[test]
+    fn connected_polls_slowly_for_the_tray_alone() {
+        let poll = classify_status_response(Ok(connected_status()), false);
+
+        assert_eq!(poll.delay, Duration::from_secs_f64(2.3));
+    }
+
     // A routine worker bounce must not drop the app onto the critical error screen.
     #[test]
     fn worker_restarting_is_not_reported_as_an_error() {
-        let poll =
-            classify_status_response(Err(CallError::Service(ServiceError::WorkerRestarting)));
+        let poll = classify_status_response(
+            Err(CallError::Service(ServiceError::WorkerRestarting)),
+            true,
+        );
 
         assert!(
             poll.answer.is_none(),
@@ -1191,7 +1234,8 @@ mod tests {
     // Every owner hand-over goes through WorkerOffline; an empty event would flash the critical screen.
     #[test]
     fn worker_offline_restarts_initialization() {
-        let poll = classify_status_response(Err(CallError::Service(ServiceError::WorkerOffline)));
+        let poll =
+            classify_status_response(Err(CallError::Service(ServiceError::WorkerOffline)), true);
 
         assert!(poll.needs_reinit);
         assert!(
@@ -1202,18 +1246,22 @@ mod tests {
 
     #[test]
     fn genuinely_unexpected_responses_still_surface_as_errors() {
-        let poll =
-            classify_status_response(Err(CallError::Service(ServiceError::InvalidRequest {
+        let poll = classify_status_response(
+            Err(CallError::Service(ServiceError::InvalidRequest {
                 reason: "unknown request".to_string(),
-            })));
+            })),
+            true,
+        );
 
         assert!(matches!(poll.answer, Some(Err(_))));
     }
 
     #[test]
     fn in_use_by_other_user_is_its_own_status_answer() {
-        let poll =
-            classify_status_response(Err(CallError::Service(ServiceError::InUseByOtherUser)));
+        let poll = classify_status_response(
+            Err(CallError::Service(ServiceError::InUseByOtherUser)),
+            true,
+        );
 
         assert!(
             !poll.needs_reinit,
@@ -1230,7 +1278,7 @@ mod tests {
 
     #[test]
     fn service_not_running_is_its_own_tray_state() {
-        let poll = classify_status_response(Err(CallError::ServiceNotRunning));
+        let poll = classify_status_response(Err(CallError::ServiceNotRunning), true);
 
         let Some(answer) = poll.answer else {
             panic!("expected an answer for the frontend");
@@ -1387,10 +1435,12 @@ mod tests {
     // would otherwise only surface as a silent runtime mismatch.
     #[test]
     fn a_daemon_of_another_protocol_restarts_initialization() {
-        let poll =
-            classify_status_response(Err(CallError::Service(ServiceError::ProtocolMismatch {
+        let poll = classify_status_response(
+            Err(CallError::Service(ServiceError::ProtocolMismatch {
                 service: ipc::PROTOCOL_VERSION + 1,
-            })));
+            })),
+            true,
+        );
 
         assert!(poll.needs_reinit);
     }
