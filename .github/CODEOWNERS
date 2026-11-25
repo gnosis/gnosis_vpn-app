@@ -2,7 +2,7 @@
 * @esterlus @mjadach-iv
 
 # CI, release and signing pipeline.
-/.github/ @esterlus @ausias-armesto @mjadach-iv
+/.github/ @esterlus @mjadach-iv @ausias-armesto
 
-# Changing ownership itself stays with org admins; @esterlus listed directly to survive group changes.
-/.github/CODEOWNERS @esterlus @gnosis/ext-hopr-admin
+# Changing ownership itself stays with org admins plus the two gvpn maintainers.
+/.github/CODEOWNERS @esterlus @mjadach-iv @gnosis/ext-hopr-admin

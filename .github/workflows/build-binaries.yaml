@@ -84,6 +84,10 @@ jobs:
           echo "Invocation parameters:"
           echo "rust_toolchain_target=${rust_toolchain_target}" | tee -a $GITHUB_OUTPUT
           echo "tauri_args=${tauri_args}" | tee -a $GITHUB_OUTPUT
+          echo "apple_signing=${HAS_APPLE_CERTIFICATE}" | tee -a $GITHUB_OUTPUT
+        env:
+          # Fork PRs get no secrets: build unsigned instead of failing the import.
+          HAS_APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE_DEVELOPER_P12_BASE64 != '' }}
       - name: Install Rust toolchain (stable) + targets
         uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with:
@@ -111,7 +115,7 @@ jobs:
           cargo test --release --manifest-path src-tauri/Cargo.toml --test serialize_fixtures --test bundled_icons
           git diff --exit-code src/services/fixtures/
       - name: Import Apple Developer Certificate
-        if: ${{ endsWith(inputs.architecture, '-darwin') }}
+        if: ${{ endsWith(inputs.architecture, '-darwin') && steps.vars.outputs.apple_signing == 'true' }}
         id: certificate
         shell: bash
         env:
@@ -132,7 +136,7 @@ jobs:
           echo "Apple signing identity: $signing_identity"
           echo "signing_identity=${signing_identity}" | tee -a $GITHUB_OUTPUT
       - name: Build tauri mac artifact
-        if: ${{ endsWith(inputs.architecture, '-darwin') }}
+        if: ${{ endsWith(inputs.architecture, '-darwin') && steps.vars.outputs.apple_signing == 'true' }}
         id: build-tauri-mac
         uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
         env:
@@ -140,6 +144,17 @@ jobs:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE_DEVELOPER_P12_BASE64 }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_DEVELOPER_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ steps.certificate.outputs.signing_identity }}
+          # https://github.com/tauri-apps/tauri-action/issues/1294
+          TAURI_BUNDLER_DMG_IGNORE_CI: "false"
+        with:
+          tauriScript: "deno task tauri"
+          args: ${{ steps.vars.outputs.tauri_args }}
+      - name: Build tauri mac artifact (unsigned)
+        if: ${{ endsWith(inputs.architecture, '-darwin') && steps.vars.outputs.apple_signing != 'true' }}
+        id: build-tauri-mac-unsigned
+        uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # https://github.com/tauri-apps/tauri-action/issues/1294
           TAURI_BUNDLER_DMG_IGNORE_CI: "false"
         with:
@@ -162,7 +177,7 @@ jobs:
           binary_name="gnosis_vpn-app-${{ inputs.architecture }}"
           if [[ "${{ inputs.architecture }}" =~ "-darwin" ]]; then
             echo "Filtering DMG artifact for architecture ${{ inputs.architecture }}"
-            artifact_json='${{ steps.build-tauri-mac.outputs.artifactPaths }}'
+            artifact_json='${{ steps.build-tauri-mac.outputs.artifactPaths || steps.build-tauri-mac-unsigned.outputs.artifactPaths }}'
             dmg_path=$(echo "$artifact_json" | jq -r '.[] | select(endswith(".dmg"))')
             mv "${dmg_path}" "${artifact_path}/${binary_name}.dmg"
             shasum -a 256 "${artifact_path}/${binary_name}.dmg" > "${artifact_path}/${binary_name}.dmg.sha256"

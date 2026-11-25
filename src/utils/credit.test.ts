@@ -333,17 +333,31 @@ describe("formatDataLeft", () => {
 });
 
 describe("dataLeftFraction", () => {
-  it("is the unspent share of the chunks bought", () => {
-    expect(dataLeftFraction(FUNDED)).toBe(0.75);
+  const MB = 1_048_576;
+
+  it("is the unspent share of the newest chunk", () => {
+    expect(dataLeftFraction({ ...FUNDED, bytes_left: 450 * MB })).toBe(0.75);
+  });
+
+  it("refills when the exit renews the quota", () => {
+    const draining = {
+      ...FUNDED,
+      chunks_committed: 1,
+      bytes_bought: 600 * MB,
+      bytes_spent: 510 * MB,
+      bytes_left: 90 * MB,
+    };
+    expect(dataLeftFraction(draining)).toBe(0.15);
+    expect(dataLeftFraction({
+      ...draining,
+      chunks_committed: 2,
+      bytes_bought: 1200 * MB,
+      bytes_left: 690 * MB,
+    })).toBe(1);
   });
 
   it("is full before anything is bought or measured", () => {
     expect(dataLeftFraction(FREE)).toBe(1);
     expect(dataLeftFraction({ ...FUNDED, bytes_left: null })).toBe(1);
-  });
-
-  it("never exceeds full", () => {
-    expect(dataLeftFraction({ ...FUNDED, bytes_left: FUNDED.bytes_bought * 2 }))
-      .toBe(1);
   });
 });
