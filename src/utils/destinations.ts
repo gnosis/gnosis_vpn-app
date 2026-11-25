@@ -9,6 +9,7 @@ import {
   type ProbeView,
   type QuickProbeCheck,
   type QuickProbeState,
+  type SetModeResponse,
   type Slots,
 } from "@src/services/vpnService.ts";
 
@@ -260,6 +261,27 @@ export function pickerRows(
     return shown;
   }
   return [current, ...shown];
+}
+
+/**
+ * What a mode request leaves behind: the mode to reconnect in, and whether the saved setting
+ * stays. `response` is null when the request failed. A switch while an earlier switch still waits
+ * to reconnect keeps reconnecting, since that earlier switch is what ended the session.
+ */
+export function modeRequestOutcome(
+  mode: Mode,
+  response: SetModeResponse | null,
+  sessionUp: boolean,
+  pending: Mode | null,
+): { reconnect: Mode | null; keepSetting: boolean } {
+  if (response === "switching") {
+    return {
+      reconnect: sessionUp || pending !== null ? mode : null,
+      keepSetting: true,
+    };
+  }
+  const keepSetting = response === "unchanged";
+  return { reconnect: pending, keepSetting };
 }
 
 /**

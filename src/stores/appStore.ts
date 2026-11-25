@@ -28,6 +28,7 @@ import {
   SERVICE_NOT_RUNNING_ERROR,
   type ServiceInfo,
   ServiceInfoSchema,
+  type SetModeResponse,
   type StartupIssue,
   type StatusResponse,
   StatusResponseSchema,
@@ -57,6 +58,7 @@ import {
   destinationLabel,
   getPreferredAvailabilityChangeMessage,
   isVpnActive,
+  modeRequestOutcome,
   modeSwitchReconnectTarget,
   pickStartupTarget,
   rankContext,
@@ -860,17 +862,23 @@ export function createAppStore(): AppStoreTuple {
       const mode: Mode = on ? "bootstrap" : "normal";
       const sessionUp = isVpnActive(state.vpnStatus, state.targetDestination);
       await settingsActions.setBootstrapMode(on);
+      let response: SetModeResponse | null = null;
       try {
-        const response = await VPNService.setMode(on);
+        response = await VPNService.setMode(on);
         log(`Mode ${mode} requested: ${response}`);
-        modeSwitchReconnect = response === "switching" && sessionUp
-          ? mode
-          : null;
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         logError(message);
         setState("error", message);
       }
+      const outcome = modeRequestOutcome(
+        mode,
+        response,
+        sessionUp,
+        modeSwitchReconnect,
+      );
+      modeSwitchReconnect = outcome.reconnect;
+      if (!outcome.keepSetting) await settingsActions.setBootstrapMode(!on);
     },
 
     destinationListOpened: () => {
