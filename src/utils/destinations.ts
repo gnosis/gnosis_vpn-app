@@ -264,8 +264,8 @@ export function pickerRows(
 }
 
 /**
- * What a mode request leaves behind: the mode to reconnect in, and whether the saved setting
- * stays. `response` is null when the request failed. A switch while an earlier switch still waits
+ * What a mode request leaves behind: the mode to reconnect in, and whether to save the setting,
+ * which only follows a mode the service runs. `response` is null when the request failed. A switch while an earlier switch still waits
  * to reconnect keeps reconnecting, since that earlier switch is what ended the session.
  */
 export function modeRequestOutcome(
@@ -273,15 +273,14 @@ export function modeRequestOutcome(
   response: SetModeResponse | null,
   sessionUp: boolean,
   pending: Mode | null,
-): { reconnect: Mode | null; keepSetting: boolean } {
+): { reconnect: Mode | null; saveSetting: boolean } {
   if (response === "switching") {
     return {
       reconnect: sessionUp || pending !== null ? mode : null,
-      keepSetting: true,
+      saveSetting: true,
     };
   }
-  const keepSetting = response === "unchanged";
-  return { reconnect: pending, keepSetting };
+  return { reconnect: pending, saveSetting: response === "unchanged" };
 }
 
 /**

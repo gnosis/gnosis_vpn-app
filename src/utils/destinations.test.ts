@@ -547,38 +547,38 @@ describe("modeRequestOutcome — what a mode request leaves behind", () => {
   it("reconnects in the new mode when a session was up", () => {
     expect(modeRequestOutcome("bootstrap", "switching", true, null)).toEqual({
       reconnect: "bootstrap",
-      keepSetting: true,
+      saveSetting: true,
     });
   });
 
   it("does not connect when no session was up", () => {
     expect(modeRequestOutcome("bootstrap", "switching", false, null))
-      .toEqual({ reconnect: null, keepSetting: true });
+      .toEqual({ reconnect: null, saveSetting: true });
   });
 
   it("keeps reconnecting when toggled back before the first switch reconnected", () => {
     // The first switch ended the session, so it no longer looks up.
     expect(
       modeRequestOutcome("normal", "switching", false, "bootstrap"),
-    ).toEqual({ reconnect: "normal", keepSetting: true });
+    ).toEqual({ reconnect: "normal", saveSetting: true });
   });
 
-  it("restores the setting when the service cannot run the mode", () => {
+  it("does not save the setting when the service cannot run the mode", () => {
     expect(
       modeRequestOutcome("bootstrap", "unavailable", true, null),
-    ).toEqual({ reconnect: null, keepSetting: false });
+    ).toEqual({ reconnect: null, saveSetting: false });
   });
 
-  it("restores the setting when the request failed", () => {
+  it("does not save the setting when the request failed", () => {
     expect(modeRequestOutcome("bootstrap", null, true, "normal")).toEqual({
       reconnect: "normal",
-      keepSetting: false,
+      saveSetting: false,
     });
   });
 
   it("leaves a pending reconnect alone when nothing switched", () => {
     expect(modeRequestOutcome("normal", "unchanged", false, "normal"))
-      .toEqual({ reconnect: "normal", keepSetting: true });
+      .toEqual({ reconnect: "normal", saveSetting: true });
   });
 });
 

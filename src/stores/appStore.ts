@@ -534,6 +534,7 @@ export function createAppStore(): AppStoreTuple {
 
   // The mode a switch that ended a session went to; cleared by the reconnect or any connect or disconnect.
   let modeSwitchReconnect: Mode | null = null;
+  let modeRequestInFlight = false;
   const maybeReconnectAfterModeSwitch = (
     statusMode: Mode,
     status: ModeAppState,
@@ -859,9 +860,11 @@ export function createAppStore(): AppStoreTuple {
     },
 
     setBootstrapMode: async (on: boolean) => {
+      // Overlapping requests could finish out of order; the switch keeps showing the saved mode.
+      if (modeRequestInFlight) return;
+      modeRequestInFlight = true;
       const mode: Mode = on ? "bootstrap" : "normal";
       const sessionUp = isVpnActive(state.vpnStatus, state.targetDestination);
-      await settingsActions.setBootstrapMode(on);
       let response: SetModeResponse | null = null;
       try {
         response = await VPNService.setMode(on);
@@ -878,7 +881,11 @@ export function createAppStore(): AppStoreTuple {
         modeSwitchReconnect,
       );
       modeSwitchReconnect = outcome.reconnect;
-      if (!outcome.keepSetting) await settingsActions.setBootstrapMode(!on);
+      try {
+        if (outcome.saveSetting) await settingsActions.setBootstrapMode(on);
+      } finally {
+        modeRequestInFlight = false;
+      }
     },
 
     destinationListOpened: () => {
