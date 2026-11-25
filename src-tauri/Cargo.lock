@@ -4210,7 +4210,7 @@ dependencies = [
 [[package]]
 name = "edgli"
 version = "5.3.0"
-source = "git+https://github.com/hoprnet/edge-client.git?branch=feature%2Fcore-1447-edgli-let-the-embedder-send-curvy-relayer#b83c41e1a25795fa1885293eda28d23a6d9cffd9"
+source = "git+https://github.com/hoprnet/edge-client.git?branch=feature%2Fcore-1447-edgli-let-the-embedder-send-curvy-relayer#28a5d4010e46f33ba63aaa1f4aefaa3b6fb53860"
 dependencies = [
  "anyhow",
  "async-signal",
@@ -5242,7 +5242,7 @@ dependencies = [
 [[package]]
 name = "gnosis_vpn-ipc"
 version = "1.1.1"
-source = "git+https://github.com/gnosis/gnosis_vpn-client.git?branch=ronnyesterluss%2Fgno-1495-connect-lets-user-traffic-flow#0a0db9ec3fa41de51494aaf0a5358a5947bce3ae"
+source = "git+https://github.com/gnosis/gnosis_vpn-client.git?branch=ronnyesterluss%2Fgno-1495-connect-lets-user-traffic-flow#677d6e8a0a5715b56ab322ce2cb3ec6dbacf12f2"
 dependencies = [
  "base64 0.23.1",
  "humantime",
@@ -5256,7 +5256,7 @@ dependencies = [
 [[package]]
 name = "gnosis_vpn-lib"
 version = "1.1.1"
-source = "git+https://github.com/gnosis/gnosis_vpn-client.git?branch=ronnyesterluss%2Fgno-1495-connect-lets-user-traffic-flow#0a0db9ec3fa41de51494aaf0a5358a5947bce3ae"
+source = "git+https://github.com/gnosis/gnosis_vpn-client.git?branch=ronnyesterluss%2Fgno-1495-connect-lets-user-traffic-flow#677d6e8a0a5715b56ab322ce2cb3ec6dbacf12f2"
 dependencies = [
  "async-trait",
  "backon",
