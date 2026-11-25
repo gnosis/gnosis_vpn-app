@@ -67,7 +67,7 @@ function buildLogContent(
   // Session transitions (connect/reconnect/disconnect) are logged by appStore's logStateChange.
   const isSessionUp = connection.type === "connected" ||
     connection.type === "connecting";
-  const inTransition = isSessionUp || reconnecting?.phase ||
+  const inTransition = isSessionUp || reconnecting?.step ||
     disconnecting.length > 0;
   if (inTransition) {
     return undefined;

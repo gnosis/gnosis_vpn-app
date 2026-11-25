@@ -3,6 +3,7 @@ import {
   BalanceResponseSchema,
   connectionPix,
   ConnectResponseSchema,
+  ConnectStepSchema,
   DestinationSchema,
   DisconnectResponseSchema,
   isPreparingSafeRunMode,
@@ -175,19 +176,29 @@ describe("StatusResponseSchema", () => {
     expect(connectionPix(parsed.connection)).toBeNull();
   });
 
-  it("parses connecting and reconnecting with their phase", () => {
+  it("parses connecting and reconnecting with their step and issue", () => {
     const connecting = StatusResponseSchema.safeParse(statusConnecting);
     expect(connecting.success).toBe(true);
     expect(connecting.data?.connection).toMatchObject({
       type: "connecting",
-      phase: "register_wg",
+      step: "securing",
+      issue: null,
     });
     const reconnecting = StatusResponseSchema.safeParse(statusReconnecting);
     expect(reconnecting.success).toBe(true);
     expect(reconnecting.data?.connection).toMatchObject({
       type: "reconnecting",
-      phase: "init",
+      step: "securing",
+      issue: { kind: "payment_route_unavailable", attempts: 2 },
     });
+  });
+
+  it("flattens paying into its payment progress", () => {
+    const paying = ConnectStepSchema.parse({
+      type: "paying",
+      payment: { type: "sent" },
+    });
+    expect(paying).toBe("paying_sent");
   });
 
   it("parses a teardown with nothing connected", () => {
@@ -287,12 +298,12 @@ describe("StatusResponseSchema", () => {
     expect(StatusResponseSchema.safeParse(unnamed).success).toBe(false);
   });
 
-  it("parses a reconnect reported without a phase", () => {
+  it("parses a reconnect reported without a step", () => {
     const parsed = StatusResponseSchema.safeParse(statusReconnectWaiting);
     expect(parsed.success).toBe(true);
     expect(parsed.data?.connection).toMatchObject({
       type: "reconnecting",
-      phase: null,
+      step: null,
     });
   });
 });

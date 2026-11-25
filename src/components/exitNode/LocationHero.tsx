@@ -26,7 +26,8 @@ export default function LocationHero(props: {
     pending,
     candidateName,
     attemptInFlight,
-    connectPhase,
+    connectStep,
+    connectIssue,
     connectSince,
     waitingCaption,
     stallText,
@@ -109,7 +110,8 @@ export default function LocationHero(props: {
         <div class="mt-3 flex min-h-0 flex-col transition-opacity duration-200 starting:opacity-0">
           <ConnectStage
             size="hero"
-            phase={connectPhase()}
+            step={connectStep()}
+            issue={connectIssue()}
             seed={connectSince()}
             exitName={name()}
             caption={waitingCaption()}

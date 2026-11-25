@@ -57,17 +57,21 @@ export function createLocationState(state: Accessor<DestinationState>) {
         connection().type === "reconnecting",
       ).label === "Cancel";
 
-  const connectPhase = () => {
+  const connectStep = () => {
     const c = connection();
-    return "phase" in c ? c.phase : null;
+    return "step" in c ? c.step : null;
+  };
+  const connectIssue = () => {
+    const c = connection();
+    return "issue" in c ? c.issue : null;
   };
   const connectSince = () => {
     const c = connection();
     return "since" in c ? c.since : 0;
   };
-  // Reconnecting with no phase is a wait on route health; say why instead of a step.
+  // Reconnecting with no step is a wait on route health; say why instead of a step.
   const waitingCaption = () =>
-    appState.vpnStatus === "Reconnecting" && connectPhase() === null
+    appState.vpnStatus === "Reconnecting" && connectStep() === null
       ? waitingForRouteMessage(appState, id())
       : null;
 
@@ -108,7 +112,8 @@ export function createLocationState(state: Accessor<DestinationState>) {
     liveHere,
     reconnecting,
     attemptInFlight,
-    connectPhase,
+    connectStep,
+    connectIssue,
     connectSince,
     waitingCaption,
     stallText,

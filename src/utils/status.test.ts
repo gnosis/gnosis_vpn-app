@@ -43,7 +43,8 @@ const CONNECTING: Connection = {
   type: "connecting",
   destination: "dest-1",
   since: 0,
-  phase: "init",
+  step: "checking_exit",
+  issue: null,
   pix: null,
 };
 
@@ -60,11 +61,12 @@ const RECONNECTING: Connection = {
   type: "reconnecting",
   destination: "dest-1",
   since: 0,
-  phase: "init",
+  step: "checking_exit",
+  issue: null,
 };
 
 // What the daemon sends while a reconnect waits on route health.
-const PHASELESS_RECONNECTING: Connection = { ...RECONNECTING, phase: null };
+const PHASELESS_RECONNECTING: Connection = { ...RECONNECTING, step: null };
 
 const DISCONNECTING: Disconnecting = {
   destination: "dest-1",

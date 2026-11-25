@@ -13,7 +13,9 @@
     "type": "reconnecting",
     "destination": "test-exit",
     "since": 0,
-    "phase": null
+    "phase": null,
+    "step": null,
+    "issue": null
   },
   "disconnecting": [],
   "probe": null,

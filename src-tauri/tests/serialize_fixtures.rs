@@ -379,6 +379,8 @@ fn generate_fixtures() {
             destination: "test-exit".into(),
             since: SystemTime::UNIX_EPOCH,
             phase: None,
+            step: None,
+            issue: None,
         }),
     );
 
@@ -463,6 +465,8 @@ fn generate_fixtures() {
             destination: "test-exit".into(),
             since: SystemTime::UNIX_EPOCH,
             phase: ipc::ConnectPhase::RegisterWg,
+            step: ipc::ConnectStep::Securing,
+            issue: None,
             pix: None,
         }),
     );
@@ -472,7 +476,12 @@ fn generate_fixtures() {
         status_with_connection(Connection::Reconnecting {
             destination: "test-exit".into(),
             since: SystemTime::UNIX_EPOCH,
-            phase: Some(ipc::ConnectPhase::Init),
+            phase: Some(ipc::ConnectPhase::KillswitchLockdown),
+            step: Some(ipc::ConnectStep::Securing),
+            issue: Some(ipc::ConnectIssue {
+                kind: ipc::ConnectIssueKind::PaymentRouteUnavailable,
+                attempts: 2,
+            }),
         }),
     );
     write_status(

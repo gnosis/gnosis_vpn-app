@@ -14,7 +14,16 @@
     "destination": "test-exit",
     "since": 0,
     "phase": {
-      "type": "init"
+      "type": "killswitch_lockdown"
+    },
+    "step": {
+      "type": "securing"
+    },
+    "issue": {
+      "kind": {
+        "type": "payment_route_unavailable"
+      },
+      "attempts": 2
     }
   },
   "disconnecting": [],

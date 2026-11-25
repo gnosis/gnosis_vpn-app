@@ -7,13 +7,14 @@ import {
   onCleanup,
   Show,
 } from "solid-js";
-import type { ConnectPhase } from "@src/services/vpnService.ts";
+import type { ConnectIssue, ConnectStep } from "@src/services/vpnService.ts";
 import {
   advanceProgress,
   clampLabel,
-  phaseStart,
+  issueCaption,
   STAGE_STEP_COUNT,
   stageStep,
+  stepStart,
   tween,
 } from "@src/utils/connectStage.ts";
 
@@ -95,15 +96,15 @@ const STARS = Array.from({ length: 34 }, (_, k) => {
 const reducedMotion = (): boolean =>
   globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 
-/** Eases toward the phase every frame, so the drawing never jumps between status polls. */
-function animatedProgress(phase: () => ConnectPhase | null): Accessor<number> {
+/** Eases toward the step every frame, so the drawing never jumps between status polls. */
+function animatedProgress(step: () => ConnectStep | null): Accessor<number> {
   const [progress, setProgress] = createSignal(0);
   let last = performance.now();
   let frame = requestAnimationFrame(function tick(now: number) {
     // a backgrounded window resumes where it was rather than leaping
     const dt = Math.min(0.1, (now - last) / 1000);
     last = now;
-    setProgress((shown) => advanceProgress(shown, phase(), dt));
+    setProgress((shown) => advanceProgress(shown, step(), dt));
     frame = requestAnimationFrame(tick);
   });
   onCleanup(() => cancelAnimationFrame(frame));
@@ -114,7 +115,8 @@ const ROUTE_COUNT = 4;
 
 /** The mock's connecting globe: you open channels to relays, then route through one to the exit. */
 export default function ConnectStage(props: {
-  phase: ConnectPhase | null;
+  step: ConnectStep | null;
+  issue: ConnectIssue | null;
   // picks the relays the routes run through, so each attempt draws its own
   seed: number;
   exitName: string;
@@ -124,8 +126,8 @@ export default function ConnectStage(props: {
 }) {
   const still = reducedMotion();
   const progress = still
-    ? () => phaseStart(props.phase)
-    : animatedProgress(() => props.phase);
+    ? () => stepStart(props.step)
+    : animatedProgress(() => props.step);
   const glowId = createUniqueId();
   const view = () => VIEW[props.size ?? "card"];
   const exitLabel = () => clampLabel(props.exitName, EXIT_LABEL_CHARS);
@@ -146,14 +148,18 @@ export default function ConnectStage(props: {
     );
   const labelNode = () => NODES[hops()[1]];
 
-  const step = () => stageStep(props.phase);
+  const stage = () => stageStep(props.step);
   const caption = () => {
     if (props.caption) return props.caption;
-    if (props.phase === "awaiting_payment") {
+    if (props.issue) return issueCaption(props.issue, props.exitName);
+    if (props.step === "paying_requested") {
+      return `Paying the exit in ${props.exitName}`;
+    }
+    if (props.step === "paying_sent") {
       return `Waiting for the exit in ${props.exitName} to confirm payment`;
     }
-    return step() < STEP_TEXT.length
-      ? STEP_TEXT[step()]
+    return stage() < STEP_TEXT.length
+      ? STEP_TEXT[stage()]
       : `Reaching the exit in ${props.exitName}`;
   };
 
@@ -378,9 +384,9 @@ export default function ConnectStage(props: {
               <span
                 class="size-1.75 rounded-full"
                 classList={{
-                  "bg-control-tint": i < step(),
-                  "bg-text-primary": i === step(),
-                  "bg-bar-off": i > step(),
+                  "bg-control-tint": i < stage(),
+                  "bg-text-primary": i === stage(),
+                  "bg-bar-off": i > stage(),
                 }}
               />
             )}

@@ -66,14 +66,15 @@ describe("logStatus", () => {
     );
   });
 
-  it("logs a phase-less reconnect as waiting for route", () => {
+  it("logs a step-less reconnect as waiting for route", () => {
     logStatus({
       ...status("dest-1"),
       connection: {
         type: "reconnecting",
         destination: "dest-1",
         since: 0,
-        phase: null,
+        step: null,
+        issue: null,
       },
     });
     expect(loggedMessage()).toBe(

@@ -16,6 +16,10 @@
     "phase": {
       "type": "register_wg"
     },
+    "step": {
+      "type": "securing"
+    },
+    "issue": null,
     "pix": null
   },
   "disconnecting": [],
