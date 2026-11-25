@@ -7,7 +7,38 @@
       "type": "ok"
     }
   },
-  "destinations": [],
+  "destinations": [
+    {
+      "destination": {
+        "id": "bootstrap-amsterdam",
+        "meta": {
+          "name": null,
+          "description": null,
+          "other": {}
+        },
+        "geo": {
+          "country": "NL",
+          "source": {
+            "type": "configured"
+          }
+        },
+        "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
+        "hops": 1,
+        "gnosis_vpn_server": "172.30.0.1:8000",
+        "wireguard_server": "172.30.0.1:51820",
+        "source": {
+          "type": "configured"
+        },
+        "overrides": {
+          "configured_meta": {},
+          "configured_gnosis_vpn_server": null,
+          "configured_wireguard_server": null,
+          "configured_country": "NL"
+        }
+      },
+      "route_health": null
+    }
+  ],
   "target": null,
   "connection": {
     "type": "disconnected"
@@ -22,5 +53,13 @@
     "type": "bootstrap"
   },
   "bootstrap_available": true,
-  "exit_names": {}
+  "exit_names": {
+    "bootstrap-amsterdam": {
+      "display_name": "Netherlands",
+      "title": "bootstrap-amsterdam",
+      "short_id": "AaaAa",
+      "country": "Netherlands",
+      "description": null
+    }
+  }
 }

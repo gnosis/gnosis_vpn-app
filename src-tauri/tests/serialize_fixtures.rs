@@ -367,6 +367,22 @@ fn generate_fixtures() {
         Status {
             mode: ipc::Mode::Bootstrap,
             bootstrap_available: true,
+            // Not announced: the country is the one the service config gives the exit.
+            destinations: vec![DestinationStatus {
+                destination: Destination {
+                    id: "bootstrap-amsterdam".into(),
+                    geo: Some(Geo {
+                        country: "NL".parse().unwrap(),
+                        source: GeoSource::Configured,
+                    }),
+                    overrides: Overrides {
+                        configured_country: Some("NL".parse().unwrap()),
+                        ..Overrides::default()
+                    },
+                    ..destination()
+                },
+                route_health: None,
+            }],
             ..status_base(running())
         },
     );
