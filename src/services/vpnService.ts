@@ -22,6 +22,7 @@ export const CONNECT_PHASES = [
   "opening_ping",
   "establish_wg_tunnel",
   "verify_ping",
+  "awaiting_payment",
   "adjust_to_main",
   "connection_established",
 ] as const;

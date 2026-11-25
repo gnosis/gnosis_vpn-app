@@ -13,7 +13,9 @@
       "fee_to_start": "10000000000000000",
       "txs_to_start": 3,
       "xdai_fee_per_tx": "100000000000000000",
-      "topup_headroom": "0"
+      "topup_headroom": "0",
+      "pix_top_up": "0",
+      "pix_min_available": "0"
     }
   },
   "destinations": [],

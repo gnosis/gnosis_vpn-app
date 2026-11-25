@@ -147,11 +147,15 @@ export default function ConnectStage(props: {
   const labelNode = () => NODES[hops()[1]];
 
   const step = () => stageStep(props.phase);
-  const caption = () =>
-    props.caption ??
-      (step() < STEP_TEXT.length
-        ? STEP_TEXT[step()]
-        : `Reaching the exit in ${props.exitName}`);
+  const caption = () => {
+    if (props.caption) return props.caption;
+    if (props.phase === "awaiting_payment") {
+      return `Waiting for the exit in ${props.exitName} to confirm payment`;
+    }
+    return step() < STEP_TEXT.length
+      ? STEP_TEXT[step()]
+      : `Reaching the exit in ${props.exitName}`;
+  };
 
   const at = (from: number, to: number, begin: number, span: number) =>
     tween(progress(), from, to, begin, span);

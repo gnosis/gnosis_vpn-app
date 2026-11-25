@@ -411,6 +411,8 @@ fn generate_fixtures() {
                 txs_to_start: 3,
                 xdai_fee_per_tx: Balance::from_wei(100_000_000_000_000_000), // 0.1 xDAI
                 topup_headroom: Balance::zero(),
+                pix_top_up: Balance::zero(),
+                pix_min_available: Balance::zero(),
             })),
         }),
     );
@@ -821,6 +823,8 @@ fn generate_fixtures() {
                 txs_to_start: 0,
                 xdai_fee_per_tx: Balance::from_wei(50_000_000_000_000_000), // 0.05 xDAI
                 topup_headroom: Balance::zero(),
+                pix_top_up: Balance::zero(),
+                pix_min_available: Balance::zero(),
             }),
             funding_status: Some(FundingStatus {
                 traffic: FundingLevel::Low,

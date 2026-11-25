@@ -14,6 +14,7 @@ const PHASE_STEP: Record<ConnectPhase, StageStep> = {
   opening_ping: 1,
   establish_wg_tunnel: 2,
   verify_ping: 3,
+  awaiting_payment: 3,
   adjust_to_main: 3,
   connection_established: 3,
 };
@@ -28,6 +29,7 @@ const PHASE_START: Record<ConnectPhase, number> = {
   opening_ping: 0.41,
   establish_wg_tunnel: 0.5,
   verify_ping: 0.75,
+  awaiting_payment: 0.8,
   adjust_to_main: 0.85,
   connection_established: 0.95,
 };
