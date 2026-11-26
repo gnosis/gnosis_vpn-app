@@ -58,11 +58,12 @@ export function formatDataLeft(pix: PixChunkStats): string {
   return formatCreditCompact(BigInt(pix.bytes_left));
 }
 
-/** Unspent share of the chunks bought; full while nothing is bought or measured yet. */
+/** Unspent share of the newest chunk, so each renewal refills it; full while nothing is bought or measured yet. */
 export function dataLeftFraction(pix: PixChunkStats): number {
   const unmeasured = pix.bytes_left === null || pix.bytes_bought === 0;
   if (unmeasured) return 1;
-  return Math.min(1, pix.bytes_left! / pix.bytes_bought);
+  // The exit renews before a chunk runs out; the old chunk's tail keeps it full.
+  return Math.min(1, pix.bytes_left! / pix.chunk_bytes);
 }
 
 /** wxHOPR held across open channels, the Safe, the node EOA and the funds paying for exit traffic. */
