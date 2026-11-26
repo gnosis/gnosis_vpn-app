@@ -24,6 +24,7 @@
     showDetailedMetrics: false,
     showExitCost: true,
     advancedView: false,
+    theme: "auto",
     ...(fixture.settings ?? {}),
   };
 

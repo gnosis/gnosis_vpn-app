@@ -30,5 +30,6 @@
   "installedVersion": "0.28.5",
   "showDetailedMetrics": true,
   "showExitCost": false,
-  "advancedView": true
+  "advancedView": true,
+  "theme": "dark"
 }

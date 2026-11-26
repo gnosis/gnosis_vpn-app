@@ -5,8 +5,10 @@ import App from "./windows/App.tsx";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { onCleanup, onMount } from "solid-js";
+import { createEffect, createSignal, onCleanup, onMount } from "solid-js";
 import { logError, logWarn } from "@src/utils/appLog.ts";
+import { useSettingsStore } from "@src/stores/settingsStore.ts";
+import { resolveTheme, type Theme, toTheme } from "@src/utils/theme.ts";
 
 // Last-resort trail for errors nothing else caught (e.g. the async init IIFEs).
 globalThis.addEventListener("error", (e) => {
@@ -18,12 +20,8 @@ globalThis.addEventListener("unhandledrejection", (e) => {
 globalThis.addEventListener("contextmenu", (e) => e.preventDefault());
 globalThis.addEventListener("dragstart", (e) => e.preventDefault());
 
-function applyTheme(theme: string) {
-  if (theme === "dark") {
-    document.documentElement.classList.add("dark");
-  } else {
-    document.documentElement.classList.remove("dark");
-  }
+function applyTheme(theme: Theme) {
+  document.documentElement.classList.toggle("dark", theme === "dark");
 }
 
 (() => {
@@ -33,6 +31,14 @@ function applyTheme(theme: string) {
   root.innerHTML = "";
 
   render(() => {
+    const [settings, settingsActions] = useSettingsStore();
+    // The OS paths below only report; the user's Theme setting decides what is shown.
+    const [osTheme, setOsTheme] = createSignal<Theme | null>(null);
+    createEffect(() => {
+      const os = osTheme();
+      if (os !== null) applyTheme(resolveTheme(settings.theme, os));
+    });
+
     onMount(() => {
       let disposed = false;
       let cleanup: (() => void) | undefined;
@@ -44,29 +50,24 @@ function applyTheme(theme: string) {
 
         // index.html applies initial colors via a CSS media query.
         // Apply the backend theme to set the Tailwind .dark class consistently across all OS.
-        let initialApplied = false;
+        // Waits for the settings too, so a Light/Dark pin never flashes the OS theme first.
+        const settingsLoaded = settingsActions.load();
+        let initial: Theme | null = null;
         try {
-          const initial = await invoke<string>("get_initial_theme");
-          applyTheme(initial);
-          initialApplied = true;
+          initial = toTheme(await invoke<string>("get_initial_theme"));
         } catch (e) {
           logWarn(`[theme] initial theme fetch failed: ${e}`);
         }
+        await settingsLoaded;
+        if (initial !== null) setOsTheme(initial);
 
         // Each block is isolated so a failure in one does not skip the others.
         try {
           const mq = globalThis.matchMedia("(prefers-color-scheme: dark)");
-          // Apply if backend failed, or if it returned a stale value that disagrees with the
-          // current OS state — matchMedia is always current, backend can be stale.
-          const mqTheme = mq.matches ? "dark" : "light";
-          if (
-            !initialApplied ||
-            document.documentElement.classList.contains("dark") !== mq.matches
-          ) {
-            applyTheme(mqTheme);
-          }
+          // matchMedia is always current, the backend's startup reading can be stale.
+          setOsTheme(mq.matches ? "dark" : "light");
           const handleMediaChange = (e: MediaQueryListEvent) =>
-            applyTheme(e.matches ? "dark" : "light");
+            setOsTheme(e.matches ? "dark" : "light");
           mq.addEventListener("change", handleMediaChange);
           mqCleanup = () => mq.removeEventListener("change", handleMediaChange);
         } catch (e) {
@@ -78,7 +79,7 @@ function applyTheme(theme: string) {
         try {
           unlistenTauri = await curWindow.onThemeChanged(
             ({ payload: theme }) => {
-              applyTheme(theme);
+              setOsTheme(toTheme(theme));
             },
           );
         } catch (e) {
@@ -86,12 +87,12 @@ function applyTheme(theme: string) {
         }
 
         // Linux: backend emits "os-theme-changed" via XDG Desktop Portal / gsettings fallback.
-        // Registering on macOS is a harmless no-op: this event is never emitted there.
+        // All OS: also emitted on a switch back to Auto, since a pin masks the OS theme.
         try {
           unlistenLinux = await listen<string>(
             "os-theme-changed",
             ({ payload: theme }) => {
-              applyTheme(theme);
+              setOsTheme(toTheme(theme));
             },
           );
         } catch (e) {

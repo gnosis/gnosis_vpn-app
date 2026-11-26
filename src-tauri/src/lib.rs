@@ -41,11 +41,13 @@ use gnosis_vpn_ipc::{self as ipc, InfoResponse};
 use icons::{IconState, TrayIconState, determine_tray_icon, start_icon_heartbeat};
 use platform::{Platform, PlatformInterface, get_platform, get_system_info};
 use service_control::{get_service_not_running_info, start_service};
-use settings::{SettingsStore, get_settings, update_settings};
+use settings::{SettingsStore, ThemePreference, get_settings, update_settings};
 #[cfg(target_os = "linux")]
 use theme::spawn_linux_theme_monitor;
 #[cfg_attr(target_os = "macos", allow(unused_imports))]
-use theme::{InitialTheme, get_initial_theme, system_theme};
+use theme::{
+    InitialTheme, apply_preference as apply_theme_preference, get_initial_theme, system_theme,
+};
 use toolkit::get_toolkit_version;
 use tray::{
     PendingSettings, create_tray_menu, handle_tray_event, show_settings, take_settings_target,
@@ -311,10 +313,14 @@ pub fn run() {
             tracing::info!(target: "settings", path = %settings_path.display(), settings = ?settings_store.current(), "loaded");
             app.manage(settings_store);
 
-            // First step: OS theme for app windows (all OS) and tray icons (non-macOS only)
+            // First step: OS theme for the app window, overridden by a Light/Dark pin
             let theme = system_theme();
             tracing::info!(target: "theme", theme = ?theme, "initial os theme");
             app.manage(InitialTheme(theme));
+            let theme_preference = app.state::<SettingsStore>().current().theme;
+            if theme_preference != ThemePreference::Auto {
+                apply_theme_preference(app.handle(), theme_preference);
+            }
 
             app.manage(PendingSettings::default());
 

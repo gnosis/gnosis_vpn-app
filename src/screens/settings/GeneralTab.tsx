@@ -2,12 +2,16 @@ import { createMemo, createSignal, onCleanup, Show } from "solid-js";
 import { save } from "@tauri-apps/plugin-dialog";
 import { downloadDir, join } from "@tauri-apps/api/path";
 import { useAppStore } from "@src/stores/appStore.ts";
-import { useSettingsStore } from "@src/stores/settingsStore.ts";
+import {
+  type ThemePreference,
+  useSettingsStore,
+} from "@src/stores/settingsStore.ts";
 import { type Destination, VPNService } from "@src/services/vpnService.ts";
 import { exitDisplayName, exitShortId } from "@src/utils/destinations.ts";
 import { logBundleFileName } from "@src/utils/logBundle.ts";
 import { logInfo } from "@src/utils/appLog.ts";
 import { Dropdown } from "@src/components/common/Dropdown.tsx";
+import SegmentedControl from "@src/components/common/SegmentedControl.tsx";
 import ExportLogsModal from "@src/components/ExportLogsModal.tsx";
 import UploadLogsModal from "@src/components/UploadLogsModal.tsx";
 import BackIcon from "@src/components/icons/BackIcon.tsx";
@@ -24,6 +28,12 @@ import { useFunding } from "./useFunding.ts";
 
 // One width for Export and Upload, wide enough for "Exporting…".
 const LOG_BUTTON = `${ROW_BUTTON} w-20`;
+
+const THEME_OPTIONS = [
+  { value: "auto", label: "Auto" },
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+] as const satisfies readonly { value: ThemePreference; label: string }[];
 
 /** An exit as the location list names it: country, then the end of its address. */
 type ExitOption = { id: string | null; name: string; shortId: string | null };
@@ -133,6 +143,14 @@ export default function GeneralTab(
 
       <SettingsHeading>App Settings</SettingsHeading>
       <SettingsCard label="App Settings">
+        <SettingsRow title="Theme">
+          <SegmentedControl
+            ariaLabel="Theme"
+            options={THEME_OPTIONS}
+            value={settings.theme}
+            onChange={(theme) => void settingsActions.setTheme(theme)}
+          />
+        </SettingsRow>
         <SettingsRow
           title="Advanced view"
           description="The main screen shows the exit's latency, load and route details."

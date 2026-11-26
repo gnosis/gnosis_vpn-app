@@ -85,6 +85,7 @@ describe("settingsStore", () => {
     expect(state.lastCheckOutcome?.kind).toBe("Available");
     expect(state.lastEndOfLife?.version).toBe("0.28.5");
     expect(state.advancedView).toBe(true);
+    expect(state.theme).toBe("dark");
   });
 
   it("stores the outcome and its end of life in one patch", async () => {
@@ -127,8 +128,10 @@ describe("settingsStore", () => {
     await actions.load();
 
     fireChange({ ...settingsFull, exitNodeSortOrder: "bogus" });
+    fireChange({ ...settingsFull, theme: "sepia" });
 
     expect(state.exitNodeSortOrder).toBe("alpha");
+    expect(state.theme).toBe("dark");
     expect(errorSpy).toHaveBeenCalledWith(
       expect.stringContaining("Invalid settings snapshot"),
     );
@@ -156,6 +159,13 @@ describe("settingsStore", () => {
       patch: { advancedView: true },
     });
     expect(state.advancedView).toBe(false);
+
+    await actions.setTheme("light");
+
+    expect(invokeMock).toHaveBeenCalledWith("update_settings", {
+      patch: { theme: "light" },
+    });
+    expect(state.theme).toBe("auto");
   });
 
   it("swallows update_settings failures without touching state", async () => {
