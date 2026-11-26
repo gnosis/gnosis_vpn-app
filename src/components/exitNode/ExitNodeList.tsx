@@ -34,6 +34,7 @@ import {
 } from "@src/utils/destinations.ts";
 import GnosisMark from "../common/GnosisMark.tsx";
 import PageHeader from "../common/PageHeader.tsx";
+import SegmentedControl from "../common/SegmentedControl.tsx";
 import LocationRow, {
   ACTION_BUTTON,
   ListRow,
@@ -318,9 +319,9 @@ export default function ExitNodeList(props: {
   };
 
   const sortOptions = [
-    { order: "best" as const, label: "Quality" },
-    { order: "recent" as const, label: "Recent" },
-    { order: "alpha" as const, label: "A–Z" },
+    { value: "best" as const, label: "Quality" },
+    { value: "recent" as const, label: "Recent" },
+    { value: "alpha" as const, label: "A–Z" },
   ];
 
   return (
@@ -357,28 +358,13 @@ export default function ExitNodeList(props: {
           />
         </div>
 
-        <div
-          role="group"
-          aria-label="Sort by"
-          class="flex shrink-0 gap-0.5 self-start rounded-lg bg-control-bg p-0.5"
-        >
-          <For each={sortOptions}>
-            {({ order, label }) => (
-              <button
-                type="button"
-                aria-pressed={settings.exitNodeSortOrder === order}
-                class={`rounded-md px-1.5 py-1.25 text-[11px] leading-3.5 font-bold hover:cursor-pointer ${
-                  settings.exitNodeSortOrder === order
-                    ? "bg-bg-list shadow-[0_1px_2px_rgb(0_0_0/0.12)]"
-                    : "text-text-subtle hover:text-text-primary"
-                }`}
-                onClick={() => void settingsActions.setExitNodeSortOrder(order)}
-              >
-                {label}
-              </button>
-            )}
-          </For>
-        </div>
+        <SegmentedControl
+          ariaLabel="Sort by"
+          class="self-start"
+          options={sortOptions}
+          value={settings.exitNodeSortOrder}
+          onChange={(order) => void settingsActions.setExitNodeSortOrder(order)}
+        />
 
         <div
           class="shrink-0"
