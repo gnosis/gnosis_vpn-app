@@ -117,7 +117,7 @@ export interface AppState {
   pixPricePerByte: bigint;
   // The service's recently connected exits, newest first.
   recent: string[];
-  // The mode the service runs; see the bootstrap mode setting.
+  // The mode the service runs; the bootstrap mode switch shows it.
   serviceMode: Mode;
   // Whether the service has a bootstrap node set; the setting shows only then.
   bootstrapAvailable: boolean;
@@ -860,7 +860,7 @@ export function createAppStore(): AppStoreTuple {
     },
 
     setBootstrapMode: async (on: boolean) => {
-      // Overlapping requests could finish out of order; the switch keeps showing the saved mode.
+      // Overlapping requests could finish out of order; the switch keeps showing the service's mode.
       if (modeRequestInFlight) return;
       modeRequestInFlight = true;
       const mode: Mode = on ? "bootstrap" : "normal";

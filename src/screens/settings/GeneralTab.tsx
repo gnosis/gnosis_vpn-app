@@ -136,7 +136,7 @@ export default function GeneralTab(
           >
             <Switch
               label="Bootstrap mode"
-              checked={settings.bootstrapMode}
+              checked={appState.serviceMode === "bootstrap"}
               onChange={(on) => void appActions.setBootstrapMode(on)}
             />
           </SettingsRow>
