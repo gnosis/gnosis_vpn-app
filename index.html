@@ -12,47 +12,50 @@
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <style>
-    :root {
-      --color-bg-primary: #121219;
-      --color-text-primary: #f9fafb;
-    }
-    @media (prefers-color-scheme: light) {
+    /* Layered so index.css's unlayered tokens win once loaded: a Light/Dark pin can differ from the OS. */
+    @layer splash {
       :root {
-        --color-bg-primary: #f4f4f6;
-        --color-text-primary: #0f0f0f;
+        --color-bg-primary: #121219;
+        --color-text-primary: #f9fafb;
       }
-    }
-    body {
-      margin: 0;
-      background-color: var(--color-bg-primary);
-      color: var(--color-text-primary);
-    }
-    #root .loading-screen {
-      position: relative;
-      height: 100vh;
-      padding: 0 1.5rem;
-      box-sizing: border-box;
-    }
-    /* Mirrors --golden-logo-y in index.css; this copy renders before that stylesheet exists. */
-    #root .loading-screen .logo-anchor {
-      position: absolute;
-      left: 1.5rem;
-      right: 1.5rem;
-      top: 38.2%;
-      transform: translateY(-50%);
-    }
-    /* display:block matches Tailwind's preflight on the Solid copy, which has no inline baseline gap. */
-    #root .loading-screen .logo-svg {
-      display: block;
-      width: auto;
-      height: 3rem;
-      margin: 0 auto;
-      color: #ffffff;
-    }
-    /* Mirrors --color-logo-ink in index.css. */
-    @media (prefers-color-scheme: light) {
+      @media (prefers-color-scheme: light) {
+        :root {
+          --color-bg-primary: #f4f4f6;
+          --color-text-primary: #0f0f0f;
+        }
+      }
+      body {
+        margin: 0;
+        background-color: var(--color-bg-primary);
+        color: var(--color-text-primary);
+      }
+      #root .loading-screen {
+        position: relative;
+        height: 100vh;
+        padding: 0 1.5rem;
+        box-sizing: border-box;
+      }
+      /* Mirrors --golden-logo-y in index.css; this copy renders before that stylesheet exists. */
+      #root .loading-screen .logo-anchor {
+        position: absolute;
+        left: 1.5rem;
+        right: 1.5rem;
+        top: 38.2%;
+        transform: translateY(-50%);
+      }
+      /* display:block matches Tailwind's preflight on the Solid copy, which has no inline baseline gap. */
       #root .loading-screen .logo-svg {
-        color: #1a1751;
+        display: block;
+        width: auto;
+        height: 3rem;
+        margin: 0 auto;
+        color: #ffffff;
+      }
+      /* Mirrors --color-logo-ink in index.css. */
+      @media (prefers-color-scheme: light) {
+        #root .loading-screen .logo-svg {
+          color: #1a1751;
+        }
       }
     }
     </style>
