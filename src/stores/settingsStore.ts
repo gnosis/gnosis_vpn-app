@@ -50,6 +50,9 @@ export const UpdateChannelSchema = z.enum([
 ]);
 export type UpdateChannel = z.infer<typeof UpdateChannelSchema>;
 
+export const ThemePreferenceSchema = z.enum(["auto", "light", "dark"]);
+export type ThemePreference = z.infer<typeof ThemePreferenceSchema>;
+
 // The toolkit's `check-update` decision, `kind`-tagged by the Rust bridge. The
 // last three never reach the frontend — `check_update` turns them into rejections.
 export const CheckOutcomeSchema = z.discriminatedUnion("kind", [
@@ -90,6 +93,8 @@ export const SettingsSchema = z.object({
   showExitCost: z.boolean(),
   // the main screen shows the location card instead of the simple view
   advancedView: z.boolean(),
+  // "auto" follows the OS
+  theme: ThemePreferenceSchema,
 });
 export type SettingsState = z.infer<typeof SettingsSchema>;
 
@@ -109,6 +114,7 @@ const DEFAULT_SETTINGS: SettingsState = {
   showDetailedMetrics: false,
   showExitCost: true,
   advancedView: false,
+  theme: "auto",
 };
 
 type SettingsActions = {
@@ -136,6 +142,7 @@ type SettingsActions = {
   setShowDetailedMetrics: (show: boolean) => Promise<void>;
   setShowExitCost: (show: boolean) => Promise<void>;
   setAdvancedView: (on: boolean) => Promise<void>;
+  setTheme: (theme: ThemePreference) => Promise<void>;
 };
 
 type SettingsStoreTuple = readonly [
@@ -231,6 +238,7 @@ export function createSettingsStore(): SettingsStoreTuple {
     setShowDetailedMetrics: (show) => patch({ showDetailedMetrics: show }),
     setShowExitCost: (show) => patch({ showExitCost: show }),
     setAdvancedView: (on) => patch({ advancedView: on }),
+    setTheme: (theme) => patch({ theme }),
   } as const;
 
   const dispose = () => {

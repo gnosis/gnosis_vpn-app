@@ -223,6 +223,8 @@ nix fmt
   backend theme with `prefers-color-scheme`, and headless Chromium follows the
   host OS's setting. `shim.js` patches `matchMedia` to answer with the fixture's
   theme (both directions) — answering `get_initial_theme` alone is not enough.
+  That is the OS theme; `settings.theme` (`"light"`/`"dark"`, default `"auto"`)
+  pins the app's theme over it, as the Settings → Theme control does.
 - **Tooltips need a focused window.** Headless Chromium never focuses the page,
   so `gateOnWindowFocus` blocks every tooltip (the "Feature coming" ones too).
   Fire `window.dispatchEvent(new Event('focus'))` in an `eval` before a

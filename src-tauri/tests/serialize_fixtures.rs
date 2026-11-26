@@ -1,4 +1,4 @@
-use gnosis_vpn_app_lib::settings::{Settings, SortOrder, UpdateChannel};
+use gnosis_vpn_app_lib::settings::{Settings, SortOrder, ThemePreference, UpdateChannel};
 use gnosis_vpn_app_lib::toolkit::{CheckOutcome, CheckResult, EndOfLife, Manifest, ToolkitInfo};
 use gnosis_vpn_app_lib::traffic::{CaptureStatus, Endpoint, Frame, FrameResponse};
 use gnosis_vpn_app_lib::types;
@@ -1047,5 +1047,6 @@ fn full_settings() -> Settings {
         show_detailed_metrics: true,
         show_exit_cost: false,
         advanced_view: true,
+        theme: ThemePreference::Dark,
     }
 }

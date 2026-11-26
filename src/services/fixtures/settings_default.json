@@ -12,5 +12,6 @@
   "installedVersion": null,
   "showDetailedMetrics": false,
   "showExitCost": true,
-  "advancedView": false
+  "advancedView": false,
+  "theme": "auto"
 }

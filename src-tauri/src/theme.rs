@@ -1,7 +1,11 @@
 //! Theme detection and change handling for app windows.
-//! Provides startup theme detection and OS theme change monitoring on Linux via the XDG Desktop Portal.
+//! Provides startup theme detection, OS theme change monitoring on Linux via the XDG Desktop Portal,
+//! and pins the window theme when the user picks Light or Dark.
 
-#[cfg_attr(target_os = "macos", allow(unused_imports))]
+#[cfg(target_os = "linux")]
+use crate::settings::SettingsStore;
+use crate::settings::ThemePreference;
+
 use tauri::{AppHandle, Emitter, Manager, State};
 
 #[cfg(target_os = "linux")]
@@ -142,14 +146,15 @@ pub fn spawn_linux_theme_monitor(app: AppHandle) {
             let theme_str = if is_dark { "dark" } else { "light" };
             tracing::info!(target: "theme", theme = theme_str, "os theme changed");
             let _ = app.emit("os-theme-changed", theme_str);
+            if app.state::<SettingsStore>().current().theme != ThemePreference::Auto {
+                continue;
+            }
             let theme = if is_dark {
                 tauri::Theme::Dark
             } else {
                 tauri::Theme::Light
             };
-            for window in app.webview_windows().into_values() {
-                let _ = window.set_theme(Some(theme));
-            }
+            set_window_theme(&app, Some(theme));
         }
         // Stream ended (portal restart/disconnect) — fall back so monitoring continues.
         tracing::warn!(target: "theme", cause = "portal stream ended", "falling back to gsettings monitor");
@@ -187,8 +192,43 @@ pub struct InitialTheme(pub tauri::Theme);
 
 #[tauri::command]
 pub fn get_initial_theme(state: State<InitialTheme>) -> String {
-    match state.0 {
-        tauri::Theme::Light => "light".to_string(),
-        _ => "dark".to_string(),
+    theme_name(state.0).to_string()
+}
+
+fn theme_name(theme: tauri::Theme) -> &'static str {
+    match theme {
+        tauri::Theme::Light => "light",
+        _ => "dark",
+    }
+}
+
+fn set_window_theme(app: &AppHandle, theme: Option<tauri::Theme>) {
+    for window in app.webview_windows().into_values() {
+        if let Err(e) = window.set_theme(theme) {
+            tracing::warn!(target: "theme", error = %e, "cannot set window theme");
+        }
+    }
+}
+
+/// Pins the native window theme (title bar, `prefers-color-scheme`) to the user's choice.
+/// Auto hands it back to the OS and re-sends the OS theme, which the pin may have masked.
+pub fn apply_preference(app: &AppHandle, pref: ThemePreference) {
+    tracing::info!(target: "theme", preference = ?pref, "applying theme preference");
+    match pref {
+        ThemePreference::Light => set_window_theme(app, Some(tauri::Theme::Light)),
+        ThemePreference::Dark => set_window_theme(app, Some(tauri::Theme::Dark)),
+        ThemePreference::Auto => {
+            let app = app.clone();
+            // the portal query blocks for up to its timeout
+            tauri::async_runtime::spawn_blocking(move || {
+                let os = system_theme();
+                // GTK reads None as light, so Linux pins the OS theme instead
+                #[cfg(target_os = "linux")]
+                set_window_theme(&app, Some(os));
+                #[cfg(not(target_os = "linux"))]
+                set_window_theme(&app, None);
+                let _ = app.emit("os-theme-changed", theme_name(os));
+            });
+        }
     }
 }

@@ -29,6 +29,7 @@ pub struct Settings {
     pub show_exit_cost: bool,
     /// Whether the main screen shows the location card instead of the simple view.
     pub advanced_view: bool,
+    pub theme: ThemePreference,
 }
 
 impl Default for Settings {
@@ -48,6 +49,7 @@ impl Default for Settings {
             show_detailed_metrics: false,
             show_exit_cost: true,
             advanced_view: false,
+            theme: ThemePreference::default(),
         }
     }
 }
@@ -61,6 +63,16 @@ pub enum SortOrder {
     Best,
     Recent,
     Alpha,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ThemePreference {
+    /// Follow the OS.
+    #[default]
+    Auto,
+    Light,
+    Dark,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -112,6 +124,8 @@ pub struct SettingsPatch {
     pub show_exit_cost: Option<bool>,
     #[serde(default)]
     pub advanced_view: Option<bool>,
+    #[serde(default)]
+    pub theme: Option<ThemePreference>,
 }
 
 impl SettingsPatch {
@@ -159,6 +173,9 @@ impl SettingsPatch {
         }
         if self.advanced_view.is_some() {
             keys.push("advanced_view");
+        }
+        if self.theme.is_some() {
+            keys.push("theme");
         }
         keys
     }
@@ -215,6 +232,9 @@ impl Settings {
         }
         if let Some(v) = patch.advanced_view {
             self.advanced_view = v;
+        }
+        if let Some(v) = patch.theme {
+            self.theme = v;
         }
     }
 }
@@ -326,10 +346,14 @@ pub fn update_settings(
     store: State<'_, SettingsStore>,
     patch: SettingsPatch,
 ) -> Result<Settings, String> {
+    let theme_changed = patch.theme.is_some();
     // failures are logged inside SettingsStore::update, with path context
     let snapshot = store.update(patch)?;
     if let Err(e) = app.emit("settings-changed", &snapshot) {
         tracing::warn!(target: "settings", error = %e, "cannot broadcast settings change");
+    }
+    if theme_changed {
+        crate::theme::apply_preference(&app, snapshot.theme);
     }
     Ok(snapshot)
 }
@@ -407,7 +431,7 @@ mod tests {
         std::fs::write(
             &path,
             json!({
-                "theme": "dark",
+                "theme": "sepia",
                 "flagDisplay": "none",
                 "updateManifest": { "schema_version": 1 },
                 "exitNodeSortOrder": "bogus",
@@ -421,6 +445,7 @@ mod tests {
         let settings = SettingsStore::load(path).current();
         // legacy key dropped, invalid value falls back, valid values survive
         assert_eq!(settings.exit_node_sort_order, SortOrder::Best);
+        assert_eq!(settings.theme, ThemePreference::Auto);
         assert_eq!(settings.preferred_location, Some("exit-1".to_string()));
         assert!(settings.show_detailed_metrics);
     }
@@ -487,6 +512,22 @@ mod tests {
             .expect("update should succeed");
 
         assert!(SettingsStore::load(path).current().advanced_view);
+    }
+
+    #[test]
+    fn theme_defaults_to_auto_and_persists_dark() {
+        let path = temp_settings_path();
+        let store = SettingsStore::load(path.clone());
+        assert_eq!(store.current().theme, ThemePreference::Auto);
+
+        store
+            .update(patch(json!({ "theme": "dark" })))
+            .expect("update should succeed");
+
+        assert_eq!(
+            SettingsStore::load(path).current().theme,
+            ThemePreference::Dark
+        );
     }
 
     #[test]
