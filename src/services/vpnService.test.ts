@@ -289,7 +289,7 @@ describe("StatusResponseSchema", () => {
       ds.destination.id === "pinned-exit"
     );
     expect(pinned?.destination.names).toEqual({
-      display_name: "pinned-exit (Frankfurt-1)",
+      display_name: "pinned-exit",
       title: "pinned-exit (Frankfurt-1)",
       short_id: "AaaAa",
       country: null,
