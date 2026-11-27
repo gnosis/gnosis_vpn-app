@@ -113,28 +113,30 @@ describe("balanceWarning", () => {
     const status = makeStatus("empty", "good", { wxhoprDeficit: 4n * GB });
     expect(balanceWarning(makeBalance(status), null, 2n)).toEqual({
       status: "Empty",
-      text: "Balance empty, add at least 2 GB of data to stay connected",
+      text:
+        "Balance empty, as all data currently allocated. Add 2 GB of data to stay connected",
     });
   });
 
   it("rounds a Low deficit up to whole GB", () => {
     const status = makeStatus("low", "good", { wxhoprDeficit: GB + 1n });
     expect(balanceWarning(makeBalance(status), null, 1n)?.text).toBe(
-      "Balance low, add at least 2 GB of data to stay connected",
+      "Balance low, as all data currently allocated. Add 2 GB of data to stay connected",
     );
   });
 
   it("asks for data without an amount when there is no PIX price", () => {
     const status = makeStatus("low", "good", { wxhoprDeficit: GB });
     expect(balanceWarning(makeBalance(status), null, 0n)?.text).toBe(
-      "Balance low, add data to stay connected",
+      "Balance low, as all data currently allocated. Add data to stay connected",
     );
   });
 
   it("warns from the run-mode status before the first balance arrives", () => {
     expect(balanceWarning(null, makeStatus("low", "good"), 1n)).toEqual({
       status: "Low",
-      text: "Balance low, add data to stay connected",
+      text:
+        "Balance low, as all data currently allocated. Add data to stay connected",
     });
   });
 });

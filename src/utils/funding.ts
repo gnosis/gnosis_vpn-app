@@ -65,14 +65,15 @@ export function balanceWarning(
   const funding = resolveFundingStatus(balance, runModeStatus);
   if (!funding || funding.traffic === "good") return null;
   const status = funding.traffic === "empty" ? "Empty" : "Low";
-  // The client's wxHOPR back to Good, as data at the PIX price.
+  // The client's wxHOPR up to 30 GB in total, as data at the PIX price.
   const deficit = funding.wxhopr_deficit;
   const toAdd = deficit === null ? null : dataToSend(deficit, pricePerByte);
   const ask = toAdd === null
-    ? "add data"
-    : `add at least ${formatDataToSend(toAdd)} of data`;
+    ? "Add data"
+    : `Add ${formatDataToSend(toAdd)} of data`;
   return {
     status,
-    text: `Balance ${status.toLowerCase()}, ${ask} to stay connected`,
+    text:
+      `Balance ${status.toLowerCase()}, as all data currently allocated. ${ask} to stay connected`,
   };
 }

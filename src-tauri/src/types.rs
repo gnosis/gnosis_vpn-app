@@ -234,6 +234,7 @@ mod tests {
             ideal_balance: None,
             funding_status: None,
             pix_pool: None,
+            pix_reserved: None,
         };
         assert_eq!(BalanceResponse::from(balances).channels_out.wei(), 5);
     }
