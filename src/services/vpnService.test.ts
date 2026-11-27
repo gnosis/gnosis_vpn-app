@@ -110,10 +110,10 @@ describe("StatusResponseSchema", () => {
     const bootstrap = StatusResponseSchema.parse(statusRunningBootstrap);
     expect(bootstrap.mode).toBe("bootstrap");
     expect(bootstrap.bootstrap_available).toBe(true);
-    // A bootstrap exit is not announced; its country comes from the service config.
+    // A bootstrap exit's country comes from its announced address.
     expect(bootstrap.destinations[0]?.destination.geo).toEqual({
       country: "nl",
-      source: { type: "configured" },
+      source: { type: "announced_ip" },
     });
   });
 

@@ -19,7 +19,7 @@
         "geo": {
           "country": "NL",
           "source": {
-            "type": "configured"
+            "type": "announced_ip"
           }
         },
         "address": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
@@ -32,8 +32,7 @@
         "overrides": {
           "configured_meta": {},
           "configured_gnosis_vpn_server": null,
-          "configured_wireguard_server": null,
-          "configured_country": "NL"
+          "configured_wireguard_server": null
         }
       },
       "route_health": null

@@ -56,7 +56,6 @@ fn pinned_destination() -> Destination {
             configured_meta: pinned,
             configured_gnosis_vpn_server: None,
             configured_wireguard_server: None,
-            configured_country: None,
         },
         ..destination()
     }
@@ -367,18 +366,14 @@ fn generate_fixtures() {
         Status {
             mode: ipc::Mode::Bootstrap,
             bootstrap_available: true,
-            // Not announced: the country is the one the service config gives the exit.
+            // A bootstrap exit's country comes from its announced address, like any other exit's.
             destinations: vec![DestinationStatus {
                 destination: Destination {
                     id: "bootstrap-amsterdam".into(),
                     geo: Some(Geo {
                         country: "NL".parse().unwrap(),
-                        source: GeoSource::Configured,
+                        source: GeoSource::AnnouncedIp,
                     }),
-                    overrides: Overrides {
-                        configured_country: Some("NL".parse().unwrap()),
-                        ..Overrides::default()
-                    },
                     ..destination()
                 },
                 route_health: None,
