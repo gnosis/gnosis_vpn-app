@@ -177,6 +177,8 @@ mod tests {
             pix_price_per_byte: ipc::Balance::zero(),
             probing: None,
             recent: vec![],
+            mode: ipc::Mode::Normal,
+            bootstrap_available: false,
         }
         .into()
     }

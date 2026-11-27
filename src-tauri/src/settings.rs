@@ -29,6 +29,8 @@ pub struct Settings {
     pub show_exit_cost: bool,
     /// Whether the main screen shows the location card instead of the simple view.
     pub advanced_view: bool,
+    /// Whether the service runs only its configured bootstrap exits and relayers.
+    pub bootstrap_mode: bool,
 }
 
 impl Default for Settings {
@@ -48,6 +50,7 @@ impl Default for Settings {
             show_detailed_metrics: false,
             show_exit_cost: true,
             advanced_view: false,
+            bootstrap_mode: false,
         }
     }
 }
@@ -112,6 +115,8 @@ pub struct SettingsPatch {
     pub show_exit_cost: Option<bool>,
     #[serde(default)]
     pub advanced_view: Option<bool>,
+    #[serde(default)]
+    pub bootstrap_mode: Option<bool>,
 }
 
 impl SettingsPatch {
@@ -159,6 +164,9 @@ impl SettingsPatch {
         }
         if self.advanced_view.is_some() {
             keys.push("advanced_view");
+        }
+        if self.bootstrap_mode.is_some() {
+            keys.push("bootstrap_mode");
         }
         keys
     }
@@ -215,6 +223,9 @@ impl Settings {
         }
         if let Some(v) = patch.advanced_view {
             self.advanced_view = v;
+        }
+        if let Some(v) = patch.bootstrap_mode {
+            self.bootstrap_mode = v;
         }
     }
 }
@@ -474,6 +485,19 @@ mod tests {
             .expect("update should succeed");
 
         assert!(!SettingsStore::load(path).current().show_exit_cost);
+    }
+
+    #[test]
+    fn bootstrap_mode_defaults_off_and_persists_on() {
+        let path = temp_settings_path();
+        let store = SettingsStore::load(path.clone());
+        assert!(!store.current().bootstrap_mode);
+
+        store
+            .update(patch(json!({ "bootstrapMode": true })))
+            .expect("update should succeed");
+
+        assert!(SettingsStore::load(path).current().bootstrap_mode);
     }
 
     #[test]

@@ -20,6 +20,7 @@ use tokio::time::{self, Instant};
 use crate::cli::{self, Cli};
 use crate::icons::{self, TrayIconState};
 use crate::platform::{SystemInfo, get_system_info};
+use crate::settings::SettingsStore;
 use crate::toolkit;
 use crate::tray;
 use crate::types::{BalanceResponse, ConnectionState, NamedStatus};
@@ -120,6 +121,39 @@ pub async fn connect(
         Ok(guard) => guard.trigger.notify_one(),
         Err(e) => {
             tracing::warn!(target: "status", error = %e, "cannot trigger status poll after connect")
+        }
+    }
+    Ok(resp)
+}
+
+/// The service mode the bootstrap setting asks for.
+pub fn requested_mode(bootstrap_mode: bool) -> ipc::Mode {
+    if bootstrap_mode {
+        ipc::Mode::Bootstrap
+    } else {
+        ipc::Mode::Normal
+    }
+}
+
+/// Switches the service between normal and bootstrap mode; a switch restarts its worker and ends
+/// any connection, which the frontend then reconnects.
+#[tauri::command]
+pub async fn set_mode(
+    bootstrap: bool,
+    polling_state: State<'_, Mutex<StatusPollingHandle>>,
+) -> Result<ipc::SetModeResponse, String> {
+    let mode = requested_mode(bootstrap);
+    tracing::info!(target: "status", ?mode, "mode change requested");
+    let resp = on_socket(move |p| ipc::set_mode(p, mode))
+        .await
+        .map_err(|e| {
+            tracing::warn!(target: "status", error = %e, "mode change failed");
+            e.to_string()
+        })?;
+    match polling_state.lock() {
+        Ok(guard) => guard.trigger.notify_one(),
+        Err(e) => {
+            tracing::warn!(target: "status", error = %e, "cannot trigger status poll after mode change")
         }
     }
     Ok(resp)
@@ -1034,6 +1068,20 @@ pub async fn run_initialization_loop(app: AppHandle) {
                 continue;
             }
         };
+
+        // Before the worker starts, so it starts in the saved mode instead of restarting into it.
+        // The service forgets the mode when it restarts; normal mode is the safe fallback.
+        let mode = requested_mode(app.state::<SettingsStore>().current().bootstrap_mode);
+        match on_socket(move |p| ipc::set_mode(p, mode)).await {
+            Ok(ipc::SetModeResponse::Unavailable) => {
+                tracing::info!(
+                    ?mode,
+                    "service has no bootstrap node set - running normal mode"
+                )
+            }
+            Ok(_) => {}
+            Err(e) => tracing::warn!(error = %e, ?mode, "cannot set the service mode"),
+        }
 
         if let Err(e) = start_client_worker(Duration::from_secs(10)).await {
             warn_on_change(

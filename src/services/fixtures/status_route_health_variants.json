@@ -474,6 +474,10 @@
   "pix_price_per_byte": "1000000000",
   "probing": null,
   "recent": [],
+  "mode": {
+    "type": "normal"
+  },
+  "bootstrap_available": false,
   "exit_names": {
     "pinned-exit": {
       "display_name": "pinned-exit (Frankfurt-1)",

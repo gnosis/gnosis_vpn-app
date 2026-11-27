@@ -16,6 +16,8 @@ import {
   isReadyForDisplay,
   isSelectable,
   isVpnActive,
+  modeRequestOutcome,
+  modeSwitchReconnectTarget,
   NO_CONTEXT,
   pickerRows,
   pickStartupTarget,
@@ -492,6 +494,91 @@ describe("sortByGrade — the one order", () => {
     expect(ids(destinations)).toEqual(["b-far", "a-full", "c-none"]);
     expect(ids(destinations, liveOn("a-full")))
       .toEqual(["a-full", "b-far", "c-none"]);
+  });
+});
+
+describe("modeSwitchReconnectTarget — reconnect after a mode switch", () => {
+  const destinations = {
+    other: makeEligible("other", 40),
+    best: makeEligible("best", 100),
+  };
+
+  it("connects to the Auto pick once the service runs the new mode", () => {
+    expect(
+      modeSwitchReconnectTarget(
+        "bootstrap",
+        "bootstrap",
+        destinations,
+        NO_CONTEXT,
+      ),
+    ).toBe("best");
+    expect(
+      modeSwitchReconnectTarget("normal", "normal", destinations, NO_CONTEXT),
+    ).toBe("best");
+  });
+
+  it("waits while the status still shows the old mode", () => {
+    expect(
+      modeSwitchReconnectTarget(
+        "bootstrap",
+        "normal",
+        destinations,
+        NO_CONTEXT,
+      ),
+    ).toBeNull();
+  });
+
+  it("waits until an exit of the new mode is ready", () => {
+    const notReady = { slow: makeUngraded("slow") };
+
+    expect(
+      modeSwitchReconnectTarget("bootstrap", "bootstrap", notReady, NO_CONTEXT),
+    ).toBeNull();
+  });
+
+  it("does nothing without a pending switch", () => {
+    expect(
+      modeSwitchReconnectTarget(null, "bootstrap", destinations, NO_CONTEXT),
+    ).toBeNull();
+  });
+});
+
+describe("modeRequestOutcome — what a mode request leaves behind", () => {
+  it("reconnects in the new mode when a session was up", () => {
+    expect(modeRequestOutcome("bootstrap", "switching", true, null)).toEqual({
+      reconnect: "bootstrap",
+      saveSetting: true,
+    });
+  });
+
+  it("does not connect when no session was up", () => {
+    expect(modeRequestOutcome("bootstrap", "switching", false, null))
+      .toEqual({ reconnect: null, saveSetting: true });
+  });
+
+  it("keeps reconnecting when toggled back before the first switch reconnected", () => {
+    // The first switch ended the session, so it no longer looks up.
+    expect(
+      modeRequestOutcome("normal", "switching", false, "bootstrap"),
+    ).toEqual({ reconnect: "normal", saveSetting: true });
+  });
+
+  it("does not save the setting when the service cannot run the mode", () => {
+    expect(
+      modeRequestOutcome("bootstrap", "unavailable", true, null),
+    ).toEqual({ reconnect: null, saveSetting: false });
+  });
+
+  it("does not save the setting when the request failed", () => {
+    expect(modeRequestOutcome("bootstrap", null, true, "normal")).toEqual({
+      reconnect: "normal",
+      saveSetting: false,
+    });
+  });
+
+  it("leaves a pending reconnect alone when nothing switched", () => {
+    expect(modeRequestOutcome("normal", "unchanged", false, "normal"))
+      .toEqual({ reconnect: "normal", saveSetting: true });
   });
 });
 

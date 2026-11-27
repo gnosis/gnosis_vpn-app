@@ -95,7 +95,7 @@ async function exportLogs() {
 export default function GeneralTab(
   props: { onUpdate: () => void; onAbout: () => void },
 ) {
-  const [appState] = useAppStore();
+  const [appState, appActions] = useAppStore();
   const [settings, settingsActions] = useSettingsStore();
   const { nodeAddress } = useFunding();
   const preferredExit = (): ExitOption => {
@@ -129,6 +129,18 @@ export default function GeneralTab(
             onChange={(on) => void settingsActions.setConnectOnStartup(on)}
           />
         </SettingsRow>
+        <Show when={appState.bootstrapAvailable}>
+          <SettingsRow
+            title="Bootstrap mode"
+            description="Use only the bootstrap exits and relays. Switching reconnects the VPN."
+          >
+            <Switch
+              label="Bootstrap mode"
+              checked={appState.serviceMode === "bootstrap"}
+              onChange={(on) => void appActions.setBootstrapMode(on)}
+            />
+          </SettingsRow>
+        </Show>
       </SettingsCard>
 
       <SettingsHeading>App Settings</SettingsHeading>
