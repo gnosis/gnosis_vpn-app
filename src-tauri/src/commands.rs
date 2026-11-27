@@ -183,6 +183,15 @@ pub async fn quick_probe(id: String) -> Result<ipc::QuickProbeResponse, String> 
         })
 }
 
+/// Has the service re-read balances from the chain; they arrive through the balance poll.
+#[tauri::command]
+pub async fn refresh_balance() -> Result<(), String> {
+    on_socket(ipc::refresh_balance).await.map_err(|e| {
+        tracing::warn!(target: "balance", error = %e, "balance refresh failed");
+        e.to_string()
+    })
+}
+
 /// Caps the status poll at STATUS_POLL_FAST while the frontend waits on quick-probe results.
 #[tauri::command]
 pub fn set_status_poll_fast(

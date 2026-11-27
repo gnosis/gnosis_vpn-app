@@ -1,7 +1,8 @@
-import { createMemo, createUniqueId, For, Show } from "solid-js";
+import { createEffect, createMemo, createUniqueId, For, Show } from "solid-js";
 import {
   connectionDestination,
   connectionPix,
+  VPNService,
 } from "@src/services/vpnService.ts";
 import { useAppStore } from "@src/stores/appStore.ts";
 import {
@@ -11,6 +12,7 @@ import {
   formatCountCompact,
   formatCreditCompact,
 } from "@src/utils/credit.ts";
+import { logWarn } from "@src/utils/appLog.ts";
 import { balanceWarning } from "@src/utils/funding.ts";
 import { exitDisplayName, exitShortId } from "@src/utils/destinations.ts";
 import Banner from "@src/components/common/Banner.tsx";
@@ -124,6 +126,11 @@ export default function UsageTab(props: { showBreakdown: boolean }) {
     props.showBreakdown && appState.balance
       ? creditBreakdown(appState.balance)
       : null;
+  // The breakdown is for checking against the chain, so it skips the wait for the service's next read.
+  createEffect(() => {
+    if (!props.showBreakdown) return;
+    VPNService.refreshBalance().catch((error) => logWarn(`${error}`));
+  });
 
   // The exit whose session the meter reports; a reconnect has none.
   const liveExitId = () => {

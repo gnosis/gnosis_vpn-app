@@ -890,6 +890,15 @@ export class VPNService {
     }
   }
 
+  /** Has the service re-read balances from the chain; they arrive with the next balance event. */
+  static async refreshBalance(): Promise<void> {
+    try {
+      await invoke("refresh_balance");
+    } catch (error) {
+      throw new Error(`Refresh balance error: ${error}`);
+    }
+  }
+
   /** Caps the status poll interval while the list is open; quick-probe results should not wait 2 s. */
   static async setStatusPollFast(fast: boolean): Promise<void> {
     try {
