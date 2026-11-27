@@ -135,6 +135,7 @@ fn balances(node: Balance<XDai>, safe: Balance<WxHopr>) -> Balances {
         ideal_balance: None,
         funding_status: None,
         pix_pool: None,
+        pix_reserved: None,
     }
 }
 
@@ -852,8 +853,8 @@ fn generate_fixtures() {
             funding_status: Some(FundingStatus {
                 traffic: FundingLevel::Low,
                 gas: FundingLevel::Low,
-                wxhopr_deficit: Some(Balance::from_wei(1_000_000_000_000_000_000)), // 1 wxHOPR
-                xdai_deficit: Some(Balance::from_wei(20_000_000_000_000_000)),      // 0.02 xDAI
+                wxhopr_deficit: Some(Balance::from_wei(31_212_254_720_000_000_000)), // 30 GiB at the PIX price, less the Safe
+                xdai_deficit: Some(Balance::from_wei(20_000_000_000_000_000)),       // 0.02 xDAI
                 refill_shortfall: None,
             }),
             ..balances(node_xdai, safe_wxhopr)
@@ -866,7 +867,7 @@ fn generate_fixtures() {
         "balance_response_with_refill_shortfall.json",
         &types::BalanceResponse::from(Balances {
             funding_status: Some(FundingStatus {
-                traffic: FundingLevel::Low,
+                traffic: FundingLevel::Good,
                 gas: FundingLevel::Good,
                 wxhopr_deficit: None,
                 xdai_deficit: None,

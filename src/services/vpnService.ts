@@ -434,9 +434,10 @@ export type FundingLevel = z.infer<typeof FundingLevelSchema>;
 export const FundingStatusSchema = z.object({
   traffic: FundingLevelSchema,
   gas: FundingLevelSchema,
+  // wxHOPR up to 30 GiB of data in total at the PIX price; null while traffic is good.
   wxhopr_deficit: BigIntStringSchema.nullable(),
   xdai_deficit: BigIntStringSchema.nullable(),
-  // wxHOPR the Safe lacks for the next channel top-up pass; set only while traffic is capped at low.
+  // wxHOPR the Safe lacks for the next channel top-up pass; informational, never moves traffic.
   refill_shortfall: BigIntStringSchema.nullable(),
 });
 export type FundingStatus = z.infer<typeof FundingStatusSchema>;
