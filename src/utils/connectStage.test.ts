@@ -1,80 +1,91 @@
 import { describe, expect, it } from "vitest";
 
-import { CONNECT_PHASES } from "@src/services/vpnService.ts";
+import { CONNECT_STEPS } from "@src/services/vpnService.ts";
 import {
   advanceProgress,
   clampLabel,
   easeInOut,
-  phaseCap,
-  phaseStart,
+  issueCaption,
   stageStep,
+  stepCap,
+  stepStart,
   tween,
 } from "./connectStage.ts";
 
 /** Runs `seconds` of 60 fps frames from `shown`. */
 function run(
   shown: number,
-  phase: Parameters<typeof advanceProgress>[1],
+  step: Parameters<typeof advanceProgress>[1],
   seconds: number,
 ): number {
   let value = shown;
   for (let i = 0; i < seconds * 60; i++) {
-    value = advanceProgress(value, phase, 1 / 60);
+    value = advanceProgress(value, step, 1 / 60);
   }
   return value;
 }
 
 describe("stageStep", () => {
-  it("groups the phases into the mock's four steps, in order", () => {
-    const steps = CONNECT_PHASES.map(stageStep);
+  it("groups the steps into the mock's four stages, in order", () => {
+    const steps = CONNECT_STEPS.map(stageStep);
     expect(steps[0]).toBe(0);
     expect(steps[steps.length - 1]).toBe(3);
     expect(steps).toEqual([...steps].sort());
     expect(new Set(steps)).toEqual(new Set([0, 1, 2, 3]));
   });
 
-  it("treats a phase-less attempt as the first step", () => {
+  it("treats a step-less attempt as the first stage", () => {
     expect(stageStep(null)).toBe(0);
   });
 });
 
-describe("phaseStart and phaseCap", () => {
-  it("start each phase after the previous one and inside its step's quarter", () => {
+describe("stepStart and stepCap", () => {
+  it("start each step after the previous one and inside its stage's quarter", () => {
     let previous = -1;
-    for (const phase of CONNECT_PHASES) {
-      const start = phaseStart(phase);
+    for (const step of CONNECT_STEPS) {
+      const start = stepStart(step);
       expect(start).toBeGreaterThan(previous);
-      expect(Math.floor(start * 4)).toBe(stageStep(phase));
+      expect(Math.floor(start * 4)).toBe(stageStep(step));
       previous = start;
     }
   });
 
-  it("caps a phase short of the next one, and the last at the end", () => {
-    expect(phaseCap("init")).toBeLessThan(phaseStart("gather_peer_ips"));
-    expect(phaseCap("init")).toBeGreaterThan(phaseStart("init"));
-    expect(phaseCap("connection_established")).toBe(1);
+  it("caps a step short of the next one, and the last at the end", () => {
+    expect(stepCap("checking_exit")).toBeLessThan(stepStart("securing"));
+    expect(stepCap("checking_exit")).toBeGreaterThan(
+      stepStart("checking_exit"),
+    );
+    expect(stepCap("verifying")).toBe(1);
   });
 });
 
 describe("advanceProgress", () => {
   it("catches up to a phase that started ahead of what is shown", () => {
-    expect(run(0, "establish_wg_tunnel", 2)).toBeGreaterThanOrEqual(
-      phaseStart("establish_wg_tunnel"),
+    expect(run(0, "opening_tunnel", 2)).toBeGreaterThanOrEqual(
+      stepStart("opening_tunnel"),
     );
   });
 
   it("creeps during a long phase without reaching the next one", () => {
-    const after = run(phaseStart("register_wg"), "register_wg", 120);
-    expect(after).toBeGreaterThan(phaseStart("register_wg"));
-    expect(after).toBeLessThanOrEqual(phaseCap("register_wg"));
+    const after = run(stepStart("securing"), "securing", 120);
+    expect(after).toBeGreaterThan(stepStart("securing"));
+    expect(after).toBeLessThanOrEqual(stepCap("securing"));
   });
 
   it("winds back when an attempt restarts", () => {
-    expect(run(0.9, "init", 2)).toBeLessThan(phaseCap("init"));
+    expect(run(0.9, "checking_exit", 2)).toBeLessThan(stepCap("checking_exit"));
   });
 
-  it("starts a phase-less attempt at the beginning", () => {
-    expect(run(0, null, 1)).toBeLessThan(phaseStart("gather_peer_ips"));
+  it("starts a step-less attempt at the beginning", () => {
+    expect(run(0, null, 1)).toBeLessThan(stepStart("securing"));
+  });
+});
+
+describe("issueCaption", () => {
+  it("names the issue at the exit and counts the retries", () => {
+    expect(
+      issueCaption({ kind: "insufficient_funds", attempts: 2 }, "Berlin"),
+    ).toBe("Not enough funds to pay the exit in Berlin · retry 2");
   });
 });
 

@@ -12,21 +12,46 @@ function unitVariant<const T extends readonly [string, ...string[]]>(
   return z.object({ type: z.enum(values) }).transform((v) => v.type);
 }
 
-// In attempt order; ConnectStage reads the order as progress.
-export const CONNECT_PHASES = [
-  "init",
-  "gather_peer_ips",
-  "killswitch_lockdown",
-  "generating_wg",
-  "register_wg",
-  "opening_ping",
-  "establish_wg_tunnel",
-  "verify_ping",
-  "adjust_to_main",
-  "connection_established",
+// In attempt order; ConnectStage reads the order as progress. Paying splits by its payment.
+export const CONNECT_STEPS = [
+  "checking_exit",
+  "securing",
+  "opening_tunnel",
+  "paying_requested",
+  "paying_sent",
+  "verifying",
 ] as const;
-export const ConnectPhaseSchema = unitVariant(CONNECT_PHASES);
-export type ConnectPhase = z.infer<typeof ConnectPhaseSchema>;
+export type ConnectStep = (typeof CONNECT_STEPS)[number];
+
+export const ConnectStepSchema = z
+  .discriminatedUnion("type", [
+    z.object({ type: z.literal("checking_exit") }),
+    z.object({ type: z.literal("securing") }),
+    z.object({ type: z.literal("opening_tunnel") }),
+    z.object({
+      type: z.literal("paying"),
+      payment: unitVariant(["requested", "sent"]),
+    }),
+    z.object({ type: z.literal("verifying") }),
+  ])
+  .transform((v): ConnectStep =>
+    v.type === "paying" ? `paying_${v.payment}` : v.type
+  );
+
+export const ConnectIssueSchema = z.object({
+  kind: unitVariant([
+    "exit_unreachable",
+    "payment_route_unavailable",
+    "registration_failed",
+    "payment_failed",
+    "insufficient_funds",
+    "tunnel_unverified",
+    "other",
+  ]),
+  // In a row, across the daemon's retries of this connect.
+  attempts: z.number(),
+});
+export type ConnectIssue = z.infer<typeof ConnectIssueSchema>;
 
 export const DisconnectPhaseSchema = unitVariant([
   "disconnecting",
@@ -79,7 +104,9 @@ export const ConnectionSchema = z.discriminatedUnion("type", [
     type: z.literal("connecting"),
     destination: z.string(),
     since: z.number(),
-    phase: ConnectPhaseSchema,
+    step: ConnectStepSchema,
+    // null while the attempt progresses.
+    issue: ConnectIssueSchema.nullable(),
     // null until the session opens.
     pix: PixChunkStatsSchema.nullable(),
   }),
@@ -88,7 +115,8 @@ export const ConnectionSchema = z.discriminatedUnion("type", [
     destination: z.string(),
     since: z.number(),
     // null while the daemon waits on route health before the next attempt.
-    phase: ConnectPhaseSchema.nullable(),
+    step: ConnectStepSchema.nullable(),
+    issue: ConnectIssueSchema.nullable(),
   }),
   z.object({
     type: z.literal("connected"),

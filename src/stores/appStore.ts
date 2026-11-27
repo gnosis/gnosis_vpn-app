@@ -590,21 +590,25 @@ export function createAppStore(): AppStoreTuple {
     const destinationChanged =
       connectionDestination(prev) !== connectionDestination(next);
     const typeChanged = prev.type !== next.type;
-    const prevPhase = "phase" in prev ? prev.phase : null;
+    // An issue's retries count up, so each one is logged.
+    const progress = (c: Connection): string | null => {
+      if (!("step" in c) || c.step === null) return null;
+      return c.issue
+        ? `${c.step}, ${c.issue.kind} (retry ${c.issue.attempts})`
+        : c.step;
+    };
+    const progressChanged = typeChanged || progress(prev) !== progress(next);
 
-    if (next.type === "connecting") {
-      const phaseChanged = typeChanged || prevPhase !== next.phase;
-      if (destinationChanged || phaseChanged) {
-        log(`Connecting: ${display(next.destination)} - ${next.phase}`);
-      }
+    if (next.type === "connecting" && (destinationChanged || progressChanged)) {
+      log(`Connecting: ${display(next.destination)} - ${progress(next)}`);
     }
 
-    // Phase-less reconnects (waiting on route health) are logged by appLog's logStatus.
-    if (next.type === "reconnecting" && next.phase) {
-      const phaseChanged = typeChanged || prevPhase !== next.phase;
-      if (destinationChanged || phaseChanged) {
-        log(`Reconnecting: ${display(next.destination)} - ${next.phase}`);
-      }
+    // Step-less reconnects (waiting on route health) are logged by appLog's logStatus.
+    if (
+      next.type === "reconnecting" && next.step &&
+      (destinationChanged || progressChanged)
+    ) {
+      log(`Reconnecting: ${display(next.destination)} - ${progress(next)}`);
     }
 
     const newlyConnected = next.type === "connected" &&

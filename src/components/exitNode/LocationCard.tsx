@@ -44,7 +44,8 @@ export default function LocationCard(props: {
     liveHere,
     reconnecting,
     attemptInFlight,
-    connectPhase,
+    connectStep,
+    connectIssue,
     connectSince,
     waitingCaption,
     stallText,
@@ -200,7 +201,8 @@ export default function LocationCard(props: {
                 <div class="flex min-h-0 flex-col overscroll-contain border-t border-dashed border-line-dash pl-3 scroller-3 transition-opacity duration-200 starting:opacity-0">
                   <Show when={attemptInFlight()}>
                     <ConnectStage
-                      phase={connectPhase()}
+                      step={connectStep()}
+                      issue={connectIssue()}
                       seed={connectSince()}
                       exitName={name()}
                       caption={waitingCaption()}

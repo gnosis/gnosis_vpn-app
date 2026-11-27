@@ -92,7 +92,8 @@ function connectingTo(
       type: "connecting",
       destination: id,
       since: 0,
-      phase: "init",
+      step: "checking_exit",
+      issue: null,
       pix: null,
     },
   };
