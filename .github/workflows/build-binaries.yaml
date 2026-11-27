@@ -88,6 +88,10 @@ jobs:
         env:
           # Fork PRs get no secrets: build unsigned instead of failing the import.
           HAS_APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE_DEVELOPER_P12_BASE64 != '' }}
+      - name: Expose Homebrew rustup proxies
+        # Depot's macOS image ships keg-only Homebrew rustup: rustup is on PATH, rustc/cargo are not.
+        if: startsWith(inputs.runner, 'depot-macos')
+        run: echo "$(brew --prefix rustup)/bin" >> "$GITHUB_PATH"
       - name: Install Rust toolchain (stable) + targets
         uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with:
