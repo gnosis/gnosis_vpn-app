@@ -4,12 +4,17 @@ import { downloadDir, join } from "@tauri-apps/api/path";
 import { useAppStore } from "@src/stores/appStore.ts";
 import { useSettingsStore } from "@src/stores/settingsStore.ts";
 import { type Destination, VPNService } from "@src/services/vpnService.ts";
-import { exitDisplayName, exitShortId } from "@src/utils/destinations.ts";
+import {
+  exitDisplayName,
+  exitShortId,
+  isVpnActive,
+} from "@src/utils/destinations.ts";
 import { logBundleFileName } from "@src/utils/logBundle.ts";
 import { logInfo } from "@src/utils/appLog.ts";
 import { Dropdown } from "@src/components/common/Dropdown.tsx";
 import ExportLogsModal from "@src/components/ExportLogsModal.tsx";
 import UploadLogsModal from "@src/components/UploadLogsModal.tsx";
+import ModeSwitchModal from "@src/components/settings/ModeSwitchModal.tsx";
 import BackIcon from "@src/components/icons/BackIcon.tsx";
 import AccountId from "@src/components/settings/AccountId.tsx";
 import {
@@ -95,7 +100,7 @@ async function exportLogs() {
 export default function GeneralTab(
   props: { onUpdate: () => void; onAbout: () => void },
 ) {
-  const [appState] = useAppStore();
+  const [appState, appActions] = useAppStore();
   const [settings, settingsActions] = useSettingsStore();
   const { nodeAddress } = useFunding();
   const preferredExit = (): ExitOption => {
@@ -110,6 +115,27 @@ export default function GeneralTab(
   const updateWaiting = () => appState.availableVersion !== null;
 
   const [showUpload, setShowUpload] = createSignal(false);
+
+  // A switch restarts the service worker, so a running connection ends.
+  const [confirmBootstrap, setConfirmBootstrap] = createSignal<
+    boolean | null
+  >(null);
+  const requestBootstrapMode = (on: boolean) => {
+    const vpnActive = isVpnActive(
+      appState.vpnStatus,
+      appState.targetDestination,
+    );
+    if (vpnActive) {
+      setConfirmBootstrap(on);
+      return;
+    }
+    void appActions.setBootstrapMode(on);
+  };
+  const confirmBootstrapMode = () => {
+    const on = confirmBootstrap();
+    setConfirmBootstrap(null);
+    if (on !== null) void appActions.setBootstrapMode(on);
+  };
   // an error seen here stays here; one from an export still running shows on return
   onCleanup(() => setExportError(null));
 
@@ -129,6 +155,23 @@ export default function GeneralTab(
             onChange={(on) => void settingsActions.setConnectOnStartup(on)}
           />
         </SettingsRow>
+        <Show when={appState.bootstrapAvailable}>
+          <SettingsRow
+            title="Bootstrap mode"
+            description="Use only the bootstrap exits and relays. Switching reconnects the VPN."
+          >
+            <Switch
+              label="Bootstrap mode"
+              checked={appState.serviceMode === "bootstrap"}
+              onChange={requestBootstrapMode}
+            />
+          </SettingsRow>
+          <ModeSwitchModal
+            bootstrap={confirmBootstrap()}
+            onConfirm={confirmBootstrapMode}
+            onClose={() => setConfirmBootstrap(null)}
+          />
+        </Show>
       </SettingsCard>
 
       <SettingsHeading>App Settings</SettingsHeading>

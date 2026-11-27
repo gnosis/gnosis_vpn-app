@@ -37,6 +37,8 @@ const BASE: StatusResponse = {
   pix_price_per_byte: 0n,
   probing: null,
   recent: [],
+  mode: "normal",
+  bootstrap_available: false,
 };
 
 const CONNECTING: Connection = {
@@ -107,6 +109,8 @@ const BASE_APP_STATE: AppState = {
   pixChunkBytes: null,
   pixPricePerByte: 0n,
   recent: [],
+  serviceMode: "normal",
+  bootstrapAvailable: false,
   balance: null,
   packageVersion: null,
   toolkit: { status: "unknown", version: null, packageVersion: null },

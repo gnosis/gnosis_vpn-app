@@ -5,9 +5,11 @@ import {
   type DestinationState,
   type ExitVersions,
   type LoadAvg,
+  type Mode,
   type ProbeView,
   type QuickProbeCheck,
   type QuickProbeState,
+  type SetModeResponse,
   type Slots,
 } from "@src/services/vpnService.ts";
 
@@ -219,9 +221,15 @@ export function routeGradeLabel(grade: RouteGrade): string {
   return grade.kind === "unmeasured" ? "Not measured yet" : "";
 }
 
-/** The exit list's name for an exit: its country, or its title when the client found none. */
+/** The exit list's name for an exit: a configured exit's id, else its country, else its title. */
 export function exitDisplayName(d: Destination): string {
   return d.names.display_name;
+}
+
+/** The country, when the exit's name is not already it. */
+export function exitSecondaryCountry(d: Destination): string | null {
+  const country = d.names.country;
+  return country === d.names.display_name ? null : country;
 }
 
 /** Tells apart exits that share a country. */
@@ -259,6 +267,40 @@ export function pickerRows(
     return shown;
   }
   return [current, ...shown];
+}
+
+/**
+ * What a mode request leaves behind: the mode to reconnect in, and whether to save the setting,
+ * which only follows a mode the service runs. `response` is null when the request failed. A switch while an earlier switch still waits
+ * to reconnect keeps reconnecting, since that earlier switch is what ended the session.
+ */
+export function modeRequestOutcome(
+  mode: Mode,
+  response: SetModeResponse | null,
+  sessionUp: boolean,
+  pending: Mode | null,
+): { reconnect: Mode | null; saveSetting: boolean } {
+  if (response === "switching") {
+    return {
+      reconnect: sessionUp || pending !== null ? mode : null,
+      saveSetting: true,
+    };
+  }
+  return { reconnect: pending, saveSetting: response === "unchanged" };
+}
+
+/**
+ * After a mode switch ended a session: the Auto pick, once the status shows the requested mode
+ * and one of its exits is ready. The last session and the preferred exit belong to the old mode.
+ */
+export function modeSwitchReconnectTarget(
+  pending: Mode | null,
+  statusMode: Mode,
+  destinations: Record<string, DestinationState>,
+  context: RankContext,
+): string | null {
+  if (pending === null || pending !== statusMode) return null;
+  return pickStartupTarget(destinations, null, null, context);
 }
 
 /** Connect-on-startup pick: where the last session left off, else the preferred location, else the best — each only while ready. */
