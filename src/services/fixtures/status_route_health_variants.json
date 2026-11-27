@@ -480,14 +480,14 @@
   "bootstrap_available": false,
   "exit_names": {
     "pinned-exit": {
-      "display_name": "pinned-exit (Frankfurt-1)",
+      "display_name": "pinned-exit",
       "title": "pinned-exit (Frankfurt-1)",
       "short_id": "AaaAa",
       "country": null,
       "description": "10Gbit uplink, no logs kept"
     },
     "test-exit": {
-      "display_name": "Germany",
+      "display_name": "test-exit",
       "title": "test-exit",
       "short_id": "AaaAa",
       "country": "Germany",

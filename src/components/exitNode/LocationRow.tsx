@@ -2,6 +2,7 @@ import { type JSX, Show } from "solid-js";
 import type { Destination } from "@src/services/vpnService.ts";
 import {
   exitDisplayName,
+  exitSecondaryCountry,
   exitShortId,
   type RouteGrade,
   routeGradeLabel,
@@ -81,6 +82,7 @@ export default function LocationRow(props: {
   const destination = () => props.destination;
   const name = () => exitDisplayName(destination());
   const shortId = () => exitShortId(destination());
+  const country = () => exitSecondaryCountry(destination());
   const grade = () => props.grade;
   const cancels = () => props.actionLabel === "Cancel";
 
@@ -133,6 +135,9 @@ export default function LocationRow(props: {
           <ShortId id={shortId()} />
         </span>
         <span class="flex items-center gap-1.5 text-xs text-text-subtle">
+          <Show when={country()}>
+            {(country) => <span class="truncate">{country()}</span>}
+          </Show>
           <SignalBars grade={grade()} bare={props.onSelect !== undefined} />
           {routeGradeLabel(grade())}
         </span>

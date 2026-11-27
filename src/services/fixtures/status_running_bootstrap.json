@@ -54,7 +54,7 @@
   "bootstrap_available": true,
   "exit_names": {
     "bootstrap-amsterdam": {
-      "display_name": "Netherlands",
+      "display_name": "bootstrap-amsterdam",
       "title": "bootstrap-amsterdam",
       "short_id": "AaaAa",
       "country": "Netherlands",
