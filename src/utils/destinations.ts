@@ -221,9 +221,15 @@ export function routeGradeLabel(grade: RouteGrade): string {
   return grade.kind === "unmeasured" ? "Not measured yet" : "";
 }
 
-/** The exit list's name for an exit: its country, or its title when the client found none. */
+/** The exit list's name for an exit: a configured exit's id, else its country, else its title. */
 export function exitDisplayName(d: Destination): string {
   return d.names.display_name;
+}
+
+/** The country, when the exit's name is not already it. */
+export function exitSecondaryCountry(d: Destination): string | null {
+  const country = d.names.country;
+  return country === d.names.display_name ? null : country;
 }
 
 /** Tells apart exits that share a country. */

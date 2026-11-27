@@ -10,7 +10,7 @@ const META_FIELD_MAX_CHARS: usize = 64;
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct ExitNames {
-    /// The exit list's name: the country, or the title when the client found none.
+    /// The exit list's name: a configured exit's id, else the country, else the title.
     pub display_name: String,
     pub title: String,
     /// The address's last five characters: tells apart exits that share a country.
@@ -25,8 +25,15 @@ impl ExitNames {
         let title = title(d);
         let country = d.geo.as_ref().map(|geo| country(geo.country));
         let address = d.address.to_string();
+        // A configured id is the user's own handle, so it names the exit over the country.
+        let configured = d.source != ipc::DestinationSource::Discovered;
+        let display_name = if configured {
+            d.id.to_string()
+        } else {
+            country.clone().unwrap_or_else(|| title.clone())
+        };
         ExitNames {
-            display_name: country.clone().unwrap_or_else(|| title.clone()),
+            display_name,
             title,
             short_id: address[address.len() - 5..].to_string(),
             country,
@@ -158,6 +165,20 @@ pub(crate) mod tests {
         assert_eq!(ExitNames::of(&d).title, "my-exit (Frankfurt 1)");
         d.meta.name = None;
         assert_eq!(ExitNames::of(&d).title, "my-exit");
+    }
+
+    #[test]
+    fn a_configured_exit_is_listed_by_its_id_over_its_country() {
+        let mut d = destination("GVPN-Bootstrap-1-DC-Amsterdam", Some("nl"));
+        d.source = ipc::DestinationSource::Configured;
+        let names = ExitNames::of(&d);
+        assert_eq!(names.label(), "GVPN-Bootstrap-1-DC-Amsterdam #BeAed");
+        assert_eq!(names.country.as_deref(), Some("Netherlands"));
+        d.source = ipc::DestinationSource::ConfiguredAndDiscovered;
+        assert_eq!(
+            ExitNames::of(&d).display_name,
+            "GVPN-Bootstrap-1-DC-Amsterdam"
+        );
     }
 
     #[test]

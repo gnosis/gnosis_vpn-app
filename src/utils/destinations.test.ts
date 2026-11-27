@@ -8,6 +8,7 @@ import type {
 import {
   destinationLabel,
   destinationSearchText,
+  exitSecondaryCountry,
   freeSlots,
   getExitData,
   gradeRank,
@@ -858,5 +859,22 @@ describe("pickerRows", () => {
       limit: 5,
     });
     expect(rows).toEqual([]);
+  });
+});
+
+describe("exitSecondaryCountry", () => {
+  it("is the country under a configured exit's id", () => {
+    const d = makeDestination({
+      id: "GVPN-Bootstrap-1-DC-Amsterdam",
+      names: { country: "Netherlands" },
+    });
+    expect(exitSecondaryCountry(d)).toBe("Netherlands");
+  });
+
+  it("is absent when the name already is the country", () => {
+    const d = makeDestination({
+      names: { display_name: "Netherlands", country: "Netherlands" },
+    });
+    expect(exitSecondaryCountry(d)).toBeNull();
   });
 });
